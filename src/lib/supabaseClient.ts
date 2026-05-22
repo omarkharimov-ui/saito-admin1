@@ -1,0 +1,365 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      products: {
+        Row: {
+          id: string;
+          name: Json;
+          description: Json | null;
+          price: number;
+          discount_price: number | null;
+          category_id: string | null;
+          image_url: string | null;
+          ingredients: Json | null;
+          tags: string[] | null;
+          calories: number | null;
+          is_spicy: boolean | null;
+          is_special: boolean | null;
+          is_in_stock: boolean | null;
+          is_available: boolean | null;
+          views_count: number | null;
+          translations: Json | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: Json;
+          description?: Json | null;
+          price: number;
+          discount_price?: number | null;
+          category_id?: string | null;
+          image_url?: string | null;
+          ingredients?: Json | null;
+          tags?: string[] | null;
+          calories?: number | null;
+          is_spicy?: boolean | null;
+          is_special?: boolean | null;
+          is_in_stock?: boolean | null;
+          is_available?: boolean | null;
+          views_count?: number | null;
+          translations?: Json | null;
+          created_at?: string | null;
+        };
+        Update: {
+          name?: Json;
+          description?: Json | null;
+          price?: number;
+          discount_price?: number | null;
+          category_id?: string | null;
+          image_url?: string | null;
+          ingredients?: Json | null;
+          tags?: string[] | null;
+          calories?: number | null;
+          is_spicy?: boolean | null;
+          is_special?: boolean | null;
+          is_in_stock?: boolean | null;
+          is_available?: boolean | null;
+          views_count?: number | null;
+          translations?: Json | null;
+        };
+        Relationships: [];
+      };
+      categories: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string | null;
+          image_url: string | null;
+          translations: Json | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug?: string | null;
+          image_url?: string | null;
+          translations?: Json | null;
+          created_at?: string | null;
+        };
+        Update: {
+          name?: string;
+          slug?: string | null;
+          image_url?: string | null;
+          translations?: Json | null;
+        };
+        Relationships: [];
+      };
+      orders: {
+        Row: {
+          id: string;
+          table_number: number | null;
+          total_amount: number | null;
+          status: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
+          customer_note: string | null;
+          returned_amount: number | null;
+          items: Json | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          table_number?: number | null;
+          total_amount?: number | null;
+          status: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
+          customer_note?: string | null;
+          returned_amount?: number | null;
+          items?: Json | null;
+          created_at?: string | null;
+        };
+        Update: {
+          table_number?: number | null;
+          total_amount?: number | null;
+          status?: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
+          customer_note?: string | null;
+          returned_amount?: number | null;
+          items?: Json | null;
+        };
+        Relationships: [];
+      };
+      order_items: {
+        Row: {
+          id: string;
+          order_id: string;
+          product_id: string | null;
+          variant_id: string | null;
+          product_name: string | null;
+          quantity: number | null;
+          unit_price: number | null;
+          total_price: number | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          product_id?: string | null;
+          variant_id?: string | null;
+          product_name?: string | null;
+          quantity?: number | null;
+          unit_price?: number | null;
+          total_price?: number | null;
+          created_at?: string | null;
+        };
+        Update: {
+          product_id?: string | null;
+          variant_id?: string | null;
+          product_name?: string | null;
+          quantity?: number | null;
+          unit_price?: number | null;
+          total_price?: number | null;
+        };
+        Relationships: [];
+      };
+      reservations: {
+        Row: {
+          id: string;
+          name: string | null;
+          phone: string | null;
+          guests: number | null;
+          date: string | null;
+          time: string | null;
+          status: 'pending' | 'confirmed' | 'cancelled' | 'expired' | string;
+          note: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name?: string | null;
+          phone?: string | null;
+          guests?: number | null;
+          date?: string | null;
+          time?: string | null;
+          status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | string;
+          note?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          name?: string | null;
+          phone?: string | null;
+          guests?: number | null;
+          date?: string | null;
+          time?: string | null;
+          status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | string;
+          note?: string | null;
+        };
+        Relationships: [];
+      };
+      campaigns: {
+        Row: {
+          id: string;
+          title: string | null;
+          description: string | null;
+          type: string | null;
+          target_type: string | null;
+          target_id: string | null;
+          discount_value: number | null;
+          start_time: string | null;
+          end_time: string | null;
+          end_date: string | null;
+          status: string | null;
+          image_url: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          title?: string | null;
+          description?: string | null;
+          type?: string | null;
+          target_type?: string | null;
+          target_id?: string | null;
+          discount_value?: number | null;
+          start_time?: string | null;
+          end_time?: string | null;
+          end_date?: string | null;
+          status?: string | null;
+          image_url?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          title?: string | null;
+          description?: string | null;
+          type?: string | null;
+          target_type?: string | null;
+          target_id?: string | null;
+          discount_value?: number | null;
+          start_time?: string | null;
+          end_time?: string | null;
+          end_date?: string | null;
+          status?: string | null;
+          image_url?: string | null;
+        };
+        Relationships: [];
+      };
+      settings: {
+        Row: {
+          id: string;
+          opening_hours: string | null;
+          qr_table_count: number | null;
+        };
+        Insert: {
+          id: string;
+          opening_hours?: string | null;
+          qr_table_count?: number | null;
+        };
+        Update: {
+          opening_hours?: string | null;
+          qr_table_count?: number | null;
+        };
+        Relationships: [];
+      };
+      product_variants: {
+        Row: {
+          id: string;
+          product_id: string;
+          name: string;
+          price: number;
+          discount_price: number | null;
+          image_url: string | null;
+          is_default: boolean;
+          variant_type: 'olcu' | 'nov' | null;
+          description: string | null;
+          ingredients: string | null;
+          is_special: boolean;
+          is_spicy: boolean;
+          parent_variant_id: string | null;
+          translations: Record<string, unknown> | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          name: string;
+          price: number;
+          discount_price?: number | null;
+          image_url?: string | null;
+          is_default?: boolean;
+          variant_type?: 'olcu' | 'nov' | null;
+          description?: string | null;
+          ingredients?: string | null;
+          is_special?: boolean;
+          is_spicy?: boolean;
+          parent_variant_id?: string | null;
+          translations?: Record<string, unknown> | null;
+          created_at?: string | null;
+        };
+        Update: {
+          product_id?: string;
+          name?: string;
+          price?: number;
+          discount_price?: number | null;
+          image_url?: string | null;
+          is_default?: boolean;
+          variant_type?: 'olcu' | 'nov' | null;
+          description?: string | null;
+          ingredients?: string | null;
+          is_special?: boolean;
+          is_spicy?: boolean;
+          parent_variant_id?: string | null;
+          translations?: Record<string, unknown> | null;
+        };
+        Relationships: [];
+      };
+      cancelled_orders: {
+        Row: {
+          id: string;
+          order_id: string | null;
+          table_number: number | null;
+          reason: string | null;
+          reason_text: string | null;
+          total_amount: number | null;
+          items: Json | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          order_id?: string | null;
+          table_number?: number | null;
+          reason?: string | null;
+          reason_text?: string | null;
+          total_amount?: number | null;
+          items?: Json | null;
+          created_at?: string | null;
+        };
+        Update: {
+          reason?: string | null;
+          reason_text?: string | null;
+          total_amount?: number | null;
+          items?: Json | null;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jbxmlnsicbfkbsatnoej.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpieG1sbnNpY2Jma2JzYXRub2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MDk5NzMsImV4cCI6MjA5MjA4NTk3M30.5voWlyQ40JPH8QHDCLjEuCwWPyPUSHyvChkKsp6Kaps';
+
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    flowType: 'pkce',
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'saito-admin',
+    },
+    fetch: (url: RequestInfo | URL, options?: RequestInit) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+    },
+  },
+});

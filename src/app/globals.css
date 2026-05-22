@@ -1,0 +1,121 @@
+/* ═══════════════════════════════════════════
+   SAITO ADMIN — Global Styles Entry Point
+   ═══════════════════════════════════════════
+   Layer order matters — do NOT reorder imports.
+
+   1. Tailwind base
+   2. Foundation  (tokens, background, variables)
+   3. Surfaces    (cards, glass, borders, shadows)
+   4. Typography  (fonts, scales, hierarchy)
+   5. Animations  (keyframes, motion utilities)
+   ═══════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════
+   CRITICAL: FOUC Prevention - Render Blocking
+   ═══════════════════════════════════════════ */
+:root { background-color: #0a0a0a !important; }
+html { background-color: #0a0a0a !important; }
+html.dark { background-color: #0a0a0a !important; }
+body { background-color: #0a0a0a !important; color: #ffffff !important; }
+
+@import "tailwindcss";
+@import "../styles/foundation.css";
+@import "../styles/surfaces.css";
+@import "../styles/typography.css";
+@import "../styles/animations.css";
+@import "../styles/mobile-premium.css";
+
+/* ── Tailwind theme tokens (must stay in globals.css — @theme is Tailwind v4 specific) ── */
+@theme inline {
+  --color-background:  var(--background);
+  --color-foreground:  var(--foreground);
+  --color-card:        var(--card);
+  --color-gold:        var(--gold);
+  --color-gold-hover:  var(--gold-hover);
+  --font-serif: "Playfair Display", serif;
+  --font-sans:  "Noto Sans", var(--font-geist-sans), "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════
+   NATIVE APP STYLES — PWA Real App Feel
+   ═══════════════════════════════════════════ */
+
+/* Hide browser UI elements */
+html {
+  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+input,
+textarea,
+[contenteditable],
+.selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Safe area for iPhone notch */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-pb {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  body {
+    position: relative;
+    width: 100%;
+    min-height: 100dvh;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+#root,
+#__next {
+  min-height: 100dvh;
+}
+
+/* Status bar color for iOS */
+@supports (-webkit-touch-callout: none) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Reduce motion on mobile for snappier UI */
+@media (hover: none) and (pointer: coarse) {
+  *, *::before, *::after {
+    animation-duration: 0.25s !important;
+    transition-duration: 0.15s !important;
+  }
+}

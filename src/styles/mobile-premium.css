@@ -1,0 +1,97 @@
+/* Mobil premium hiss — yalnız lg altı, GPU-friendly (transform/opacity) */
+
+@media (max-width: 1023px) {
+  @keyframes mobile-rise-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 14px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes spin-calm {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-spin-calm {
+    animation: spin-calm 1.15s linear infinite;
+  }
+
+  .mobile-page-enter {
+    animation: mobile-rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .mobile-premium-root {
+    --mobile-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .mobile-premium-root button:not(:disabled):not(.no-mobile-press),
+  .mobile-premium-root a[href],
+  .mobile-premium-root .mobile-tap-lift {
+    transition:
+      transform 0.28s var(--mobile-ease),
+      opacity 0.28s ease,
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .mobile-premium-root button:not(:disabled):not(.no-mobile-press):active,
+  .mobile-premium-root a[href]:active,
+  .mobile-premium-root .mobile-tap-lift:active {
+    transform: scale(0.98) translate3d(0, 1px, 0);
+  }
+
+  .mobile-stagger > * {
+    animation: mobile-rise-in 0.5s var(--mobile-ease) both;
+  }
+  .mobile-stagger > *:nth-child(1) { animation-delay: 0.03s; }
+  .mobile-stagger > *:nth-child(2) { animation-delay: 0.07s; }
+  .mobile-stagger > *:nth-child(3) { animation-delay: 0.11s; }
+  .mobile-stagger > *:nth-child(4) { animation-delay: 0.15s; }
+  .mobile-stagger > *:nth-child(5) { animation-delay: 0.19s; }
+  .mobile-stagger > *:nth-child(6) { animation-delay: 0.23s; }
+  .mobile-stagger > *:nth-child(7) { animation-delay: 0.27s; }
+  .mobile-stagger > *:nth-child(8) { animation-delay: 0.31s; }
+
+  /* Sensei / Yoji ikon — sakit axın */
+  .sensei-icon-calm .sensei-circuit-a {
+    animation: circuitFlow 3s linear infinite !important;
+  }
+  .sensei-icon-calm .sensei-circuit-b {
+    animation: circuitFlow 2.2s linear infinite reverse !important;
+  }
+  .sensei-icon-calm .sensei-pulse-glow {
+    animation: sensei-pulse-soft 3.5s ease-in-out infinite !important;
+  }
+}
+
+@keyframes sensei-pulse-soft {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.22;
+    transform: scale(1.02);
+  }
+}
+
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
+  .mobile-page-enter,
+  .mobile-stagger > *,
+  .sensei-icon-calm .sensei-circuit-a,
+  .sensei-icon-calm .sensei-circuit-b,
+  .sensei-icon-calm .sensei-pulse-glow {
+    animation: none !important;
+  }
+  .mobile-premium-root button:active,
+  .mobile-premium-root a:active {
+    transform: none;
+  }
+}

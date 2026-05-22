@@ -1,0 +1,66 @@
+/* ═══════════════════════════════════════════
+   LAYER 5 — TYPOGRAPHY SYSTEM
+   Font scales, heading styles, text hierarchy
+   ═══════════════════════════════════════════ */
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  background: #0D0D0D !important;
+  background-color: #0D0D0D !important;
+}
+
+body {
+  background: #0D0D0D !important;
+  background-color: #0D0D0D !important;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-weight: 450;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* General text */
+p, span, div {
+  font-weight: 450;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+/* Small text */
+.text-xs,
+.text-\[10px\],
+.text-\[11px\] {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+label, .label   { font-weight: 600; letter-spacing: 0.02em; }
+button, .btn    { font-weight: 600; letter-spacing: 0.02em; }
+input, textarea, select { font-weight: 500; letter-spacing: 0.01em; }
+table, td, th   { font-weight: 500; }
+
+/* Gold text stronger */
+.text-gold { font-weight: 600; }
+
+/* ── Secondary text utilities (Zinc-400 palette) ── */
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+
+
+/* ── Consistent scrollbar ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.12); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(212,175,55,0.35); }

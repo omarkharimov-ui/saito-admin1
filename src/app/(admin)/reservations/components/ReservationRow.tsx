@@ -1,0 +1,183 @@
+'use client';
+
+import React from 'react';
+import { CheckCircle, XCircle, Calendar, Users, Phone, Clock, Gift, CakeSlice, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { Reservation } from '@/types';
+
+interface Props {
+  res: Reservation;
+  timeFilter: 'today' | 'future' | 'archive';
+  statusBadge: (status: string) => React.ReactNode;
+  onUpdateStatus: (id: string, status: 'confirmed' | 'cancelled') => void;
+  onDelete: (id: string, name: string) => void;
+}
+
+const getNoteIcon = (note: string) => {
+  const n = note.toLowerCase();
+  if (n.includes('ad gün') || n.includes('ad gun') || n.includes('birthday') || n.includes('tort') || n.includes('cake')) return CakeSlice;
+  if (n.includes('hədiyy') || n.includes('hediyy') || n.includes('gift') || n.includes('surprise')) return Gift;
+  return null;
+};
+
+const isTomorrowDate = (date: string) => {
+  const resDate = new Date(date);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const dayAfter = new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000);
+  return resDate >= tomorrow && resDate < dayAfter;
+};
+
+export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete }: Props) => {
+  const { t } = useLanguage();
+  const isTomorrow = isTomorrowDate(res.date);
+  const NoteIcon = res.note ? getNoteIcon(res.note) : null;
+
+  return (
+    <motion.tr layout initial={false} animate={{ opacity: 1 }} key={res.id} className="hover:bg-white/[0.02] transition-all duration-300">
+      <td className="px-6 py-5">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="text-white font-medium">{res.name}</span>
+            {isTomorrow && (
+              <span className="relative inline-flex items-center text-[9px] font-bold text-gold bg-gold/10 px-1.5 py-0.5 rounded ml-1 ring-1 ring-gold/40">
+                {t('tomorrow').toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-white/40 text-xs mt-1">
+            <Phone size={12} /> {res.phone}
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-5">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 text-white/70 text-xs">
+            <Calendar size={12} className="text-white/30" />
+            {new Date(res.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </div>
+          <div className="flex items-center gap-2 text-white/40 text-xs">
+            <Clock size={12} /> {res.time}
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-5 text-center">
+        <div className="inline-flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg text-white text-sm">
+          <Users size={14} /> {res.guests}
+        </div>
+      </td>
+      <td className="px-6 py-5">{statusBadge(res.status)}</td>
+      <td className="px-6 py-5">
+        {res.note ? (
+          <div className="flex items-start gap-2 max-w-[200px]">
+            {NoteIcon && <NoteIcon size={14} className="text-gold/60 shrink-0 mt-1" />}
+            <span className="text-white/40 text-xs italic truncate" title={res.note}>{res.note}</span>
+          </div>
+        ) : <span className="text-white/10 text-xs">-</span>}
+      </td>
+      <td className="px-6 py-5 text-right">
+        <div className="flex items-center justify-end gap-3 md:gap-4">
+          {res.status === 'pending' && timeFilter !== 'archive' && (
+            <>
+              <button onClick={() => onUpdateStatus(res.id, 'confirmed')} className="p-2.5 inline-flex items-center justify-center text-green-400/70 bg-green-500/[0.07] hover:bg-green-500/[0.12] hover:text-green-300 border border-green-500/[0.12] hover:border-green-500/25 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('confirm')}>
+                <CheckCircle size={17} />
+              </button>
+              <button onClick={() => onUpdateStatus(res.id, 'cancelled')} className="p-2.5 inline-flex items-center justify-center text-red-400/70 bg-red-500/[0.07] hover:bg-red-500/[0.12] hover:text-red-300 border border-red-500/[0.12] hover:border-red-500/25 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('cancel')}>
+                <XCircle size={17} />
+              </button>
+            </>
+          )}
+          {res.status === 'confirmed' && timeFilter !== 'archive' && (
+            <>
+              <button onClick={() => onUpdateStatus(res.id, 'cancelled')} className="p-2.5 inline-flex items-center justify-center text-red-400/70 bg-red-500/[0.07] hover:bg-red-500/[0.12] hover:text-red-300 border border-red-500/[0.12] hover:border-red-500/25 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('cancel')}>
+                <XCircle size={17} />
+              </button>
+              <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 inline-flex items-center justify-center text-white/25 hover:text-red-400 bg-white/[0.04] hover:bg-red-500/[0.08] border border-white/[0.07] hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('delete')}>
+                <Trash2 size={16} />
+              </button>
+            </>
+          )}
+          {(res.status === 'cancelled' || timeFilter === 'archive') && (
+            <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 inline-flex items-center justify-center text-white/25 hover:text-red-400 bg-white/[0.04] hover:bg-red-500/[0.08] border border-white/[0.07] hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('delete')}>
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      </td>
+    </motion.tr>
+  );
+};
+
+export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete }: Props) => {
+  const { t } = useLanguage();
+  const isTomorrow = isTomorrowDate(res.date);
+  const NoteIcon = res.note ? getNoteIcon(res.note) : null;
+  const dateStr = new Date(res.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  return (
+    <motion.div key={res.id} initial={false} animate={{ opacity: 1 }}
+      className="border-b border-white/[0.05] px-4 py-4"
+    >
+      {/* Top row: name + status badge */}
+      <div className="flex items-start justify-between mb-2.5">
+        <div className="flex items-center gap-2">
+          <span className="text-white font-medium text-[15px] tracking-tight">{res.name}</span>
+          {isTomorrow && (
+            <span className="text-[8px] font-bold text-gold bg-gold/10 px-1.5 py-0.5 rounded tracking-widest uppercase ring-1 ring-gold/30">
+              {t('tomorrow')}
+            </span>
+          )}
+        </div>
+        {statusBadge(res.status)}
+      </div>
+
+      {/* Meta row */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/45 mb-2">
+        <span className="flex items-center gap-1"><Phone size={10} className="text-white/25" />{res.phone}</span>
+        <span className="text-white/15">·</span>
+        <span className="flex items-center gap-1"><Calendar size={10} className="text-white/25" />{dateStr}</span>
+        <span className="text-white/15">·</span>
+        <span className="flex items-center gap-1"><Clock size={10} className="text-white/25" />{res.time}</span>
+        <span className="text-white/15">·</span>
+        <span className="flex items-center gap-1"><Users size={10} className="text-white/25" />{res.guests} {t('guests')}</span>
+      </div>
+
+      {/* Note */}
+      {res.note && (
+        <p className="text-[11px] text-white/50 italic flex items-center gap-1.5 mb-2">
+          {NoteIcon && <NoteIcon size={11} className="text-gold/50 shrink-0" />}
+          {res.note}
+        </p>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2 pt-2">
+        {res.status === 'pending' && timeFilter !== 'archive' && (
+          <>
+            <button onClick={() => onUpdateStatus(res.id, 'confirmed')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-green-400 border border-green-500/20 hover:bg-green-500/10 rounded-lg transition-colors">
+              <CheckCircle size={13} />{t('confirm')}
+            </button>
+            <button onClick={() => onUpdateStatus(res.id, 'cancelled')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-red-400 border border-red-500/20 hover:bg-red-500/10 rounded-lg transition-colors">
+              <XCircle size={13} />{t('cancel')}
+            </button>
+          </>
+        )}
+        {res.status === 'confirmed' && timeFilter !== 'archive' && (
+          <button onClick={() => onUpdateStatus(res.id, 'cancelled')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-red-400 border border-red-500/20 hover:bg-red-500/10 rounded-lg transition-colors">
+            <XCircle size={13} />{t('cancel')}
+          </button>
+        )}
+        {(res.status === 'cancelled' || res.status === 'confirmed' || timeFilter === 'archive') && (
+          <button onClick={() => onDelete(res.id, res.name)}
+            className="w-7 h-7 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/[0.08]">
+            <Trash2 size={13} />
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+};

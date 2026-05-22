@@ -1,0 +1,91 @@
+/* ═══════════════════════════════════════════
+   LAYER 1 — FOUNDATION
+   Color tokens, CSS variables, background system
+   ═══════════════════════════════════════════ */
+
+/* ── Core color tokens ── */
+:root {
+  --background:     #0D0D0D;
+  --foreground:     #FFFFFF;
+  --card:           #111111;
+  --gold:           #D4AF37;
+  --gold-hover:     #C9A227;
+  --ease-premium:   cubic-bezier(0.4, 0, 0.2, 1);
+  --app-brightness: 1;
+
+  /* Secondary text — Zinc-400 for visual hierarchy */
+  --text-secondary: #A1A1AA;
+  --text-muted:     #71717A;
+
+  /* Surface levels — layered depth */
+  --surface-0:  #0D0D0D;
+  --surface-1:  rgba(255,255,255,0.05);
+  --surface-2:  rgba(255,255,255,0.08);
+  --surface-3:  rgba(255,255,255,0.12);
+
+  /* Border levels — ultra-thin Obsidian style */
+  --border-subtle:  rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong:  rgba(255,255,255,0.18);
+  --border-focus:   rgba(212,175,55,0.55);
+
+  /* Z-index scale */
+  --z-base:    0;
+  --z-raised:  10;
+  --z-overlay: 40;
+  --z-modal:   50;
+  --z-toast:   60;
+  --z-top:     9999;
+}
+
+/* ── Background — ALL layers nailed to #0a0a0a ── */
+html,
+body {
+  background:       #0D0D0D !important;
+  background-color: #0D0D0D !important;
+  min-height: 100%;
+}
+
+/* ── Weather: Sunny override ── */
+[data-weather='sunny'] {
+  --gold:      #F5C842;
+  --gold-hover:#E6B830;
+  --foreground:#ffffff;
+}
+[data-weather='sunny'] .app-brightness {
+  filter: brightness(1.0) contrast(1.18);
+}
+[data-weather='sunny'] body,
+[data-weather='sunny'] main {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+[data-weather='sunny'] [class*="border-white/"] {
+  --tw-border-opacity: 0.18 !important;
+}
+[data-weather='sunny'] [class*="text-gold"] {
+  text-shadow: 0 0 12px rgba(245,200,66,0.35);
+}
+[data-weather='sunny'] [class*="btn-gradient"],
+[data-weather='sunny'] [class*="border-gold"] {
+  box-shadow: 0 0 0 1px rgba(245,200,66,0.25), 0 4px 16px rgba(245,200,66,0.12) !important;
+}
+
+/* ── Contrast override ── */
+@media (prefers-contrast: more) {
+  html {
+    filter: brightness(1.18) contrast(1.22);
+  }
+}
+[data-contrast='high'] html,
+html[data-contrast='high'] {
+  filter: brightness(1.18) contrast(1.22);
+}
+
+/* ── App brightness filter ── */
+/* Applied to main, NOT body — so fixed modals keep viewport positioning */
+main.app-brightness {
+  filter: brightness(var(--app-brightness));
+  transition: filter 2s ease;
+}
+

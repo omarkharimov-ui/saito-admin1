@@ -1,0 +1,47 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import Sidebar from '../Sidebar';
+import { AdminHeader } from '../AdminHeader';
+import SimpleToaster from './SimpleToaster';
+
+export default function AdminDesktopShell({
+  role,
+  children,
+}: {
+  role: 'admin' | 'superadmin' | null;
+  children: React.ReactNode;
+}) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const handleToggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onResize = () => {
+      if (window.innerWidth >= 1024) setSidebarOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [sidebarOpen]);
+
+  return (
+    <div className="hidden lg:flex h-screen min-h-0 bg-background text-foreground font-sans selection:bg-gold selection:text-black">
+      <SimpleToaster />
+      <Sidebar role={role} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Menyunu bağla"
+          className="fixed inset-0 bg-black/55 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <main className="flex-1 ml-[272px] p-8 min-h-0 overflow-y-auto relative bg-background">
+        <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />
+        {children}
+      </main>
+    </div>
+  );
+}

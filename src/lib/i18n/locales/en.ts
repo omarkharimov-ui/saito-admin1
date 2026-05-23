@@ -223,6 +223,7 @@ export const en: TranslationMap = {
   selected_date: 'Selected date',
   custom_date: 'Custom date',
   clear_archive: 'Clear archive',
+  clear_archive_help: 'This action cannot be undone',
   archive_empty: 'Archive is empty',
 
   // Order Status
@@ -252,6 +253,12 @@ export const en: TranslationMap = {
   tab_archive: 'Archive',
   no_reservations: 'No reservations found',
   archive_clear_confirm: 'Are you sure you want to clear the archive?',
+  select_archive: 'Select archive items',
+  delete_selected: 'Delete selected',
+  cancel_selection: 'Cancel',
+  archive_select_help: 'Choose archived reservations to remove from the list.',
+  archive_delete_confirm: 'Delete selected archive entries? This action cannot be undone.',
+  tap_to_select: 'Tap to select',
 
   // Reservation Status
   res_pending: 'Pending',

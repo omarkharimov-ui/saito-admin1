@@ -219,6 +219,7 @@ export const az = {
   selected_date: 'Seçili tarix',
   custom_date: 'Tarix aralığı',
   clear_archive: 'Arxivi təmizlə',
+  clear_archive_help: 'Bu əməliyyat geri qaytarıla bilməz',
   archive_empty: 'Arxiv boşdur',
 
   // Order Status
@@ -248,6 +249,12 @@ export const az = {
   tab_archive: 'Arxiv',
   no_reservations: 'Rezervasiya tapılmadı',
   archive_clear_confirm: 'Arxivi təmizləmək istədiyinizə əminsiniz?',
+  select_archive: 'Arxivdən seç',
+  delete_selected: 'Seçilənləri sil',
+  cancel_selection: 'Ləğv et',
+  archive_select_help: 'Silmək üçün arxivdəki rezervasiyalar seçin.',
+  archive_delete_confirm: 'Seçilən arxiv girişlərini silmək istəyirsiniz? Bu əməliyyat geri dönməzdir.',
+  tap_to_select: 'Seçmək üçün toxun',
 
   // Reservation Status
   res_pending: 'Gözləyir',

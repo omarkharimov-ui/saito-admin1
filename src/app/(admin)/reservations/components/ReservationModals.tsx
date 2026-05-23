@@ -50,9 +50,11 @@ interface ClearArchiveModalProps {
   clearing: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  title?: string;
+  description?: string;
 }
 
-export const ClearArchiveModal = ({ open, clearing, onConfirm, onCancel }: ClearArchiveModalProps) => {
+export const ClearArchiveModal = ({ open, clearing, onConfirm, onCancel, title, description }: ClearArchiveModalProps) => {
   const { t } = useLanguage();
   if (typeof document === 'undefined') return null;
   return createPortal(
@@ -65,8 +67,8 @@ export const ClearArchiveModal = ({ open, clearing, onConfirm, onCancel }: Clear
               <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
                 <AlertCircle size={32} className="text-red-500" />
               </div>
-              <h3 className="text-xl font-serif font-bold text-white mb-2">{t('clear_archive')}</h3>
-              <p className="text-white/60 text-sm mb-6">{t('confirm_clear_archive')}</p>
+              <h3 className="text-xl font-serif font-bold text-white mb-2">{title ?? t('clear_archive')}</h3>
+              <p className="text-white/60 text-sm mb-6">{description ?? t('confirm_clear_archive')}</p>
               <div className="flex gap-3 w-full">
                 <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-white/10 text-white/60 text-sm font-medium hover:text-white hover:border-white/30 transition-all transition-premium">
                   {t('no')}

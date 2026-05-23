@@ -129,10 +129,22 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
 const AdminDashboard = () => {
   const { t, language, getProductTranslation, getCategoryTranslation } = useLanguage();
   const [products, setProducts] = useState<Product[]>(() => {
-    try { const r = localStorage.getItem('saito_products_cache'); return r ? JSON.parse(r) : []; } catch { return []; }
+    try {
+      const r = localStorage.getItem('saito_products_cache');
+      const parsed = r ? JSON.parse(r) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   });
   const [categories, setCategories] = useState<Category[]>(() => {
-    try { const r = localStorage.getItem('saito_categories_cache'); return r ? JSON.parse(r) : []; } catch { return []; }
+    try {
+      const r = localStorage.getItem('saito_categories_cache');
+      const parsed = r ? JSON.parse(r) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   });
   const [loading, setLoading] = useState(() => {
     try { return !localStorage.getItem('saito_products_cache'); } catch { return true; }
@@ -261,8 +273,8 @@ const AdminDashboard = () => {
       const data = await res.json();
       
       setTodayAov(data.todayAov || 0);
-      setProducts(data.products || []);
-      setCategories(data.categories || []);
+      setProducts(Array.isArray(data.products) ? data.products : []);
+      setCategories(Array.isArray(data.categories) ? data.categories : []);
       setIsHappyHourActive(data.isHappyHourActive);
       if (data.openingHours) setOpeningHours(data.openingHours);
       setSettingsLoaded(true);
@@ -286,7 +298,8 @@ const AdminDashboard = () => {
   };
 
   const isLikelyDrink = useMemo(() => {
-    const cat = categories.find(c => c.id === productForm.category_id);
+    const safeCategories = Array.isArray(categories) ? categories : [];
+    const cat = safeCategories.find(c => c.id === productForm.category_id);
     if (!cat) return false;
     const raw = `${cat.name} ${(cat as any).slug || ''}`;
     const haystack = raw.replace(/\u0130/g, 'i').replace(/\u0131/g, 'i').toLowerCase();
@@ -294,7 +307,8 @@ const AdminDashboard = () => {
   }, [productForm.category_id, categories]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    const safeProducts = Array.isArray(products) ? products : [];
+    return safeProducts.filter(p => {
       const nameStr = typeof p.name === 'string' ? p.name : (p.name as any)?.az || '';
       const matchesSearch = nameStr.toLowerCase().includes(searchQuery.toLowerCase());
       // Handle both direct category_id and nested category.id from Supabase join

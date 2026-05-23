@@ -12,16 +12,22 @@ interface Props {
   todayPendingCount: number;
   futurePendingCount: number;
   searchOpen: boolean;
+  archiveSelectionMode: boolean;
+  selectedArchiveCount: number;
   onTimeFilter: (v: 'today' | 'future' | 'archive') => void;
   onStatusFilter: (v: 'all' | 'pending' | 'confirmed' | 'cancelled') => void;
   onSearch: (v: string) => void;
-  onClearArchive: () => void;
+  onStartArchiveSelection: () => void;
+  onDeleteSelectedArchive: () => void;
+  onCancelArchiveSelection: () => void;
 }
 
 const ReservationFilters = ({
   timeFilter, statusFilter, searchQuery,
   todayPendingCount, futurePendingCount, searchOpen,
-  onTimeFilter, onStatusFilter, onSearch, onClearArchive,
+  archiveSelectionMode, selectedArchiveCount,
+  onTimeFilter, onStatusFilter, onSearch,
+  onStartArchiveSelection, onDeleteSelectedArchive, onCancelArchiveSelection,
 }: Props) => {
   const { t } = useLanguage();
 
@@ -88,18 +94,53 @@ const ReservationFilters = ({
 
         {/* Arxiv təmizləmə — filtrlərdən ayrı, təsadüfi toxunuşdan uzaq */}
         {timeFilter === 'archive' && (
-          <div className="px-4 pt-5 pb-4 mt-2 border-t border-white/[0.06]">
-            <button
-              type="button"
-              onClick={onClearArchive}
-              className="mobile-tap-lift w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-[14px] font-semibold tracking-wide text-red-300/95 bg-red-500/[0.1] border border-red-500/25 active:bg-red-500/[0.16]"
-            >
-              <Trash2 size={17} strokeWidth={2} />
-              {t('clear_archive')}
-            </button>
-            <p className="text-[10px] text-center text-white/30 mt-2.5 leading-relaxed px-2">
-              Bu əməliyyat geri qaytarıla bilməz
-            </p>
+          <div className="px-3 mt-3 border-t border-white/[0.06] pt-3">
+            {archiveSelectionMode ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="inline-flex items-center gap-2 rounded-2xl bg-white/5 px-3 py-2 text-sm text-white/70 border border-white/[0.08]">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white">{selectedArchiveCount}</span>
+                    <span>{t('selected_items')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={onCancelArchiveSelection}
+                      className="rounded-2xl border border-white/[0.08] bg-white/5 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                    >
+                      {t('cancel_selection')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onDeleteSelectedArchive}
+                      disabled={selectedArchiveCount === 0}
+                      className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-red-400"
+                    >
+                      {t('delete_selected')}
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[11px] text-center text-white/40 leading-relaxed px-2">
+                  {t('archive_select_help')}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="mx-auto w-full max-w-[280px]">
+                  <button
+                    type="button"
+                    onClick={onStartArchiveSelection}
+                    className="mobile-tap-lift w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-medium tracking-wide text-red-300 border border-red-500/15 bg-white/5 hover:bg-white/10 transition-all duration-200"
+                  >
+                    <Trash2 size={16} strokeWidth={2} />
+                    {t('select_archive')}
+                  </button>
+                </div>
+                <p className="text-[11px] text-center text-white/40 mt-2 leading-relaxed px-2">
+                  {t('clear_archive_help')}
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -180,15 +221,32 @@ const ReservationFilters = ({
 
             {/* Clear archive */}
             {timeFilter === 'archive' && (
-              <div className="relative group shrink-0">
-                <button onClick={onClearArchive} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-white/40 hover:text-red-400 border border-white/10 hover:border-red-500/30 hover:bg-red-500/5 transition-all hover:-translate-y-0.5 active:translate-y-0">
-                  <Trash2 size={14} />
-                  {t('clear_archive')}
-                </button>
-                <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max -translate-x-1/2 rounded-xl bg-black/80 px-3 py-2 text-[11px] text-gold/90 border border-gold/20 shadow-[0_18px_60px_rgba(0,0,0,0.55)] opacity-0 translate-y-1 transition-all group-hover:opacity-100 group-hover:translate-y-0">
-                  Bu əməliyyat geri qaytarıla bilməz
+              archiveSelectionMode ? (
+                <div className="flex flex-col gap-2 shrink-0">
+                  <div className="flex items-center gap-2 rounded-2xl bg-white/5 px-3 py-2 text-sm text-white/70 border border-white/[0.08]">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white">{selectedArchiveCount}</span>
+                    <span>{t('selected_items')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={onCancelArchiveSelection} className="rounded-2xl border border-white/[0.08] bg-white/5 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10">
+                      {t('cancel_selection')}
+                    </button>
+                    <button onClick={onDeleteSelectedArchive} disabled={selectedArchiveCount === 0} className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-red-400">
+                      {t('delete_selected')}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="relative group shrink-0">
+                  <button onClick={onStartArchiveSelection} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-white/40 hover:text-red-400 border border-white/10 hover:border-red-500/30 hover:bg-red-500/5 transition-all hover:-translate-y-0.5 active:translate-y-0">
+                    <Trash2 size={14} />
+                    {t('select_archive')}
+                  </button>
+                  <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max -translate-x-1/2 rounded-xl bg-black/80 px-3 py-2 text-[11px] text-gold/90 border border-gold/20 shadow-[0_18px_60px_rgba(0,0,0,0.55)] opacity-0 translate-y-1 transition-all group-hover:opacity-100 group-hover:translate-y-0">
+                    {t('clear_archive_help')}
+                  </div>
+                </div>
+              )
             )}
 
             {/* Status filter - sadə dizayn */}

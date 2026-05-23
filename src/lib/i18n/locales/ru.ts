@@ -223,6 +223,7 @@ export const ru: TranslationMap = {
   selected_date: 'Выбранная дата',
   custom_date: 'Произвольная дата',
   clear_archive: 'Очистить архив',
+  clear_archive_help: 'Это действие нельзя отменить',
   archive_empty: 'Архив пуст',
 
   // Order Status
@@ -252,6 +253,12 @@ export const ru: TranslationMap = {
   tab_archive: 'Архив',
   no_reservations: 'Бронирований не найдено',
   archive_clear_confirm: 'Вы уверены, что хотите очистить архив?',
+  select_archive: 'Выбрать архив',
+  delete_selected: 'Удалить выбранное',
+  cancel_selection: 'Отмена',
+  archive_select_help: 'Выберите архивные бронирования для удаления.',
+  archive_delete_confirm: 'Удалить выбранные записи из архива? Это действие нельзя отменить.',
+  tap_to_select: 'Нажмите, чтобы выбрать',
 
   // Reservation Status
   res_pending: 'Ожидает',

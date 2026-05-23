@@ -35,7 +35,8 @@ const ReservationsPage = () => {
 
   /* ─── Confirmation modals state ─── */
   const [clearingArchive, setClearingArchive] = useState(false);
-  const [confirmClearArchive, setConfirmClearArchive] = useState(false);
+  const [archiveSelectionMode, setArchiveSelectionMode] = useState(false);
+  const [selectedArchiveIds, setSelectedArchiveIds] = useState<string[]>([]);
 
   // Single reservation delete confirmation state
   const [confirmDeleteReservation, setConfirmDeleteReservation] = useState<{ id: string; guest: string } | null>(null);
@@ -148,27 +149,36 @@ const ReservationsPage = () => {
     }
   };
 
-  // Clear all archived reservations
-  const handleClearArchiveClick = () => {
+  const handleToggleArchiveSelection = () => {
+    setArchiveSelectionMode((prev) => {
+      if (prev) setSelectedArchiveIds([]);
+      return !prev;
+    });
+  };
+
+  const handleCancelArchiveSelection = () => {
+    setArchiveSelectionMode(false);
+    setSelectedArchiveIds([]);
+  };
+
+  const toggleArchiveReservationSelection = (id: string) => {
+    setSelectedArchiveIds((prev) =>
+      prev.includes(id) ? prev.filter((selectedId) => selectedId !== id) : [...prev, id]
+    );
+  };
+
+  const handleDeleteSelectedArchiveClick = () => {
+    if (selectedArchiveIds.length === 0) return;
     setConfirmClearArchiveModal(true);
   };
 
-  const handleClearArchive = async () => {
+  const handleDeleteSelectedArchive = async () => {
+    const archiveIds = [...selectedArchiveIds];
     setConfirmClearArchiveModal(false);
     setClearingArchive(true);
+
     try {
-      // Get archived reservation IDs
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const archivedIds = reservations
-        .filter(res => {
-          const resDate = new Date(res.date);
-          return resDate < today || res.status === 'expired';
-        })
-        .map(res => res.id);
-      
-      if (archivedIds.length === 0) {
+      if (archiveIds.length === 0) {
         toast.success(t('no_reservations'));
         return;
       }
@@ -176,12 +186,14 @@ const ReservationsPage = () => {
       const { error } = await supabase
         .from('reservations')
         .delete()
-        .in('id', archivedIds);
+        .in('id', archiveIds);
 
       if (error) throw error;
-      
-      setReservations(prev => prev.filter(res => !archivedIds.includes(res.id)));
-      toast.success(`${archivedIds.length} ${t('deleted').toLowerCase()}`);
+
+      setReservations((prev) => prev.filter((res) => !archiveIds.includes(res.id)));
+      setSelectedArchiveIds([]);
+      setArchiveSelectionMode(false);
+      toast.success(`${archiveIds.length} ${t('deleted').toLowerCase()}`);
     } catch (error: any) {
       console.error('Error clearing archive:', error);
       toast.error(error?.message || t('error_deleting'));
@@ -212,6 +224,13 @@ const ReservationsPage = () => {
       toast.error(t('error_deleting'));
     }
   };
+
+  useEffect(() => {
+    if (timeFilter !== 'archive') {
+      setArchiveSelectionMode(false);
+      setSelectedArchiveIds([]);
+    }
+  }, [timeFilter]);
 
   /* ─── Filtering & sorting ─── */
   const filteredReservations = reservations.filter(res => {
@@ -279,7 +298,7 @@ const ReservationsPage = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 mb-0 md:mb-8">
         <div className="shrink-0 px-4 pt-5 pb-3 md:px-0 md:pt-0 md:pb-0 flex items-center justify-between md:block">
-          <h1 className="text-2xl md:text-3xl font-serif font-bold text-white mb-0 md:mb-1">{t('reservations')}</h1>
+          <h1 className="hidden md:block text-2xl md:text-3xl font-serif font-bold text-white mb-0 md:mb-1">{t('reservations')}</h1>
           <p className="hidden md:block text-white/40 text-sm">{t('reservations_subtitle')}</p>
           {/* Search toggle — mobile only, lives in header */}
           <button
@@ -296,10 +315,14 @@ const ReservationsPage = () => {
           todayPendingCount={todayPendingCount}
           futurePendingCount={futurePendingCount}
           searchOpen={searchOpen}
+          archiveSelectionMode={archiveSelectionMode}
+          selectedArchiveCount={selectedArchiveIds.length}
           onTimeFilter={setTimeFilter}
           onStatusFilter={setStatusFilter}
           onSearch={setSearchQuery}
-          onClearArchive={handleClearArchiveClick}
+          onStartArchiveSelection={handleToggleArchiveSelection}
+          onDeleteSelectedArchive={handleDeleteSelectedArchiveClick}
+          onCancelArchiveSelection={handleCancelArchiveSelection}
         />
       </div>
 
@@ -338,6 +361,9 @@ const ReservationsPage = () => {
                       statusBadge={getStatusBadge}
                       onUpdateStatus={updateStatus}
                       onDelete={handleDeleteReservation}
+                      selectionMode={archiveSelectionMode && timeFilter === 'archive'}
+                      selected={selectedArchiveIds.includes(res.id)}
+                      onToggleSelection={toggleArchiveReservationSelection}
                     />
                   ))}
                 </tbody>
@@ -355,6 +381,9 @@ const ReservationsPage = () => {
                 statusBadge={getStatusBadge}
                 onUpdateStatus={updateStatus}
                 onDelete={handleDeleteReservation}
+                selectionMode={archiveSelectionMode}
+                selected={selectedArchiveIds.includes(res.id)}
+                onToggleSelection={toggleArchiveReservationSelection}
               />
             ))}
           </div>
@@ -378,6 +407,9 @@ const ReservationsPage = () => {
                 statusBadge={getStatusBadge}
                 onUpdateStatus={updateStatus}
                 onDelete={handleDeleteReservation}
+                selectionMode={archiveSelectionMode}
+                selected={selectedArchiveIds.includes(res.id)}
+                onToggleSelection={toggleArchiveReservationSelection}
               />
             ))}
           </div>
@@ -397,8 +429,10 @@ const ReservationsPage = () => {
       <ClearArchiveModal
         open={confirmClearArchiveModal}
         clearing={clearingArchive}
-        onConfirm={handleClearArchive}
+        onConfirm={handleDeleteSelectedArchive}
         onCancel={() => setConfirmClearArchiveModal(false)}
+        title={t('delete_selected')}
+        description={t('archive_delete_confirm')}
       />
     </div>
   );

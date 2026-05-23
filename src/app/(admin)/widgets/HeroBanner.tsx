@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, TrendingUp } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -154,11 +154,27 @@ export default function HeroBanner() {
             
             <div className="flex items-end justify-between">
               <h2 className="font-serif font-bold text-white leading-none tracking-tight relative z-10">
-                {loading ? (
-                  <span className="block h-14 w-48 rounded-xl bg-white/[0.05] animate-pulse" />
-                ) : (
-                  <span className="text-5xl md:text-6xl">{revenueValue}</span>
-                )}
+                <AnimatePresence mode="wait">
+                  {loading ? (
+                    <motion.span
+                      key="loading-revenue"
+                      initial={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="block h-14 w-48 rounded-xl bg-white/[0.05] animate-pulse"
+                    />
+                  ) : (
+                    <motion.span
+                      key="loaded-revenue"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-5xl md:text-6xl"
+                    >
+                      {revenueValue}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </h2>
               
               {/* Decorative sparkline SVG */}
@@ -192,11 +208,36 @@ export default function HeroBanner() {
                 {t('today_orders')}
               </span>
               <div className="flex items-end gap-2">
-                <span className="font-serif font-bold text-2xl md:text-3xl text-white leading-none">
-                  {loading ? <span className="block h-8 w-10 rounded-md bg-white/[0.05] animate-pulse" /> : stats.todayOrders}
-                </span>
+                <AnimatePresence mode="wait">
+                  {loading ? (
+                    <motion.span
+                      key="loading"
+                      initial={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="block h-8 w-10 rounded-md bg-white/[0.05] animate-pulse"
+                    />
+                  ) : (
+                    <motion.span
+                      key="loaded"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="font-serif font-bold text-2xl md:text-3xl text-white leading-none"
+                    >
+                      {stats.todayOrders}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
                 {!loading && stats.todayOrders > 0 && (
-                  <span className="text-[10px] font-medium text-emerald-400/70 mb-1">↑</span>
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.15, duration: 0.2 }}
+                    className="text-[10px] font-medium text-emerald-400/70 mb-1"
+                  >
+                    ↑
+                  </motion.span>
                 )}
               </div>
             </div>
@@ -206,11 +247,36 @@ export default function HeroBanner() {
                 {t('active_tables')}
               </span>
               <div className="flex items-end gap-2">
-                <span className="font-serif font-bold text-2xl md:text-3xl text-white leading-none">
-                  {loading ? <span className="block h-8 w-10 rounded-md bg-white/[0.05] animate-pulse" /> : stats.activeTables}
-                </span>
+                <AnimatePresence mode="wait">
+                  {loading ? (
+                    <motion.span
+                      key="loading"
+                      initial={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="block h-8 w-10 rounded-md bg-white/[0.05] animate-pulse"
+                    />
+                  ) : (
+                    <motion.span
+                      key="loaded"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="font-serif font-bold text-2xl md:text-3xl text-white leading-none"
+                    >
+                      {stats.activeTables}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
                 {!loading && stats.activeTables > 0 && (
-                  <span className="text-[10px] font-medium text-emerald-400/70 mb-1">↑</span>
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.15, duration: 0.2 }}
+                    className="text-[10px] font-medium text-emerald-400/70 mb-1"
+                  >
+                    ↑
+                  </motion.span>
                 )}
               </div>
             </div>
@@ -219,9 +285,27 @@ export default function HeroBanner() {
               <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-white/30 block mb-2 leading-relaxed">
                 {t('todays_favorite')}
               </span>
-              <span className="font-serif font-bold text-lg md:text-xl text-white truncate block leading-tight">
-                {loading ? <span className="block h-8 w-24 rounded-md bg-white/[0.05] animate-pulse" /> : stats.topProduct}
-              </span>
+              <AnimatePresence mode="wait">
+                {loading ? (
+                  <motion.span
+                    key="loading"
+                    initial={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="block h-8 w-24 rounded-md bg-white/[0.05] animate-pulse"
+                  />
+                ) : (
+                  <motion.span
+                    key="loaded"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="font-serif font-bold text-lg md:text-xl text-white truncate block leading-tight"
+                  >
+                    {stats.topProduct}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>

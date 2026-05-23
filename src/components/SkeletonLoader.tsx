@@ -51,7 +51,11 @@ export function ComboCardSkeleton({ count = 4 }: { count?: number }) {
 
 export function CardSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <motion.div 
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
           <div className="flex gap-4">
@@ -68,13 +72,17 @@ export function CardSkeleton({ count = 6 }: { count?: number }) {
           </div>
         </div>
       ))}
-    </div>
+    </motion.div>
   );
 }
 
 export function TableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div className="space-y-3">
+    <motion.div 
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-3">
       {/* Header */}
       <div className="flex gap-4 px-4 py-3 bg-white/[0.02] rounded-xl">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -91,26 +99,34 @@ export function TableSkeleton({ rows = 8 }: { rows?: number }) {
           <div className="h-4 bg-white/[0.05] rounded w-24" />
         </div>
       ))}
-    </div>
+    </motion.div>
   );
 }
 
 export function StatSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <motion.div 
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
           <div className="h-3 bg-white/[0.05] rounded w-20 mb-3" />
           <div className="h-8 bg-white/[0.05] rounded w-16" />
         </div>
       ))}
-    </div>
+    </motion.div>
   );
 }
 
 export function RowSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="space-y-3">
+    <motion.div 
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-3">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 px-4 py-4 bg-white/[0.02] rounded-xl">
           <div className="w-12 h-12 bg-white/[0.05] rounded-lg" />
@@ -121,6 +137,6 @@ export function RowSkeleton({ count = 6 }: { count?: number }) {
           <div className="h-8 bg-white/[0.05] rounded w-20" />
         </div>
       ))}
-    </div>
+    </motion.div>
   );
 }

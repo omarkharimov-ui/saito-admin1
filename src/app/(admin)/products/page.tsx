@@ -48,10 +48,22 @@ const ProductsPage = () => {
 
   /* ─── Data state ─── */
   const [products, setProducts] = useState<Product[]>(() => {
-    try { const r = localStorage.getItem('saito_products_cache'); return r ? JSON.parse(r) : []; } catch { return []; }
+    try {
+      const r = localStorage.getItem('saito_products_cache');
+      const parsed = r ? JSON.parse(r) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   });
   const [categories, setCategories] = useState<Category[]>(() => {
-    try { const r = localStorage.getItem('saito_categories_cache'); return r ? JSON.parse(r) : []; } catch { return []; }
+    try {
+      const r = localStorage.getItem('saito_categories_cache');
+      const parsed = r ? JSON.parse(r) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   });
   const [loading, setLoading] = useState(() => {
     try { return !localStorage.getItem('saito_products_cache'); } catch { return true; }
@@ -95,7 +107,8 @@ const ProductsPage = () => {
   };
 
   const selectAllProducts = (categoryId: string) => {
-    const ids = products.filter(p => p.category_id === categoryId).map(p => p.id);
+    const safeProducts = Array.isArray(products) ? products : [];
+    const ids = safeProducts.filter(p => p.category_id === categoryId).map(p => p.id);
     const allSelected = ids.every(id => selectedProducts.has(id));
     if (allSelected) setSelectedProducts(prev => new Set([...prev].filter(id => !ids.includes(id))));
     else setSelectedProducts(prev => new Set([...prev, ...ids]));
@@ -203,8 +216,8 @@ const ProductsPage = () => {
       ]);
       if (productsRes.error) throw productsRes.error;
       if (categoriesRes.error) throw categoriesRes.error;
-      const freshProducts = productsRes.data || [];
-      const freshCategories = categoriesRes.data || [];
+      const freshProducts = Array.isArray(productsRes.data) ? productsRes.data : [];
+      const freshCategories = Array.isArray(categoriesRes.data) ? categoriesRes.data : [];
       setProducts(freshProducts);
       setCategories(freshCategories);
       try { localStorage.setItem('saito_products_cache', JSON.stringify(freshProducts)); } catch {}
@@ -293,7 +306,8 @@ const ProductsPage = () => {
 
   /* ─── Derived data ─── */
   const { isDrinkCategory, isNonSpicyCategory } = useMemo(() => {
-    const cat = categories.find(c => c.id === productForm.category_id);
+    const safeCategories = Array.isArray(categories) ? categories : [];
+    const cat = safeCategories.find(c => c.id === productForm.category_id);
     if (!cat) return { isDrinkCategory: false, isNonSpicyCategory: false };
     const dbType = (cat as any).category_type as string | undefined;
     if (dbType === 'drink')   return { isDrinkCategory: true,  isNonSpicyCategory: true };
@@ -317,13 +331,15 @@ const ProductsPage = () => {
   }, [isDrinkCategory, isNonSpicyCategory]);
 
   const groupedProducts = useMemo(() => {
-    const filtered = products.filter(p => {
+    const safeProducts = Array.isArray(products) ? products : [];
+    const safeCategories = Array.isArray(categories) ? categories : [];
+    const filtered = safeProducts.filter(p => {
       const translatedName = getProductTranslation(p).name;
       return translatedName.toLowerCase().includes(searchQuery.toLowerCase()) || p.name.toLowerCase().includes(searchQuery.toLowerCase());
     });
     return filtered.reduce((acc: { [key: string]: { name: string; products: Product[] } }, product) => {
       const catId = product.category_id || 'unassigned';
-      const freshCat = categories.find(c => c.id === catId);
+      const freshCat = safeCategories.find(c => c.id === catId);
       const catName = freshCat ? ((freshCat as any)[`name_${language}`] || freshCat.name) : t('uncategorized');
       if (!acc[catId]) acc[catId] = { name: catName, products: [] };
       acc[catId].products.push(product);

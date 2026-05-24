@@ -1,15 +1,17 @@
 {
   "name": "Saito Admin",
   "short_name": "Saito",
-  "description": "Restaurant Management System",
-  "start_url": "/",
+  "description": "Professional Restaurant Management System - Native App Only",
+  "start_url": "/admin?standalone=true",
   "display": "standalone",
+  "display_override": ["standalone"],
   "background_color": "#0a0a0a",
   "theme_color": "#d4af37",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "az",
   "categories": ["business", "productivity", "restaurant"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -29,14 +31,21 @@
       "name": "Rezervasiyalar",
       "short_name": "Rezerv",
       "description": "Rezervasiyaları idarə et",
-      "url": "/reservations",
+      "url": "/admin/reservations?standalone=true",
       "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Sifarişlər",
       "short_name": "Sifariş",
       "description": "Sifarişləri yoxla",
-      "url": "/orders",
+      "url": "/admin/orders?standalone=true",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Panel",
+      "description": "Əsas panel",
+      "url": "/admin?standalone=true",
       "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ],

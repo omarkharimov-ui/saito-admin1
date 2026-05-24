@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { NotificationProvider } from './context/NotificationContext';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { ThemeProvider } from '@/lib/theme/ThemeContext';
@@ -18,6 +18,15 @@ const WelcomeScreen = dynamic(
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const auth = useAdminAuth();
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     const applyBrightness = () => {
@@ -48,7 +57,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, []);
 
-  if (!auth.authChecked) {
+  if (!auth.authChecked || isMobile === null) {
     return <AdminLoadingScreen />;
   }
 
@@ -66,13 +75,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <div className="lg:hidden">
+      {isMobile ? (
         <AdminMobileShell role={auth.role} onLogout={auth.handleLogout}>
           {children}
         </AdminMobileShell>
-      </div>
-
-      <AdminDesktopShell role={auth.role}>{children}</AdminDesktopShell>
+      ) : (
+        <AdminDesktopShell role={auth.role}>{children}</AdminDesktopShell>
+      )}
     </NotificationProvider>
   );
 }

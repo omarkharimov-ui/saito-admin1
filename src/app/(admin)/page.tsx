@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +19,7 @@ import { HappyHourModal, DeleteProductModal } from './widgets/DashboardModals';
 import { toast } from 'react-hot-toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
 import GoldSelect from '@/components/GoldSelect';
+import DashboardSkeleton from '@/components/DashboardSkeleton';
 
 function SenseiSleepCard({ openingHours }: { openingHours: string }) {
   const [countdown, setCountdown] = useState<{ h: number; m: number; s: number } | null>(null);
@@ -263,8 +265,7 @@ const AdminDashboard = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchDataInternal = async () => {
     try {
       // API route istifadə edirik (RLS recursion-dan qaçmaq üçün)
       const res = await fetch('/api/dashboard');
@@ -292,10 +293,17 @@ const AdminDashboard = () => {
       }
     } catch (error: any) {
       toast.error('Məlumatları yükləmək mümkün olmadı: ' + error.message);
-    } finally {
-      setLoading(false);
     }
   };
+
+  // Debounced version to prevent flickering
+  const debouncedFetchData = useDebounce(() => {
+    setLoading(true);
+    fetchDataInternal().finally(() => setLoading(false));
+  }, 300);
+
+  // Export fetchData for external use (with debounce)
+  const fetchData = debouncedFetchData;
 
   const isLikelyDrink = useMemo(() => {
     const safeCategories = Array.isArray(categories) ? categories : [];
@@ -796,9 +804,14 @@ const AdminDashboard = () => {
   }, [products, todayAov, role, language, t]);
 
   return (
-    <div className="flex flex-col gap-y-4 pb-20 overflow-visible">
+    <div className="flex flex-col gap-y-4 pb-4 lg:pb-20 overflow-visible">
       {/* Hero Banner - Greeting + Live Badge */}
       <HeroBanner />
+
+      {/* Show skeleton when loading to prevent flickering */}
+      {loading ? (
+        <DashboardSkeleton />
+      ) : (
 
       {/* AI Suggestion Section - Yoji Məsləhəti (HeroBanner və Canlı Masa Planı arasında) */}
       {!settingsLoaded ? (
@@ -807,7 +820,7 @@ const AdminDashboard = () => {
         <>
           {/* DESKTOP — Yoji AI Advice Card */}
           <div
-            className="hidden md:block p-8 relative z-10 group rounded-2xl overflow-hidden flex-shrink-0"
+            className="hidden lg:block p-8 relative z-10 group rounded-2xl overflow-hidden flex-shrink-0"
             style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
           >
             <div className="flex items-start gap-6 relative z-0">
@@ -888,7 +901,7 @@ const AdminDashboard = () => {
 
           {/* MOBILE — Glassmorphism Yoji card */}
           <div
-            className="md:hidden relative"
+            className="lg:hidden relative"
           >
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-gold/30 via-white/[0.06] to-transparent p-[1px]">
               <div className="w-full h-full rounded-2xl bg-[#080808]" />
@@ -1023,11 +1036,13 @@ const AdminDashboard = () => {
             await supabase.from('products').delete().eq('id', confirmDeleteProduct.id);
             toast.success(t('product_deleted'));
             fetchData();
-          } catch { toast.error(t('error')); }
+          } catch { 
+            toast.error(t('error')); 
+          }
           setConfirmDeleteProduct(null);
         }}
       />
-
+      )}
     </div>
   );
 };

@@ -43,7 +43,6 @@ const AccountTab = () => {
     if (storedRole) setRole(storedRole);
 
     const loadPasswords = async () => {
-      console.log('[LoadPasswords] Fetching settings...');
       
       // First try to get row with id='1'
       const { data, error } = await supabase
@@ -52,25 +51,21 @@ const AccountTab = () => {
         .eq('id', '1')
         .single();
 
-      console.log('[LoadPasswords] DB response:', { data, error });
 
       if (error) {
         console.error('[LoadPasswords] Error:', error);
         // If no row found, we use defaults
         if (error.message?.includes('0 rows')) {
-          console.log('[LoadPasswords] No row found, using defaults');
         }
       }
 
       if (data) {
-        console.log('[LoadPasswords] Loaded from DB:', data);
         setStoredPasswords({
           superadmin: data.superadmin_password || 'saito2025',
           admin: data.admin_password || 'admin123',
           kitchen: data.kitchen_password || 'kitchen2025'
         });
       } else {
-        console.log('[LoadPasswords] Using default passwords');
       }
       setLoading(false);
     };
@@ -108,14 +103,12 @@ const AccountTab = () => {
 
     const columnName = `${accountKey}_password`;
 
-    console.log('[SavePassword] Saving to DB:', { column: columnName, value: account.newPassword });
 
     // Use upsert to insert or update the settings row
     // Try to update existing row first (without id filter, update the first row)
     const { data: allSettings } = await supabase.from('settings').select('id').limit(1);
     const existingId = allSettings?.[0]?.id;
     
-    console.log('[SavePassword] Found existing settings id:', existingId);
 
     let saveError;
     if (existingId) {
@@ -125,14 +118,12 @@ const AccountTab = () => {
         .update({ [columnName]: account.newPassword } as any)
         .eq('id', existingId);
       saveError = error;
-      console.log('[SavePassword] Update result:', { error });
     } else {
       // Insert new row
       const { error } = await supabase
         .from('settings')
         .insert({ [columnName]: account.newPassword } as any);
       saveError = error;
-      console.log('[SavePassword] Insert result:', { error });
     }
 
     if (saveError) {
@@ -143,7 +134,6 @@ const AccountTab = () => {
     }
 
     // CRITICAL: Verify the change by fetching from DB
-    console.log('[SavePassword] Verifying change in DB...');
     
     // Small delay to ensure DB replication
     await new Promise(r => setTimeout(r, 200));
@@ -161,10 +151,8 @@ const AccountTab = () => {
       return;
     }
     
-    console.log('[SavePassword] DB after update:', verifyData);
     
     const actualSavedPassword = verifyData?.[columnName];
-    console.log('[SavePassword] Actual saved password:', actualSavedPassword);
     
     if (actualSavedPassword !== account.newPassword) {
       console.error('[SavePassword] CRITICAL: Password mismatch!');
@@ -176,7 +164,6 @@ const AccountTab = () => {
       return;
     }
     
-    console.log('[SavePassword] ✓ Password verified in DB');
 
     // Update stored passwords to reflect the change immediately
     const newStoredPasswords = { ...storedPasswords, [accountKey]: actualSavedPassword };

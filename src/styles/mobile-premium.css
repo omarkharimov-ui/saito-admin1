@@ -19,7 +19,7 @@
   }
 
   .animate-spin-calm {
-    animation: spin-calm 1.15s linear infinite;
+    animation: spin-calm 2.5s linear infinite;
   }
 
   .mobile-page-enter {

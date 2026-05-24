@@ -38,7 +38,6 @@ const CartSidebar = () => {
       }
 
       const newItems = items.map(item => {
-        console.log('📸 Product debug:', {
           name: item.product.name,
           image_url: item.product.image_url,
           hasImageUrl: 'image_url' in item.product,
@@ -57,7 +56,6 @@ const CartSidebar = () => {
       });
 
       if (existingOrder) {
-        console.log('📦 Mövcud sifariş tapıldı:', existingOrder.id);
 
         // Fetch existing order_items to merge quantities while preserving prepared_quantity
         const { data: existingItems, error: fetchErr } = await supabase
@@ -87,7 +85,6 @@ const CartSidebar = () => {
               })
               .eq('id', match.id);
             if (updErr) throw updErr;
-            console.log(
               `✏️  Mövcud item yeniləndi: ${item.product_name} qty ${match.quantity} → ${newQty} (prepared qalır: ${match.prepared_quantity ?? 0})`
             );
           } else {
@@ -100,12 +97,10 @@ const CartSidebar = () => {
               created_at: new Date().toISOString(),
             });
             if (insErr) throw insErr;
-            console.log('➕ Yeni item əlavə edildi:', item.product_name, 'x', item.quantity);
           }
         }
 
         const newTotal = (existingOrder.total_amount || 0) + totalPrice;
-        console.log('>>> Updating existing order:', existingOrder.id, 'setting kitchen_status to hot');
         const { error: updateError, data: updateData } = await supabase
           .from('orders')
           .update({
@@ -116,7 +111,6 @@ const CartSidebar = () => {
           })
           .eq('id', existingOrder.id)
           .select();
-        console.log('>>> Update result:', updateData, 'error:', updateError);
         if (updateError) throw updateError;
       } else {
         // Create new order

@@ -6,8 +6,6 @@ export async function POST(request: Request) {
   try {
     const { imageUrl, language } = await request.json();
     
-    console.log('[Vision API] Received request, language:', language);
-    console.log('[Vision API] Image URL length:', imageUrl?.length || 0);
     
     if (!GROQ_API_KEY) {
       console.error('[Vision API] GROQ_API_KEY not configured');

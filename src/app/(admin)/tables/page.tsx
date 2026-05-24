@@ -28,7 +28,6 @@ const TablesPage = () => {
 
   // Load initial table count from database
   useEffect(() => {
-    console.log('[Tables] Loading started...');
     
     const loadTableCount = async () => {
       // Try to get any settings row (id could be string or number)
@@ -37,7 +36,6 @@ const TablesPage = () => {
         .select('id, qr_table_count')
         .limit(1);
       
-      console.log('[Tables] DB result:', { rows, error });
       
       if (error) {
         console.error('[Tables] Error loading settings:', error);
@@ -49,13 +47,10 @@ const TablesPage = () => {
       if (rows && rows.length > 0) {
         // Use first row found
         setSettingsId(rows[0].id);
-        console.log('[Tables] Found settings row:', rows[0]);
         if (typeof rows[0].qr_table_count === 'number') {
           setTableCount(rows[0].qr_table_count);
-          console.log('[Tables] Set table count to:', rows[0].qr_table_count);
         }
       } else {
-        console.log('[Tables] No settings row found, creating...');
         // No settings row exists - create one
         const { data: newRow, error: insertError } = await supabase
           .from('settings')
@@ -66,14 +61,12 @@ const TablesPage = () => {
         if (insertError) {
           console.error('[Tables] Error creating settings row:', insertError);
         } else if (newRow) {
-          console.log('[Tables] Created new row:', newRow);
           setSettingsId(newRow.id);
         }
       }
       
       setLoading(false);
       setReady(true);
-      console.log('[Tables] Ready! settingsId:', settingsId);
     };
     
     loadTableCount();
@@ -96,7 +89,6 @@ const TablesPage = () => {
   const updateTableCount = async (newCount: number) => {
     if (newCount < 1) return;
     setTableCount(newCount);
-    console.log('[Tables] Updating qr_table_count to:', newCount);
     const { data, error } = await supabase
       .from('settings')
       .update({ qr_table_count: newCount })
@@ -106,7 +98,6 @@ const TablesPage = () => {
       console.error('[Tables] Update FAILED:', error);
       toast.error('Yenilənmədi: ' + error.message);
     } else {
-      console.log('[Tables] Update SUCCESS:', data);
       toast.success(`Masa sayı yeniləndi: ${newCount}`);
     }
   };
@@ -134,14 +125,12 @@ const TablesPage = () => {
           }
         }
       } else {
-        console.log('[Tables] Saving table count:', tableCount, 'to settings id:', settingsId);
         const { error } = await supabase
           .from('settings')
           .update({ qr_table_count: tableCount })
           .eq('id', settingsId);
         
         if (error) throw error;
-        console.log('[Tables] Saved successfully');
         toast.success('Masa sayı yadda saxlanıldı');
       }
     } catch (err) {

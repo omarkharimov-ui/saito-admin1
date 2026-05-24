@@ -53,7 +53,6 @@ export function CustomNotificationProvider() {
     navigator.serviceWorker?.addEventListener('message', (event) => {
       if (event.data?.type === 'NOTIFICATION_ACTION') {
         // Show local notification when clicked from push
-        console.log('Notification action:', event.data.action);
       }
     });
 
@@ -64,13 +63,11 @@ export function CustomNotificationProvider() {
       // MOBILE: Only show reservation and stock notifications
       // Order/payment/ready notifications are meaningless on mobile (real-time UI already shows them)
       if (isMobile() && !MOBILE_ALLOWED_TYPES.includes(notif.type)) {
-        console.log(`[Mobile] Skipping ${notif.type} notification - not meaningful on mobile device`);
         return;
       }
       
       // Desktop: Skip duplicate notifications when on orders page
       if (!isMobile() && isOnOrdersPage() && (notif.source === 'orders-page' || notif.type === 'order')) {
-        console.log('[Desktop] Skipping orders notification (user already on orders page)');
         return;
       }
       

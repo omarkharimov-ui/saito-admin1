@@ -119,3 +119,6 @@ body {
     transition-duration: 0.15s !important;
   }
 }
+
+/* Mobile Layer-based Architecture */
+@import '../styles/mobile-layers.css';

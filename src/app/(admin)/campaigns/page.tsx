@@ -436,7 +436,7 @@ const CampaignsPage = () => {
   }
 
   return (
-    <div className="relative pb-20">
+    <div className="relative pb-4 md:pb-20">
       <div className="pointer-events-none fixed top-0 right-[15%] w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.05),transparent_65%)] blur-3xl" />
       <div className="pointer-events-none fixed bottom-[10%] left-[5%] w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02),transparent_65%)] blur-3xl" />
 
@@ -480,13 +480,13 @@ const CampaignsPage = () => {
             return (
               <>
                 {/* Mobile: flat list */}
-                <div className="md:hidden space-y-4 px-4">
+                <div className="lg:hidden space-y-4 px-4">
                   {sorted.map((camp) => (
                     <CampaignCard key={camp.id} camp={camp} products={products} categories={categories} onEdit={handleEditCampaign} onDelete={handleDelete} />
                   ))}
                 </div>
                 {/* Desktop: grid */}
-                <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="hidden lg:grid grid-cols-3 gap-8">
                   {sorted.map((camp) => (
                     <CampaignCard key={camp.id} camp={camp} products={products} categories={categories} onEdit={handleEditCampaign} onDelete={handleDelete} />
                   ))}

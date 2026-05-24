@@ -238,7 +238,7 @@ const StatsPage = () => {
     <div className="relative">
 
       {/* ══ MOBILE VIEW ══ */}
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <StatsMobileView
           stats={stats}
           forecast={forecast}
@@ -250,7 +250,7 @@ const StatsPage = () => {
       </div>
 
       {/* ══ DESKTOP VIEW ══ */}
-      <div className="hidden md:block space-y-10 pb-20">
+      <div className="hidden lg:block space-y-10 pb-20">
       {/* Analyzing overlay — rendered via portal so parent transforms don't affect position */}
       {loading && typeof document !== 'undefined' && createPortal((() => {
         const sz = 80, R = 40, r1 = R * 0.88, r2 = R * 0.65, r3 = R * 0.40;

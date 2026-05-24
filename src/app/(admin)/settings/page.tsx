@@ -74,10 +74,10 @@ const SettingsPage = () => {
   }, [mobileTab]);
 
   return (
-    <div className="pb-20">
+    <div className="pb-4 lg:pb-20">
 
       {/* ── MOBILE layout ── */}
-      <div className="md:hidden px-4">
+      <div className="lg:hidden px-4">
         {/* Mobile header - minimal */}
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 bg-gold/10 text-gold rounded-xl flex items-center justify-center">
@@ -140,7 +140,7 @@ const SettingsPage = () => {
       </div>
 
       {/* ── DESKTOP layout — unchanged ── */}
-      <div className="hidden md:block space-y-8">
+      <div className="hidden lg:block space-y-8">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gold/10 text-gold rounded-2xl">
             <Settings2 size={26} />

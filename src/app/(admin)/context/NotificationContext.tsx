@@ -419,7 +419,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       )
       .subscribe((status, err) => {
-        console.log('[Realtime] status:', status, err ?? '');
       });
 
     fetchNewOrdersCount();

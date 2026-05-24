@@ -1,23 +1,41 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-/** Səhifə dəyişəndə mobil üçün yüngül “yuxarı qalxma” keçidi. */
+/** Layer-based mobile page content renderer */
 export default function MobilePageContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  return (
-    <AnimatePresence mode="sync">
-      <motion.div
-        key={pathname}
-        className="mobile-premium-root min-h-0"
-        initial={{ opacity: 0.94, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0.96, y: -10 }}
-        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      >
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // Prevent double mounting by ensuring component is ready
+    const timer = setTimeout(() => setIsReady(true), 0);
+    return () => clearTimeout(timer);
+  }, [pathname]);
+
+  if (!isReady) {
+    return (
+      <div className="mobile-page-loading min-h-0 opacity-0">
         {children}
-      </motion.div>
-    </AnimatePresence>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mobile-layered-content">
+      {/* Background Layer */}
+      <div className="mobile-page-background fixed inset-0 bg-background opacity-0 pointer-events-none" />
+      
+      {/* Main Content Layer */}
+      <div className="mobile-page-main relative z-10 min-h-0">
+        <div className="mobile-premium-root min-h-0">
+          {children}
+        </div>
+      </div>
+      
+      {/* Overlay Layer for interactions */}
+      <div className="mobile-page-overlay fixed inset-0 pointer-events-none z-30" />
+    </div>
   );
 }

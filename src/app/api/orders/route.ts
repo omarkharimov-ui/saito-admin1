@@ -11,11 +11,32 @@ const headers = {
 // Bütün sifarişləri gətir
 export async function GET() {
   try {
+    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+      console.error('[API /orders] Missing env vars:', { SUPABASE_URL: !!SUPABASE_URL, SERVICE_ROLE_KEY: !!SERVICE_ROLE_KEY });
+      return NextResponse.json({ error: 'Missing Supabase configuration. Restart the dev server after creating .env.local' }, { status: 500 });
+    }
+
     const [ordersRes, itemsRes, tablesRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*)&order=created_at.desc`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/settings?select=qr_table_count,opening_hours,delay_threshold&limit=1`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/settings?select=qr_table_count,opening_hours&limit=1`, { headers }),
     ]);
+
+    if (!ordersRes.ok) {
+      const errText = await ordersRes.text();
+      console.error('[API /orders] ordersRes error:', ordersRes.status, errText);
+      return NextResponse.json({ error: `orders fetch failed: ${ordersRes.status}` }, { status: 500 });
+    }
+    if (!itemsRes.ok) {
+      const errText = await itemsRes.text();
+      console.error('[API /orders] itemsRes error:', itemsRes.status, errText);
+      return NextResponse.json({ error: `order_items fetch failed: ${itemsRes.status}` }, { status: 500 });
+    }
+    if (!tablesRes.ok) {
+      const errText = await tablesRes.text();
+      console.error('[API /orders] tablesRes error:', tablesRes.status, errText);
+      return NextResponse.json({ error: `settings fetch failed: ${tablesRes.status}` }, { status: 500 });
+    }
 
     const [orders, orderItems, settings] = await Promise.all([
       ordersRes.json(),
@@ -27,10 +48,11 @@ export async function GET() {
       orders: orders || [],
       orderItems: orderItems || [],
       tableCount: settings?.[0]?.qr_table_count ?? null,
-      delayThreshold: settings?.[0]?.delay_threshold || 20,
+      delayThreshold: 20,
       openingHours: settings?.[0]?.opening_hours || '09:00-23:00',
     });
   } catch (error: any) {
+    console.error('[API /orders] Catch error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

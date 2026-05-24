@@ -84,7 +84,6 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
       console.error('[QRTab] Update FAILED:', error);
       toast.error(t('error') + ': ' + error.message, { style: { background: '#1f0d0d', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 600 } });
     } else {
-      console.log('DB Updated to:', draftCount);
       setTableCount(draftCount);
       setSavedCount(draftCount);
       localStorage.setItem('saito_qr_table_count', String(draftCount));

@@ -6,7 +6,6 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { Reservation } from '@/types';
 import { Calendar, Search, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import ReservationFilters from './components/ReservationFilters';
@@ -48,7 +47,7 @@ const ReservationsPage = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)');
+    const mq = window.matchMedia('(min-width: 1024px)');
     const apply = () => setIsMdUp(mq.matches);
     apply();
     mq.addEventListener('change', apply);
@@ -292,9 +291,8 @@ const ReservationsPage = () => {
  
   /* ─── Render ─── */
   return (
-    <div className="relative px-0 pt-0 pb-8 md:p-8 overflow-x-hidden max-w-full">
-      <div className="pointer-events-none absolute -top-64 right-[10%] h-[600px] w-[600px] rounded-full bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.07),rgba(0,0,0,0)_65%)] blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-56 -left-56 h-[620px] w-[620px] rounded-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04),rgba(0,0,0,0)_62%)] blur-3xl" />
+    <div className="relative px-0 pt-0 pb-4 md:p-8 overflow-hidden max-w-full">
+      <div className="pointer-events-none absolute -top-32 right-[10%] h-[400px] w-[400px] rounded-full bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.07),rgba(0,0,0,0)_65%)] blur-3xl" />
       {/* Header */}
       <div className="flex flex-col gap-4 mb-0 md:mb-8">
         <div className="shrink-0 px-4 pt-5 pb-3 md:px-0 md:pt-0 md:pb-0 flex items-center justify-between md:block">
@@ -330,16 +328,9 @@ const ReservationsPage = () => {
       {loading ? (
         <TableSkeleton rows={6} />
       ) : isMdUp ? (
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={timeFilter + '__' + statusFilter}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-          >
+        <div key={timeFilter + '__' + statusFilter}>
           {/* Desktop table */}
-          <div className="hidden lg:block bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
+          <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
             <div className="overflow-auto max-h-[70vh] scrollbar-hide scroll-smooth">
               <table className="w-full text-left">
                 <thead>
@@ -371,53 +362,64 @@ const ReservationsPage = () => {
             </div>
           </div>
 
-          {/* Mobile cards */}
-          <div className="lg:hidden">
-            {filteredReservations.map((res) => (
-              <ReservationCard
-                key={res.id}
-                res={res}
-                timeFilter={timeFilter}
-                statusBadge={getStatusBadge}
-                onUpdateStatus={updateStatus}
-                onDelete={handleDeleteReservation}
-                selectionMode={archiveSelectionMode}
-                selected={selectedArchiveIds.includes(res.id)}
-                onToggleSelection={toggleArchiveReservationSelection}
-              />
-            ))}
-          </div>
-
           {/* Empty state */}
           {filteredReservations.length === 0 && (
-            <div className="relative w-full h-[52vh] select-none flex items-center justify-center">
-              <Calendar size={140} strokeWidth={0.5} className="text-white/[0.06]" />
+            <div className="relative w-full h-[40vh] select-none flex items-center justify-center">
+              <Calendar size={100} strokeWidth={0.5} className="text-white/[0.06]" />
             </div>
           )}
-          </motion.div>
-        </AnimatePresence>
+        </div>
       ) : (
-        <div key={timeFilter + '__' + statusFilter}>
-          <div className="mobile-stagger">
-            {filteredReservations.map((res) => (
-              <ReservationCard
-                key={res.id}
-                res={res}
-                timeFilter={timeFilter}
-                statusBadge={getStatusBadge}
-                onUpdateStatus={updateStatus}
-                onDelete={handleDeleteReservation}
-                selectionMode={archiveSelectionMode}
-                selected={selectedArchiveIds.includes(res.id)}
-                onToggleSelection={toggleArchiveReservationSelection}
-              />
-            ))}
+        <div key={timeFilter + '__' + statusFilter} className="mobile-reservation-layered">
+          {/* Background Layer */}
+          <div className="mobile-bg-layer fixed inset-0 bg-background pointer-events-none" />
+          
+          {/* Content Layer */}
+          <div className="mobile-content-layer relative z-10">
+            {filteredReservations.length > 0 ? (
+              <div className="mobile-reservation-list space-y-3">
+                {filteredReservations.map((res, index) => (
+                  <div
+                    key={res.id}
+                    className="mobile-reservation-item"
+                    style={{
+                      animationDelay: `${index * 0.05}s`
+                    }}
+                  >
+                    <ReservationCard
+                      res={res}
+                      timeFilter={timeFilter}
+                      statusBadge={getStatusBadge}
+                      onUpdateStatus={updateStatus}
+                      onDelete={handleDeleteReservation}
+                      selectionMode={archiveSelectionMode}
+                      selected={selectedArchiveIds.includes(res.id)}
+                      onToggleSelection={toggleArchiveReservationSelection}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mobile-empty-state">
+                <div className="empty-state-icon">
+                  <Calendar size={80} strokeWidth={0.5} className="text-white/[0.06]" />
+                </div>
+                <div className="empty-state-text">
+                  <p className="text-white/20 text-sm text-center">
+                    {timeFilter === 'today' ? t('no_reservations_today') : 
+                     timeFilter === 'future' ? t('no_reservations_future') : 
+                     t('no_reservations_archive')}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-          {filteredReservations.length === 0 && (
-            <div className="relative w-full h-[52vh] select-none flex items-center justify-center">
-              <Calendar size={140} strokeWidth={0.5} className="text-white/[0.06]" />
-            </div>
-          )}
+          
+          {/* Interaction Layer */}
+          <div className="mobile-interaction-layer fixed inset-0 pointer-events-none z-20">
+            {/* Touch feedback overlay */}
+            <div className="mobile-touch-overlay" />
+          </div>
         </div>
       )}
 

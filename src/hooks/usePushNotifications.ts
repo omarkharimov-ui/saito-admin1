@@ -68,7 +68,6 @@ export function usePushNotifications() {
       // First request permission
       const granted = await requestPermission();
       if (!granted) {
-        console.log('Notification permission denied');
         return false;
       }
 
@@ -170,7 +169,6 @@ async function saveSubscriptionToServer(subscription: PushSubscription) {
   //   headers: { 'Content-Type': 'application/json' },
   //   body: JSON.stringify(subscription),
   // });
-  console.log('Saving subscription:', subscription);
 }
 
 async function removeSubscriptionFromServer(endpoint: string) {
@@ -180,5 +178,4 @@ async function removeSubscriptionFromServer(endpoint: string) {
   //   headers: { 'Content-Type': 'application/json' },
   //   body: JSON.stringify({ endpoint }),
   // });
-  console.log('Removing subscription:', endpoint);
 }

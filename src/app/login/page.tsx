@@ -45,9 +45,6 @@ export default function LoginPage() {
       .ilike('email', email.trim())
       .maybeSingle();
     
-    console.log('[Login Check] User ID:', authData.user.id);
-    console.log('[Login Check] Admin data:', adminData);
-    console.log('[Login Check] Admin error:', adminError);
     
     if (!adminData || !['admin', 'superadmin'].includes(adminData.role)) {
       toast.error('İSTİFADƏÇİ TAPILMADI (Admin siyahısında yoxdur)', {
@@ -59,7 +56,6 @@ export default function LoginPage() {
     
     // 3. ID-lər fərqlidirsə admin_users cədvəlini yenilə
     if (adminData.id !== authData.user.id) {
-      console.log('[Login Check] ID mismatch! Updating admin_users.id...');
       await supabase
         .from('admin_users')
         .update({ id: authData.user.id })

@@ -89,7 +89,6 @@ export const OrderModal = ({
 
     try {
       const childIds = mergedOrders.map(o => o.id);
-      console.log('[Split] Deleting child orders:', childIds);
 
       // Delete all child orders' items first
       const { error: itemsErr } = await supabase.from('order_items').delete().in('order_id', childIds);
@@ -104,7 +103,6 @@ export const OrderModal = ({
         console.error('[Split] Failed to delete orders:', delErr);
         throw delErr;
       }
-      console.log('[Split] Successfully deleted child orders');
 
       toast.success(t('tables_separated').replace('{tables}', mergedOrders.map(o => `${t('table_label')} ${o.table_number}`).join(', ')));
 

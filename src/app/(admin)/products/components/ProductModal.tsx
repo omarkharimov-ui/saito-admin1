@@ -287,16 +287,12 @@ export function ProductModal({
         setUploadingImage(false);
         setVisionLoadingMain(true);
         try {
-          console.log('[ProductModal] Calling /api/vision...');
           const visionRes = await fetch('/api/vision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: base64, language }) });
-          console.log('[ProductModal] Vision response status:', visionRes.status);
           const visionData = await visionRes.json();
-          console.log('[ProductModal] Vision data:', visionData);
           const rawName = visionData.name || '';
           const hintName = rawName ? (aiFlags.autoCorrectEnabled ? normalizeProductName(rawName) : rawName) : '';
           const hintDesc = visionData.description || '';
           const hintIngr = visionData.ingredients || '';
-          console.log('[ProductModal] Ghost data:', { hintName, hintDesc, hintIngr });
           if (hintName || hintDesc || hintIngr) {
             const newGhost = { ...(hintName ? { name: hintName } : {}), ...(hintDesc ? { description: hintDesc } : {}), ...(hintIngr ? { ingredients: hintIngr } : {}) };
             setGhostMain(newGhost);

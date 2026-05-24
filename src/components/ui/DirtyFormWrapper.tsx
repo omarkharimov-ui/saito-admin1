@@ -33,7 +33,6 @@ interface DirtyFormWrapperProps {
  *   initialValues={{ name: 'Lahmacun', price: 5 }}
  *   currentValues={form}
  *   captureDeps={[isModalOpen, editingProduct?.id]}
- *   onDirtyChange={(dirty) => console.log('Dirty:', dirty)}
  * >
  *   <form>
  *     <input value={form.name} onChange={...} />

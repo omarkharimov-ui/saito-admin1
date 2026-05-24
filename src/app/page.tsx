@@ -5,8 +5,8 @@ import { motion } from 'framer-motion';
 
 export default function AppLandingPage() {
   const [isStandalone, setIsStandalone] = useState(false);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   useEffect(() => {
     // Check if running as standalone app
@@ -18,16 +18,18 @@ export default function AppLandingPage() {
     };
 
     checkStandalone();
-    window.addEventListener('resize', checkStandalone);
 
     // Listen for install prompt
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstallPrompt(true);
+      
+      // Auto-show install prompt after a short delay
+      setTimeout(() => {
+        handleInstallClick();
+      }, 1500);
     };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // Listen for app installed
     const handleAppInstalled = () => {
@@ -35,10 +37,10 @@ export default function AppLandingPage() {
       setDeferredPrompt(null);
     };
 
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      window.removeEventListener('resize', checkStandalone);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
@@ -52,6 +54,17 @@ export default function AppLandingPage() {
     
     if (outcome === 'accepted') {
       console.log('User accepted the install prompt');
+      // Show success message
+      const successDiv = document.createElement('div');
+      successDiv.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      successDiv.textContent = 'App uğurla quraşdırılır!';
+      document.body.appendChild(successDiv);
+      
+      setTimeout(() => {
+        if (document.body.contains(successDiv)) {
+          document.body.removeChild(successDiv);
+        }
+      }, 3000);
     } else {
       console.log('User dismissed the install prompt');
     }
@@ -68,7 +81,7 @@ export default function AppLandingPage() {
     return null; // Don't render anything for standalone app
   }
 
-  // Premium fixed-height landing page - no scroll
+  // Simple premium landing page with auto-install
   return (
     <div className="h-screen w-full overflow-hidden bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] flex items-center justify-center relative">
       {/* Background decoration */}
@@ -109,99 +122,82 @@ export default function AppLandingPage() {
           </h2>
           <p className="text-xl text-white/60 leading-relaxed mb-8 max-w-2xl mx-auto">
             Advanced restaurant administration with real-time order management, 
-            reservation tracking, and powerful analytics. Available exclusively as a native app.
+            reservation tracking, and powerful analytics.
           </p>
         </motion.div>
 
-        {/* Premium Features Grid */}
+        {/* Auto Install Message */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-3xl mx-auto"
-        >
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all">
-            <div className="text-gold text-3xl mb-3">📱</div>
-            <h3 className="text-white font-bold text-lg mb-2">Native App</h3>
-            <p className="text-white/60 text-sm">Optimized for mobile devices with native performance</p>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all">
-            <div className="text-gold text-3xl mb-3">⚡</div>
-            <h3 className="text-white font-bold text-lg mb-2">Real-time</h3>
-            <p className="text-white/60 text-sm">Live order updates and instant notifications</p>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all">
-            <div className="text-gold text-3xl mb-3">📊</div>
-            <h3 className="text-white font-bold text-lg mb-2">Analytics</h3>
-            <p className="text-white/60 text-sm">Advanced insights and business intelligence</p>
-          </div>
-        </motion.div>
-
-        {/* Premium Download Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
           className="space-y-6"
         >
           {showInstallPrompt ? (
-            <button
-              onClick={handleInstallClick}
-              className="bg-gold text-black px-12 py-5 rounded-2xl font-bold text-xl hover:bg-gold/90 transition-all transform hover:scale-105 shadow-2xl shadow-gold/30 flex items-center gap-3 mx-auto"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 10.5L12 15m0 0l4.5-4.5M12 15V3"/>
-              </svg>
-              📱 Quraşdır
-            </button>
-          ) : (
-            <div className="space-y-6">
-              {/* Premium Download Card */}
-              <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-8 border border-white/10 max-w-md mx-auto">
-                <div className="flex items-center justify-center mb-6">
-                  <div className="w-20 h-20 bg-gold/20 rounded-2xl flex items-center justify-center">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gold">
-                      <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 10.5L12 15m0 0l4.5-4.5M12 15V3"/>
-                    </svg>
-                  </div>
-                </div>
-                
-                <h3 className="text-white font-bold text-xl mb-4">Native App Only</h3>
-                <p className="text-white/60 mb-6">
-                  Bu tətbiq yalnız native app kimi mövcuddur
-                </p>
-                
-                {/* Platform Buttons */}
-                <div className="space-y-3">
-                  <button
-                    onClick={() => {
-                      alert('iPhone/iPad: Safari-də "Share" → "Add to Home Screen"');
-                    }}
-                    className="w-full bg-white/10 backdrop-blur-sm text-white px-6 py-4 rounded-xl font-medium hover:bg-white/20 transition-all border border-white/20 flex items-center justify-center gap-3"
-                  >
-                    <span className="text-xl">🍎</span>
-                    <span>iOS üçün quraşdır</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      alert('Android: Chrome-də "⋮" → "Add to Home Screen"');
-                    }}
-                    className="w-full bg-white/10 backdrop-blur-sm text-white px-6 py-4 rounded-xl font-medium hover:bg-white/20 transition-all border border-white/20 flex items-center justify-center gap-3"
-                  >
-                    <span className="text-xl">🤖</span>
-                    <span>Android üçün quraşdır</span>
-                  </button>
+            <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-8 border border-white/10 max-w-md mx-auto">
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-20 h-20 bg-gold/20 rounded-2xl flex items-center justify-center animate-pulse">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gold">
+                    <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 10.5L12 15m0 0l4.5-4.5M12 15V3"/>
+                  </svg>
                 </div>
               </div>
-
-              {/* Quick Instructions */}
+              
+              <h3 className="text-white font-bold text-xl mb-4">App Yüklənir...</h3>
+              <p className="text-white/60 mb-6">
+                Saito Admin tətbiqini quraşdırmaq üçün sorğu göndərildi
+              </p>
+              
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gold"></div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-8 border border-white/10 max-w-md mx-auto">
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-20 h-20 bg-gold/20 rounded-2xl flex items-center justify-center">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gold">
+                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
+                  </svg>
+                </div>
+              </div>
+              
+              <h3 className="text-white font-bold text-xl mb-4">Native App Only</h3>
+              <p className="text-white/60 mb-6">
+                Bu tətbiq yalnız native app kimi mövcuddur. Quraşdırma sorğu avtomatik olaraq göndəriləcək.
+              </p>
+              
               <div className="text-center">
                 <p className="text-white/40 text-sm">
-                  1. Browser açın → 2. "Add to Home Screen" → 3. Quraşdırın
+                  Zəhmət olmasa gözləyin...
                 </p>
               </div>
             </div>
           )}
+        </motion.div>
+
+        {/* Features */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.6 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 max-w-3xl mx-auto"
+        >
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="text-gold text-2xl mb-2">📱</div>
+            <h4 className="text-white font-semibold text-sm mb-1">Native App</h4>
+            <p className="text-white/50 text-xs">Optimized performance</p>
+          </div>
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="text-gold text-2xl mb-2">⚡</div>
+            <h4 className="text-white font-semibold text-sm mb-1">Real-time</h4>
+            <p className="text-white/50 text-xs">Live updates</p>
+          </div>
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="text-gold text-2xl mb-2">📊</div>
+            <h4 className="text-white font-semibold text-sm mb-1">Analytics</h4>
+            <p className="text-white/50 text-xs">Business insights</p>
+          </div>
         </motion.div>
 
         {/* Footer */}

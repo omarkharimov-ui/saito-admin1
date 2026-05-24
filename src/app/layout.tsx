@@ -6,7 +6,6 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { CartProvider } from "@/context/CartContext";
 import ClientLayout from "@/components/layout/ClientLayout";
 import { CustomNotificationProvider } from "@/components/CustomNotification";
-import PWAInstaller from "@/components/PWAInstaller";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -60,7 +59,6 @@ export default function RootLayout({
           <UIProvider>
             <CartProvider>
                 <CustomNotificationProvider />
-                <PWAInstaller />
                 <ClientLayout>
                   <main className="flex-1 overflow-y-auto scrollbar-none">
                     {children}

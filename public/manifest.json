@@ -1,5 +1,5 @@
 {
-  "name": "Saito Admin",
+  "name": "Saito",
   "short_name": "Saito",
   "description": "Professional Restaurant Management System - Native App Only",
   "start_url": "/admin?standalone=true",

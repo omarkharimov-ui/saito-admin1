@@ -1234,7 +1234,7 @@ export const az = {
   view_all_activity: 'Hamısına bax',
 
   // Install App
-  install_app_title: 'Tətbiqi Yüklə',
+  install_app_title: 'Endir',
   install_app_subtitle: 'Mobil və Desktop',
   install_mobile: 'Mobil',
   install_desktop: 'Desktop',

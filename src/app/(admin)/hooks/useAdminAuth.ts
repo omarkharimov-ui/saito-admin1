@@ -29,19 +29,24 @@ export function useAdminAuth() {
       const cookieRole = cookies['saito_role'] as 'admin' | 'superadmin' | null;
       const isLoggedIn = cookies['isLoggedIn'] === 'true';
 
-      if (cookieRole && isLoggedIn) {
+      // Optimistic: cookie varsa dərhal UI göstər, session-u arxa planda yoxla
+      if ((cookieRole === 'admin' || cookieRole === 'superadmin') && isLoggedIn) {
+        setRole(cookieRole);
+        setIsAuthenticated(true);
+        setAuthChecked(true);
+
+        // Arxa planda session yoxla — etibarsızsa logout et
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setRole(cookieRole);
-          setIsAuthenticated(true);
-          setAuthChecked(true);
-          return;
+        if (!session) {
+          document.cookie = 'saito_role=; Path=/; Max-Age=0';
+          document.cookie = 'isLoggedIn=; Path=/; Max-Age=0';
+          setIsAuthenticated(false);
+          setRole(null);
         }
-        // Cookie var, JWT yox — RLS işləmir; yenidən login lazımdır
-        document.cookie = 'saito_role=; Path=/; Max-Age=0';
-        document.cookie = 'isLoggedIn=; Path=/; Max-Age=0';
+        return;
       }
 
+      // Cookie yoxdur — session yoxla
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         try {
@@ -59,18 +64,10 @@ export function useAdminAuth() {
               document.cookie = `saito_role=${me.role}; Path=/; Max-Age=86400`;
               document.cookie = 'isLoggedIn=true; Path=/; Max-Age=86400';
               setAuthChecked(true);
-              if (users.length === 0) setNeedsSetup(true);
               return;
             }
           }
-        } catch {
-          if (cookieRole === 'admin' || cookieRole === 'superadmin') {
-            setRole(cookieRole);
-            setIsAuthenticated(true);
-            setAuthChecked(true);
-            return;
-          }
-        }
+        } catch { /* network error — fall through */ }
       }
 
       setIsAuthenticated(false);

@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { NotificationProvider } from './context/NotificationContext';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { ThemeProvider } from '@/lib/theme/ThemeContext';
@@ -11,6 +11,18 @@ import AdminAuthScreen from './components/layout/AdminAuthScreen';
 import AdminMobileShell from './components/layout/AdminMobileShell';
 import AdminDesktopShell from './components/layout/AdminDesktopShell';
 
+function subscribe(cb: () => void) {
+  const mq = window.matchMedia('(max-width: 1023px)');
+  mq.addEventListener('change', cb);
+  return () => mq.removeEventListener('change', cb);
+}
+function getSnapshot() { return window.matchMedia('(max-width: 1023px)').matches; }
+function getServerSnapshot() { return false; }
+
+function useIsMobile() {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
 const WelcomeScreen = dynamic(
   () => import('@/components/WelcomeScreen').then((m) => ({ default: m.WelcomeScreen })),
   { ssr: false }
@@ -18,15 +30,7 @@ const WelcomeScreen = dynamic(
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const auth = useAdminAuth();
-  const [isMobile, setIsMobile] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1023px)');
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const applyBrightness = () => {
@@ -57,7 +61,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, []);
 
-  if (!auth.authChecked || isMobile === null) {
+  if (!auth.authChecked) {
     return <AdminLoadingScreen />;
   }
 

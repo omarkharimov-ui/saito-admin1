@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Bell, ChevronDown } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -13,13 +13,8 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
   const mobileNotifications = notifications.filter((n) => n.type !== 'order');
   const [showDropdown, setShowDropdown] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const langBtnRef = useRef<HTMLButtonElement>(null);
   const langRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -38,31 +33,30 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
     { code: 'ru' as const, label: 'RU' },
   ];
 
-  const langMenu =
-    langOpen && mounted ? (
-      <motion.div
-        ref={langRef}
-        className="absolute right-0 top-full mt-2 z-50 flex w-[min(16rem,calc(100vw-3rem))] flex-col gap-2 rounded-3xl border border-white/10 bg-[#0c0c0c] p-3 shadow-[0_18px_70px_rgba(0,0,0,0.55)]"
-        initial={{ opacity: 0, y: -6, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -6, scale: 0.98 }}
-        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-      >
-        {LANGS.filter((l) => l.code !== language).map((lang) => (
-          <button
-            key={lang.code}
-            type="button"
-            onClick={() => {
-              setLanguage(lang.code);
-              setLangOpen(false);
-            }}
-            className="w-full rounded-2xl bg-white/[0.04] px-3.5 py-3 text-left text-[11px] font-bold uppercase tracking-[0.24em] text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white"
-          >
-            {lang.label}
-          </button>
-        ))}
-      </motion.div>
-    ) : null;
+  const langMenu = (
+    <div
+      ref={langRef}
+      className="absolute right-0 top-full mt-2 z-50 flex w-[min(16rem,calc(100vw-3rem))] flex-col gap-2 rounded-3xl border border-white/10 bg-[#0c0c0c] p-3 shadow-[0_18px_70px_rgba(0,0,0,0.55)]"
+      style={{
+        opacity: langOpen ? 1 : 0,
+        transform: langOpen ? 'translateY(0) scale(1)' : 'translateY(-6px) scale(0.98)',
+        pointerEvents: langOpen ? 'auto' : 'none',
+        transition: 'opacity 0.18s ease, transform 0.18s cubic-bezier(0.22,1,0.36,1)',
+        willChange: 'transform, opacity',
+      }}
+    >
+      {LANGS.filter((l) => l.code !== language).map((lang) => (
+        <button
+          key={lang.code}
+          type="button"
+          onClick={() => { setLanguage(lang.code); setLangOpen(false); }}
+          className="w-full rounded-2xl bg-white/[0.04] px-3.5 py-3 text-left text-[11px] font-bold uppercase tracking-[0.24em] text-white/70"
+        >
+          {lang.label}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-white/[0.06] bg-[#0a0a0a] px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden isolate">
@@ -109,26 +103,23 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
             )}
           </motion.button>
 
-          <AnimatePresence>
-            {showDropdown && (
-              <>
-                <motion.button
-                  type="button"
-                  className="fixed inset-0 z-40 bg-black/40"
-                  aria-label="Bağla"
-                  onClick={() => setShowDropdown(false)}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                />
-                <motion.div
-                  className="absolute right-0 mt-2 w-[min(18rem,calc(100vw-1.5rem))] max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#0a0a0a] shadow-2xl z-50"
-                  initial={{ opacity: 0, y: -10, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                >
+          <>
+            {/* Notification backdrop — CSS only */}
+            <div
+              className="fixed inset-0 z-40 bg-black/40"
+              onClick={() => setShowDropdown(false)}
+              style={{ opacity: showDropdown ? 1 : 0, pointerEvents: showDropdown ? 'auto' : 'none', transition: 'opacity 0.18s ease' }}
+            />
+            <div
+              className="absolute right-0 mt-2 w-[min(18rem,calc(100vw-1.5rem))] max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#0a0a0a] shadow-2xl z-50"
+              style={{
+                opacity: showDropdown ? 1 : 0,
+                transform: showDropdown ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.98)',
+                pointerEvents: showDropdown ? 'auto' : 'none',
+                transition: 'opacity 0.2s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1)',
+                willChange: 'transform, opacity',
+              }}
+            >
                   <div className="p-3 border-b border-white/5 flex justify-between items-center">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
                       {t('notifications')}
@@ -159,16 +150,12 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
                       </motion.button>
                     ))
                   )}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+            </div>
+          </>
         </div>
       </div>
 
-      <AnimatePresence>
-        {mounted && langMenu}
-      </AnimatePresence>
+      <div className="relative">{langMenu}</div>
     </header>
   );
 }

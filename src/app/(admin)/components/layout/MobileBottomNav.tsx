@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { LogOut, MoreHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -48,30 +48,29 @@ export default function MobileBottomNav({
 
   return (
     <>
-      <AnimatePresence>
-        {moreOpen && (
-          <motion.button
-            type="button"
-            aria-label="Menyunu bağla"
-            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-            onClick={() => setMoreOpen(false)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-          />
-        )}
-      </AnimatePresence>
+      {/* Backdrop — CSS only, no mount/unmount */}
+      <div
+        className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+        onClick={() => setMoreOpen(false)}
+        style={{
+          opacity: moreOpen ? 1 : 0,
+          pointerEvents: moreOpen ? 'auto' : 'none',
+          transition: 'opacity 0.18s ease',
+        }}
+      />
 
-      <AnimatePresence>
-        {moreOpen && hasMore && (
-          <motion.div
-            className="fixed bottom-[calc(3.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 rounded-2xl border border-white/10 bg-[#0c0c0c] p-2 shadow-2xl lg:hidden"
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.98 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
+      {/* More menu — CSS only */}
+      {hasMore && (
+        <div
+          className="fixed bottom-[calc(3.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 rounded-2xl border border-white/10 bg-[#0c0c0c] p-2 shadow-2xl lg:hidden"
+          style={{
+            opacity: moreOpen ? 1 : 0,
+            transform: moreOpen ? 'translateY(0) scale(1)' : 'translateY(16px) scale(0.98)',
+            pointerEvents: moreOpen ? 'auto' : 'none',
+            transition: 'opacity 0.2s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1)',
+            willChange: 'transform, opacity',
+          }}
+        >
             {overflow.map((link) => {
               const Icon = link.icon;
               const active = isActive(link.href);
@@ -106,9 +105,8 @@ export default function MobileBottomNav({
               <LogOut size={18} />
               {t('logout')}
             </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.08] bg-[#0a0a0a]/98 pb-[env(safe-area-inset-bottom)] lg:hidden"

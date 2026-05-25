@@ -6,10 +6,17 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(request: Request) {
   try {
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ 
+        error: `Missing env vars: ${!supabaseUrl ? 'SUPABASE_URL ' : ''}${!supabaseKey ? 'SERVICE_ROLE_KEY' : ''}` 
+      }, { status: 500 });
+    }
+
     const { email, password } = await request.json();
     
     // 1. Supabase Auth ilə login
-    const authClient = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const authClient = createClient(supabaseUrl, anonKey);
     const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
       email,
       password,
@@ -20,15 +27,7 @@ export async function POST(request: Request) {
     }
     
     // 2. Service role ilə admin_users-dən role çək
-    let serviceClient;
-    try {
-      serviceClient = createClient(supabaseUrl, supabaseKey);
-    } catch {
-      // Fallback to anon key with RLS bypass via REST API
-      return NextResponse.json({ 
-        error: 'Service key invalid. Please check SUPABASE_SERVICE_ROLE_KEY in Vercel.' 
-      }, { status: 500 });
-    }
+    const serviceClient = createClient(supabaseUrl, supabaseKey);
     
     const { data: adminUser, error: userError } = await serviceClient
       .from('admin_users')

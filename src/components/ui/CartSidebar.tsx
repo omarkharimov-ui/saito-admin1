@@ -37,7 +37,13 @@ const CartSidebar = () => {
         }
       }
 
-      const newItems = items.map(item => ({
+      const newItems = items.map(item => {
+          name: item.product.name,
+          image_url: item.product.image_url,
+          hasImageUrl: 'image_url' in item.product,
+          productKeys: Object.keys(item.product)
+        });
+        return {
           product_id: item.product.id,
           variant_id: item.variant?.id || null,
           product_name: (() => { const az = item.product.translations?.['az']?.name || item.product.name; return item.variant ? `${az} (${item.variant.name})` : az; })(),
@@ -45,11 +51,9 @@ const CartSidebar = () => {
           unit_price: item.unitPrice,
           total_price: item.unitPrice * item.quantity,
           kitchen_status: 'hot',  // Database default ilə eyni
-          image_url: item.product.image_url || null,
-          name: item.product.name,
-          hasImageUrl: 'image_url' in item.product,
-          productKeys: Object.keys(item.product)
-        }));
+          image_url: item.product.image_url || null
+        };
+      });
 
       if (existingOrder) {
 
@@ -81,7 +85,8 @@ const CartSidebar = () => {
               })
               .eq('id', match.id);
             if (updErr) throw updErr;
-            console.log(`✏️  Mövcud item yeniləndi: ${item.product_name} qty ${match.quantity} → ${newQty} (prepared qalır: ${match.prepared_quantity ?? 0})`);
+              `✏️  Mövcud item yeniləndi: ${item.product_name} qty ${match.quantity} → ${newQty} (prepared qalır: ${match.prepared_quantity ?? 0})`
+            );
           } else {
             // Brand new product on this order: insert with prepared_quantity = 0
             const { error: insErr } = await supabase.from('order_items').insert({

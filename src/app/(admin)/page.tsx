@@ -812,7 +812,7 @@ const AdminDashboard = () => {
       {loading ? (
         <DashboardSkeleton />
       ) : (
-        <>
+
       {/* AI Suggestion Section - Yoji Məsləhəti (HeroBanner və Canlı Masa Planı arasında) */}
       {!settingsLoaded ? (
         <div className="rounded-2xl h-[96px]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }} />
@@ -994,8 +994,6 @@ const AdminDashboard = () => {
       ) : (
         <SenseiSleepCard openingHours={openingHours} />
       )}
-        </>
-      )}
 
       {/* Live Floor Snapshot - Canlı Masa Planı (Yoji Məsləhəti altında) */}
       <LiveFloorSnapshot />
@@ -1044,6 +1042,7 @@ const AdminDashboard = () => {
           setConfirmDeleteProduct(null);
         }}
       />
+      )}
     </div>
   );
 };

@@ -80,7 +80,7 @@ const StatsPage = () => {
       const res = await fetch('/api/sensei/stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stats, timeFilter }),
+        body: JSON.stringify({ stats, timeFilter, language }),
       });
       const data = await res.json();
       const text = data.analysis || data.text || data.message || null;

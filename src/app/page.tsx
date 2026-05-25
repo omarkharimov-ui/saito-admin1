@@ -24,7 +24,7 @@ export default function AppLandingPage() {
       
       if (standalone) {
         setAppStatus('standalone');
-        window.location.href = '/admin';
+        window.location.replace('/admin');
         return;
       }
 
@@ -130,6 +130,8 @@ export default function AppLandingPage() {
         margin: 0,
         padding: 0
       }}>
+        {/* Fallback: if JS redirect hangs, meta refresh kicks in after 1s */}
+        <meta httpEquiv="refresh" content="1;url=/admin" />
         <h1 style={{ color: 'white', fontSize: '24px', marginBottom: '16px' }}>
           App açılır...
         </h1>

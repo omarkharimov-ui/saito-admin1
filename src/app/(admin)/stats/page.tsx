@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { TrendingUp, BarChart3 } from 'lucide-react';
@@ -293,9 +292,6 @@ const StatsPage = () => {
       try { localStorage.setItem(`saito_stats_cache_v4_${timeFilter}`, JSON.stringify(statsData)); } catch {}
     } catch (err) { console.error(err); toast.error(t('stats_error')); }
     finally {
-      const elapsed = Date.now() - start2;
-      const remaining = Math.max(0, 400 - elapsed);
-      if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
       if (!isStale || !isStale()) setLoading(false);
     }
   };
@@ -312,61 +308,18 @@ const StatsPage = () => {
           timeFilter={timeFilter}
           loading={loading}
           onTimeFilterChange={(f) => { setSelectedCancellationReason(null); setTimeFilter(f); }}
+          aiAnalysis={aiAnalysis}
+          aiDisplayed={aiDisplayed}
+          aiLoading={aiLoading}
+          aiClosing={aiClosing}
+          logoFlash={logoFlash}
+          onFetchAiAnalysis={handleFetchAiAnalysis}
+          onCloseAiAnalysis={handleCloseAiAnalysis}
         />
       </div>
 
       {/* ══ DESKTOP VIEW ══ */}
       <div className="hidden lg:block space-y-10 pb-20">
-      {/* Analyzing overlay — rendered via portal so parent transforms don't affect position */}
-      {loading && typeof document !== 'undefined' && createPortal((() => {
-        const sz = 80, R = 40, r1 = R * 0.88, r2 = R * 0.65, r3 = R * 0.40;
-        const c1 = 2 * Math.PI * r1, c2 = 2 * Math.PI * r2, c3 = 2 * Math.PI * r3;
-        const label = t('stats_analyzing') || 'ANALİZ EDİLİR';
-        return (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 lg:left-64 lg:top-0 z-[150] pointer-events-none flex flex-col items-center justify-center gap-6"
-            style={{ background: 'rgba(2,2,2,0.72)', backdropFilter: 'blur(8px)' }}>
-            <motion.div animate={{ opacity: [0.06, 0.18, 0.06], scale: [0.85, 1.15, 0.85] }} transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute rounded-full pointer-events-none"
-              style={{ width: sz * 5, height: sz * 5, background: 'radial-gradient(circle, rgba(212,175,55,0.14) 0%, transparent 65%)', filter: 'blur(48px)' }} />
-            <motion.div animate={{ rotateX: [6, -6, 6], rotateY: [-8, 8, -8] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ width: sz, height: sz, position: 'relative', transformStyle: 'preserve-3d', perspective: 600 }}>
-              <div style={{ position: 'absolute', bottom: -14, left: '50%', transform: 'translateX(-50%)', width: sz * 0.7, height: 12, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(212,175,55,0.22) 0%, transparent 70%)', filter: 'blur(6px)' }} />
-              <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{ overflow: 'visible', position: 'absolute', inset: 0 }}>
-                <defs>
-                  <linearGradient id="go1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="rgba(212,175,55,0)" /><stop offset="50%" stopColor="rgba(255,220,80,1)" /><stop offset="100%" stopColor="rgba(212,175,55,0.1)" /></linearGradient>
-                  <linearGradient id="go2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="rgba(255,255,255,0)" /><stop offset="50%" stopColor="rgba(255,255,255,0.55)" /><stop offset="100%" stopColor="rgba(255,255,255,0)" /></linearGradient>
-                  <linearGradient id="go3" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="rgba(212,175,55,0)" /><stop offset="50%" stopColor="rgba(212,175,55,0.7)" /><stop offset="100%" stopColor="rgba(212,175,55,0)" /></linearGradient>
-                </defs>
-                <circle cx={R} cy={R} r={r1} fill="none" stroke="rgba(212,175,55,0.07)" strokeWidth="1.5" />
-                <circle cx={R} cy={R} r={r2} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-                <circle cx={R} cy={R} r={r3} fill="none" stroke="rgba(212,175,55,0.05)" strokeWidth="1" />
-                <motion.circle cx={R} cy={R} r={r1} fill="none" stroke="url(#go1)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${c1 * 0.68} ${c1 * 0.32}`} style={{ transformOrigin: `${R}px ${R}px`, filter: 'drop-shadow(0 0 8px rgba(212,175,55,0.75))' } as React.CSSProperties} animate={{ rotate: [0, 360] }} transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }} />
-                <motion.circle cx={R} cy={R} r={r2} fill="none" stroke="url(#go2)" strokeWidth="1.6" strokeLinecap="round" strokeDasharray={`${c2 * 0.28} ${c2 * 0.72}`} style={{ transformOrigin: `${R}px ${R}px`, filter: 'drop-shadow(0 0 5px rgba(255,255,255,0.3))' } as React.CSSProperties} animate={{ rotate: [0, -360] }} transition={{ duration: 2.1, repeat: Infinity, ease: 'linear' }} />
-                <motion.circle cx={R} cy={R} r={r3} fill="none" stroke="url(#go3)" strokeWidth="1.8" strokeLinecap="round" strokeDasharray={`${c3 * 0.45} ${c3 * 0.55}`} style={{ transformOrigin: `${R}px ${R}px`, filter: 'drop-shadow(0 0 6px rgba(212,175,55,0.6))' } as React.CSSProperties} animate={{ rotate: [0, 360] }} transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }} />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div animate={{ opacity: [0.6, 1, 0.6] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} style={{ filter: 'drop-shadow(0 0 10px rgba(212,175,55,0.95)) drop-shadow(0 0 4px rgba(255,220,80,0.7))' }}>
-                  <BarChart3 size={22} className="text-gold" />
-                </motion.div>
-              </div>
-            </motion.div>
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="flex items-center gap-[3px]">
-                {label.split('').map((ch, i) => (
-                  <motion.span key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: [0, 1, 1, 0.4, 1], y: 0 }} transition={{ delay: i * 0.045, duration: 2.4, repeat: Infinity, ease: 'easeInOut', repeatDelay: 0.5 }}
-                    className="text-[11px] font-black uppercase" style={{ letterSpacing: '0.22em', background: 'linear-gradient(135deg, #D4AF37 0%, #FFF5A0 50%, #D4AF37 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 6px rgba(212,175,55,0.5))', display: ch === ' ' ? 'inline-block' : undefined, width: ch === ' ' ? '0.4em' : undefined }}>
-                    {ch}
-                  </motion.span>
-                ))}
-              </div>
-              <div className="relative h-px w-32 overflow-hidden rounded-full bg-white/[0.06]">
-                <motion.div className="absolute inset-y-0 w-16 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.8), transparent)' }} animate={{ x: ['-100%', '200%'] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }} />
-              </div>
-            </div>
-          </motion.div>
-        );
-      })(), document.body)}
 
       {/* Header & Filter */}
       <div className="flex items-center justify-between gap-3">
@@ -378,11 +331,6 @@ const StatsPage = () => {
           {[{ id: 'today', label: t('filter_today') }, { id: 'week', label: t('filter_week') }, { id: 'month', label: t('filter_month') }, { id: '3months', label: t('filter_3months') }, { id: 'year', label: t('filter_year') }].map(f => (
             <button key={f.id} onClick={() => { setSelectedCancellationReason(null); setTimeFilter(f.id); }}
               className={`relative px-3 py-1.5 md:px-4 md:py-2 text-[9px] md:text-[10px] uppercase tracking-widest font-bold rounded-lg transition-all whitespace-nowrap ${timeFilter === f.id ? 'text-gold bg-gold/10 border border-gold/25' : 'text-white/35 hover:text-white/70 border border-transparent'}`}>
-              {timeFilter === f.id && loading && (
-                <span className="absolute inset-0 rounded-lg overflow-hidden">
-                  <span className="absolute inset-0 -translate-x-full animate-[shimmer_1s_infinite] bg-gradient-to-r from-transparent via-gold/15 to-transparent" />
-                </span>
-              )}
               {f.label}
             </button>
           ))}

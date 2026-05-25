@@ -185,12 +185,21 @@ const AccountTab = () => {
     setOpenAccordion(prev => prev === key ? null : key);
   };
 
-  if (false && loading) {
+  if (loading) {
     return (
-      <div className="max-w-md p-6 rounded-2xl border border-white/10 bg-white/[0.02]">
-        <div className="flex items-center justify-center py-8">
-          <Loader2 size={24} className="text-gold/60 animate-spin" />
-        </div>
+      <div className="max-w-md space-y-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/[0.06]" />
+              <div className="space-y-2 flex-1">
+                <div className="h-3.5 w-24 rounded-full bg-white/[0.07]" />
+                <div className="h-2.5 w-36 rounded-full bg-white/[0.04]" />
+              </div>
+              <div className="w-6 h-6 rounded-full bg-white/[0.05]" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

@@ -76,7 +76,7 @@ const CampaignModal = ({
   };
 
   const formBody = (
-    <form noValidate onSubmit={onSubmit} className="space-y-8 px-6 md:px-9 py-8">
+    <form noValidate onSubmit={onSubmit} className="space-y-8 px-4 md:px-9 py-8 w-full overflow-hidden">
       <div className="space-y-7">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -114,16 +114,16 @@ const CampaignModal = ({
         </div>
 
         {form.type === 'HAPPY_HOUR' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">{t('start_time_label')}</label>
               <input type="time" value={form.start_time} onChange={(e) => onFormChange({...form, start_time: e.target.value})}
-                className="w-full bg-white/[0.05] border border-white/[0.09] hover:border-white/[0.14] focus:border-white/20 rounded-2xl px-5 py-5 text-[16px] text-white outline-none transition-all" />
+                className="w-full bg-white/[0.05] border border-white/[0.09] focus:border-white/20 rounded-2xl px-3 py-4 text-[15px] text-white outline-none transition-all" />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">{t('end_time_label')}</label>
               <input type="time" value={form.end_time} onChange={(e) => onFormChange({...form, end_time: e.target.value})}
-                className="w-full bg-white/[0.05] border border-white/[0.09] hover:border-white/[0.14] focus:border-white/20 rounded-2xl px-5 py-5 text-[16px] text-white outline-none transition-all" />
+                className="w-full bg-white/[0.05] border border-white/[0.09] focus:border-white/20 rounded-2xl px-3 py-4 text-[15px] text-white outline-none transition-all" />
             </div>
           </div>
         )}

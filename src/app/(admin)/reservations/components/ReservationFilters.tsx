@@ -94,18 +94,17 @@ const ReservationFilters = ({
           </div>
         </div>
 
-        {/* Arxiv təmizləmə — filtrlərdən ayrı, təsadüfi toxunuşdan uzaq */}
+        {/* Arxiv təmizləmə */}
         {timeFilter === 'archive' && (
-          <div className="px-3 mt-3 border-t border-white/[0.06] pt-3">
+          <div className="px-3 pb-3 mt-2">
             {archiveSelectionMode ? (
-              <div className="space-y-2.5">
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] p-3 space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={onSelectAll}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white/60 hover:text-white transition-colors"
                   >
-                    {/* Apple-style checkbox */}
                     <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                       selectedArchiveCount === totalArchiveCount && totalArchiveCount > 0
                         ? 'bg-blue-500 border-blue-500'
@@ -119,7 +118,7 @@ const ReservationFilters = ({
                     </span>
                     Hamısını seç ({totalArchiveCount})
                   </button>
-                  <span className="text-xs text-white/40">{selectedArchiveCount} {t('selected_items').toLowerCase()}</span>
+                  <span className="text-xs text-white/40">{selectedArchiveCount} seçili</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -159,7 +158,7 @@ const ReservationFilters = ({
           </div>
         )}
 
-        {/* Search expand — triggered from header (passed via searchOpen state) */}
+        {/* Search — always below tabs on mobile */}
         <AnimatePresence>
           {searchOpen && (
             <motion.div
@@ -167,9 +166,9 @@ const ReservationFilters = ({
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-              className="overflow-hidden border-b border-white/[0.04]"
+              className="overflow-hidden"
             >
-              <div className="relative px-4 py-2.5">
+              <div className="relative px-4 pt-2 pb-3">
                 <Search className="absolute left-7 top-1/2 -translate-y-1/2 text-white/20" size={13} />
                 <input
                   autoFocus
@@ -177,7 +176,7 @@ const ReservationFilters = ({
                   placeholder={`${t('search')}...`}
                   value={searchQuery}
                   onChange={(e) => onSearch(e.target.value)}
-                  className="w-full pl-8 pr-4 py-2 bg-white/[0.03] rounded-xl text-[13px] text-white placeholder:text-white/15 outline-none border border-white/[0.06] focus:border-white/15 transition-colors"
+                  className="w-full pl-8 pr-4 py-2.5 bg-white/[0.04] rounded-xl text-[13px] text-white placeholder:text-white/15 outline-none border border-white/[0.07] focus:border-white/20 transition-colors"
                 />
               </div>
             </motion.div>

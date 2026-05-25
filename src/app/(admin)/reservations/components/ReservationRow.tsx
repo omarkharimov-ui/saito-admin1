@@ -132,7 +132,7 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
                 </button>
               </>
             )}
-            {(res.status === 'cancelled' || timeFilter === 'archive') && (
+            {res.status === 'cancelled' && timeFilter !== 'archive' && (
               <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 inline-flex items-center justify-center text-white/25 hover:text-red-400 bg-white/[0.04] hover:bg-red-500/[0.08] border border-white/[0.07] hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('delete')}>
                 <Trash2 size={16} />
               </button>

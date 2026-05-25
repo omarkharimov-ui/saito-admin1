@@ -72,24 +72,22 @@ const HoursTab = () => {
           return (
             <div
               key={day}
-              className={`flex items-center px-5 py-3.5 gap-5 border-b border-white/5 last:border-0 transition-colors ${
+              className={`flex flex-wrap items-center px-4 py-3 gap-x-3 gap-y-2 border-b border-white/5 last:border-0 transition-colors ${
                 isToday ? 'bg-gold/[0.06]' : 'hover:bg-white/[0.02]'
               }`}
             >
-              {/* Day label */}
-              <div className="w-[140px] flex-shrink-0 flex items-center gap-2">
-                <span className={`text-sm font-medium ${ isToday ? 'text-gold' : 'text-white/50'}`}>{day}</span>
+              {/* Day label + toggle */}
+              <div className="flex items-center gap-2.5 min-w-[130px] flex-1">
+                <button
+                  type="button"
+                  onClick={() => updateDay(i, 'closed', !d.closed)}
+                  className={`relative w-9 h-[20px] rounded-full transition-all flex-shrink-0 ${ d.closed ? 'bg-white/[0.08]' : 'bg-gold'}`}
+                >
+                  <span className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-white shadow transition-all ${ d.closed ? 'left-[3px]' : 'left-[19px]'}`} />
+                </button>
+                <span className={`text-sm font-medium ${ isToday ? 'text-gold' : d.closed ? 'text-white/25' : 'text-white/65'}`}>{day}</span>
                 {isToday && <span className="text-[9px] font-black uppercase tracking-widest text-gold/60 bg-gold/10 px-1.5 py-0.5 rounded">Bu gün</span>}
               </div>
-
-              {/* Toggle */}
-              <button
-                type="button"
-                onClick={() => updateDay(i, 'closed', !d.closed)}
-                className={`relative w-9 h-[20px] rounded-full transition-all flex-shrink-0 ${ d.closed ? 'bg-white/8' : 'bg-gold'}`}
-              >
-                <span className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-white shadow transition-all ${ d.closed ? 'left-[3px]' : 'left-[19px]'}`} />
-              </button>
 
               {d.closed ? (
                 <span className="text-xs text-white/20 italic">Bağlı</span>

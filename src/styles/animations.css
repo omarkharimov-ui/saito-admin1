@@ -86,7 +86,7 @@
 }
 @keyframes circuitSpark {
   from { stroke-dashoffset: 0; }
-  to   { stroke-dashoffset: -100; }
+  to   { stroke-dashoffset: -300; }
 }
 @keyframes shake {
   0%, 100%                        { transform: translateX(0); }
@@ -198,5 +198,6 @@
 /* ── Circuit Flow Animation for YOJI Icons ── */
 @keyframes circuitFlow {
   0%   { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: -24; }
+  100% { stroke-dashoffset: -300; }
 }
+

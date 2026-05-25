@@ -443,24 +443,24 @@ const CampaignsPage = () => {
       {/* ── Header ── */}
       <div className="mb-6 md:mb-12 px-4 sm:px-0">
         {/* Mobile layout */}
-        <div className="flex items-center justify-between gap-3 md:hidden">
-          <h2 className="text-2xl font-serif font-bold text-white tracking-tight">{t('campaigns_title')}</h2>
-          <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-col gap-3 md:hidden">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-serif font-bold text-white tracking-tight">{t('campaigns_title')}</h2>
             <button
               onClick={handleDeleteAll}
               className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/[0.07] text-red-400/60 border border-red-500/15 transition-all active:scale-95"
             >
               <Trash2 size={16} />
             </button>
-            <button
-              onClick={handleNewCampaign}
-              className="h-10 px-4 flex items-center gap-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all active:scale-95"
-              style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.4)', color: '#D4AF37' }}
-            >
-              <Plus size={14} />
-              {t('new_campaign')}
-            </button>
           </div>
+          <button
+            onClick={handleNewCampaign}
+            className="w-full h-11 flex items-center justify-center gap-2 rounded-xl text-[12px] font-bold tracking-wider uppercase transition-all active:scale-95"
+            style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.4)', color: '#D4AF37' }}
+          >
+            <Plus size={14} />
+            {t('new_campaign')}
+          </button>
         </div>
         {/* Desktop layout */}
         <div className="hidden md:flex items-center justify-between gap-4">

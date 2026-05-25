@@ -66,12 +66,12 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
               {/* Animated circuit lines */}
               <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"
                 className="sensei-circuit-a"
-                stroke="rgba(212,175,55,0.65)" strokeWidth="2" strokeDasharray="4 20"
-                style={{ animation: 'circuitFlow 2.5s linear infinite' }} />
+                stroke="rgba(212,175,55,0.65)" strokeWidth="2" strokeDasharray="6 44"
+                style={{ animation: 'circuitFlow 3s linear infinite' }} />
               <path d="M12 8h8M16 8V5a2 2 0 0 1 2-2M12 13h4M12 18h6a2 2 0 0 1 2 2v1"
                 className="sensei-circuit-b"
-                stroke="rgba(212,175,55,0.5)" strokeWidth="1.5" strokeDasharray="3 15"
-                style={{ animation: 'circuitFlow 1.8s linear infinite reverse' }} />
+                stroke="rgba(212,175,55,0.5)" strokeWidth="1.5" strokeDasharray="4 30"
+                style={{ animation: 'circuitFlow 2.2s linear infinite reverse' }} />
             </svg>
           </div>
         </div>

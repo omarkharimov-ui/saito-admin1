@@ -1,19 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, ShoppingBag, Clock, BarChart2,
-  AlertTriangle, ChevronRight, Zap, Award, BrainCircuit,
-  Lightbulb, AlertOctagon, Sparkles, Loader2, XCircle,
+  AlertTriangle, ChevronRight, Zap, Award, Sparkles,
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import StatsSenseiPanel from './StatsSenseiPanel';
 
 interface ChartPoint { date: string; value: number; }
 interface ProductPerf {
   id: string; name: string; image?: string;
-  sold: number; revenue: number | string; conversion: number | string;
+  sold: number; revenue: number; conversion: string;
+  views: number;
 }
 interface PeakHour { hour: number; count: number; }
 interface Anomaly { type: string; severity: 'critical' | 'warning'; message: string; }
@@ -23,19 +24,27 @@ interface Props {
     totalRevenue: number; totalOrders: number; aov: number; missedRevenue: number;
     chartData: ChartPoint[]; productPerformance: ProductPerf[]; peakHours: PeakHour[];
     topProduct: string; peakHour: string;
+    [key: string]: any;
   };
   forecast: Forecast | null;
   anomalies: Anomaly[];
   timeFilter: string;
   loading: boolean;
   onTimeFilterChange: (f: string) => void;
+  aiAnalysis: string | null;
+  aiDisplayed: string | null;
+  aiLoading: boolean;
+  aiClosing: boolean;
+  logoFlash: boolean;
+  onFetchAiAnalysis: () => void;
+  onCloseAiAnalysis: () => void;
 }
 
 const FILTERS = ['today', 'week', 'month', '3months', 'year'] as const;
 
-export default function StatsMobileView({ stats, forecast, anomalies, timeFilter, loading, onTimeFilterChange }: Props) {
+export default function StatsMobileView({ stats, forecast, anomalies, timeFilter, loading, onTimeFilterChange, aiAnalysis, aiDisplayed, aiLoading, aiClosing, logoFlash, onFetchAiAnalysis, onCloseAiAnalysis }: Props) {
   const { t, language } = useLanguage();
-  const [activeSection, setActiveSection] = useState<'overview' | 'products' | 'hours'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'products' | 'hours' | 'sensei'>('overview');
 
   const revDelta = forecast ? forecast.trend : 0;
   const isUp = revDelta >= 0;
@@ -61,7 +70,7 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
     <div className="flex flex-col pb-24">
 
       {/* ── STICKY HEADER ── */}
-      <div className="sticky top-0 z-20 bg-black/90 backdrop-blur-xl border-b border-white/[0.06] px-4 pt-4 pb-3">
+      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-white/[0.06] px-4 pt-4 pb-3" style={{ background: 'rgba(10,10,10,0.95)' }}>
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-serif font-bold text-white">{t('statistics_title')}</h1>
         </div>
@@ -178,6 +187,7 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
             { key: 'overview', label: t('stats_tab_overview') || 'Baxış' },
             { key: 'products', label: t('stats_tab_products') || 'Məhsullar' },
             { key: 'hours',    label: t('stats_tab_hours') || 'Saatlar' },
+            { key: 'sensei',   label: 'Deep Scan' },
           ] as const).map(s => {
             const isActive = activeSection === s.key;
             return (
@@ -187,9 +197,9 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
                 whileTap={{ scale: 0.94 }}
                 className="relative flex-shrink-0 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-colors duration-200 overflow-hidden"
                 style={{
-                  color: isActive ? '#ffffff' : 'rgba(255,255,255,0.25)',
-                  background: isActive ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.03)',
-                  border: isActive ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.05)',
+                  color: s.key === 'sensei' && isActive ? '#D4AF37' : isActive ? '#ffffff' : 'rgba(255,255,255,0.25)',
+                  background: s.key === 'sensei' && isActive ? 'rgba(212,175,55,0.1)' : isActive ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.03)',
+                  border: s.key === 'sensei' && isActive ? '1px solid rgba(212,175,55,0.3)' : isActive ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.05)',
                 }}>
                 {isActive && (
                   <motion.span
@@ -401,6 +411,39 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
           </motion.div>
         )}
 
+
+        {/* DEEP SCAN / SENSEI */}
+        {activeSection === 'sensei' && (
+          <motion.div key="sensei"
+            initial={{ opacity: 0, x: 18, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, x: -12, filter: 'blur(4px)' }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+            className="px-4 mt-4 pb-6">
+            <StatsSenseiPanel
+              stats={stats}
+              aiAnalysis={aiAnalysis}
+              aiDisplayed={aiDisplayed}
+              aiLoading={aiLoading}
+              aiClosing={aiClosing}
+              logoFlash={logoFlash}
+              senseiStatsAdvice={null}
+              chatMessages={[]}
+              chatLoading={false}
+              whatIfProduct=""
+              whatIfChange={0}
+              whatIfResult={null}
+              whatIfLoading={false}
+              onFetchAiAnalysis={onFetchAiAnalysis}
+              onCloseAiAnalysis={onCloseAiAnalysis}
+              onSendChat={() => {}}
+              onWhatIfProductChange={() => {}}
+              onWhatIfChangeChange={() => {}}
+              onFetchWhatIf={() => {}}
+              restaurantCity="Baku,AZ"
+            />
+          </motion.div>
+        )}
 
       </AnimatePresence>
     </div>

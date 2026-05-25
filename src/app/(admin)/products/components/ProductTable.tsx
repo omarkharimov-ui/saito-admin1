@@ -354,7 +354,7 @@ export function ProductTable({
                                 <td className="px-6 py-3.5 min-w-[280px] max-w-[340px]">
                                   <div className="flex items-center gap-3.5">
                                     <div className="w-11 h-11 bg-white/[0.03] border border-white/[0.08] overflow-hidden relative rounded-xl group-hover:border-white/25 transition-transform duration-300 shrink-0">
-                                      <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                      <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                     </div>
                                     <div className="flex min-w-0 flex-col">
                                       <span className="max-w-[220px] truncate font-semibold text-[14px] text-white group-hover:text-white transition-colors"
@@ -519,7 +519,7 @@ export function ProductTable({
                                   {/* Image */}
                                   <div className="w-[72px] h-[72px] rounded-2xl bg-white/[0.04] border border-white/[0.07] overflow-hidden shrink-0">
                                     {product.image_url
-                                      ? <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" className="w-full h-full object-cover" />
+                                      ? <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover" />
                                       : <div className="w-full h-full flex items-center justify-center">
                                           <Tag size={20} className="text-white/10" />
                                         </div>

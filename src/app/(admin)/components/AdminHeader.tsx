@@ -23,7 +23,7 @@ const AdminHeaderInner = ({
   const [mounted, setMounted] = useState(false);
   const langBtnRef = useRef<HTMLButtonElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
-  const [langMenuPos, setLangMenuPos] = useState({ top: 0, right: 0 });
+  const [langMenuPos, setLangMenuPos] = useState({ top: 0, right: 0, left: -1 });
 
   useEffect(() => {
     setMounted(true);
@@ -50,7 +50,7 @@ const AdminHeaderInner = ({
         ? rect.bottom + 6
         : rect.top - dropdownHeight - 6;
       const right = Math.max(8, window.innerWidth - rect.right);
-      setLangMenuPos({ top, right });
+      setLangMenuPos({ top, right, left: -1 });
     };
     update();
     window.addEventListener('resize', update);
@@ -109,7 +109,7 @@ const AdminHeaderInner = ({
                 <div
                   ref={langMenuRef}
                   className="fixed z-[200] flex flex-col gap-1.5 min-w-[90px] rounded-xl border border-white/10 bg-[#0c0c0c] p-1.5 shadow-xl"
-                  style={{ top: langMenuPos.top, right: langMenuPos.right }}
+                  style={{ top: langMenuPos.top, right: langMenuPos.right, minWidth: 90 }}
                 >
                   {otherLangs.map((lang) => (
                     <button

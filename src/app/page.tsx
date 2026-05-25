@@ -24,10 +24,7 @@ export default function AppLandingPage() {
       
       if (standalone) {
         setAppStatus('standalone');
-        // Redirect to admin immediately if in standalone mode
-        setTimeout(() => {
-          window.location.href = '/admin';
-        }, 1000);
+        window.location.href = '/admin';
         return;
       }
 

@@ -112,11 +112,23 @@ body {
   }
 }
 
-/* Reduce motion on mobile for snappier UI */
+/* Reduce motion on mobile for snappier UI — only CSS transitions, not framer-motion (inline styles) */
 @media (hover: none) and (pointer: coarse) {
-  *, *::before, *::after {
-    animation-duration: 0.25s !important;
+  /* Only target elements WITHOUT inline style (framer-motion uses inline) */
+  *:not([style*="transform"]):not([style*="opacity"]) {
     transition-duration: 0.15s !important;
+  }
+  /* Disable heavy backdrop-blur on mobile modals */
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-3xl {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+  /* Touch feedback */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 }
 

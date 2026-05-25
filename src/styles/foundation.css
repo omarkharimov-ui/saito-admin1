@@ -89,3 +89,25 @@ main.app-brightness {
   transition: filter 2s ease;
 }
 
+/* ── Native mobile feel ── */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* GPU composite layer for scroll containers — eliminates jank */
+@media (hover: none) and (pointer: coarse) {
+  [class*="overflow-y-auto"],
+  [class*="overflow-auto"],
+  [class*="overflow-y-scroll"] {
+    -webkit-overflow-scrolling: touch;
+    transform: translateZ(0);
+  }
+  /* Prevent layout thrashing from infinite animations */
+  .animate-mesh,
+  .animate-mesh-slow,
+  .animate-gradient {
+    animation-play-state: paused !important;
+  }
+}
+

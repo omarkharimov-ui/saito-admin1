@@ -364,73 +364,11 @@ export default function StatsSenseiPanel({
   }, [chatOpen]);
 
 
-  /* ─── Predictive bubbles every 45 s ─── */
-  useEffect(() => {
-    if (chatOpen) return;
-    const buildHints = (): string[] => {
-      const hints: string[] = [];
-      if (stats.peakHours?.length) {
-        const peak = stats.peakHours[0];
-        hints.push(
-          language === 'az' ? `⏰ Saat ${peak.hour}:00 pik saatdır — ortalama ${peak.count} sifariş` :
-          language === 'ru' ? `⏰ ${peak.hour}:00 — пик, ~${peak.count} заказов` :
-          `⏰ ${peak.hour}:00 is peak — avg ${peak.count} orders`
-        );
-      }
-      if (stats.productPerformance?.length) {
-        const top = stats.productPerformance[0];
-        hints.push(
-          language === 'az' ? `✨ Ən çox satan: "${top.name}" — ${top.sold} ədəd` :
-          language === 'ru' ? `✨ Топ продукт: "${top.name}" — ${top.sold} шт.` :
-          `✨ Top seller: "${top.name}" — ${top.sold} sold`
-        );
-      }
-      if (stats.aov) {
-        hints.push(
-          language === 'az' ? `📊 Orta sifariş dəyəri: ₼${stats.aov.toFixed(1)}` :
-          language === 'ru' ? `📊 Средний чек: ₼${stats.aov.toFixed(1)}` :
-          `📊 Avg order value: ₼${stats.aov.toFixed(1)}`
-        );
-      }
-      if (stats.totalOrders > 0) {
-        hints.push(
-          language === 'az' ? `📈 Bu dövrdə ${stats.totalOrders} sifariş, ₼${stats.totalRevenue.toFixed(0)} gəlir` :
-          language === 'ru' ? `📈 ${stats.totalOrders} зак., ₼${stats.totalRevenue.toFixed(0)} выручка` :
-          `📈 ${stats.totalOrders} orders, ₼${stats.totalRevenue.toFixed(0)} revenue`
-        );
-      }
-      return hints.length ? hints : [
-        language === 'az' ? '🤖 Soruş, kömək edim!' :
-        language === 'ru' ? '🤖 Спрашивай, помогу!' : '🤖 Ask me anything!'
-      ];
-    };
-    const cycle = () => {
-      const hints = buildHints();
-      setPredictiveBubble(hints[predictiveIndexRef.current % hints.length]);
-      predictiveIndexRef.current++;
-      setTimeout(() => setPredictiveBubble(null), 7000);
-    };
-    const interval = setInterval(cycle, 45000);
-    return () => clearInterval(interval);
-  }, [chatOpen, stats, language]);
+  /* ─── Predictive bubbles — disabled ─── */
+  // useEffect removed
 
-  /* ─── Idle hint after 30 s no mouse move ─── */
-  useEffect(() => {
-    if (chatOpen) return;
-    const resetIdle = () => {
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = setTimeout(() => {
-        if (!chatOpen) setPredictiveBubble(
-          language === 'az' ? '🤖 Hər şey haqqında soruşa bilərsən — toxun!' :
-          language === 'ru' ? '🤖 Могу помочь, нажми!' : '🤖 Need help? Tap me!'
-        );
-        setTimeout(() => setPredictiveBubble(null), 6000);
-      }, 30000);
-    };
-    window.addEventListener('mousemove', resetIdle);
-    resetIdle();
-    return () => { window.removeEventListener('mousemove', resetIdle); if (idleTimerRef.current) clearTimeout(idleTimerRef.current); };
-  }, [chatOpen, language]);
+  /* ─── Idle hint — disabled ─── */
+  // useEffect removed
 
   /* ─── Deep Scan Data State ─── */
   const [behavioralData, setBehavioralData] = useState<BehavioralData | null>(null);
@@ -958,28 +896,7 @@ export default function StatsSenseiPanel({
               exit={{ opacity: 0, scale: 0.8, y: 20 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}>
 
-              {/* Bubble: welcome / predictive / hover */}
-              <AnimatePresence mode="wait">
-                {(predictiveBubble || tooltipShown || fabHovered) && (
-                  <motion.div key={predictiveBubble ?? (fabHovered ? 'hover' : 'welcome')}
-                    initial={{ opacity: 0, y: 8, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                    transition={{ duration: 0.22 }}
-                    className="relative max-w-[210px] px-4 py-3 rounded-2xl rounded-br-sm"
-                    style={{ background: 'rgba(10,10,10,0.96)', border: '1px solid rgba(212,175,55,0.18)', backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
-                    <p className="text-[12px] text-white/80 leading-relaxed">
-                      {predictiveBubble ?? (
-                        fabHovered
-                          ? <span className="text-gold/90 font-semibold">{language === 'az' ? 'Nə bilmək istəyirsən?' : language === 'ru' ? 'Что хочешь узнать?' : 'What do you want to know?'}</span>
-                          : (language === 'az' ? 'Salam! Nə soruşmaq istəyirsən?' : language === 'ru' ? 'Привет! Чем могу помочь?' : 'Hi! What can I help with?')
-                      )}
-                    </p>
-                    <span className="absolute -bottom-[7px] right-5 w-3.5 h-3.5 rotate-45"
-                      style={{ background: 'rgba(10,10,10,0.96)', borderRight: '1px solid rgba(212,175,55,0.18)', borderBottom: '1px solid rgba(212,175,55,0.18)' }} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Bubble removed */}
 
             </motion.div>
           )}

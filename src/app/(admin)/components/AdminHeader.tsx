@@ -42,12 +42,23 @@ const AdminHeaderInner = ({
   useEffect(() => {
     if (!langOpen || !langBtnRef.current) return;
     const update = () => {
-      const rect = langBtnRef.current!.getBoundingClientRect();
-      setLangMenuPos({ top: rect.bottom + 6, right: Math.max(8, window.innerWidth - rect.right) });
+      if (!langBtnRef.current) return;
+      const rect = langBtnRef.current.getBoundingClientRect();
+      const dropdownHeight = 44 * 2 + 24; // approx 2 buttons + padding
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow >= dropdownHeight
+        ? rect.bottom + 6
+        : rect.top - dropdownHeight - 6;
+      const right = Math.max(8, window.innerWidth - rect.right);
+      setLangMenuPos({ top, right });
     };
     update();
     window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
   }, [langOpen]);
 
   const LANGS = [

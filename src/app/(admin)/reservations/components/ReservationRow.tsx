@@ -233,10 +233,10 @@ export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, 
                 <XCircle size={13} />{t('cancel')}
               </button>
             )}
-            {(res.status === 'cancelled' || res.status === 'confirmed' || timeFilter === 'archive') && (
+            {(res.status === 'cancelled' || res.status === 'confirmed') && timeFilter !== 'archive' && (
               <button onClick={() => onDelete(res.id, res.name)}
                 className="w-7 h-7 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/[0.08]">
-                <Trash2 size={13} />
+                <XCircle size={13} />
               </button>
             )}
           </>

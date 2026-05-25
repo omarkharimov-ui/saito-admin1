@@ -119,7 +119,7 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
       </div>
 
       {/* ── MINI CHART ── */}
-      {stats.chartData.length > 1 && (
+      {stats.chartData.length > 0 && (
         <div className="h-[90px] w-full px-0 mt-1">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={stats.chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>

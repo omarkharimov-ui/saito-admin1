@@ -1146,7 +1146,7 @@ export default function StatsSenseiPanel({
 
   return (
     <>
-    <div className="bg-black border border-white/[0.06] p-6 relative rounded-2xl">
+    <div className="bg-card border border-white/[0.06] p-6 relative rounded-2xl">
       <HologramGrid />
       <div className="relative z-10 flex flex-col gap-6">
         {/* Header */}

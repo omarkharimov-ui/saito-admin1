@@ -44,7 +44,9 @@ export function ProductCategoryModal({
   const [slugManuallyEdited, setSlugManuallyEdited] = React.useState(false);
 
   // Use global hook for dirty checking
-  const { isDirty } = useModalFormDirty(categoryForm, open, categoryForm.id);
+  const { isDirty: _isDirty } = useModalFormDirty(categoryForm, open, categoryForm.id);
+  // For new categories (no id), enable save whenever name is filled
+  const isDirty = categoryForm.id ? _isDirty : categoryForm.name.trim().length > 0;
 
   React.useEffect(() => { setSlugManuallyEdited(false); }, [categoryForm.id]);
 

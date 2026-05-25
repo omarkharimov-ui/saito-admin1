@@ -132,14 +132,36 @@ export async function GET(request: Request) {
       amount: data.amount,
     }));
 
+    const missedRevenue = cancelledOrders?.reduce((s: number, c: any) => s + (Number(c.total_amount) || 0), 0) || 0;
+
+    // Format chartData as {date, value} for revenue chart
+    const dateValueMap: Record<string, number> = {};
+    orders?.forEach((o: any) => {
+      const d = new Date(o.created_at);
+      const key = timeFilter === 'today'
+        ? `${String(d.getHours()).padStart(2,'0')}:00`
+        : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+      dateValueMap[key] = (dateValueMap[key] || 0) + (Number(o.total_amount) || 0);
+    });
+    const chartData = Object.entries(dateValueMap).map(([date, value]) => ({ date, value }));
+
+    const topProduct = productPerformance[0]?.name || '\u2014';
+    const topPeakHour = peakHours[0];
+    const peakHour = topPeakHour
+      ? `${String(topPeakHour.hour).padStart(2,'0')}:00\u2013${String(topPeakHour.hour+1).padStart(2,'00')}:00`
+      : '\u2014';
+
     return NextResponse.json({
       totalRevenue,
       totalOrders,
       aov,
+      missedRevenue,
       peakHours,
+      peakHour,
+      topProduct,
       productPerformance,
       cancellationReasons,
-      chartData: orders || [],
+      chartData,
     });
 
   } catch (error: any) {

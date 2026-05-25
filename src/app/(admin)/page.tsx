@@ -216,12 +216,19 @@ const AdminDashboard = () => {
 
         toast.success(`"${product.name}" üçün ${aiDiscountForm.discountPercent}% endirim tətbiq edildi`);
         setIsAiDiscountModalOpen(false);
+        setIsHappyHourModalOpen(false);
         fetchData();
       }
     } catch (err) {
       toast.error('Xəta baş verdi');
     }
     setUpdating(false);
+  };
+
+  const openAiDiscountModal = (productId: string, productName: string, discountPercent: number, type: string) => {
+    setAiDiscountForm(prev => ({ ...prev, productId, productName, discountPercent, type }));
+    setHappyHourForm(prev => ({ ...prev, productId, discountPercent }));
+    setIsHappyHourModalOpen(true);
   };
   
   // Filtering & Search
@@ -875,14 +882,7 @@ const AdminDashboard = () => {
                           onClick={() => {
                             const product = products.find(p => p.id === yojiAdvice.productId);
                             if (!product) return;
-                            setAiDiscountForm(prev => ({
-                              ...prev,
-                              productId: product.id,
-                              productName: product.name,
-                              discountPercent: 10,
-                              type: yojiAdvice.type === 'HAPPY_HOUR' ? 'HAPPY_HOUR' : 'PERCENTAGE',
-                            }));
-                            setIsAiDiscountModalOpen(true);
+                            openAiDiscountModal(product.id, product.name, 10, yojiAdvice.type === 'HAPPY_HOUR' ? 'HAPPY_HOUR' : 'PERCENTAGE');
                           }}
                           className="flex items-center gap-2 px-5 py-3 rounded-xl text-black text-xs font-bold tracking-widest uppercase transition-all transition-premium shadow-lg shadow-gold/10 bg-gradient-to-r from-gold via-[#E7C85A] to-gold border border-gold/30"
                         >
@@ -962,14 +962,7 @@ const AdminDashboard = () => {
                       onClick={() => {
                         const product = products.find(p => p.id === yojiAdvice.productId);
                         if (!product) return;
-                        setAiDiscountForm(prev => ({
-                          ...prev,
-                          productId: product.id,
-                          productName: product.name,
-                          discountPercent: 10,
-                          type: yojiAdvice.type === 'HAPPY_HOUR' ? 'HAPPY_HOUR' : 'PERCENTAGE',
-                        }));
-                        setIsAiDiscountModalOpen(true);
+                        openAiDiscountModal(product.id, product.name, 10, yojiAdvice.type === 'HAPPY_HOUR' ? 'HAPPY_HOUR' : 'PERCENTAGE');
                       }}
                       className="group relative flex items-center justify-center gap-2.5 w-full h-[52px] rounded-xl border border-gold/40 text-gold text-xs font-bold tracking-[0.2em] uppercase overflow-hidden transition-all hover:border-gold/60 active:scale-[0.98]"
                     >

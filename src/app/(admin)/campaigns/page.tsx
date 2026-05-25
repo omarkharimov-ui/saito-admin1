@@ -456,10 +456,10 @@ const CampaignsPage = () => {
           </button>
           <button
             onClick={handleNewCampaign}
-            className="flex items-center gap-2 px-5 md:px-8 py-3 rounded-xl text-[11px] font-bold tracking-[0.2em] uppercase transition-all active:scale-95 whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 md:px-8 py-2.5 md:py-3 rounded-xl text-[11px] font-bold tracking-[0.15em] md:tracking-[0.2em] uppercase transition-all active:scale-95 whitespace-nowrap"
             style={{ background: 'transparent', border: '1px solid #D4AF37', color: '#D4AF37' }}
           >
-            <Plus size={18} />
+            <Plus size={15} />
             <span>{t('new_campaign')}</span>
           </button>
         </div>

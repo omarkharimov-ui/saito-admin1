@@ -13,10 +13,14 @@ type StaffMember = { id: string; name: string; role: string; shift: string; phon
 const ROLES = ['Ofisiant', 'Baş Ofisiant', 'Menecer', 'Barmen', 'Aşpaz', 'Kassa'];
 const emptyForm = () => ({ name: '', role: ROLES[0], shift: '', phone: '' });
 
+const STAFF_CACHE_KEY = 'saito_staff_cache';
+
 const StaffTab = () => {
   const { t } = useLanguage();
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [staff, setStaff] = useState<StaffMember[]>(() => {
+    try { const r = localStorage.getItem(STAFF_CACHE_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+  });
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [showForm, setShowForm] = useState(false);
@@ -24,8 +28,10 @@ const StaffTab = () => {
 
   useEffect(() => {
     supabase.from('staff').select('*').order('name').then(({ data }) => {
-      setStaff((data as StaffMember[]) || []);
-      setLoading(false);
+      if (data) {
+        setStaff(data as StaffMember[]);
+        try { localStorage.setItem(STAFF_CACHE_KEY, JSON.stringify(data)); } catch {}
+      }
     });
   }, []);
 

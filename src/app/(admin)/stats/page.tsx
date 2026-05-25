@@ -11,7 +11,7 @@ import StatsAIForecast from './components/StatsAIForecast';
 import StatsRevenueChart from './components/StatsRevenueChart';
 import StatsPeakHours from './components/StatsPeakHours';
 import StatsProductTable from './components/StatsProductTable';
-// import StatsSenseiPanel from './components/StatsSenseiPanel'; // AI chatbot silindi
+import StatsSenseiPanel from './components/StatsSenseiPanel';
 import StatsCancellationChart from './components/StatsCancellationChart';
 import StatsMobileView from './components/StatsMobileView';
 import { toast } from 'react-hot-toast';
@@ -58,6 +58,75 @@ const StatsPage = () => {
   /* ─── AI state ─── */
   const [forecast, setForecast] = useState<{ predictedRevenue: number; trend: number; confidence: 'high' | 'medium' | 'low' } | null>(null);
   const [anomalies, setAnomalies] = useState<{ type: string; message: string; severity: 'warning' | 'critical' }[]>([]);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [aiDisplayed, setAiDisplayed] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiClosing, setAiClosing] = useState(false);
+  const [logoFlash, setLogoFlash] = useState(false);
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [whatIfProduct, setWhatIfProduct] = useState('');
+  const [whatIfChange, setWhatIfChange] = useState(0);
+  const [whatIfResult, setWhatIfResult] = useState<string | null>(null);
+  const [whatIfLoading, setWhatIfLoading] = useState(false);
+  const senseiStatsAdvice = null;
+
+  const handleFetchAiAnalysis = async () => {
+    if (aiLoading) return;
+    setAiLoading(true);
+    setLogoFlash(true);
+    setTimeout(() => setLogoFlash(false), 1200);
+    try {
+      const res = await fetch('/api/sensei/stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stats, timeFilter }),
+      });
+      const data = await res.json();
+      const text = data.analysis || data.text || data.message || null;
+      setAiAnalysis(text);
+      setAiDisplayed(text);
+    } catch { /* silent */ }
+    finally { setAiLoading(false); }
+  };
+
+  const handleCloseAiAnalysis = () => {
+    setAiClosing(true);
+    setTimeout(() => { setAiAnalysis(null); setAiDisplayed(null); setAiClosing(false); }, 300);
+  };
+
+  const handleSendChat = async (msg: string) => {
+    if (!msg.trim() || chatLoading) return;
+    setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
+    setChatLoading(true);
+    try {
+      const res = await fetch('/api/sensei/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, stats }),
+      });
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: 'ai', text: data.reply || '...' }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'ai', text: '...' }]);
+    }
+    finally { setChatLoading(false); }
+  };
+
+  const handleFetchWhatIf = async () => {
+    if (!whatIfProduct || whatIfLoading) return;
+    setWhatIfLoading(true);
+    try {
+      const res = await fetch('/api/sensei/whatif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: whatIfProduct, priceChange: whatIfChange, stats }),
+      });
+      const data = await res.json();
+      setWhatIfResult(data.result || null);
+    } catch { /* silent */ }
+    finally { setWhatIfLoading(false); }
+  };
 
   const [workHours, setWorkHours] = useState<{ open: number; close: number } | null>(null);
 
@@ -187,10 +256,11 @@ const StatsPage = () => {
       setCancellationDetails(formattedReasons);
       try { localStorage.setItem(cacheKey, JSON.stringify(statsData)); } catch {}
 
-      // Simple daily comparison
+      // Only show anomaly if there are actual cancellations
       const detectedAnomalies: { type: string; message: string; severity: 'warning' | 'critical' }[] = [];
-      if (data.totalOrders > 0)
-        detectedAnomalies.push({ type: 'cancellation_spike', message: interpolateTemplate(t('anomaly_cancellation_spike'), { count: (data.cancellationReasons || []).reduce((a: number, b: any) => a + (b.count || 0), 0) }), severity: 'warning' });
+      const totalCancellations = (data.cancellationReasons || []).reduce((a: number, b: any) => a + (b.count || 0), 0);
+      if (totalCancellations > 0)
+        detectedAnomalies.push({ type: 'cancellation_spike', message: interpolateTemplate(t('anomaly_cancellation_spike'), { count: totalCancellations }), severity: 'warning' });
       setAnomalies(detectedAnomalies);
 
       /* ─── Table Churn Analysis ─── */
@@ -327,7 +397,28 @@ const StatsPage = () => {
       <StatsAIForecast forecast={forecast} anomalies={anomalies} />
       <StatsRevenueChart chartData={stats.chartData} />
 
-      {/* StatsSenseiPanel (AI chatbot) silindi */}
+      <StatsSenseiPanel
+        stats={stats}
+        aiAnalysis={aiAnalysis}
+        aiDisplayed={aiDisplayed}
+        aiLoading={aiLoading}
+        aiClosing={aiClosing}
+        logoFlash={logoFlash}
+        senseiStatsAdvice={senseiStatsAdvice}
+        chatMessages={chatMessages}
+        chatLoading={chatLoading}
+        whatIfProduct={whatIfProduct}
+        whatIfChange={whatIfChange}
+        whatIfResult={whatIfResult}
+        whatIfLoading={whatIfLoading}
+        onFetchAiAnalysis={handleFetchAiAnalysis}
+        onCloseAiAnalysis={handleCloseAiAnalysis}
+        onSendChat={handleSendChat}
+        onWhatIfProductChange={setWhatIfProduct}
+        onWhatIfChangeChange={setWhatIfChange}
+        onFetchWhatIf={handleFetchWhatIf}
+        restaurantCity={restaurantCity}
+      />
 
       <StatsPeakHours peakHours={stats.peakHours} timeFilter={timeFilter} />
 

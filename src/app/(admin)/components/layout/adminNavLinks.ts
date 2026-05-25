@@ -60,10 +60,10 @@ export function filterNavByRole(items: AdminNavItem[], role: 'admin' | 'superadm
   return items.filter((l) => l.roles.includes(role));
 }
 
-/** Mobil alt nav: sifarişlər yox, statistika (superadmin) və ya 3 əsas tab (admin). */
+/** Mobil alt nav: 3 əsas tab — dashboard, stats, reservations. Qalanları "Daha çox" popup-ında. */
 export function getMobilePrimaryNavIds(role: 'admin' | 'superadmin' | null): Set<string> {
   if (role === 'superadmin') {
-    return new Set(['dashboard', 'stats', 'reservations', 'campaigns']);
+    return new Set(['dashboard', 'stats', 'reservations']);
   }
-  return new Set(['dashboard', 'reservations', 'campaigns']);
+  return new Set(['dashboard', 'stats', 'reservations']);
 }

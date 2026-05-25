@@ -51,7 +51,7 @@ const ReservationFilters = ({
             <button
               key={tab}
               onClick={() => onTimeFilter(tab)}
-              className="relative flex items-center gap-1.5 py-3.5 shrink-0 transition-colors duration-300 group"
+              className="relative flex items-center gap-1.5 py-4 px-2 shrink-0 transition-colors duration-300 group min-h-[52px]"
             >
               <span className={`text-[14px] font-medium tracking-wide transition-colors duration-300 ${timeFilter === tab ? 'text-white' : 'text-white/40 hover:text-white/70'}`}>
                 {timeLabel(tab)}

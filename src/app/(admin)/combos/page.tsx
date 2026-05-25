@@ -27,6 +27,7 @@ export default function CombosPage() {
   const [editingCombo, setEditingCombo] = useState<Combo | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Combo | null>(null);
+  const [fetching, setFetching] = useState(combos.length === 0);
 
   const fetchData = async () => {
     try {
@@ -41,6 +42,8 @@ export default function CombosPage() {
       writeCache(PRODUCT_CACHE_KEY, newProducts);
     } catch {
       toast.error(t('error_loading'));
+    } finally {
+      setFetching(false);
     }
   };
 
@@ -62,6 +65,7 @@ export default function CombosPage() {
 
   const toggleStock = async (combo: Combo) => {
     const updated = { is_in_stock: !combo.is_in_stock };
+    setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, ...updated } : c));
     try {
       const res = await fetch('/api/combos', {
         method: 'POST',
@@ -69,8 +73,26 @@ export default function CombosPage() {
         body: JSON.stringify({ action: 'update', id: combo.id, data: updated })
       });
       if (!res.ok) throw new Error('API error');
-      setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, ...updated } : c));
-    } catch { toast.error(t('error')); }
+    } catch {
+      setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, is_in_stock: combo.is_in_stock } : c));
+      toast.error(t('error'));
+    }
+  };
+
+  const toggleActive = async (combo: Combo) => {
+    const updated = { is_active: !combo.is_active };
+    setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, ...updated } : c));
+    try {
+      const res = await fetch('/api/combos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', id: combo.id, data: updated })
+      });
+      if (!res.ok) throw new Error('API error');
+    } catch {
+      setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, is_active: combo.is_active } : c));
+      toast.error(t('error'));
+    }
   };
 
   // Məhsul adlarını combo items-ə qoş
@@ -82,8 +104,43 @@ export default function CombosPage() {
     })),
   }));
 
+  if (fetching && combos.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#080808] px-6 py-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="space-y-2">
+            <div className="h-7 w-32 bg-white/[0.05] rounded-xl animate-pulse" />
+            <div className="h-3 w-16 bg-white/[0.03] rounded-lg animate-pulse" />
+          </div>
+          <div className="h-10 w-36 bg-white/[0.05] rounded-xl animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-[#0e0e0e] border border-white/[0.07] rounded-2xl overflow-hidden animate-pulse">
+              <div className="h-36 bg-white/[0.04]" />
+              <div className="p-4 space-y-3">
+                <div className="flex justify-between">
+                  <div className="h-4 w-28 bg-white/[0.05] rounded-lg" />
+                  <div className="h-5 w-12 bg-white/[0.05] rounded-lg" />
+                </div>
+                <div className="h-3 w-full bg-white/[0.03] rounded-lg" />
+                <div className="flex gap-2">
+                  {[1,2,3].map(j => <div key={j} className="h-7 w-20 bg-white/[0.04] rounded-lg" />)}
+                </div>
+                <div className="flex gap-2 pt-2 border-t border-white/[0.05]">
+                  <div className="h-7 w-24 bg-white/[0.04] rounded-lg" />
+                  <div className="ml-auto h-5 w-16 bg-white/[0.03] rounded-lg" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#080808] px-6 py-8">
+    <div className="min-h-screen bg-[#080808] px-6 py-8 pb-28 md:pb-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -130,7 +187,7 @@ export default function CombosPage() {
                   {/* Şəkil */}
                   <div className="relative h-36 bg-white/[0.03]">
                     {combo.image_url ? (
-                      <img src={combo.image_url} alt={(combo as any)[`name_${language}`] || combo.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
+                      <img src={combo.image_url} alt={(combo as any)[`name_${language}`] || combo.name} loading="eager" decoding="async" className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <PackagePlus size={32} className="text-white/10" />
@@ -144,8 +201,8 @@ export default function CombosPage() {
                         </span>
                       )}
                     </div>
-                    {/* Actions */}
-                    <div className="absolute top-2.5 right-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Actions — always visible on mobile, hover-only on desktop */}
+                    <div className="absolute top-2.5 right-2.5 flex gap-1.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button onClick={(e) => { e.stopPropagation(); openEdit(combo); }}
                         className="w-8 h-8 rounded-xl bg-black/60 backdrop-blur-sm border border-white/[0.12] flex items-center justify-center text-white/60 hover:text-white transition-colors">
                         <Edit3 size={13} />
@@ -193,10 +250,15 @@ export default function CombosPage() {
 
                     {/* Footer */}
                     <div className="flex items-center gap-2 pt-3 border-t border-white/[0.05]">
-                      <button onClick={() => toggleStock(combo)}
+                      <button onClick={(e) => { e.stopPropagation(); toggleStock(combo); }}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${combo.is_in_stock ? 'bg-white/[0.04] text-green-400/80 border-white/[0.08] hover:border-green-500/25' : 'bg-white/[0.03] text-red-400/70 border-white/[0.06] hover:border-red-500/25'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${combo.is_in_stock ? 'bg-green-400' : 'bg-red-400'}`} />
                         {combo.is_in_stock ? t('combo_in_stock') : t('combo_out_of_stock')}
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); toggleActive(combo); }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${combo.is_active ? 'bg-white/[0.04] text-white/50 border-white/[0.08] hover:border-white/20' : 'bg-white/[0.03] text-white/25 border-white/[0.06] hover:border-white/15'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${combo.is_active ? 'bg-white/50' : 'bg-white/20'}`} />
+                        {combo.is_active ? t('combo_active') : t('combo_inactive')}
                       </button>
 
                       <div className="ml-auto flex items-center gap-1 text-[11px] text-white/25">

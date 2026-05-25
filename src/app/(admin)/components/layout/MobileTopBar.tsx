@@ -73,7 +73,8 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
       </div>
 
       <div className="relative flex items-center gap-2 shrink-0">
-<motion.button
+        <div className="relative">
+          <motion.button
             ref={langBtnRef}
             type="button"
             onClick={() => setLangOpen((v) => !v)}
@@ -84,6 +85,8 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
             {LANGS.find((l) => l.code === language)?.label ?? 'AZ'}
             <ChevronDown size={10} className={`transition-transform duration-150 ${langOpen ? 'rotate-180' : ''}`} />
           </motion.button>
+          {langMenu}
+        </div>
 
         <div className="relative">
           <motion.button
@@ -155,7 +158,6 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
         </div>
       </div>
 
-      <div className="relative">{langMenu}</div>
     </header>
   );
 }

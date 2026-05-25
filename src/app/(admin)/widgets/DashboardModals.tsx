@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Zap, Loader2, Trash2, ChevronLeft, Clock, Percent } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import MobileModal from '@/components/ui/MobileModal';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Product } from '@/types';
 
@@ -361,32 +362,24 @@ interface DeleteModalProps {
 
 export const DeleteProductModal = ({ open, product, updating, onClose, onConfirm }: DeleteModalProps) => {
   const { t } = useLanguage();
-  return createPortal(
-    <AnimatePresence>
-      {open && product && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-full sm:max-w-md w-full shadow-2xl">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center">
-                <Trash2 className="text-red-500" size={28} />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">{t('confirm_delete_title')}</h3>
-                <p className="text-white/60 mt-1">{t('confirm_delete_message')}</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={onClose} className="flex-1 py-3 px-4 rounded-xl bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-all">{t('cancel')}</button>
-              <button onClick={onConfirm} disabled={updating} className="flex-1 py-3 px-4 rounded-xl bg-red-500 text-white hover:bg-red-400 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                {updating ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
-                {t('delete')}
-              </button>
-            </div>
-          </motion.div>
+  return (
+    <MobileModal open={open} onClose={onClose}>
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center">
+          <Trash2 className="text-red-500" size={28} />
         </div>
-      )}
-    </AnimatePresence>,
-    document.body
+        <div>
+          <h3 className="text-xl font-bold text-white">{t('confirm_delete_title')}</h3>
+          <p className="text-white/60 mt-1">{t('confirm_delete_message')}</p>
+        </div>
+      </div>
+      <div className="flex gap-3">
+        <button onClick={onClose} className="flex-1 py-3 px-4 rounded-xl bg-white/5 text-white/60">{t('cancel')}</button>
+        <button onClick={onConfirm} disabled={updating} className="flex-1 py-3 px-4 rounded-xl bg-red-500 text-white disabled:opacity-50 flex items-center justify-center gap-2">
+          {updating ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
+          {t('delete')}
+        </button>
+      </div>
+    </MobileModal>
   );
 };

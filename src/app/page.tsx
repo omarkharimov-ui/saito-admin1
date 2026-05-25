@@ -6,8 +6,15 @@ export default function AppLandingPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalling, setIsInstalling] = useState(false);
   const [appStatus, setAppStatus] = useState<'checking' | 'not-installed' | 'installed' | 'standalone'>('checking');
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   useEffect(() => {
+    // Detect iOS Safari (beforeinstallprompt never fires on iOS)
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+    setIsIOS(ios);
+
     // Check app status
     const checkAppStatus = () => {
       // Check if running as standalone app
@@ -74,8 +81,15 @@ export default function AppLandingPage() {
   }, []);
 
   const handleDownloadClick = async () => {
+    // iOS Safari: show manual instructions
+    if (isIOS) {
+      setShowIOSInstructions(true);
+      return;
+    }
+
+    // Android/Chrome: use native install prompt if available
     if (!deferredPrompt) {
-      alert('⚠️ Zəhmət olmasa gözləyin...');
+      setShowIOSInstructions(true);
       return;
     }
 
@@ -194,7 +208,7 @@ export default function AppLandingPage() {
             
             <button
               onClick={handleDownloadClick}
-              disabled={isInstalling || !deferredPrompt}
+              disabled={isInstalling}
               style={{
                 backgroundColor: 'white',
                 color: 'black',
@@ -202,8 +216,8 @@ export default function AppLandingPage() {
                 borderRadius: '8px',
                 fontWeight: 'bold',
                 border: 'none',
-                cursor: isInstalling || !deferredPrompt ? 'not-allowed' : 'pointer',
-                opacity: isInstalling || !deferredPrompt ? 0.5 : 1,
+                cursor: isInstalling ? 'not-allowed' : 'pointer',
+                opacity: isInstalling ? 0.5 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
@@ -232,7 +246,7 @@ export default function AppLandingPage() {
               )}
             </button>
             
-            {!deferredPrompt && !isInstalling && (
+            {!deferredPrompt && !isInstalling && !isIOS && (
               <p style={{ 
                 color: 'rgba(255, 255, 255, 0.6)', 
                 fontSize: '14px', 
@@ -297,6 +311,63 @@ export default function AppLandingPage() {
           </>
         )}
       </div>
+
+      {/* iOS / manual install instructions modal */}
+      {showIOSInstructions && (
+        <div
+          onClick={() => setShowIOSInstructions(false)}
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            zIndex: 100, padding: '0 16px 32px'
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: '#1a1a1a', borderRadius: '16px',
+              padding: '24px', width: '100%', maxWidth: '400px',
+              border: '1px solid rgba(255,255,255,0.12)'
+            }}
+          >
+            <p style={{ color: 'white', fontWeight: 'bold', fontSize: '16px', marginBottom: '16px', textAlign: 'center' }}>
+              Ana ekrana əlavə et
+            </p>
+            {isIOS ? (
+              <>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: '1.6', marginBottom: '8px' }}>
+                  1. Aşağıdakı <strong style={{color:'white'}}>Paylaş</strong> düyməsinə basın (⬆️)
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: '1.6', marginBottom: '8px' }}>
+                  2. Siyahıda <strong style={{color:'white'}}>&quot;Ana Ekrana Əlavə Et&quot;</strong> seçin
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px' }}>
+                  3. Sağ üst köşədə <strong style={{color:'white'}}>&quot;Əlavə Et&quot;</strong> düyməsinə basın
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: '1.6', marginBottom: '8px' }}>
+                  1. Brauzerin menyusunu açın (⋮)
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px' }}>
+                  2. <strong style={{color:'white'}}>&quot;Ana ekrana əlavə et&quot;</strong> seçin
+                </p>
+              </>
+            )}
+            <button
+              onClick={() => setShowIOSInstructions(false)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: '10px',
+                backgroundColor: 'white', color: 'black',
+                fontWeight: 'bold', fontSize: '14px', border: 'none', cursor: 'pointer'
+              }}
+            >
+              Bağla
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add spinner animation inline */}
       <style jsx>{`

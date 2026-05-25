@@ -304,10 +304,19 @@ export function ProductTable({
                         <tr className="border-b border-white/[0.06]">
                           <th className="px-4 py-3 w-8">
                             {isBulkMode && (
-                              <input type="checkbox"
-                                checked={products.filter(p => p.category_id === catId).every(p => selectedProducts.has(p.id))}
-                                onChange={() => onSelectAllProducts(catId)}
-                                className="w-4 h-4 accent-yellow-500 cursor-pointer" />
+                              <button
+                                type="button"
+                                onClick={() => onSelectAllProducts(catId)}
+                                className="w-[20px] h-[20px] rounded-full flex items-center justify-center transition-all"
+                                style={{
+                                  background: products.filter(p => p.category_id === catId).every(p => selectedProducts.has(p.id)) ? '#007AFF' : 'rgba(255,255,255,0.06)',
+                                  border: products.filter(p => p.category_id === catId).every(p => selectedProducts.has(p.id)) ? '2px solid #007AFF' : '2px solid rgba(255,255,255,0.2)',
+                                }}
+                              >
+                                {products.filter(p => p.category_id === catId).every(p => selectedProducts.has(p.id)) && (
+                                  <svg width="10" height="8" viewBox="0 0 11 9" fill="none"><path d="M1.5 4.5L4 7L9.5 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                )}
+                              </button>
                             )}
                           </th>
                           <th className="px-6 py-3 min-w-[280px] text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold">{t('product_name_label')}</th>
@@ -327,7 +336,19 @@ export function ProductTable({
                               <tr className={`group transition-transform duration-200 border-b border-white/[0.06] hover:bg-white/[0.05] ${selectedProducts.has(product.id) ? 'bg-white/[0.03]' : ''}`}>
                                 <td className="px-4 py-4 w-8">
                                   {isBulkMode && (
-                                    <input type="checkbox" checked={selectedProducts.has(product.id)} onChange={() => onToggleProductSelection(product.id)} className="w-4 h-4 accent-yellow-500 cursor-pointer" />
+                                    <button
+                                      type="button"
+                                      onClick={() => onToggleProductSelection(product.id)}
+                                      className="w-[20px] h-[20px] rounded-full flex items-center justify-center transition-all"
+                                      style={{
+                                        background: selectedProducts.has(product.id) ? '#007AFF' : 'rgba(255,255,255,0.06)',
+                                        border: selectedProducts.has(product.id) ? '2px solid #007AFF' : '2px solid rgba(255,255,255,0.2)',
+                                      }}
+                                    >
+                                      {selectedProducts.has(product.id) && (
+                                        <svg width="10" height="8" viewBox="0 0 11 9" fill="none"><path d="M1.5 4.5L4 7L9.5 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                      )}
+                                    </button>
                                   )}
                                 </td>
                                 <td className="px-6 py-3.5 min-w-[280px] max-w-[340px]">
@@ -479,10 +500,19 @@ export function ProductTable({
                                   {/* Checkbox (bulk) */}
                                   {isBulkMode && (
                                     <div className="pt-1 shrink-0">
-                                      <input type="checkbox"
-                                        checked={selectedProducts.has(product.id)}
-                                        onChange={() => onToggleProductSelection(product.id)}
-                                        className="w-4 h-4 accent-yellow-500 cursor-pointer" />
+                                      <button
+                                        type="button"
+                                        onClick={() => onToggleProductSelection(product.id)}
+                                        className="w-[22px] h-[22px] rounded-full flex items-center justify-center transition-all"
+                                        style={{
+                                          background: selectedProducts.has(product.id) ? '#007AFF' : 'rgba(255,255,255,0.06)',
+                                          border: selectedProducts.has(product.id) ? '2px solid #007AFF' : '2px solid rgba(255,255,255,0.2)',
+                                        }}
+                                      >
+                                        {selectedProducts.has(product.id) && (
+                                          <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1.5 4.5L4 7L9.5 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        )}
+                                      </button>
                                     </div>
                                   )}
 

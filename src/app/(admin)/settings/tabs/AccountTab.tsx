@@ -17,7 +17,7 @@ interface AccountItem {
 const AccountTab = () => {
   const { t } = useLanguage();
   const [role, setRole] = useState<'admin' | 'superadmin'>('admin');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const [storedPasswords, setStoredPasswords] = useState({
@@ -185,7 +185,7 @@ const AccountTab = () => {
     setOpenAccordion(prev => prev === key ? null : key);
   };
 
-  if (loading) {
+  if (false && loading) {
     return (
       <div className="max-w-md p-6 rounded-2xl border border-white/10 bg-white/[0.02]">
         <div className="flex items-center justify-center py-8">

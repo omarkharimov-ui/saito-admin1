@@ -187,7 +187,7 @@ export default function CombosPage() {
                   {/* Şəkil */}
                   <div className="relative h-36 bg-white/[0.03]">
                     {combo.image_url ? (
-                      <img src={combo.image_url} alt={(combo as any)[`name_${language}`] || combo.name} loading="eager" decoding="async" className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
+                      <img src={combo.image_url} alt={(combo as any)[`name_${language}`] || combo.name} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <PackagePlus size={32} className="text-white/10" />

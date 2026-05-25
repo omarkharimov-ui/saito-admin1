@@ -124,7 +124,7 @@ export default function GoldCalendar({ value, min, onChange }: GoldCalendarProps
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.15 }}
             onWheel={e => e.stopPropagation()}
-            className="absolute top-full left-0 mt-2 z-50 min-w-[200px] w-max bg-[#111] backdrop-blur-xl border border-white/[0.09] rounded-2xl p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none"
+            className="absolute top-full left-0 mt-2 z-50 w-full min-w-[280px] bg-[#111] backdrop-blur-xl border border-white/[0.09] rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none"
           >
       {/* Header */}
       <div className="flex items-center justify-between mb-2.5">
@@ -190,7 +190,7 @@ export default function GoldCalendar({ value, min, onChange }: GoldCalendarProps
       {/* Days */}
       <div className="grid grid-cols-7">
         {cells.map((day, idx) => {
-          if (!day) return <div key={idx} className="h-7" />;
+          if (!day) return <div key={idx} className="h-9" />;
           const col = idx % 7;
           const weekend = col >= 5;
           const disabled = isDisabled(day);
@@ -199,11 +199,11 @@ export default function GoldCalendar({ value, min, onChange }: GoldCalendarProps
           return (
             <button key={idx} type="button" disabled={disabled} onClick={() => select(day)}
               className={`
-                mx-auto w-7 h-7 rounded-full flex items-center justify-center text-[11px] transition-all
+                mx-auto w-9 h-9 rounded-full flex items-center justify-center text-[13px] transition-all
                 ${sel ? 'bg-white/[0.18] text-white font-bold border border-white/30' : ''}
                 ${!sel && tod ? 'border border-white/30 text-white' : ''}
                 ${!sel && !tod && !disabled ? `${weekend ? 'text-white/25' : 'text-white/60'} hover:bg-white/[0.08] hover:text-white` : ''}
-                ${disabled ? 'text-white/12 cursor-not-allowed' : ''}
+                ${disabled ? 'text-white/[0.12] cursor-not-allowed' : ''}
               `}>
               {day}
             </button>

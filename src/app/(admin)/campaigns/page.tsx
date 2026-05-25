@@ -441,27 +441,50 @@ const CampaignsPage = () => {
       <div className="pointer-events-none fixed bottom-[10%] left-[5%] w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02),transparent_65%)] blur-3xl" />
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-4 mb-8 md:mb-12 px-4 sm:px-0">
-        <div>
-          <h2 className="text-2xl md:text-3xl font-serif font-bold text-white tracking-tight">{t('campaigns_title')}</h2>
-          <p className="text-white/30 text-[10px] uppercase tracking-[0.25em] mt-0.5 hidden md:block">{t('campaigns_subtitle')}</p>
+      <div className="mb-6 md:mb-12 px-4 sm:px-0">
+        {/* Mobile layout */}
+        <div className="flex items-center justify-between gap-3 md:hidden">
+          <h2 className="text-2xl font-serif font-bold text-white tracking-tight">{t('campaigns_title')}</h2>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleDeleteAll}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/[0.07] text-red-400/60 border border-red-500/15 transition-all active:scale-95"
+            >
+              <Trash2 size={16} />
+            </button>
+            <button
+              onClick={handleNewCampaign}
+              className="h-10 px-4 flex items-center gap-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all active:scale-95"
+              style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.4)', color: '#D4AF37' }}
+            >
+              <Plus size={14} />
+              {t('new_campaign')}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleDeleteAll}
-            className="w-11 h-11 md:w-auto md:h-auto md:px-5 md:py-3 flex items-center justify-center md:gap-2 rounded-xl bg-red-500/[0.08] hover:bg-red-500/20 text-red-400/70 hover:text-red-400 border border-red-500/15 hover:border-red-500/40 transition-all md:text-[11px] md:font-bold md:tracking-[0.18em] md:uppercase"
-          >
-            <Trash2 size={18} />
-            <span className="hidden md:inline">{t('delete_all_campaigns')}</span>
-          </button>
-          <button
-            onClick={handleNewCampaign}
-            className="flex items-center gap-1.5 px-3 md:px-8 py-2.5 md:py-3 rounded-xl text-[11px] font-bold tracking-[0.15em] md:tracking-[0.2em] uppercase transition-all active:scale-95 whitespace-nowrap"
-            style={{ background: 'transparent', border: '1px solid #D4AF37', color: '#D4AF37' }}
-          >
-            <Plus size={15} />
-            <span>{t('new_campaign')}</span>
-          </button>
+        {/* Desktop layout */}
+        <div className="hidden md:flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-serif font-bold text-white tracking-tight">{t('campaigns_title')}</h2>
+            <p className="text-white/30 text-[10px] uppercase tracking-[0.25em] mt-0.5">{t('campaigns_subtitle')}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDeleteAll}
+              className="px-5 py-3 flex items-center gap-2 rounded-xl bg-red-500/[0.08] hover:bg-red-500/20 text-red-400/70 hover:text-red-400 border border-red-500/15 hover:border-red-500/40 transition-all text-[11px] font-bold tracking-[0.18em] uppercase"
+            >
+              <Trash2 size={16} />
+              {t('delete_all_campaigns')}
+            </button>
+            <button
+              onClick={handleNewCampaign}
+              className="flex items-center gap-2 px-8 py-3 rounded-xl text-[11px] font-bold tracking-[0.2em] uppercase transition-all active:scale-95"
+              style={{ background: 'transparent', border: '1px solid #D4AF37', color: '#D4AF37' }}
+            >
+              <Plus size={15} />
+              {t('new_campaign')}
+            </button>
+          </div>
         </div>
       </div>
 

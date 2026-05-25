@@ -51,16 +51,16 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
           {selectionMode && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleSelection?.(res.id);
-              }}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border transition ${
-                selected ? 'border-gold bg-gold/15 text-gold' : 'border-white/10 bg-white/[0.03] text-white/40 hover:border-white/20 hover:bg-white/5'
-              }`}
+              onClick={(e) => { e.stopPropagation(); onToggleSelection?.(res.id); }}
+              className="flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-all mt-1"
+              style={{ background: selected ? '#007AFF' : 'rgba(255,255,255,0.06)', border: selected ? '2px solid #007AFF' : '2px solid rgba(255,255,255,0.2)' }}
               aria-pressed={selected}
             >
-              {selected ? <CheckCircle size={16} /> : <span className="h-3.5 w-3.5 rounded-full bg-white/10" />}
+              {selected && (
+                <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                  <path d="M1.5 4.5L4 7L9.5 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
             </button>
           )}
           <div className="flex flex-col">
@@ -164,16 +164,16 @@ export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, 
           {selectionMode && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleSelection?.(res.id);
-              }}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border transition ${
-                selected ? 'border-gold bg-gold/15 text-gold' : 'border-white/10 bg-white/[0.03] text-white/40 hover:border-white/20 hover:bg-white/5'
-              }`}
+              onClick={(e) => { e.stopPropagation(); onToggleSelection?.(res.id); }}
+              className="flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-all"
+              style={{ background: selected ? '#007AFF' : 'rgba(255,255,255,0.06)', border: selected ? '2px solid #007AFF' : '2px solid rgba(255,255,255,0.2)' }}
               aria-pressed={selected}
             >
-              {selected ? <CheckCircle size={16} /> : <span className="h-3.5 w-3.5 rounded-full bg-white/10" />}
+              {selected && (
+                <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                  <path d="M1.5 4.5L4 7L9.5 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
             </button>
           )}
           <span className="text-white font-medium text-[15px] tracking-tight">{res.name}</span>

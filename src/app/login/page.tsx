@@ -102,8 +102,8 @@ export default function LoginPage() {
             placeholder="E-poçt ünvanı"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            className="w-full px-5 py-4 rounded-2xl text-sm text-white placeholder:text-white/20 outline-none transition-all"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            className="w-full px-5 py-4 rounded-2xl text-white placeholder:text-white/20 outline-none transition-all"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: 16 }}
             onFocus={e => { e.currentTarget.style.border = '1px solid rgba(212,175,55,0.35)'; }}
             onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)'; }}
           />
@@ -113,8 +113,8 @@ export default function LoginPage() {
             placeholder="••••••••••"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            className="w-full px-5 py-4 rounded-2xl text-sm text-white placeholder:text-white/20 outline-none transition-all"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            className="w-full px-5 py-4 rounded-2xl text-white placeholder:text-white/20 outline-none transition-all"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: 16 }}
             onFocus={e => { e.currentTarget.style.border = '1px solid rgba(212,175,55,0.35)'; }}
             onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)'; }}
           />

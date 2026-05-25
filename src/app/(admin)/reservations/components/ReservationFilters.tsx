@@ -14,20 +14,22 @@ interface Props {
   searchOpen: boolean;
   archiveSelectionMode: boolean;
   selectedArchiveCount: number;
+  totalArchiveCount: number;
   onTimeFilter: (v: 'today' | 'future' | 'archive') => void;
   onStatusFilter: (v: 'all' | 'pending' | 'confirmed' | 'cancelled') => void;
   onSearch: (v: string) => void;
   onStartArchiveSelection: () => void;
   onDeleteSelectedArchive: () => void;
   onCancelArchiveSelection: () => void;
+  onSelectAll: () => void;
 }
 
 const ReservationFilters = ({
   timeFilter, statusFilter, searchQuery,
   todayPendingCount, futurePendingCount, searchOpen,
-  archiveSelectionMode, selectedArchiveCount,
+  archiveSelectionMode, selectedArchiveCount, totalArchiveCount,
   onTimeFilter, onStatusFilter, onSearch,
-  onStartArchiveSelection, onDeleteSelectedArchive, onCancelArchiveSelection,
+  onStartArchiveSelection, onDeleteSelectedArchive, onCancelArchiveSelection, onSelectAll,
 }: Props) => {
   const { t } = useLanguage();
 
@@ -96,33 +98,46 @@ const ReservationFilters = ({
         {timeFilter === 'archive' && (
           <div className="px-3 mt-3 border-t border-white/[0.06] pt-3">
             {archiveSelectionMode ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="inline-flex items-center gap-2 rounded-2xl bg-white/5 px-3 py-2 text-sm text-white/70 border border-white/[0.08]">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white">{selectedArchiveCount}</span>
-                    <span>{t('selected_items')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={onCancelArchiveSelection}
-                      className="rounded-2xl border border-white/[0.08] bg-white/5 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10"
-                    >
-                      {t('cancel_selection')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onDeleteSelectedArchive}
-                      disabled={selectedArchiveCount === 0}
-                      className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-red-400"
-                    >
-                      {t('delete_selected')}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={onSelectAll}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white/60 hover:text-white transition-colors"
+                  >
+                    {/* Apple-style checkbox */}
+                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      selectedArchiveCount === totalArchiveCount && totalArchiveCount > 0
+                        ? 'bg-blue-500 border-blue-500'
+                        : 'border-white/30 bg-transparent'
+                    }`}>
+                      {selectedArchiveCount === totalArchiveCount && totalArchiveCount > 0 && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
+                    Hamısını seç ({totalArchiveCount})
+                  </button>
+                  <span className="text-xs text-white/40">{selectedArchiveCount} {t('selected_items').toLowerCase()}</span>
                 </div>
-                <p className="text-[11px] text-center text-white/40 leading-relaxed px-2">
-                  {t('archive_select_help')}
-                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onCancelArchiveSelection}
+                    className="flex-1 rounded-xl border border-white/[0.08] bg-white/5 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                  >
+                    {t('cancel_selection')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDeleteSelectedArchive}
+                    disabled={selectedArchiveCount === 0}
+                    className="flex-1 rounded-xl bg-red-500/90 px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40 hover:bg-red-500"
+                  >
+                    {t('delete_selected')} {selectedArchiveCount > 0 ? `(${selectedArchiveCount})` : ''}
+                  </button>
+                </div>
               </div>
             ) : (
               <>
@@ -222,19 +237,28 @@ const ReservationFilters = ({
             {/* Clear archive */}
             {timeFilter === 'archive' && (
               archiveSelectionMode ? (
-                <div className="flex flex-col gap-2 shrink-0">
-                  <div className="flex items-center gap-2 rounded-2xl bg-white/5 px-3 py-2 text-sm text-white/70 border border-white/[0.08]">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white">{selectedArchiveCount}</span>
-                    <span>{t('selected_items')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={onCancelArchiveSelection} className="rounded-2xl border border-white/[0.08] bg-white/5 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10">
-                      {t('cancel_selection')}
-                    </button>
-                    <button onClick={onDeleteSelectedArchive} disabled={selectedArchiveCount === 0} className="rounded-2xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-red-400">
-                      {t('delete_selected')}
-                    </button>
-                  </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={onSelectAll} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white/60 hover:text-white transition-colors whitespace-nowrap">
+                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                      selectedArchiveCount === totalArchiveCount && totalArchiveCount > 0
+                        ? 'bg-blue-500 border-blue-500'
+                        : 'border-white/30'
+                    }`}>
+                      {selectedArchiveCount === totalArchiveCount && totalArchiveCount > 0 && (
+                        <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
+                    Hamısını seç
+                  </button>
+                  <span className="text-xs text-white/40 shrink-0">{selectedArchiveCount}/{totalArchiveCount}</span>
+                  <button onClick={onCancelArchiveSelection} className="rounded-xl border border-white/[0.08] bg-white/5 px-3 py-2 text-xs text-white/60 transition hover:bg-white/10 whitespace-nowrap">
+                    {t('cancel_selection')}
+                  </button>
+                  <button onClick={onDeleteSelectedArchive} disabled={selectedArchiveCount === 0} className="rounded-xl bg-red-500/90 px-3 py-2 text-xs font-medium text-white transition disabled:opacity-40 hover:bg-red-500 whitespace-nowrap">
+                    {t('delete_selected')} {selectedArchiveCount > 0 ? `(${selectedArchiveCount})` : ''}
+                  </button>
                 </div>
               ) : (
                 <div className="relative group shrink-0">

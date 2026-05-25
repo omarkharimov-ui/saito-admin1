@@ -19,7 +19,6 @@ import { HappyHourModal, DeleteProductModal } from './widgets/DashboardModals';
 import { toast } from 'react-hot-toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
 import GoldSelect from '@/components/GoldSelect';
-import DashboardSkeleton from '@/components/DashboardSkeleton';
 
 function SenseiSleepCard({ openingHours }: { openingHours: string }) {
   const [countdown, setCountdown] = useState<{ h: number; m: number; s: number } | null>(null);
@@ -815,11 +814,7 @@ const AdminDashboard = () => {
       {/* Hero Banner - Greeting + Live Badge */}
       <HeroBanner />
 
-      {/* Show skeleton when loading to prevent flickering */}
-      {loading ? (
-        <DashboardSkeleton />
-      ) : (
-        <>
+      <>
 
       {/* AI Suggestion Section - Yoji Məsləhəti (HeroBanner və Canlı Masa Planı arasında) */}
       {!settingsLoaded ? (
@@ -1036,8 +1031,8 @@ const AdminDashboard = () => {
           setConfirmDeleteProduct(null);
         }}
       />
-        </>
-      )}
+
+      </>
     </div>
   );
 };

@@ -171,6 +171,15 @@ const ReservationsPage = () => {
     setConfirmClearArchiveModal(true);
   };
 
+  const handleSelectAll = () => {
+    const archiveIds = filteredReservations.map(r => r.id);
+    if (selectedArchiveIds.length === archiveIds.length) {
+      setSelectedArchiveIds([]);
+    } else {
+      setSelectedArchiveIds(archiveIds);
+    }
+  };
+
   const handleDeleteSelectedArchive = async () => {
     const archiveIds = [...selectedArchiveIds];
     setConfirmClearArchiveModal(false);
@@ -318,9 +327,11 @@ const ReservationsPage = () => {
           onTimeFilter={setTimeFilter}
           onStatusFilter={setStatusFilter}
           onSearch={setSearchQuery}
+          totalArchiveCount={filteredReservations.length}
           onStartArchiveSelection={handleToggleArchiveSelection}
           onDeleteSelectedArchive={handleDeleteSelectedArchiveClick}
           onCancelArchiveSelection={handleCancelArchiveSelection}
+          onSelectAll={handleSelectAll}
         />
       </div>
 

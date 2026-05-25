@@ -178,8 +178,6 @@ const StatsPage = () => {
   /* ─── Data fetching ─── */
   const fetchDetailedStats = async (isStale?: () => boolean) => {
     const cacheKey = `saito_stats_cache_v3_${timeFilter}`;
-    setLoading(true);
-    const start = Date.now();
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -188,15 +186,13 @@ const StatsPage = () => {
         const validDate = timeFilter === 'today' || String(firstDate).includes(' ');
         if (Array.isArray(parsed.peakHours) && parsed.peakHours.length > 0 && validDate) {
           setStats(parsed);
-          const elapsed = Date.now() - start;
-          const remaining = Math.max(0, 400 - elapsed);
-          if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
           if (!isStale || !isStale()) setLoading(false);
           return;
         }
         localStorage.removeItem(cacheKey);
       }
     } catch {}
+    setLoading(true);
     const start2 = Date.now();
     try {
       // API route istifadə edirik (RLS recursion-dan qaçmaq üçün)

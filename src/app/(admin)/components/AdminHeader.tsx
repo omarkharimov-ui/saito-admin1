@@ -97,7 +97,7 @@ const AdminHeaderInner = ({
             ? createPortal(
                 <div
                   ref={langMenuRef}
-                  className="fixed z-[200] flex flex-col gap-1 min-w-[60px] rounded-xl border border-white/10 bg-[#0c0c0c] p-1 shadow-xl"
+                  className="fixed z-[200] flex flex-col gap-1.5 min-w-[90px] rounded-xl border border-white/10 bg-[#0c0c0c] p-1.5 shadow-xl"
                   style={{ top: langMenuPos.top, right: langMenuPos.right }}
                 >
                   {otherLangs.map((lang) => (
@@ -105,7 +105,7 @@ const AdminHeaderInner = ({
                       key={lang.code}
                       type="button"
                       onClick={() => handleLangChange(lang.code)}
-                      className="h-7 px-3 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] min-w-[60px] text-[10px] font-bold tracking-[0.18em] text-white/50 hover:text-gold transition-colors"
+                      className="h-8 px-5 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] w-full text-[10px] font-bold tracking-[0.18em] text-white/50 hover:text-gold hover:bg-white/[0.07] transition-colors"
                     >
                       {lang.label}
                     </button>

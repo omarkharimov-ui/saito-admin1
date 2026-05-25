@@ -139,24 +139,25 @@ export default function MobileBottomNav({
               <Link
                 key={link.id}
                 href={link.href}
-                className="relative flex flex-1 items-center justify-center min-w-0 active:scale-95 transition-transform duration-100"
+                className="relative flex flex-1 items-center justify-center min-w-0 overflow-hidden active:scale-95 transition-transform duration-100"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 {active ? (
                   /* Pill-shaped active tab */
                   <span
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-full"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full"
                     style={{
-                      background: 'rgba(212,175,55,0.18)',
-                      border: '1px solid rgba(212,175,55,0.35)',
+                      background: 'rgba(212,175,55,0.16)',
+                      border: '1px solid rgba(212,175,55,0.32)',
+                      boxSizing: 'border-box',
                     }}
                   >
-                    <Icon size={19} strokeWidth={2} className="text-gold shrink-0" />
-                    <span className="text-[12px] font-bold text-gold whitespace-nowrap tracking-wide">
+                    <Icon size={17} strokeWidth={2} className="text-gold shrink-0" />
+                    <span className="text-[11px] font-bold text-gold truncate tracking-wide">
                       {link.name}
                     </span>
                     {link.badge && link.badge > 0 ? (
-                      <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-amber-400 text-[9px] font-bold text-black flex items-center justify-center shrink-0">
+                      <span className="min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-[9px] font-bold text-black flex items-center justify-center shrink-0">
                         {link.badge > 9 ? '9+' : link.badge}
                       </span>
                     ) : null}

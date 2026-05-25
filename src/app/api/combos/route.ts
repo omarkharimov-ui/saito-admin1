@@ -47,12 +47,15 @@ export async function POST(request: Request) {
 
     const res = await fetch(url, {
       method,
-      headers: { ...headers, 'Content-Type': 'application/json' },
+      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: action !== 'delete' ? JSON.stringify(data) : undefined,
     });
 
-    const result = await res.json();
-    return NextResponse.json(result);
+    if (!res.ok) {
+      const err = await res.text();
+      return NextResponse.json({ error: err }, { status: res.status });
+    }
+    return NextResponse.json({ ok: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

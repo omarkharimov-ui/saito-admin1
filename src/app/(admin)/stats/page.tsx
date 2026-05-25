@@ -45,7 +45,7 @@ const StatsPage = () => {
       cancelPeakHours: {} as Record<string, { hour: number; count: number }[]>,
     };
     try {
-      const r = localStorage.getItem('saito_stats_cache_v3_today');
+      const r = localStorage.getItem('saito_stats_cache_v4_today');
       if (!r) return empty;
       const parsed = JSON.parse(r);
       if (!Array.isArray(parsed.peakHours)) return empty;
@@ -162,7 +162,7 @@ const StatsPage = () => {
   useEffect(() => {
     try {
       ['today','week','month','3months','year'].forEach(f => {
-        const key = `saito_stats_cache_v3_${f}`;
+        const key = `saito_stats_cache_v4_${f}`;
         const raw = localStorage.getItem(key);
         if (!raw) return;
         const parsed = JSON.parse(raw);
@@ -177,7 +177,7 @@ const StatsPage = () => {
 
   /* ─── Data fetching ─── */
   const fetchDetailedStats = async (isStale?: () => boolean) => {
-    const cacheKey = `saito_stats_cache_v3_${timeFilter}`;
+    const cacheKey = `saito_stats_cache_v4_${timeFilter}`;
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -290,7 +290,7 @@ const StatsPage = () => {
       } : null;
 
       // Use API data directly - already set in statsData above
-      try { localStorage.setItem(`saito_stats_cache_v3_${timeFilter}`, JSON.stringify(statsData)); } catch {}
+      try { localStorage.setItem(`saito_stats_cache_v4_${timeFilter}`, JSON.stringify(statsData)); } catch {}
     } catch (err) { console.error(err); toast.error(t('stats_error')); }
     finally {
       const elapsed = Date.now() - start2;

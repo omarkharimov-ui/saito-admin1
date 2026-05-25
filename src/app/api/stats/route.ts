@@ -107,13 +107,18 @@ export async function GET(request: Request) {
 
     const productPerformance = products?.map((p: any) => {
       const stats = productMap.get(p.id) || { sold: 0, revenue: 0 };
+      const views = p.views_count || 0;
+      const sold = stats.sold;
+      const conversion = views > 0 ? Math.round((sold / views) * 100) : 0;
       return {
         id: p.id,
         name: p.name,
         image: p.image_url,
-        sold: stats.sold,
+        category: p.category?.name || '',
+        sold,
         revenue: stats.revenue,
-        views: p.views_count || 0,
+        views,
+        conversion,
       };
     }).sort((a: any, b: any) => b.revenue - a.revenue) || [];
 

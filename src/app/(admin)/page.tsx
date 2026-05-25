@@ -812,6 +812,7 @@ const AdminDashboard = () => {
       {loading ? (
         <DashboardSkeleton />
       ) : (
+        <>
 
       {/* AI Suggestion Section - Yoji Məsləhəti (HeroBanner və Canlı Masa Planı arasında) */}
       {!settingsLoaded ? (
@@ -1042,6 +1043,7 @@ const AdminDashboard = () => {
           setConfirmDeleteProduct(null);
         }}
       />
+        </>
       )}
     </div>
   );

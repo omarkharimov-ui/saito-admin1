@@ -103,7 +103,7 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
           </div>
         ) : <span className="text-white/10 text-xs">-</span>}
       </td>
-      <td className="px-6 py-5 text-right">
+      {timeFilter !== 'archive' && <td className="px-6 py-5 text-right">
         {selectionMode ? (
           <div className="inline-flex items-center justify-end gap-2 text-xs text-white/50">
             <span className={selected ? 'text-white' : 'text-white/40'}>
@@ -112,7 +112,7 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
           </div>
         ) : (
           <div className="flex items-center justify-end gap-3 md:gap-4">
-            {res.status === 'pending' && timeFilter !== 'archive' && (
+            {res.status === 'pending' && (
               <>
                 <button onClick={() => onUpdateStatus(res.id, 'confirmed')} className="p-2.5 inline-flex items-center justify-center text-green-400/70 bg-green-500/[0.07] hover:bg-green-500/[0.12] hover:text-green-300 border border-green-500/[0.12] hover:border-green-500/25 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('confirm')}>
                   <CheckCircle size={17} />
@@ -122,7 +122,7 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
                 </button>
               </>
             )}
-            {res.status === 'confirmed' && timeFilter !== 'archive' && (
+            {res.status === 'confirmed' && (
               <>
                 <button onClick={() => onUpdateStatus(res.id, 'cancelled')} className="p-2.5 inline-flex items-center justify-center text-red-400/70 bg-red-500/[0.07] hover:bg-red-500/[0.12] hover:text-red-300 border border-red-500/[0.12] hover:border-red-500/25 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('cancel')}>
                   <XCircle size={17} />
@@ -132,14 +132,14 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
                 </button>
               </>
             )}
-            {res.status === 'cancelled' && timeFilter !== 'archive' && (
+            {res.status === 'cancelled' && (
               <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 inline-flex items-center justify-center text-white/25 hover:text-red-400 bg-white/[0.04] hover:bg-red-500/[0.08] border border-white/[0.07] hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('delete')}>
                 <Trash2 size={16} />
               </button>
             )}
           </div>
         )}
-      </td>
+      </td>}
     </motion.tr>
   );
 };

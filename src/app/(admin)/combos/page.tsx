@@ -74,10 +74,11 @@ export default function CombosPage() {
       });
       if (!res.ok) throw new Error('API error');
       const name = (combo as any)[`name_${language}`] || combo.name;
-      toast.success(updated.is_in_stock ? `"${name}" stokda` : `"${name}" stokda deyil`);
+      toast.dismiss();
+      toast.success(updated.is_in_stock ? `"${name}" stokda` : `"${name}" stokda deyil`, { id: `combo-${combo.id}`, duration: 2000 });
     } catch {
       setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, is_in_stock: combo.is_in_stock } : c));
-      toast.error(t('error'));
+      toast.error(t('error'), { id: `combo-err-${combo.id}` });
     }
   };
 
@@ -92,10 +93,11 @@ export default function CombosPage() {
       });
       if (!res.ok) throw new Error('API error');
       const name = (combo as any)[`name_${language}`] || combo.name;
-      toast.success(updated.is_active ? `"${name}" aktiv edildi` : `"${name}" deaktiv edildi`);
+      toast.dismiss();
+      toast.success(updated.is_active ? `"${name}" aktiv edildi` : `"${name}" deaktiv edildi`, { id: `combo-${combo.id}`, duration: 2000 });
     } catch {
       setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, is_active: combo.is_active } : c));
-      toast.error(t('error'));
+      toast.error(t('error'), { id: `combo-err-${combo.id}` });
     }
   };
 
@@ -254,14 +256,9 @@ export default function CombosPage() {
 
                     {/* Footer */}
                     <div className="flex items-center gap-2 pt-3 border-t border-white/[0.05]">
-                      <button onClick={(e) => { e.stopPropagation(); toggleStock(combo); }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${combo.is_in_stock ? 'bg-white/[0.04] text-green-400/80 border-white/[0.08] hover:border-green-500/25' : 'bg-white/[0.03] text-red-400/70 border-white/[0.06] hover:border-red-500/25'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${combo.is_in_stock ? 'bg-green-400' : 'bg-red-400'}`} />
-                        {combo.is_in_stock ? t('combo_in_stock') : t('combo_out_of_stock')}
-                      </button>
                       <button onClick={(e) => { e.stopPropagation(); toggleActive(combo); }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${combo.is_active ? 'bg-white/[0.04] text-white/50 border-white/[0.08] hover:border-white/20' : 'bg-white/[0.03] text-white/25 border-white/[0.06] hover:border-white/15'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${combo.is_active ? 'bg-white/50' : 'bg-white/20'}`} />
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${combo.is_active ? 'bg-green-500/[0.07] text-green-400/90 border-green-500/20 hover:border-green-500/35' : 'bg-white/[0.03] text-white/25 border-white/[0.06] hover:border-white/15'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${combo.is_active ? 'bg-green-400' : 'bg-white/20'}`} />
                         {combo.is_active ? t('combo_active') : t('combo_inactive')}
                       </button>
 

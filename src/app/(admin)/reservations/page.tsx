@@ -351,7 +351,7 @@ const ReservationsPage = () => {
                     <th className="px-6 py-4 font-medium text-center">{t('guests')}</th>
                     <th className="px-6 py-4 font-medium">{t('status')}</th>
                     <th className="px-6 py-4 font-medium">{t('note')}</th>
-                    <th className="px-6 py-4 font-medium text-right">{t('actions')}</th>
+                    {timeFilter !== 'archive' && <th className="px-6 py-4 font-medium text-right">{t('actions')}</th>}
                   </tr>
                 </thead>
                 <tbody>

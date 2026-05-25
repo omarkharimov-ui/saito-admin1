@@ -1,50 +1,28 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const ADMIN_ROLES = new Set(['admin', 'superadmin']);
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const role = request.cookies.get('saito_role')?.value;
-  
-  // Check if request is from standalone app
-  const userAgent = request.headers.get('user-agent') || '';
-  const isStandalone = 
-    request.headers.get('sec-fetch-dest') === 'document' && 
-    request.headers.get('sec-fetch-mode') === 'navigate' &&
-    !userAgent.includes('Mozilla') && 
-    pathname.startsWith('/admin');
-  
-  const isPWA = request.headers.get('sec-fetch-dest') === 'document' && 
-                request.nextUrl.searchParams.get('standalone') === 'true';
+  const isLoggedIn = request.cookies.get('isLoggedIn')?.value === 'true';
 
-  // ── Admin routes - Only allow from standalone app ─────────────────────
+  // Check if request has standalone param (PWA redirect)
+  const hasStandaloneParam = request.nextUrl.searchParams.get('standalone') === 'true';
+
+  // ── Admin routes ──────────────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
-    // Block direct browser access to admin routes
-    if (!isStandalone && !isPWA) {
-      return NextResponse.redirect(new URL('/?blocked=true', request.url));
-    }
-    
-    // Check role for admin access
-    if (!ADMIN_ROLES.has(role || '')) {
+    // If not logged in and no standalone param, send to landing page
+    if (!isLoggedIn && !hasStandaloneParam) {
       return NextResponse.redirect(new URL('/', request.url));
     }
+    // Allow through — client-side auth (useAdminAuth) handles role enforcement
     return NextResponse.next();
   }
 
-  // ── Kitchen route ────────────────────────────────────────
+  // ── Kitchen route ────────────────────────────────────────────────────
   if (pathname.startsWith('/kitchen')) {
-    if (role !== 'kitchen' && role !== 'superadmin') {
+    if (!isLoggedIn) {
       return NextResponse.redirect(new URL('/', request.url));
-    }
-    return NextResponse.next();
-  }
-
-  // ── Root route - Show landing page for browsers ───────────────────────
-  if (pathname === '/') {
-    // If standalone app trying to access root, redirect to admin
-    if (isStandalone || isPWA) {
-      return NextResponse.redirect(new URL('/admin', request.url));
     }
     return NextResponse.next();
   }

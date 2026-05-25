@@ -1149,7 +1149,7 @@ export default function StatsSenseiPanel({
           animate={aiClosing ? { opacity: 0, scale: 0.97, y: 8 } : { opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}>
 
-          {aiLoading && !scanning ? (
+          {(aiLoading || scanning) && !aiDisplayed ? (
             <div className="flex items-center gap-2 py-6 px-1">
               <span className="w-1 h-1 rounded-full bg-gold/40 animate-bounce" style={{ animationDelay: '0ms' }} />
               <span className="w-1 h-1 rounded-full bg-gold/40 animate-bounce" style={{ animationDelay: '120ms' }} />

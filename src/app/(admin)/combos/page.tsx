@@ -73,6 +73,8 @@ export default function CombosPage() {
         body: JSON.stringify({ action: 'update', id: combo.id, data: updated })
       });
       if (!res.ok) throw new Error('API error');
+      const name = (combo as any)[`name_${language}`] || combo.name;
+      toast.success(updated.is_in_stock ? `"${name}" stokda` : `"${name}" stokda deyil`);
     } catch {
       setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, is_in_stock: combo.is_in_stock } : c));
       toast.error(t('error'));
@@ -89,6 +91,8 @@ export default function CombosPage() {
         body: JSON.stringify({ action: 'update', id: combo.id, data: updated })
       });
       if (!res.ok) throw new Error('API error');
+      const name = (combo as any)[`name_${language}`] || combo.name;
+      toast.success(updated.is_active ? `"${name}" aktiv edildi` : `"${name}" deaktiv edildi`);
     } catch {
       setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, is_active: combo.is_active } : c));
       toast.error(t('error'));

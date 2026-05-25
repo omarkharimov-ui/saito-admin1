@@ -295,11 +295,9 @@ export default function StatsSenseiPanel({
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  /* ─── Welcome tooltip ─── */
+  /* ─── Welcome tooltip — disabled ─── */
   useEffect(() => {
-    const timer = setTimeout(() => setTooltipShown(true), 1800);
-    const hide  = setTimeout(() => setTooltipShown(false), 6000);
-    return () => { clearTimeout(timer); clearTimeout(hide); };
+    // tooltip removed
   }, []);
 
   /* ─── Stop scan overlay when AI finishes loading ─── */

@@ -51,3 +51,7 @@ node_modules/
 
 # supabase cli cache
 supabase/.temp/
+
+# native app (capacitor)
+/android/
+/ios/

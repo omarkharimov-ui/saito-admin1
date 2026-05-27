@@ -3,13 +3,10 @@
   "short_name": "Saito",
   "description": "Restaurant Management System",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#0a0a0a",
   "theme_color": "#d4af37",
-  "orientation": "portrait-primary",
-  "scope": "/",
   "lang": "az",
-  "categories": ["business", "productivity", "restaurant"],
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -18,46 +15,10 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Rezervasiyalar",
-      "short_name": "Rezerv",
-      "description": "Rezervasiyaları idarə et",
-      "url": "/reservations",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Sifarişlər",
-      "short_name": "Sifariş",
-      "description": "Sifarişləri yoxla",
-      "url": "/orders",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshot-mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow"
     }
   ]
 }

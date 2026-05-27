@@ -40,13 +40,11 @@ export default function RootLayout({
     >
       <head>
         <meta name="theme-color" content="#d4af37" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Saito Admin" />
-        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#d4af37" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <link rel="manifest" href="/manifest.json?v=2" />
+        <script dangerouslySetInnerHTML={{ __html: `if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.unregister()})});caches.keys().then(function(c){c.forEach(function(n){caches.delete(n)})})}` }} />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" media="(prefers-color-scheme: light)" />
         <link rel="icon" type="image/svg+xml" href="/favicon-dark.svg" media="(prefers-color-scheme: dark)" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />

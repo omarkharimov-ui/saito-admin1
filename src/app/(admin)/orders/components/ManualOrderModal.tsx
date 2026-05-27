@@ -132,11 +132,11 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
       const tableLabel = extraTableNums.length > 0
         ? `${tableNum}+${extraTableNums.join('+')} `
         : String(tableNum);
-      toast.success(t('order_created_for_table').replace('{table}', tableLabel));
+      toast.success(t('order_created_for_table').replace('{table}', tableLabel), { id: 'action-toast' });
       onCreated(createdOrderId);
       onClose();
     } catch (e: any) {
-      toast.error(e?.message || t('error'));
+      toast.error(e?.message || t('error'), { id: 'action-toast' });
     } finally {
       setSubmitting(false);
     }

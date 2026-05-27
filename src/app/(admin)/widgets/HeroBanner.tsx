@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, TrendingUp } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface DashboardStats {
@@ -16,7 +16,6 @@ export default function HeroBanner() {
   const { t, language } = useLanguage();
   const [greeting, setGreeting] = useState('');
   const [userName, setUserName] = useState('');
-  const [isRushHour, setIsRushHour] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     dailyRevenue: 0,
     todayOrders: 0,
@@ -24,15 +23,6 @@ export default function HeroBanner() {
     topProduct: '—',
   });
   const [loading, setLoading] = useState(true);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 80);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -42,8 +32,6 @@ export default function HeroBanner() {
     else if (hour >= 17 && hour < 22) g = t('good_evening');
     else g = t('good_night');
     setGreeting(g);
-
-    setIsRushHour((hour >= 12 && hour <= 14) || (hour >= 18 && hour <= 21));
 
     try {
       const session = localStorage.getItem('saito_session');
@@ -146,10 +134,7 @@ export default function HeroBanner() {
               <span className="text-[10px] uppercase tracking-[0.35em] font-semibold text-white/40">
                 {t('today_revenue')}
               </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400/80 bg-emerald-500/10 px-2 py-1 rounded-full">
-                <TrendingUp size={12} />
-                +12%
-              </span>
+              <span className="text-[11px] text-white/20">{t('today')}</span>
             </div>
             
             <div className="flex items-end justify-between">

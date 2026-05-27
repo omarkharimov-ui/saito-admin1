@@ -41,7 +41,7 @@ export default function CombosPage() {
       writeCache(COMBO_CACHE_KEY, newCombos);
       writeCache(PRODUCT_CACHE_KEY, newProducts);
     } catch {
-      toast.error(t('error_loading'));
+      toast.error(t('error_loading'), { id: 'action-toast' });
     } finally {
       setFetching(false);
     }
@@ -57,9 +57,9 @@ export default function CombosPage() {
     try {
       const res = await fetch(`/api/combos?id=${combo.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('API error');
-      toast.success(t('combo_deleted'));
+      toast.success(t('combo_deleted'), { id: 'action-toast' });
       setCombos(prev => prev.filter(c => c.id !== combo.id));
-    } catch { toast.error(t('error_deleting')); }
+    } catch { toast.error(t('error_deleting'), { id: 'action-toast' }); }
     finally { setDeletingId(null); setConfirmDelete(null); }
   };
 

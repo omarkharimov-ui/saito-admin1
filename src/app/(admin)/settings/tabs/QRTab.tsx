@@ -82,12 +82,12 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
       .eq('id', '1');
     if (error) {
       console.error('[QRTab] Update FAILED:', error);
-      toast.error(t('error') + ': ' + error.message, { style: { background: '#1f0d0d', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 600 } });
+      toast.error(t('error') + ': ' + error.message, { id: 'action-toast' });
     } else {
       setTableCount(draftCount);
       setSavedCount(draftCount);
       localStorage.setItem('saito_qr_table_count', String(draftCount));
-      toast.success(t('qr_updated').replace('{n}', String(draftCount)), { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(t('qr_updated').replace('{n}', String(draftCount)), { id: 'action-toast', duration: 3000 });
     }
     setConfirming(false);
   };
@@ -114,9 +114,9 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
     }
     zip.generateAsync({ type: 'blob' }).then(content => {
       saveAs(content, 'qr-codes.zip');
-      toast.success(t('qr_downloaded'), { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(t('qr_downloaded'), { id: 'action-toast', duration: 3000 });
     }).catch(error => {
-      toast.error('QR kodları endirmək mümkün olmadı: ' + error.message);
+      toast.error('QR kodları endirmək mümkün olmadı: ' + error.message, { id: 'action-toast' });
     });
   };
 

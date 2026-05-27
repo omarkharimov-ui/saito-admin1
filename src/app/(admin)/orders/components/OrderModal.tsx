@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { flushSync, createPortal } from 'react-dom';
+import { createPortal } from 'react-dom';
 import {
   X, Search, Plus, Minus, CheckCircle, Loader2,
-  CreditCard, MoreVertical, Trash2, XCircle, BrainCircuit, Clock,
-  Zap, GitMerge, Layers, Printer, ChevronLeft,
+  CreditCard, MoreVertical, Trash2, XCircle, Clock,
+  GitMerge, Layers, Printer, ChevronLeft,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -28,7 +28,7 @@ interface OrderModalProps {
 }
 
 export const OrderModal = ({
-  order, onClose, onRefresh, onPay, onConfirm, onClearTable, onDelete, allOrders = [], onOrdersUpdate,
+  order, onClose, onRefresh, onPay, onClearTable, allOrders = [], onOrdersUpdate,
 }: OrderModalProps) => {
   const { t, language } = useLanguage();
 
@@ -52,7 +52,7 @@ export const OrderModal = ({
   const [showMenu, setShowMenu]     = useState(false);
   const [cancelStep, setCancelStep] = useState<'none' | 'confirm' | 'select' | 'reason'>('none');
   const [cancelReason, setCancelReason] = useState('');
-  const [isConfirming, setIsConfirming] = useState(false);
+  const [isConfirming] = useState(false);
   const [showMerge, setShowMerge]   = useState(false);
   const [merging, setMerging]       = useState(false);
   const [unmerging, setUnmerging]   = useState(false);
@@ -75,10 +75,6 @@ export const OrderModal = ({
     const index = allMergedParents.findIndex(o => o.id === order.id);
     return index + 1; // 1-based
   }, [isMergedOrder, allOrders, order.id, order.created_at]);
-
-  const mergeTargets = allOrders.filter(
-    o => o.id !== order.id && (o.status === 'new' || o.status === 'confirmed') && !o.merged_into
-  );
 
   /* ── Unmerge (Split): delete merged child orders — dismiss logic ── */
   const handleUnmerge = async () => {
@@ -104,7 +100,7 @@ export const OrderModal = ({
         throw delErr;
       }
 
-      toast.success(t('tables_separated').replace('{tables}', mergedOrders.map(o => `${t('table_label')} ${o.table_number}`).join(', ')));
+      toast.success(t('tables_separated').replace('{tables}', mergedOrders.map(o => `${t('table_label')} ${o.table_number}`).join(', ')), { id: 'action-toast' });
 
       // Instantly update local state — remove all child orders
       if (onOrdersUpdate) {
@@ -116,14 +112,14 @@ export const OrderModal = ({
       // Delay refresh to ensure DB deletion is complete and Supabase triggers have fired
       setTimeout(() => onRefresh(), 500);
     } catch (e: any) {
-      toast.error(e?.message || t('error'));
+      toast.error(e?.message || t('error'), { id: 'action-toast' });
     } finally {
       setUnmerging(false);
     }
   };
 
-  /* ── Merge order into another ── */
-  const handleMerge = async (targetOrder: Order) => {
+  /* ── Merge order into another ── (kept for future use) ── */
+  const _handleMerge = async (targetOrder: Order) => {
     if (merging) return;
     setMerging(true);
     try {
@@ -141,11 +137,11 @@ export const OrderModal = ({
       const extraTotal = items.reduce((s, i) => s + i.total_price, 0);
       await supabase.from('orders').update({ total_amount: (targetOrder.total_amount || 0) + extraTotal, kitchen_status: 'pending' }).eq('id', targetOrder.id);
       await supabase.from('orders').update({ merged_into: targetOrder.id, status: 'paid' }).eq('id', order.id);
-      toast.success(`Masa ${order.table_number} → Masa ${targetOrder.table_number} birləşdirildi`);
+      toast.success(`Masa ${order.table_number} → Masa ${targetOrder.table_number} birləşdirildi`, { id: 'action-toast' });
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e?.message || 'Xəta baş verdi');
+      toast.error(e?.message || 'Xəta baş verdi', { id: 'action-toast' });
     } finally {
       setMerging(false);
     }
@@ -221,21 +217,6 @@ export const OrderModal = ({
     setDraftQty(prev => ({ ...prev, [item.id]: next }));
   };
 
-  const confirmDeleteMistake = () => {
-    if (!pendingDeleteItemId) return;
-    setDeletedIds(prev => new Set(prev).add(pendingDeleteItemId));
-    setDraftQty(prev => { const n = { ...prev }; delete n[pendingDeleteItemId!]; return n; });
-    setPendingDeleteItemId(null);
-  };
-
-  const confirmDeleteReturned = () => {
-    if (!pendingDeleteItemId) return;
-    setReturnedIds(prev => new Set(prev).add(pendingDeleteItemId));
-    setDraftQty(prev => { const n = { ...prev }; delete n[pendingDeleteItemId!]; return n; });
-    setPendingDeleteItemId(null);
-    toast.success(t('product_returned_success'), { icon: '✅' });
-  };
-
   const handleConfirmWithDraft = () => {
     const snapDraft = { ...draftQty };
     const snapDeleted = new Set(deletedIds);
@@ -273,7 +254,7 @@ export const OrderModal = ({
         }).eq('id', order.id);
       } catch (err: any) {
         onRefresh();
-        toast.error(t('error') + ': ' + (err?.message ?? t('error_saving')));
+        toast.error(t('error') + ': ' + (err?.message ?? t('error_saving')), { id: 'action-toast' });
       }
     })();
   };
@@ -286,7 +267,7 @@ export const OrderModal = ({
     { key: 'other',            label: t('reason_other'),            desc: t('reason_other_desc') },
   ];
 
-  const handleCancelOrder = async (reasonKey: string) => {
+  const _handleCancelOrder = async (reasonKey: string) => {
     const reasonLabel = cancellationReasons.find(r => r.key === reasonKey)?.label || reasonKey;
     await supabase.from('cancelled_orders').insert([{
       order_id: order.id, table_number: order.table_number, total_amount: order.total_amount,
@@ -299,7 +280,7 @@ export const OrderModal = ({
       await supabase.from('order_items').delete().eq('order_id', order.id);
       await supabase.from('orders').delete().eq('id', order.id);
     }, 30000);
-    toast.success(t('order_cancelled_reason').replace('{reason}', reasonLabel));
+    toast.success(t('order_cancelled_reason').replace('{reason}', reasonLabel), { id: 'action-toast' });
     closeAndRefresh();
   };
 
@@ -311,7 +292,7 @@ export const OrderModal = ({
         const item = order.order_items?.find(i => i.id === itemId);
         return { id: itemId, name: item ? getProductName(item) : '—', quantity: qty, unit_price: item?.unit_price || 0, total_price: (item?.unit_price || 0) * qty };
       });
-    if (itemsToCancel.length === 0) { toast.error(t('no_items_to_cancel')); return; }
+    if (itemsToCancel.length === 0) { toast.error(t('no_items_to_cancel'), { id: 'action-toast' }); return; }
     const totalCancelledAmount = itemsToCancel.reduce((sum, i) => sum + i.total_price, 0);
     await supabase.from('cancelled_orders').insert([{
       order_id: order.id, table_number: order.table_number, total_amount: totalCancelledAmount,
@@ -331,7 +312,7 @@ export const OrderModal = ({
     const newOrderTotal = (order.total_amount || 0) - totalCancelledAmount;
     await supabase.from('orders').update({ total_amount: Math.max(0, newOrderTotal) }).eq('id', order.id);
     const totalQty = itemsToCancel.reduce((sum, i) => sum + (i.quantity || 1), 0);
-    toast.success(t('items_cancelled').replace('{count}', String(totalQty)).replace('{reason}', reasonLabel).replace('{amount}', totalCancelledAmount.toFixed(2)));
+    toast.success(t('items_cancelled').replace('{count}', String(totalQty)).replace('{reason}', reasonLabel).replace('{amount}', totalCancelledAmount.toFixed(2)), { id: 'action-toast' });
     setCancelStep('none'); setCancelReason(''); setSelectedCancelItems({});
     closeAndRefresh();
   };
@@ -422,10 +403,6 @@ export const OrderModal = ({
     setAddVariantPicker(null);
   };
 
-  const changeAddQty = (key: string, delta: number) => {
-    setAddItems(prev => prev.map(i => `${i.product.id}__${i.variant?.id || 'base'}` === key ? { ...i, quantity: i.quantity + delta } : i).filter(i => i.quantity > 0));
-  };
-
   const handleAddItems = async () => {
     if (addItems.length === 0) return;
     setAddSubmitting(true);
@@ -459,7 +436,7 @@ export const OrderModal = ({
       }).eq('id', order.id);
       setAddItems([]);
     } catch (e: any) {
-      toast.error(e?.message || t('error'));
+      toast.error(e?.message || t('error'), { id: 'action-toast' });
     } finally {
       setAddSubmitting(false);
     }
@@ -795,7 +772,7 @@ export const OrderModal = ({
                   <p className="text-white/12 text-xs mt-1">{t('modal_select_product_hint')}</p>
                 </div>
               )}
-              {displayItems.map((item: any, idx: number) => (
+              {displayItems.map((item: any) => (
                 <div key={item.id}
                   className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all ${
                     item._preview ? 'bg-white/[0.04] border-white/10 border-dashed' :
@@ -1044,7 +1021,7 @@ export const OrderModal = ({
                       const { error: delErr } = await supabase.from('orders').delete().in('id', childIds);
                       if (delErr) throw delErr;
                       
-                      toast.success(t('tables_separated').replace('{tables}', tablesToSplit.map(n => `${t('table_label')} ${n}`).join(', ')));
+                      toast.success(t('tables_separated').replace('{tables}', tablesToSplit.map(n => `${t('table_label')} ${n}`).join(', ')), { id: 'action-toast' });
                       
                       // Update local state
                       if (onOrdersUpdate) {
@@ -1056,7 +1033,7 @@ export const OrderModal = ({
                       setSelectedTablesToSplit(new Set());
                       setTimeout(() => onRefresh(), 500);
                     } catch (e: any) {
-                      toast.error(e?.message || t('error'));
+                      toast.error(e?.message || t('error'), { id: 'action-toast' });
                     } finally {
                       setUnmerging(false);
                     }

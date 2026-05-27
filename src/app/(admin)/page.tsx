@@ -1,16 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
-import { Product, Category, Campaign } from '@/types';
+import { Product, Category } from '@/types';
 import {
-  Percent, Save, Trash2, Edit3, Loader2, Zap, X,
-  Search, Filter, Plus, ChevronDown, BrainCircuit,
-  TrendingUp, Sparkles, Settings as SettingsIcon, Star,
-  Tag, Info, Upload, AlertCircle, Flame, MoreVertical
+  Zap, BrainCircuit, Sparkles
 } from 'lucide-react';
 import HeroBanner from './widgets/HeroBanner';
 import LiveFloorSnapshot from './widgets/LiveFloorSnapshot';
@@ -18,7 +14,6 @@ import DashboardProductModal from './widgets/DashboardProductModal';
 import { HappyHourModal, DeleteProductModal } from './widgets/DashboardModals';
 import { toast } from 'react-hot-toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
-import GoldSelect from '@/components/GoldSelect';
 
 function SenseiSleepCard({ openingHours }: { openingHours: string }) {
   const [countdown, setCountdown] = useState<{ h: number; m: number; s: number } | null>(null);
@@ -128,7 +123,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
 }
 
 const AdminDashboard = () => {
-  const { t, language, getProductTranslation, getCategoryTranslation } = useLanguage();
+  const { t, language } = useLanguage();
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const r = localStorage.getItem('saito_products_cache');
@@ -147,13 +142,12 @@ const AdminDashboard = () => {
       return [];
     }
   });
-  const [loading, setLoading] = useState(() => {
+  const [, setLoading] = useState(() => {
     try { return !localStorage.getItem('saito_products_cache'); } catch { return true; }
   });
   const [todayAov, setTodayAov] = useState<number | null>(null);
   const [role, setRole] = useState<'admin' | 'superadmin' | null>(null);
   const [updating, setUpdating] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const didAutoTranslate = React.useRef(false);
   
@@ -162,7 +156,6 @@ const AdminDashboard = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<{ id: string; name: string } | null>(null);
   const [isHappyHourModalOpen, setIsHappyHourModalOpen] = useState(false);
-  const [isHappyHourActive, setIsHappyHourActive] = useState(false);
   const [openingHours, setOpeningHours] = useState('');
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
@@ -179,10 +172,7 @@ const AdminDashboard = () => {
     if (closeMins > openMins) return nowMins >= openMins && nowMins < closeMins;
     return nowMins >= openMins || nowMins < closeMins;
   };
-  const [isAiDiscountModalOpen, setIsAiDiscountModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [aiDiscountForm, setAiDiscountForm] = useState({
     productId: '',
     productName: '',
@@ -192,37 +182,6 @@ const AdminDashboard = () => {
     end_time: '18:00'
   });
 
-  const handleApplyAiDiscount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUpdating(true);
-    try {
-      const product = products.find(p => p.id === aiDiscountForm.productId);
-      if (product) {
-        const discountPrice = product.price * (1 - aiDiscountForm.discountPercent / 100);
-        await supabase.from('products').update({ discount_price: discountPrice }).eq('id', product.id);
-        
-        // Create campaign
-        await supabase.from('campaigns').insert([{
-          title: aiDiscountForm.type === 'HAPPY_HOUR' ? `${t('yoji_happy_hour')}: ${product.name}` : `${product.name} — ${t('yoji_tip')}`,
-          target_type: 'product',
-          target_id: product.id,
-          type: aiDiscountForm.type,
-          discount_value: aiDiscountForm.discountPercent,
-          start_time: aiDiscountForm.type === 'HAPPY_HOUR' ? aiDiscountForm.start_time : null,
-          end_time: aiDiscountForm.type === 'HAPPY_HOUR' ? aiDiscountForm.end_time : null,
-          status: 'active'
-        }]);
-
-        toast.success(`"${product.name}" üçün ${aiDiscountForm.discountPercent}% endirim tətbiq edildi`);
-        setIsAiDiscountModalOpen(false);
-        setIsHappyHourModalOpen(false);
-        fetchData();
-      }
-    } catch (err) {
-      toast.error('Xəta baş verdi');
-    }
-    setUpdating(false);
-  };
 
   const openAiDiscountModal = (productId: string, productName: string, discountPercent: number, type: string) => {
     setAiDiscountForm(prev => ({ ...prev, productId, productName, discountPercent, type }));
@@ -231,10 +190,8 @@ const AdminDashboard = () => {
   };
   
   // Filtering & Search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [activeCategoryId, setActiveCategoryId] = useState('all');
+  const [searchQuery] = useState('');
+  const [activeCategoryId] = useState('all');
 
   // Happy Hour Form
   const [happyHourForm, setHappyHourForm] = useState({
@@ -282,7 +239,6 @@ const AdminDashboard = () => {
       setTodayAov(data.todayAov || 0);
       setProducts(Array.isArray(data.products) ? data.products : []);
       setCategories(Array.isArray(data.categories) ? data.categories : []);
-      setIsHappyHourActive(data.isHappyHourActive);
       if (data.openingHours) setOpeningHours(data.openingHours);
       setSettingsLoaded(true);
       
@@ -298,7 +254,7 @@ const AdminDashboard = () => {
         setHappyHourForm(prev => ({ ...prev, productId: data.products[0].id }));
       }
     } catch (error: any) {
-      toast.error('Məlumatları yükləmək mümkün olmadı: ' + error.message);
+      toast.error('Məlumatları yükləmək mümkün olmadı: ' + error.message, { id: 'action-toast' });
     }
   };
 
@@ -320,93 +276,11 @@ const AdminDashboard = () => {
     return /i[\u00e7c]kil?|drink|beverage|i[\u00e7c]ecek|juice|soda|water|\bsu\b|[\u00e7c]ay|cay|tea|coffee|q[\u0259e]hv|kofe|[\u015f]ir[\u0259e]|limon|smoothie|milkshake|lemonade/.test(haystack);
   }, [productForm.category_id, categories]);
 
-  const filteredProducts = useMemo(() => {
-    const safeProducts = Array.isArray(products) ? products : [];
-    return safeProducts.filter(p => {
-      const nameStr = typeof p.name === 'string' ? p.name : (p.name as any)?.az || '';
-      const matchesSearch = nameStr.toLowerCase().includes(searchQuery.toLowerCase());
-      // Handle both direct category_id and nested category.id from Supabase join
-      const productCatId = p.category_id || (p.category as any)?.id;
-      const matchesCategory = activeCategoryId === 'all' || productCatId === activeCategoryId;
-      return matchesSearch && matchesCategory;
-    });
-  }, [products, searchQuery, activeCategoryId]);
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingImage(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `products/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath);
-
-      setProductForm(prev => ({ ...prev, image_url: publicUrl }));
-      toast.success('Şəkil uğurla yükləndi');
-    } catch (error: any) {
-      toast.error('Şəkil yüklənərkən xəta baş verdi: ' + error.message);
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  const handleDeleteClick = (product: Product) => {
-    setProductToDelete(product);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleDeleteProduct = async () => {
-    if (!productToDelete) return;
-    
-    setUpdating(true);
-    const { error } = await supabase.from('products').delete().eq('id', productToDelete.id);
-    
-    if (error) {
-      toast.error(t('product_not_deleted') + ': ' + error.message);
-    } else {
-      toast.success(t('product_deleted'));
-      fetchData();
-    }
-    setUpdating(false);
-    setIsDeleteModalOpen(false);
-    setProductToDelete(null);
-  };
-
-  const handleToggleStock = async (product: Product) => {
-    const { error } = await supabase
-      .from('products')
-      .update({ is_in_stock: !product.is_in_stock })
-      .eq('id', product.id);
-
-    if (error) {
-      toast.error(t('status_not_updated'));
-    } else {
-      toast.success(product.is_in_stock ? t('product_removed') : t('product_restored'));
-      fetchData();
-    }
-  };
-
-  const haptic = (ms = 8) => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(ms);
-    }
-  };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productForm.category_id) {
-      toast.error(t('please_select_category'));
+      toast.error(t('please_select_category'), { id: 'action-toast' });
       return;
     }
     setUpdating(true);
@@ -439,7 +313,7 @@ const AdminDashboard = () => {
     }
 
     if (error) {
-      toast.error(t('error_sql_update'));
+      toast.error(t('error_sql_update'), { id: 'action-toast' });
     } else {
       const targetId = editingProduct ? editingProduct.id : savedProduct?.id;
 
@@ -546,7 +420,7 @@ const AdminDashboard = () => {
         }
       }
 
-      toast.success(editingProduct ? t('product_updated') : t('product_added'));
+      toast.success(editingProduct ? t('product_updated') : t('product_added'), { id: 'action-toast' });
       setIsModalOpen(false);
       setEditingProduct(null);
       resetProductForm();
@@ -588,11 +462,11 @@ const AdminDashboard = () => {
           status: 'active'
         }]);
 
-        toast.success(`"${product.name}" üçün ${happyHourForm.discountPercent}% endirim tətbiq edildi`);
+        toast.success(`"${product.name}" üçün ${happyHourForm.discountPercent}% endirim tətbiq edildi`, { id: 'action-toast' });
         setIsHappyHourModalOpen(false);
         fetchData();
       } catch (err) {
-        toast.error('Endirim tətbiq edilərkən xəta baş verdi');
+        toast.error('Endirim tətbiq edilərkən xəta baş verdi', { id: 'action-toast' });
       }
     }
     setUpdating(false);
@@ -648,8 +522,8 @@ const AdminDashboard = () => {
       const res = await fetch('/api/sensei', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productName: productForm.name, ingredients: productForm.ingredients, language }) });
       const data = await res.json();
       if (data.description) setProductForm(prev => ({ ...prev, description: (data.description as string).slice(0, 150) }));
-      else toast.error('Sensei cavab vermədi');
-    } catch { toast.error('Sensei bağlantı xətası'); }
+      else toast.error('Sensei cavab vermədi', { id: 'action-toast' });
+    } catch { toast.error('Sensei bağlantı xətası', { id: 'action-toast' }); }
     finally { setAiGenerating(false); }
   };
 
@@ -667,47 +541,6 @@ const AdminDashboard = () => {
       variants: [],
       modifiers: []
     });
-  };
-
-  const openEditModal = (product: Product) => {
-    setEditingProduct(product);
-
-    // Use current UI language — same as desktop
-    const localName = (product as any)[`name_${language}`] || product.name;
-    const localDesc = (product as any)[`description_${language}`] || (typeof product.description === 'string' ? product.description : (product.description as any)?.az || '');
-    const ingrRaw = product.ingredients || [];
-    const localIngr = (product as any)[`ingredients_${language}`] || (Array.isArray(ingrRaw) ? ingrRaw.map((i: any) => (typeof i === 'string' ? i : i?.az || '')).filter(Boolean).join(', ') : '');
-
-    const productVariants = (product as any).variants?.filter((v: any) => v.variant_type === 'olcu').map((v: any) => ({
-      id: v.id,
-      name: (v.translations?.[language]?.name) || v.name || '',
-      price: v.price?.toString() || '',
-      is_default: v.is_default || false,
-      variant_type: 'olcu' as const,
-      translations: v.translations || null
-    })) || [];
-
-    const productModifiers = (product as any).modifiers?.map((m: any) => ({
-      id: m.id,
-      name: m.name || '',
-      price: m.price?.toString() || '0',
-      is_available: m.is_available !== false
-    })) || [];
-
-    setProductForm({
-      name: localName,
-      category_id: product.category_id,
-      price: product.price.toString(),
-      image_url: product.image_url,
-      description: localDesc,
-      ingredients: localIngr,
-      is_in_stock: product.is_in_stock,
-      is_special: product.is_special || false,
-      is_spicy: product.is_spicy || false,
-      variants: productVariants,
-      modifiers: productModifiers
-    });
-    setIsModalOpen(true);
   };
 
   // AI Suggestions Logic - YojiLogic 3.0
@@ -1023,10 +856,10 @@ const AdminDashboard = () => {
           if (!confirmDeleteProduct) return;
           try {
             await supabase.from('products').delete().eq('id', confirmDeleteProduct.id);
-            toast.success(t('product_deleted'));
+            toast.success(t('product_deleted'), { id: 'action-toast' });
             fetchData();
           } catch { 
-            toast.error(t('error')); 
+            toast.error(t('error'), { id: 'action-toast' }); 
           }
           setConfirmDeleteProduct(null);
         }}

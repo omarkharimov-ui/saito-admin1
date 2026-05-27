@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { TrendingUp, BarChart3 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import StatsTopCards from './components/StatsTopCards';
 import StatsAIForecast from './components/StatsAIForecast';
 import StatsRevenueChart from './components/StatsRevenueChart';
@@ -290,7 +290,7 @@ const StatsPage = () => {
 
       // Use API data directly - already set in statsData above
       try { localStorage.setItem(`saito_stats_cache_v4_${timeFilter}`, JSON.stringify(statsData)); } catch {}
-    } catch (err) { console.error(err); toast.error(t('stats_error')); }
+    } catch (err) { console.error(err); toast.error(t('stats_error'), { id: 'action-toast' }); }
     finally {
       if (!isStale || !isStale()) setLoading(false);
     }
@@ -337,15 +337,7 @@ const StatsPage = () => {
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={timeFilter}
-          initial={{ opacity: 0, filter: 'blur(6px)', y: 6 }}
-          animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-          exit={{ opacity: 0, filter: 'blur(4px)', y: -4 }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="space-y-10"
-        >
+      <div className="space-y-10">
       <StatsTopCards totalRevenue={stats.totalRevenue} totalOrders={stats.totalOrders} aov={stats.aov} missedRevenue={stats.missedRevenue} />
       <StatsAIForecast forecast={forecast} anomalies={anomalies} />
       <StatsRevenueChart chartData={stats.chartData} />
@@ -387,8 +379,7 @@ const StatsPage = () => {
         categories={categories}
         getCategoryTranslation={getCategoryTranslation}
       />
-        </motion.div>
-      </AnimatePresence>
+      </div>
       </div>{/* end desktop */}
     </div>
   );

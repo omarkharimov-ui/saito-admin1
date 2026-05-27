@@ -91,7 +91,7 @@ export function useOrders() {
       });
       try { localStorage.setItem(CACHE_KEY, JSON.stringify(ordersWithItems)); } catch {}
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     } finally {
       setLoading(false);
     }
@@ -168,8 +168,8 @@ export function useOrders() {
 
   /* ─── Online/offline ─── */
   useEffect(() => {
-    const up   = () => { setIsOnline(true);  toast.success(t('connection_restored')); };
-    const down = () => { setIsOnline(false); toast.error(t('connection_lost')); };
+    const up   = () => { setIsOnline(true);  toast.success(t('connection_restored'), { id: 'connection-toast' }); };
+    const down = () => { setIsOnline(false); toast.error(t('connection_lost'), { id: 'connection-toast' }); };
     window.addEventListener('online',  up);
     window.addEventListener('offline', down);
     setIsOnline(navigator.onLine);
@@ -189,10 +189,10 @@ export function useOrders() {
       if (error) throw error;
       setUpdatedLabels(prev => { const n = new Map(prev); n.set(id, t('updated').toUpperCase()); return n; });
       setFlashIds(prev => new Set(prev).add(id));
-      toast.success(t('updated'));
+      toast.success(t('updated'), { id: 'action-toast' });
       await fetchOrders(false);
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
   }, [fetchOrders, t]);
 
@@ -214,10 +214,10 @@ export function useOrders() {
         await supabase.from('orders').delete().in('id', childIds);
       }
 
-      toast.success(t('order_paid'));
+      toast.success(t('order_paid'), { id: 'action-toast' });
       setTimeout(() => fetchOrders(false), 200);
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
       fetchOrders(false);
     }
   }, [fetchOrders, t, setOrders]);
@@ -231,7 +231,7 @@ export function useOrders() {
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === id ? { ...o, kitchen_status: 'preparing', status: 'confirmed', kitchen_accepted_at: now } : o));
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
   }, [t, setOrders]);
 
@@ -243,7 +243,7 @@ export function useOrders() {
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === id ? { ...o, kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() } : o));
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
   }, [t, setOrders]);
 
@@ -252,10 +252,10 @@ export function useOrders() {
       await supabase.from('order_items').delete().eq('order_id', id);
       const { error } = await supabase.from('orders').delete().eq('id', id);
       if (error) throw error;
-      toast.success(t('order_deleted'));
+      toast.success(t('order_deleted'), { id: 'action-toast' });
       setOrders(prev => prev.filter(o => o.id !== id));
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
   }, [t]);
 
@@ -303,9 +303,9 @@ export function useOrders() {
       // 6. BİLDİRİŞ
       if (childTableNums.length > 0) {
         const allTableNums = [tableNum, ...childTableNums].sort((a, b) => a - b);
-        toast.success(t('group_cleared').replace('{tables}', allTableNums.join(', ')), { duration: 4000 });
+        toast.success(t('group_cleared').replace('{tables}', allTableNums.join(', ')), { id: 'action-toast', duration: 3000 });
       } else {
-        toast.success(t('table_cleared').replace('{table}', String(tableNum)));
+        toast.success(t('table_cleared').replace('{table}', String(tableNum)), { id: 'action-toast' });
       }
 
       // 7. Baza trigerlərinin işini bitirməsi üçün gözlə, sonra fetch et
@@ -313,7 +313,7 @@ export function useOrders() {
 
     } catch (e: unknown) {
       const msg = errMsg(e);
-      toast.error(`${t('error')}: ${msg}`);
+      toast.error(`${t('error')}: ${msg}`, { id: 'action-toast' });
       // Xəta olsa, datanı geri qaytarmaq üçün fetch edirik
       fetchOrders(false);
     }
@@ -370,7 +370,7 @@ export function useOrders() {
         sourceOrder.table_number
       ])).filter((n): n is number => n !== null).sort((a, b) => a - b);
       const tablesStr = allNums.join('+');
-      toast.success(t('tables_merged').replace('{tables}', tablesStr), { duration: 4000 });
+      toast.success(t('tables_merged').replace('{tables}', tablesStr), { id: 'action-toast', duration: 3000 });
 
       // Optimistic update — reflect merge in local state immediately
       setOrders(prev => applyOrdersUpdate(prev, o => o.map(x => {
@@ -381,7 +381,7 @@ export function useOrders() {
 
       setTimeout(() => fetchOrders(false), 100);
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
   }, [orders, fetchOrders, t, setOrders]);
 
@@ -402,7 +402,7 @@ export function useOrders() {
         const { error: e2 } = await supabase.from('orders').insert(childOrders);
         if (e2) throw e2;
       }
-      toast.success(t('tables_merged').replace('{tables}', uniqueTableNums.join('+')));
+      toast.success(t('tables_merged').replace('{tables}', uniqueTableNums.join('+')), { id: 'action-toast' });
       await fetchOrders(false);
       setOrders(current => {
         const found = current.find(o => o.id === order.id);
@@ -410,7 +410,7 @@ export function useOrders() {
         return current;
       });
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
   }, [fetchOrders, t, setSelectedOrder]);
 
@@ -427,10 +427,10 @@ export function useOrders() {
         is_rush: false,
       });
       if (error) throw error;
-      toast.success(t('table_added_to_group').replace('{table}', String(emptyTableNum)));
+      toast.success(t('table_added_to_group').replace('{table}', String(emptyTableNum)), { id: 'action-toast' });
       setTimeout(() => fetchOrders(false), 100);
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
   }, [fetchOrders, t]);
 
@@ -438,10 +438,10 @@ export function useOrders() {
     try {
       const { error } = await supabase.from('orders').update({ table_number: toTableNum }).eq('id', orderId);
       if (error) throw error;
-      toast.success(t('table_moved').replace('{table}', String(toTableNum)));
+      toast.success(t('table_moved').replace('{table}', String(toTableNum)), { id: 'action-toast' });
       setTimeout(() => fetchOrders(false), 100);
     } catch (e: unknown) {
-      toast.error(`${t('error')}: ${errMsg(e)}`);
+      toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
   }, [fetchOrders, t]);
 

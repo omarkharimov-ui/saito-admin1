@@ -45,13 +45,13 @@ const StaffTab = () => {
 
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) { toast.error(t('staff_name_required')); return; }
+    if (!form.name.trim()) { toast.error(t('staff_name_required'), { id: 'action-toast' }); return; }
     setSaving(true);
     const { error } = await supabase.from('staff').update({ name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() }).eq('id', editingId!);
-    if (error) { toast.error(error.message); }
+    if (error) { toast.error(error.message, { id: 'action-toast' }); }
     else {
       setStaff(prev => prev.map(s => s.id === editingId ? { ...s, ...form } : s));
-      toast.success(t('staff_saved'), { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(t('staff_saved'), { id: 'action-toast', duration: 3000 });
       cancelEdit();
     }
     setSaving(false);
@@ -59,19 +59,19 @@ const StaffTab = () => {
 
   const addStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) { toast.error(t('staff_name_required')); return; }
+    if (!form.name.trim()) { toast.error(t('staff_name_required'), { id: 'action-toast' }); return; }
     setSaving(true);
     const { data, error } = await supabase.from('staff').insert([{ name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() }]).select().single();
-    if (error) { toast.error(error.message); }
-    else { setStaff(prev => [...prev, data as StaffMember]); setForm(emptyForm()); setShowForm(false); toast.success(t('staff_added'), { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } }); }
+    if (error) { toast.error(error.message, { id: 'action-toast' }); }
+    else { setStaff(prev => [...prev, data as StaffMember]); setForm(emptyForm()); setShowForm(false); toast.success(t('staff_added'), { id: 'action-toast', duration: 3000 }); }
     setSaving(false);
   };
 
   const removeStaff = async (id: string) => {
     const { error } = await supabase.from('staff').delete().eq('id', id);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(error.message, { id: 'action-toast' }); return; }
     setStaff(prev => prev.filter(s => s.id !== id));
-    toast.success(t('staff_deleted'), { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+    toast.success(t('staff_deleted'), { id: 'action-toast', duration: 3000 });
   };
 
   const staffForm = (onSubmit: (e: React.FormEvent) => void, submitLabel: string, onCancel: () => void) => (

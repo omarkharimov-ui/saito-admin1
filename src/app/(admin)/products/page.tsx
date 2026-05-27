@@ -116,10 +116,7 @@ const ProductsPage = () => {
 
   const handleBulkStockUpdate = async (inStock: boolean) => {
     if (selectedProducts.size === 0) {
-      toast.error(t('select_products_first'), {
-        icon: '⚠️',
-        style: { animation: 'toast-shake 0.45s cubic-bezier(0.36,0.07,0.19,0.97)' }
-      });
+      toast.error(t('select_products_first'), { id: 'action-toast', icon: '⚠️' });
       return;
     }
     if (bulkUpdating) return;
@@ -127,18 +124,15 @@ const ProductsPage = () => {
     try {
       const { error } = await supabase.from('products').update({ is_in_stock: inStock }).in('id', Array.from(selectedProducts));
       if (error) throw error;
-      toast.success(`${selectedProducts.size} ${t('products_stock_updated')}`);
+      toast.success(`${selectedProducts.size} ${t('products_stock_updated')}`, { id: 'action-toast' });
       fetchData(); setIsBulkMode(false); setSelectedProducts(new Set()); setBulkAction(null);
-    } catch (e: any) { toast.error(e?.message || t('error')); }
+    } catch (e: any) { toast.error(e?.message || t('error'), { id: 'action-toast' }); }
     finally { setBulkUpdating(false); }
   };
 
   const handleBulkCategoryUpdate = async (categoryId: string) => {
     if (selectedProducts.size === 0) {
-      toast.error(t('select_products_first'), {
-        icon: '⚠️',
-        style: { animation: 'toast-shake 0.45s cubic-bezier(0.36,0.07,0.19,0.97)' }
-      });
+      toast.error(t('select_products_first'), { id: 'action-toast', icon: '⚠️' });
       return;
     }
     if (bulkUpdating) return;
@@ -146,9 +140,9 @@ const ProductsPage = () => {
     try {
       const { error } = await supabase.from('products').update({ category_id: categoryId }).in('id', Array.from(selectedProducts));
       if (error) throw error;
-      toast.success(`${selectedProducts.size} ${t('products_moved_to_category')}`);
+      toast.success(`${selectedProducts.size} ${t('products_moved_to_category')}`, { id: 'action-toast' });
       fetchData(); setIsBulkMode(false); setSelectedProducts(new Set()); setBulkAction(null);
-    } catch (e: any) { toast.error(e?.message || t('error')); }
+    } catch (e: any) { toast.error(e?.message || t('error'), { id: 'action-toast' }); }
     finally { setBulkUpdating(false); }
   };
 
@@ -232,7 +226,7 @@ const ProductsPage = () => {
         return prev;
       });
       if (freshCategories.length > 0 && !productForm.category_id) setProductForm(prev => ({ ...prev, category_id: freshCategories[0].id }));
-    } catch (error: any) { toast.error('Məlumatları yükləmək mümkün olmadı: ' + error.message); }
+    } catch (error: any) { toast.error('Məlumatları yükləmək mümkün olmadı: ' + error.message, { id: 'action-toast' }); }
     finally { setLoading(false); }
   };
 
@@ -294,9 +288,9 @@ const ProductsPage = () => {
       const { error: err } = await supabase.from('categories').insert([{ ...categoryData, ...flatCatCols }]);
       error = err;
     }
-    if (error) { toast.error(t('error') + ': ' + error.message); }
+    if (error) { toast.error(t('error') + ': ' + error.message, { id: 'action-toast' }); }
     else {
-      toast.success(categoryForm.id ? t('category_updated') : t('category_created'));
+      toast.success(categoryForm.id ? t('category_updated') : t('category_created'), { id: 'action-toast' });
       setCategoryForm(emptyCategoryForm());
       fetchData();
       if (!categoryForm.id) setIsCategoryModalOpen(false);
@@ -359,16 +353,16 @@ const ProductsPage = () => {
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(filePath);
       setProductForm(prev => ({ ...prev, image_url: publicUrl }));
-      toast.success(t('image_uploaded'));
+      toast.success(t('image_uploaded'), { id: 'action-toast' });
       try {
         const visionRes = await fetch('/api/vision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: publicUrl, language }) });
         const visionData = await visionRes.json();
         if (visionData.name || visionData.ingredients) {
           setProductForm(prev => ({ ...prev, name: visionData.name ? normalizeProductName(visionData.name) : prev.name, ingredients: visionData.ingredients || prev.ingredients }));
-          toast.success('🔍 AI şəkili analiz etdi', { icon: '✨' });
+          toast.success('🔍 AI şəkili analiz etdi', { id: 'action-toast', icon: '✨' });
         }
       } catch { /* vision silent */ }
-    } catch (error: any) { toast.error(t('image_upload_failed') + ': ' + error.message); }
+    } catch (error: any) { toast.error(t('image_upload_failed') + ': ' + error.message, { id: 'action-toast' }); }
     finally { setUploadingImage(false); }
   };
 
@@ -408,7 +402,7 @@ const ProductsPage = () => {
     setNameError(false);
     if (!productForm.price || isNaN(parseFloat(productForm.price)) || parseFloat(productForm.price) <= 0) { setPriceError(true); return; }
     setPriceError(false);
-    if (!productForm.category_id) { toast.error(t('select_category')); return; }
+    if (!productForm.category_id) { toast.error(t('select_category'), { id: 'action-toast' }); return; }
     // Detect language of product name — block if not AZ/EN/RU
     try {
       const detectRes = await fetch('/api/translate-text', {
@@ -419,7 +413,7 @@ const ProductsPage = () => {
       if (detectRes.ok) {
         const { detectedLanguage } = await detectRes.json();
         if (detectedLanguage === 'other') {
-          toast.error(t('unsupported_language'));
+          toast.error(t('unsupported_language'), { id: 'action-toast' });
           return;
         }
       }
@@ -442,7 +436,7 @@ const ProductsPage = () => {
     }
     if (error) {
       console.error('[Products Save]', error);
-      toast.error((error as any)?.message || t('error_sql_update'));
+      toast.error((error as any)?.message || t('error_sql_update'), { id: 'action-toast' });
     }
     else if (savedProduct) {
         // ─── Variant CRUD (olcu only) ───
@@ -628,7 +622,7 @@ const ProductsPage = () => {
         } catch { /* silent */ }
       }
 
-      toast.success(editingProduct ? t('product_updated') : t('product_created'));
+      toast.success(editingProduct ? t('product_updated') : t('product_created'), { id: 'action-toast' });
       setIsModalOpen(false);
       const { data: freshVariants } = await supabase.from('product_variants').select('*').eq('product_id', savedProduct!.id).order('is_default', { ascending: false });
       if (freshVariants) setProductForm(prev => ({ ...prev, variants: freshVariants.map(v => ({ id: v.id, name: v.name, price: v.price.toString(), is_default: v.is_default, variant_type: 'olcu' as const, translations: null })) }));
@@ -641,8 +635,8 @@ const ProductsPage = () => {
   const handleToggleStock = async (product: Product) => {
     if (updating) return;
     const { error } = await supabase.from('products').update({ is_in_stock: !product.is_in_stock }).eq('id', product.id);
-    if (error) toast.error(t('status_not_updated'));
-    else { toast.success(product.is_in_stock ? t('product_removed') : t('product_restored')); fetchData(); }
+    if (error) toast.error(t('status_not_updated'), { id: 'action-toast' });
+    else { toast.success(product.is_in_stock ? t('product_removed') : t('product_restored'), { id: 'action-toast' }); fetchData(); }
   };
 
   const handleDeleteAll = async () => {
@@ -651,8 +645,8 @@ const ProductsPage = () => {
     try {
       const { error } = await supabase.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (error) throw error;
-      toast.success(t('all_products_deleted')); fetchData();
-    } catch (error: any) { toast.error(t('error') + ': ' + error.message); }
+      toast.success(t('all_products_deleted'), { id: 'action-toast' }); fetchData();
+    } catch (error: any) { toast.error(t('error') + ': ' + error.message, { id: 'action-toast' }); }
     finally { setUpdating(false); }
   };
 
@@ -661,8 +655,8 @@ const ProductsPage = () => {
     const { id } = confirmDeleteProduct;
     setConfirmDeleteProduct(null);
     const { error } = await supabase.from('products').delete().eq('id', id);
-    if (error) toast.error(t('product_not_deleted'));
-    else { toast.success(t('product_deleted')); fetchData(); }
+    if (error) toast.error(t('product_not_deleted'), { id: 'action-toast' });
+    else { toast.success(t('product_deleted'), { id: 'action-toast' }); fetchData(); }
   };
 
   const confirmDeleteCategoryAction = async () => {
@@ -670,8 +664,8 @@ const ProductsPage = () => {
     setConfirmDeleteCategory(null);
     setLoading(true);
     const { error } = await supabase.from('categories').delete().eq('id', confirmDeleteCategory.id);
-    if (error) toast.error(t('category_not_deleted') + ': ' + error.message);
-    else { toast.success(t('category_deleted')); fetchData(); }
+    if (error) toast.error(t('category_not_deleted') + ': ' + error.message, { id: 'action-toast' });
+    else { toast.success(t('category_deleted'), { id: 'action-toast' }); fetchData(); }
     setLoading(false);
   };
 

@@ -75,18 +75,18 @@ const UsersTab = ({ role }: { role?: string | null }) => {
     setSmtpSaving(true);
     const res = await fetch('/api/auth/smtp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(smtp) });
     const d = await res.json();
-    if (!res.ok) toast.error(d.error || 'Xəta');
-    else toast.success(t('smtp_saved'), { style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+    if (!res.ok) toast.error(d.error || 'Xəta', { id: 'action-toast' });
+    else toast.success(t('smtp_saved'), { id: 'action-toast' });
     setSmtpSaving(false);
   };
 
   const sendTestEmail = async () => {
-    if (!testEmail) { toast.error(t('smtp_test_email_required')); return; }
+    if (!testEmail) { toast.error(t('smtp_test_email_required'), { id: 'action-toast' }); return; }
     setTestSending(true);
     const res = await fetch('/api/auth/smtp-test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ toEmail: testEmail }) });
     const d = await res.json();
-    if (!res.ok) toast.error(d.error || t('smtp_test_failed'));
-    else toast.success(t('smtp_test_sent'), { style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+    if (!res.ok) toast.error(d.error || t('smtp_test_failed'), { id: 'action-toast' });
+    else toast.success(t('smtp_test_sent'), { id: 'action-toast' });
     setTestSending(false);
   };
 
@@ -106,8 +106,8 @@ const UsersTab = ({ role }: { role?: string | null }) => {
 
   const sendCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.email.trim() || !form.password.trim()) { toast.error(t('users_email_password_required')); return; }
-    if (form.password.length < 6) { toast.error(t('users_password_min_6')); return; }
+    if (!form.email.trim() || !form.password.trim()) { toast.error(t('users_email_password_required'), { id: 'action-toast' }); return; }
+    if (form.password.length < 6) { toast.error(t('users_password_min_6'), { id: 'action-toast' }); return; }
     setSendingCode(true);
     const res = await fetch('/api/auth/send-code', {
       method: 'POST',
@@ -115,9 +115,9 @@ const UsersTab = ({ role }: { role?: string | null }) => {
       body: JSON.stringify({ email: form.email.trim().toLowerCase() }),
     });
     const data = await res.json();
-    if (!res.ok) { toast.error(data.error || t('users_code_send_error')); }
+    if (!res.ok) { toast.error(data.error || t('users_code_send_error'), { id: 'action-toast' }); }
     else {
-      toast.success(t('users_code_sent').replace('{email}', form.email), { duration: 5000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(t('users_code_sent').replace('{email}', form.email), { id: 'action-toast', duration: 4000 });
       setCreateStep('code');
       setVerifyCode('');
     }
@@ -126,7 +126,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
 
   const verifyAndCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyCode.trim() || verifyCode.length !== 6) { toast.error(t('users_code_6_digits')); return; }
+    if (!verifyCode.trim() || verifyCode.length !== 6) { toast.error(t('users_code_6_digits'), { id: 'action-toast' }); return; }
     setVerifying(true);
     const res = await fetch('/api/auth/verify-code', {
       method: 'POST',
@@ -134,9 +134,9 @@ const UsersTab = ({ role }: { role?: string | null }) => {
       body: JSON.stringify({ email: form.email.trim().toLowerCase(), code: verifyCode, password: form.password, userRole: form.role, permissions: form.role === 'kitchen' ? ['kitchen'] : formPerms }),
     });
     const data = await res.json();
-    if (!res.ok) { toast.error(data.error || t('users_code_invalid')); }
+    if (!res.ok) { toast.error(data.error || t('users_code_invalid'), { id: 'action-toast' }); }
     else {
-      toast.success(t('users_account_created'), { style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(t('users_account_created'), { id: 'action-toast' });
       setForm(emptyForm());
       setFormPerms(['dashboard','orders','products','campaigns','stats']);
       setShowForm(false);
@@ -151,16 +151,16 @@ const UsersTab = ({ role }: { role?: string | null }) => {
     const res = await fetch(`/api/auth/users?id=${id}`, { method: 'DELETE' });
     if (res.ok) {
       setUsers(prev => prev.filter(u => u.id !== id));
-      toast.success(t('users_account_deleted'), { style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(t('users_account_deleted'), { id: 'action-toast' });
     } else {
       const d = await res.json();
-      toast.error(d.error || t('users_delete_error'));
+      toast.error(d.error || t('users_delete_error'), { id: 'action-toast' });
     }
     setDeletingId(null);
   };
 
   const changePassword = async (targetEmail: string) => {
-    if (!newPw.trim() || newPw.length < 6) { toast.error(t('users_password_min_6')); return; }
+    if (!newPw.trim() || newPw.length < 6) { toast.error(t('users_password_min_6'), { id: 'action-toast' }); return; }
     setChangingPw(true);
     const res = await fetch('/api/auth/change-password', {
       method: 'POST',
@@ -168,9 +168,9 @@ const UsersTab = ({ role }: { role?: string | null }) => {
       body: JSON.stringify({ targetEmail, currentPassword: currentPw || undefined, newPassword: newPw }),
     });
     const data = await res.json();
-    if (!res.ok) { toast.error(data.error || 'Xəta baş verdi'); }
+    if (!res.ok) { toast.error(data.error || 'Xəta baş verdi', { id: 'action-toast' }); }
     else {
-      toast.success(t('users_update_password') + ' ✔', { style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(t('users_update_password') + ' ✔', { id: 'action-toast' });
       setChangingId(null);
       setCurrentPw('');
       setNewPw('');

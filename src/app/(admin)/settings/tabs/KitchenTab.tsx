@@ -28,8 +28,8 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
   const save = async () => {
     setSaving(true);
     const { error } = await supabase.from('settings').update({ order_delay_minutes: delayMin }).eq('id', '1');
-    if (error) toast.error(error.message, { style: { background: '#1f0d0d', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 600 } });
-    else toast.success(t('kitchen_saved'), { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+    if (error) toast.error(error.message, { id: 'action-toast' });
+    else toast.success(t('kitchen_saved'), { id: 'action-toast', duration: 3000 });
     setSaving(false);
   };
 

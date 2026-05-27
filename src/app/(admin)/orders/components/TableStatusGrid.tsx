@@ -12,12 +12,12 @@ import { rectSortingStrategy, SortableContext } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Order, TableFilterType } from '../types';
 import { getOrderAgeMinutes, getKitchenStatusConfig } from '../utils';
-import { GitMerge, Layers } from 'lucide-react';
+import { GitMerge } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 /* ─── TableCell ─── */
 const TableCell = React.memo(function TableCell({
-  num, isDraggable, isDropTarget, isDragging: parentIsDragging,
+  num, isDraggable, isDragging: parentIsDragging,
   onClick, onMouseEnter, onMouseMove, onMouseLeave, style, className, colSpan = 1, children,
 }: {
   num: number;
@@ -155,7 +155,7 @@ export interface TableStatusGridProps {
 export function TableStatusGrid({
   orders, allOrders, onTableClick, onEmptyTableClick, tableCount,
   tableFilter, setTableFilter, loading, t, delayThreshold,
-  onMergeTables, onMoveTable, onEmptyMerge, onAddEmptyTable, onDragStateChange, setManualTableNum,
+  onMergeTables, onMoveTable, onEmptyMerge, onAddEmptyTable, onDragStateChange,
 }: TableStatusGridProps) {
   const [draggingNum, setDraggingNum] = useState<number | null>(null);
   const [overNum, setOverNum]         = useState<number | null>(null);
@@ -169,7 +169,7 @@ export function TableStatusGrid({
   const [pendingMerge, setPendingMerge] = useState<{
     sourceNum: number; targetNum: number; sourceOrderId?: string; targetOrderId?: string; extraChain?: number[];
   } | null>(null);
-  const [mergeSuccess, setMergeSuccess] = useState<number[] | null>(null);
+  const [, setMergeSuccess] = useState<number[] | null>(null);
 
   const [tooltipState, setTooltipState] = useState<{
     visible: boolean; order: Order | null; position: { x: number; y: number } | null;
@@ -231,24 +231,17 @@ export function TableStatusGrid({
   }, [cancelHoverTimer, orders, onAddEmptyTable]);
 
   // O(1) lookup maps — rebuilt once per allOrders change
-  const { ordersByTable, childrenByParent } = useMemo(() => {
+  const { ordersByTable } = useMemo(() => {
     const byTable = new Map<number, Order[]>();
-    const byParent = new Map<string, Order[]>();
     for (const o of allOrders) {
       if (o.table_number !== null) {
         const t = byTable.get(o.table_number) ?? [];
         t.push(o);
         byTable.set(o.table_number, t);
       }
-      // Only consider as merged if merged_into is a valid non-empty string
-      if (o.merged_into && o.merged_into !== '') {
-        const p = byParent.get(o.merged_into) ?? [];
-        p.push(o);
-        byParent.set(o.merged_into, p);
-      }
     }
     
-    return { ordersByTable: byTable, childrenByParent: byParent };
+    return { ordersByTable: byTable };
   }, [allOrders]);
 
   const getTableStatus = useCallback((num: number) => {
@@ -307,8 +300,6 @@ export function TableStatusGrid({
     const targetEmpty = !targetOrder;
     
     // Additional validation: check if tables are in compatible states
-    const sourceStatus = getTableStatus(sourceNum);
-    const targetStatus = getTableStatus(targetNum);
     
     if (!sourceEmpty && !targetEmpty) {
       toast(`⚠️ Aktiv masaları birləşdirmək üçün sifariş modalından istifadə edin`, { icon: '⚠️', duration: 3000, style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold' } });
@@ -345,13 +336,6 @@ export function TableStatusGrid({
   }, []);
 
   const tableList  = useMemo(() => Array.from({ length: tableCount }, (_, i) => i + 1), [tableCount]);
-  const newCount   = useMemo(() => orders.filter(o => o.status === 'new').length, [orders]);
-  const activeCount = useMemo(() => orders.filter(o => o.status === 'confirmed').length, [orders]);
-  const emptyCount  = useMemo(() => {
-    let c = 0;
-    tableList.forEach(n => { if (getTableStatus(n).status === 'empty') c++; });
-    return c;
-  }, [tableList, getTableStatus]);
 
   const mergedTableNums = useMemo(() => {
     const childNumbers = new Set<number>();
@@ -382,7 +366,7 @@ export function TableStatusGrid({
     return filtered;
   }, [tableList, mergedTableNums, getTableStatus, tableFilter]);
 
-  const filterBtn = (key: TableFilterType, label: string, count: number) => (
+  const _filterBtn = (key: TableFilterType, label: string, count: number) => (
     <button
       key={key}
       onClick={() => setTableFilter(key)}
@@ -426,7 +410,7 @@ export function TableStatusGrid({
               className="grid gap-3 sm:gap-4 overflow-visible"
               style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))' }}
             >
-              {visibleTables.map((num, idx) => {
+              {visibleTables.map((num) => {
                 if (mergedTableNums.has(num)) return null;
 
                 const { status, order } = getTableStatus(num);
@@ -437,14 +421,13 @@ export function TableStatusGrid({
 
                 const ageBase        = order?.kitchen_accepted_at ?? null;
                 const ageMin         = ageBase ? getOrderAgeMinutes(ageBase) : 0;
-                const kitchenCfg     = getKitchenStatusConfig(kitchenStatus, ageMin, t);
+
 
                 const mergedFromNums = !isEmpty && order
                   ? allOrders.filter(o => o.merged_into === order.id && o.table_number !== null).map(o => o.table_number as number)
                   : [];
                 const isMerged = mergedFromNums.length > 0;
 
-                const isOverduePreparing = (kitchenStatus === 'cooking' || kitchenStatus === 'preparing') && ageMin >= delayThreshold;
                 const glowColor = 'rgba(255,255,255,0.2)';
 
                 const isOverdue      = !isNew && kitchenStatus !== 'ready' && !!order?.kitchen_accepted_at && ageMin >= delayThreshold;
@@ -631,12 +614,10 @@ export function TableStatusGrid({
                 const { order: dOrder } = getTableStatus(draggingNum);
                 const dAgeMin       = dOrder?.kitchen_accepted_at ? getOrderAgeMinutes(dOrder.kitchen_accepted_at) : 0;
                 const dKitchen      = dOrder?.kitchen_status || 'pending';
-                const dIsOverdue    = (dKitchen === 'cooking' || dKitchen === 'preparing') && dAgeMin >= delayThreshold;
                 const dIsNew        = dOrder?.status === 'new';
                 const dIsMerged     = dOrder ? allOrders.filter(o => o.merged_into === dOrder.id && o.table_number !== null).length > 0 : false;
                 const numColor      = 'rgba(255,255,255,0.72)';
                 const glowColor     = 'rgba(255,255,255,0.2)';
-                const ringColor     = 'rgba(255,255,255,0.9)';
                 const sz = 56, rx = 13;
                 const mergedChildOrders = dIsMerged
                   ? allOrders.filter(o => o.merged_into === dOrder!.id && o.table_number !== null)

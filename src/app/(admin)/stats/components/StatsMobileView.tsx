@@ -224,9 +224,9 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
         {/* OVERVIEW */}
         {activeSection === 'overview' && (
           <motion.div key="overview"
-            initial={{ opacity: 0, x: -18, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, x: 12, filter: 'blur(4px)' }}
+            initial={{ opacity: 0, x: -18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 12 }}
             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             className="px-4 mt-4 space-y-3">
 
@@ -299,9 +299,9 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
         {/* PRODUCTS */}
         {activeSection === 'products' && (
           <motion.div key="products"
-            initial={{ opacity: 0, x: 18, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, x: -12, filter: 'blur(4px)' }}
+            initial={{ opacity: 0, x: 18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             className="mt-2 divide-y divide-white/[0.04]">
             {topProducts.length === 0 ? (
@@ -342,9 +342,9 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
         {/* PEAK HOURS */}
         {activeSection === 'hours' && (
           <motion.div key="hours"
-            initial={{ opacity: 0, x: 18, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, x: -12, filter: 'blur(4px)' }}
+            initial={{ opacity: 0, x: 18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             className="px-4 mt-4 space-y-3 pb-6">
 
@@ -415,9 +415,9 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
         {/* DEEP SCAN / SENSEI */}
         {activeSection === 'sensei' && (
           <motion.div key="sensei"
-            initial={{ opacity: 0, x: 18, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, x: -12, filter: 'blur(4px)' }}
+            initial={{ opacity: 0, x: 18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             className="px-4 mt-4 pb-6">
             <StatsSenseiPanel

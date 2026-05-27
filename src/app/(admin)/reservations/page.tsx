@@ -105,7 +105,7 @@ const ReservationsPage = () => {
       try { localStorage.setItem('saito_reservations_cache', JSON.stringify(data.reservations || [])); } catch {}
     } catch (error: any) {
       console.error('Error fetching reservations:', error);
-      toast.error(`Rezervasiyaları yükləyərkən xəta: ${error.message}`);
+      toast.error(`Rezervasiyaları yükləyərkən xəta: ${error.message}`, { id: 'action-toast' });
     } finally {
       setLoading(false);
     }
@@ -141,10 +141,10 @@ const ReservationsPage = () => {
         .eq('id', id);
 
       if (error) throw error;
-      toast.success(status === 'confirmed' ? t('reservation_confirmed_toast') : t('reservation_cancelled_toast'));
+      toast.success(status === 'confirmed' ? t('reservation_confirmed_toast') : t('reservation_cancelled_toast'), { id: 'action-toast' });
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.error('Status yenilənərkən xəta baş verdi');
+      toast.error('Status yenilənərkən xəta baş verdi', { id: 'action-toast' });
     }
   };
 
@@ -187,7 +187,7 @@ const ReservationsPage = () => {
 
     try {
       if (archiveIds.length === 0) {
-        toast.success(t('no_reservations'));
+        toast.success(t('no_reservations'), { id: 'action-toast' });
         return;
       }
 
@@ -201,10 +201,10 @@ const ReservationsPage = () => {
       setReservations((prev) => prev.filter((res) => !archiveIds.includes(res.id)));
       setSelectedArchiveIds([]);
       setArchiveSelectionMode(false);
-      toast.success(`${archiveIds.length} ${t('deleted').toLowerCase()}`);
+      toast.success(`${archiveIds.length} ${t('deleted').toLowerCase()}`, { id: 'action-toast' });
     } catch (error: any) {
       console.error('Error clearing archive:', error);
-      toast.error(error?.message || t('error_deleting'));
+      toast.error(error?.message || t('error_deleting'), { id: 'action-toast' });
     } finally {
       setClearingArchive(false);
     }
@@ -227,9 +227,9 @@ const ReservationsPage = () => {
       });
       if (!res.ok) throw new Error('API xətası');
       setReservations(prev => prev.filter(r => r.id !== id));
-      toast.success(t('deleted'));
+      toast.success(t('deleted'), { id: 'action-toast' });
     } catch (error: any) {
-      toast.error(t('error_deleting'));
+      toast.error(t('error_deleting'), { id: 'action-toast' });
     }
   };
 

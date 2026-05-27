@@ -64,9 +64,9 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
     setSaving(true);
     const { error } = await supabase.from('settings').upsert([{ id: '1', ...cfg }]);
     if (error) {
-      toast.error(error.message, { style: { background: '#1f0d0d', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 600 } });
+      toast.error(error.message, { id: 'action-toast' });
     } else {
-      toast.success(t('receipt_saved'), { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(t('receipt_saved'), { id: 'action-toast', duration: 3000 });
     }
     setSaving(false);
   };

@@ -191,7 +191,7 @@ const CampaignsPage = () => {
       }
 
       if (allExpired.length > 0) {
-        toast.success(`${allExpired.length} ${t('toast_campaigns_deactivated')}`);
+        toast.success(`${allExpired.length} ${t('toast_campaigns_deactivated')}`, { id: 'action-toast' });
         fetchData();
       }
     };
@@ -214,7 +214,7 @@ const CampaignsPage = () => {
       setCampaigns(data || []);
       try { localStorage.setItem('saito_campaigns_cache', JSON.stringify(data || [])); } catch {}
     } catch (error: any) {
-      toast.error('Məlumatlar yüklənmədi: ' + error.message);
+      toast.error('Məlumatlar yüklənmədi: ' + error.message, { id: 'action-toast' });
     } finally {
       setLoading(false);
     }
@@ -236,10 +236,10 @@ const CampaignsPage = () => {
       const { error: deleteError } = await supabase.from('campaigns').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (deleteError) throw deleteError;
 
-      toast.success(t('all_campaigns_deleted'));
+      toast.success(t('all_campaigns_deleted'), { id: 'action-toast' });
       fetchData();
     } catch (error: any) {
-      toast.error(t('error') + ': ' + error.message);
+      toast.error(t('error') + ': ' + error.message, { id: 'action-toast' });
     } finally {
       setLoading(false);
     }
@@ -271,17 +271,17 @@ const CampaignsPage = () => {
       const { error } = await supabase.from('campaigns').delete().eq('id', id);
       if (error) throw error;
 
-      toast.success(t('campaign_deleted'));
+      toast.success(t('campaign_deleted'), { id: 'action-toast' });
       fetchData();
     } catch (error: any) {
-      toast.error(t('error') + ': ' + error.message);
+      toast.error(t('error') + ': ' + error.message, { id: 'action-toast' });
     }
   };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCampaign.target_id) {
-      toast.error('Hədəf seçilməyib');
+      toast.error('Hədəf seçilməyib', { id: 'action-toast' });
       return;
     }
 
@@ -338,7 +338,7 @@ const CampaignsPage = () => {
         }
       }
 
-      toast.success(t('campaign_created'));
+      toast.success(t('campaign_created'), { id: 'action-toast' });
       setIsModalOpen(false);
       setNewCampaign({
         title: '',
@@ -353,7 +353,7 @@ const CampaignsPage = () => {
       });
       fetchData();
     } catch (error: any) {
-      toast.error('Xəta: ' + error.message);
+      toast.error('Xəta: ' + error.message, { id: 'action-toast' });
     } finally {
       setIsSubmitting(false);
     }
@@ -400,7 +400,7 @@ const CampaignsPage = () => {
   const handleUpdateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCampaign.target_id) {
-      toast.error('Hədəf seçilməyib');
+      toast.error('Hədəf seçilməyib', { id: 'action-toast' });
       return;
     }
 
@@ -420,11 +420,11 @@ const CampaignsPage = () => {
       }).eq('id', campaign?.id);
       if (error) throw error;
 
-      toast.success(t('campaign_updated'));
+      toast.success(t('campaign_updated'), { id: 'action-toast' });
       setIsModalOpen(false);
       fetchData();
     } catch (error: any) {
-      toast.error('Xəta: ' + error.message);
+      toast.error('Xəta: ' + error.message, { id: 'action-toast' });
     } finally {
       setIsSubmitting(false);
     }

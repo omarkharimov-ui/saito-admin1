@@ -328,10 +328,10 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
       void skippedProducts;
       setTranslateResult({ translated: translatedProducts, skipped: skippedProducts, total: (products ?? []).length, categoriesTranslated: translatedCategories, categoriesTotal: (cats ?? []).length, combosTranslated: translatedCombos, combosTotal: (combos ?? []).length, variantsTranslated: translatedVariants, variantsTotal: (variants ?? []).length, modifiersTranslated: translatedModifiers, modifiersTotal: (modifiers ?? []).length });
-      toast.success(`${translatedProducts} məhsul, ${translatedCategories} kateqoriya, ${translatedCombos} kombo, ${translatedVariants} variant, ${translatedModifiers} modifier tərcümə edildi`, { duration: 4000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(`${translatedProducts} məhsul, ${translatedCategories} kateqoriya, ${translatedCombos} kombo, ${translatedVariants} variant, ${translatedModifiers} modifier tərcümə edildi`, { id: 'action-toast', duration: 4000 });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Naməlum xəta';
-      toast.error('Xəta: ' + msg, { style: { background: '#1f0d0d', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 600 } });
+      toast.error('Xəta: ' + msg, { id: 'action-toast' });
     } finally {
       setTranslating(false);
     }
@@ -342,7 +342,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
     setGreetingEnabled(next);
     await supabase.from('settings').upsert([{ id: '1', morning_greeting_enabled: next }]);
     try { const m = localStorage.getItem('saito_settings_meta'); const p = m ? JSON.parse(m) : {}; localStorage.setItem('saito_settings_meta', JSON.stringify({ ...p, greetingEnabled: next })); } catch {}
-    toast.success(next ? t('gen_morning_greeting') + ' aktiv edildi' : t('gen_morning_greeting') + ' deaktiv edildi', { style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+    toast.success(next ? t('gen_morning_greeting') + ' aktiv edildi' : t('gen_morning_greeting') + ' deaktiv edildi', { id: 'action-toast' });
   };
 
   const save = async (e: React.FormEvent) => {
@@ -350,9 +350,9 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
     setSaving(true);
     const { error } = await supabase.from('settings').upsert([{ id: '1', ...cfg }]);
     if (error) {
-      toast.error(error.message, { style: { background: '#1f0d0d', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 600 } });
+      toast.error(error.message, { id: 'action-toast' });
     } else {
-      toast.success(t('analytics_saved'), { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+      toast.success(t('analytics_saved'), { id: 'action-toast', duration: 3000 });
     }
     setSaving(false);
   };
@@ -397,7 +397,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               </p>
             </div>
           </div>
-          <button type="button" onClick={() => { const next = !aiFlags.visionEnabled; setAiFlag('visionEnabled', next); toast.success(next ? t('ai_vision_label') + ' aktiv edildi' : t('ai_vision_label') + ' deaktiv edildi', { style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } }); }}
+          <button type="button" onClick={() => { const next = !aiFlags.visionEnabled; setAiFlag('visionEnabled', next); toast.success(next ? t('ai_vision_label') + ' aktiv edildi' : t('ai_vision_label') + ' deaktiv edildi', { id: 'action-toast' }); }}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.visionEnabled ? 'bg-gold/80' : 'bg-white/10'}`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${aiFlags.visionEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
@@ -413,7 +413,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               </p>
             </div>
           </div>
-          <button type="button" onClick={() => { const next = !aiFlags.autoCorrectEnabled; setAiFlag('autoCorrectEnabled', next); toast.success(next ? t('ai_autocorrect_label') + ' aktiv edildi' : t('ai_autocorrect_label') + ' deaktiv edildi', { style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } }); }}
+          <button type="button" onClick={() => { const next = !aiFlags.autoCorrectEnabled; setAiFlag('autoCorrectEnabled', next); toast.success(next ? t('ai_autocorrect_label') + ' aktiv edildi' : t('ai_autocorrect_label') + ' deaktiv edildi', { id: 'action-toast' }); }}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.autoCorrectEnabled ? 'bg-gold/80' : 'bg-white/10'}`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${aiFlags.autoCorrectEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>

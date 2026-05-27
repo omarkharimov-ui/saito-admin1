@@ -96,9 +96,9 @@ const TablesPage = () => {
       .select();
     if (error) {
       console.error('[Tables] Update FAILED:', error);
-      toast.error('Yenilənmədi: ' + error.message);
+      toast.error('Yenilənmədi: ' + error.message, { id: 'action-toast' });
     } else {
-      toast.success(`Masa sayı yeniləndi: ${newCount}`);
+      toast.success(`Masa sayı yeniləndi: ${newCount}`, { id: 'action-toast' });
     }
   };
 
@@ -115,13 +115,13 @@ const TablesPage = () => {
         if (rows && rows.length > 0) {
           setSettingsId(rows[0].id);
           await supabase.from('settings').update({ qr_table_count: tableCount }).eq('id', rows[0].id);
-          toast.success('Masa sayı yadda saxlanıldı');
+          toast.success('Masa sayı yadda saxlanıldı', { id: 'action-toast' });
         } else {
           const { data: newRow, error } = await supabase.from('settings').insert([{ qr_table_count: tableCount }]).select('id').single();
           if (error) throw error;
           if (newRow) {
             setSettingsId(newRow.id);
-            toast.success('Masa sayı yadda saxlanıldı');
+            toast.success('Masa sayı yadda saxlanıldı', { id: 'action-toast' });
           }
         }
       } else {
@@ -131,10 +131,10 @@ const TablesPage = () => {
           .eq('id', settingsId);
         
         if (error) throw error;
-        toast.success('Masa sayı yadda saxlanıldı');
+        toast.success('Masa sayı yadda saxlanıldı', { id: 'action-toast' });
       }
     } catch (err) {
-      toast.error('Masa sayı yenilənərkən xəta');
+      toast.error('Masa sayı yenilənərkən xəta', { id: 'action-toast' });
       console.error('[Tables] Save error:', err);
     } finally {
       setSaving(false);
@@ -202,25 +202,13 @@ const TablesPage = () => {
               </>
             )}
           </div>
-          {/* Save button under table count */}
           <button
-            onClick={handleSave}
-            disabled={loading || saving}
-            className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white font-bold text-lg rounded-lg hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-500/20 mt-2"
+            onClick={printAll}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
           >
-            {saving ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                Dəyişiklikləri Yadda Saxla
-              </>
-            ) : (
-              <>
-                <Save size={18} />
-                Dəyişiklikləri Yadda Saxla
-              </>
-            )}
+            <Printer size={15} />
+            Hamısını çap et
           </button>
-          {/* Save button */}
           <button
             onClick={handleSave}
             disabled={loading || saving}
@@ -234,31 +222,7 @@ const TablesPage = () => {
             ) : (
               <>
                 <Save size={16} />
-                YADDA SAXLA
-              </>
-            )}
-          </button>
-          <button
-            onClick={printAll}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
-          >
-            <Printer size={15} />
-            Hamısını endir
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={loading || saving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white font-bold text-sm rounded-lg hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-500/20"
-          >
-            {saving ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Dəyişiklikləri Yadda Saxla
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                Dəyişiklikləri Yadda Saxla
+                Yadda saxla
               </>
             )}
           </button>

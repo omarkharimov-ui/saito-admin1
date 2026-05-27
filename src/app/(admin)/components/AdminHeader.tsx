@@ -135,7 +135,7 @@ const AdminHeaderInner = ({
           >
             <Bell size={20} className={`${showDropdown ? 'text-gold' : 'text-white/60'} transition-colors`} />
             {notifications.length > 0 && notifications.some(n => !n.isRead) && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-black animate-pulse" />
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-black" style={{ animation: 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
             )}
           </button>
 

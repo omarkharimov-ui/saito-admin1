@@ -54,8 +54,8 @@ const HoursTab = () => {
   const save = async () => {
     setSaving(true);
     const { error } = await supabase.from('settings').upsert([{ id: '1', working_hours: JSON.stringify(config) }]);
-    if (error) toast.error(error.message, { style: { background: '#1f0d0d', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 600 } });
-    else toast.success('İş saatları yeniləndi', { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+    if (error) toast.error(error.message, { id: 'action-toast' });
+    else toast.success('İş saatları yeniləndi', { id: 'action-toast', duration: 3000 });
     setSaving(false);
   };
 

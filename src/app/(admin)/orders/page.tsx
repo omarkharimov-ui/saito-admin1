@@ -12,8 +12,6 @@ import { createPortal } from 'react-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useOrders } from './hooks/useOrders';
-import { GoldSpinner } from './components/GoldSpinner';
-import { RowSkeleton } from '@/components/SkeletonLoader';
 import { OrdersGhostLoading } from './components/OrdersGhostLoading';
 import { TableStatusGrid } from './components/TableStatusGrid';
 import { ActiveOrderCard, ArchiveOrderCard } from './components/OrderCard';
@@ -55,7 +53,6 @@ export default function OrdersPage() {
     staleDismissed, setStaleDismissed, prevStaleKey,
     fetchOrders,
     handleConfirm, handlePay, handleDeleteOrder, handleClearTable, handleMergeOrders, handleMoveOrder, handleAddEmptyTable, handleCreateMergedEmptyOrder,
-    handleStartPreparing, handleMarkReady,
   } = useOrders();
 
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
@@ -79,10 +76,9 @@ export default function OrdersPage() {
       const match = openingHours.match(/^(\d{2}:\d{2})[\-–](\d{2}:\d{2})$/);
       const hours = match ? `${match[1]} – ${match[2]}` : openingHours;
       toast.error(`İş saatları xaricindədir (${hours})`, {
+        id: 'action-toast',
         icon: '🌙',
         duration: 4000,
-        style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)', fontWeight: 600 },
-        position: 'top-right',
       });
       return;
     }
@@ -267,7 +263,6 @@ export default function OrdersPage() {
   useEffect(() => {
     const newIds = readyOrders.map(o => o.id).sort().join(',');
     if (prevReadyKeyRef.current !== newIds) {
-      const added = readyOrders.filter(o => !prevReadyKeyRef.current.split(',').filter(Boolean).includes(o.id));
       prevReadyKeyRef.current = newIds;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -315,10 +310,10 @@ export default function OrdersPage() {
       const { error } = await supabase.from('orders').delete().in('id', paidIds);
       if (error) throw error;
       fetchOrders();
-      toast.success(t('archive_cleared'));
+      toast.success(t('archive_cleared'), { id: 'action-toast' });
     } catch (e: any) {
       const { toast } = await import('react-hot-toast');
-      toast.error(e?.message || t('error'));
+      toast.error(e?.message || t('error'), { id: 'action-toast' });
     } finally {
       setClearingArchive(false);
       setConfirmClearArchive(false);

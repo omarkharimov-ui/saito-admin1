@@ -81,7 +81,7 @@ const AccountTab = () => {
 
   const savePassword = async (accountKey: 'superadmin' | 'admin' | 'kitchen') => {
     if (role !== 'superadmin') {
-      toast.error(t('only_superadmin_can_change'));
+      toast.error(t('only_superadmin_can_change'), { id: 'action-toast' });
       return;
     }
 
@@ -90,12 +90,12 @@ const AccountTab = () => {
 
     // Verify superadmin's own password for any change
     if (account.currentPassword !== storedPasswords.superadmin) {
-      toast.error(`Yanlış cari şifrə! Hazırki superadmin şifrəsi: "${storedPasswords.superadmin}"`);
+      toast.error(`Yanlış cari şifrə! Hazırki superadmin şifrəsi: "${storedPasswords.superadmin}"`, { id: 'action-toast' });
       return;
     }
 
     if (account.newPassword.length < 6) {
-      toast.error(t('password_min_6_chars'));
+      toast.error(t('password_min_6_chars'), { id: 'action-toast' });
       return;
     }
 
@@ -128,7 +128,7 @@ const AccountTab = () => {
 
     if (saveError) {
       console.error('[SavePassword] Save error:', saveError);
-      toast.error(`DB Error: ${saveError.message || 'Unknown error'}`);
+      toast.error(`DB Error: ${saveError.message || 'Unknown error'}`, { id: 'action-toast' });
       setSaving(null);
       return;
     }
@@ -146,7 +146,7 @@ const AccountTab = () => {
     
     if (verifyError) {
       console.error('[SavePassword] Verification error:', verifyError);
-      toast.error(`Verification failed: ${verifyError.message}`);
+      toast.error(`Verification failed: ${verifyError.message}`, { id: 'action-toast' });
       setSaving(null);
       return;
     }
@@ -159,7 +159,7 @@ const AccountTab = () => {
       console.error('  Expected:', account.newPassword);
       console.error('  Got:', actualSavedPassword);
       console.error('  This is likely an RLS policy issue!');
-      toast.error('Password update failed! Check Supabase RLS policies.');
+      toast.error('Password update failed! Check Supabase RLS policies.', { id: 'action-toast' });
       setSaving(null);
       return;
     }
@@ -175,10 +175,7 @@ const AccountTab = () => {
     ));
     
     setSaving(null);
-    toast.success(t('password_updated').replace('{account}', account.label), { 
-      duration: 3000, 
-      style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } 
-    });
+    toast.success(t('password_updated').replace('{account}', account.label), { id: 'action-toast', duration: 3000 });
   };
 
   const toggleAccordion = (key: string) => {

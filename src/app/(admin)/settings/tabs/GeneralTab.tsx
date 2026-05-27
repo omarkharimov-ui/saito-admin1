@@ -55,8 +55,8 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
     e.preventDefault();
     setUpdating(true);
     const { error } = await supabase.from('settings').upsert([{ ...settings, id: '1' }]);
-    if (error) toast.error(error.message, { style: { background: '#1f0d0d', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 600 } });
-    else toast.success(t('settings_updated'), { duration: 3000, style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 600 } });
+    if (error) toast.error(error.message, { id: 'action-toast' });
+    else toast.success(t('settings_updated'), { id: 'action-toast', duration: 3000 });
     setUpdating(false);
   };
 

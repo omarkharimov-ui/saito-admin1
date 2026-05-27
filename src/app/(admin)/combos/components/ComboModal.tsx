@@ -103,7 +103,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path);
       setForm(prev => ({ ...prev, image_url: publicUrl }));
-    } catch { toast.error(t('error_saving')); }
+    } catch { toast.error(t('error_saving'), { id: 'action-toast' }); }
     finally { setUploadingImage(false); }
   };
 
@@ -170,9 +170,9 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
     const currentName = language === 'az' ? form.name_az : language === 'ru' ? form.name_ru : form.name_en;
     const currentDesc = language === 'az' ? form.description_az : language === 'ru' ? form.description_ru : form.description_en;
     
-    if (!currentName.trim()) { toast.error(t('combo_name') + ' ' + t('required')); return; }
+    if (!currentName.trim()) { toast.error(t('combo_name') + ' ' + t('required'), { id: 'action-toast' }); return; }
     if (!form.price || isNaN(parseFloat(form.price)) || parseFloat(form.price) <= 0) {
-      toast.error(t('combo_price') + ' ' + t('required')); return;
+      toast.error(t('combo_price') + ' ' + t('required'), { id: 'action-toast' }); return;
     }
     setSaving(true);
     try {
@@ -257,11 +257,11 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
         throw new Error(result.error || 'API error');
       }
 
-      toast.success(editingCombo ? t('combo_updated') : t('combo_created'));
+      toast.success(editingCombo ? t('combo_updated') : t('combo_created'), { id: 'action-toast' });
       onSaved();
       onClose();
     } catch (err: any) {
-      toast.error(t('error_saving') + ': ' + (err?.message || ''));
+      toast.error(t('error_saving') + ': ' + (err?.message || ''), { id: 'action-toast' });
     } finally { setSaving(false); }
   };
 

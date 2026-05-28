@@ -45,37 +45,38 @@ export async function GET(request: Request) {
         isoStartDate = defaultStart.toISOString();
     }
 
+    const H = { 'apikey': SERVICE_ROLE_KEY, 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` };
+
     // Fetch all data in parallel
     const [
       ordersRes,
       orderItemsRes,
       productsRes,
       categoriesRes,
-      cancelledOrdersRes
+      cancelledOrdersRes,
+      recipesRes,
+      ingredientsRes,
+      wasteLogsRes,
     ] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,total_amount,created_at,status,table_number&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, {
-        headers: { 'apikey': SERVICE_ROLE_KEY, 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` },
-      }),
-      fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, {
-        headers: { 'apikey': SERVICE_ROLE_KEY, 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` },
-      }),
-      fetch(`${SUPABASE_URL}/rest/v1/products?select=id,name,price,image_url,views_count,category:categories(id,name)`, {
-        headers: { 'apikey': SERVICE_ROLE_KEY, 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` },
-      }),
-      fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name,translations&order=name`, {
-        headers: { 'apikey': SERVICE_ROLE_KEY, 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` },
-      }),
-      fetch(`${SUPABASE_URL}/rest/v1/cancelled_orders?select=*&created_at=gte.${isoStartDate}`, {
-        headers: { 'apikey': SERVICE_ROLE_KEY, 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` },
-      }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,total_amount,created_at,status,table_number&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/products?select=id,name,price,image_url,views_count,category:categories(id,name)`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name,translations&order=name`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/cancelled_orders?select=*&created_at=gte.${isoStartDate}`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/recipes?select=menu_item_id,ingredient_id,quantity_required`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/ingredients?select=id,average_cost_per_unit`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/inventory_logs?select=quantity,cost_per_unit,ingredient_id&type=in.(waste,adjustment)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
     ]);
 
-    const [orders, orderItems, products, categories, cancelledOrders] = await Promise.all([
+    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs] = await Promise.all([
       ordersRes.json(),
       orderItemsRes.json(),
       productsRes.json(),
       categoriesRes.json(),
       cancelledOrdersRes.json(),
+      recipesRes.json(),
+      ingredientsRes.json(),
+      wasteLogsRes.json(),
     ]);
 
     // Calculate stats
@@ -122,6 +123,85 @@ export async function GET(request: Request) {
       };
     }).sort((a: any, b: any) => b.revenue - a.revenue) || [];
 
+    // ── Finance Metrics ────────────────────────────────────────────────────────
+    // Build ingredient cost map: ingredientId → average_cost_per_unit
+    const ingCostMap = new Map<string, number>();
+    (Array.isArray(ingredients) ? ingredients : []).forEach((ing: any) => {
+      ingCostMap.set(ing.id, Number(ing.average_cost_per_unit) || 0);
+    });
+
+    // Build recipe map: productId → [{ingredient_id, quantity_required}]
+    const recipeMap = new Map<string, { ingredient_id: string; quantity_required: number }[]>();
+    (Array.isArray(recipes) ? recipes : []).forEach((r: any) => {
+      const list = recipeMap.get(r.menu_item_id) || [];
+      list.push({ ingredient_id: r.ingredient_id, quantity_required: Number(r.quantity_required) || 0 });
+      recipeMap.set(r.menu_item_id, list);
+    });
+
+    // Calculate food cost per sold item
+    let totalFoodCost = 0;
+    const profitByProduct = new Map<string, { name: string; sold: number; revenue: number; food_cost: number }>();
+
+    (Array.isArray(orderItems) ? orderItems : []).forEach((item: any) => {
+      const pid = item.product_id;
+      if (!pid) return;
+      const qty = Number(item.quantity) || 0;
+      const unitRevenue = Number(item.unit_price) || Number(item.total_price) / (qty || 1);
+      const recipeIngredients = recipeMap.get(pid) || [];
+      const unitFoodCost = recipeIngredients.reduce((sum, ri) => {
+        return sum + ri.quantity_required * (ingCostMap.get(ri.ingredient_id) || 0);
+      }, 0);
+      const lineFoodCost = unitFoodCost * qty;
+      totalFoodCost += lineFoodCost;
+
+      const existing = profitByProduct.get(pid) || { name: item.product_name || '?', sold: 0, revenue: 0, food_cost: 0 };
+      existing.sold += qty;
+      existing.revenue += Number(item.total_price) || unitRevenue * qty;
+      existing.food_cost += lineFoodCost;
+      profitByProduct.set(pid, existing);
+    });
+
+    // Waste cost: quantity * cost_per_unit (fallback to ingredient avg cost)
+    const totalWasteCost = (Array.isArray(wasteLogs) ? wasteLogs : []).reduce((sum: number, log: any) => {
+      const costPer = Number(log.cost_per_unit) || (ingCostMap.get(log.ingredient_id) || 0);
+      return sum + Number(log.quantity) * costPer;
+    }, 0);
+
+    const grossProfit = totalRevenue - totalFoodCost;
+    const netProfit = grossProfit - totalWasteCost;
+    const foodCostPct = totalRevenue > 0 ? (totalFoodCost / totalRevenue) * 100 : 0;
+
+    // Top profitable items: sorted by (revenue - food_cost) desc
+    const topProfitableItems = Array.from(profitByProduct.entries())
+      .map(([pid, d]) => ({
+        id: pid,
+        name: d.name,
+        sold: d.sold,
+        revenue: Math.round(d.revenue * 100) / 100,
+        food_cost: Math.round(d.food_cost * 100) / 100,
+        net_profit: Math.round((d.revenue - d.food_cost) * 100) / 100,
+        markup_pct: d.food_cost > 0 ? Math.round(((d.revenue - d.food_cost) / d.food_cost) * 100) : null,
+      }))
+      .filter(p => p.revenue > 0)
+      .sort((a, b) => b.net_profit - a.net_profit)
+      .slice(0, 10);
+
+    // Chart data: revenue vs profit per period
+    const profitDateMap: Record<string, { revenue: number; profit: number }> = {};
+    (Array.isArray(orders) ? orders : []).forEach((o: any) => {
+      const d = new Date(o.created_at);
+      const key = timeFilter === 'today'
+        ? `${String(d.getHours()).padStart(2, '0')}:00`
+        : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+      if (!profitDateMap[key]) profitDateMap[key] = { revenue: 0, profit: 0 };
+      profitDateMap[key].revenue += Number(o.total_amount) || 0;
+    });
+
+    const financeChartData = Object.entries(profitDateMap).map(([date, v]) => ({
+      date,
+      revenue: Math.round(v.revenue * 100) / 100,
+    }));
+
     // Cancellation reasons
     const cancellationMap: Record<string, { count: number; amount: number }> = {};
     cancelledOrders?.forEach((c: any) => {
@@ -167,6 +247,13 @@ export async function GET(request: Request) {
       productPerformance,
       cancellationReasons,
       chartData,
+      totalFoodCost: Math.round(totalFoodCost * 100) / 100,
+      totalWasteCost: Math.round(totalWasteCost * 100) / 100,
+      grossProfit: Math.round(grossProfit * 100) / 100,
+      netProfit: Math.round(netProfit * 100) / 100,
+      foodCostPct: Math.round(foodCostPct * 10) / 10,
+      topProfitableItems,
+      financeChartData,
     });
 
   } catch (error: any) {

@@ -11,6 +11,7 @@ import StatsRevenueChart from './components/StatsRevenueChart';
 import StatsPeakHours from './components/StatsPeakHours';
 import StatsProductTable from './components/StatsProductTable';
 import StatsSenseiPanel from './components/StatsSenseiPanel';
+import StatsFinancePanel from './components/StatsFinancePanel';
 import StatsCancellationChart from './components/StatsCancellationChart';
 import StatsMobileView from './components/StatsMobileView';
 import { toast } from 'react-hot-toast';
@@ -42,6 +43,8 @@ const StatsPage = () => {
       tableChurn: null as any,
       haloProducts: [] as any[],
       cancelPeakHours: {} as Record<string, { hour: number; count: number }[]>,
+      totalFoodCost: 0, totalWasteCost: 0, grossProfit: 0, netProfit: 0,
+      foodCostPct: 0, topProfitableItems: [] as any[], financeChartData: [] as any[],
     };
     try {
       const r = localStorage.getItem('saito_stats_cache_v4_today');
@@ -262,6 +265,13 @@ const StatsPage = () => {
         tableChurn: data.tableChurn ?? null,
         haloProducts: data.haloProducts ?? [],
         cancelPeakHours: data.cancelPeakHours ?? {},
+        totalFoodCost: data.totalFoodCost ?? 0,
+        totalWasteCost: data.totalWasteCost ?? 0,
+        grossProfit: data.grossProfit ?? 0,
+        netProfit: data.netProfit ?? 0,
+        foodCostPct: data.foodCostPct ?? 0,
+        topProfitableItems: data.topProfitableItems ?? [],
+        financeChartData: data.financeChartData ?? [],
       };
       
       setStats(statsData);
@@ -391,13 +401,25 @@ const StatsPage = () => {
         onSelectReason={setSelectedCancellationReason}
       />
 
+      <StatsFinancePanel
+        totalRevenue={stats.totalRevenue}
+        totalFoodCost={(stats as any).totalFoodCost ?? 0}
+        totalWasteCost={(stats as any).totalWasteCost ?? 0}
+        grossProfit={(stats as any).grossProfit ?? 0}
+        netProfit={(stats as any).netProfit ?? 0}
+        foodCostPct={(stats as any).foodCostPct ?? 0}
+        topProfitableItems={(stats as any).topProfitableItems ?? []}
+        financeChartData={(stats as any).financeChartData ?? []}
+        loading={loading}
+      />
+
       <StatsProductTable
         productPerformance={stats.productPerformance}
         categories={categories}
         getCategoryTranslation={getCategoryTranslation}
       />
       </div>
-      </div>{/* end desktop */}
+      </div>{/* end desktop */
     </div>
   );
 };

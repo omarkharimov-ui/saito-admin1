@@ -27,9 +27,9 @@ const StatsTopCards = ({ totalRevenue, totalOrders, aov, missedRevenue }: Props)
       {cards.map((s, i) => (
         <motion.div
           key={s.label}
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0.3, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.08 }}
+          transition={{ delay: i * 0.05, duration: 0.4, ease: 'easeOut' }}
           className="p-4 md:p-6 bg-card border border-white/5 transition-all group relative overflow-hidden rounded-2xl"
         >
           <div className="absolute top-0 left-0 w-32 h-32 rounded-full bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.07),transparent_70%)] pointer-events-none" />

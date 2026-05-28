@@ -195,22 +195,13 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
                 key={s.key}
                 onClick={() => setActiveSection(s.key)}
                 whileTap={{ scale: 0.94 }}
-                className="relative flex-shrink-0 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-colors duration-200 overflow-hidden"
+                className="relative flex-shrink-0 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-all duration-200 overflow-hidden"
                 style={{
                   color: s.key === 'sensei' && isActive ? '#D4AF37' : isActive ? '#ffffff' : 'rgba(255,255,255,0.25)',
                   background: s.key === 'sensei' && isActive ? 'rgba(212,175,55,0.1)' : isActive ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.03)',
                   border: s.key === 'sensei' && isActive ? '1px solid rgba(212,175,55,0.3)' : isActive ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.05)',
+                  transform: isActive ? 'scale(1.05)' : 'scale(1)',
                 }}>
-                {isActive && (
-                  <motion.span
-                    layoutId="mobileTabBg"
-                    className="absolute inset-0 rounded-xl"
-                    style={{
-                      background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.1) 0%, transparent 70%)',
-                    }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
                 <span className="relative z-10">{s.label}</span>
               </motion.button>
             );

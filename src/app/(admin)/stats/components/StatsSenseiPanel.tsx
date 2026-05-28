@@ -393,38 +393,86 @@ export default function StatsSenseiPanel({
   const fetchAllDeepData = async () => {
     if (stats.totalOrders === 0) return;
     setDeepScanLoading(true);
+    
+    // Add timeout for mobile reliability
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout')), 30000)
+    );
+    
     try {
       const [behRes, corrRes] = await Promise.all([
-        fetch('/api/sensei/behavioral', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderItems: orderItems || [], peakHours: stats.peakHours || [], totalOrders: stats.totalOrders, aov: stats.aov, language }),
-        }).catch(() => null),
-        fetch('/api/sensei/correlator', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            totalOrders: stats.totalOrders, totalRevenue: stats.totalRevenue, aov: stats.aov,
-            chartData: stats.chartData || [], peakHours: stats.peakHours || [], language,
-            categoryPerformance: stats.categoryPerformance || [],
-            city: restaurantCity,
+        Promise.race([
+          fetch('/api/sensei/behavioral', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              orderItems: orderItems || [], 
+              peakHours: stats.peakHours || [], 
+              totalOrders: stats.totalOrders, 
+              aov: stats.aov, 
+              language,
+              // Add mobile flag for better server handling
+              isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+            }),
           }),
-        }).catch(() => null),
+          timeoutPromise
+        ]).catch(() => null),
+        Promise.race([
+          fetch('/api/sensei/correlator', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              totalOrders: stats.totalOrders, 
+              totalRevenue: stats.totalRevenue, 
+              aov: stats.aov,
+              chartData: stats.chartData || [], 
+              peakHours: stats.peakHours || [], 
+              language,
+              categoryPerformance: stats.categoryPerformance || [],
+              city: restaurantCity,
+              // Add mobile flag for better server handling
+              isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+            }),
+          }),
+          timeoutPromise
+        ]).catch(() => null),
       ]);
       
-      if (behRes && behRes.ok) {
+      // Process behavioral data
+      if (behRes && behRes !== null && typeof behRes === 'object' && 'ok' in behRes && behRes.ok) {
         try {
-          const behData = await behRes.json();
-          if (!behData.error) setBehavioralData(behData);
-        } catch { /* silent */ }
+          const behData = await (behRes as Response).json();
+          if (!behData.error && behData) {
+            setBehavioralData(behData);
+          }
+        } catch (error) {
+          console.warn('Failed to parse behavioral data:', error);
+        }
       }
       
-      if (corrRes && corrRes.ok) {
+      // Process correlator data
+      if (corrRes && corrRes !== null && typeof corrRes === 'object' && 'ok' in corrRes && corrRes.ok) {
         try {
-          const corrData = await corrRes.json();
-          if (!corrData.error) setCorrelatorData(corrData);
-        } catch { /* silent */ }
+          const corrData = await (corrRes as Response).json();
+          if (!corrData.error && corrData) {
+            setCorrelatorData(corrData);
+          }
+        } catch (error) {
+          console.warn('Failed to parse correlator data:', error);
+        }
       }
-    } catch { /* silent */ }
-    finally { setDeepScanLoading(false); }
+      
+      // If no data was successfully fetched, show error state
+      const behSuccess = behRes && behRes !== null && typeof behRes === 'object' && 'ok' in behRes && behRes.ok;
+      const corrSuccess = corrRes && corrRes !== null && typeof corrRes === 'object' && 'ok' in corrRes && corrRes.ok;
+      
+      if (!behSuccess && !corrSuccess) {
+        console.warn('Deep scan failed to fetch any data');
+      }
+      
+    } catch (error) {
+      console.warn('Deep scan fetch error:', error);
+    } finally {
+      setDeepScanLoading(false);
+    }
   };
 
   const fetchSimulation = async () => {

@@ -137,3 +137,42 @@ body {
 
 /* Mobile Layer-based Architecture */
 @import '../styles/mobile-layers.css';
+
+/* Additional Safari navigation fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Prevent Safari navigation glitches */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Fix for momentum scrolling causing navigation issues */
+  main {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    position: relative;
+  }
+  
+  /* Prevent flicker during page transitions */
+  * {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+  
+  /* Fix for Safari viewport bugs */
+  html, body {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
+  
+  main {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

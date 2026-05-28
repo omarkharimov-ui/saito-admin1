@@ -12,6 +12,11 @@ ALTER TABLE ingredients
   ADD COLUMN IF NOT EXISTS average_cost_per_unit NUMERIC(10,4) NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS updated_at            TIMESTAMPTZ   NOT NULL DEFAULT now();
 
+-- Hazır məhsul (içki, şokolad və s.) üçün birbaşa stok bağlantısı
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS is_ready_product      BOOLEAN       NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS direct_ingredient_id  UUID          REFERENCES ingredients(id) ON DELETE SET NULL;
+
 -- unit column-u köhnə TEXT idi, yeni ENUM-a migrate et
 DO $$ BEGIN
   ALTER TABLE ingredients ALTER COLUMN unit TYPE TEXT;
@@ -210,13 +215,22 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ── 9. TRIGGER: Avtomatik Product Availability (stock → products) ──
--- inventory_logs dəyişəndə, reseptdən istifadə edən məhsulların
--- is_available statusu avtomatik yenilənsin
+-- inventory_logs dəyişəndə, hər 3 tip məhsulun is_available statusu avtomatik yenilənsin
+-- 1. Hazır məhsul (is_ready_product=true) → birbaşa ingredient stock-a bax
+-- 2. Reseptli məhsul → resept ingredient-lərinin stock-un yoxla
+-- 3. Heç biri yox → həmişə available
 
 CREATE OR REPLACE FUNCTION update_product_availability()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
-  -- 1. RESEPTLİ məhsullar: stock-dan asılıdır
+  -- 1. HAZIR MƏHSULLAR: birbaşa direct_ingredient_id-dən stock yoxla
+  UPDATE products p
+  SET is_available = i.current_stock > 0
+  FROM ingredients i
+  WHERE p.direct_ingredient_id = i.id
+    AND p.is_ready_product = true;
+
+  -- 2. RESEPTLİ məhsullar (hazır deyil amma resepti var): stock-dan asılıdır
   UPDATE products p
   SET is_available = NOT EXISTS (
     SELECT 1
@@ -225,16 +239,19 @@ BEGIN
     WHERE r.menu_item_id = p.id
       AND i.current_stock < r.quantity_required
   )
-  WHERE EXISTS (
-    SELECT 1 FROM recipes r2 WHERE r2.menu_item_id = p.id
-  );
+  WHERE p.is_ready_product = false
+    AND EXISTS (
+      SELECT 1 FROM recipes r2 WHERE r2.menu_item_id = p.id
+    );
 
-  -- 2. RESEPTSİZ məhsullar (içkilər və s.): həmişə available olmalıdır
+  -- 3. NE RESEPTLİ NE HAZIR: həmişə available
   UPDATE products p
   SET is_available = true
-  WHERE NOT EXISTS (
-    SELECT 1 FROM recipes r WHERE r.menu_item_id = p.id
-  );
+  WHERE p.is_ready_product = false
+    AND p.direct_ingredient_id IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM recipes r WHERE r.menu_item_id = p.id
+    );
 
   RETURN NULL;
 END;
@@ -246,17 +263,19 @@ CREATE TRIGGER trg_product_availability_on_stock
   FOR EACH STATEMENT
   EXECUTE FUNCTION update_product_availability();
 
--- İlkin sync: HƏM reseptli HƏM reseptsiz məhsullar üçün availability düzəlt
+-- İlkin sync: HƏM hazır HƏM reseptli HƏM boş məhsullar üçün availability düzəlt
 UPDATE products p
 SET is_available = CASE
+  -- Hazır məhsul
+  WHEN p.is_ready_product = true AND p.direct_ingredient_id IS NOT NULL
+    THEN (SELECT i.current_stock > 0 FROM ingredients i WHERE i.id = p.direct_ingredient_id)
+  -- Reseptli məhsul
   WHEN EXISTS (SELECT 1 FROM recipes r WHERE r.menu_item_id = p.id)
-  THEN NOT EXISTS (
-    SELECT 1
-    FROM recipes r
-    JOIN ingredients i ON i.id = r.ingredient_id
-    WHERE r.menu_item_id = p.id
-      AND i.current_stock < r.quantity_required
-  )
+    THEN NOT EXISTS (
+      SELECT 1 FROM recipes r JOIN ingredients i ON i.id = r.ingredient_id
+      WHERE r.menu_item_id = p.id AND i.current_stock < r.quantity_required
+    )
+  -- Heç biri yox
   ELSE true
 END;
 

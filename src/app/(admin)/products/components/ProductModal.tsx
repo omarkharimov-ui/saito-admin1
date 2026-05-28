@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Tag, X, Save, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -195,6 +195,8 @@ interface ProductForm {
   is_in_stock: boolean;
   is_special: boolean;
   is_spicy: boolean;
+  is_ready_product: boolean;
+  direct_ingredient_id: string;
   name_en: string;
   name_ru: string;
   description_en: string;
@@ -250,6 +252,15 @@ export function ProductModal({
   const productFormRef = useRef<ProductForm>(productForm);
   const { flags: aiFlags } = useAiFlags();
   productFormRef.current = productForm;
+
+  // Hazır məhsul üçün ingredient dropdown
+  const [ingredients, setIngredients] = useState<{ id: string; name: string; unit: string }[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    supabase.from('ingredients').select('id, name, unit').order('name').then(({ data }) => {
+      setIngredients((data || []) as any[]);
+    });
+  }, [open]);
 
   const resizeToBase64 = (file: File, maxPx = 256): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -567,40 +578,75 @@ export function ProductModal({
               </div>
 
               {/* Group 4: Flags */}
-              <div className="flex flex-wrap items-center gap-2 pb-1">
-                <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-transform duration-200 cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0 ${productForm.is_in_stock ? 'bg-green-500/15 text-green-400 border-green-500/40 shadow-[0_0_15px_rgba(34,197,94,0.15)]' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-green-500/[0.06] hover:text-green-400/60 hover:border-green-500/20'}`}>
-                  <input type="checkbox" checked={productForm.is_in_stock} onChange={(e) => onFormChange({ ...productForm, is_in_stock: e.target.checked })} className="hidden" />
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-transform duration-200 ${productForm.is_in_stock ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]' : 'bg-white/20'}`} />
-                  {t('in_stock_label')}
-                </label>
-                <AnimatePresence initial={false}>
-                  {!isDrinkCategory && (
-                    <motion.label
-                      key="chefs-special"
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.22, ease: 'easeInOut' }}
-                      style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
-                      className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0 ${productForm.is_special ? 'bg-gold/15 text-gold border-gold/40 shadow-[0_0_12px_rgba(212,175,55,0.12)]' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-gold/[0.06] hover:text-gold/70 hover:border-gold/25'}`}>
-                      <input type="checkbox" checked={productForm.is_special} onChange={(e) => onFormChange({ ...productForm, is_special: e.target.checked })} className="hidden" />
-                      <Sparkles size={11} className={productForm.is_special ? 'text-gold' : 'text-white/25'} />
-                      {t('chefs_special')}
-                    </motion.label>
-                  )}
-                  {!isNonSpicyCategory && (
-                    <motion.label
-                      key="spicy"
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.22, ease: 'easeInOut' }}
-                      style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
-                      className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0 ${productForm.is_spicy ? 'bg-red-500/15 text-red-400 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-red-500/[0.06] hover:text-red-400/60 hover:border-red-500/20'}`}>
-                      <input type="checkbox" checked={productForm.is_spicy} onChange={(e) => onFormChange({ ...productForm, is_spicy: e.target.checked })} className="hidden" />
-                      <Flame size={11} className={productForm.is_spicy ? 'text-red-400' : 'text-white/25'} />
-                      {t('spicy_label')}
-                    </motion.label>
+              <div className="space-y-2 pb-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Hazır məhsul toggle */}
+                  <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-transform duration-200 cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0 ${productForm.is_ready_product ? 'bg-blue-500/15 text-blue-400 border-blue-500/40 shadow-[0_0_15px_rgba(96,165,250,0.15)]' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-blue-500/[0.06] hover:text-blue-400/60 hover:border-blue-500/20'}`}>
+                    <input type="checkbox" checked={productForm.is_ready_product} onChange={(e) => onFormChange({ ...productForm, is_ready_product: e.target.checked, direct_ingredient_id: e.target.checked ? productForm.direct_ingredient_id : '' })} className="hidden" />
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-transform duration-200 ${productForm.is_ready_product ? 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]' : 'bg-white/20'}`} />
+                    Hazır məhsul
+                  </label>
+                  <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-transform duration-200 cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0 ${productForm.is_in_stock ? 'bg-green-500/15 text-green-400 border-green-500/40 shadow-[0_0_15px_rgba(34,197,94,0.15)]' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-green-500/[0.06] hover:text-green-400/60 hover:border-green-500/20'}`}>
+                    <input type="checkbox" checked={productForm.is_in_stock} onChange={(e) => onFormChange({ ...productForm, is_in_stock: e.target.checked })} className="hidden" />
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-transform duration-200 ${productForm.is_in_stock ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]' : 'bg-white/20'}`} />
+                    {t('in_stock_label')}
+                  </label>
+                  <AnimatePresence initial={false}>
+                    {!isDrinkCategory && (
+                      <motion.label
+                        key="chefs-special"
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeInOut' }}
+                        style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
+                        className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0 ${productForm.is_special ? 'bg-gold/15 text-gold border-gold/40 shadow-[0_0_12px_rgba(212,175,55,0.12)]' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-gold/[0.06] hover:text-gold/70 hover:border-gold/25'}`}>
+                        <input type="checkbox" checked={productForm.is_special} onChange={(e) => onFormChange({ ...productForm, is_special: e.target.checked })} className="hidden" />
+                        <Sparkles size={11} className={productForm.is_special ? 'text-gold' : 'text-white/25'} />
+                        {t('chefs_special')}
+                      </motion.label>
+                    )}
+                    {!isNonSpicyCategory && (
+                      <motion.label
+                        key="spicy"
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeInOut' }}
+                        style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
+                        className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0 ${productForm.is_spicy ? 'bg-red-500/15 text-red-400 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-red-500/[0.06] hover:text-red-400/60 hover:border-red-500/20'}`}>
+                        <input type="checkbox" checked={productForm.is_spicy} onChange={(e) => onFormChange({ ...productForm, is_spicy: e.target.checked })} className="hidden" />
+                        <Flame size={11} className={productForm.is_spicy ? 'text-red-400' : 'text-white/25'} />
+                        {t('spicy_label')}
+                      </motion.label>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Hazır məhsul ingredient dropdown */}
+                <AnimatePresence>
+                  {productForm.is_ready_product && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="flex items-center gap-2 pl-1">
+                        <span className="text-[10px] text-white/30 uppercase tracking-wider">Anbar:</span>
+                        <select
+                          value={productForm.direct_ingredient_id}
+                          onChange={(e) => onFormChange({ ...productForm, direct_ingredient_id: e.target.value })}
+                          className="flex-1 max-w-xs bg-white/[0.05] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-white/25"
+                        >
+                          <option value="" className="bg-[#1a1a1a] text-white/40">Xəmmal seçin...</option>
+                          {ingredients.map(i => (
+                            <option key={i.id} value={i.id} className="bg-[#1a1a1a]">{i.name} ({i.unit})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </motion.div>
                   )}
                 </AnimatePresence>
               </div>
@@ -815,25 +861,49 @@ export function ProductModal({
               </div>
 
               {/* Flags */}
-              <div className="flex flex-wrap items-center gap-2">
-                <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none ${productForm.is_in_stock ? 'bg-green-500/15 text-green-400 border-green-500/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
-                  <input type="checkbox" checked={productForm.is_in_stock} onChange={(e) => onFormChange({ ...productForm, is_in_stock: e.target.checked })} className="hidden" />
-                  <span className={`w-1.5 h-1.5 rounded-full ${productForm.is_in_stock ? 'bg-green-400' : 'bg-white/20'}`} />
-                  {t('in_stock_label')}
-                </label>
-                {!isDrinkCategory && (
-                  <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none ${productForm.is_special ? 'bg-gold/15 text-gold border-gold/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
-                    <input type="checkbox" checked={productForm.is_special} onChange={(e) => onFormChange({ ...productForm, is_special: e.target.checked })} className="hidden" />
-                    <Sparkles size={11} className={productForm.is_special ? 'text-gold' : 'text-white/25'} />
-                    {t('chefs_special')}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none ${productForm.is_ready_product ? 'bg-blue-500/15 text-blue-400 border-blue-500/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
+                    <input type="checkbox" checked={productForm.is_ready_product} onChange={(e) => onFormChange({ ...productForm, is_ready_product: e.target.checked, direct_ingredient_id: e.target.checked ? productForm.direct_ingredient_id : '' })} className="hidden" />
+                    <span className={`w-1.5 h-1.5 rounded-full ${productForm.is_ready_product ? 'bg-blue-400' : 'bg-white/20'}`} />
+                    Hazır məhsul
                   </label>
-                )}
-                {!isNonSpicyCategory && (
-                  <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none ${productForm.is_spicy ? 'bg-red-500/15 text-red-400 border-red-500/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
-                    <input type="checkbox" checked={productForm.is_spicy} onChange={(e) => onFormChange({ ...productForm, is_spicy: e.target.checked })} className="hidden" />
-                    <Flame size={11} className={productForm.is_spicy ? 'text-red-400' : 'text-white/25'} />
-                    {t('spicy_label')}
+                  <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none ${productForm.is_in_stock ? 'bg-green-500/15 text-green-400 border-green-500/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
+                    <input type="checkbox" checked={productForm.is_in_stock} onChange={(e) => onFormChange({ ...productForm, is_in_stock: e.target.checked })} className="hidden" />
+                    <span className={`w-1.5 h-1.5 rounded-full ${productForm.is_in_stock ? 'bg-green-400' : 'bg-white/20'}`} />
+                    {t('in_stock_label')}
                   </label>
+                  {!isDrinkCategory && (
+                    <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none ${productForm.is_special ? 'bg-gold/15 text-gold border-gold/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
+                      <input type="checkbox" checked={productForm.is_special} onChange={(e) => onFormChange({ ...productForm, is_special: e.target.checked })} className="hidden" />
+                      <Sparkles size={11} className={productForm.is_special ? 'text-gold' : 'text-white/25'} />
+                      {t('chefs_special')}
+                    </label>
+                  )}
+                  {!isNonSpicyCategory && (
+                    <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none ${productForm.is_spicy ? 'bg-red-500/15 text-red-400 border-red-500/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
+                      <input type="checkbox" checked={productForm.is_spicy} onChange={(e) => onFormChange({ ...productForm, is_spicy: e.target.checked })} className="hidden" />
+                      <Flame size={11} className={productForm.is_spicy ? 'text-red-400' : 'text-white/25'} />
+                      {t('spicy_label')}
+                    </label>
+                  )}
+                </div>
+
+                {/* Hazır məhsul ingredient dropdown — mobile */}
+                {productForm.is_ready_product && (
+                  <div className="flex items-center gap-2 pl-1">
+                    <span className="text-[10px] text-white/30 uppercase tracking-wider">Anbar:</span>
+                    <select
+                      value={productForm.direct_ingredient_id}
+                      onChange={(e) => onFormChange({ ...productForm, direct_ingredient_id: e.target.value })}
+                      className="flex-1 max-w-xs bg-white/[0.05] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-white/25"
+                    >
+                      <option value="" className="bg-[#1a1a1a] text-white/40">Xəmmal seçin...</option>
+                      {ingredients.map(i => (
+                        <option key={i.id} value={i.id} className="bg-[#1a1a1a]">{i.name} ({i.unit})</option>
+                      ))}
+                    </select>
+                  </div>
                 )}
               </div>
 

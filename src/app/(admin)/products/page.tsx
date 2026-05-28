@@ -23,6 +23,7 @@ type ProductForm = {
   name: string; category_id: string; price: string; image_url: string;
   description: string; ingredients: string; is_in_stock: boolean;
   is_special: boolean; is_spicy: boolean;
+  is_ready_product: boolean; direct_ingredient_id: string;
   name_en: string; name_ru: string; description_en: string; description_ru: string;
   ingredients_en: string; ingredients_ru: string;
   variants: ProductVariantForm[];
@@ -35,6 +36,7 @@ const emptyProductForm = (defaultCatId = ''): ProductForm => ({
   name: '', category_id: defaultCatId, price: '', image_url: '',
   description: '', ingredients: '', is_in_stock: true,
   is_special: false, is_spicy: false,
+  is_ready_product: false, direct_ingredient_id: '',
   name_en: '', name_ru: '', description_en: '', description_ru: '',
   ingredients_en: '', ingredients_ru: '',
   variants: [],
@@ -386,6 +388,8 @@ const ProductsPage = () => {
       image_url: product.image_url, description: localDesc,
       ingredients: localIngr,
       is_in_stock: product.is_in_stock, is_special: product.is_special || false, is_spicy: product.is_spicy || false,
+      is_ready_product: (product as any).is_ready_product || false,
+      direct_ingredient_id: (product as any).direct_ingredient_id || '',
       name_en: (product as any).name_en || '', name_ru: (product as any).name_ru || '',
       description_en: (product as any).description_en || '', description_ru: (product as any).description_ru || '',
       ingredients_en: (product as any).ingredients_en || '', ingredients_ru: (product as any).ingredients_ru || '',
@@ -424,6 +428,8 @@ const ProductsPage = () => {
       image_url: productForm.image_url, description: productForm.description,
       ingredients: productForm.ingredients.split(',').map(i => i.trim()).filter(Boolean),
       is_in_stock: productForm.is_in_stock, is_special: productForm.is_special, is_spicy: productForm.is_spicy,
+      is_ready_product: productForm.is_ready_product,
+      direct_ingredient_id: productForm.is_ready_product ? productForm.direct_ingredient_id || null : null,
       views_count: editingProduct ? editingProduct.views_count : 0,
     };
     let error; let savedProduct: Product | null = null;

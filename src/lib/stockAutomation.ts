@@ -17,17 +17,19 @@ function getServiceClient() {
 
 /**
  * Sifariş ödəniləndə (status = 'paid'):
- *  1. Hər order_item-in product_id-sinə görə recipes cədvəlindən resept çək
- *  2. Reseptdəki hər ingredient üçün inventory_logs-a order_consumption yaz
+ *  1. Hər order_item-in product_id-sinə görə product tipini yoxla
+ *     a) Hazır məhsul (is_ready_product=true) → birbaşa direct_ingredient_id ilə stock yaz
+ *     b) Reseptli məhsul → recipes cədvəlindən ingredient-ləri oxu
+ *  2. inventory_logs-a order_consumption yaz
  *  3. Trigger avtomatik ingredients.current_stock yeniləyəcək
  */
 export async function deductStockForOrder(orderId: string): Promise<void> {
   const supabase = getServiceClient();
 
-  // 1. Sifarişin item-lərini çək
+  // 1. Sifarişin item-lərini çək (product tipi ilə birlikdə)
   const { data: items, error } = await supabase
     .from('order_items')
-    .select('quantity, product_id')
+    .select('quantity, product_id, products(is_ready_product, direct_ingredient_id)')
     .eq('order_id', orderId);
 
   if (error || !items || items.length === 0) {
@@ -35,37 +37,67 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
     return;
   }
 
-  // 2. Hər məhsul üçün recipes-dən ingredient-ləri çək
-  const productIds = items.map(i => i.product_id).filter(Boolean);
-  const { data: recipes } = await supabase
-    .from('recipes')
-    .select('menu_item_id, ingredient_id, quantity_required')
-    .in('menu_item_id', productIds);
-
-  if (!recipes || recipes.length === 0) {
-    console.log(`[stockAutomation] No recipes found for order ${orderId}`);
-    return;
-  }
-
-  // 3. Hər item üçün reseptə uyğun inventory_logs yaz
   const logs: { ingredient_id: string; type: 'order_consumption'; quantity: number; reason: string }[] = [];
 
+  // Hazır məhsulların id-lərini topla (resept yox, birbaşa ingredient)
+  const readyProductIds: string[] = [];
+  const recipeProductIds: string[] = [];
+
   for (const item of items) {
-    const itemRecipes = recipes.filter(r => r.menu_item_id === item.product_id);
-    for (const rec of itemRecipes) {
-      const deductQty = Number(rec.quantity_required) * (Number(item.quantity) || 1);
+    const prod = Array.isArray(item.products) ? item.products[0] : item.products;
+    if (prod?.is_ready_product && prod?.direct_ingredient_id) {
+      readyProductIds.push(item.product_id!);
+    } else {
+      recipeProductIds.push(item.product_id!);
+    }
+  }
+
+  // 2a. HAZIR MƏHSULLAR: birbaşa direct_ingredient_id ilə stock azalt
+  for (const item of items) {
+    const prod = Array.isArray(item.products) ? item.products[0] : item.products;
+    if (prod?.is_ready_product && prod?.direct_ingredient_id) {
+      const qty = Number(item.quantity) || 1;
       logs.push({
-        ingredient_id: rec.ingredient_id,
+        ingredient_id: prod.direct_ingredient_id,
         type: 'order_consumption',
-        quantity: deductQty,
-        reason: `Satış — Sifariş #${orderId.slice(0, 8)}`,
+        quantity: qty,
+        reason: `Hazır məhsul satışı — Sifariş #${orderId.slice(0, 8)}`,
       });
     }
   }
 
-  if (logs.length === 0) return;
+  // 2b. RESEPTLİ MƏHSULLAR: recipes cədvəlindən oxu
+  if (recipeProductIds.length > 0) {
+    const { data: recipes } = await supabase
+      .from('recipes')
+      .select('menu_item_id, ingredient_id, quantity_required')
+      .in('menu_item_id', recipeProductIds);
 
-  // 4. inventory_logs-a insert et (trigger current_stock-u avtomatik yeniləyəcək)
+    if (recipes && recipes.length > 0) {
+      for (const item of items) {
+        const prod = Array.isArray(item.products) ? item.products[0] : item.products;
+        if (prod?.is_ready_product) continue; // hazır məhsulları skip
+
+        const itemRecipes = recipes.filter(r => r.menu_item_id === item.product_id);
+        for (const rec of itemRecipes) {
+          const deductQty = Number(rec.quantity_required) * (Number(item.quantity) || 1);
+          logs.push({
+            ingredient_id: rec.ingredient_id,
+            type: 'order_consumption',
+            quantity: deductQty,
+            reason: `Reseptli satış — Sifariş #${orderId.slice(0, 8)}`,
+          });
+        }
+      }
+    }
+  }
+
+  if (logs.length === 0) {
+    console.log(`[stockAutomation] No stock to deduct for order ${orderId}`);
+    return;
+  }
+
+  // 3. inventory_logs-a insert et (trigger current_stock-u avtomatik yeniləyəcək)
   const { error: insertError } = await supabase.from('inventory_logs').insert(logs);
   if (insertError) {
     console.error('[stockAutomation] inventory_logs insert error:', insertError);

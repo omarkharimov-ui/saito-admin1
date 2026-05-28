@@ -216,8 +216,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE OR REPLACE FUNCTION update_product_availability()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
-  -- Hər hansı ingredient-in stoku reseptdəki tələbdən az olduqda,
-  -- həmin ingredient-i istifadə edən məhsul unavailable olur
+  -- 1. RESEPTLİ məhsullar: stock-dan asılıdır
   UPDATE products p
   SET is_available = NOT EXISTS (
     SELECT 1
@@ -230,6 +229,13 @@ BEGIN
     SELECT 1 FROM recipes r2 WHERE r2.menu_item_id = p.id
   );
 
+  -- 2. RESEPTSİZ məhsullar (içkilər və s.): həmişə available olmalıdır
+  UPDATE products p
+  SET is_available = true
+  WHERE NOT EXISTS (
+    SELECT 1 FROM recipes r WHERE r.menu_item_id = p.id
+  );
+
   RETURN NULL;
 END;
 $$;
@@ -240,18 +246,19 @@ CREATE TRIGGER trg_product_availability_on_stock
   FOR EACH STATEMENT
   EXECUTE FUNCTION update_product_availability();
 
--- İlkin sync: resepti olan bütün məhsullar üçün availability hesabla
+-- İlkin sync: HƏM reseptli HƏM reseptsiz məhsullar üçün availability düzəlt
 UPDATE products p
-SET is_available = NOT EXISTS (
-  SELECT 1
-  FROM recipes r
-  JOIN ingredients i ON i.id = r.ingredient_id
-  WHERE r.menu_item_id = p.id
-    AND i.current_stock < r.quantity_required
-)
-WHERE EXISTS (
-  SELECT 1 FROM recipes r2 WHERE r2.menu_item_id = p.id
-);
+SET is_available = CASE
+  WHEN EXISTS (SELECT 1 FROM recipes r WHERE r.menu_item_id = p.id)
+  THEN NOT EXISTS (
+    SELECT 1
+    FROM recipes r
+    JOIN ingredients i ON i.id = r.ingredient_id
+    WHERE r.menu_item_id = p.id
+      AND i.current_stock < r.quantity_required
+  )
+  ELSE true
+END;
 
 -- ── 10. Seed data (şərhi açın, test üçün) ────────────────────
 -- INSERT INTO ingredients (name, unit, current_stock, critical_limit, average_cost_per_unit) VALUES

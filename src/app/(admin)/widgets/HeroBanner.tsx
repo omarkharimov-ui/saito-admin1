@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface DashboardStats {
@@ -10,6 +10,9 @@ interface DashboardStats {
   todayOrders: number;
   activeTables: number;
   topProduct: string;
+  dailyNetProfit: number;
+  foodCostPct: number;
+  criticalStockCount: number;
 }
 
 export default function HeroBanner() {
@@ -21,6 +24,9 @@ export default function HeroBanner() {
     todayOrders: 0,
     activeTables: 0,
     topProduct: '—',
+    dailyNetProfit: 0,
+    foodCostPct: 0,
+    criticalStockCount: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -51,11 +57,13 @@ export default function HeroBanner() {
         dailyRevenue: data.dailyRevenue || 0,
         todayOrders: data.todayOrders || 0,
         activeTables: data.activeTables || 0,
-        topProduct: data.topProduct || '—'
+        topProduct: data.topProduct || '—',
+        dailyNetProfit: data.dailyNetProfit || 0,
+        foodCostPct: data.foodCostPct || 0,
+        criticalStockCount: data.criticalStockCount || 0,
       });
     } catch {
-      // Silent fail - show zeros
-      setStats({ dailyRevenue: 0, todayOrders: 0, activeTables: 0, topProduct: '—' });
+      setStats({ dailyRevenue: 0, todayOrders: 0, activeTables: 0, topProduct: '—', dailyNetProfit: 0, foodCostPct: 0, criticalStockCount: 0 });
     } finally {
       setLoading(false);
     }
@@ -185,6 +193,33 @@ export default function HeroBanner() {
               </svg>
             </div>
           </div>
+
+          {/* Net profit badge */}
+          {!loading && (
+            <div className="flex items-center gap-2 mb-5">
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
+                style={{
+                  background: stats.dailyNetProfit >= 0 ? 'rgba(52,211,153,0.08)' : 'rgba(239,68,68,0.08)',
+                  border: stats.dailyNetProfit >= 0 ? '1px solid rgba(52,211,153,0.2)' : '1px solid rgba(239,68,68,0.2)',
+                  color: stats.dailyNetProfit >= 0 ? '#34d399' : '#f87171',
+                }}
+              >
+                {stats.dailyNetProfit >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                Qazanc: ₼{Math.abs(stats.dailyNetProfit).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {stats.foodCostPct > 0 && <span className="text-white/30 font-normal"> · FC {stats.foodCostPct.toFixed(1)}%</span>}
+              </div>
+              {stats.criticalStockCount > 0 && (
+                <div
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
+                  style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}
+                >
+                  <AlertTriangle size={12} />
+                  {stats.criticalStockCount} kritik stok
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Bottom: 3-col Stats */}
           <div className="grid grid-cols-3">

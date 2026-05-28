@@ -365,7 +365,14 @@ const StatsPage = () => {
       </div>
 
       <div className="space-y-10">
-      <StatsTopCards totalRevenue={stats.totalRevenue} totalOrders={stats.totalOrders} aov={stats.aov} missedRevenue={stats.missedRevenue} />
+      <StatsTopCards
+        totalRevenue={stats.totalRevenue}
+        totalOrders={stats.totalOrders}
+        aov={stats.aov}
+        missedRevenue={stats.missedRevenue}
+        netProfit={(stats as any).netProfit ?? 0}
+        foodCostPct={(stats as any).foodCostPct ?? 0}
+      />
       <StatsAIForecast forecast={forecast} anomalies={anomalies} />
       <StatsRevenueChart chartData={stats.chartData} />
 

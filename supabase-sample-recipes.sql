@@ -8,6 +8,9 @@
 -- (əgər artıq varsa, IGNORE edəcək)
 -- ═══════════════════════════════════════════════════════════════
 
+-- Köhnə constraint varsa sil (yeni ENUM ilə toqquşur)
+ALTER TABLE ingredients DROP CONSTRAINT IF EXISTS ingredients_unit_check;
+
 INSERT INTO ingredients (name, unit, current_stock, critical_limit, average_cost_per_unit)
 SELECT v.name, v.unit, v.current_stock, v.critical_limit, v.average_cost_per_unit
 FROM (VALUES

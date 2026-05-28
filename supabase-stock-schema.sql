@@ -209,7 +209,51 @@ DO $$ BEGIN
   CREATE POLICY "inv_inventory_logs_all" ON inventory_logs FOR ALL USING (true) WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- ── 9. Seed data (şərhi açın, test üçün) ────────────────────
+-- ── 9. TRIGGER: Avtomatik Product Availability (stock → products) ──
+-- inventory_logs dəyişəndə, reseptdən istifadə edən məhsulların
+-- is_available statusu avtomatik yenilənsin
+
+CREATE OR REPLACE FUNCTION update_product_availability()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  -- Hər hansı ingredient-in stoku reseptdəki tələbdən az olduqda,
+  -- həmin ingredient-i istifadə edən məhsul unavailable olur
+  UPDATE products p
+  SET is_available = NOT EXISTS (
+    SELECT 1
+    FROM recipes r
+    JOIN ingredients i ON i.id = r.ingredient_id
+    WHERE r.menu_item_id = p.id
+      AND i.current_stock < r.quantity_required
+  )
+  WHERE EXISTS (
+    SELECT 1 FROM recipes r2 WHERE r2.menu_item_id = p.id
+  );
+
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_product_availability_on_stock ON inventory_logs;
+CREATE TRIGGER trg_product_availability_on_stock
+  AFTER INSERT OR UPDATE OR DELETE ON inventory_logs
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION update_product_availability();
+
+-- İlkin sync: resepti olan bütün məhsullar üçün availability hesabla
+UPDATE products p
+SET is_available = NOT EXISTS (
+  SELECT 1
+  FROM recipes r
+  JOIN ingredients i ON i.id = r.ingredient_id
+  WHERE r.menu_item_id = p.id
+    AND i.current_stock < r.quantity_required
+)
+WHERE EXISTS (
+  SELECT 1 FROM recipes r2 WHERE r2.menu_item_id = p.id
+);
+
+-- ── 10. Seed data (şərhi açın, test üçün) ────────────────────
 -- INSERT INTO ingredients (name, unit, current_stock, critical_limit, average_cost_per_unit) VALUES
 --   ('Somon filesi',  'gram',  8000,  1000, 0.045),
 --   ('Düyü (sushi)',  'gram',  15000, 2000, 0.004),

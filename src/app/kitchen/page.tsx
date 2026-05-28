@@ -881,10 +881,32 @@ export default function KitchenPage() {
   };
 
   // ── Sold Out handler ───────────────────────────────────────────────────────
+  // Real stock-dan asılı olsun: həmin məhsulun reseptindəki ingredient-lərin
+  // stokunu 0 waste entry ilə inventory_logs-a yaz → trigger avtomatik
+  // products.is_available = false edəcək
   const handleSoldOut = async (productId: string, productName: string) => {
-    const { error } = await supabase.from('products').update({ is_available: false }).eq('id', productId);
-    if (error) toast.error('Xəta', { duration: 2000 });
-    else toast.success(`${productName} bağlandı`, { duration: 3000, style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', fontWeight: 'bold' } });
+    try {
+      const { data: recipeRows } = await supabase
+        .from('recipes')
+        .select('ingredient_id, quantity_required')
+        .eq('menu_item_id', productId);
+      if (recipeRows && recipeRows.length > 0) {
+        for (const r of recipeRows) {
+          await supabase.from('inventory_logs').insert({
+            ingredient_id: r.ingredient_id,
+            type: 'waste',
+            quantity: 999999, // bütün stoku waste et (update_stock_on_log trigger-i current_stock = 0 edəcək)
+            reason: `Kitchen: ${productName} sold out`,
+          });
+        }
+      } else {
+        // Resept yoxdursa fallback: product-u bağla
+        await supabase.from('products').update({ is_available: false }).eq('id', productId);
+      }
+      toast.success(`${productName} bağlandı`, { duration: 3000, style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', fontWeight: 'bold' } });
+    } catch {
+      toast.error('Xəta', { duration: 2000 });
+    }
   };
 
   // ── Render helpers ─────────────────────────────────────────────────────────

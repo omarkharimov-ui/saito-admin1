@@ -45,6 +45,36 @@ const FILTERS = ['today', 'week', 'month', '3months', 'year'] as const;
 export default function StatsMobileView({ stats, forecast, anomalies, timeFilter, loading, onTimeFilterChange, aiAnalysis, aiDisplayed, aiLoading, aiClosing, logoFlash, onFetchAiAnalysis, onCloseAiAnalysis }: Props) {
   const { t, language } = useLanguage();
   const [activeSection, setActiveSection] = useState<'overview' | 'products' | 'hours' | 'sensei'>('overview');
+  
+  // Add missing state for mobile deep scan functionality
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [whatIfProduct, setWhatIfProduct] = useState('');
+  const [whatIfChange, setWhatIfChange] = useState(0);
+  const [whatIfResult, setWhatIfResult] = useState<string | null>(null);
+  const [whatIfLoading, setWhatIfLoading] = useState(false);
+
+  // Add missing handlers for mobile deep scan functionality
+  const handleSendChat = async (msg: string) => {
+    if (!msg.trim() || chatLoading) return;
+    setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
+    setChatLoading(true);
+    // Mock response for now - in real implementation this would call an API
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, { role: 'ai', text: 'AI response would appear here.' }]);
+      setChatLoading(false);
+    }, 1000);
+  };
+
+  const handleFetchWhatIf = async () => {
+    if (!whatIfProduct || whatIfChange === 0) return;
+    setWhatIfLoading(true);
+    // Mock implementation - in real implementation this would call an API
+    setTimeout(() => {
+      setWhatIfResult(`Simulation result for ${whatIfProduct} with ${whatIfChange}% change`);
+      setWhatIfLoading(false);
+    }, 1500);
+  };
 
   const revDelta = forecast ? forecast.trend : 0;
   const isUp = revDelta >= 0;
@@ -419,18 +449,18 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
               aiClosing={aiClosing}
               logoFlash={logoFlash}
               senseiStatsAdvice={null}
-              chatMessages={[]}
-              chatLoading={false}
-              whatIfProduct=""
-              whatIfChange={0}
-              whatIfResult={null}
-              whatIfLoading={false}
+              chatMessages={chatMessages}
+              chatLoading={chatLoading}
+              whatIfProduct={whatIfProduct}
+              whatIfChange={whatIfChange}
+              whatIfResult={whatIfResult}
+              whatIfLoading={whatIfLoading}
               onFetchAiAnalysis={onFetchAiAnalysis}
               onCloseAiAnalysis={onCloseAiAnalysis}
-              onSendChat={() => {}}
-              onWhatIfProductChange={() => {}}
-              onWhatIfChangeChange={() => {}}
-              onFetchWhatIf={() => {}}
+              onSendChat={handleSendChat}
+              onWhatIfProductChange={setWhatIfProduct}
+              onWhatIfChangeChange={setWhatIfChange}
+              onFetchWhatIf={handleFetchWhatIf}
               restaurantCity="Baku,AZ"
             />
           </motion.div>

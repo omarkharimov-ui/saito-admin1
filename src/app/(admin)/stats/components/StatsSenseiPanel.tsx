@@ -1093,7 +1093,7 @@ export default function StatsSenseiPanel({
                     <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleSend()}
                       placeholder={t('sensei_ask_placeholder')} autoFocus
-                      className="flex-1 bg-white/[0.04] border border-white/[0.10] rounded-xl px-4 py-3 text-sm text-white/85 placeholder-white/25 outline-none focus:border-gold/30 transition-all" />
+                      className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-all" />
                     <button type="button" onClick={handleSend} disabled={!chatInput.trim() || chatLoading}
                       className="px-4 py-3 rounded-xl bg-gold/10 border border-gold/25 text-gold hover:bg-gold/15 disabled:opacity-30 transition-all">
                       <Send size={15} />
@@ -1387,7 +1387,7 @@ export default function StatsSenseiPanel({
                 </label>
                 <input type="text" value={crossAddon} onChange={e => { setCrossAddon(e.target.value); setCrossResult(null); }}
                   placeholder={t('sensei_cross_sell_addon_ph')}
-                  className="w-full bg-transparent border-b border-white/10 text-sm text-white/80 py-2 outline-none placeholder-white/20" />
+                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-all" />
               </div>
               <div className="flex-1 min-w-[100px]">
                 <label className="text-[10px] text-white/30 uppercase tracking-widest mb-1.5 block">

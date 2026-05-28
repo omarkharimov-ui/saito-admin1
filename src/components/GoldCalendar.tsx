@@ -89,7 +89,7 @@ export default function GoldCalendar({ value, min, onChange }: GoldCalendarProps
   const yearRange = Array.from({ length: 10 }, (_, i) => today.getFullYear() + i);
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div ref={wrapRef} className="relative overflow-visible">
       {/* Trigger button */}
       <button
         type="button"
@@ -124,7 +124,7 @@ export default function GoldCalendar({ value, min, onChange }: GoldCalendarProps
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.15 }}
             onWheel={e => e.stopPropagation()}
-            className="absolute top-full left-0 mt-2 z-50 w-full min-w-[280px] bg-[#111] backdrop-blur-xl border border-white/[0.09] rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none"
+            className="absolute top-full left-0 mt-2 z-50 w-full min-w-[280px] max-w-[calc(100vw-2rem)] bg-[#111] backdrop-blur-xl border border-white/[0.09] rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none overflow-hidden"
           >
       {/* Header */}
       <div className="flex items-center justify-between mb-2.5">

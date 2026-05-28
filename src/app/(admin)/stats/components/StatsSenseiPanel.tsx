@@ -398,7 +398,7 @@ export default function StatsSenseiPanel({
         fetch('/api/sensei/behavioral', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderItems: orderItems || [], peakHours: stats.peakHours || [], totalOrders: stats.totalOrders, aov: stats.aov, language }),
-        }),
+        }).catch(() => null),
         fetch('/api/sensei/correlator', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -407,12 +407,22 @@ export default function StatsSenseiPanel({
             categoryPerformance: stats.categoryPerformance || [],
             city: restaurantCity,
           }),
-        }),
+        }).catch(() => null),
       ]);
-      const behData = await behRes.json();
-      const corrData = await corrRes.json();
-      if (!behData.error) setBehavioralData(behData);
-      if (!corrData.error) setCorrelatorData(corrData);
+      
+      if (behRes && behRes.ok) {
+        try {
+          const behData = await behRes.json();
+          if (!behData.error) setBehavioralData(behData);
+        } catch { /* silent */ }
+      }
+      
+      if (corrRes && corrRes.ok) {
+        try {
+          const corrData = await corrRes.json();
+          if (!corrData.error) setCorrelatorData(corrData);
+        } catch { /* silent */ }
+      }
     } catch { /* silent */ }
     finally { setDeepScanLoading(false); }
   };
@@ -425,9 +435,14 @@ export default function StatsSenseiPanel({
       const res = await fetch('/api/sensei/whatif', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product: prod.name, currentPrice: prod.revenue / (prod.sold || 1), changePercent: simPriceChange, currentSold: prod.sold, totalRevenue: stats.totalRevenue, language }),
-      });
-      const data = await res.json();
-      if (data.projection) setSimResult(data.projection);
+      }).catch(() => null);
+      
+      if (res && res.ok) {
+        try {
+          const data = await res.json();
+          if (data.projection) setSimResult(data.projection);
+        } catch { /* silent */ }
+      }
     } catch { /* silent */ }
     finally { setSimLoading(false); }
   };
@@ -1089,8 +1104,8 @@ export default function StatsSenseiPanel({
                   <circle cx="18" cy="3" r=".5" fill="rgba(0,0,0,0.75)" stroke="none" />
                   <circle cx="20" cy="21" r=".5" fill="rgba(0,0,0,0.75)" stroke="none" />
                   <circle cx="20" cy="8" r=".5" fill="rgba(0,0,0,0.75)" stroke="none" />
-                  <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" stroke="white" strokeWidth={aiLoading ? 2.5 : 1.6} opacity={aiLoading ? 1 : 0.45} strokeDasharray={aiLoading ? '5 55' : '3 75'} strokeDashoffset="0" style={{ animation: `circuitSpark ${aiLoading ? '1.4s' : '4s'} linear infinite`, filter: aiLoading ? 'drop-shadow(0 0 3px #FFD700)' : 'none' }} />
-                  <path d="M12 8h8M16 8V5a2 2 0 0 1 2-2M12 13h4M12 18h6a2 2 0 0 1 2 2v1" stroke="white" strokeWidth={aiLoading ? 2.2 : 1.4} opacity={aiLoading ? 0.95 : 0.35} strokeDasharray={aiLoading ? '3 25' : '2 40'} strokeDashoffset="0" style={{ animation: `circuitSpark ${aiLoading ? '1s' : '3s'} linear infinite reverse`, filter: aiLoading ? 'drop-shadow(0 0 2px #FFE566)' : 'none' }} />
+                  <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" stroke="white" strokeWidth={aiLoading ? 2.5 : 1.6} opacity={aiLoading ? 1 : 0.45} strokeDasharray={aiLoading ? '5 55' : '3 75'} strokeDashoffset="0" style={{ animation: `circuitSpark ${aiLoading ? '3s' : '4s'} linear infinite`, filter: aiLoading ? 'drop-shadow(0 0 3px #FFD700)' : 'none' }} />
+                  <path d="M12 8h8M16 8V5a2 2 0 0 1 2-2M12 13h4M12 18h6a2 2 0 0 1 2 2v1" stroke="white" strokeWidth={aiLoading ? 2.2 : 1.4} opacity={aiLoading ? 0.95 : 0.35} strokeDasharray={aiLoading ? '3 25' : '2 40'} strokeDashoffset="0" style={{ animation: `circuitSpark ${aiLoading ? '2.5s' : '3s'} linear infinite reverse`, filter: aiLoading ? 'drop-shadow(0 0 2px #FFE566)' : 'none' }} />
                 </svg>
               </motion.div>
               <AnimatePresence>

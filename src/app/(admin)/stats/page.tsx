@@ -24,7 +24,7 @@ const StatsPage = () => {
   const { t, language, getCategoryTranslation } = useLanguage();
 
   /* ─── Filter state ─── */
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [timeFilter, setTimeFilter] = useState('today');
   const [categories, setCategories] = useState<{ id: string; name: string; translations?: any }[]>([]);
   const [selectedCancellationReason, setSelectedCancellationReason] = useState<string | null>(null);
@@ -73,8 +73,6 @@ const StatsPage = () => {
   const handleFetchAiAnalysis = async () => {
     if (aiLoading) return;
     setAiLoading(true);
-    setLogoFlash(true);
-    setTimeout(() => setLogoFlash(false), 1200);
     try {
       const res = await fetch('/api/sensei/stats', {
         method: 'POST',
@@ -155,7 +153,7 @@ const StatsPage = () => {
       removeRealtimeChannel(ch);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeFilter]);
+  }, [timeFilter, language]);
 
   /* ─── One-time cache invalidation: clear caches with empty peakHours ─── */
   useEffect(() => {

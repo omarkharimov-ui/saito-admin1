@@ -270,7 +270,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
   );
 
   const formContent = (
-    <div className="space-y-7 px-5 md:px-8 py-6">
+    <div className="space-y-8 px-6 md:px-10 py-8">
               {/* Şəkil + Ad + Qiymət */}
               <div className="flex gap-4">
                 {/* Şəkil */}
@@ -561,7 +561,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
             initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-[#0e0e0e] border border-white/[0.08] rounded-2xl shadow-2xl"
+            className="relative w-full max-w-5xl max-h-[92vh] overflow-y-auto bg-[#0e0e0e] border border-white/[0.08] rounded-2xl shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 z-10 flex items-center justify-between px-8 py-6 bg-[#0e0e0e] border-b border-white/[0.06]">

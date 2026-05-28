@@ -97,8 +97,8 @@ function BottomSheet({ product, onClose, onEdit, onToggleStock, onDelete, getPro
             </div>
             <span className="text-[15px] font-medium text-white/80">
               {product.is_in_stock
-                ? (language === 'ru' ? 'Нет в наличии' : language === 'en' ? 'Mark out of stock' : 'Stokda olmadığını işarələ')
-                : (language === 'ru' ? 'В наличии' : language === 'en' ? 'Mark in stock' : 'Stokda olduğunu işarələ')}
+                ? (language === 'ru' ? 'Убрать из наличия' : language === 'en' ? 'Mark out of stock' : 'Məhsulu stokdan çıxar')
+                : (language === 'ru' ? 'Добавить в наличие' : language === 'en' ? 'Mark in stock' : 'Məhsulu stoka əlavə et')}
             </span>
           </motion.button>
 

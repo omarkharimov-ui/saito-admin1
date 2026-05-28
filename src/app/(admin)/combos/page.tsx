@@ -75,7 +75,7 @@ export default function CombosPage() {
       if (!res.ok) throw new Error('API error');
       const name = (combo as any)[`name_${language}`] || combo.name;
       toast.dismiss();
-      toast.success(updated.is_in_stock ? `"${name}" stokda` : `"${name}" stokda deyil`, { id: `combo-${combo.id}`, duration: 2000 });
+      toast.success(updated.is_in_stock ? `"${name}" məhsul stokdadır` : `"${name}" məhsul stokda yoxdur`, { id: `combo-${combo.id}`, duration: 2000 });
     } catch {
       setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, is_in_stock: combo.is_in_stock } : c));
       toast.error(t('error'), { id: `combo-err-${combo.id}` });
@@ -83,6 +83,7 @@ export default function CombosPage() {
   };
 
   const toggleActive = async (combo: Combo) => {
+    const originalState = combo.is_active;
     const updated = { is_active: !combo.is_active };
     setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, ...updated } : c));
     try {
@@ -96,7 +97,7 @@ export default function CombosPage() {
       toast.dismiss();
       toast.success(updated.is_active ? `"${name}" aktiv edildi` : `"${name}" deaktiv edildi`, { id: `combo-${combo.id}`, duration: 2000 });
     } catch {
-      setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, is_active: combo.is_active } : c));
+      setCombos(prev => prev.map(c => c.id === combo.id ? { ...c, is_active: originalState } : c));
       toast.error(t('error'), { id: `combo-err-${combo.id}` });
     }
   };

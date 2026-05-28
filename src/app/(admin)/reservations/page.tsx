@@ -339,7 +339,7 @@ const ReservationsPage = () => {
       {loading ? (
         <TableSkeleton rows={6} />
       ) : isMdUp ? (
-        <div key={timeFilter + '__' + statusFilter}>
+        <div>
           {/* Desktop table */}
           <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
             <div className="overflow-auto max-h-[70vh] scrollbar-hide scroll-smooth">
@@ -381,7 +381,7 @@ const ReservationsPage = () => {
           )}
         </div>
       ) : (
-        <div key={timeFilter + '__' + statusFilter} className="mobile-reservation-layered">
+        <div className="mobile-reservation-layered">
           {/* Background Layer */}
           <div className="mobile-bg-layer fixed inset-0 bg-background pointer-events-none" />
           
@@ -389,25 +389,18 @@ const ReservationsPage = () => {
           <div className="mobile-content-layer relative z-10">
             {filteredReservations.length > 0 ? (
               <div className="mobile-reservation-list space-y-3">
-                {filteredReservations.map((res, index) => (
-                  <div
+                {filteredReservations.map((res) => (
+                  <ReservationCard
                     key={res.id}
-                    className="mobile-reservation-item"
-                    style={{
-                      animationDelay: `${index * 0.05}s`
-                    }}
-                  >
-                    <ReservationCard
-                      res={res}
-                      timeFilter={timeFilter}
-                      statusBadge={getStatusBadge}
-                      onUpdateStatus={updateStatus}
-                      onDelete={handleDeleteReservation}
-                      selectionMode={archiveSelectionMode}
-                      selected={selectedArchiveIds.includes(res.id)}
-                      onToggleSelection={toggleArchiveReservationSelection}
-                    />
-                  </div>
+                    res={res}
+                    timeFilter={timeFilter}
+                    statusBadge={getStatusBadge}
+                    onUpdateStatus={updateStatus}
+                    onDelete={handleDeleteReservation}
+                    selectionMode={archiveSelectionMode}
+                    selected={selectedArchiveIds.includes(res.id)}
+                    onToggleSelection={toggleArchiveReservationSelection}
+                  />
                 ))}
               </div>
             ) : (

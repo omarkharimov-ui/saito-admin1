@@ -58,7 +58,7 @@ function OrbitingGlobeOverlay({ visible, text }: { visible: boolean; text: strin
               border: '1px solid rgba(212,175,55,0.12)',
               borderTopColor: 'rgba(212,175,55,0.85)',
               borderBottomColor: 'rgba(212,175,55,0.08)',
-              animation: 'orbitCW 2.2s linear infinite',
+              animation: 'orbitCW 6s linear infinite',
               transform: 'scaleY(0.35)',
               boxShadow: '0 0 8px rgba(212,175,55,0.2)',
             }} />
@@ -70,7 +70,7 @@ function OrbitingGlobeOverlay({ visible, text }: { visible: boolean; text: strin
               border: '1px solid rgba(212,175,55,0.08)',
               borderLeftColor: 'rgba(212,175,55,0.75)',
               borderRightColor: 'rgba(212,175,55,0.06)',
-              animation: 'orbitCCW 1.6s linear infinite',
+              animation: 'orbitCCW 4.5s linear infinite',
               transform: 'rotate(60deg) scaleY(0.4)',
               boxShadow: '0 0 6px rgba(212,175,55,0.15)',
             }} />
@@ -81,7 +81,7 @@ function OrbitingGlobeOverlay({ visible, text }: { visible: boolean; text: strin
               borderRadius: '50%',
               border: '1px solid rgba(212,175,55,0.06)',
               borderTopColor: 'rgba(212,175,55,0.5)',
-              animation: 'orbitCW 1s linear infinite',
+              animation: 'orbitCW 3s linear infinite',
               transform: 'rotate(-30deg) scaleY(0.3)',
             }} />
 
@@ -177,9 +177,6 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <>
-      <OrbitingGlobeOverlay visible={switching} text={LANG_SWITCH_TEXT[targetLang] || LANG_SWITCH_TEXT.az} />
-
       <div className="fixed top-5 right-5 z-50" onMouseLeave={() => setOpen(false)}>
         <div className="relative flex flex-col items-end gap-1 min-w-[70px]">
 
@@ -242,6 +239,5 @@ export function LanguageSwitcher() {
 
         </div>
       </div>
-    </>
   );
 }

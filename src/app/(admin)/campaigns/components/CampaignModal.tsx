@@ -90,7 +90,7 @@ const CampaignModal = ({
           </div>
           <input type="text" value={titleValue} onChange={(e) => setTitleValue(e.target.value)}
             onBlur={() => { if (form.title.trim()) handleAiTranslate(); }}
-            className="w-full bg-white/[0.05] border border-white/[0.09] hover:border-white/[0.14] focus:border-white/20 rounded-2xl px-5 py-5 text-[16px] text-white placeholder:text-white/25 outline-none transition-all"
+            className="w-full md:max-w-md bg-white/[0.05] border border-white/[0.09] hover:border-white/[0.14] focus:border-white/20 rounded-2xl px-5 py-5 text-[16px] text-white placeholder:text-white/25 outline-none transition-all"
             placeholder={language === 'en' ? 'e.g: Roll Week Discount' : language === 'ru' ? 'напр: Скидка Недели Роллов' : 'Məs: Roll Həftəsi Endirimi'} />
         </div>
 
@@ -107,7 +107,7 @@ const CampaignModal = ({
             <div className="space-y-2">
               <label className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">{t('discount_percent_label')}</label>
               <input type="number" min="1" max="100" value={form.discount_value} onChange={(e) => onFormChange({...form, discount_value: e.target.value})}
-                className="w-full bg-white/[0.05] border border-white/[0.09] hover:border-white/[0.14] focus:border-white/20 rounded-2xl px-5 py-5 text-[16px] text-white placeholder:text-white/25 outline-none transition-all"
+                className="w-full md:max-w-xs bg-white/[0.05] border border-white/[0.09] hover:border-white/[0.14] focus:border-white/20 rounded-2xl px-5 py-5 text-[16px] text-white placeholder:text-white/25 outline-none transition-all"
                 placeholder={language === 'en' ? 'e.g: 20' : language === 'ru' ? 'напр: 20' : 'Məs: 20'} />
             </div>
           )}

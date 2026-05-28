@@ -1,15 +1,8 @@
 /**
- * STOCK AUTOMATION — Avtomatik Satış Deduction
+ * STOCK AUTOMATION v2 — Avtomatik Satış Deduction
+ * Yeni sistem: recipes cədvəli + inventory_logs (order_consumption)
  *
- * İstifadəsi:
- *   1. products cədvəlinə "recipe" JSONB column əlavə edin:
- *      [{ "ingredient_id": "uuid", "quantity": 0.2 }, ...]
- *
- *   2. Sifariş ödəniləndə (status = 'paid') bu funksiyanı çağırın:
- *      await deductStockForOrder(orderId);
- *
- *   3. Yaxud orders tablosuna Supabase Database Webhook/Trigger qoyun
- *      ki, status 'paid'-a keçəndə avtomatik tetiklənsin.
+ * handlePay çağırıldığında avtomatik işləyir.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -22,76 +15,80 @@ function getServiceClient() {
   );
 }
 
-interface RecipeItem {
-  ingredient_id: string;
-  quantity: number; // məs: 0.2 kq
-}
-
 /**
- * Sifarişdəki hər məhsulun recipe-sinə əsasən stoku azaldır.
- * @param orderId - ödənilmiş sifarişin ID-si
+ * Sifariş ödəniləndə (status = 'paid'):
+ *  1. Hər order_item-in product_id-sinə görə recipes cədvəlindən resept çək
+ *  2. Reseptdəki hər ingredient üçün inventory_logs-a order_consumption yaz
+ *  3. Trigger avtomatik ingredients.current_stock yeniləyəcək
  */
 export async function deductStockForOrder(orderId: string): Promise<void> {
   const supabase = getServiceClient();
 
-  // 1. Sifarişin item-lərini çək (product recipe-si ilə birlikdə)
+  // 1. Sifarişin item-lərini çək
   const { data: items, error } = await supabase
     .from('order_items')
-    .select('quantity, products(id, recipe)')
+    .select('quantity, product_id')
     .eq('order_id', orderId);
 
-  if (error || !items) {
+  if (error || !items || items.length === 0) {
     console.error('[stockAutomation] Failed to fetch order items:', error);
     return;
   }
 
-  // 2. Hər item üçün recipe-yə baxıb transaction yarat
+  // 2. Hər məhsul üçün recipes-dən ingredient-ləri çək
+  const productIds = items.map(i => i.product_id).filter(Boolean);
+  const { data: recipes } = await supabase
+    .from('recipes')
+    .select('menu_item_id, ingredient_id, quantity_required')
+    .in('menu_item_id', productIds);
+
+  if (!recipes || recipes.length === 0) {
+    console.log(`[stockAutomation] No recipes found for order ${orderId}`);
+    return;
+  }
+
+  // 3. Hər item üçün reseptə uyğun inventory_logs yaz
+  const logs: { ingredient_id: string; type: 'order_consumption'; quantity: number; reason: string }[] = [];
+
   for (const item of items) {
-    const product = Array.isArray(item.products) ? item.products[0] : item.products;
-    const recipe: RecipeItem[] = product?.recipe ?? [];
-
-    for (const recipeItem of recipe) {
-      const deductQty = recipeItem.quantity * (item.quantity ?? 1);
-
-      await supabase.from('stock_transactions').insert({
-        ingredient_id: recipeItem.ingredient_id,
-        quantity: -deductQty,         // mənfi = stokdan çıx
-        type: 'sale',
-        description: `Avtomatik satış deduction — Sifariş #${orderId.slice(0, 8)}`,
+    const itemRecipes = recipes.filter(r => r.menu_item_id === item.product_id);
+    for (const rec of itemRecipes) {
+      const deductQty = Number(rec.quantity_required) * (Number(item.quantity) || 1);
+      logs.push({
+        ingredient_id: rec.ingredient_id,
+        type: 'order_consumption',
+        quantity: deductQty,
+        reason: `Satış — Sifariş #${orderId.slice(0, 8)}`,
       });
     }
   }
 
-  console.log(`[stockAutomation] Stock deducted for order ${orderId}`);
+  if (logs.length === 0) return;
+
+  // 4. inventory_logs-a insert et (trigger current_stock-u avtomatik yeniləyəcək)
+  const { error: insertError } = await supabase.from('inventory_logs').insert(logs);
+  if (insertError) {
+    console.error('[stockAutomation] inventory_logs insert error:', insertError);
+  } else {
+    console.log(`[stockAutomation] ${logs.length} inventory log(s) written for order ${orderId}`);
+  }
 }
 
 /**
- * TEK MƏHSUL üçün manual deduction nümunəsi:
- *
- * Saito Roll sifariş verildiyi zaman:
- *   - Düyü: -0.15 kq
- *   - Somon: -0.08 kq
- *   - Nori: -1 ədəd
- *
- * await deductStockManual([
- *   { ingredient_id: 'duyu-uuid',  quantity: -0.15 },
- *   { ingredient_id: 'somon-uuid', quantity: -0.08 },
- *   { ingredient_id: 'nori-uuid',  quantity: -1    },
- * ], 'Saito Roll satışı');
+ * Manual deduction — birbaşa inventory_logs-a order_consumption yaz
  */
 export async function deductStockManual(
-  items: { ingredient_id: string; quantity: number }[],
-  description: string
+  rows: { ingredient_id: string; quantity: number; reason?: string }[],
 ): Promise<void> {
   const supabase = getServiceClient();
 
-  const rows = items.map(item => ({
+  const logs = rows.map(item => ({
     ingredient_id: item.ingredient_id,
-    quantity: -Math.abs(item.quantity), // həmişə mənfi
-    type: 'sale' as const,
-    description,
+    quantity: Math.abs(item.quantity),
+    type: 'order_consumption' as const,
+    reason: item.reason || 'Manual deduction',
   }));
 
-  const { error } = await supabase.from('stock_transactions').insert(rows);
+  const { error } = await supabase.from('inventory_logs').insert(logs);
   if (error) console.error('[deductStockManual] Error:', error);
 }

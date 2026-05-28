@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Order } from '../types';
 import { CACHE_KEY, DEFAULT_TABLE_COUNT, SETTINGS_CACHE_KEY } from '../utils';
+import { deductStockForOrder } from '@/lib/stockAutomation';
 
 /* ─── Extract readable message from any error type ─── */
 function errMsg(e: unknown): string {
@@ -212,6 +213,13 @@ export function useOrders() {
       if (childIds.length > 0) {
         await supabase.from('order_items').delete().in('order_id', childIds);
         await supabase.from('orders').delete().in('id', childIds);
+      }
+
+      // 3. Avtomatik stok azaltma (recipes + inventory_logs)
+      try {
+        await deductStockForOrder(order.id);
+      } catch (stockErr) {
+        console.error('[handlePay] Stock deduction failed:', stockErr);
       }
 
       toast.success(t('order_paid'), { id: 'action-toast' });

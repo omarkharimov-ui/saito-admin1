@@ -88,27 +88,18 @@ interface Order {
   items: OrderItem[];
   total_amount: number;
   created_at: string;
-  kitchen_accepted_at?: string | null;
-  kitchen_ready_at?: string | null;
-  kitchen_status: string;
   void_reason?: string | null;
   customer_note?: string;
-  status: 'confirmed' | 'preparing' | 'ready';
+  status: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
   is_rush?: boolean;
   merged_from_tables?: number[]; // Tables merged into this order
-  waiter_id?: string | null;
-  waiter_name?: string | null;
-  staff_id?: string | null;
-  staff_name?: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const translations = { az, en, ru };
 
-function timerBase(order: { created_at: string; kitchen_accepted_at?: string | null; kitchen_ready_at?: string | null; kitchen_status: string }): string {
-  if (order.kitchen_status === 'ready' && order.kitchen_ready_at) return order.kitchen_ready_at;
-  if (order.kitchen_status === 'preparing' && order.kitchen_accepted_at) return order.kitchen_accepted_at;
+function timerBase(order: { created_at: string }): string {
   return order.created_at;
 }
 
@@ -126,10 +117,8 @@ function elapsedMinutes(createdAt: string): number {
 function mapRawOrder(o: any, lang = 'az'): Order {
   const items: OrderItem[] = (o.order_items || []).map((i: any) => {
     const orderedQuantity = Number(i.quantity) || 0;
-    const preparedQuantity = i.prepared_quantity != null
-      ? Math.min(Number(i.prepared_quantity) || 0, orderedQuantity)
-      : 0;
-    const fullyReady = preparedQuantity >= orderedQuantity && orderedQuantity > 0;
+    const preparedQuantity = 0; // No prepared_quantity field in database
+    const fullyReady = false; // No kitchen status tracking in database
     const prod = Array.isArray(i.products) ? i.products[0] : i.products;
     const translations = prod?.translations as Record<string, {name?: string}> | null | undefined;
     const localName = translations?.[lang.toLowerCase()]?.name || translations?.['az']?.name || i.product_name;
@@ -140,46 +129,27 @@ function mapRawOrder(o: any, lang = 'az'): Order {
       quantity: orderedQuantity,
       unit_price: i.unit_price || 0,
       total_price: i.total_price,
-      kitchen_status: fullyReady ? 'ready' : 'pending',
+      kitchen_status: 'pending', // Default to pending since no tracking
       orderedQuantity,
       preparedQuantity,
-      is_on_hold: i.is_on_hold ?? false,
-      course: i.course ?? 'main',
+      is_on_hold: false, // No such field in database
+      course: 'main', // Default course
       image_url: i.image_url || prod?.image_url,
       created_at: i.created_at,
     };
   });
-  // DB-dən gələn kitchen_status-u olduqu kimi saxla
-  const dbKitchenStatus = o.kitchen_status ?? null;
-  const statusForField = (() => {
-    if (dbKitchenStatus === 'ready')    return 'ready';
-    if (dbKitchenStatus === 'preparing') return 'preparing';
-    return 'confirmed';
-  })() as Order['status'];
-  // Find tables merged into this order
-  const mergedFromTables: number[] = (o.merged_orders || [])
-    .map((mo: any) => mo.table_number)
-    .filter((n: number | null) => n != null);
 
   return {
     id: o.id,
     table_number: o.table_number || 0,
     total_amount: o.total_amount || 0,
     created_at: o.created_at,
-    kitchen_status: dbKitchenStatus ?? '',
-    kitchen_accepted_at: o.kitchen_accepted_at ?? null,
-    kitchen_ready_at: o.kitchen_ready_at ?? null,
-    void_reason: o.void_reason ?? null,
+    void_reason: null, // No such field in database
     customer_note: o.customer_note || '',
-    status: statusForField,
-    is_rush: o.is_rush ?? false,
-    merged_from_tables: mergedFromTables,
+    status: o.status || 'new',
+    is_rush: false, // No such field in database
+    merged_from_tables: [], // No merged orders in database
     items,
-    // Add user information
-    waiter_id: o.waiter_id || null,
-    waiter_name: o.waiter?.full_name || null,
-    staff_id: o.staff_id || null,
-    staff_name: o.staff?.full_name || null,
   };
 }
 
@@ -628,10 +598,7 @@ export default function KitchenPage() {
         order_items(
           *,
           products(image_url, translations)
-        ),
-        merged_orders:orders!merged_into(id, table_number),
-        waiter:staff!waiter_id(id, full_name, email),
-        staff:staff!staff_id(id, full_name, email)
+        )
       `)
       .gt('table_number', 0)
       .not('status', 'eq', 'paid')

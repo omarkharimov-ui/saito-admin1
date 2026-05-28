@@ -29,9 +29,9 @@ export async function POST(request: Request) {
     // 2. Service role ilə admin_users-dən role çək
     const serviceClient = createClient(supabaseUrl, supabaseKey);
     
-    const { data: adminUser, error: userError } = await serviceClient
+    let { data: adminUser, error: userError } = await serviceClient
       .from('admin_users')
-      .select('role, email')
+      .select('id, role, email')
       .eq('id', authData.user.id)
       .maybeSingle();
     
@@ -40,8 +40,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Database error: ${userError}` }, { status: 500 });
     }
     
+    // ID ilə tapılmadısa email ilə axtar (ID uyğunsuzluğu halında)
     if (!adminUser) {
-      return NextResponse.json({ error: 'İstifadəçi tapılmadı' }, { status: 404 });
+      const { data: adminByEmail, error: emailError } = await serviceClient
+        .from('admin_users')
+        .select('id, role, email')
+        .ilike('email', authData.user.email ?? '')
+        .maybeSingle();
+      
+      if (emailError) {
+        console.error('[API] admin_users email lookup failed:', emailError);
+        return NextResponse.json({ error: `Database error: ${emailError}` }, { status: 500 });
+      }
+      
+      if (!adminByEmail) {
+        return NextResponse.json({ error: 'İstifadəçi tapılmadı' }, { status: 404 });
+      }
+      
+      // ID-ləri sinxronlaşdır
+      await serviceClient
+        .from('admin_users')
+        .update({ id: authData.user.id })
+        .eq('email', adminByEmail.email);
+      
+      adminUser = { ...adminByEmail, id: authData.user.id };
     }
     
     // 3. Uğurlu response

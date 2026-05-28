@@ -351,9 +351,8 @@ export const OrderModal = ({
       try {
         const { data, error } = await supabase
           .from('products')
-          .select('id, name, name_az, name_en, name_ru, price, image_url')
-          .eq('is_available', true)
-          .order('name');
+          .select('id, name, name_az, name_en, name_ru, price, image_url, is_available')
+          .order('name_az');
         
         if (error) {
           console.error(`[OrderModal] products fetch error (attempt ${attempt}):`, error.message);
@@ -645,14 +644,16 @@ export const OrderModal = ({
                   ) : filteredProducts.map(product => {
                     const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
                     const inOrder = order.order_items?.find(oi => oi.product_id === product.id);
+                    const isSoldOut = (product as any).is_available === false;
                     return (
                       <React.Fragment key={product.id}>
-                        <div className={`group/row flex items-center gap-3 px-2.5 py-2.5 rounded-xl border transition-all ${inAddCount > 0 ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
+                        <div className={`group/row flex items-center gap-3 px-2.5 py-2.5 rounded-xl border transition-all ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
                           {product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" /> : <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex-shrink-0" />}
                           <button onClick={() => handleAddProductClick(product)} className="flex-1 min-w-0 text-left">
                             <p className="text-white/80 text-sm font-medium truncate">{(product as any)[`name_${language}`] || (product as any).name_az || product.name}</p>
                             <div className="flex items-center gap-1.5">
                               <p className="text-white/40 text-xs">{product.price.toFixed(2)} ₼</p>
+                              {isSoldOut && <span className="text-[9px] font-bold text-red-400/70 bg-red-500/10 px-1.5 py-0.5 rounded-full">Bitib</span>}
                               {inOrder && <span className="text-[9px] text-white/25 bg-white/[0.04] px-1.5 py-0.5 rounded-full">{t('in_order')} ×{inOrder.quantity}</span>}
                             </div>
                           </button>
@@ -721,14 +722,16 @@ export const OrderModal = ({
                 {filteredProducts.map(product => {
                   const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
                   const inOrder = order.order_items?.find(oi => oi.product_id === product.id);
+                  const isSoldOut = (product as any).is_available === false;
                   return (
                     <React.Fragment key={product.id}>
-                      <div className={`group/row flex items-center gap-2.5 px-2 py-1.5 rounded-xl border transition-all ${inAddCount > 0 ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
+                      <div className={`group/row flex items-center gap-2.5 px-2 py-1.5 rounded-xl border transition-all ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
                         {product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex-shrink-0" />}
                         <button onClick={() => handleAddProductClick(product)} className="flex-1 min-w-0 text-left">
                           <p className="text-white/75 text-xs font-medium truncate group-hover/row:text-white transition-colors">{(product as any)[`name_${language}`] || (product as any).name_az || product.name}</p>
                           <div className="flex items-center gap-1">
                             <p className="text-white/40 text-[10px]">{product.price.toFixed(2)} ₼</p>
+                            {isSoldOut && <span className="text-[9px] font-bold text-red-400/70 bg-red-500/10 px-1 py-0.5 rounded">Bitib</span>}
                             {inOrder && <span className="text-[9px] text-white/20 bg-white/[0.03] px-1 py-0.5 rounded">{t('in_order')} ×{inOrder.quantity}</span>}
                           </div>
                         </button>

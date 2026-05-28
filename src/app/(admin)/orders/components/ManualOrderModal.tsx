@@ -30,9 +30,8 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
   useEffect(() => {
     supabase
       .from('products')
-      .select('id, name, price, image_url, category:categories(name)')
-      .eq('is_available', true)
-      .order('name')
+      .select('id, name, name_az, name_en, name_ru, price, image_url, is_available, category:categories(name)')
+      .order('name_az')
       .then(({ data }) => {
         setProducts((data || []) as Product[]);
         setLoadingProducts(false);

@@ -96,7 +96,26 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 export function useLanguage() {
   const context = useContext(LanguageContext);
   if (context === undefined) {
-    throw new Error('useLanguage must be used within a LanguageProvider');
+    // Check if we're in a browser environment
+    if (typeof window !== 'undefined') {
+      throw new Error('useLanguage must be used within a LanguageProvider');
+    }
+    // Fallback for SSR/build time
+    const defaultLanguage: Language = 'az';
+    return {
+      language: defaultLanguage,
+      setLanguage: () => {},
+      isTransitioning: false,
+      t: (key: string) => key, // Return the key as fallback
+      getProductTranslation: (product: any) => ({
+        name: product.name || '',
+        description: product.description || '',
+        ingredients: product.ingredients || []
+      }),
+      getCategoryTranslation: (category: any) => ({
+        name: category.name || ''
+      })
+    };
   }
   return context;
 }

@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import {
   Search, Plus, Trash2, Loader2, CookingPot, ChevronDown, ChevronUp,
-  Bot, Sparkles, Check, X, FileText, Upload, BrainCircuit, Wand2
+  Bot, Sparkles, Check, X, FileText, Upload, BrainCircuit, Wand2,
+  BookOpen, Library
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,6 +44,15 @@ interface AiSuggestion {
   recipe: { ingredient_id: string; ingredient_name: string; quantity_required: number; unit: string }[];
 }
 
+interface CookbookRecipe {
+  recipeName: string;
+  suggestedProductId: string | null;
+  suggestedProductName: string | null;
+  confidence: number;
+  ingredients: { ingredient_id: string; ingredient_name: string; quantity_required: number; unit: string }[];
+  unmatchedIngredients: number;
+}
+
 export default function RecipesPage() {
   const { language } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
@@ -66,6 +76,13 @@ export default function RecipesPage() {
   const [uploadText, setUploadText] = useState('');
   const [uploadLoading, setUploadLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+
+  // ── Cookbook state ──
+  const [cookbookLoading, setCookbookLoading] = useState(false);
+  const [cookbookResults, setCookbookResults] = useState<CookbookRecipe[]>([]);
+  const [showCookbookPanel, setShowCookbookPanel] = useState(false);
+  const [cookbookDragOver, setCookbookDragOver] = useState(false);
+  const [cookbookMatchMap, setCookbookMatchMap] = useState<Record<string, string>>({});
 
   const fetchData = async () => {
     setLoading(true);
@@ -188,11 +205,10 @@ export default function RecipesPage() {
   const readAndParseFile = async (file: File, productId: string) => {
     setUploadLoading(true);
     try {
-      const text = await file.text();
-      const res = await fetch('/api/parse-recipe', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, productId }),
-      });
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('productId', productId);
+      const res = await fetch('/api/parse-recipe', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       toast.success(`${data.matchedCount} ingredient parse edildi`);
@@ -206,18 +222,98 @@ export default function RecipesPage() {
     if (!uploadText.trim() || !uploadTarget) return;
     setUploadLoading(true);
     try {
-      const res = await fetch('/api/parse-recipe', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: uploadText, productId: uploadTarget }),
-      });
+      const formData = new FormData();
+      formData.append('text', uploadText);
+      formData.append('productId', uploadTarget);
+      const res = await fetch('/api/parse-recipe', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       toast.success(`${data.matchedCount} ingredient parse edildi`);
-      setUploadText('');
-      setUploadTarget(null);
+      setUploadText(''); setUploadTarget(null);
       fetchData();
     } catch (e: any) { toast.error('Parse xəta: ' + e.message); }
     finally { setUploadLoading(false); }
+  };
+
+  // ── Cookbook handlers ──
+  const handleCookbookDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setCookbookDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    await parseCookbook(file);
+  }, []);
+
+  const handleCookbookSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await parseCookbook(file);
+  }, []);
+
+  const parseCookbook = async (file: File) => {
+    setCookbookLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/parse-cookbook', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setCookbookResults(data.recipes || []);
+      setShowCookbookPanel(true);
+      const initialMatches: Record<string, string> = {};
+      for (const r of (data.recipes || [])) {
+        if (r.suggestedProductId) initialMatches[r.recipeName] = r.suggestedProductId;
+      }
+      setCookbookMatchMap(initialMatches);
+      if (data.truncated) toast('PDF çox böyük idi, bəzə reseptlər qaçırıla bilər');
+      toast.success(`${data.count} resept parse edildi`);
+    } catch (e: any) { toast.error('Kokbuk xəta: ' + e.message); }
+    finally { setCookbookLoading(false); }
+  };
+
+  const addCookbookRecipe = async (recipe: CookbookRecipe) => {
+    const productId = cookbookMatchMap[recipe.recipeName] || recipe.suggestedProductId;
+    if (!productId) { toast.error('Məhsul seçilməyib'); return; }
+    if (recipe.ingredients.length === 0) { toast.error('Xəmmal tapılmadı'); return; }
+    setSaving(true);
+    try {
+      await supabase.from('recipes').delete().eq('menu_item_id', productId).eq('is_ai_suggested', true);
+      for (const ing of recipe.ingredients) {
+        await supabase.from('recipes').insert({
+          menu_item_id: productId, ingredient_id: ing.ingredient_id,
+          quantity_required: ing.quantity_required, is_ai_suggested: true,
+        });
+      }
+      await supabase.from('products').update({ has_active_recipe: true }).eq('id', productId);
+      toast.success(`${recipe.recipeName} əlavə edildi`);
+      setCookbookResults(prev => prev.filter(r => r.recipeName !== recipe.recipeName));
+      fetchData();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const addAllCookbookRecipes = async () => {
+    const eligible = cookbookResults.filter(r => (cookbookMatchMap[r.recipeName] || r.suggestedProductId) && r.ingredients.length > 0);
+    if (eligible.length === 0) { toast.error('Heç bir reseptə məhsul bağlanmayıb'); return; }
+    setSaving(true);
+    try {
+      for (const recipe of eligible) {
+        const pid = cookbookMatchMap[recipe.recipeName] || recipe.suggestedProductId;
+        if (!pid) continue;
+        await supabase.from('recipes').delete().eq('menu_item_id', pid).eq('is_ai_suggested', true);
+        for (const ing of recipe.ingredients) {
+          await supabase.from('recipes').insert({
+            menu_item_id: pid, ingredient_id: ing.ingredient_id,
+            quantity_required: ing.quantity_required, is_ai_suggested: true,
+          });
+        }
+        await supabase.from('products').update({ has_active_recipe: true }).eq('id', pid);
+      }
+      toast.success(`${eligible.length} resept əlavə edildi`);
+      setCookbookResults([]);
+      fetchData();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSaving(false); }
   };
 
   // AI reseptləri olan product-ları tap
@@ -238,14 +334,24 @@ export default function RecipesPage() {
             <p className="text-white/30 text-xs">Hər məhsulun hazırlanması üçün tələb olunan xəmmal</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowAiPanel(!showAiPanel)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
-        >
-          <BrainCircuit size={14} /> AI Təkliflər {aiSuggestedRecipes.length > 0 && (
-            <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCookbookPanel(!showCookbookPanel)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
+          >
+            <BookOpen size={14} /> Kokbuk Yüklə {cookbookResults.length > 0 && (
+              <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{cookbookResults.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => setShowAiPanel(!showAiPanel)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
+          >
+            <BrainCircuit size={14} /> AI Təkliflər {aiSuggestedRecipes.length > 0 && (
+              <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* AI Suggestion Panel */}
@@ -309,6 +415,109 @@ export default function RecipesPage() {
                   );
                 })}
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Cookbook Upload Panel */}
+      <AnimatePresence>
+        {showCookbookPanel && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }} className="overflow-hidden mb-4"
+          >
+            <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.05] to-teal-500/[0.03] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Library size={16} className="text-emerald-400" />
+                  <span className="text-sm font-bold text-white">Kokbuk Parser</span>
+                  <span className="text-white/20 text-[10px]">PDF resept kitabını yüklə, AI hamısını parse edəcək</span>
+                </div>
+                {cookbookResults.length > 0 && (
+                  <button
+                    onClick={addAllCookbookRecipes}
+                    disabled={saving}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-xs font-bold hover:bg-emerald-500/25 transition-all disabled:opacity-40"
+                  >
+                    {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                    Hamısını əlavə et
+                  </button>
+                )}
+              </div>
+
+              {cookbookResults.length === 0 && (
+                <div
+                  onDragOver={e => { e.preventDefault(); setCookbookDragOver(true); }}
+                  onDragLeave={() => setCookbookDragOver(false)}
+                  onDrop={handleCookbookDrop}
+                  className={`rounded-xl border-2 border-dashed p-6 text-center transition-all ${cookbookDragOver ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-white/10 bg-white/[0.02]'}`}
+                >
+                  {cookbookLoading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 size={24} className="animate-spin text-emerald-400" />
+                      <p className="text-white/40 text-xs">Kokbuk parse edilir, bu bir neçə saniyə çəkə bilər...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload size={28} className="mx-auto mb-2 text-white/20" />
+                      <p className="text-white/40 text-sm font-medium">Resept kitabını (PDF) bura sürüklə</p>
+                      <p className="text-white/20 text-xs mt-1">və ya kliklə seç — AI bütün reseptləri parse edəcək</p>
+                      <input type="file" accept=".pdf,.txt" onChange={handleCookbookSelect} className="hidden" id="cookbook-file" />
+                      <label htmlFor="cookbook-file" className="inline-block mt-3 px-4 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold cursor-pointer hover:bg-emerald-500/20 transition-all">
+                        Fayl seç
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {cookbookResults.length > 0 && (
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                  {cookbookResults.map((recipe, idx) => (
+                    <div key={idx} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <BookOpen size={12} className="text-emerald-400" />
+                          <span className="text-sm font-medium text-white">{recipe.recipeName}</span>
+                          {recipe.confidence > 0.7 && <span className="text-[10px] text-emerald-400/60 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">Yüksək uyğunluq</span>}
+                        </div>
+                        <button
+                          onClick={() => addCookbookRecipe(recipe)}
+                          disabled={saving}
+                          className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-all disabled:opacity-30"
+                        >
+                          {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={13} />}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-white/20 text-[10px]">Məhsul:</span>
+                        <select
+                          value={cookbookMatchMap[recipe.recipeName] || recipe.suggestedProductId || ''}
+                          onChange={e => setCookbookMatchMap(prev => ({ ...prev, [recipe.recipeName]: e.target.value }))}
+                          className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-white/20"
+                        >
+                          <option value="" className="bg-[#1a1a1a]">Məhsul seç...</option>
+                          {products.map(p => (
+                            <option key={p.id} value={p.id} className="bg-[#1a1a1a]">{getProductName(p)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        {recipe.ingredients.map((ing, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs text-white/50">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40" />
+                            {ing.ingredient_name} × {ing.quantity_required} {ing.unit}
+                          </div>
+                        ))}
+                        {recipe.unmatchedIngredients > 0 && (
+                          <p className="text-[10px] text-amber-400/50">{recipe.unmatchedIngredients} xəmmal match edilmədi</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         )}

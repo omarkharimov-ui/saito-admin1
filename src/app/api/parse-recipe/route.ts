@@ -8,22 +8,46 @@ const supabase = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
+export const runtime = 'nodejs';
+
 /**
  * AI Recipe Document Parser
- * PDF, Word və ya şəkil formatında gələn resept sənədini parse edir.
- * 
- * Body: { fileBase64: string, fileType: 'pdf'|'image'|'word', productId: string }
- * 
- * 1. Fayl mətnini base64-dən çıxarır (burada sadəcə mock, real OCR lazım ola bilər)
- * 2. Groq AI ilə mətni parse edir — ingredient adları + miqdarları
- * 3. DB-dəki ingredients ilə match edir
- * 4. recipes cədvəlinə is_ai_suggested = true olaraq yazır
+ * PDF, Word və ya TXT formatında gələn resept sənədini parse edir.
+ *
+ * Body (multipart/form-data): { file: File, productId: string }
+ * Body (json): { text: string, productId: string }
  */
 export async function POST(request: Request) {
   try {
-    const { text, productId } = await request.json();
-    if (!text || !productId) {
-      return NextResponse.json({ error: 'text and productId required' }, { status: 400 });
+    let text = '';
+    let productId = '';
+
+    const contentType = request.headers.get('content-type') || '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      const file = formData.get('file') as File | null;
+      productId = (formData.get('productId') as string) || '';
+      const textFromForm = (formData.get('text') as string) || '';
+
+      if (file && file.size > 0) {
+        const pdfParse = require('pdf-parse');
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const pdfData = await pdfParse(buffer);
+        text = pdfData.text || '';
+      }
+      if (!text && textFromForm) text = textFromForm;
+    } else {
+      const body = await request.json();
+      text = body.text || '';
+      productId = body.productId || '';
+    }
+
+    if (!text || text.trim().length === 0) {
+      return NextResponse.json({ error: 'text or PDF file required' }, { status: 400 });
+    }
+    if (!productId) {
+      return NextResponse.json({ error: 'productId required' }, { status: 400 });
     }
 
     // 1. DB-dəki ingredient-ləri çək

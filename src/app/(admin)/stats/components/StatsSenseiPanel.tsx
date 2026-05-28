@@ -497,10 +497,24 @@ export default function StatsSenseiPanel({
 
   // Pre-fetch deep data as soon as button is clicked (not after aiAnalysis resolves)
   const handleDeepScanClick = () => {
-    if (!behavioralData && !correlatorData && !deepScanLoading) {
-      fetchAllDeepData();
+    try {
+      // Fetch deep data if not already loaded
+      if (!behavioralData && !correlatorData && !deepScanLoading) {
+        fetchAllDeepData().catch(error => {
+          console.warn('Deep scan data fetch failed:', error);
+        });
+      }
+      
+      // Trigger AI analysis with error handling
+      try {
+        onFetchAiAnalysis();
+      } catch (error) {
+        console.warn('AI analysis trigger failed:', error);
+        // Continue with deep scan even if AI analysis fails
+      }
+    } catch (error) {
+      console.error('Deep scan click handler failed:', error);
     }
-    onFetchAiAnalysis();
   };
 
   // Keep fallback: also fetch if aiAnalysis arrived but deep data still missing

@@ -78,13 +78,32 @@ const StatsPage = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stats, timeFilter, language }),
+      }).catch(error => {
+        console.warn('AI analysis API call failed:', error);
+        throw error;
       });
-      const data = await res.json();
+      
+      if (!res.ok) {
+        console.warn('AI analysis API returned error:', res.status, res.statusText);
+        throw new Error(`API error: ${res.status}`);
+      }
+      
+      const data = await res.json().catch(error => {
+        console.warn('Failed to parse AI analysis response:', error);
+        throw error;
+      });
+      
       const text = data.analysis || data.text || data.message || null;
       setAiAnalysis(text);
       setAiDisplayed(text);
-    } catch { /* silent */ }
-    finally { setAiLoading(false); }
+    } catch (error) {
+      console.warn('AI analysis failed:', error);
+      // Set a fallback message to prevent complete failure
+      setAiAnalysis('AI analysis temporarily unavailable. Please try again later.');
+      setAiDisplayed('AI analysis temporarily unavailable. Please try again later.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleCloseAiAnalysis = () => {

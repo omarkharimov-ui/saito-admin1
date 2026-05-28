@@ -9,26 +9,26 @@
 -- ═══════════════════════════════════════════════════════════════
 
 INSERT INTO ingredients (name, unit, current_stock, critical_limit, average_cost_per_unit) VALUES
-  ('Somon file', 'gram', 5000, 500, 0.045),
-  ('Ton file', 'gram', 3000, 300, 0.052),
-  ('Düyü (sushi)', 'gram', 10000, 1000, 0.003),
-  ('Nori (yosun vərəqi)', 'piece', 200, 20, 0.15),
-  ('Avokado', 'gram', 2000, 200, 0.012),
-  ('Xiyar', 'gram', 1500, 150, 0.004),
-  ('Filadelfiya pendiri', 'gram', 3000, 300, 0.018),
-  ('İkra (masqut)', 'gram', 800, 80, 0.08),
-  ('Unagi (dəniz kilsəsi)', 'gram', 1500, 150, 0.065),
-  ('Qarğıdalı', 'gram', 1000, 100, 0.006),
-  ('Soya sousu', 'ml', 5000, 500, 0.005),
-  ('Zəncəfil (marinad)', 'gram', 500, 50, 0.02),
-  ('Wasabi', 'gram', 300, 30, 0.04),
-  ('Bənövşəyi soğan', 'gram', 400, 40, 0.008),
-  ('Qızardılmış soğan', 'gram', 600, 60, 0.01),
-  ('Balsamik sous', 'ml', 800, 80, 0.015),
-  ('Sésam toxumu', 'gram', 400, 40, 0.012),
-  ('Krevetka', 'gram', 2000, 200, 0.038),
-  ('Dəniz güləkləri', 'gram', 1200, 120, 0.025),
-  ('Tofu', 'gram', 1000, 100, 0.009)
+  ('Somon file', 'gram', 4370, 500, 0.045),
+  ('Ton file', 'gram', 2850, 300, 0.052),
+  ('Düyü (sushi)', 'gram', 8750, 1000, 0.003),
+  ('Nori (yosun vərəqi)', 'piece', 173, 20, 0.15),
+  ('Avokado', 'gram', 1240, 200, 0.012),
+  ('Xiyar', 'gram', 1680, 150, 0.004),
+  ('Filadelfiya pendiri', 'gram', 2150, 300, 0.018),
+  ('İkra (masqut)', 'gram', 645, 80, 0.08),
+  ('Unagi (dəniz kilsəsi)', 'gram', 980, 150, 0.065),
+  ('Qarğıdalı', 'gram', 1430, 100, 0.006),
+  ('Soya sousu', 'ml', 3780, 500, 0.005),
+  ('Zəncəfil (marinad)', 'gram', 420, 50, 0.02),
+  ('Wasabi', 'gram', 265, 30, 0.04),
+  ('Bənövşəyi soğan', 'gram', 310, 40, 0.008),
+  ('Qızardılmış soğan', 'gram', 540, 60, 0.01),
+  ('Balsamik sous', 'ml', 720, 80, 0.015),
+  ('Sésam toxumu', 'gram', 380, 40, 0.012),
+  ('Krevetka', 'gram', 1560, 200, 0.038),
+  ('Dəniz güləkləri', 'gram', 890, 120, 0.025),
+  ('Tofu', 'gram', 1340, 100, 0.009)
 ON CONFLICT (name) DO NOTHING;
 
 

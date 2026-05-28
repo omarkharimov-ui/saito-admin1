@@ -419,7 +419,7 @@ const StatsPage = () => {
         getCategoryTranslation={getCategoryTranslation}
       />
       </div>
-      </div>{/* end desktop */
+      </div>{/* end desktop */}
     </div>
   );
 };

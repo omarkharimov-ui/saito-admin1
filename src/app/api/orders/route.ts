@@ -17,8 +17,8 @@ export async function GET() {
     }
 
     const [ordersRes, itemsRes, tablesRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*)&order=created_at.desc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*,products(image_url,name_az,name_en,name_ru,translations)`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/settings?select=qr_table_count,opening_hours&limit=1`, { headers }),
     ]);
 

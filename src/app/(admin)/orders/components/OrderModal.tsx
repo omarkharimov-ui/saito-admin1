@@ -449,7 +449,7 @@ export const OrderModal = ({
 
   const filteredProducts = allProducts.filter(p => {
     const pp = p as any;
-    const localName = (language === 'en' ? pp.name_en : language === 'ru' ? pp.name_ru : pp.name_az) || pp.name_az || p.name;
+    const localName = (language === 'en' ? pp.name_en : language === 'ru' ? pp.name_ru : pp.name_az) || pp.name_az || pp.name_en || pp.name_ru || p.name || '';
     return localName.toLowerCase().includes(addSearch.toLowerCase());
   });
   const addTotal = addItems.reduce((s, i) => s + (i.variant?.price ?? i.product.price) * i.quantity, 0);

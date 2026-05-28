@@ -120,8 +120,7 @@ function elapsedMinutes(createdAt: string): number {
 function mapRawOrder(o: any, lang = 'az'): Order {
   const items: OrderItem[] = (o.order_items || []).map((i: any) => {
     const orderedQuantity = Number(i.quantity) || 0;
-    const preparedQuantity = 0; // No prepared_quantity field in database
-    const fullyReady = false; // No kitchen status tracking in database
+    const preparedQuantity = Number(i.prepared_quantity) || 0;
     const prod = Array.isArray(i.products) ? i.products[0] : i.products;
     const translations = prod?.translations as Record<string, {name?: string}> | null | undefined;
     const localName = translations?.[lang.toLowerCase()]?.name || translations?.['az']?.name || i.product_name;
@@ -132,11 +131,11 @@ function mapRawOrder(o: any, lang = 'az'): Order {
       quantity: orderedQuantity,
       unit_price: i.unit_price || 0,
       total_price: i.total_price,
-      kitchen_status: 'pending', // Default to pending since no tracking
+      kitchen_status: (i.kitchen_status as 'pending' | 'ready') || 'pending',
       orderedQuantity,
       preparedQuantity,
-      is_on_hold: false, // No such field in database
-      course: 'main', // Default course
+      is_on_hold: false,
+      course: 'main',
       image_url: i.image_url || prod?.image_url,
       created_at: i.created_at,
     };

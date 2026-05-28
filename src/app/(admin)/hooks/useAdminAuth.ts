@@ -111,6 +111,10 @@ export function useAdminAuth() {
 
       if (data.user.role === 'kitchen') {
         await applySupabaseSession(data.session);
+        const isHttps = window.location.protocol === 'https:';
+        const secureFlag = isHttps ? '; Secure' : '';
+        document.cookie = `saito_role=kitchen; Path=/; Max-Age=86400; SameSite=Lax${secureFlag}`;
+        document.cookie = `isLoggedIn=true; Path=/; Max-Age=86400; SameSite=Lax${secureFlag}`;
         window.location.href = '/kitchen';
         return;
       }

@@ -46,8 +46,8 @@ export default function LoginPage() {
       .maybeSingle();
     
     
-    if (!adminData || !['admin', 'superadmin'].includes(adminData.role)) {
-      toast.error('İSTİFADƏÇİ TAPILMADI (Admin siyahısında yoxdur)', {
+    if (!adminData || !['admin', 'superadmin', 'kitchen'].includes(adminData.role)) {
+      toast.error('İSTİFADƏÇİ TAPILMADI', {
         style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)', fontWeight: 600 },
       });
       setLoading(false);
@@ -62,9 +62,15 @@ export default function LoginPage() {
         .eq('email', email.trim());
     }
     
-    localStorage.setItem('isLoggedIn', 'true');
-    document.cookie = 'isLoggedIn=true; path=/; max-age=86400';
     document.cookie = `saito_role=${adminData.role}; path=/; max-age=86400`;
+    document.cookie = 'isLoggedIn=true; path=/; max-age=86400';
+    
+    if (adminData.role === 'kitchen') {
+      window.location.href = '/kitchen';
+      return;
+    }
+    
+    localStorage.setItem('isLoggedIn', 'true');
     router.replace('/');
   };
 

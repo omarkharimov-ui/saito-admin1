@@ -15,7 +15,12 @@ ALTER TABLE ingredients
 -- Hazır məhsul (içki, şokolad və s.) üçün birbaşa stok bağlantısı
 ALTER TABLE products
   ADD COLUMN IF NOT EXISTS is_ready_product      BOOLEAN       NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS direct_ingredient_id  UUID          REFERENCES ingredients(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS direct_ingredient_id  UUID          REFERENCES ingredients(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS has_active_recipe     BOOLEAN       NOT NULL DEFAULT false;
+
+-- AI təklif reseptlərini ayırmaq üçün
+ALTER TABLE recipes
+  ADD COLUMN IF NOT EXISTS is_ai_suggested       BOOLEAN       NOT NULL DEFAULT false;
 
 -- unit column-u köhnə TEXT idi, yeni ENUM-a migrate et
 DO $$ BEGIN

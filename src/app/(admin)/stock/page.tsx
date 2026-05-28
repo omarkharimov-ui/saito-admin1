@@ -3,483 +3,722 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Package, Plus, AlertTriangle, TrendingDown, TrendingUp,
-  Trash2, X, Loader2, ChevronRight, FlaskConical,
+  Package, Plus, TrendingDown, TrendingUp,
+  Trash2, X, Loader2, FlaskConical, RefreshCw,
+  DollarSign, ShieldAlert, CheckCircle2, Search,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import type {
+  InventoryStatusRow, InventoryDashboardData,
+  IngredientUnit, LowStockAlert,
+} from '@/types/inventory';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-type StockUnit = 'kq' | 'ədəd' | 'litr' | 'qram';
-type TransactionType = 'manual_entry' | 'sale' | 'waste';
-
-interface StockRow {
-  ingredient_id: string;
-  name: string;
-  unit: StockUnit;
-  min_limit: number;
-  total_stock: number;
-  is_low_stock: boolean;
-  created_at: string;
-}
-
-interface ModalState {
-  mode: 'add_stock' | 'waste' | 'new_ingredient' | null;
-  ingredient?: StockRow;
-}
-
-// ─── Motion variants ──────────────────────────────────────────────────────────
-
-const containerVariants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.06 } },
-};
-
-const rowVariants = {
-  hidden: { opacity: 0, y: 16 },
-  show:   { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 340, damping: 28 } },
-};
-
-const modalVariants = {
-  hidden: { opacity: 0, scale: 0.96, y: 12 },
-  show:   { opacity: 1, scale: 1,    y: 0,  transition: { type: 'spring' as const, stiffness: 380, damping: 30 } },
-  exit:   { opacity: 0, scale: 0.95, y: 8,  transition: { duration: 0.15 } },
-};
+const UNITS: IngredientUnit[] = ['gram', 'piece', 'ml'];
+const UNIT_LABELS: Record<IngredientUnit, string> = { gram: 'qram', piece: 'ədəd', ml: 'ml' };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function stockColor(row: StockRow) {
-  if (row.is_low_stock) return 'text-red-400';
-  if (row.total_stock < row.min_limit * 1.5) return 'text-amber-400';
-  return 'text-emerald-400';
+function statusMeta(status: string) {
+  if (status === 'out_of_stock') return {
+    label: 'Bitib', dot: 'bg-red-500', text: 'text-red-400',
+    bg: 'bg-red-500/10', border: 'border-red-500/25', bar: 'bg-red-500',
+  };
+  if (status === 'critical') return {
+    label: 'Kritik', dot: 'bg-amber-400', text: 'text-amber-400',
+    bg: 'bg-amber-500/10', border: 'border-amber-500/25', bar: 'bg-amber-400',
+  };
+  return {
+    label: 'Normal', dot: 'bg-emerald-400', text: 'text-emerald-400',
+    bg: 'bg-emerald-500/10', border: 'border-emerald-500/25', bar: 'bg-emerald-400',
+  };
+}
+
+function fmt(n: number, dec = 0) {
+  return Number(n).toLocaleString('az-AZ', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function fmtCost(n: number) {
+  return Number(n).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ─── Modal variants ────────────────────────────────────────────────────────────
+
+const modalV = {
+  hidden: { opacity: 0, scale: 0.96, y: 14 },
+  show:   { opacity: 1, scale: 1,    y: 0, transition: { type: 'spring' as const, stiffness: 400, damping: 32 } },
+  exit:   { opacity: 0, scale: 0.95, y: 8, transition: { duration: 0.14 } },
+};
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function StatCard({ icon, label, value, sub, accent }: {
+  icon: React.ReactNode; label: string; value: string | number; sub?: string; accent?: string;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+      className="relative overflow-hidden rounded-2xl p-5 flex flex-col gap-3"
+      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold tracking-widest uppercase text-white/30">{label}</span>
+        <span className={accent ?? 'text-white/20'}>{icon}</span>
+      </div>
+      <div>
+        <p className="text-3xl font-black tabular-nums leading-none">{value}</p>
+        {sub && <p className="text-[11px] text-white/30 mt-1">{sub}</p>}
+      </div>
+    </motion.div>
+  );
+}
+
+function StockBar({ ratio, status }: { ratio: number; status: string }) {
+  const meta = statusMeta(status);
+  const pct = Math.min(Math.max(ratio, 0), 200);
+  const displayPct = Math.min(pct, 100);
+  return (
+    <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+      <motion.div
+        className={`h-full rounded-full ${meta.bar}`}
+        initial={{ width: 0 }}
+        animate={{ width: `${displayPct}%` }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        style={{ opacity: status === 'out_of_stock' ? 0.3 : 1 }}
+      />
+    </div>
+  );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | null;
+interface ActiveModal { mode: ModalMode; row?: InventoryStatusRow }
+
 export default function StockPage() {
-  const [stock, setStock]       = useState<StockRow[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [modal, setModal]       = useState<ModalState>({ mode: null });
-  const [saving, setSaving]     = useState(false);
+  const [data, setData]       = useState<InventoryDashboardData & { alerts: LowStockAlert[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modal, setModal]     = useState<ActiveModal>({ mode: null });
+  const [saving, setSaving]   = useState(false);
+  const [search, setSearch]   = useState('');
+  const [filter, setFilter]   = useState<'all' | 'critical' | 'out_of_stock'>('all');
 
-  // Form state
+  // Form fields
   const [qty, setQty]           = useState('');
-  const [desc, setDesc]         = useState('');
+  const [cost, setCost]         = useState('');
+  const [reason, setReason]     = useState('');
   const [newName, setNewName]   = useState('');
-  const [newUnit, setNewUnit]   = useState<StockUnit>('kq');
-  const [newLimit, setNewLimit] = useState('5');
+  const [newUnit, setNewUnit]   = useState<IngredientUnit>('gram');
+  const [newLimit, setNewLimit] = useState('500');
+  const [newCost, setNewCost]   = useState('');
 
-  const fetchStock = useCallback(async () => {
+  const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
+
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true); else setRefreshing(true);
     try {
-      const res = await fetch('/api/stock/current');
-      if (res.ok) setStock(await res.json());
+      const res = await fetch('/api/inventory');
+      if (res.ok) setData(await res.json());
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { fetchStock(); }, [fetchStock]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const closeModal = () => {
     setModal({ mode: null });
-    setQty(''); setDesc(''); setNewName(''); setNewLimit('5'); setNewUnit('kq');
+    setQty(''); setCost(''); setReason('');
+    setNewName(''); setNewUnit('gram'); setNewLimit('500'); setNewCost('');
   };
 
-  // ── Add stock / waste ────────────────────────────────────────────────────
-  const handleTransaction = async () => {
-    if (!modal.ingredient || !qty.trim()) return;
+  // ── Stock In ────────────────────────────────────────────────────────────
+  const handleStockIn = async () => {
+    if (!modal.row || !qty.trim()) return;
     const numQty = parseFloat(qty);
-    if (isNaN(numQty) || numQty <= 0) {
-      toast.error('Düzgün miqdar daxil edin');
-      return;
-    }
+    if (isNaN(numQty) || numQty <= 0) { toast.error('Düzgün miqdar daxil edin', { style: toastStyle }); return; }
     setSaving(true);
     try {
-      const isWaste = modal.mode === 'waste';
-      const payload = {
-        ingredientId: modal.ingredient.ingredient_id,
-        quantity: isWaste ? -Math.abs(numQty) : Math.abs(numQty),
-        type: (isWaste ? 'waste' : 'manual_entry') as TransactionType,
-        description: desc.trim() || undefined,
-      };
-      const res = await fetch('/api/stock/transactions', {
+      const res = await fetch('/api/inventory/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          type: 'stock_in',
+          ingredientId: modal.row.id,
+          quantity: numQty,
+          costPerUnit: cost ? parseFloat(cost) : undefined,
+          reason: reason.trim() || undefined,
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      toast.success(isWaste ? 'Ziyan qeyd edildi' : 'Stok əlavə edildi', {
-        style: { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.25)' },
-      });
+      toast.success(`${modal.row.name} — stok əlavə edildi`, { style: toastStyle });
       closeModal();
-      fetchStock();
+      fetchData(true);
     } catch (e: any) {
-      toast.error(e.message || 'Xəta baş verdi');
+      toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
     } finally {
       setSaving(false);
     }
   };
 
-  // ── New ingredient ───────────────────────────────────────────────────────
+  // ── Report Waste ────────────────────────────────────────────────────────
+  const handleWaste = async () => {
+    if (!modal.row || !qty.trim() || !reason.trim()) {
+      toast.error('Miqdar və səbəb daxil edin', { style: toastStyle }); return;
+    }
+    const numQty = parseFloat(qty);
+    if (isNaN(numQty) || numQty <= 0) { toast.error('Düzgün miqdar daxil edin', { style: toastStyle }); return; }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/inventory/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'waste', ingredientId: modal.row.id, quantity: numQty, reason }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(`${modal.row.name} — itki qeyd edildi`, { style: toastStyle });
+      closeModal();
+      fetchData(true);
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── New Ingredient ──────────────────────────────────────────────────────
   const handleNewIngredient = async () => {
-    if (!newName.trim()) { toast.error('Ad daxil edin'); return; }
+    if (!newName.trim()) { toast.error('Ad daxil edin', { style: toastStyle }); return; }
     setSaving(true);
     try {
-      const res = await fetch('/api/stock/ingredients', {
+      const res = await fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName.trim(), unit: newUnit, min_limit: parseFloat(newLimit) || 5 }),
+        body: JSON.stringify({
+          name: newName.trim(), unit: newUnit,
+          criticalLimit: parseFloat(newLimit) || 500,
+          averageCostPerUnit: newCost ? parseFloat(newCost) : 0,
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      toast.success('İnqredient əlavə edildi', {
-        style: { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.25)' },
-      });
+      toast.success('İnqredient əlavə edildi', { style: toastStyle });
       closeModal();
-      fetchStock();
+      fetchData(true);
     } catch (e: any) {
-      toast.error(e.message || 'Xəta baş verdi');
+      toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
     } finally {
       setSaving(false);
     }
   };
 
-  // ── Delete ingredient ────────────────────────────────────────────────────
+  // ── Delete ──────────────────────────────────────────────────────────────
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`"${name}" silinsin?`)) return;
+    if (!confirm(`"${name}" silinsin? Bu əməliyyat geri alına bilməz.`)) return;
     try {
-      const res = await fetch(`/api/stock/ingredients?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/inventory?id=${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error((await res.json()).error);
-      toast.success('Silindi');
-      fetchStock();
+      toast.success('Silindi', { style: toastStyle });
+      fetchData(true);
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.message, { style: toastStyle });
     }
   };
 
-  // ─── Stats ─────────────────────────────────────────────────────────────
-  const lowCount  = stock.filter(s => s.is_low_stock).length;
-  const totalItems = stock.length;
+  // ── Filtered rows ────────────────────────────────────────────────────────
+  const rows = (data?.items ?? []).filter(r => {
+    const matchSearch = r.name.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === 'all' || r.status === filter;
+    return matchSearch && matchFilter;
+  });
+
+  const stats = data?.stats;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white px-4 py-8 sm:px-8">
-      <Toaster position="top-right" />
+    <div className="min-h-screen bg-[#080808] text-white pb-20">
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
 
-      {/* ── Header ── */}
-      <motion.div
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4"
-      >
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg,#2a1f00,#1a1200)', border: '1px solid rgba(212,175,55,0.2)' }}>
-              <Package size={18} className="text-[#D4AF37]" />
-            </div>
-            <h1 className="text-2xl font-serif font-bold tracking-tight">Stok İdarəetmə</h1>
-          </div>
-          <p className="text-white/30 text-sm ml-12">
-            {totalItems} inqredient &nbsp;·&nbsp;
-            {lowCount > 0
-              ? <span className="text-red-400 font-semibold">{lowCount} azalan stok</span>
-              : <span className="text-emerald-400">Bütün stoklar normaldır</span>
-            }
-          </p>
-        </div>
+      {/* ── Ambient background ── */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"
+          style={{ background: 'radial-gradient(ellipse,#D4AF37,transparent 70%)' }} />
+      </div>
 
-        <button
-          onClick={() => setModal({ mode: 'new_ingredient' })}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97] hover:brightness-110"
-          style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
-        >
-          <Plus size={15} /> Yeni İnqredient
-        </button>
-      </motion.div>
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-6">
 
-      {/* ── Stats strip ── */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.15 }}
-        className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8"
-      >
-        {[
-          { label: 'Ümumi inqredient', value: totalItems, icon: <FlaskConical size={14} />, color: 'text-[#D4AF37]' },
-          { label: 'Azalan stok',      value: lowCount,   icon: <AlertTriangle size={14} />, color: lowCount > 0 ? 'text-red-400' : 'text-white/25' },
-          { label: 'Normal stok',      value: totalItems - lowCount, icon: <TrendingUp size={14} />, color: 'text-emerald-400' },
-        ].map((stat) => (
-          <div key={stat.label}
-            className="rounded-2xl px-4 py-3"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <div className={`flex items-center gap-1.5 text-xs mb-1 ${stat.color}`}>
-              {stat.icon}
-              <span className="font-medium">{stat.label}</span>
-            </div>
-            <p className="text-2xl font-black">{stat.value}</p>
-          </div>
-        ))}
-      </motion.div>
-
-      {/* ── Table ── */}
-      {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <Loader2 size={24} className="animate-spin text-white/20" />
-        </div>
-      ) : stock.length === 0 ? (
+        {/* ── Header ── */}
         <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-          className="text-center py-20 text-white/20"
+          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
         >
-          <Package size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Hələ inqredient yoxdur</p>
-          <p className="text-xs mt-1">Yuxarıdakı düymə ilə əlavə edin</p>
-        </motion.div>
-      ) : (
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="rounded-2xl overflow-hidden"
-          style={{ border: '1px solid rgba(255,255,255,0.06)' }}
-        >
-          {/* Table header */}
-          <div className="grid grid-cols-[1fr_100px_100px_120px_160px] gap-4 px-5 py-3 text-[11px] font-semibold tracking-widest uppercase text-white/25"
-            style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-          >
-            <span>İnqredient</span>
-            <span className="text-right">Cari Stok</span>
-            <span className="text-right">Min Limit</span>
-            <span className="text-center">Status</span>
-            <span className="text-right">Əməliyyat</span>
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg,#1e1600,#140f00)', border: '1px solid rgba(212,175,55,0.2)' }}>
+              <Package size={20} className="text-[#D4AF37]" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-tight leading-none">
+                Anbar İdarəetməsi
+              </h1>
+              <p className="text-[11px] text-white/25 uppercase tracking-[0.2em] mt-1">
+                Inventory Management System
+              </p>
+            </div>
           </div>
 
-          {stock.map((row, i) => (
-            <motion.div
-              key={row.ingredient_id}
-              variants={rowVariants}
-              className="grid grid-cols-[1fr_100px_100px_120px_160px] gap-4 px-5 py-4 items-center transition-colors hover:bg-white/[0.02]"
-              style={{ borderBottom: i < stock.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => fetchData(true)}
+              disabled={refreshing}
+              className="p-2.5 rounded-xl text-white/30 hover:text-white transition-all hover:bg-white/5 active:scale-95"
+              title="Yenilə"
             >
-              {/* Name */}
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(212,175,55,0.07)', border: '1px solid rgba(212,175,55,0.12)' }}>
-                  <FlaskConical size={13} className="text-[#D4AF37]/60" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold leading-none">{row.name}</p>
-                  <p className="text-[11px] text-white/30 mt-0.5">{row.unit}</p>
-                </div>
-              </div>
-
-              {/* Current stock */}
-              <div className="text-right">
-                <span className={`text-sm font-bold tabular-nums ${stockColor(row)}`}>
-                  {Number(row.total_stock).toFixed(2)}
-                </span>
-                <span className="text-[10px] text-white/25 ml-1">{row.unit}</span>
-              </div>
-
-              {/* Min limit */}
-              <div className="text-right">
-                <span className="text-sm text-white/40 tabular-nums">{row.min_limit}</span>
-                <span className="text-[10px] text-white/20 ml-1">{row.unit}</span>
-              </div>
-
-              {/* Status badge */}
-              <div className="flex justify-center">
-                {row.is_low_stock ? (
-                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-red-500/10 border border-red-500/25 text-red-400">
-                    <AlertTriangle size={9} /> Az Stok
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
-                    <TrendingUp size={9} /> Normal
-                  </span>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  onClick={() => { setModal({ mode: 'add_stock', ingredient: row }); }}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all hover:brightness-110 active:scale-95"
-                  style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#6ee7b7' }}
-                >
-                  <TrendingUp size={11} /> Əlavə
-                </button>
-                <button
-                  onClick={() => { setModal({ mode: 'waste', ingredient: row }); }}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all hover:brightness-110 active:scale-95"
-                  style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.22)', color: '#fca5a5' }}
-                >
-                  <TrendingDown size={11} /> Ziyan
-                </button>
-                <button
-                  onClick={() => handleDelete(row.ingredient_id, row.name)}
-                  className="p-1.5 rounded-lg transition-all hover:bg-white/5 active:scale-95 text-white/20 hover:text-red-400"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            </motion.div>
-          ))}
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+            <button
+              onClick={() => setModal({ mode: 'new_ingredient' })}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
+              style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
+            >
+              <Plus size={15} /> Yeni Xammal
+            </button>
+          </div>
         </motion.div>
-      )}
 
-      {/* ── Modals ── */}
+        {/* ── Low stock alert banner ── */}
+        <AnimatePresence>
+          {(data?.alerts ?? []).length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
+            >
+              <ShieldAlert size={16} className="text-red-400 flex-shrink-0" />
+              <p className="text-sm text-red-300">
+                <span className="font-bold">{data!.alerts.length} xammal</span> kritik səviyyədə və ya bitib —{' '}
+                {data!.alerts.slice(0, 3).map(a => a.name).join(', ')}
+                {data!.alerts.length > 3 && ` +${data!.alerts.length - 3} digər`}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Stat cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard
+            icon={<FlaskConical size={18} />} label="Ümumi Xammal"
+            value={loading ? '—' : fmt(stats?.total ?? 0)}
+            sub="aktiv inqredient" accent="text-[#D4AF37]/60"
+          />
+          <StatCard
+            icon={<ShieldAlert size={18} />} label="Kritik Vəziyyət"
+            value={loading ? '—' : fmt((stats?.critical ?? 0) + (stats?.out_of_stock ?? 0))}
+            sub={`${stats?.out_of_stock ?? 0} tamamilə bitib`} accent={(stats?.critical ?? 0) > 0 ? 'text-amber-400' : 'text-white/20'}
+          />
+          <StatCard
+            icon={<CheckCircle2 size={18} />} label="Normal Stok"
+            value={loading ? '—' : fmt((stats?.total ?? 0) - (stats?.critical ?? 0) - (stats?.out_of_stock ?? 0))}
+            sub="optimal səviyyədə" accent="text-emerald-400/70"
+          />
+          <StatCard
+            icon={<DollarSign size={18} />} label="Aykı İtki Dəyəri"
+            value={loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`}
+            sub="bu ay waste + adjustment" accent="text-rose-400/70"
+          />
+        </div>
+
+        {/* ── Search + Filter bar ── */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Xammal axtar..."
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/30 transition-colors"
+            />
+          </div>
+          <div className="flex gap-2">
+            {(['all', 'critical', 'out_of_stock'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold tracking-wide transition-all ${
+                  filter === f
+                    ? 'bg-white/10 text-white border border-white/15'
+                    : 'text-white/30 hover:text-white/60 border border-transparent'
+                }`}
+              >
+                {f === 'all' ? 'Hamısı' : f === 'critical' ? 'Kritik' : 'Bitib'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Inventory Table ── */}
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <Loader2 size={28} className="animate-spin text-white/15" />
+          </div>
+        ) : rows.length === 0 ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="text-center py-24 text-white/20">
+            <Package size={44} className="mx-auto mb-4 opacity-20" />
+            <p className="text-sm font-medium">
+              {search || filter !== 'all' ? 'Axtarış nəticəsi tapılmadı' : 'Hələ xammal əlavə edilməyib'}
+            </p>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="rounded-2xl overflow-hidden"
+            style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            {/* Table head */}
+            <div
+              className="hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-white/20"
+              style={{
+                gridTemplateColumns: '1fr 140px 120px 130px 180px',
+                background: 'rgba(255,255,255,0.018)',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+              }}
+            >
+              <span>Xammal</span>
+              <span className="text-right">Cari Stok</span>
+              <span className="text-right">Kritik Limit</span>
+              <span className="text-center">Status</span>
+              <span className="text-right">Əməliyyat</span>
+            </div>
+
+            {rows.map((row, i) => {
+              const meta = statusMeta(row.status);
+              return (
+                <motion.div
+                  key={row.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="group px-4 lg:px-6 py-4 transition-colors hover:bg-white/[0.018]"
+                  style={{ borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                >
+                  {/* Desktop row */}
+                  <div
+                    className="hidden lg:grid gap-4 items-center"
+                    style={{ gridTemplateColumns: '1fr 140px 120px 130px 180px' }}
+                  >
+                    {/* Name + bar */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.1)' }}>
+                        <FlaskConical size={14} className="text-[#D4AF37]/50" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate leading-none">{row.name}</p>
+                        <div className="mt-1.5">
+                          <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
+                        </div>
+                        <p className="text-[10px] text-white/20 mt-1">
+                          {UNIT_LABELS[row.unit]} · ort. maya: ₼{fmtCost(row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Current stock */}
+                    <div className="text-right">
+                      <span className={`text-base font-black tabular-nums ${meta.text}`}>
+                        {fmt(row.current_stock, 1)}
+                      </span>
+                      <span className="text-[10px] text-white/25 ml-1">{UNIT_LABELS[row.unit]}</span>
+                    </div>
+
+                    {/* Critical limit */}
+                    <div className="text-right">
+                      <span className="text-sm text-white/35 tabular-nums">{fmt(row.critical_limit, 0)}</span>
+                      <span className="text-[10px] text-white/20 ml-1">{UNIT_LABELS[row.unit]}</span>
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex justify-center">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold ${meta.bg} border ${meta.border} ${meta.text}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+                        {meta.label}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => setModal({ mode: 'stock_in', row })}
+                        title="Mal Qəbulu"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:brightness-115 active:scale-95"
+                        style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#6ee7b7' }}
+                      >
+                        <TrendingUp size={12} /> Giriş
+                      </button>
+                      <button
+                        onClick={() => setModal({ mode: 'waste', row })}
+                        title="İtki Qeyd Et"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:brightness-115 active:scale-95"
+                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', color: '#fca5a5' }}
+                      >
+                        <TrendingDown size={12} /> İtki
+                      </button>
+                      <button
+                        onClick={() => handleDelete(row.id, row.name)}
+                        className="p-2 rounded-xl transition-all hover:bg-red-500/10 active:scale-95 text-white/15 hover:text-red-400"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mobile card */}
+                  <div className="lg:hidden space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.1)' }}>
+                          <FlaskConical size={13} className="text-[#D4AF37]/50" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{row.name}</p>
+                          <p className="text-[10px] text-white/25">{UNIT_LABELS[row.unit]}</p>
+                        </div>
+                      </div>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold ${meta.bg} border ${meta.border} ${meta.text}`}>
+                        <span className={`w-1 h-1 rounded-full ${meta.dot}`} />
+                        {meta.label}
+                      </span>
+                    </div>
+                    <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className={`text-lg font-black tabular-nums ${meta.text}`}>{fmt(row.current_stock, 1)}</span>
+                        <span className="text-xs text-white/25 ml-1">/ {fmt(row.critical_limit, 0)} {UNIT_LABELS[row.unit]}</span>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => setModal({ mode: 'stock_in', row })}
+                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold"
+                          style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#6ee7b7' }}
+                        >
+                          <TrendingUp size={12} />
+                        </button>
+                        <button
+                          onClick={() => setModal({ mode: 'waste', row })}
+                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold"
+                          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', color: '#fca5a5' }}
+                        >
+                          <TrendingDown size={12} />
+                        </button>
+                        <button onClick={() => handleDelete(row.id, row.name)}
+                          className="p-1.5 rounded-xl text-white/15 hover:text-red-400 transition-colors">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════
+          MODALS
+      ════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {modal.mode && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={closeModal}
             />
+
             <motion.div
-              variants={modalVariants}
-              initial="hidden" animate="show" exit="exit"
-              className="relative z-10 w-full max-w-sm rounded-2xl p-6 flex flex-col gap-5"
-              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}
+              variants={modalV} initial="hidden" animate="show" exit="exit"
+              className="relative z-10 w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden"
+              style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
               onClick={e => e.stopPropagation()}
             >
-              {/* Close */}
-              <button onClick={closeModal} className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors">
-                <X size={18} />
-              </button>
+              {/* Drag handle (mobile) */}
+              <div className="sm:hidden flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-white/15" />
+              </div>
 
-              {/* ─ Add / Waste modal ─ */}
-              {(modal.mode === 'add_stock' || modal.mode === 'waste') && modal.ingredient && (
-                <>
-                  <div>
-                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold mb-3 ${
-                      modal.mode === 'waste'
-                        ? 'bg-red-500/10 border border-red-500/25 text-red-400'
-                        : 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-400'
-                    }`}>
-                      {modal.mode === 'waste' ? <TrendingDown size={11} /> : <TrendingUp size={11} />}
-                      {modal.mode === 'waste' ? 'Ziyan Qeyd Et' : 'Stok Əlavə Et'}
-                    </div>
-                    <h2 className="text-lg font-bold">{modal.ingredient.name}</h2>
-                    <p className="text-white/30 text-sm mt-0.5">
-                      Cari: <span className={`font-semibold ${stockColor(modal.ingredient)}`}>
-                        {Number(modal.ingredient.total_stock).toFixed(2)} {modal.ingredient.unit}
+              {/* ── STOCK IN ── */}
+              {modal.mode === 'stock_in' && modal.row && (
+                <div className="p-6 space-y-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5 bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
+                        <TrendingUp size={10} /> Mal Qəbulu
                       </span>
-                    </p>
+                      <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
+                      <p className="text-white/30 text-xs mt-0.5">
+                        Cari: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
+                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row.unit]}
+                        </span>
+                      </p>
+                    </div>
+                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                      <X size={18} />
+                    </button>
                   </div>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-xs text-white/40 font-medium mb-1.5 block">
-                        Miqdar ({modal.ingredient.unit})
+                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                        Miqdar ({UNIT_LABELS[modal.row.unit]})
                       </label>
-                      <input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={qty}
-                        onChange={e => setQty(e.target.value)}
-                        placeholder="0.00"
-                        autoFocus
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/5 border border-white/10 outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                      <input type="number" min="0.001" step="0.001" value={qty}
+                        onChange={e => setQty(e.target.value)} placeholder="0.000" autoFocus
+                        className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-base font-bold"
                       />
                     </div>
-                    {modal.mode === 'waste' && (
-                      <div>
-                        <label className="text-xs text-white/40 font-medium mb-1.5 block">
-                          Səbəb (istəyə görə)
-                        </label>
-                        <input
-                          type="text"
-                          value={desc}
-                          onChange={e => setDesc(e.target.value)}
-                          placeholder="Məs: Bitmə tarixi keçdi"
-                          className="w-full px-4 py-3 rounded-xl text-white bg-white/5 border border-white/10 outline-none focus:border-red-400/40 transition-colors text-sm"
-                        />
-                      </div>
-                    )}
+                    <div>
+                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                        Maya dəyəri / {UNIT_LABELS[modal.row.unit]} (₼) — istəyə görə
+                      </label>
+                      <input type="number" min="0" step="0.0001" value={cost}
+                        onChange={e => setCost(e.target.value)} placeholder="0.0000"
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                        Qeyd — istəyə görə
+                      </label>
+                      <input type="text" value={reason}
+                        onChange={e => setReason(e.target.value)} placeholder="Məs: Limasol çatdırılması"
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-sm"
+                      />
+                    </div>
                   </div>
 
-                  <button
-                    onClick={handleTransaction}
-                    disabled={saving || !qty.trim()}
-                    className="w-full py-3 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40"
-                    style={modal.mode === 'waste'
-                      ? { background: 'rgba(239,68,68,0.85)', color: '#fff' }
-                      : { background: 'linear-gradient(135deg,#0f7a57,#0a5c41)', color: '#fff', border: '1px solid rgba(16,185,129,0.3)' }
-                    }
+                  <button onClick={handleStockIn} disabled={saving || !qty.trim()}
+                    className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
+                    style={{ background: 'linear-gradient(135deg,#0a5c41,#0f7a57)', color: '#fff', border: '1px solid rgba(16,185,129,0.25)' }}
                   >
-                    {saving ? <Loader2 size={15} className="animate-spin" /> : (
-                      modal.mode === 'waste' ? <><TrendingDown size={14} /> Ziyani Qeyd Et</> : <><TrendingUp size={14} /> Stoku Yenilə</>
-                    )}
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <><TrendingUp size={15} /> Stoku Artır</>}
                   </button>
-                </>
+                </div>
               )}
 
-              {/* ─ New ingredient modal ─ */}
-              {modal.mode === 'new_ingredient' && (
-                <>
-                  <div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold mb-3"
-                      style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
-                      <Plus size={11} /> Yeni İnqredient
+              {/* ── WASTE ── */}
+              {modal.mode === 'waste' && modal.row && (
+                <div className="p-6 space-y-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5 bg-red-500/10 border border-red-500/25 text-red-400">
+                        <TrendingDown size={10} /> İtki / Zay Qeydi
+                      </span>
+                      <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
+                      <p className="text-white/30 text-xs mt-0.5">
+                        Cari: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
+                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row.unit]}
+                        </span>
+                      </p>
                     </div>
-                    <h2 className="text-lg font-bold">İnqredient Əlavə Et</h2>
+                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                      <X size={18} />
+                    </button>
                   </div>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-xs text-white/40 font-medium mb-1.5 block">Ad</label>
-                      <input
-                        type="text"
-                        value={newName}
-                        onChange={e => setNewName(e.target.value)}
-                        placeholder="Məs: Somon filesi"
-                        autoFocus
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/5 border border-white/10 outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                        Miqdar ({UNIT_LABELS[modal.row.unit]})
+                      </label>
+                      <input type="number" min="0.001" step="0.001" value={qty}
+                        onChange={e => setQty(e.target.value)} placeholder="0.000" autoFocus
+                        className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-red-500/40 transition-colors text-base font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                        Səbəb <span className="text-red-400">*</span>
+                      </label>
+                      <input type="text" value={reason}
+                        onChange={e => setReason(e.target.value)} placeholder="Məs: Bitmə tarixi keçdi, Zədəli"
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-red-500/40 transition-colors text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <button onClick={handleWaste} disabled={saving || !qty.trim() || !reason.trim()}
+                    className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
+                    style={{ background: 'linear-gradient(135deg,#7f1d1d,#991b1b)', color: '#fff', border: '1px solid rgba(239,68,68,0.3)' }}
+                  >
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <><TrendingDown size={15} /> İtki Qeyd Et</>}
+                  </button>
+                </div>
+              )}
+
+              {/* ── NEW INGREDIENT ── */}
+              {modal.mode === 'new_ingredient' && (
+                <div className="p-6 space-y-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
+                        style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
+                        <Plus size={10} /> Yeni Xammal
+                      </span>
+                      <h2 className="text-xl font-bold">İnqredient əlavə et</h2>
+                    </div>
+                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Ad</label>
+                      <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
+                        placeholder="Məs: Somon filesi" autoFocus
+                        className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm font-semibold"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-white/40 font-medium mb-1.5 block">Ölçü vahidi</label>
-                        <select
-                          value={newUnit}
-                          onChange={e => setNewUnit(e.target.value as StockUnit)}
-                          className="w-full px-4 py-3 rounded-xl text-white bg-white/5 border border-white/10 outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                        <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Vahid</label>
+                        <select value={newUnit} onChange={e => setNewUnit(e.target.value as IngredientUnit)}
+                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
                         >
-                          {(['kq', 'ədəd', 'litr', 'qram'] as StockUnit[]).map(u => (
-                            <option key={u} value={u} style={{ background: '#111' }}>{u}</option>
+                          {UNITS.map(u => (
+                            <option key={u} value={u} style={{ background: '#111' }}>{UNIT_LABELS[u]}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs text-white/40 font-medium mb-1.5 block">Min limit</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={newLimit}
+                        <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Kritik limit</label>
+                        <input type="number" min="0" step="1" value={newLimit}
                           onChange={e => setNewLimit(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl text-white bg-white/5 border border-white/10 outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
                         />
                       </div>
                     </div>
+                    <div>
+                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                        Başlanğıc maya dəyəri / vahid (₼) — istəyə görə
+                      </label>
+                      <input type="number" min="0" step="0.0001" value={newCost}
+                        onChange={e => setNewCost(e.target.value)} placeholder="0.0000"
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                      />
+                    </div>
                   </div>
 
-                  <button
-                    onClick={handleNewIngredient}
-                    disabled={saving || !newName.trim()}
-                    className="w-full py-3 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                  <button onClick={handleNewIngredient} disabled={saving || !newName.trim()}
+                    className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
                     style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
                   >
-                    {saving
-                      ? <Loader2 size={15} className="animate-spin" />
-                      : <><Plus size={14} /> Əlavə Et</>
-                    }
+                    {saving ? <Loader2 size={16} className="animate-spin text-black" /> : <><Plus size={15} /> Əlavə Et</>}
                   </button>
-                </>
+                </div>
               )}
             </motion.div>
           </div>

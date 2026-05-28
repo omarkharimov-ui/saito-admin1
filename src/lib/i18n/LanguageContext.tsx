@@ -22,6 +22,7 @@ interface TranslatedCategory {
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
+  isTransitioning: boolean;
   t: (key: TranslationKey) => string;
   getProductTranslation: (product: Product) => TranslatedProduct;
   getCategoryTranslation: (category: Category) => TranslatedCategory;
@@ -37,13 +38,26 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem(STORAGE_KEY) as Language | null;
     return saved && ['az', 'en', 'ru'].includes(saved) ? saved : 'az';
   });
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const setLanguage = useCallback((lang: Language) => {
-    setLanguageState(lang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, lang);
-    }
-  }, []);
+    if (lang === language) return; // Don't transition if same language
+    
+    setIsTransitioning(true);
+    
+    // Change language after transition starts
+    setTimeout(() => {
+      setLanguageState(lang);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, lang);
+      }
+    }, 200); // Change language 200ms into transition
+    
+    // End transition after animation completes
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 800);
+  }, [language]);
 
   const t = useCallback((key: TranslationKey): string => {
     return (translations[language] as Record<string, string>)[key] || key;
@@ -73,7 +87,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   // Always provide context to avoid SSR/hydration issues
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, getProductTranslation, getCategoryTranslation }}>
+    <LanguageContext.Provider value={{ language, setLanguage, isTransitioning, t, getProductTranslation, getCategoryTranslation }}>
       {children}
     </LanguageContext.Provider>
   );

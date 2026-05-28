@@ -6,6 +6,9 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { CartProvider } from "@/context/CartContext";
 import ClientLayout from "@/components/layout/ClientLayout";
 import { CustomNotificationProvider } from "@/components/CustomNotification";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import LanguageTransitionWrapper from "@/components/LanguageTransitionWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,6 +25,12 @@ export const metadata: Metadata = {
   description: "Restaurant Management System",
   formatDetection: {
     telephone: false,
+  },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Saito Admin",
   },
 };
 
@@ -44,7 +53,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Saito Admin" />
         <meta name="msapplication-TileColor" content="#d4af37" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <script dangerouslySetInnerHTML={{ __html: `if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.unregister()})});caches.keys().then(function(c){c.forEach(function(n){caches.delete(n)})})}` }} />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" media="(prefers-color-scheme: light)" />
         <link rel="icon" type="image/svg+xml" href="/favicon-dark.svg" media="(prefers-color-scheme: dark)" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
@@ -54,17 +64,21 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500&subset=cyrillic,latin&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-[100dvh] flex flex-col bg-background text-foreground">
+        <ServiceWorkerRegistration />
+        <PWAInstallPrompt />
         <LanguageProvider>
-          <UIProvider>
-            <CartProvider>
-                <CustomNotificationProvider />
-                <ClientLayout>
-                  <main className="flex-1 overflow-y-auto scrollbar-none">
-                    {children}
-                  </main>
-                </ClientLayout>
-            </CartProvider>
-          </UIProvider>
+          <LanguageTransitionWrapper>
+            <UIProvider>
+              <CartProvider>
+                  <CustomNotificationProvider />
+                  <ClientLayout>
+                    <main className="flex-1 overflow-y-auto scrollbar-none">
+                      {children}
+                    </main>
+                  </ClientLayout>
+              </CartProvider>
+            </UIProvider>
+          </LanguageTransitionWrapper>
         </LanguageProvider>
       </body>
     </html>

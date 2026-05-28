@@ -8,7 +8,9 @@
 -- (əgər artıq varsa, IGNORE edəcək)
 -- ═══════════════════════════════════════════════════════════════
 
-INSERT INTO ingredients (name, unit, current_stock, critical_limit, average_cost_per_unit) VALUES
+INSERT INTO ingredients (name, unit, current_stock, critical_limit, average_cost_per_unit)
+SELECT v.name, v.unit, v.current_stock, v.critical_limit, v.average_cost_per_unit
+FROM (VALUES
   ('Somon file', 'gram', 4370, 500, 0.045),
   ('Ton file', 'gram', 2850, 300, 0.052),
   ('Düyü (sushi)', 'gram', 8750, 1000, 0.003),
@@ -29,7 +31,8 @@ INSERT INTO ingredients (name, unit, current_stock, critical_limit, average_cost
   ('Krevetka', 'gram', 1560, 200, 0.038),
   ('Dəniz güləkləri', 'gram', 890, 120, 0.025),
   ('Tofu', 'gram', 1340, 100, 0.009)
-ON CONFLICT (name) DO NOTHING;
+) AS v(name, unit, current_stock, critical_limit, average_cost_per_unit)
+WHERE NOT EXISTS (SELECT 1 FROM ingredients i WHERE i.name = v.name);
 
 
 -- ═══════════════════════════════════════════════════════════════
@@ -50,8 +53,7 @@ SELECT prod.id, ing_duyu.id, 120, true FROM prod, ing_duyu WHERE prod.id IS NOT 
 UNION ALL
 SELECT prod.id, ing_nori.id, 1, true FROM prod, ing_nori WHERE prod.id IS NOT NULL AND ing_nori.id IS NOT NULL
 UNION ALL
-SELECT prod.id, ing_avo.id, 40, true FROM prod, ing_avo WHERE prod.id IS NOT NULL AND ing_avo.id IS NOT NULL
-ON CONFLICT DO NOTHING;
+SELECT prod.id, ing_avo.id, 40, true FROM prod, ing_avo WHERE prod.id IS NOT NULL AND ing_avo.id IS NOT NULL;
 
 -- Philadelphia Roll
 WITH prod AS (SELECT id FROM products WHERE name_az ILIKE '%philadelphia%' OR name_en ILIKE '%philadelphia%' OR name ILIKE '%philadelphia%' LIMIT 1),
@@ -66,8 +68,7 @@ SELECT prod.id, ing_duyu.id, 120, true FROM prod, ing_duyu WHERE prod.id IS NOT 
 UNION ALL
 SELECT prod.id, ing_nori.id, 1, true FROM prod, ing_nori WHERE prod.id IS NOT NULL AND ing_nori.id IS NOT NULL
 UNION ALL
-SELECT prod.id, ing_pendir.id, 50, true FROM prod, ing_pendir WHERE prod.id IS NOT NULL AND ing_pendir.id IS NOT NULL
-ON CONFLICT DO NOTHING;
+SELECT prod.id, ing_pendir.id, 50, true FROM prod, ing_pendir WHERE prod.id IS NOT NULL AND ing_pendir.id IS NOT NULL;
 
 -- California Roll
 WITH prod AS (SELECT id FROM products WHERE name_az ILIKE '%california%' OR name_en ILIKE '%california%' OR name ILIKE '%california%' LIMIT 1),
@@ -85,8 +86,7 @@ SELECT prod.id, ing_nori.id, 1, true FROM prod, ing_nori WHERE prod.id IS NOT NU
 UNION ALL
 SELECT prod.id, ing_avo.id, 30, true FROM prod, ing_avo WHERE prod.id IS NOT NULL AND ing_avo.id IS NOT NULL
 UNION ALL
-SELECT prod.id, ing_ikra.id, 15, true FROM prod, ing_ikra WHERE prod.id IS NOT NULL AND ing_ikra.id IS NOT NULL
-ON CONFLICT DO NOTHING;
+SELECT prod.id, ing_ikra.id, 15, true FROM prod, ing_ikra WHERE prod.id IS NOT NULL AND ing_ikra.id IS NOT NULL;
 
 -- Spicy Tuna Roll
 WITH prod AS (SELECT id FROM products WHERE name_az ILIKE '%tuna%' OR name_en ILIKE '%tuna%' OR name ILIKE '%tuna%' OR name_az ILIKE '%ton%' OR name_en ILIKE '%ton%' LIMIT 1),
@@ -101,8 +101,7 @@ SELECT prod.id, ing_duyu.id, 120, true FROM prod, ing_duyu WHERE prod.id IS NOT 
 UNION ALL
 SELECT prod.id, ing_nori.id, 1, true FROM prod, ing_nori WHERE prod.id IS NOT NULL AND ing_nori.id IS NOT NULL
 UNION ALL
-SELECT prod.id, ing_sous.id, 10, true FROM prod, ing_sous WHERE prod.id IS NOT NULL AND ing_sous.id IS NOT NULL
-ON CONFLICT DO NOTHING;
+SELECT prod.id, ing_sous.id, 10, true FROM prod, ing_sous WHERE prod.id IS NOT NULL AND ing_sous.id IS NOT NULL;
 
 -- Unagi Roll
 WITH prod AS (SELECT id FROM products WHERE name_az ILIKE '%unagi%' OR name_en ILIKE '%unagi%' OR name ILIKE '%unagi%' OR name_az ILIKE '%kilsə%' OR name_en ILIKE '%eel%' LIMIT 1),
@@ -117,8 +116,7 @@ SELECT prod.id, ing_duyu.id, 120, true FROM prod, ing_duyu WHERE prod.id IS NOT 
 UNION ALL
 SELECT prod.id, ing_nori.id, 1, true FROM prod, ing_nori WHERE prod.id IS NOT NULL AND ing_nori.id IS NOT NULL
 UNION ALL
-SELECT prod.id, ing_avo.id, 30, true FROM prod, ing_avo WHERE prod.id IS NOT NULL AND ing_avo.id IS NOT NULL
-ON CONFLICT DO NOTHING;
+SELECT prod.id, ing_avo.id, 30, true FROM prod, ing_avo WHERE prod.id IS NOT NULL AND ing_avo.id IS NOT NULL;
 
 -- Tempura Roll
 WITH prod AS (SELECT id FROM products WHERE name_az ILIKE '%tempura%' OR name_en ILIKE '%tempura%' OR name ILIKE '%tempura%' LIMIT 1),
@@ -133,8 +131,7 @@ SELECT prod.id, ing_duyu.id, 120, true FROM prod, ing_duyu WHERE prod.id IS NOT 
 UNION ALL
 SELECT prod.id, ing_nori.id, 1, true FROM prod, ing_nori WHERE prod.id IS NOT NULL AND ing_nori.id IS NOT NULL
 UNION ALL
-SELECT prod.id, ing_avo.id, 25, true FROM prod, ing_avo WHERE prod.id IS NOT NULL AND ing_avo.id IS NOT NULL
-ON CONFLICT DO NOTHING;
+SELECT prod.id, ing_avo.id, 25, true FROM prod, ing_avo WHERE prod.id IS NOT NULL AND ing_avo.id IS NOT NULL;
 
 -- ═══════════════════════════════════════════════════════════════
 -- 3. HƏM RESEPTƏNİ OLAN MƏHSULLARI has_active_recipe = true ET

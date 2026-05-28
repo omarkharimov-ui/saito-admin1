@@ -103,7 +103,7 @@ const SettingsPage = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-[13px] font-medium text-white/90 leading-tight">
-                  {t(tb.labelKey as Parameters<typeof t>[0])}
+                  {t(tb.labelKey as any)}
                 </p>
                 {tb.desc && <p className="text-[10px] text-white/30 mt-1 line-clamp-1">{tb.desc}</p>}
               </div>
@@ -124,7 +124,7 @@ const SettingsPage = () => {
               </button>
               <div className="flex-1 text-center">
                 <h2 className="text-[17px] font-serif font-bold text-white">
-                  {activeTabDef ? t(activeTabDef.labelKey as Parameters<typeof t>[0]) : ''}
+                  {activeTabDef ? t(activeTabDef.labelKey as any) : ''}
                 </h2>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-gold/60 mt-0.5">SETTINGS</p>
               </div>
@@ -163,7 +163,7 @@ const SettingsPage = () => {
                 }`}
               >
                 <span className={isActive ? 'text-gold' : 'text-white/25'}>{tb.icon}</span>
-                {t(tb.labelKey as Parameters<typeof t>[0])}
+                {t(tb.labelKey as any)}
                 {isActive && (
                   <motion.span
                     layoutId="tab-underline"

@@ -88,11 +88,14 @@ interface Order {
   items: OrderItem[];
   total_amount: number;
   created_at: string;
+  kitchen_status: string;
+  kitchen_accepted_at?: string | null;
+  kitchen_ready_at?: string | null;
   void_reason?: string | null;
   customer_note?: string;
   status: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
   is_rush?: boolean;
-  merged_from_tables?: number[]; // Tables merged into this order
+  merged_from_tables?: number[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -144,11 +147,14 @@ function mapRawOrder(o: any, lang = 'az'): Order {
     table_number: o.table_number || 0,
     total_amount: o.total_amount || 0,
     created_at: o.created_at,
-    void_reason: null, // No such field in database
+    kitchen_status: o.kitchen_status ?? '',
+    kitchen_accepted_at: o.kitchen_accepted_at ?? null,
+    kitchen_ready_at: o.kitchen_ready_at ?? null,
+    void_reason: o.void_reason ?? null,
     customer_note: o.customer_note || '',
     status: o.status || 'new',
-    is_rush: false, // No such field in database
-    merged_from_tables: [], // No merged orders in database
+    is_rush: o.is_rush ?? false,
+    merged_from_tables: [],
     items,
   };
 }
@@ -259,21 +265,13 @@ function CardWithCollapse({
     ? 'rgba(16,185,129,0.5)'
     : isDelayed
       ? 'rgba(239,68,68,0.5)'
-      : order.is_rush
-        ? 'rgba(249,115,22,0.5)'
-        : order.kitchen_status === 'preparing'
-          ? 'rgba(59,130,246,0.4)'
-          : 'rgba(212,175,55,0.35)';
+      : 'rgba(212,175,55,0.35)';
 
   const cardBg = allDone
     ? '#0b120e'
     : isDelayed
       ? '#120b0b'
-      : order.is_rush
-        ? '#120d07'
-        : order.kitchen_status === 'preparing'
-          ? '#0b0d14'
-          : '#0f0f0f';
+      : '#0f0f0f';
 
   return (
     <>

@@ -4,6 +4,23 @@
 -- Supabase SQL Editor-a yapışdırın (tam yeni başlanğıc)
 -- ═══════════════════════════════════════════════════════════════
 
+-- ── MIGRATION: Köhnə ingredients cədvəlini yenilə ─────────────
+-- Əvvəlcə BU BLOKU run edin, sonra aşağıdakı CREATE-lər öz-özünə skip edəcək
+ALTER TABLE ingredients
+  ADD COLUMN IF NOT EXISTS current_stock         NUMERIC(12,3) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS critical_limit        NUMERIC(12,3) NOT NULL DEFAULT 500,
+  ADD COLUMN IF NOT EXISTS average_cost_per_unit NUMERIC(10,4) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS updated_at            TIMESTAMPTZ   NOT NULL DEFAULT now();
+
+-- unit column-u köhnə TEXT idi, yeni ENUM-a migrate et
+DO $$ BEGIN
+  ALTER TABLE ingredients ALTER COLUMN unit TYPE TEXT;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+-- köhnə stock_transactions-ı saxlayın, inventory_logs ayrı cədvəldir
+-- köhnə min_limit varsa, critical_limit-ə kopyala
+UPDATE ingredients SET critical_limit = min_limit WHERE critical_limit = 500 AND min_limit IS NOT NULL;
+
 -- ── 0. ENUM Types ─────────────────────────────────────────────
 DO $$ BEGIN
   CREATE TYPE ingredient_unit AS ENUM ('gram', 'piece', 'ml');
@@ -149,7 +166,7 @@ CREATE OR REPLACE VIEW inventory_status AS
 SELECT
   i.id,
   i.name,
-  i.unit,
+  i.unit::text AS unit,
   i.current_stock,
   i.critical_limit,
   i.average_cost_per_unit,

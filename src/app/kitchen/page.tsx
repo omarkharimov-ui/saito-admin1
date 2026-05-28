@@ -96,6 +96,10 @@ interface Order {
   status: 'confirmed' | 'preparing' | 'ready';
   is_rush?: boolean;
   merged_from_tables?: number[]; // Tables merged into this order
+  waiter_id?: string | null;
+  waiter_name?: string | null;
+  staff_id?: string | null;
+  staff_name?: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -171,6 +175,11 @@ function mapRawOrder(o: any, lang = 'az'): Order {
     is_rush: o.is_rush ?? false,
     merged_from_tables: mergedFromTables,
     items,
+    // Add user information
+    waiter_id: o.waiter_id || null,
+    waiter_name: o.waiter?.full_name || null,
+    staff_id: o.staff_id || null,
+    staff_name: o.staff?.full_name || null,
   };
 }
 
@@ -620,7 +629,9 @@ export default function KitchenPage() {
           *,
           products(image_url, translations)
         ),
-        merged_orders:orders!merged_into(id, table_number)
+        merged_orders:orders!merged_into(id, table_number),
+        waiter:staff!waiter_id(id, full_name, email),
+        staff:staff!staff_id(id, full_name, email)
       `)
       .gt('table_number', 0)
       .not('status', 'eq', 'paid')

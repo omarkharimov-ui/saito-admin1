@@ -20,7 +20,7 @@ const StatsRevenueChart = ({ chartData, loading }: Props) => {
   const isEmpty = !chartData || chartData.length === 0 || chartData.every(d => d.value === 0);
 
   const emptyMsg = language === 'az'
-    ? 'Bu dövr üçün gəlir məlumatı yoxdur'
+    ? 'Bu dövr üçün dövriyyə məlumatı yoxdur'
     : language === 'ru'
       ? 'Нет данных о доходах за этот период'
       : 'No revenue data for this period';

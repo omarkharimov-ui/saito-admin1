@@ -177,7 +177,8 @@ CREATE TRIGGER trg_recipe_cost_change
 -- 8. INVENTORY_STATUS VIEW-I YENIDƏN YARAT (yeni kolonkalar daxil olsun)
 -- ═══════════════════════════════════════════════════════════════
 
-CREATE OR REPLACE VIEW inventory_status AS
+DROP VIEW IF EXISTS inventory_status;
+CREATE VIEW inventory_status AS
 SELECT
   i.id,
   i.name,
@@ -185,9 +186,9 @@ SELECT
   i.current_stock,
   i.critical_limit,
   i.average_cost_per_unit,
+  i.updated_at,
   i.purchase_price,
   i.waste_percentage,
-  i.updated_at,
   CASE
     WHEN i.current_stock <= 0 THEN 'out_of_stock'
     WHEN i.current_stock <= i.critical_limit THEN 'critical'

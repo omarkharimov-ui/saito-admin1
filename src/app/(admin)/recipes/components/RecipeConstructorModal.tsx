@@ -104,12 +104,17 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const profit = salePrice - totalCost;
   const marginPct = salePrice > 0 ? (profit / salePrice) * 100 : 0;
 
-  function calcBrutto(ingredientId: string, nettoQty: number): number {
+  function calcBrutto(ingredientId: string, nettoQty: number, hotWastePct = 0): number {
+    if (nettoQty <= 0) return 0;
     const ing = ingredientMap.get(ingredientId);
-    if (!ing || !ing.cold_waste_percentage || nettoQty <= 0) return nettoQty;
-    const pct = ing.cold_waste_percentage / 100;
-    if (pct >= 1) return nettoQty;
-    return nettoQty / (1 - pct);
+    const coldPct = ing?.cold_waste_percentage || 0;
+    const cold = coldPct / 100;
+    const hot = (hotWastePct || 0) / 100;
+    if (cold >= 1 || hot >= 1) return nettoQty;
+    let qty = nettoQty;
+    if (cold > 0) qty = qty / (1 - cold);
+    if (hot > 0) qty = qty / (1 - hot);
+    return qty;
   }
 
   const addRow = () => {
@@ -128,7 +133,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
     if (!ing) return;
     setRows(prev => prev.map((r, i) => {
       if (i !== idx) return r;
-      const qtyBrutto = calcBrutto(ingId, r.quantity);
+      const qtyBrutto = calcBrutto(ingId, r.quantity, r.hot_waste_percentage);
       return {
         ...r,
         ingredient_id: ingId,
@@ -144,7 +149,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const updateRowQuantity = (idx: number, qty: number) => {
     setRows(prev => prev.map((r, i) => {
       if (i !== idx) return r;
-      const qtyBrutto = calcBrutto(r.ingredient_id, qty);
+      const qtyBrutto = calcBrutto(r.ingredient_id, qty, r.hot_waste_percentage);
       const ing = ingredientMap.get(r.ingredient_id);
       return {
         ...r,
@@ -156,7 +161,12 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   };
 
   const updateRowHotWaste = (idx: number, hotWastePct: number) => {
-    setRows(prev => prev.map((r, i) => i === idx ? { ...r, hot_waste_percentage: hotWastePct } : r));
+    setRows(prev => prev.map((r, i) => {
+      if (i !== idx) return r;
+      const qtyBrutto = calcBrutto(r.ingredient_id, r.quantity, hotWastePct);
+      const ing = ingredientMap.get(r.ingredient_id);
+      return { ...r, hot_waste_percentage: hotWastePct, quantity_brutto: qtyBrutto, cost: (ing?.average_cost_per_unit || 0) * qtyBrutto };
+    }));
   };
 
   const handleSave = async () => {

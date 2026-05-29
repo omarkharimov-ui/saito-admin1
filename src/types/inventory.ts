@@ -13,6 +13,8 @@ export interface Ingredient {
   current_stock: number;
   critical_limit: number;
   average_cost_per_unit: number;
+  purchase_price: number;
+  waste_percentage: number;
   updated_at: string;
 }
 
@@ -21,6 +23,15 @@ export interface Recipe {
   menu_item_id: string;
   ingredient_id: string;
   quantity_required: number;
+  is_ai_suggested?: boolean;
+  recipe_header_id?: string;
+}
+
+export interface RecipeHeader {
+  id: string;
+  menu_item_id: string;
+  instructions: string;
+  created_at: string;
 }
 
 export interface InventoryLog {
@@ -62,6 +73,8 @@ export interface CreateIngredientPayload {
   unit: IngredientUnit;
   criticalLimit: number;
   averageCostPerUnit?: number;
+  purchasePrice?: number;
+  wastePercentage?: number;
 }
 
 export interface CreateRecipePayload {

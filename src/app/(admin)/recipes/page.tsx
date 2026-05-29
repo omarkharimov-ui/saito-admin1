@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { RecipeConstructorModal } from './components/RecipeConstructorModal';
 
 interface Ingredient {
   id: string;
@@ -76,6 +77,10 @@ export default function RecipesPage() {
   const [uploadText, setUploadText] = useState('');
   const [uploadLoading, setUploadLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+
+  // ── Constructor Modal state ──
+  const [constructorOpen, setConstructorOpen] = useState(false);
+  const [editConstructorProductId, setEditConstructorProductId] = useState<string | undefined>(undefined);
 
   // ── Cookbook state ──
   const [cookbookLoading, setCookbookLoading] = useState(false);
@@ -336,10 +341,16 @@ export default function RecipesPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => { setEditConstructorProductId(undefined); setConstructorOpen(true); }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 transition-all"
+          >
+            <CookingPot size={14} /> Resept Konstruktoru
+          </button>
+          <button
             onClick={() => setShowCookbookPanel(!showCookbookPanel)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
           >
-            <BookOpen size={14} /> Kokbuk Yüklə {cookbookResults.length > 0 && (
+            <BookOpen size={14} /> Kokbuk Yüklä {cookbookResults.length > 0 && (
               <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{cookbookResults.length}</span>
             )}
           </button>
@@ -638,6 +649,7 @@ export default function RecipesPage() {
                       </div>
                     )}
 
+                    {/* Quick-add row */}
                     {addingFor === product.id ? (
                       <div className="mt-3 flex items-center gap-2">
                         <select
@@ -672,12 +684,21 @@ export default function RecipesPage() {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setAddingFor(product.id)}
-                        className="mt-3 flex items-center gap-2 text-gold/70 text-xs font-bold hover:text-gold transition-all"
-                      >
-                        <Plus size={13} /> Resept əlavə et
-                      </button>
+                      <div className="mt-3 flex items-center gap-2">
+                        <button
+                          onClick={() => { setEditConstructorProductId(product.id); setConstructorOpen(true); }}
+                          className="flex items-center gap-2 text-gold/70 text-xs font-bold hover:text-gold transition-all"
+                        >
+                          <CookingPot size={13} /> Resept Konstruktoru
+                        </button>
+                        <span className="text-white/10 text-[10px]">|</span>
+                        <button
+                          onClick={() => setAddingFor(product.id)}
+                          className="flex items-center gap-2 text-white/40 text-xs font-bold hover:text-white/70 transition-all"
+                        >
+                          <Plus size={13} /> Sətir əlavə et
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -689,6 +710,14 @@ export default function RecipesPage() {
           )}
         </div>
       )}
+
+      {/* Recipe Constructor Modal */}
+      <RecipeConstructorModal
+        isOpen={constructorOpen}
+        onClose={() => { setConstructorOpen(false); setEditConstructorProductId(undefined); }}
+        onSaved={fetchData}
+        editProductId={editConstructorProductId}
+      />
     </div>
   );
 }

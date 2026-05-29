@@ -26,6 +26,8 @@ export interface Product {
   description: string;
   price: number;
   discount_price: number | null;
+  cost_price: number;
+  profit_margin: number;
   category_id: string;
   category?: Category;
   image_url: string;

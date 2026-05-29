@@ -113,6 +113,26 @@ export default function StockPage() {
   const [newUnit, setNewUnit]   = useState<IngredientUnit>('gram');
   const [newLimit, setNewLimit] = useState('500');
   const [newCost, setNewCost]   = useState('');
+  const [newTotalQty, setNewTotalQty] = useState('');
+  const [newTotalAmount, setNewTotalAmount] = useState('');
+  const [newWastePct, setNewWastePct] = useState('');
+  const [newSupplier, setNewSupplier] = useState('');
+
+  // Auto-calculated unit cost from total qty/amount
+  const calculatedUnitCost = (() => {
+    const q = parseFloat(newTotalQty);
+    const a = parseFloat(newTotalAmount);
+    if (q > 0 && a > 0) return a / q;
+    return null;
+  })();
+
+  // Effective cost after waste %
+  const effectiveUnitCost = (() => {
+    const base = calculatedUnitCost ?? (newCost ? parseFloat(newCost) : 0);
+    const wp = parseFloat(newWastePct) || 0;
+    if (wp <= 0 || wp >= 100) return base;
+    return base / (1 - wp / 100);
+  })();
 
   const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
 
@@ -133,6 +153,7 @@ export default function StockPage() {
     setModal({ mode: null });
     setQty(''); setCost(''); setReason('');
     setNewName(''); setNewUnit('gram'); setNewLimit('500'); setNewCost('');
+    setNewTotalQty(''); setNewTotalAmount(''); setNewWastePct(''); setNewSupplier('');
   };
 
   // ── Stock In ────────────────────────────────────────────────────────────
@@ -194,13 +215,17 @@ export default function StockPage() {
     if (!newName.trim()) { toast.error('Ad daxil edin', { style: toastStyle }); return; }
     setSaving(true);
     try {
+      const unitCost = calculatedUnitCost ?? (newCost ? parseFloat(newCost) : 0);
+      const effectiveCost = effectiveUnitCost || unitCost;
       const res = await fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newName.trim(), unit: newUnit,
           criticalLimit: parseFloat(newLimit) || 500,
-          averageCostPerUnit: newCost ? parseFloat(newCost) : 0,
+          averageCostPerUnit: effectiveCost,
+          purchasePrice: unitCost,
+          wastePercentage: parseFloat(newWastePct) || 0,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -419,7 +444,8 @@ export default function StockPage() {
                           <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
                         </div>
                         <p className="text-[10px] text-white/20 mt-1">
-                          {UNIT_LABELS[row.unit]} · ort. maya: ₼{fmtCost(row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]}
+                          {UNIT_LABELS[row.unit]} · alış: ₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]}
+                          {(row as any).waste_percentage > 0 && <span className="text-red-400/40 ml-1.5">· itki: {row.waste_percentage}%</span>}
                         </p>
                       </div>
                     </div>
@@ -682,6 +708,17 @@ export default function StockPage() {
                         className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm font-semibold"
                       />
                     </div>
+
+                    <div>
+                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                        Təchizatçı <span className="text-white/20">— istəyə görə</span>
+                      </label>
+                      <input type="text" value={newSupplier} onChange={e => setNewSupplier(e.target.value)}
+                        placeholder="Məs: Limasol, Baku Fish Co..."
+                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Vahid</label>
@@ -701,15 +738,88 @@ export default function StockPage() {
                         />
                       </div>
                     </div>
-                    <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Başlanğıc maya dəyəri / vahid (₼) — istəyə görə
-                      </label>
-                      <input type="number" min="0" step="0.0001" value={newCost}
-                        onChange={e => setNewCost(e.target.value)} placeholder="0.0000"
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
-                      />
+
+                    {/* Satınalma məlumatları — Alınan Miqdar + Ödənilən Məbləğ */}
+                    <div className="rounded-xl p-4 space-y-3"
+                      style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)' }}>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gold/60">Son Alış Fakturası</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                            Alınan Miqdar
+                          </label>
+                          <input type="number" min="0" step="1" value={newTotalQty}
+                            onChange={e => setNewTotalQty(e.target.value)}
+                            placeholder="Məs: 5000"
+                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+            Ümumi Məbləğ (₼)
+                          </label>
+                          <input type="number" min="0" step="0.01" value={newTotalAmount}
+                            onChange={e => setNewTotalAmount(e.target.value)}
+                            placeholder="Məs: 150"
+                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm font-bold"
+                          />
+                        </div>
+                      </div>
+                      {calculatedUnitCost !== null && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex items-center justify-between px-3 py-2 rounded-lg"
+                          style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.15)' }}
+                        >
+                          <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Vahid Maya Dəyəri</span>
+                          <span className="text-sm font-black text-gold tabular-nums">
+                            ₼{fmtCost(calculatedUnitCost)} / {UNIT_LABELS[newUnit]}
+                          </span>
+                        </motion.div>
+                      )}
                     </div>
+
+                    {/* İtki faizi */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                          İtki Faizi (%) <span className="text-white/20">— istəyə görə</span>
+                        </label>
+                        <input type="number" min="0" max="99" step="1" value={newWastePct}
+                          onChange={e => setNewWastePct(e.target.value)}
+                          placeholder="Məs: 10"
+                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                          Maya dəyəri / vahid (₼) <span className="text-white/20">— manual</span>
+                        </label>
+                        <input type="number" min="0" step="0.0001" value={newCost}
+                          onChange={e => setNewCost(e.target.value)} placeholder="0.0000"
+                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Effektiv maya dəyəri (itki daxil olmaqla) */}
+                    {parseFloat(newWastePct) > 0 && effectiveUnitCost > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center justify-between px-3 py-2 rounded-lg"
+                        style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}
+                      >
+                        <div>
+                          <span className="text-[10px] uppercase tracking-wider text-red-400/60 font-semibold">Effektiv Maya (itki daxil)</span>
+                          <p className="text-[9px] text-white/20">+{parseFloat(newWastePct)}% itki uyğunlaşdırması</p>
+                        </div>
+                        <span className="text-sm font-black text-red-400 tabular-nums">
+                          ₼{fmtCost(effectiveUnitCost)} / {UNIT_LABELS[newUnit]}
+                        </span>
+                      </motion.div>
+                    )}
                   </div>
 
                   <button onClick={handleNewIngredient} disabled={saving || !newName.trim()}

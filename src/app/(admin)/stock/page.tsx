@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+  import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Plus, TrendingDown, TrendingUp,
@@ -13,7 +13,7 @@ import type {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,
 } from '@/types/inventory';
-import { findWasteStandard } from '@/data/wasteStandards';
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -123,6 +123,7 @@ export default function StockPage() {
   const [showWasteCalc, setShowWasteCalc] = useState(false);
   const [calcRaw, setCalcRaw] = useState('');
   const [calcClean, setCalcClean] = useState('');
+  const [wasteStandards, setWasteStandards] = useState<any[]>([]);
 
   // Auto-calculated unit cost from total qty/amount
   const calculatedUnitCost = (() => {
@@ -154,6 +155,36 @@ export default function StockPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Waste standards - əvvəlcə cached datanı çək
+  useEffect(() => {
+    fetch('/api/inventory/waste-standards').then(r => r.ok && r.json()).then(d => { if (d) setWasteStandards(d); }).catch(() => {});
+  }, []);
+
+  // AI lookup debounce — istifadəçi yazmağı dayandırandan 800ms sonra AI soruş
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lookupWasteStandard = useCallback((name: string) => {
+    if (!name.trim()) return;
+    const lower = name.toLowerCase();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const cached = wasteStandards.find(s => s.keyword && lower.includes(s.keyword.toLowerCase()));
+      if (cached) return;
+      try {
+        const res = await fetch(`/api/inventory/waste-standards?q=${encodeURIComponent(lower)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setWasteStandards(prev => {
+              const exists = prev.find(s => s.keyword === data[0].keyword);
+              if (exists) return prev;
+              return [...prev, data[0]];
+            });
+          }
+        }
+      } catch {}
+    }, 800);
+  }, [wasteStandards]);
 
   const closeModal = () => {
     setModal({ mode: null });
@@ -811,26 +842,30 @@ export default function StockPage() {
                   <div className="space-y-3">
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Ad</label>
-                      <input type="text" value={newName} onChange={e => { setNewName(e.target.value); setShowWasteCalc(false); }}
+                      <input type="text" value={newName} onChange={e => { setNewName(e.target.value); setShowWasteCalc(false); lookupWasteStandard(e.target.value); }}
                         placeholder="Məs: Avokado" autoFocus
                         className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm font-semibold"
                       />
                       {(() => {
-                        const std = findWasteStandard(newName);
-                        if (!std || std.wastePercentage === undefined) return null;
+                        if (!newName.trim() || wasteStandards.length === 0) return null;
+                        const lower = newName.toLowerCase();
+                        const match = wasteStandards.find(s =>
+                          s.keyword && lower.includes(s.keyword.toLowerCase())
+                        );
+                        if (!match) return null;
                         return (
                           <motion.div
                             initial={{ opacity: 0, y: -4 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="mt-2 flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-all active:scale-[0.98]"
                             style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.15)' }}
-                            onClick={() => { setNewWastePct(String(std.wastePercentage)); }}
+                            onClick={() => { setNewWastePct(String(match.waste_percentage)); }}
                           >
                             <div className="flex items-center gap-2">
                               <Lightbulb size={12} className="text-gold" />
                               <span className="text-[10px] text-white/40">
-                                Standart itki: <span className="font-bold text-gold">{std.wastePercentage}%</span>
-                                <span className="text-white/20 ml-1">· {std.note}</span>
+                                Standart itki: <span className="font-bold text-gold">{match.waste_percentage}%</span>
+                                <span className="text-white/20 ml-1">· {match.note || ''}</span>
                               </span>
                             </div>
                             <span className="text-[9px] font-bold text-gold hover:text-white transition-colors">Tətbiq et →</span>

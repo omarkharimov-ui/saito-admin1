@@ -344,7 +344,61 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ═══════════════════════════════════════════════════════════════
--- 12. YOXLAMA
+-- 12. WASTE_STANDARDS — standart itki faizləri bazası
+--     Şefə avtomatik təklif göstərmək üçün, "Avokado → 12%"
+--     Admin panel vasitəsilə redaktə edilə bilər
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS waste_standards (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  keyword text NOT NULL UNIQUE,       -- axtarış açarı (azərbaycanca)
+  keyword_en text,                    -- ingiliscə axtarış üçün
+  waste_percentage numeric NOT NULL CHECK (waste_percentage >= 0 AND waste_percentage < 100),
+  note text,                          -- "Qabıq + çəyirdək"
+  category text,                      -- tərəvəz, meyvə, ət, balıq, süd...
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Seed data
+INSERT INTO waste_standards (keyword, keyword_en, waste_percentage, note, category) VALUES
+  ('avokado', 'avocado', 12, 'Qabıq + çəyirdək', 'meyvə'),
+  ('kartof', 'potato', 18, 'Qabıq + göz', 'tərəvəz'),
+  ('somon', 'salmon', 8, 'Dəri + sümük', 'balıq'),
+  ('ət', 'beef', 10, 'Pərdə + sümük', 'ət'),
+  ('mal', 'beef', 10, 'Pərdə + sümük', 'ət'),
+  ('quzu', 'lamb', 10, 'Pərdə + sümük', 'ət'),
+  ('dana', 'veal', 10, 'Pərdə + sümük', 'ət'),
+  ('toyuq', 'chicken', 12, 'Sümük + dəri', 'ət'),
+  ('balıq', 'fish', 15, 'Sümük + bağırsaq', 'balıq'),
+  ('soğan', 'onion', 5, 'Qabıq + kök', 'tərəvəz'),
+  ('bibər', 'pepper', 8, 'Toxum + sap', 'tərəvəz'),
+  ('pomidor', 'tomato', 3, 'Sap yeri', 'tərəvəz'),
+  ('xiyar', 'cucumber', 5, 'Qabıq (arzuolunan)', 'tərəvəz'),
+  ('limon', 'lemon', 40, 'Qabıq + toxum', 'meyvə'),
+  ('kələm', 'cabbage', 15, 'Xarici yarpaqlar + kök', 'tərəvəz'),
+  ('yumurta', 'egg', 0, 'Itkisiz (qabıq çəkiyə daxil deyil)', 'süd'),
+  ('un', 'flour', 0, 'Itkisiz', 'quru'),
+  ('şəkər', 'sugar', 0, 'Itkisiz', 'quru'),
+  ('yağ', 'butter', 0, 'Itkisiz (tam istifadə olunur)', 'yağ'),
+  ('pendir', 'cheese', 2, 'Qabıq (minimal)', 'süd'),
+  ('banan', 'banana', 30, 'Qabıq', 'meyvə'),
+  ('alma', 'apple', 8, 'Nüvə + sap', 'meyvə'),
+  ('çiyələk', 'strawberry', 5, 'Sap + yarpaq', 'meyvə'),
+  ('üzüm', 'grape', 3, 'Salxım sapı', 'meyvə'),
+  ('düyü', 'rice', 0, 'Itkisiz', 'quru'),
+  ('makaron', 'pasta', 0, 'Itkisiz', 'quru'),
+  ('çörək', 'bread', 5, 'Qabıq kənarları', 'quru'),
+  ('kök', 'carrot', 10, 'Qabıq + uc', 'tərəvəz'),
+  ('göbələk', 'mushroom', 5, 'Kök hissə', 'tərəvəz'),
+  ('qaymaq', 'cream', 0, 'Itkisiz', 'süd'),
+  ('süd', 'milk', 0, 'Itkisiz', 'süd'),
+  ('badımcan', 'eggplant', 5, 'Sap + qabıq', 'tərəvəz'),
+  ('qarpız', 'watermelon', 45, 'Qabıq + toxum', 'meyvə')
+ON CONFLICT (keyword) DO NOTHING;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 13. YOXLAMA
 -- ═══════════════════════════════════════════════════════════════
 
 SELECT 'migration v3 completed' AS status;

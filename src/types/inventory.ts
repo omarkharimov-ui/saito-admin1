@@ -11,10 +11,11 @@ export interface Ingredient {
   name: string;
   unit: IngredientUnit;
   current_stock: number;
+  theoretical_stock: number;
   critical_limit: number;
   average_cost_per_unit: number;
   purchase_price: number;
-  waste_percentage: number;
+  cold_waste_percentage: number;
   updated_at: string;
 }
 
@@ -23,6 +24,8 @@ export interface Recipe {
   menu_item_id: string;
   ingredient_id: string;
   quantity_required: number;
+  quantity_brutto?: number;
+  hot_waste_percentage?: number;
   is_ai_suggested?: boolean;
   recipe_header_id?: string;
 }
@@ -74,13 +77,15 @@ export interface CreateIngredientPayload {
   criticalLimit: number;
   averageCostPerUnit?: number;
   purchasePrice?: number;
-  wastePercentage?: number;
+  coldWastePercentage?: number;
 }
 
 export interface CreateRecipePayload {
   menuItemId: string;
   ingredientId: string;
   quantityRequired: number;
+  quantityBrutto?: number;
+  hotWastePercentage?: number;
 }
 
 // ── API responses ─────────────────────────────────────────────────────────────

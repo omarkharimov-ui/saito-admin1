@@ -1,33 +1,50 @@
 -- ═══════════════════════════════════════════════════════════════
--- SAITO ADMIN v2 — Maya Dəyəri + Resept + Stok Zənciri
--- Bu SQL-i Supabase SQL Editor-da run edin
+-- SAITO ADMIN v3 — WAC + Brutto/Netto + Theoretical Stock
 -- ═══════════════════════════════════════════════════════════════
 
 -- ═══════════════════════════════════════════════════════════════
--- 1. INGREDIENTS — yeni kolonkalar
+-- 1. INGREDIENTS — WAC + theoretical stock + cold waste
 -- ═══════════════════════════════════════════════════════════════
 
 ALTER TABLE ingredients
   ADD COLUMN IF NOT EXISTS purchase_price numeric DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS waste_percentage numeric DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS cold_waste_percentage numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS theoretical_stock numeric DEFAULT 0;
 
--- purchase_price = son alış qiyməti (vahid üçün)
--- waste_percentage = itki faizi (0-100). Əgər 10% itki varsa,
---   real maya dəyəri = purchase_price / (1 - waste_percentage/100)
+-- purchase_price = son alış sənədindəki vahid qiyməti
+-- average_cost_per_unit = BÜTÜN alışların çəkili ortalaması (WAC)
+-- cold_waste_percentage = soyuq itki (təmizləmə, kəsmə) — 0-100
+-- theoretical_stock = proqramın hesabladığı nəzəri qalıq
+-- current_stock = inventarizasiyadan sonra real qalıq
+
+-- Köhnə waste_percentage varsa, cold_waste_percentage-ə köçür
+UPDATE ingredients SET cold_waste_percentage = waste_percentage WHERE waste_percentage IS DISTINCT FROM 0 AND cold_waste_percentage = 0;
 
 -- ═══════════════════════════════════════════════════════════════
--- 2. PRODUCTS — maya dəyəri + qazanc kolonkaları
+-- 2. PRODUCTS — maya dəyəri + qazanc
 -- ═══════════════════════════════════════════════════════════════
 
 ALTER TABLE products
   ADD COLUMN IF NOT EXISTS cost_price numeric DEFAULT 0,
   ADD COLUMN IF NOT EXISTS profit_margin numeric DEFAULT 0;
 
--- cost_price = reseptdəki ingredient-lərin ümumi maya dəyəri
--- profit_margin = (price - cost_price) / price * 100
+-- ═══════════════════════════════════════════════════════════════
+-- 3. RECIPES — brutto/netto + isti itki
+-- ═══════════════════════════════════════════════════════════════
+
+ALTER TABLE recipes
+  ADD COLUMN IF NOT EXISTS quantity_brutto numeric,
+  ADD COLUMN IF NOT EXISTS hot_waste_percentage numeric DEFAULT 0;
+
+-- quantity_brutto = stokdan silinəcək miqdar (cold waste daxil olmaqla)
+-- quantity_required = netto (məhsulun içinə girən xalis miqdar)
+-- hot_waste_percentage = bişmə itkisi (0-100). Məs: ət 30% kiçilir
+
+-- quantity_brutto yoxdursa, quantity_required-a bərabər et
+UPDATE recipes SET quantity_brutto = quantity_required WHERE quantity_brutto IS NULL;
 
 -- ═══════════════════════════════════════════════════════════════
--- 3. RECIPE_HEADERS — resept başlıq cədvəli
+-- 4. RECIPE_HEADERS — resept başlıq cədvəli
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS recipe_headers (
@@ -38,41 +55,93 @@ CREATE TABLE IF NOT EXISTS recipe_headers (
   UNIQUE(menu_item_id)
 );
 
--- ═══════════════════════════════════════════════════════════════
--- 4. RECIPES cədvəlinə recipe_header_id FK əlavə et
--- ═══════════════════════════════════════════════════════════════
-
 ALTER TABLE recipes
   ADD COLUMN IF NOT EXISTS recipe_header_id uuid REFERENCES recipe_headers(id) ON DELETE CASCADE;
 
 -- ═══════════════════════════════════════════════════════════════
--- 5. VIEW: product_cost_summary — hər məhsulun maya dəyəri
+-- 5. WAC FUNKSİYASI: stock_in yazılanda average_cost_per_unit yenilə
+--    Formula: WAC = (old_qty * old_avg_cost + new_qty * new_price) / (old_qty + new_qty)
 -- ═══════════════════════════════════════════════════════════════
 
-CREATE OR REPLACE VIEW product_cost_summary AS
-SELECT
-  p.id AS product_id,
-  p.name_az AS product_name,
-  p.price AS sale_price,
-  COALESCE(
-    SUM(r.quantity_required * i.average_cost_per_unit),
-    0
-  ) AS calculated_cost,
-  CASE WHEN p.price > 0
-    THEN ROUND(
-      ((p.price - COALESCE(SUM(r.quantity_required * i.average_cost_per_unit), 0)) / p.price) * 100,
-      1
-    )
-    ELSE 0
-  END AS calculated_margin
-FROM products p
-LEFT JOIN recipes r ON r.menu_item_id = p.id AND r.is_ai_suggested = false
-LEFT JOIN ingredients i ON i.id = r.ingredient_id
-GROUP BY p.id, p.name_az, p.price;
+CREATE OR REPLACE FUNCTION apply_wac_on_stock_in()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_old_stock numeric;
+  v_old_avg_cost numeric;
+  v_wac numeric;
+BEGIN
+  -- Yalnız stock_in tipində işlə
+  IF NEW.type != 'stock_in' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Mövcud stoku və ortalama dəyəri oxu
+  SELECT COALESCE(current_stock, 0), COALESCE(average_cost_per_unit, 0)
+  INTO v_old_stock, v_old_avg_cost
+  FROM ingredients WHERE id = NEW.ingredient_id;
+
+  -- WAC = (köhnə miqdar × köhnə ortalama + təzə miqdar × təzə qiymət) / (köhnə + təzə)
+  IF (v_old_stock + NEW.quantity) > 0 THEN
+    v_wac := (v_old_stock * v_old_avg_cost + NEW.quantity * COALESCE(NEW.cost_per_unit, 0)) / (v_old_stock + NEW.quantity);
+  ELSE
+    v_wac := COALESCE(NEW.cost_per_unit, v_old_avg_cost);
+  END IF;
+
+  -- WAC-i yenilə — bu, trg_recalculate_costs trigger-ini işə salacaq
+  UPDATE ingredients
+  SET average_cost_per_unit = ROUND(v_wac, 6),
+      purchase_price = COALESCE(NEW.cost_per_unit, purchase_price),
+      updated_at = now()
+  WHERE id = NEW.ingredient_id;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_wac_on_stock_in ON inventory_logs;
+CREATE TRIGGER trg_wac_on_stock_in
+  AFTER INSERT ON inventory_logs
+  FOR EACH ROW
+  WHEN (NEW.type = 'stock_in')
+  EXECUTE FUNCTION apply_wac_on_stock_in();
 
 -- ═══════════════════════════════════════════════════════════════
--- 6. FUNKSİYA: Maya dəyərini avtomatik yenilə (cost cascade)
---    Ingredient qiyməti dəyişəndə çağırılır
+-- 6. THEORETICAL STOCK: order_consumption yazılanda theoretical_stock-u yenilə
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION update_theoretical_stock()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_delta numeric;
+BEGIN
+  IF NEW.type = 'stock_in' THEN
+    v_delta := NEW.quantity;
+  ELSIF NEW.type IN ('waste', 'order_consumption') THEN
+    v_delta := -NEW.quantity;
+  ELSIF NEW.type = 'adjustment' THEN
+    v_delta := NEW.quantity;
+  ELSE
+    v_delta := 0;
+  END IF;
+
+  UPDATE ingredients
+  SET theoretical_stock = GREATEST(0, COALESCE(theoretical_stock, 0) + v_delta),
+      updated_at = now()
+  WHERE id = NEW.ingredient_id;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_theoretical_stock ON inventory_logs;
+CREATE TRIGGER trg_theoretical_stock
+  AFTER INSERT ON inventory_logs
+  FOR EACH ROW
+  EXECUTE FUNCTION update_theoretical_stock();
+
+-- ═══════════════════════════════════════════════════════════════
+-- 7. COST CASCADE: average_cost_per_unit dəyişəndə bütün məhsulları yenilə
+--    quantity_brutto istifadə olunur (cold waste daxil)
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION recalculate_product_costs()
@@ -82,30 +151,28 @@ DECLARE
   v_total_cost numeric;
   v_margin numeric;
 BEGIN
-  -- Bu ingredient-i istifadə edən bütün reseptləri tap
   FOR v_product IN
     SELECT DISTINCT p.id, p.price
     FROM products p
     JOIN recipes r ON r.menu_item_id = p.id
     WHERE r.ingredient_id = NEW.id AND r.is_ai_suggested = false
   LOOP
-    -- Ümumi maya dəyərini hesabla
-    SELECT COALESCE(SUM(r2.quantity_required * i2.average_cost_per_unit), 0)
+    -- Maya dəyəri = Σ(quantity_brutto × average_cost_per_unit)
+    -- quantity_brutto cold waste-i əhatə edir
+    SELECT COALESCE(SUM(COALESCE(r2.quantity_brutto, r2.quantity_required) * i2.average_cost_per_unit), 0)
     INTO v_total_cost
     FROM recipes r2
     JOIN ingredients i2 ON i2.id = r2.ingredient_id
     WHERE r2.menu_item_id = v_product.id AND r2.is_ai_suggested = false;
 
-    -- Profit margin
     IF v_product.price > 0 THEN
       v_margin := ((v_product.price - v_total_cost) / v_product.price) * 100;
     ELSE
       v_margin := 0;
     END IF;
 
-    -- Yenilə
     UPDATE products
-    SET cost_price = v_total_cost,
+    SET cost_price = ROUND(v_total_cost, 2),
         profit_margin = ROUND(v_margin, 1)
     WHERE id = v_product.id;
   END LOOP;
@@ -122,7 +189,7 @@ CREATE TRIGGER trg_recalculate_costs
   EXECUTE FUNCTION recalculate_product_costs();
 
 -- ═══════════════════════════════════════════════════════════════
--- 7. TRIGGER: Resept əlavə/sil/dəyişdiriləndə də maya dəyəri yenilənsin
+-- 8. TRIGGER: Resept dəyişəndə maya dəyərini yenilə (brutto əsasında)
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION recalculate_cost_for_recipe()
@@ -133,33 +200,29 @@ DECLARE
   v_price numeric;
   v_margin numeric;
 BEGIN
-  -- menu_item_id-ni tap
   IF TG_OP = 'DELETE' THEN
     v_product_id := OLD.menu_item_id;
   ELSE
     v_product_id := NEW.menu_item_id;
   END IF;
 
-  -- Məhsulun qiymətini oxu
   SELECT price INTO v_price FROM products WHERE id = v_product_id;
 
-  -- Ümumi maya dəyəri hesabla
-  SELECT COALESCE(SUM(r.quantity_required * i.average_cost_per_unit), 0)
+  -- quantity_brutto istifadə et (cold waste daxil)
+  SELECT COALESCE(SUM(COALESCE(r.quantity_brutto, r.quantity_required) * i.average_cost_per_unit), 0)
   INTO v_total_cost
   FROM recipes r
   JOIN ingredients i ON i.id = r.ingredient_id
   WHERE r.menu_item_id = v_product_id AND r.is_ai_suggested = false;
 
-  -- Margin
   IF v_price > 0 THEN
     v_margin := ((v_price - v_total_cost) / v_price) * 100;
   ELSE
     v_margin := 0;
   END IF;
 
-  -- Yenilə
   UPDATE products
-  SET cost_price = v_total_cost,
+  SET cost_price = ROUND(v_total_cost, 2),
       profit_margin = ROUND(v_margin, 1)
   WHERE id = v_product_id;
 
@@ -174,7 +237,7 @@ CREATE TRIGGER trg_recipe_cost_change
   EXECUTE FUNCTION recalculate_cost_for_recipe();
 
 -- ═══════════════════════════════════════════════════════════════
--- 8. INVENTORY_STATUS VIEW-I YENIDƏN YARAT (yeni kolonkalar daxil olsun)
+-- 9. INVENTORY_STATUS VIEW (theoretical_stock daxil)
 -- ═══════════════════════════════════════════════════════════════
 
 DROP VIEW IF EXISTS inventory_status;
@@ -184,11 +247,12 @@ SELECT
   i.name,
   i.unit,
   i.current_stock,
+  i.theoretical_stock,
   i.critical_limit,
   i.average_cost_per_unit,
-  i.updated_at,
   i.purchase_price,
-  i.waste_percentage,
+  i.cold_waste_percentage,
+  i.updated_at,
   CASE
     WHEN i.current_stock <= 0 THEN 'out_of_stock'
     WHEN i.current_stock <= i.critical_limit THEN 'critical'
@@ -210,7 +274,77 @@ SELECT
 FROM ingredients i;
 
 -- ═══════════════════════════════════════════════════════════════
--- 9. YOXLAMA
+-- 10. PRODUCT_COST_SUMMARY VIEW (brutto əsaslı)
 -- ═══════════════════════════════════════════════════════════════
 
-SELECT 'migration v2 completed' AS status;
+DROP VIEW IF EXISTS product_cost_summary;
+CREATE VIEW product_cost_summary AS
+SELECT
+  p.id AS product_id,
+  p.name_az AS product_name,
+  p.price AS sale_price,
+  COALESCE(
+    SUM(COALESCE(r.quantity_brutto, r.quantity_required) * i.average_cost_per_unit),
+    0
+  ) AS calculated_cost,
+  CASE WHEN p.price > 0
+    THEN ROUND(
+      ((p.price - COALESCE(SUM(COALESCE(r.quantity_brutto, r.quantity_required) * i.average_cost_per_unit), 0)) / p.price) * 100,
+      1
+    )
+    ELSE 0
+  END AS calculated_margin
+FROM products p
+LEFT JOIN recipes r ON r.menu_item_id = p.id AND r.is_ai_suggested = false
+LEFT JOIN ingredients i ON i.id = r.ingredient_id
+GROUP BY p.id, p.name_az, p.price;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 11. STOCK AUDIT FUNKSİYASI: inventarizasiya
+--     current_stock-u yeniləyir, fərqi adjustment kimi log-a yazır
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION perform_stock_audit(
+  p_ingredient_id uuid,
+  p_actual_qty numeric
+) RETURNS json AS $$
+DECLARE
+  v_theoretical numeric;
+  v_diff numeric;
+  v_avg_cost numeric;
+BEGIN
+  SELECT theoretical_stock, average_cost_per_unit
+  INTO v_theoretical, v_avg_cost
+  FROM ingredients WHERE id = p_ingredient_id;
+
+  v_diff := p_actual_qty - COALESCE(v_theoretical, 0);
+
+  -- Fərq varsa adjustment log yaz
+  IF v_diff != 0 THEN
+    INSERT INTO inventory_logs (ingredient_id, type, quantity, cost_per_unit, reason)
+    VALUES (p_ingredient_id, 'adjustment', v_diff, v_avg_cost, 'İnventarizasiya uyğunsuzluğu');
+  END IF;
+
+  -- Real stoku yenilə (trigger avtomatik current_stock-u artıracaq/azaldacaq)
+  -- current_stock-u birbaşa yeniləyirik (trigger log-dan asılı deyil)
+  UPDATE ingredients
+  SET current_stock = GREATEST(0, p_actual_qty),
+      theoretical_stock = GREATEST(0, p_actual_qty),
+      updated_at = now()
+  WHERE id = p_ingredient_id;
+
+  RETURN json_build_object(
+    'ingredient_id', p_ingredient_id,
+    'theoretical_before', v_theoretical,
+    'actual', p_actual_qty,
+    'difference', v_diff,
+    'adjustment_cost', ROUND(ABS(v_diff) * v_avg_cost, 2)
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 12. YOXLAMA
+-- ═══════════════════════════════════════════════════════════════
+
+SELECT 'migration v3 completed' AS status;

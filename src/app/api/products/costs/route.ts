@@ -42,13 +42,14 @@ export async function POST() {
     for (const product of products) {
       const { data: recipeIngredients } = await supabase
         .from('recipes')
-        .select('quantity_required, ingredient:ingredients(average_cost_per_unit)')
+        .select('quantity_required, quantity_brutto, ingredient:ingredients(average_cost_per_unit)')
         .eq('menu_item_id', product.id)
         .eq('is_ai_suggested', false);
 
       const totalCost = (recipeIngredients || []).reduce((sum, r) => {
         const ing = Array.isArray(r.ingredient) ? r.ingredient[0] : r.ingredient;
-        return sum + (r.quantity_required || 0) * (ing?.average_cost_per_unit || 0);
+        const qty = r.quantity_brutto ?? r.quantity_required ?? 0;
+        return sum + qty * (ing?.average_cost_per_unit || 0);
       }, 0);
 
       const margin = product.price > 0 ? ((product.price - totalCost) / product.price) * 100 : 0;

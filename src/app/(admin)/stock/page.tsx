@@ -93,7 +93,7 @@ function StockBar({ ratio, status }: { ratio: number; status: string }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | null;
+type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | 'audit' | null;
 interface ActiveModal { mode: ModalMode; row?: InventoryStatusRow }
 
 export default function StockPage() {
@@ -117,6 +117,7 @@ export default function StockPage() {
   const [newTotalAmount, setNewTotalAmount] = useState('');
   const [newWastePct, setNewWastePct] = useState('');
   const [newSupplier, setNewSupplier] = useState('');
+  const [auditQty, setAuditQty] = useState('');
 
   // Auto-calculated unit cost from total qty/amount
   const calculatedUnitCost = (() => {
@@ -154,6 +155,7 @@ export default function StockPage() {
     setQty(''); setCost(''); setReason('');
     setNewName(''); setNewUnit('gram'); setNewLimit('500'); setNewCost('');
     setNewTotalQty(''); setNewTotalAmount(''); setNewWastePct(''); setNewSupplier('');
+    setAuditQty('');
   };
 
   // ── Stock In ────────────────────────────────────────────────────────────
@@ -210,6 +212,34 @@ export default function StockPage() {
     }
   };
 
+  // ── Stock Audit ─────────────────────────────────────────────────────────
+  const handleAudit = async () => {
+    if (!modal.row || !auditQty.trim()) return;
+    const numQty = parseFloat(auditQty);
+    if (isNaN(numQty) || numQty < 0) { toast.error('Düzgün miqdar daxil edin', { style: toastStyle }); return; }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/inventory/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredientId: modal.row.id, actualQty: numQty }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const result = await res.json();
+      const diffSign = result.difference >= 0 ? '+' : '';
+      toast.success(
+        `${modal.row.name} — inventarizasiya tamamlandı · fərq: ${diffSign}${Number(result.difference).toFixed(2)} ₼${Number(result.adjustment_cost).toFixed(2)}`,
+        { style: toastStyle, duration: 4000 }
+      );
+      closeModal();
+      fetchData(true);
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ── New Ingredient ──────────────────────────────────────────────────────
   const handleNewIngredient = async () => {
     if (!newName.trim()) { toast.error('Ad daxil edin', { style: toastStyle }); return; }
@@ -225,7 +255,7 @@ export default function StockPage() {
           criticalLimit: parseFloat(newLimit) || 500,
           averageCostPerUnit: effectiveCost,
           purchasePrice: unitCost,
-          wastePercentage: parseFloat(newWastePct) || 0,
+          coldWastePercentage: parseFloat(newWastePct) || 0,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -445,7 +475,7 @@ export default function StockPage() {
                         </div>
                         <p className="text-[10px] text-white/20 mt-1">
                           {UNIT_LABELS[row.unit]} · alış: ₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]}
-                          {(row as any).waste_percentage > 0 && <span className="text-red-400/40 ml-1.5">· itki: {row.waste_percentage}%</span>}
+                          {(row as any).cold_waste_percentage > 0 && <span className="text-red-400/40 ml-1.5">· itki: {row.cold_waste_percentage}%</span>}
                         </p>
                       </div>
                     </div>
@@ -489,6 +519,14 @@ export default function StockPage() {
                         style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', color: '#fca5a5' }}
                       >
                         <TrendingDown size={12} /> İtki
+                      </button>
+                      <button
+                        onClick={() => setModal({ mode: 'audit', row })}
+                        title="İnventarizasiya"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:brightness-115 active:scale-95"
+                        style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.18)', color: '#D4AF37' }}
+                      >
+                        <RefreshCw size={12} /> Audit
                       </button>
                       <button
                         onClick={() => handleDelete(row.id, row.name)}
@@ -537,6 +575,13 @@ export default function StockPage() {
                           style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', color: '#fca5a5' }}
                         >
                           <TrendingDown size={12} />
+                        </button>
+                        <button
+                          onClick={() => setModal({ mode: 'audit', row })}
+                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold"
+                          style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.18)', color: '#D4AF37' }}
+                        >
+                          <RefreshCw size={12} />
                         </button>
                         <button onClick={() => handleDelete(row.id, row.name)}
                           className="p-1.5 rounded-xl text-white/15 hover:text-red-400 transition-colors">
@@ -680,6 +725,64 @@ export default function StockPage() {
                     style={{ background: 'linear-gradient(135deg,#7f1d1d,#991b1b)', color: '#fff', border: '1px solid rgba(239,68,68,0.3)' }}
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <><TrendingDown size={15} /> İtki Qeyd Et</>}
+                  </button>
+                </div>
+              )}
+
+              {/* ── AUDIT ── */}
+              {modal.mode === 'audit' && modal.row && (
+                <div className="p-6 space-y-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
+                        style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
+                        <RefreshCw size={10} /> İnventarizasiya
+                      </span>
+                      <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
+                      <p className="text-white/30 text-xs mt-0.5 space-y-0.5">
+                        <span>Cari (sistem): <span className="font-semibold text-white/60">
+                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row.unit]}
+                        </span></span>
+                        <br />
+                        <span>Nəzəri: <span className="font-semibold text-white/60">
+                          {fmt(modal.row.theoretical_stock, 1)} {UNIT_LABELS[modal.row.unit]}
+                        </span></span>
+                      </p>
+                    </div>
+                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="rounded-xl p-4"
+                    style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)' }}>
+                    <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold mb-0.5">Real Faktiki Stok</p>
+                    <p className="text-[10px] text-white/20 mb-3">Fiziki olaraq hazırda anbarda olan miqdarı daxil edin. Sistem nəzəri stoku bu dəyərlə əvəzləyəcək və fərqi adjustment kimi qeydə alacaq.</p>
+                    <input type="number" min="0" step="0.001" value={auditQty}
+                      onChange={e => setAuditQty(e.target.value)} placeholder="0.000" autoFocus
+                      className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-base font-bold"
+                    />
+                    {auditQty.trim() && !isNaN(parseFloat(auditQty)) && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-3 flex items-center justify-between px-3 py-2 rounded-lg"
+                        style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.12)' }}
+                      >
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Gözlənilən Fərq</span>
+                        <span className={`text-sm font-black tabular-nums ${(parseFloat(auditQty) - modal.row.current_stock) !== 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {(parseFloat(auditQty) - modal.row.current_stock) > 0 ? '+' : ''}
+                          {(parseFloat(auditQty) - modal.row.current_stock).toFixed(2)} {UNIT_LABELS[modal.row.unit]}
+                        </span>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  <button onClick={handleAudit} disabled={saving || !auditQty.trim()}
+                    className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
+                    style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
+                  >
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <><RefreshCw size={15} /> Təsdiq Et</>}
                   </button>
                 </div>
               )}

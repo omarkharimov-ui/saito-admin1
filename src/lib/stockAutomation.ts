@@ -70,7 +70,7 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
   if (recipeProductIds.length > 0) {
     const { data: recipes } = await supabase
       .from('recipes')
-      .select('menu_item_id, ingredient_id, quantity_required')
+      .select('menu_item_id, ingredient_id, quantity_required, quantity_brutto')
       .in('menu_item_id', recipeProductIds);
 
     if (recipes && recipes.length > 0) {
@@ -80,7 +80,7 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
 
         const itemRecipes = recipes.filter(r => r.menu_item_id === item.product_id);
         for (const rec of itemRecipes) {
-          const deductQty = Number(rec.quantity_required) * (Number(item.quantity) || 1);
+          const deductQty = (rec.quantity_brutto ?? rec.quantity_required) * (Number(item.quantity) || 1);
           logs.push({
             ingredient_id: rec.ingredient_id,
             type: 'order_consumption',

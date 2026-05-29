@@ -384,6 +384,16 @@ export function ProductTable({
                                     ) : (
                                       <span className="font-black text-[15px] tracking-wide text-white/70">₼{product.price}</span>
                                     )}
+                                    {(product.cost_price ?? 0) > 0 && (
+                                      <span className={`text-[10px] font-medium mt-0.5 tabular-nums ${
+                                        (product.profit_margin ?? 0) > 40 ? 'text-emerald-400/60' :
+                                        (product.profit_margin ?? 0) > 20 ? 'text-gold/50' :
+                                        (product.profit_margin ?? 0) > 0 ? 'text-amber-400/50' :
+                                        'text-red-400/50'
+                                      }`}>
+                                        maya: ₼{Number(product.cost_price).toFixed(2)} · {(product.profit_margin ?? 0) >= 0 ? '+' : ''}{(product.profit_margin ?? 0).toFixed(1)}%
+                                      </span>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="px-6 py-3.5 min-w-[90px]">
@@ -542,6 +552,16 @@ export function ProductTable({
                                           </>
                                         ) : (
                                           <p className="text-[15px] font-black text-gold leading-none">₼{product.price}</p>
+                                        )}
+                                        {(product.cost_price ?? 0) > 0 && (
+                                          <p className={`text-[9px] font-medium mt-0.5 tabular-nums ${
+                                            (product.profit_margin ?? 0) > 40 ? 'text-emerald-400/60' :
+                                            (product.profit_margin ?? 0) > 20 ? 'text-gold/50' :
+                                            (product.profit_margin ?? 0) > 0 ? 'text-amber-400/50' :
+                                            'text-red-400/50'
+                                          }`}>
+                                            ₼{Number(product.cost_price).toFixed(2)} · {(product.profit_margin ?? 0) >= 0 ? '+' : ''}{(product.profit_margin ?? 0).toFixed(1)}%
+                                          </p>
                                         )}
                                       </div>
                                     </div>

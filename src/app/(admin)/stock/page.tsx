@@ -6,12 +6,14 @@ import {
   Package, Plus, TrendingDown, TrendingUp,
   Trash2, X, Loader2, FlaskConical, RefreshCw,
   DollarSign, ShieldAlert, CheckCircle2, Search,
+  Calculator, Lightbulb, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import type {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,
 } from '@/types/inventory';
+import { findWasteStandard } from '@/data/wasteStandards';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -118,6 +120,9 @@ export default function StockPage() {
   const [newWastePct, setNewWastePct] = useState('');
   const [newSupplier, setNewSupplier] = useState('');
   const [auditQty, setAuditQty] = useState('');
+  const [showWasteCalc, setShowWasteCalc] = useState(false);
+  const [calcRaw, setCalcRaw] = useState('');
+  const [calcClean, setCalcClean] = useState('');
 
   // Auto-calculated unit cost from total qty/amount
   const calculatedUnitCost = (() => {
@@ -155,7 +160,7 @@ export default function StockPage() {
     setQty(''); setCost(''); setReason('');
     setNewName(''); setNewUnit('gram'); setNewLimit('500'); setNewCost('');
     setNewTotalQty(''); setNewTotalAmount(''); setNewWastePct(''); setNewSupplier('');
-    setAuditQty('');
+    setAuditQty(''); setShowWasteCalc(false); setCalcRaw(''); setCalcClean('');
   };
 
   // ── Stock In ────────────────────────────────────────────────────────────
@@ -806,10 +811,32 @@ export default function StockPage() {
                   <div className="space-y-3">
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Ad</label>
-                      <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-                        placeholder="Məs: Somon filesi" autoFocus
+                      <input type="text" value={newName} onChange={e => { setNewName(e.target.value); setShowWasteCalc(false); }}
+                        placeholder="Məs: Avokado" autoFocus
                         className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm font-semibold"
                       />
+                      {(() => {
+                        const std = findWasteStandard(newName);
+                        if (!std || std.wastePercentage === undefined) return null;
+                        return (
+                          <motion.div
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-2 flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-all active:scale-[0.98]"
+                            style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.15)' }}
+                            onClick={() => { setNewWastePct(String(std.wastePercentage)); }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Lightbulb size={12} className="text-gold" />
+                              <span className="text-[10px] text-white/40">
+                                Standart itki: <span className="font-bold text-gold">{std.wastePercentage}%</span>
+                                <span className="text-white/20 ml-1">· {std.note}</span>
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-bold text-gold hover:text-white transition-colors">Tətbiq et →</span>
+                          </motion.div>
+                        );
+                      })()}
                     </div>
 
                     <div>
@@ -923,6 +950,81 @@ export default function StockPage() {
                         </span>
                       </motion.div>
                     )}
+
+                    {/* İtki kalkulyatoru */}
+                    <div>
+                      <button
+                        onClick={() => setShowWasteCalc(!showWasteCalc)}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all active:scale-[0.99]"
+                        style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.1)' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Calculator size={12} className="text-gold/60" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gold/60">
+                            {showWasteCalc ? 'Kalkulyatoru bağla' : '🧮 İtki Kalkulyatoru'}
+                          </span>
+                        </div>
+                        {showWasteCalc ? <ChevronUp size={12} className="text-gold/40" /> : <ChevronDown size={12} className="text-gold/40" />}
+                      </button>
+
+                      <AnimatePresence>
+                        {showWasteCalc && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-2 p-3 rounded-xl space-y-2"
+                              style={{ background: 'rgba(212,175,55,0.03)', border: '1px solid rgba(212,175,55,0.08)' }}
+                            >
+                              <p className="text-[9px] text-white/25 leading-relaxed">
+                                Sınaq bişirilməsi: götürdüyünüz çəki və təmizləndikdən sonra qalan çəkini daxil edin, proqram itki faizini avtomatik hesablasın.
+                              </p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[8px] text-white/30 uppercase tracking-wider block mb-1">Götürülən (qr)</label>
+                                  <input type="number" min="0" step="1" value={calcRaw}
+                                    onChange={e => setCalcRaw(e.target.value)} placeholder="1000"
+                                    className="w-full px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.07] outline-none focus:border-gold/30 transition-colors text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[8px] text-white/30 uppercase tracking-wider block mb-1">Təmiz qalan (qr)</label>
+                                  <input type="number" min="0" step="1" value={calcClean}
+                                    onChange={e => setCalcClean(e.target.value)} placeholder="880"
+                                    className="w-full px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.07] outline-none focus:border-gold/30 transition-colors text-sm"
+                                  />
+                                </div>
+                              </div>
+                              {calcRaw && calcClean && !isNaN(parseFloat(calcRaw)) && !isNaN(parseFloat(calcClean)) && parseFloat(calcRaw) > 0 && (() => {
+                                const pct = ((parseFloat(calcRaw) - parseFloat(calcClean)) / parseFloat(calcRaw)) * 100;
+                                return (
+                                  <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="flex items-center justify-between px-3 py-2 rounded-lg"
+                                    style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.12)' }}
+                                  >
+                                    <span className="text-[9px] text-white/40">Hesablanmış itki faizi</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-black text-gold tabular-nums">{pct.toFixed(1)}%</span>
+                                      <button
+                                        onClick={() => { setNewWastePct(pct.toFixed(0)); setShowWasteCalc(false); }}
+                                        className="text-[9px] font-bold px-2 py-1 rounded-lg transition-all active:scale-95"
+                                        style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37' }}
+                                      >
+                                        Tətbiq et
+                                      </button>
+                                    </div>
+                                  </motion.div>
+                                );
+                              })()}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
 
                   <button onClick={handleNewIngredient} disabled={saving || !newName.trim()}

@@ -9,7 +9,7 @@ import {
   Calculator, Lightbulb, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import type {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,
@@ -496,8 +496,6 @@ export default function StockPage() {
 
   return (
     <div className="min-h-screen bg-[#080808] text-white pb-20">
-      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
-
       {/* ── Ambient background ── */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"

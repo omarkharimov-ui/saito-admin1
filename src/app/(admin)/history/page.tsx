@@ -104,7 +104,7 @@ export default function HistoryPage() {
       let r = events;
       if (filter !== 'all') r = r.filter(e => e.type === filter);
       const q = n(search).trim();
-      if (q) r = r.filter(e => n(e.entityName).includes(q) || n(e.label).includes(q) || n(e.detail).includes(q));
+      if (q) r = r.filter(e => n(e.entityName).includes(q) || n(e.label).includes(q) || n(e.detail).includes(q) || n(e.quantity).includes(q));
       return r;
     } catch { return events; }
   }, [events, filter, search]);
@@ -133,7 +133,9 @@ export default function HistoryPage() {
             </div>
             <div>
               <h1 className="text-lg sm:text-xl font-bold tracking-tight">Tarixçə</h1>
-              <p className="text-[11px] text-white/25">Stok, sifariş və resept hadisələri</p>
+              <p className="text-[11px] text-white/25">
+                {events.length > 0 ? `${events.length} hadisə` : 'Stok, sifariş və resept hadisələri'}
+              </p>
             </div>
           </div>
         </div>

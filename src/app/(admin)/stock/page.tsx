@@ -500,7 +500,7 @@ export default function StockPage() {
             <div
               className="hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-white/20"
               style={{
-                gridTemplateColumns: '1fr 140px 120px 130px 180px',
+                gridTemplateColumns: '1fr 140px 120px 140px 190px',
                 background: 'rgba(255,255,255,0.018)',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
               }}
@@ -526,7 +526,7 @@ export default function StockPage() {
                   {/* Desktop row */}
                   <div
                     className="hidden lg:grid gap-4 items-center"
-                    style={{ gridTemplateColumns: '1fr 140px 120px 130px 180px' }}
+                    style={{ gridTemplateColumns: '1fr 140px 120px 140px 190px' }}
                   >
                     {/* Name + bar */}
                     <div className="flex items-center gap-3 min-w-0">

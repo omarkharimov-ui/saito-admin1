@@ -114,7 +114,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
     let qty = nettoQty;
     if (cold > 0) qty = qty / (1 - cold);
     if (hot > 0) qty = qty / (1 - hot);
-    return Math.round(qty * 100) / 100;
+    return Math.round(qty);
   }
 
   const addRow = () => {
@@ -320,7 +320,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                                 <span className="text-[9px] text-white/25 w-10">netto</span>
                                 <input
                                   type="number" min="0" step="0.01"
-                                  value={row.quantity_brutto ? row.quantity_brutto.toFixed(1) : ''}
+                                  value={row.quantity_brutto || ''}
                                   placeholder="Brutto"
                                   className="w-20 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white/60 placeholder:text-white/20 outline-none focus:border-amber-400/30 text-right tabular-nums"
                                   readOnly
@@ -341,7 +341,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                               </div>
                               {coldPct > 0 && row.quantity > 0 && (
                                 <p className="text-[9px] text-red-400/40 ml-1">
-                                  soyuq itki {coldPct}% · brutto {row.quantity_brutto.toFixed(1)} {row.unit}
+                                  soyuq itki {coldPct}% · brutto {row.quantity_brutto} {row.unit}
                                 </p>
                               )}
                             </div>
@@ -391,7 +391,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
                       <div className="space-y-1 pt-1">
                         {rows.filter(r => r.ingredient_id && r.cost > 0).map((r, idx) => {
-                          const diff = r.quantity_brutto - r.quantity;
+                          const diff = Math.round(r.quantity_brutto - r.quantity);
                           return (
                             <div key={idx} className="text-[10px] text-white/30">
                               <div className="flex items-center justify-between">
@@ -400,7 +400,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                               </div>
                               <p className="text-[8px] text-white/15">
                                 netto {r.quantity} {r.unit}
-                                {diff > 0 && ` → brutto ${r.quantity_brutto.toFixed(1)} ${r.unit} (+${diff.toFixed(1)} itki)`}
+                                {diff > 0 && ` → brutto ${r.quantity_brutto} ${r.unit} (+${diff} itki)`}
                                 {r.hot_waste_percentage > 0 && ` · bişmə itkisi ${r.hot_waste_percentage}%`}
                               </p>
                             </div>

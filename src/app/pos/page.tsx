@@ -2,11 +2,15 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
 import { deductStockForOrder } from '@/lib/stockAutomation';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { LanguageProvider, useLanguage } from '@/lib/i18n/LanguageContext';
 import { ThemeProvider } from '@/lib/theme/ThemeContext';
-import { Search, ShoppingBag, Plus, Minus, Send, CreditCard, X, Loader2, CheckCircle2, Printer, ImageOff, Utensils } from 'lucide-react';
+import {
+  Search, ShoppingBag, Plus, Minus, Send, CreditCard, X, Loader2, CheckCircle2,
+  Printer, ImageOff, Utensils, Banknote, Percent, Users,
+} from 'lucide-react';
 
 /* ─── Types ─── */
 interface Product { id: string; name: string; name_az?: string; name_en?: string; name_ru?: string; price: number; image_url: string | null; is_ready_product?: boolean; direct_ingredient_id?: string | null; category_id?: string | null; }
@@ -26,8 +30,9 @@ function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: nu
   const name = language === 'en' ? (p as any).name_en || p.name : language === 'ru' ? (p as any).name_ru || p.name : (p as any).name_az || p.name;
   const showImg = !!p.image_url && p.image_url.trim().length > 0 && !imgErr;
   return (
-    <button onClick={stock ? onAdd : undefined}
-      className={`relative rounded-2xl p-3 text-left border ${stock ? 'bg-white/[0.04] border-white/[0.08] active:bg-white/[0.1]' : 'opacity-30 border-white/[0.03]'}`}
+    <motion.button layout initial={false} whileHover={stock ? { y: -2 } : undefined} whileTap={stock ? { scale: 0.96 } : undefined}
+      onClick={stock ? onAdd : undefined}
+      className={`relative rounded-2xl p-3 text-left border ${stock ? 'bg-white/[0.04] border-white/[0.08]' : 'opacity-30 border-white/[0.03]'}`}
     >
       <div className="aspect-square rounded-xl bg-white/[0.03] mb-2 flex items-center justify-center overflow-hidden">
         {showImg
@@ -39,7 +44,162 @@ function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: nu
       <p className="text-xs font-black text-gold">₼{fmt(p.price)}</p>
       {!stock && <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center"><span className="text-[10px] font-bold text-white/70 bg-black/70 px-2 py-1 rounded-lg">Bitib</span></div>}
       {cart > 0 && <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold text-black text-[10px] font-black flex items-center justify-center">{cart}</span>}
-    </button>
+    </motion.button>
+  );
+}
+
+/* ─── Checkout panel ─── */
+function CheckoutPanel({ order, onClose, onConfirm, busy }: {
+  order: OrderData; onClose: () => void; onConfirm: (p: { method: string; discountType: string; discountValue: number; splitCount: number }) => void; busy: boolean;
+}) {
+  const { t } = useLanguage();
+  const [method, setMethod] = useState<'cash' | 'card'>('card');
+  const [discountType, setDiscountType] = useState<'none' | 'percent' | 'amount'>('none');
+  const [discountVal, setDiscountVal] = useState(0);
+  const [split, setSplit] = useState(1);
+
+  const baseTotal = order.total_amount || 0;
+  const discountAmount = discountType === 'percent' ? baseTotal * (Math.min(discountVal, 100) / 100) : discountType === 'amount' ? Math.min(discountVal, baseTotal) : 0;
+  const finalTotal = baseTotal - discountAmount;
+  const perPerson = split > 1 ? finalTotal / split : finalTotal;
+
+  const items = order.order_items || [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 27 }}
+        className="bg-[#111] border border-white/[0.08] rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 pt-6 pb-3">
+          <h2 className="text-lg font-bold text-white">Masa {order.table_number}</h2>
+          <button onClick={onClose} className="text-white/20 hover:text-white/60"><X size={18} /></button>
+        </div>
+
+        {/* Items summary */}
+        <div className="px-6 space-y-1.5 mb-4">
+          {items.slice(0, 8).map(i => (
+            <div key={i.id} className="flex items-center justify-between text-sm">
+              <span className="text-white/60">{i.quantity}x {i.product_name}</span>
+              <span className="text-white/80 font-semibold">₼{fmt(i.total_price || 0)}</span>
+            </div>
+          ))}
+          {items.length > 8 && <p className="text-[10px] text-white/20">+{items.length - 8} daha</p>}
+          <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between text-sm font-bold text-white">
+            <span>Ara cəmi</span>
+            <span>₼{fmt(baseTotal)}</span>
+          </div>
+        </div>
+
+        {/* Discount */}
+        <div className="px-6 mb-4">
+          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">Endirim</label>
+          <div className="flex gap-1.5 mb-2">
+            {(['none', 'percent', 'amount'] as const).map(t => (
+              <button key={t} onClick={() => { setDiscountType(t); setDiscountVal(0); }}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-bold ${discountType === t ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
+              >{t === 'none' ? 'Yox' : t === 'percent' ? '%' : '₼'}</button>
+            ))}
+          </div>
+          {discountType !== 'none' && (
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 text-xs">{discountType === 'percent' ? '%' : '₼'}</span>
+              <input type="number" min={0} max={discountType === 'percent' ? 100 : baseTotal} value={discountVal} onChange={e => setDiscountVal(Number(e.target.value))}
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-8 pr-3 py-2 text-sm text-white outline-none" />
+            </div>
+          )}
+          {discountAmount > 0 && <p className="text-[10px] text-emerald-400 mt-1">- ₼{fmt(discountAmount)}</p>}
+        </div>
+
+        {/* Split */}
+        <div className="px-6 mb-4">
+          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">Bölgü (nəfər)</label>
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5].map(n => (
+              <button key={n} onClick={() => setSplit(n)}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold ${split === n ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
+              >{n}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Payment method */}
+        <div className="px-6 mb-4">
+          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">Ödəniş üsulu</label>
+          <div className="flex gap-2">
+            <button onClick={() => setMethod('cash')}
+              className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'cash' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
+              <Banknote size={18} /> Nağd
+            </button>
+            <button onClick={() => setMethod('card')}
+              className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'card' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
+              <CreditCard size={18} /> Kart
+            </button>
+          </div>
+        </div>
+
+        {/* Total & confirm */}
+        <div className="px-6 pb-6 pt-2 border-t border-white/[0.06] space-y-3">
+          <div className="space-y-1">
+            {split > 1 && <div className="flex items-center justify-between text-xs text-white/40"><span>Adambaşı</span><span className="font-bold text-white">₼{fmt(perPerson)}</span></div>}
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-white/30 uppercase tracking-widest">Yekun</span>
+              {discountAmount > 0 && <span className="text-[10px] text-white/30 line-through mr-2">₼{fmt(baseTotal)}</span>}
+              <span className="text-2xl font-black text-white">
+                {discountAmount > 0 || split > 1 ? `₼${fmt(finalTotal)}` : `₼${fmt(baseTotal)}`}
+              </span>
+            </div>
+          </div>
+          <button onClick={() => onConfirm({ method, discountType, discountValue: discountVal, splitCount: split })}
+            disabled={busy}
+            className="w-full py-4 rounded-2xl text-base font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
+          >{busy ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />} Ödənişi Təsdiq et</button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ─── Receipt screen ─── */
+function ReceiptScreen({ paid, onNew }: { paid: OrderData & { payment_method?: string; discount_type?: string; discount_value?: number; paid_amount?: number; split_count?: number }; onNew: () => void }) {
+  const { t } = useLanguage();
+  const items = paid.order_items || [];
+  return (
+    <div className="h-dvh flex items-center justify-center bg-[#0a0a0a] p-6">
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        className="bg-[#111] border border-white/[0.06] rounded-3xl p-8 max-w-sm w-full text-center">
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.15 }}
+          className="w-20 h-20 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-5">
+          <CheckCircle2 size={40} className="text-emerald-400" />
+        </motion.div>
+        <h2 className="text-2xl font-bold text-white mb-1">Ödənildi</h2>
+        <p className="text-white/40 text-sm mb-1">Masa {paid.table_number}</p>
+        <p className="text-white/40 text-sm mb-6 flex items-center justify-center gap-1">
+          {paid.payment_method === 'cash' ? <Banknote size={14} /> : <CreditCard size={14} />}
+          {paid.payment_method === 'cash' ? 'Nağd' : 'Kart'}
+          {paid.split_count && paid.split_count > 1 && <span className="flex items-center gap-1 ml-2"><Users size={14} />{paid.split_count} nəfər</span>}
+        </p>
+
+        <div className="text-left bg-white/[0.02] rounded-2xl p-4 mb-6 space-y-1">
+          {items.slice(0, 5).map(i => (
+            <div key={i.id} className="flex items-center justify-between text-xs">
+              <span className="text-white/50">{i.quantity}x {i.product_name}</span>
+              <span className="text-white/70 font-semibold">₼{fmt(i.total_price || 0)}</span>
+            </div>
+          ))}
+          {items.length > 5 && <p className="text-[9px] text-white/20">+{items.length - 5}</p>}
+          <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between text-sm font-bold text-white">
+            <span>Cəmi</span>
+            <span>₼{fmt(paid.total_amount || 0)}</span>
+          </div>
+        </div>
+
+        <button onClick={() => window.print()}
+          className="w-full py-4 rounded-2xl bg-white/10 text-white text-base font-bold hover:bg-white/20 mb-3 flex items-center justify-center gap-2">
+          <Printer size={18} /> {t('print')}
+        </button>
+        <button onClick={onNew}
+          className="w-full py-4 rounded-2xl bg-white/[0.04] text-white/50 text-base hover:text-white">{t('new_order')}</button>
+      </motion.div>
+    </div>
   );
 }
 
@@ -59,8 +219,9 @@ function POS() {
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [showCart, setShowCart] = useState(false);
-  const [payId, setPayId] = useState<string | null>(null);
-  const [paid, setPaid] = useState<OrderData | null>(null);
+  const [payBusy, setPayBusy] = useState(false);
+  const [paid, setPaid] = useState<OrderData & { payment_method?: string; discount_type?: string; discount_value?: number; paid_amount?: number; split_count?: number } | null>(null);
+  const [checkoutOrder, setCheckoutOrder] = useState<OrderData | null>(null);
 
   const getPName = useCallback((p: Product) => {
     if (language === 'en') return (p as any).name_en || p.name;
@@ -152,15 +313,40 @@ function POS() {
     } catch (e) { console.error(e); } finally { setBusy(false); }
   }, [selTable, cart, total, activeOrder, fetchAll, getPName]);
 
-  const payOrder = useCallback(async (id: string) => {
-    setPayId(id);
+  const openCheckout = useCallback((o: OrderData) => {
+    setCheckoutOrder(o);
+  }, []);
+
+  const confirmPayment = useCallback(async (p: { method: string; discountType: string; discountValue: number; splitCount: number }) => {
+    if (!checkoutOrder) return;
+    setPayBusy(true);
     try {
-      await supabase.from('orders').update({ status: 'paid' }).eq('id', id);
-      try { await deductStockForOrder(id); } catch (e) { console.error(e); }
-      setPaid(orders.find(o => o.id === id) || null);
+      const base = checkoutOrder.total_amount || 0;
+      const discountAmount = p.discountType === 'percent' ? base * (Math.min(p.discountValue, 100) / 100) : p.discountType === 'amount' ? Math.min(p.discountValue, base) : 0;
+      const paidAmount = base - discountAmount;
+
+      await supabase.from('orders').update({
+        status: 'paid',
+        payment_method: p.method,
+        discount_type: p.discountType,
+        discount_value: p.discountValue,
+        paid_amount: paidAmount,
+        split_count: p.splitCount,
+      }).eq('id', checkoutOrder.id);
+
+      try { await deductStockForOrder(checkoutOrder.id); } catch (e) { console.error(e); }
+
+      setPaid({ ...checkoutOrder, payment_method: p.method, discount_type: p.discountType, discount_value: p.discountValue, paid_amount: paidAmount, split_count: p.splitCount });
+      setCheckoutOrder(null);
       fetchAll();
-    } catch (e) { console.error(e); } finally { setPayId(null); }
-  }, [orders, fetchAll]);
+    } catch (e) { console.error(e); } finally { setPayBusy(false); }
+  }, [checkoutOrder, fetchAll]);
+
+  const handleNewOrder = useCallback(() => {
+    setPaid(null);
+    setSelTable(null);
+    setCart([]);
+  }, []);
 
   const list = useMemo(() => {
     let l = products;
@@ -171,17 +357,7 @@ function POS() {
 
   if (loading) return <div className="h-dvh flex items-center justify-center bg-[#0a0a0a]"><Loader2 size={24} className="animate-spin text-white/20" /></div>;
 
-  if (paid) return (
-    <div className="h-dvh flex items-center justify-center bg-[#0a0a0a] p-6">
-      <div className="bg-[#111] border border-white/[0.06] rounded-3xl p-8 max-w-sm w-full text-center">
-        <div className="w-20 h-20 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-5"><CheckCircle2 size={40} className="text-emerald-400" /></div>
-        <h2 className="text-2xl font-bold text-white mb-2">Ödənildi</h2>
-        <p className="text-white/40 text-base mb-8">Masa {paid.table_number} • ₼{fmt(paid.total_amount)}</p>
-        <button onClick={() => window.print()} className="w-full py-4 rounded-2xl bg-white/10 text-white text-base font-bold hover:bg-white/20 mb-3 flex items-center justify-center gap-2"><Printer size={18} /> {t('print')}</button>
-        <button onClick={() => { setPaid(null); setSelTable(null); }} className="w-full py-4 rounded-2xl bg-white/[0.04] text-white/50 text-base hover:text-white">{t('new_order')}</button>
-      </div>
-    </div>
-  );
+  if (paid) return <ReceiptScreen paid={paid} onNew={handleNewOrder} />;
 
   return (
     <div className="h-dvh flex flex-col bg-[#0a0a0a] overflow-hidden select-none">
@@ -255,8 +431,10 @@ function POS() {
         </div>
 
         {/* ─── CART ─── */}
+        <AnimatePresence>
         {showCart && (
-          <div className="hidden lg:flex flex-col w-80 border-l border-white/[0.06] bg-[#0c0c0c] flex-shrink-0">
+          <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 320, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
+            className="hidden lg:flex flex-col border-l border-white/[0.06] bg-[#0c0c0c] flex-shrink-0 overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
               <span className="text-sm font-bold text-white">{selTable ? `Masa ${selTable}` : 'Səbət'}</span>
               <button onClick={() => setCart([])} className="text-[10px] text-white/20 hover:text-white/50 mr-3">{t('clear')}</button>
@@ -285,13 +463,16 @@ function POS() {
                 className="w-full py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
               >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Mətbəxə Göndər</button>
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
 
       {/* ─── MOBILE CART ─── */}
+      <AnimatePresence>
       {showCart && cart.length > 0 && (
-        <div className="lg:hidden flex-shrink-0 border-t border-white/[0.06] bg-[#0c0c0c] px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
+        <motion.div initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="lg:hidden flex-shrink-0 border-t border-white/[0.06] bg-[#0c0c0c] px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
           {cart.map(i => (
             <div key={i.product.id} className="flex items-center gap-2 bg-white/[0.03] rounded-xl px-3 py-2">
               <div className="flex-1 min-w-0"><p className="text-xs font-semibold text-white/80 truncate">{getPName(i.product)}</p><p className="text-[10px] text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p></div>
@@ -305,14 +486,16 @@ function POS() {
             <button onClick={sendOrder} disabled={busy} className="flex-1 py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2"
             >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Göndər</button>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* ─── TABLE ORDERS ─── */}
       {selTable && (
-        <div className="flex-shrink-0 border-t border-white/[0.06] bg-[#0c0c0c]">
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+          className="flex-shrink-0 border-t border-white/[0.06] bg-[#0c0c0c]">
           <div className="flex gap-2 overflow-x-auto px-3 py-2">
-            {orders.filter(o => o.table_number === selTable && o.status !== 'paid').map(o => {
+            {orders.filter(o => o.table_number === selTable && o.status !== 'paid').map((o, idx) => {
               const items = o.order_items || [];
               const ready = o.kitchen_status === 'ready';
               const cnt = items.reduce((s: number, i: any) => s + i.quantity, 0);
@@ -326,15 +509,22 @@ function POS() {
                     {items.slice(0, 5).map((i: any) => <div key={i.id} className="text-[11px] text-white/60">{i.quantity}x {i.product_name}</div>)}
                     {items.length > 5 && <p className="text-[9px] text-white/20">+{items.length - 5}</p>}
                   </div>
-                  {ready && <button onClick={() => payOrder(o.id)} disabled={payId === o.id}
-                    className="w-full py-2 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 active:scale-[0.97] disabled:opacity-40 flex items-center justify-center gap-1"
-                  >{payId === o.id ? <Loader2 size={10} className="animate-spin" /> : <CreditCard size={10} />} Ödəniş • ₼{fmt(o.total_amount || 0)}</button>}
+                  {ready && <button onClick={() => openCheckout(o)}
+                    className="w-full py-2 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 active:scale-[0.97] flex items-center justify-center gap-1"
+                  ><CreditCard size={10} /> Ödəniş • ₼{fmt(o.total_amount || 0)}</button>}
                 </div>
               );
             })}
           </div>
-        </div>
+        </motion.div>
       )}
+
+      {/* ─── CHECKOUT OVERLAY ─── */}
+      <AnimatePresence>
+      {checkoutOrder && (
+        <CheckoutPanel order={checkoutOrder} onClose={() => setCheckoutOrder(null)} onConfirm={confirmPayment} busy={payBusy} />
+      )}
+      </AnimatePresence>
 
     </div>
   );

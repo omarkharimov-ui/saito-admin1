@@ -437,4 +437,21 @@ ON CONFLICT (keyword) DO NOTHING;
 -- 13. YOXLAMA
 -- ═══════════════════════════════════════════════════════════════
 
+-- ═══════════════════════════════════════════════════════════════
+-- 14. PRODUCTS — UNIQUE constraint on name_az
+-- ═══════════════════════════════════════════════════════════════
+ALTER TABLE products ADD CONSTRAINT products_name_az_unique UNIQUE (name_az);
+
+-- ═══════════════════════════════════════════════════════════════
+-- 15. ORDERS — payment / discount / split columns
+-- ═══════════════════════════════════════════════════════════════
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS payment_method text,
+  ADD COLUMN IF NOT EXISTS discount_type text,
+  ADD COLUMN IF NOT EXISTS discount_value numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS paid_amount numeric,
+  ADD COLUMN IF NOT EXISTS split_count integer DEFAULT 1;
+
+-- ═══════════════════════════════════════════════════════════════
+
 SELECT 'migration v3 completed' AS status;

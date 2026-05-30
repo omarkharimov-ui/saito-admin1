@@ -14,24 +14,17 @@ const shakeKeyframes = {
   x: [0, -6, 6, -6, 6, -4, 4, -2, 2, 0],
 };
 
-/** Neçə dəfə təkrarlandığını izləyir — yalnız 1-ci təkrarda silkələ */
-const repeatCount = new Map<string, number>();
-
 export default function SimpleToaster() {
   const { toasts, handlers } = useToaster();
   const { startPause, endPause } = handlers;
   const seen = useRef(new Set<string>());
-  const counts = repeatCount;
 
   useEffect(() => {
     const visible = new Set(toasts.map((t) => t.id));
     for (const id of seen.current) {
-      if (!visible.has(id)) {
-        seen.current.delete(id);
-        counts.delete(id);
-      }
+      if (!visible.has(id)) seen.current.delete(id);
     }
-  }, [toasts, counts]);
+  }, [toasts]);
 
   const toShow = toasts.slice(-2);
 
@@ -45,21 +38,18 @@ export default function SimpleToaster() {
       <div className="flex flex-col items-center gap-2">
         <AnimatePresence mode="popLayout">
           {toShow.map((t) => {
-            const firstTime = !seen.current.has(t.id);
+            const isRepeat = seen.current.has(t.id);
             seen.current.add(t.id);
-            const cnt = counts.get(t.id) ?? 0;
-            counts.set(t.id, cnt + 1);
-            const shouldShake = cnt === 1;
 
             return (
               <motion.div
                 key={t.id}
                 layout
                 variants={variants}
-                initial={firstTime ? 'init' : 'show'}
-                animate={shouldShake ? shakeKeyframes : 'show'}
+                initial={isRepeat ? 'show' : 'init'}
+                animate={isRepeat ? shakeKeyframes : 'show'}
                 exit="exit"
-                transition={shouldShake ? { duration: 0.45 } : { type: 'spring', stiffness: 400, damping: 25 }}
+                transition={isRepeat ? { duration: 0.45 } : { type: 'spring', stiffness: 400, damping: 25 }}
                 className="pointer-events-auto select-none"
                 style={{
                   background: t.type === 'error' ? '#1a0808' : '#0d0b00',

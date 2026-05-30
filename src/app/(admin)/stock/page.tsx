@@ -523,7 +523,7 @@ export default function StockPage() {
         ) : (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="rounded-2xl overflow-hidden"
+            className="rounded-2xl"
             style={{ border: '1px solid rgba(255,255,255,0.06)' }}
           >
             {/* Table head */}

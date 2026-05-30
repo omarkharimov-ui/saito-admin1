@@ -9,6 +9,7 @@ import {
   PackagePlus,
   Warehouse,
   ScrollText,
+  Utensils,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -38,6 +39,13 @@ export function getAdminNavItems(
       icon: Calendar,
       roles: ['admin', 'superadmin'],
       badge: counts.pending,
+    },
+    {
+      id: 'pos',
+      name: 'POS',
+      href: '/pos',
+      icon: Utensils,
+      roles: ['admin', 'superadmin'],
     },
     {
       id: 'orders',

@@ -8,7 +8,7 @@ import {
   Bot, Sparkles, Check, X, FileText, Upload, BrainCircuit, Wand2,
   BookOpen, Library
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RecipeConstructorModal } from './components/RecipeConstructorModal';
 

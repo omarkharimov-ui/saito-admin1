@@ -9,7 +9,7 @@ import {
   Calculator, Lightbulb, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import type {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,

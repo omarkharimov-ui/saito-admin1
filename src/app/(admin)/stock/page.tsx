@@ -126,6 +126,7 @@ export default function StockPage() {
   const [wasteStandards, setWasteStandards] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editVal, setEditVal] = useState('');
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
 
   // Auto-calculated unit cost from total qty/amount
   const calculatedUnitCost = (() => {
@@ -500,7 +501,7 @@ export default function StockPage() {
             <div
               className="hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-white/20"
               style={{
-                gridTemplateColumns: '1fr 140px 120px 140px 190px',
+                gridTemplateColumns: '1fr 120px 100px 130px 60px',
                 background: 'rgba(255,255,255,0.018)',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
               }}
@@ -584,38 +585,38 @@ export default function StockPage() {
                       </span>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => setModal({ mode: 'stock_in', row })}
-                        title="Mal Qəbulu"
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:brightness-115 active:scale-95"
-                        style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#6ee7b7' }}
+                    {/* Actions — 3 nöqtə dropdown */}
+                    <div className="flex items-center justify-end relative">
+                      <button onClick={() => setOpenActionsId(openActionsId === row.id ? null : row.id)}
+                        className="w-8 h-8 rounded-xl hover:bg-white/[0.06] transition-all flex items-center justify-center text-white/30 hover:text-white active:scale-90"
                       >
-                        <TrendingUp size={12} /> Giriş
+                        <span className="text-lg font-bold leading-none tracking-[0.1em]">⋯</span>
                       </button>
-                      <button
-                        onClick={() => setModal({ mode: 'waste', row })}
-                        title="İtki Qeyd Et"
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:brightness-115 active:scale-95"
-                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', color: '#fca5a5' }}
-                      >
-                        <TrendingDown size={12} /> İtki
-                      </button>
-                      <button
-                        onClick={() => setModal({ mode: 'audit', row })}
-                        title="İnventarizasiya"
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:brightness-115 active:scale-95"
-                        style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.18)', color: '#D4AF37' }}
-                      >
-                        <RefreshCw size={12} /> Audit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(row.id, row.name)}
-                        className="p-2 rounded-xl transition-all hover:bg-red-500/10 active:scale-95 text-white/15 hover:text-red-400"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {openActionsId === row.id && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setOpenActionsId(null)} />
+                          <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-xl overflow-hidden"
+                            style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}>
+                            <button onClick={() => { setModal({ mode: 'stock_in', row }); setOpenActionsId(null); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                              <TrendingUp size={13} className="text-emerald-400" /> Mal Girişi
+                            </button>
+                            <button onClick={() => { setModal({ mode: 'waste', row }); setOpenActionsId(null); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                              <TrendingDown size={13} className="text-red-400" /> İtki
+                            </button>
+                            <button onClick={() => { setModal({ mode: 'audit', row }); setOpenActionsId(null); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                              <RefreshCw size={13} className="text-gold" /> Audit
+                            </button>
+                            <div className="h-px bg-white/[0.06]" />
+                            <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05] text-red-400">
+                              <Trash2 size={13} /> Sil
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -658,32 +659,36 @@ export default function StockPage() {
                           </button>
                         )}
                       </div>
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => setModal({ mode: 'stock_in', row })}
-                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold"
-                          style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#6ee7b7' }}
-                        >
-                          <TrendingUp size={12} />
+                      <div className="flex gap-1.5 relative">
+                        <button onClick={() => setOpenActionsId(openActionsId === row.id ? null : row.id)}
+                          className="w-8 h-8 rounded-xl hover:bg-white/[0.06] transition-all flex items-center justify-center text-white/30 hover:text-white active:scale-90">
+                          <span className="text-lg font-bold leading-none tracking-[0.1em]">⋯</span>
                         </button>
-                        <button
-                          onClick={() => setModal({ mode: 'waste', row })}
-                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold"
-                          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', color: '#fca5a5' }}
-                        >
-                          <TrendingDown size={12} />
-                        </button>
-                        <button
-                          onClick={() => setModal({ mode: 'audit', row })}
-                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold"
-                          style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.18)', color: '#D4AF37' }}
-                        >
-                          <RefreshCw size={12} />
-                        </button>
-                        <button onClick={() => handleDelete(row.id, row.name)}
-                          className="p-1.5 rounded-xl text-white/15 hover:text-red-400 transition-colors">
-                          <Trash2 size={12} />
-                        </button>
+                        {openActionsId === row.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setOpenActionsId(null)} />
+                            <div className="absolute right-0 -top-1 z-50 min-w-[140px] rounded-xl overflow-hidden translate-y-[-100%]"
+                              style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}>
+                              <button onClick={() => { setModal({ mode: 'stock_in', row }); setOpenActionsId(null); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                                <TrendingUp size={13} className="text-emerald-400" /> Mal Girişi
+                              </button>
+                              <button onClick={() => { setModal({ mode: 'waste', row }); setOpenActionsId(null); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                                <TrendingDown size={13} className="text-red-400" /> İtki
+                              </button>
+                              <button onClick={() => { setModal({ mode: 'audit', row }); setOpenActionsId(null); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                                <RefreshCw size={13} className="text-gold" /> Audit
+                              </button>
+                              <div className="h-px bg-white/[0.06]" />
+                              <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05] text-red-400">
+                                <Trash2 size={13} /> Sil
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -415,6 +415,25 @@ export default function StockPage() {
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
+      const created = await res.json();
+
+      // Əgər ilkin miqdar daxil edilibsə, avtomatik stock_in et
+      const initialQty = parseFloat(newTotalQty);
+      if (initialQty > 0) {
+        const logRes = await fetch('/api/inventory/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'stock_in',
+            ingredientId: created.id,
+            quantity: initialQty,
+            costPerUnit: unitCost > 0 ? unitCost : undefined,
+            reason: 'İlkin qeydiyyat',
+          }),
+        });
+        if (!logRes.ok) console.warn('Stock_in failed:', await logRes.text());
+      }
+
       toast.success('İnqredient əlavə edildi', { style: toastStyle });
       closeModal();
       fetchData();

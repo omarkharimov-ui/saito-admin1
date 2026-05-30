@@ -208,6 +208,7 @@ export default function StockPage() {
   }, [monthlyLogs]);
 
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({});
 
   const monthPickerRef = useRef<HTMLDivElement>(null);
 
@@ -312,6 +313,7 @@ export default function StockPage() {
     setNewName(''); setNewUnit('gram'); setNewLimit('500'); setNewCost('');
     setNewTotalQty(''); setNewTotalAmount(''); setNewWastePct(''); setNewSupplier('');
     setAuditQty(''); setShowWasteCalc(false); setCalcRaw(''); setCalcClean('');
+    setFormErrors({});
   };
 
   // ── Stock In ────────────────────────────────────────────────────────────
@@ -398,7 +400,15 @@ export default function StockPage() {
 
   // ── New Ingredient ──────────────────────────────────────────────────────
   const handleNewIngredient = async () => {
-    if (!newName.trim()) { toast.error('Ad daxil edin', { style: toastStyle }); return; }
+    const errors: Record<string, boolean> = {};
+    if (!newName.trim()) errors.name = true;
+    if (!newTotalQty.trim()) errors.totalQty = true;
+    if (!newTotalAmount.trim()) errors.totalAmount = true;
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error('Zəhmət olmasa tələb olunan sahələri doldurun', { style: toastStyle });
+      return;
+    }
     setSaving(true);
     try {
       const unitCost = calculatedUnitCost ?? (newCost ? parseFloat(newCost) : 0);
@@ -1341,9 +1351,13 @@ export default function StockPage() {
                   <div className="space-y-3">
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Ad</label>
-                      <input type="text" value={newName} onChange={e => { setNewName(e.target.value); setShowWasteCalc(false); lookupWasteStandard(e.target.value); }}
+                      <input type="text" value={newName} onChange={e => { setNewName(e.target.value); setFormErrors(p => ({ ...p, name: false })); setShowWasteCalc(false); lookupWasteStandard(e.target.value); }}
                         placeholder="Məs: Avokado" autoFocus
-                        className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm font-semibold"
+                        className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border outline-none transition-colors text-sm font-semibold"
+                        style={{
+                          borderColor: formErrors.name ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
+                          background: formErrors.name ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
+                        }}
                       />
                       {(() => {
                         if (!newName.trim() || wasteStandards.length === 0) return null;
@@ -1413,9 +1427,13 @@ export default function StockPage() {
                             Alınan Miqdar
                           </label>
                           <input type="number" min="0" step="1" value={newTotalQty}
-                            onChange={e => setNewTotalQty(e.target.value)}
+                            onChange={e => { setNewTotalQty(e.target.value); setFormErrors(p => ({ ...p, totalQty: false })); }}
                             placeholder="Məs: 5000"
-                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm font-bold"
+                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border outline-none transition-colors text-sm font-bold"
+                            style={{
+                              borderColor: formErrors.totalQty ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
+                              background: formErrors.totalQty ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
+                            }}
                           />
                         </div>
                         <div>
@@ -1423,9 +1441,13 @@ export default function StockPage() {
             Ümumi Məbləğ (₼)
                           </label>
                           <input type="number" min="0" step="0.01" value={newTotalAmount}
-                            onChange={e => setNewTotalAmount(e.target.value)}
+                            onChange={e => { setNewTotalAmount(e.target.value); setFormErrors(p => ({ ...p, totalAmount: false })); }}
                             placeholder="Məs: 150"
-                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm font-bold"
+                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border outline-none transition-colors text-sm font-bold"
+                            style={{
+                              borderColor: formErrors.totalAmount ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
+                              background: formErrors.totalAmount ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
+                            }}
                           />
                         </div>
                       </div>
@@ -1561,7 +1583,7 @@ export default function StockPage() {
                     </div>
                   </div>
 
-                  <button onClick={handleNewIngredient} disabled={saving || !newName.trim()}
+                  <button onClick={handleNewIngredient} disabled={saving}
                     className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
                     style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
                   >

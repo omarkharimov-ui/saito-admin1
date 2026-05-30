@@ -740,7 +740,7 @@ export default function StockPage() {
           style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="hidden lg:grid gap-3 px-5 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-white/20"
             style={{
-              gridTemplateColumns: '60px 1fr 80px 80px 120px',
+              gridTemplateColumns: '100px 1fr 80px 80px 100px 1fr',
               background: 'rgba(255,255,255,0.018)',
               borderBottom: '1px solid rgba(255,255,255,0.05)',
             }}>
@@ -749,6 +749,7 @@ export default function StockPage() {
             <span className="text-right">Miqdar</span>
             <span className="text-right">Maya</span>
             <span className="text-right">Tarix</span>
+            <span>Qeyd</span>
           </div>
           {allLogsLoading ? (
             <div className="flex items-center justify-center h-48">
@@ -768,7 +769,7 @@ export default function StockPage() {
                 return (
                   <div key={log.id || idx}
                     className="grid gap-3 px-5 py-3 text-sm items-center transition-colors hover:bg-white/[0.015]"
-                    style={{ gridTemplateColumns: '60px 1fr 80px 80px 120px' }}>
+                    style={{ gridTemplateColumns: '100px 1fr 80px 80px 100px 1fr' }}>
                     <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold ${color}`}
                       style={{ background: log.type === 'stock_in' ? 'rgba(16,185,129,0.1)' : log.type === 'waste' ? 'rgba(239,68,68,0.08)' : log.type === 'adjustment' ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.04)' }}>
                       {LOG_LABELS[log.type] || log.type}
@@ -784,6 +785,9 @@ export default function StockPage() {
                     </span>
                     <span className="text-right text-[10px] text-white/30">
                       {dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="text-[10px] text-white/25 truncate">
+                      {log.note || '—'}
                     </span>
                   </div>
                 );

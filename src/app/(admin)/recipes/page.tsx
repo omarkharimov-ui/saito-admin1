@@ -11,6 +11,7 @@ import {
 import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RecipeConstructorModal } from './components/RecipeConstructorModal';
+import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 
 interface Ingredient {
   id: string;
@@ -106,6 +107,22 @@ export default function RecipesPage() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Real-time subscription — products, ingredients, recipes dəyişikliklərini izlə
+  useEffect(() => {
+    const channel = createRealtimeChannel('recipes-page')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, () => fetchData())
+      .subscribe();
+    return () => { removeRealtimeChannel(channel); };
+  }, [fetchData]);
+
+  // Polling fallback — realtime işləməsə 10sn-də bir yenilə
+  useEffect(() => {
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   const getProductName = (p: Product) => {
     const pp = p as any;

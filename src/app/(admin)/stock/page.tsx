@@ -254,6 +254,12 @@ export default function StockPage() {
     return () => { removeRealtimeChannel(channel); };
   }, [fetchData]);
 
+  // Polling fallback — realtime işləməsə 10sn-də bir yenilə
+  useEffect(() => {
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
   // Waste standards - əvvəlcə cached datanı çək
   useEffect(() => {
     fetch('/api/inventory/waste-standards').then(r => r.ok && r.json()).then(d => { if (d) setWasteStandards(d); }).catch(() => {});

@@ -119,6 +119,7 @@ export default function StockPage() {
   const [viewMode, setViewMode] = useState<'stock' | 'history'>('stock');
   const now = new Date();
   const [historyMonth, setHistoryMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+  const [historyDay, setHistoryDay] = useState<string | null>(null);
 
   // Form fields
   const [qty, setQty]           = useState('');
@@ -167,9 +168,14 @@ export default function StockPage() {
     return allLogs.filter((log: any) => {
       const d = new Date(log.created_at);
       const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      return ym === historyMonth;
+      if (ym !== historyMonth) return false;
+      if (historyDay) {
+        const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return ymd === historyDay;
+      }
+      return true;
     });
-  }, [allLogs, historyMonth]);
+  }, [allLogs, historyMonth, historyDay]);
 
   const filteredLogs = useMemo(() => {
     const source = viewMode === 'history' ? monthlyLogs : allLogs;
@@ -777,11 +783,24 @@ export default function StockPage() {
 
         {viewMode === 'history' && (
         <div className="space-y-4">
-        {/* ── Premium Month Picker ── */}
+        {/* ── Premium Calendar Picker ── */}
         <div className="flex items-center justify-between">
-          <p className="text-xs font-bold uppercase tracking-[0.15em] text-white/40">
-            Aylıq Tarixçə <span className="text-white/15">({monthlySummary.total})</span>
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-white/40">
+              {historyDay ? 'Günlük Tarixçə' : 'Aylıq Tarixçə'} <span className="text-white/15">({filteredLogs.length})</span>
+            </p>
+            {historyDay && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                onClick={() => setHistoryDay(null)}
+                className="text-[10px] font-bold px-2 py-1 rounded-lg text-white/40 hover:text-white transition-all"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                Bütün ay
+              </motion.button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <div ref={monthPickerRef} className="relative">
               <motion.button
@@ -794,7 +813,11 @@ export default function StockPage() {
                   color: showMonthPicker ? '#D4AF37' : 'rgba(255,255,255,0.7)',
                 }}
               >
-                <span>{new Date(historyMonth + '-01').toLocaleDateString('az-AZ', { year: 'numeric', month: 'long' })}</span>
+                <span>
+                  {historyDay
+                    ? new Date(historyDay).toLocaleDateString('az-AZ', { day: 'numeric', year: 'numeric', month: 'long' })
+                    : new Date(historyMonth + '-01').toLocaleDateString('az-AZ', { year: 'numeric', month: 'long' })}
+                </span>
                 <motion.svg
                   animate={{ rotate: showMonthPicker ? 180 : 0 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
@@ -811,15 +834,15 @@ export default function StockPage() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.96 }}
                     transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                    className="absolute right-0 top-full mt-2 z-50 w-72 rounded-2xl overflow-hidden"
+                    className="absolute right-0 top-full mt-2 z-50 w-80 rounded-2xl overflow-hidden"
                     style={{
                       background: '#121212',
                       border: '1px solid rgba(255,255,255,0.08)',
                       boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
                     }}
                   >
-                    {/* Year navigator */}
-                    <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                    {/* Month/Year navigator */}
+                    <div className="flex items-center justify-between px-5 pt-4 pb-1">
                       <motion.button
                         whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
                         onClick={() => setPickerYear(p => p - 1)}
@@ -827,14 +850,25 @@ export default function StockPage() {
                       >
                         <ChevronLeft size={16} />
                       </motion.button>
-                      <motion.span
-                        key={pickerYear}
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-sm font-bold text-white/80"
-                      >
-                        {pickerYear}
-                      </motion.span>
+                      <div className="flex items-center gap-2">
+                        <motion.span
+                          key={pickerYear + 'y'}
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-sm font-bold text-white/80"
+                        >
+                          {pickerYear}
+                        </motion.span>
+                        <span className="text-sm font-bold text-white/40">·</span>
+                        <motion.span
+                          key={pickerYear + 'm'}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-sm font-bold text-[#D4AF37]"
+                        >
+                          {AZ_MONTHS[parseInt(historyMonth.split('-')[1]) - 1]}
+                        </motion.span>
+                      </div>
                       <motion.button
                         whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
                         onClick={() => setPickerYear(p => p + 1)}
@@ -844,41 +878,93 @@ export default function StockPage() {
                       </motion.button>
                     </div>
 
-                    {/* Month grid */}
-                    <div className="grid grid-cols-4 gap-1.5 px-4 pb-4 pt-1">
-                      {AZ_MONTHS.map((name, idx) => {
-                        const monthStr = `${pickerYear}-${String(idx + 1).padStart(2, '0')}`;
-                        const isSelected = monthStr === historyMonth;
-                        const isCurrent = monthStr === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-                        return (
-                          <motion.button
-                            key={monthStr}
-                            whileHover={{ scale: 1.04 }}
-                            whileTap={{ scale: 0.94 }}
-                            onClick={() => {
-                              setHistoryMonth(monthStr);
-                              setShowMonthPicker(false);
-                            }}
-                            className="relative py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all"
-                            style={{
-                              background: isSelected
-                                ? 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.1))'
-                                : 'transparent',
-                              border: isSelected
-                                ? '1px solid rgba(212,175,55,0.3)'
-                                : isCurrent
-                                  ? '1px solid rgba(255,255,255,0.1)'
-                                  : '1px solid transparent',
-                              color: isSelected ? '#D4AF37' : isCurrent ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.35)',
-                            }}
-                          >
-                            {name}
-                            {isCurrent && !isSelected && (
-                              <span className="absolute top-1 right-1.5 w-1 h-1 rounded-full bg-[#D4AF37]/50" />
-                            )}
-                          </motion.button>
-                        );
-                      })}
+                    {/* Day-of-week headers */}
+                    <div className="grid grid-cols-7 gap-1 px-4 pt-3 pb-1">
+                      {['B.e', 'Ç.a', 'Ç', 'C.a', 'C', 'Ş', 'B'].map(d => (
+                        <span key={d} className="text-center text-[10px] font-bold uppercase tracking-wider text-white/20">
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Days grid */}
+                    <div className="grid grid-cols-7 gap-1 px-4 pb-3">
+                      {(() => {
+                        const [y, m] = [pickerYear, parseInt(historyMonth.split('-')[1])];
+                        const firstDay = new Date(y, m - 1, 1).getDay();
+                        const daysInMonth = new Date(y, m, 0).getDate();
+                        const days: React.ReactNode[] = [];
+                        // Empty cells before first day
+                        for (let i = 0; i < (firstDay === 0 ? 6 : firstDay - 1); i++) {
+                          days.push(<div key={`e-${i}`} />);
+                        }
+                        // Day cells
+                        for (let d = 1; d <= daysInMonth; d++) {
+                          const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                          const isSelected = dateStr === historyDay;
+                          const isToday = dateStr === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+                          days.push(
+                            <motion.button
+                              key={dateStr}
+                              whileHover={{ scale: 1.12 }}
+                              whileTap={{ scale: 0.88 }}
+                              onClick={() => {
+                                setHistoryDay(dateStr);
+                                setShowMonthPicker(false);
+                              }}
+                              className="relative flex items-center justify-center h-9 rounded-xl text-xs font-bold transition-all"
+                              style={{
+                                background: isSelected
+                                  ? 'linear-gradient(135deg, rgba(212,175,55,0.25), rgba(212,175,55,0.1))'
+                                  : isToday && !isSelected
+                                    ? 'rgba(255,255,255,0.06)'
+                                    : 'transparent',
+                                border: isSelected
+                                  ? '1px solid rgba(212,175,55,0.35)'
+                                  : isToday && !isSelected
+                                    ? '1px solid rgba(255,255,255,0.1)'
+                                    : '1px solid transparent',
+                                color: isSelected ? '#D4AF37' : isToday ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)',
+                              }}
+                            >
+                              {d}
+                              {isToday && !isSelected && (
+                                <span className="absolute bottom-1 w-1 h-0.5 rounded-full bg-[#D4AF37]/40" />
+                              )}
+                            </motion.button>
+                          );
+                        }
+                        return days;
+                      })()}
+                    </div>
+
+                    {/* Month pills */}
+                    <div className="border-t border-white/[0.06] px-4 py-3" style={{ background: 'rgba(255,255,255,0.015)' }}>
+                      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                        {AZ_MONTHS.map((name, idx) => {
+                          const monthStr = `${pickerYear}-${String(idx + 1).padStart(2, '0')}`;
+                          const isSelected = monthStr === historyMonth;
+                          return (
+                            <motion.button
+                              key={monthStr}
+                              whileHover={{ scale: 1.04 }}
+                              whileTap={{ scale: 0.94 }}
+                              onClick={() => {
+                                setHistoryMonth(monthStr);
+                                setHistoryDay(null);
+                                setShowMonthPicker(false);
+                              }}
+                              className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wide transition-all"
+                              style={{
+                                background: isSelected ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)',
+                                color: isSelected ? '#D4AF37' : 'rgba(255,255,255,0.4)',
+                              }}
+                            >
+                              {name}
+                            </motion.button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </motion.div>
                 )}

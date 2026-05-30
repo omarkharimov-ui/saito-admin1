@@ -98,20 +98,15 @@ export default function HistoryPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const normalize = (s: string) => s.toLowerCase()
-      .replace(/[əüöışç]/g, c =>
-        ({ ə: 'e', ü: 'u', ö: 'o', ı: 'i', ş: 's', ç: 'c' })[c] || c
-      );
-    let result = events;
-    if (filter !== 'all') result = result.filter(e => e.type === filter);
-    if (search.trim()) {
-      const q = normalize(search);
-      result = result.filter(e => {
-        const searchStr = normalize(`${e.entityName} ${e.label} ${e.detail || ''}`);
-        return searchStr.includes(q);
-      });
-    }
-    return result;
+    try {
+      const mapL: Record<string, string> = { ə:'e', ü:'u', ö:'o', ı:'i', ş:'s', ç:'c' };
+      const n = (s: any) => String(s||'').toLowerCase().replace(/[əüöışç]/g, c => mapL[c]||c);
+      let r = events;
+      if (filter !== 'all') r = r.filter(e => e.type === filter);
+      const q = n(search).trim();
+      if (q) r = r.filter(e => n(e.entityName).includes(q) || n(e.label).includes(q) || n(e.detail).includes(q));
+      return r;
+    } catch { return events; }
   }, [events, filter, search]);
 
   const days = useMemo(() => groupByDay(filtered), [filtered]);

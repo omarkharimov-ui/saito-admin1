@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Plus, TrendingDown, TrendingUp,
@@ -158,6 +158,24 @@ export default function StockPage() {
   })();
 
   const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
+
+  // Filter logs by search when in history view
+  const filteredLogs = useMemo(() => {
+    if (!search.trim() || !allLogs.length) return allLogs;
+    const q = search.toLowerCase();
+    const typeLabels: Record<string, string> = {
+      stock_in: 'stoka giriş',
+      waste: 'itki',
+      adjustment: 'tənzimləmə',
+      order_consumption: 'sifariş sərfiyyatı',
+    };
+    return allLogs.filter((log: any) => {
+      const name = (log.ingredient?.name || log.ingredient_id || '').toLowerCase();
+      const label = (typeLabels[log.type] || log.type || '').toLowerCase();
+      const note = (log.note || '').toLowerCase();
+      return name.includes(q) || label.includes(q) || note.includes(q);
+    });
+  }, [allLogs, search]);
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
@@ -484,7 +502,7 @@ export default function StockPage() {
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
             <input
               value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Xammal axtar..."
+              placeholder={viewMode === 'stock' ? 'Xammal axtar...' : 'Məhsul axtar...'}
               className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/30 transition-colors"
             />
           </div>
@@ -711,7 +729,7 @@ export default function StockPage() {
         <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/20">
-            Bütün Əməliyyatlar <span className="text-white/10">({allLogs.length})</span>
+            Bütün Əməliyyatlar <span className="text-white/10">({filteredLogs.length})</span>
           </p>
           <button onClick={fetchAllLogs} disabled={allLogsLoading}
             className="p-2 rounded-xl text-white/20 hover:text-white transition-all active:scale-95">
@@ -736,14 +754,14 @@ export default function StockPage() {
             <div className="flex items-center justify-center h-48">
               <Loader2 size={24} className="animate-spin text-white/15" />
             </div>
-          ) : allLogs.length === 0 ? (
+          ) : filteredLogs.length === 0 ? (
             <div className="text-center py-16 text-white/20 text-xs">
               <Package size={32} className="mx-auto mb-2 opacity-30" />
-              Heç bir əməliyyat tapılmadı
+              {search.trim() ? 'Axtarış nəticəsi tapılmadı' : 'Heç bir əməliyyat tapılmadı'}
             </div>
           ) : (
             <div className="divide-y divide-white/[0.04]">
-              {allLogs.map((log: any, idx: number) => {
+              {filteredLogs.map((log: any, idx: number) => {
                 const dt = new Date(log.created_at);
                 const sign = log.type === 'stock_in' ? '+' : log.type === 'adjustment' && log.quantity > 0 ? '+' : '-';
                 const color = LOG_COLORS[log.type] || 'text-white/40';

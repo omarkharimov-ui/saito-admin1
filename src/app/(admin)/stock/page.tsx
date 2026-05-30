@@ -336,7 +336,7 @@ export default function StockPage() {
           type: 'stock_in',
           ingredientId: modal.row.id,
           quantity: numQty,
-          costPerUnit: cost ? parseFloat(cost) / numQty : undefined,
+          costPerUnit: cost ? parseFloat(cost) : undefined,
           reason: reason.trim() || undefined,
         }),
       });
@@ -1204,36 +1204,13 @@ export default function StockPage() {
                     </div>
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Ümumi Məbləğ (₼) — istəyə görə
+                        Maya dəyəri / {UNIT_LABELS[modal.row!.unit]} (₼) — istəyə görə
                       </label>
-                      <input type="number" min="0" step="0.01" value={cost}
-                        onChange={e => setCost(e.target.value)} placeholder="Məs: 450"
+                      <input type="number" min="0" step="0.0001" value={cost}
+                        onChange={e => setCost(e.target.value)} placeholder="0.0000"
                         className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-sm"
                       />
                     </div>
-                    {(() => {
-                      const total = parseFloat(cost);
-                      const q = parseFloat(qty);
-                      if (!isNaN(total) && total > 0 && !isNaN(q) && q > 0) {
-                        const unitCost = total / q;
-                        return (
-                          <motion.div
-                            initial={{ opacity: 0, y: -4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center justify-between px-3 py-2 rounded-lg"
-                            style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}
-                          >
-                            <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
-                              Vahid Maya Dəyəri
-                            </span>
-                            <span className="text-sm font-black text-emerald-400 tabular-nums">
-                              ₼{fmtCost(unitCost)} / {UNIT_LABELS[modal.row!.unit]}
-                            </span>
-                          </motion.div>
-                        );
-                      }
-                      return null;
-                    })()}
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
                         Qeyd — istəyə görə

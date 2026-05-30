@@ -124,8 +124,8 @@ export default function StockPage() {
   const [calcRaw, setCalcRaw] = useState('');
   const [calcClean, setCalcClean] = useState('');
   const [wasteStandards, setWasteStandards] = useState<any[]>([]);
-  const [auditMode, setAuditMode] = useState(false);
-  const [auditValues, setAuditValues] = useState<Record<string, string>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editVal, setEditVal] = useState('');
 
   // Auto-calculated unit cost from total qty/amount
   const calculatedUnitCost = (() => {
@@ -187,6 +187,34 @@ export default function StockPage() {
       } catch {}
     }, 800);
   }, [wasteStandards]);
+
+  // inline edit stock
+  const startEdit = (row: InventoryStatusRow) => {
+    setEditingId(row.id);
+    setEditVal(String(row.current_stock));
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    const num = parseFloat(editVal);
+    if (isNaN(num) || num < 0) { toast.error('Düzgün rəqəm daxil edin', { style: toastStyle }); return; }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/inventory/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredientId: editingId, actualQty: num }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success('Stok yeniləndi', { style: toastStyle });
+      setEditingId(null);
+      fetchData(true);
+    } catch (e: any) {
+      toast.error(e.message, { style: toastStyle });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const closeModal = () => {
     setModal({ mode: null });
@@ -371,16 +399,6 @@ export default function StockPage() {
               <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
             </button>
             <button
-              onClick={() => { setAuditMode(!auditMode); setAuditValues({}); }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97] ${
-                auditMode
-                  ? 'bg-gold/20 text-gold border border-gold/30'
-                  : 'text-white/60 hover:text-white border border-white/10 hover:border-white/20'
-              }`}
-            >
-              <RefreshCw size={15} /> Sürətli Audit
-            </button>
-            <button
               onClick={() => setModal({ mode: 'new_ingredient' })}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
               style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
@@ -472,98 +490,6 @@ export default function StockPage() {
               {search || filter !== 'all' ? 'Axtarış nəticəsi tapılmadı' : 'Hələ xammal əlavə edilməyib'}
             </p>
           </motion.div>
-        ) : auditMode ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <p className="text-[10px] text-white/25 uppercase tracking-[0.2em]">
-                Real stoku daxil edin — sistem nəzəri stoku göstərir
-              </p>
-              <button
-                onClick={async () => {
-                  const entries = Object.entries(auditValues).filter(([, v]) => v.trim());
-                  if (entries.length === 0) { toast.error('Heç bir dəyişiklik yoxdur', { style: toastStyle }); return; }
-                  setSaving(true);
-                  let success = 0; let fail = 0;
-                  for (const [id, val] of entries) {
-                    try {
-                      const res = await fetch('/api/inventory/audit', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ingredientId: id, actualQty: parseFloat(val) }),
-                      });
-                      if (res.ok) success++; else fail++;
-                    } catch { fail++; }
-                  }
-                  setSaving(false);
-                  if (success > 0) toast.success(`${success} məhsul auditedildi`, { style: toastStyle });
-                  if (fail > 0) toast.error(`${fail} məhsulda xəta`, { style: toastStyle });
-                  setAuditMode(false);
-                  setAuditValues({});
-                  fetchData(true);
-                }}
-                disabled={saving || Object.keys(auditValues).length === 0}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all disabled:opacity-40 active:scale-[0.97]"
-                style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
-              >
-                {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                Təsdiqlə ({Object.keys(auditValues).length})
-              </button>
-            </div>
-            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-              {rows.map((row, i) => {
-                const theoretical = row.theoretical_stock ?? row.current_stock;
-                const val = auditValues[row.id] ?? '';
-                const numVal = parseFloat(val);
-                const diff = !isNaN(numVal) ? numVal - theoretical : 0;
-                return (
-                  <motion.div
-                    key={row.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.02 }}
-                    className="flex items-center gap-3 px-4 lg:px-6 py-3 transition-colors hover:bg-white/[0.018]"
-                    style={{ borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.1)' }}>
-                        <FlaskConical size={13} className="text-[#D4AF37]/50" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate leading-tight">{row.name}</p>
-                        <p className="text-[9px] text-white/20">{UNIT_LABELS[row.unit]}</p>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0 w-20">
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider">Nəzəri</p>
-                      <p className="text-sm font-bold text-white/50 tabular-nums">{fmt(theoretical, 1)}</p>
-                    </div>
-                    <div className="flex-shrink-0 w-28">
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mb-0.5">Real</p>
-                      <input
-                        type="number" min="0" step="1" value={val}
-                        onChange={e => setAuditValues(prev => ({ ...prev, [row.id]: e.target.value }))}
-                        placeholder={String(Math.round(theoretical))}
-                        autoFocus={i === 0}
-                        className="w-full px-2.5 py-1.5 rounded-lg text-white bg-white/[0.06] border border-white/[0.1] outline-none focus:border-gold/40 transition-colors text-sm font-bold tabular-nums text-right"
-                      />
-                    </div>
-                    <div className="flex-shrink-0 w-20 text-right">
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider">Fərq</p>
-                      <p className={`text-sm font-black tabular-nums ${
-                        !val.trim() ? 'text-white/15' :
-                        diff > 0 ? 'text-emerald-400' :
-                        diff < 0 ? 'text-red-400' :
-                        'text-white/30'
-                      }`}>
-                        {!val.trim() ? '—' : `${diff >= 0 ? '+' : ''}${fmt(diff, 1)}`}
-                      </p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </motion.div>
         ) : (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -620,12 +546,28 @@ export default function StockPage() {
                       </div>
                     </div>
 
-                    {/* Current stock */}
+                    {/* Current stock - inline editable */}
                     <div className="text-right">
-                      <span className={`text-base font-black tabular-nums ${meta.text}`}>
-                        {fmt(row.current_stock, 1)}
-                      </span>
-                      <span className="text-[10px] text-white/25 ml-1">{UNIT_LABELS[row.unit]}</span>
+                      {editingId === row.id ? (
+                        <div className="flex items-center gap-1 justify-end">
+                          <input type="number" min="0" step="1" value={editVal}
+                            onChange={e => setEditVal(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingId(null); }}
+                            autoFocus
+                            className="w-20 px-2 py-1 rounded-lg text-white bg-white/[0.08] border border-gold/40 outline-none text-base font-black tabular-nums text-right"
+                          />
+                          <button onClick={saveEdit} className="text-emerald-400 hover:text-emerald-300 transition-colors"><CheckCircle2 size={14} /></button>
+                          <button onClick={() => setEditingId(null)} className="text-white/20 hover:text-white transition-colors"><X size={14} /></button>
+                        </div>
+                      ) : (
+                        <button onClick={() => startEdit(row)} className="group relative inline-block text-right">
+                          <span className={`text-base font-black tabular-nums ${meta.text} group-hover:text-white transition-colors`}>
+                            {fmt(row.current_stock, 1)}
+                          </span>
+                          <span className="text-[10px] text-white/25 ml-1">{UNIT_LABELS[row.unit]}</span>
+                          <span className="absolute -inset-2 rounded-lg bg-white/0 group-hover:bg-white/[0.04] transition-colors" />
+                        </button>
+                      )}
                     </div>
 
                     {/* Critical limit */}
@@ -698,8 +640,23 @@ export default function StockPage() {
                     <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className={`text-lg font-black tabular-nums ${meta.text}`}>{fmt(row.current_stock, 1)}</span>
-                        <span className="text-xs text-white/25 ml-1">/ {fmt(row.critical_limit, 0)} {UNIT_LABELS[row.unit]}</span>
+                        {editingId === row.id ? (
+                          <div className="flex items-center gap-1">
+                            <input type="number" min="0" step="1" value={editVal}
+                              onChange={e => setEditVal(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingId(null); }}
+                              autoFocus
+                              className="w-16 px-1.5 py-0.5 rounded-lg text-white bg-white/[0.08] border border-gold/40 outline-none text-base font-black tabular-nums"
+                            />
+                            <button onClick={saveEdit} className="text-emerald-400"><CheckCircle2 size={13} /></button>
+                            <button onClick={() => setEditingId(null)} className="text-white/20"><X size={13} /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => startEdit(row)} className="group">
+                            <span className={`text-lg font-black tabular-nums ${meta.text} group-hover:text-white transition-colors`}>{fmt(row.current_stock, 1)}</span>
+                            <span className="text-xs text-white/25 ml-1">/ {fmt(row.critical_limit, 0)} {UNIT_LABELS[row.unit]}</span>
+                          </button>
+                        )}
                       </div>
                       <div className="flex gap-1.5">
                         <button
@@ -789,24 +746,6 @@ export default function StockPage() {
                         onChange={e => setQty(e.target.value)} placeholder="0.000" autoFocus
                         className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-base font-bold"
                       />
-                      <div className="flex gap-1.5 mt-2 flex-wrap">
-                        {modal.row?.unit === 'piece' 
-                          ? [1, 5, 10, 25].map(n => (
-                              <button key={n} onClick={() => setQty(String(n))}
-                                className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all active:scale-95 hover:bg-white/10"
-                                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: parseFloat(qty) === n ? '#6ee7b7' : '#ffffff60' }}>
-                                +{n}
-                              </button>
-                            ))
-                          : [100, 500, 1000, 5000].map(n => (
-                              <button key={n} onClick={() => setQty(String(n))}
-                                className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all active:scale-95 hover:bg-white/10"
-                                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: parseFloat(qty) === n ? '#6ee7b7' : '#ffffff60' }}>
-                                +{n} {UNIT_LABELS[modal.row?.unit || 'gram']}
-                              </button>
-                            ))
-                        }
-                      </div>
                     </div>
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">

@@ -407,7 +407,10 @@ const ProductsPage = () => {
     if (!productForm.price || isNaN(parseFloat(productForm.price)) || parseFloat(productForm.price) <= 0) { setPriceError(true); return; }
     setPriceError(false);
     if (!productForm.category_id) { toast.error(t('select_category'), { id: 'action-toast' }); return; }
-    // Detect language of product name — block if not AZ/EN/RU
+    if (productForm.is_ready_product && !productForm.direct_ingredient_id) {
+      toast.error('Hazır məhsul üçün xammal seçilməlidir', { id: 'action-toast' });
+      return;
+    }
     try {
       const detectRes = await fetch('/api/translate-text', {
         method: 'POST',
@@ -418,10 +421,10 @@ const ProductsPage = () => {
         const { detectedLanguage } = await detectRes.json();
         if (detectedLanguage === 'other') {
           toast.error(t('unsupported_language'), { id: 'action-toast' });
-          return;
+          // bloklamir, davam edir
         }
       }
-    } catch { /* silent — allow save if detect fails */ }
+    } catch { /* silent */ }
     setUpdating(true);
     const productData = {
       name: productForm.name, category_id: productForm.category_id, price: parseFloat(productForm.price),

@@ -7,8 +7,8 @@ import {
   Calendar,
   ClipboardList,
   PackagePlus,
-  FlaskConical,
-  CookingPot,
+  Warehouse,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -52,8 +52,8 @@ export function getAdminNavItems(
     { id: 'products', name: t('products'), href: '/products', icon: ShoppingBag, roles: ['superadmin'] },
     { id: 'combos', name: t('combos'), href: '/combos', icon: PackagePlus, roles: ['superadmin'] },
     { id: 'campaigns', name: t('campaigns'), href: '/campaigns', icon: Percent, roles: ['admin', 'superadmin'] },
-    { id: 'stock', name: 'Stok', href: '/stock', icon: FlaskConical, roles: ['superadmin'] },
-    { id: 'recipes', name: 'Reseptlər', href: '/recipes', icon: CookingPot, roles: ['superadmin'] },
+    { id: 'stock', name: 'Stok', href: '/stock', icon: Warehouse, roles: ['superadmin'] },
+    { id: 'recipes', name: 'Reseptlər', href: '/recipes', icon: ScrollText, roles: ['superadmin'] },
     { id: 'stats', name: t('statistics'), href: '/stats', icon: BarChart3, roles: ['superadmin'] },
     { id: 'settings', name: t('settings'), href: '/settings', icon: Settings, roles: ['superadmin'] },
   ];

@@ -50,11 +50,11 @@ interface OrderData {
 const fmt = (n: number) => n.toFixed(2);
 
 function ProductCard({ product, inStock, inCart, onAdd }: { product: Product; inStock: boolean; inCart: number; onAdd: () => void }) {
-  const [imgErr, setImgErr] = useState(false);
+  const [imgState, setImgState] = useState<'loading' | 'ok' | 'err'>('loading');
   const { t } = useLanguage();
   const lang = useLanguage().language;
   const name = lang === 'en' ? (product as any).name_en || product.name : lang === 'ru' ? (product as any).name_ru || product.name : (product as any).name_az || product.name;
-  useEffect(() => { setImgErr(false); }, [product.image_url]);
+  const hasImg = !!product.image_url && product.image_url.trim().length > 0;
   return (
     <button onClick={() => inStock && onAdd()}
       className={`relative rounded-2xl p-4 text-left transition-all border-2 ${
@@ -62,8 +62,11 @@ function ProductCard({ product, inStock, inCart, onAdd }: { product: Product; in
       }`}
     >
       <div className="aspect-square rounded-xl bg-white/[0.03] mb-3 overflow-hidden flex items-center justify-center">
-        {product.image_url && !imgErr ? (
-          <img src={product.image_url} alt={name} className="w-full h-full object-cover" onError={() => setImgErr(true)} />
+        {hasImg && imgState !== 'err' ? (
+          <img src={product.image_url!} alt={name} className="w-full h-full object-cover"
+            onLoad={() => setImgState('ok')}
+            onError={() => setImgState('err')}
+          />
         ) : (
           <ImageOff size={24} className="text-white/[0.08]" />
         )}
@@ -310,20 +313,14 @@ function POSPageInner() {
 
       {/* ══════════════════════════ PRODUCT GRID ══════════════════════════ */}
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <div className="flex-1 overflow-y-auto px-3 pb-4">
-          {!selectedTable && !showCart && (
-            <div className="flex flex-col items-center justify-center h-full text-white/15">
-              <Utensils size={48} className="mb-4 opacity-30" />
-              <p className="text-base">Yuxarıdan masa seçin</p>
-            </div>
-          )}
-          {selectedTable && filteredProducts.length === 0 && (
+        <div className="flex-1 overflow-y-auto px-3 pb-4 relative">
+          {/* Always show product grid */}
+          {filteredProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-white/15">
               <ShoppingBag size={48} className="mb-4 opacity-30" />
               <p className="text-base">{t('search')}</p>
             </div>
-          )}
-          {selectedTable && filteredProducts.length > 0 && (
+          ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {filteredProducts.map(product => {
                 const inStock = productAvail[product.id] !== false;
@@ -332,6 +329,14 @@ function POSPageInner() {
                   <ProductCard key={product.id} product={product} inStock={inStock} inCart={inCart} onAdd={() => addToCart(product)} />
                 );
               })}
+            </div>
+          )}
+
+          {/* Overlay when no table selected — doesn't hide the grid */}
+          {!selectedTable && (
+            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white/15 rounded-2xl">
+              <Utensils size={48} className="mb-4 opacity-40" />
+              <p className="text-base">Yuxarıdan masa seçin</p>
             </div>
           )}
         </div>

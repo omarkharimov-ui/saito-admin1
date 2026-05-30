@@ -7,6 +7,7 @@ import {
   Trash2, X, Loader2, FlaskConical, RefreshCw,
   DollarSign, ShieldAlert, CheckCircle2, Search,
   Calculator, Lightbulb, ChevronDown, ChevronUp,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import type {
@@ -116,6 +117,8 @@ export default function StockPage() {
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState<'all' | 'critical' | 'out_of_stock'>('all');
   const [viewMode, setViewMode] = useState<'stock' | 'history'>('stock');
+  const now = new Date();
+  const [historyMonth, setHistoryMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
 
   // Form fields
   const [qty, setQty]           = useState('');
@@ -160,8 +163,18 @@ export default function StockPage() {
   const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
 
   // Filter logs by search when in history view
+  const monthlyLogs = useMemo(() => {
+    return allLogs.filter((log: any) => {
+      const d = new Date(log.created_at);
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return ym === historyMonth;
+    });
+  }, [allLogs, historyMonth]);
+
   const filteredLogs = useMemo(() => {
-    if (!search.trim() || !allLogs.length) return allLogs;
+    const source = viewMode === 'history' ? monthlyLogs : allLogs;
+    if (!source.length) return [];
+    if (!search.trim()) return source;
     const q = search.toLowerCase();
     const typeLabels: Record<string, string> = {
       stock_in: 'stoka giriş',
@@ -169,13 +182,27 @@ export default function StockPage() {
       adjustment: 'tənzimləmə',
       order_consumption: 'sifariş sərfiyyatı',
     };
-    return allLogs.filter((log: any) => {
+    return source.filter((log: any) => {
       const name = (log.ingredient?.name || log.ingredient_id || '').toLowerCase();
       const label = (typeLabels[log.type] || log.type || '').toLowerCase();
       const note = (log.note || '').toLowerCase();
       return name.includes(q) || label.includes(q) || note.includes(q);
     });
-  }, [allLogs, search]);
+  }, [allLogs, monthlyLogs, search, viewMode]);
+
+  const monthlySummary = useMemo(() => {
+    let stockIn = 0, waste = 0, adjustment = 0, orderConsumption = 0;
+    for (const log of monthlyLogs) {
+      const q = Math.abs(Number(log.quantity) || 0);
+      if (log.type === 'stock_in') stockIn += q;
+      else if (log.type === 'waste') waste += q;
+      else if (log.type === 'adjustment') adjustment += q;
+      else if (log.type === 'order_consumption') orderConsumption += q;
+    }
+    return { stockIn, waste, adjustment, orderConsumption, total: monthlyLogs.length };
+  }, [monthlyLogs]);
+
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
@@ -490,7 +517,7 @@ export default function StockPage() {
             sub="optimal səviyyədə" accent="text-emerald-400/70"
           />
           <StatCard
-            icon={<DollarSign size={18} />} label="Aykı İtki Dəyəri"
+            icon={<DollarSign size={18} />} label="Aylıq İtki Dəyəri"
             value={loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`}
             sub="bu ay waste + adjustment" accent="text-rose-400/70"
           />
@@ -727,15 +754,65 @@ export default function StockPage() {
 
         {viewMode === 'history' && (
         <div className="space-y-4">
+        {/* ── Month navigation ── */}
         <div className="flex items-center justify-between">
           <p className="text-xs font-bold uppercase tracking-[0.15em] text-white/40">
-            Bütün Əməliyyatlar <span className="text-white/15">({filteredLogs.length})</span>
+            Aylıq Tarixçə <span className="text-white/15">({monthlySummary.total})</span>
           </p>
-          <button onClick={fetchAllLogs} disabled={allLogsLoading}
-            className="p-2 rounded-xl text-white/30 hover:text-white transition-all active:scale-95">
-            <RefreshCw size={15} className={allLogsLoading ? 'animate-spin' : ''} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => {
+              const [y, m] = historyMonth.split('-').map(Number);
+              const d = new Date(y, m - 2, 1);
+              setHistoryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+            }} className="p-2 rounded-xl text-white/30 hover:text-white transition-all active:scale-95">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-sm font-bold text-white/70 min-w-[100px] text-center">
+              {new Date(historyMonth + '-01').toLocaleDateString('az-AZ', { year: 'numeric', month: 'long' })}
+            </span>
+            <button onClick={() => {
+              const [y, m] = historyMonth.split('-').map(Number);
+              const d = new Date(y, m, 1);
+              setHistoryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+            }} className="p-2 rounded-xl text-white/30 hover:text-white transition-all active:scale-95">
+              <ChevronRight size={16} />
+            </button>
+            <button onClick={fetchAllLogs} disabled={allLogsLoading}
+              className="p-2 rounded-xl text-white/30 hover:text-white transition-all active:scale-95">
+              <RefreshCw size={15} className={allLogsLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
+
+        {/* ── Monthly summary cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
+            <p className="text-[10px] uppercase tracking-wider text-emerald-400/60 font-bold">Stoka Giriş</p>
+            <p className="text-lg font-black text-emerald-400 tabular-nums mt-1">
+              {fmt(monthlySummary.stockIn, 1)}
+            </p>
+          </div>
+          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
+            <p className="text-[10px] uppercase tracking-wider text-red-400/60 font-bold">İtki</p>
+            <p className="text-lg font-black text-red-400 tabular-nums mt-1">
+              {fmt(monthlySummary.waste, 1)}
+            </p>
+          </div>
+          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.12)' }}>
+            <p className="text-[10px] uppercase tracking-wider text-gold/60 font-bold">Tənzimləmə</p>
+            <p className="text-lg font-black text-gold tabular-nums mt-1">
+              {fmt(monthlySummary.adjustment, 1)}
+            </p>
+          </div>
+          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Sifariş Sərfiyyatı</p>
+            <p className="text-lg font-black text-white/70 tabular-nums mt-1">
+              {fmt(monthlySummary.orderConsumption, 1)}
+            </p>
+          </div>
+        </div>
+
+        {/* ── History table ── */}
         <div className="rounded-2xl overflow-hidden"
           style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="hidden lg:grid gap-4 px-6 py-3 text-[11px] font-bold tracking-[0.15em] uppercase text-white/30"

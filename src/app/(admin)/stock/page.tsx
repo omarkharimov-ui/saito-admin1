@@ -402,6 +402,7 @@ export default function StockPage() {
   const handleNewIngredient = async () => {
     const errors: Record<string, boolean> = {};
     if (!newName.trim()) errors.name = true;
+    if (!newLimit.trim()) errors.criticalLimit = true;
     if (!newTotalQty.trim()) errors.totalQty = true;
     if (!newTotalAmount.trim()) errors.totalAmount = true;
     setFormErrors(errors);
@@ -1409,11 +1410,11 @@ export default function StockPage() {
                       <div>
                         <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Kritik limit</label>
                         <input type="number" min="0" step="1" value={newLimit}
-                          onChange={e => setNewLimit(e.target.value)}
+                          onChange={e => { setNewLimit(e.target.value); setFormErrors(p => ({ ...p, criticalLimit: false })); }}
                           className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
                           style={{
-                            borderColor: !newLimit.trim() ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
-                            background: !newLimit.trim() ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
+                            borderColor: formErrors.criticalLimit ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
+                            background: formErrors.criticalLimit ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
                           }}
                         />
                       </div>

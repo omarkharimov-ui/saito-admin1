@@ -111,7 +111,6 @@ interface ActiveModal { mode: ModalMode; row?: InventoryStatusRow }
 export default function StockPage() {
   const [data, setData]       = useState<InventoryDashboardData & { alerts: LowStockAlert[] } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [modal, setModal]     = useState<ActiveModal>({ mode: null });
   const [saving, setSaving]   = useState(false);
   const [search, setSearch]   = useState('');
@@ -233,14 +232,13 @@ export default function StockPage() {
     setPickerYear(y);
   }, [historyMonth]);
 
-  const fetchData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true); else setRefreshing(true);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch('/api/inventory');
       if (res.ok) setData(await res.json());
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
@@ -249,8 +247,8 @@ export default function StockPage() {
   // Real-time subscription — inventory_logs və ingredients dəyişikliklərini izlə
   useEffect(() => {
     const channel = createRealtimeChannel('stock-page')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => fetchData(true))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => fetchData(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => fetchData())
       .subscribe();
     return () => { removeRealtimeChannel(channel); };
   }, [fetchData]);
@@ -337,7 +335,7 @@ export default function StockPage() {
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success(`${modal.row.name} — stok əlavə edildi`, { style: toastStyle });
       closeModal();
-      fetchData(true);
+      fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
     } finally {
@@ -362,7 +360,7 @@ export default function StockPage() {
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success(`${modal.row.name} — itki qeyd edildi`, { style: toastStyle });
       closeModal();
-      fetchData(true);
+      fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
     } finally {
@@ -390,7 +388,7 @@ export default function StockPage() {
         { style: toastStyle, duration: 4000 }
       );
       closeModal();
-      fetchData(true);
+      fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
     } finally {
@@ -419,12 +417,27 @@ export default function StockPage() {
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success('İnqredient əlavə edildi', { style: toastStyle });
       closeModal();
-      fetchData(true);
+      fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
     } finally {
       setSaving(false);
     }
+  };
+
+  // ── Clear all ──────────────────────────────────────────────────────────
+  const [clearingAll, setClearingAll] = useState(false);
+  const clearAllIngredients = async () => {
+    if (!confirm('Bütün xammallar silinsin? Bu əməliyyat geri alına bilməz!')) return;
+    setClearingAll(true);
+    try {
+      const res = await fetch('/api/inventory/clear-all', { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success('Bütün xammallar silindi', { style: toastStyle });
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message, { style: toastStyle });
+    } finally { setClearingAll(false); }
   };
 
   // ── Delete ──────────────────────────────────────────────────────────────
@@ -434,7 +447,7 @@ export default function StockPage() {
       const res = await fetch(`/api/inventory?id=${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success('Silindi', { style: toastStyle });
-      fetchData(true);
+      fetchData();
     } catch (e: any) {
       toast.error(e.message, { style: toastStyle });
     }
@@ -493,19 +506,18 @@ export default function StockPage() {
               {viewMode === 'history' ? 'Stok' : 'Tarixçə'}
             </button>
             <button
-              onClick={() => fetchData(true)}
-              disabled={refreshing}
-              className="p-2.5 rounded-xl text-white/30 hover:text-white transition-all hover:bg-white/5 active:scale-95"
-              title="Yenilə"
-            >
-              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-            </button>
-            <button
               onClick={() => setModal({ mode: 'new_ingredient' })}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
               style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
             >
               <Plus size={15} /> Yeni Xammal
+            </button>
+            <button
+              onClick={clearAllIngredients} disabled={clearingAll}
+              className="px-3 py-2.5 rounded-xl text-[11px] font-bold text-red-400/50 hover:text-red-400 hover:bg-red-500/5 transition-all disabled:opacity-30"
+            >
+              {clearingAll ? <Loader2 size={13} className="inline-block mr-1 animate-spin" /> : <Trash2 size={13} className="inline-block mr-1" />}
+              Hamısını Sil
             </button>
           </div>
         </motion.div>
@@ -971,13 +983,6 @@ export default function StockPage() {
               </AnimatePresence>
             </div>
 
-            <motion.button
-              whileTap={{ scale: 0.92 }}
-              onClick={fetchAllLogs} disabled={allLogsLoading}
-              className="p-2.5 rounded-xl text-white/30 hover:text-white transition-all hover:bg-white/5 active:scale-95"
-            >
-              <RefreshCw size={15} className={allLogsLoading ? 'animate-spin' : ''} />
-            </motion.button>
           </div>
         </div>
 

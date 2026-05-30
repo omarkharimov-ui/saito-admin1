@@ -147,6 +147,21 @@ export default function RecipesPage() {
     else { toast.success('Silindi'); fetchData(); }
   };
 
+  // ── Clear all recipes ──
+  const [clearingAll, setClearingAll] = useState(false);
+  const clearAllRecipes = async () => {
+    if (!confirm('Bütün reseptlər silinsin? Bu əməliyyat geri alına bilməz!')) return;
+    setClearingAll(true);
+    try {
+      const res = await fetch('/api/recipes/clear-all', { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success('Bütün reseptlər silindi');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally { setClearingAll(false); }
+  };
+
   // ── AI Suggestion handlers ──
   const generateAiSuggestions = async () => {
     setAiLoading(true);
@@ -361,6 +376,13 @@ export default function RecipesPage() {
             <BrainCircuit size={14} /> AI Təkliflər {aiSuggestedRecipes.length > 0 && (
               <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
             )}
+          </button>
+          <button
+            onClick={clearAllRecipes} disabled={clearingAll}
+            className="px-3 py-2 rounded-xl text-[10px] font-bold text-red-400/50 hover:text-red-400 hover:bg-red-500/5 transition-all disabled:opacity-30"
+          >
+            {clearingAll ? <Loader2 size={12} className="inline-block mr-1 animate-spin" /> : <Trash2 size={12} className="inline-block mr-1" />}
+            Hamısını Sil
           </button>
         </div>
       </div>

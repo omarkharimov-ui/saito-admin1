@@ -49,6 +49,41 @@ interface OrderData {
 
 const fmt = (n: number) => n.toFixed(2);
 
+function ProductCard({ product, inStock, inCart, onAdd }: { product: Product; inStock: boolean; inCart: number; onAdd: () => void }) {
+  const [imgErr, setImgErr] = useState(false);
+  const { t } = useLanguage();
+  const lang = useLanguage().language;
+  const name = lang === 'en' ? (product as any).name_en || product.name : lang === 'ru' ? (product as any).name_ru || product.name : (product as any).name_az || product.name;
+  useEffect(() => { setImgErr(false); }, [product.image_url]);
+  return (
+    <button onClick={() => inStock && onAdd()}
+      className={`relative rounded-2xl p-4 text-left transition-all border-2 ${
+        inStock ? 'bg-white/[0.04] border-white/[0.08] active:bg-white/[0.1]' : 'opacity-40 border-white/[0.03] bg-white/[0.02]'
+      }`}
+    >
+      <div className="aspect-square rounded-xl bg-white/[0.03] mb-3 overflow-hidden flex items-center justify-center">
+        {product.image_url && !imgErr ? (
+          <img src={product.image_url} alt={name} className="w-full h-full object-cover" onError={() => setImgErr(true)} />
+        ) : (
+          <ImageOff size={24} className="text-white/[0.08]" />
+        )}
+      </div>
+      <p className="text-sm font-semibold text-white/90 truncate leading-tight">{name}</p>
+      <p className="text-sm font-black text-gold mt-0.5">₼{fmt(product.price)}</p>
+      {!inStock && (
+        <div className="absolute inset-0 rounded-2xl bg-black/50 flex items-center justify-center">
+          <span className="text-xs font-bold text-white/70 bg-black/70 px-3 py-1.5 rounded-xl">{t('out_of_stock_label')}</span>
+        </div>
+      )}
+      {inCart > 0 && (
+        <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gold text-black text-xs font-black flex items-center justify-center shadow-lg">
+          {inCart}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function POSPageInner() {
   const { t, language } = useLanguage();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -294,38 +329,7 @@ function POSPageInner() {
                 const inStock = productAvail[product.id] !== false;
                 const inCart = cart.find(i => i.product.id === product.id)?.quantity || 0;
                 return (
-                  <motion.button key={product.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                    onClick={() => inStock && addToCart(product)}
-                    className={`relative rounded-2xl p-4 text-left transition-all border-2 ${
-                      inStock
-                        ? 'bg-white/[0.04] border-white/[0.08] active:bg-white/[0.1]'
-                        : 'opacity-40 border-white/[0.03] bg-white/[0.02]'
-                    }`}
-                  >
-                    <div className="aspect-square rounded-xl bg-white/[0.03] mb-3 overflow-hidden">
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={getProductName(product)} className="w-full h-full object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class=\"w-full h-full flex items-center justify-center\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"text-white/[0.08]\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" ry=\"2\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/><polyline points=\"21,15 16,10 5,21\"/></svg></div>'; }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <ImageOff size={24} className="text-white/[0.08]" />
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-sm font-semibold text-white/90 truncate leading-tight">{getProductName(product)}</p>
-                    <p className="text-sm font-black text-gold mt-0.5">₼{fmt(product.price)}</p>
-                    {!inStock && (
-                      <div className="absolute inset-0 rounded-2xl bg-black/50 flex items-center justify-center">
-                        <span className="text-xs font-bold text-white/70 bg-black/70 px-3 py-1.5 rounded-xl">{t('out_of_stock_label')}</span>
-                      </div>
-                    )}
-                    {inCart > 0 && (
-                      <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gold text-black text-xs font-black flex items-center justify-center shadow-lg">
-                        {inCart}
-                      </span>
-                    )}
-                  </motion.button>
+                  <ProductCard key={product.id} product={product} inStock={inStock} inCart={inCart} onAdd={() => addToCart(product)} />
                 );
               })}
             </div>

@@ -515,6 +515,12 @@ export default function KitchenPage() {
     });
   }, []);
 
+  // Polling fallback (hər 8s) — realtime işləməsə də data təzə qalır
+  useEffect(() => {
+    const id = setInterval(() => fetchOrdersRef.current(), 8_000);
+    return () => clearInterval(id);
+  }, []);
+
   // 60-second tick — reduced frequency for CPU relief
   useEffect(() => {
     const id = setInterval(() => forceUpdate(x => x + 1), 60_000);

@@ -177,6 +177,12 @@ export function useOrders() {
     return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
   }, [t]);
 
+  /* ─── Polling fallback (hər 10s) — realtime işləməsə də data təzə qalır ─── */
+  useEffect(() => {
+    const id = setInterval(() => fetchOrdersRef.current(false), 10_000);
+    return () => clearInterval(id);
+  }, []);
+
   /* ─── Tick (60s) for timeAgo refresh ─── */
   useEffect(() => {
     const id = setInterval(() => setTick(n => n + 1), 60_000);

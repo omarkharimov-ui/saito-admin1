@@ -26,7 +26,9 @@ UPDATE ingredients SET cold_waste_percentage = waste_percentage WHERE waste_perc
 
 ALTER TABLE products
   ADD COLUMN IF NOT EXISTS cost_price numeric DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS profit_margin numeric DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS profit_margin numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS is_ready_product boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS direct_ingredient_id uuid REFERENCES ingredients(id) ON DELETE SET NULL;
 
 -- ═══════════════════════════════════════════════════════════════
 -- 3. RECIPES — brutto/netto + isti itki
@@ -138,6 +140,40 @@ CREATE TRIGGER trg_theoretical_stock
   AFTER INSERT ON inventory_logs
   FOR EACH ROW
   EXECUTE FUNCTION update_theoretical_stock();
+
+-- ═══════════════════════════════════════════════════════════════
+-- 6b. CURRENT STOCK: inventory_logs insert-də current_stock-u da yenilə
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION update_current_stock()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_delta numeric;
+BEGIN
+  IF NEW.type = 'stock_in' THEN
+    v_delta := NEW.quantity;
+  ELSIF NEW.type IN ('waste', 'order_consumption') THEN
+    v_delta := -NEW.quantity;
+  ELSIF NEW.type = 'adjustment' THEN
+    v_delta := NEW.quantity;
+  ELSE
+    v_delta := 0;
+  END IF;
+
+  UPDATE ingredients
+  SET current_stock = GREATEST(0, COALESCE(current_stock, 0) + v_delta),
+      updated_at = now()
+  WHERE id = NEW.ingredient_id;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_current_stock ON inventory_logs;
+CREATE TRIGGER trg_current_stock
+  AFTER INSERT ON inventory_logs
+  FOR EACH ROW
+  EXECUTE FUNCTION update_current_stock();
 
 -- ═══════════════════════════════════════════════════════════════
 -- 7. COST CASCADE: average_cost_per_unit dəyişəndə bütün məhsulları yenilə

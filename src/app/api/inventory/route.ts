@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       .insert({
         name: name.trim(),
         unit,
-        critical_limit: criticalLimit ?? 500,
+        critical_limit: criticalLimit ?? 0,
         average_cost_per_unit: averageCostPerUnit ?? 0,
         purchase_price: purchasePrice ?? averageCostPerUnit ?? 0,
         cold_waste_percentage: coldWastePercentage ?? 0,

@@ -418,7 +418,7 @@ export default function StockPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newName.trim(), unit: newUnit,
-          criticalLimit: parseFloat(newLimit) || 500,
+          criticalLimit: parseFloat(newLimit) || 0,
           averageCostPerUnit: effectiveCost,
           purchasePrice: unitCost,
           coldWastePercentage: parseFloat(newWastePct) || 0,
@@ -1410,7 +1410,11 @@ export default function StockPage() {
                         <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Kritik limit</label>
                         <input type="number" min="0" step="1" value={newLimit}
                           onChange={e => setNewLimit(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                          style={{
+                            borderColor: !newLimit.trim() ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
+                            background: !newLimit.trim() ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
+                          }}
                         />
                       </div>
                     </div>

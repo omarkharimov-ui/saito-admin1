@@ -115,6 +115,7 @@ export default function StockPage() {
   const [saving, setSaving]   = useState(false);
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState<'all' | 'critical' | 'out_of_stock'>('all');
+  const [viewMode, setViewMode] = useState<'stock' | 'history'>('stock');
 
   // Form fields
   const [qty, setQty]           = useState('');
@@ -133,11 +134,12 @@ export default function StockPage() {
   const [calcRaw, setCalcRaw] = useState('');
   const [calcClean, setCalcClean] = useState('');
   const [wasteStandards, setWasteStandards] = useState<any[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editVal, setEditVal] = useState('');
+  const [selectedLogsIngredient, setSelectedLogsIngredient] = useState<string | null>(null);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [allLogs, setAllLogs] = useState<any[]>([]);
+  const [allLogsLoading, setAllLogsLoading] = useState(false);
 
   // Auto-calculated unit cost from total qty/amount
   const calculatedUnitCost = (() => {
@@ -209,34 +211,6 @@ export default function StockPage() {
     }, 800);
   }, [wasteStandards]);
 
-  // inline edit stock
-  const startEdit = (row: InventoryStatusRow) => {
-    setEditingId(row.id);
-    setEditVal(String(row.current_stock));
-  };
-
-  const saveEdit = async () => {
-    if (!editingId) return;
-    const num = parseFloat(editVal);
-    if (isNaN(num) || num < 0) { toast.error('Düzgün rəqəm daxil edin', { style: toastStyle }); return; }
-    setSaving(true);
-    try {
-      const res = await fetch('/api/inventory/audit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredientId: editingId, actualQty: num }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      toast.success('Stok yeniləndi', { style: toastStyle });
-      setEditingId(null);
-      fetchData(true);
-    } catch (e: any) {
-      toast.error(e.message, { style: toastStyle });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   // ── View History ─────────────────────────────────────────────────────────
   const handleViewHistory = async (row: InventoryStatusRow) => {
     setModal({ mode: 'history', row });
@@ -247,6 +221,18 @@ export default function StockPage() {
     } catch { setHistoryLogs([]); }
     finally { setHistoryLoading(false); }
   };
+
+  // ── All History (page view) ─────────────────────────────────────────────
+  const fetchAllLogs = useCallback(async () => {
+    setAllLogsLoading(true);
+    try {
+      const res = await fetch('/api/inventory/logs?limit=200');
+      setAllLogs(res.ok ? await res.json() : []);
+    } catch { setAllLogs([]); }
+    finally { setAllLogsLoading(false); }
+  }, []);
+
+  useEffect(() => { if (viewMode === 'history') fetchAllLogs(); }, [viewMode, fetchAllLogs]);
 
   const closeModal = () => {
     setModal({ mode: null });
@@ -423,6 +409,16 @@ export default function StockPage() {
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setViewMode(viewMode === 'stock' ? 'history' : 'stock')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
+                viewMode === 'history'
+                  ? 'bg-white/10 text-white border border-white/15'
+                  : 'text-white/30 hover:text-white/60 border border-transparent'
+              }`}
+            >
+              {viewMode === 'history' ? 'Stok' : 'Tarixçə'}
+            </button>
+            <button
               onClick={() => fetchData(true)}
               disabled={refreshing}
               className="p-2.5 rounded-xl text-white/30 hover:text-white transition-all hover:bg-white/5 active:scale-95"
@@ -509,6 +505,8 @@ export default function StockPage() {
           </div>
         </div>
 
+        {viewMode === 'stock' && (
+        <>
         {/* ── Inventory Table ── */}
         {loading ? (
           <div className="flex items-center justify-center h-48">
@@ -580,26 +578,10 @@ export default function StockPage() {
 
                     {/* Current stock - inline editable */}
                     <div className="text-right">
-                      {editingId === row.id ? (
-                        <div className="flex items-center gap-1 justify-end">
-                          <input type="number" min="0" step="1" value={editVal}
-                            onChange={e => setEditVal(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingId(null); }}
-                            autoFocus
-                            className="w-20 px-2 py-1 rounded-lg text-white bg-white/[0.08] border border-gold/40 outline-none text-base font-black tabular-nums text-right"
-                          />
-                          <button onClick={saveEdit} className="text-emerald-400 hover:text-emerald-300 transition-colors"><CheckCircle2 size={14} /></button>
-                          <button onClick={() => setEditingId(null)} className="text-white/20 hover:text-white transition-colors"><X size={14} /></button>
-                        </div>
-                      ) : (
-                        <button onClick={() => startEdit(row)} className="group relative inline-block text-right">
-                          <span className={`text-base font-black tabular-nums ${meta.text} group-hover:text-white transition-colors`}>
-                            {fmt(row.current_stock, 1)}
-                          </span>
-                          <span className="text-[10px] text-white/25 ml-1">{UNIT_LABELS[row.unit]}</span>
-                          <span className="absolute -inset-2 rounded-lg bg-white/0 group-hover:bg-white/[0.04] transition-colors" />
-                        </button>
-                      )}
+                      <span className="text-base font-black tabular-nums" style={{ color: meta.text }}>
+                        {fmt(row.current_stock, 1)}
+                      </span>
+                      <span className="text-[10px] text-white/25 ml-1">{UNIT_LABELS[row.unit]}</span>
                     </div>
 
                     {/* Critical limit */}
@@ -676,23 +658,10 @@ export default function StockPage() {
                     <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
                     <div className="flex items-center justify-between">
                       <div>
-                        {editingId === row.id ? (
-                          <div className="flex items-center gap-1">
-                            <input type="number" min="0" step="1" value={editVal}
-                              onChange={e => setEditVal(e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingId(null); }}
-                              autoFocus
-                              className="w-16 px-1.5 py-0.5 rounded-lg text-white bg-white/[0.08] border border-gold/40 outline-none text-base font-black tabular-nums"
-                            />
-                            <button onClick={saveEdit} className="text-emerald-400"><CheckCircle2 size={13} /></button>
-                            <button onClick={() => setEditingId(null)} className="text-white/20"><X size={13} /></button>
-                          </div>
-                        ) : (
-                          <button onClick={() => startEdit(row)} className="group">
-                            <span className={`text-lg font-black tabular-nums ${meta.text} group-hover:text-white transition-colors`}>{fmt(row.current_stock, 1)}</span>
-                            <span className="text-xs text-white/25 ml-1">/ {fmt(row.critical_limit, 0)} {UNIT_LABELS[row.unit]}</span>
-                          </button>
-                        )}
+                        <span className="text-lg font-black tabular-nums" style={{ color: meta.text }}>
+                          {fmt(row.current_stock, 1)}
+                        </span>
+                        <span className="text-xs text-white/25 ml-1">/ {fmt(row.critical_limit, 0)} {UNIT_LABELS[row.unit]}</span>
                       </div>
                       <div className="flex gap-1.5 relative">
                         <button onClick={() => setOpenActionsId(openActionsId === row.id ? null : row.id)}
@@ -736,6 +705,77 @@ export default function StockPage() {
             })}
           </motion.div>
         )}
+      </> )}
+
+        {viewMode === 'history' && (
+        <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/20">
+            Bütün Əməliyyatlar <span className="text-white/10">({allLogs.length})</span>
+          </p>
+          <button onClick={fetchAllLogs} disabled={allLogsLoading}
+            className="p-2 rounded-xl text-white/20 hover:text-white transition-all active:scale-95">
+            <RefreshCw size={14} className={allLogsLoading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+        <div className="rounded-2xl overflow-hidden"
+          style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="hidden lg:grid gap-3 px-5 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-white/20"
+            style={{
+              gridTemplateColumns: '60px 1fr 80px 80px 120px',
+              background: 'rgba(255,255,255,0.018)',
+              borderBottom: '1px solid rgba(255,255,255,0.05)',
+            }}>
+            <span>Növ</span>
+            <span>Xammal</span>
+            <span className="text-right">Miqdar</span>
+            <span className="text-right">Maya</span>
+            <span className="text-right">Tarix</span>
+          </div>
+          {allLogsLoading ? (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 size={24} className="animate-spin text-white/15" />
+            </div>
+          ) : allLogs.length === 0 ? (
+            <div className="text-center py-16 text-white/20 text-xs">
+              <Package size={32} className="mx-auto mb-2 opacity-30" />
+              Heç bir əməliyyat tapılmadı
+            </div>
+          ) : (
+            <div className="divide-y divide-white/[0.04]">
+              {allLogs.map((log: any, idx: number) => {
+                const dt = new Date(log.created_at);
+                const sign = log.type === 'stock_in' ? '+' : log.type === 'adjustment' && log.quantity > 0 ? '+' : '-';
+                const color = LOG_COLORS[log.type] || 'text-white/40';
+                return (
+                  <div key={log.id || idx}
+                    className="grid gap-3 px-5 py-3 text-sm items-center transition-colors hover:bg-white/[0.015]"
+                    style={{ gridTemplateColumns: '60px 1fr 80px 80px 120px' }}>
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold ${color}`}
+                      style={{ background: log.type === 'stock_in' ? 'rgba(16,185,129,0.1)' : log.type === 'waste' ? 'rgba(239,68,68,0.08)' : log.type === 'adjustment' ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.04)' }}>
+                      {LOG_LABELS[log.type] || log.type}
+                    </span>
+                    <span className="truncate text-white/80 text-xs font-medium">
+                      {log.ingredient?.name || log.ingredient_id?.slice(0, 8)}
+                    </span>
+                    <span className={`text-right text-xs font-bold tabular-nums ${color}`}>
+                      {sign}{fmt(Math.abs(log.quantity), 1)} {log.ingredient?.unit || ''}
+                    </span>
+                    <span className="text-right text-[10px] text-white/35 tabular-nums">
+                      {log.cost_per_unit != null ? `₼${fmtCost(log.cost_per_unit)}` : '—'}
+                    </span>
+                    <span className="text-right text-[10px] text-white/30">
+                      {dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+      )}
+      
       </div>
 
       {/* ═══════════════════════════════════════════════════════

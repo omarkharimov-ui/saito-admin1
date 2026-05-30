@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'react-hot-toast';
 
@@ -51,6 +51,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const [selectedProductId, setSelectedProductId] = useState(editProductId || '');
   const [rows, setRows] = useState<RecipeLine[]>([]);
   const [saving, setSaving] = useState(false);
+  const [aiSuggesting, setAiSuggesting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
@@ -205,6 +206,45 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
     setRows([]);
   };
 
+  const aiSuggest = async () => {
+    if (!selectedProduct) { toast.error('Əvvəlcə məhsul seçin', { style: toastStyle }); return; }
+    const dishName = (selectedProduct as any).name_az || selectedProduct.name;
+    setAiSuggesting(true);
+    try {
+      const res = await fetch(`/api/recipes/ai-suggest-ingredients?dishName=${encodeURIComponent(dishName)}`);
+      const data = await res.json();
+      if (!data.suggestions || data.suggestions.length === 0) {
+        toast.error('AI təklif gətirə bilmədi', { style: toastStyle });
+        return;
+      }
+      const newRows: RecipeLine[] = data.suggestions.map((s: any) => {
+        const matched = ingredients.find(i => i.name.toLowerCase().includes(s.ingredientName.toLowerCase()) || s.ingredientName.toLowerCase().includes(i.name.toLowerCase()));
+        if (!matched) return null;
+        const qty = s.quantity || 0;
+        const qtyBrutto = calcBrutto(matched.id, qty, 0);
+        return {
+          ingredient_id: matched.id,
+          ingredient_name: matched.name,
+          unit: matched.unit,
+          quantity: qty,
+          quantity_brutto: qtyBrutto,
+          hot_waste_percentage: 0,
+          cost: matched.average_cost_per_unit * qtyBrutto,
+        };
+      }).filter(Boolean);
+      if (newRows.length === 0) {
+        toast.error('AI təklifləri anbarda olan xammalla uyğunlaşdırıla bilmədi', { style: toastStyle });
+        return;
+      }
+      setRows(newRows);
+      toast.success(`${newRows.length} inqrediyent AI tərəfindən təklif edildi`, { style: toastStyle });
+    } catch {
+      toast.error('AI xətası', { style: toastStyle });
+    } finally {
+      setAiSuggesting(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -231,7 +271,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                     style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
                     <CookingPot size={10} /> Resept Konstruktoru
                   </span>
-                  <h2 className="text-xl font-bold">Yeni Resept</h2>
+                  <h2 className="text-xl font-bold">{selectedProduct ? (selectedProduct as any).name_az || selectedProduct.name : 'Yeni Resept'}</h2>
                 </div>
                 <button onClick={() => { reset(); onClose(); }} className="text-white/25 hover:text-white transition-colors mt-1">
                   <X size={18} />
@@ -265,12 +305,19 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider">
                         Tərkibi <span className="text-white/20">({rows.length} inqrediyent)</span>
                       </label>
-                      <button onClick={addRow}
+                      <div className="flex items-center gap-2">
+                        <button onClick={aiSuggest} disabled={aiSuggesting || !selectedProduct}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95 disabled:opacity-40"
+                          style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', color: '#A78BFA' }}>
+                          {aiSuggesting ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} AI Təklif et
+                        </button>
+                        <button onClick={addRow}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95"
                         style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
                         <Plus size={11} /> İnqrediyent Əlavə Et
                       </button>
                     </div>
+                  </div>
 
                     {rows.length === 0 && (
                       <div className="text-center py-8 text-white/20 text-xs">
@@ -385,6 +432,43 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                               {profit >= 0 ? '+' : ''}₼{profit.toFixed(2)}
                               <span className="ml-1 text-[10px]">({marginPct >= 0 ? '+' : ''}{marginPct.toFixed(1)}%)</span>
                             </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedProduct && salePrice > 0 && (
+                        <div className="pt-2 space-y-1.5">
+                          <div className="flex items-center justify-between text-[9px] text-white/30 uppercase tracking-wider">
+                            <span>Mənfəət Marjı</span>
+                            <span className="tabular-nums font-bold">{marginPct >= 0 ? '+' : ''}{marginPct.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min(Math.max(marginPct, 0), 100)}%` }}
+                              transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+                              className="h-full rounded-full"
+                              style={{
+                                background: marginPct <= 0
+                                  ? 'linear-gradient(90deg, #EF4444, #DC2626)'
+                                  : marginPct < 15
+                                    ? 'linear-gradient(90deg, #F59E0B, #D97706)'
+                                    : marginPct < 30
+                                      ? 'linear-gradient(90deg, #D4AF37, #B8960C)'
+                                      : 'linear-gradient(90deg, #22C55E, #16A34A)',
+                                boxShadow: marginPct > 30
+                                  ? '0 0 8px rgba(34,197,94,0.3)'
+                                  : marginPct > 0
+                                    ? '0 0 8px rgba(212,175,55,0.2)'
+                                    : 'none',
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[8px] text-white/20">
+                            <span>0%</span>
+                            <span>15%</span>
+                            <span>30%</span>
+                            <span>100%</span>
                           </div>
                         </div>
                       )}

@@ -9,6 +9,7 @@ import {
   PackagePlus,
   FlaskConical,
   CookingPot,
+  History,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -53,7 +54,9 @@ export function getAdminNavItems(
     { id: 'combos', name: t('combos'), href: '/combos', icon: PackagePlus, roles: ['superadmin'] },
     { id: 'campaigns', name: t('campaigns'), href: '/campaigns', icon: Percent, roles: ['admin', 'superadmin'] },
     { id: 'stock', name: 'Stok', href: '/stock', icon: FlaskConical, roles: ['superadmin'] },
+    { id: 'waste-standards', name: 'İtki Standartları', href: '/waste-standards', icon: Percent, roles: ['superadmin'] },
     { id: 'recipes', name: 'Reseptlər', href: '/recipes', icon: CookingPot, roles: ['superadmin'] },
+    { id: 'history', name: 'Tarixçə', href: '/history', icon: History, roles: ['superadmin'] },
     { id: 'stats', name: t('statistics'), href: '/stats', icon: BarChart3, roles: ['superadmin'] },
     { id: 'settings', name: t('settings'), href: '/settings', icon: Settings, roles: ['superadmin'] },
   ];

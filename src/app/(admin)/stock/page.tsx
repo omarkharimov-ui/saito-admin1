@@ -204,6 +204,29 @@ export default function StockPage() {
 
   const [showMonthPicker, setShowMonthPicker] = useState(false);
 
+  const monthPickerRef = useRef<HTMLDivElement>(null);
+
+  // Close month picker on outside click
+  useEffect(() => {
+    if (!showMonthPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (monthPickerRef.current && !monthPickerRef.current.contains(e.target as Node)) {
+        setShowMonthPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMonthPicker]);
+
+  const [pickerYear, setPickerYear] = useState(() => new Date().getFullYear());
+
+  const AZ_MONTHS = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyn', 'İyl', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'];
+
+  useEffect(() => {
+    const [y] = historyMonth.split('-').map(Number);
+    setPickerYear(y);
+  }, [historyMonth]);
+
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
@@ -754,33 +777,121 @@ export default function StockPage() {
 
         {viewMode === 'history' && (
         <div className="space-y-4">
-        {/* ── Month navigation ── */}
+        {/* ── Premium Month Picker ── */}
         <div className="flex items-center justify-between">
           <p className="text-xs font-bold uppercase tracking-[0.15em] text-white/40">
             Aylıq Tarixçə <span className="text-white/15">({monthlySummary.total})</span>
           </p>
           <div className="flex items-center gap-2">
-            <button onClick={() => {
-              const [y, m] = historyMonth.split('-').map(Number);
-              const d = new Date(y, m - 2, 1);
-              setHistoryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-            }} className="p-2 rounded-xl text-white/30 hover:text-white transition-all active:scale-95">
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-sm font-bold text-white/70 min-w-[100px] text-center">
-              {new Date(historyMonth + '-01').toLocaleDateString('az-AZ', { year: 'numeric', month: 'long' })}
-            </span>
-            <button onClick={() => {
-              const [y, m] = historyMonth.split('-').map(Number);
-              const d = new Date(y, m, 1);
-              setHistoryMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-            }} className="p-2 rounded-xl text-white/30 hover:text-white transition-all active:scale-95">
-              <ChevronRight size={16} />
-            </button>
-            <button onClick={fetchAllLogs} disabled={allLogsLoading}
-              className="p-2 rounded-xl text-white/30 hover:text-white transition-all active:scale-95">
+            <div ref={monthPickerRef} className="relative">
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setShowMonthPicker(!showMonthPicker)}
+                className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all"
+                style={{
+                  background: showMonthPicker ? 'rgba(212,175,55,0.1)' : 'rgba(255,255,255,0.04)',
+                  border: showMonthPicker ? '1px solid rgba(212,175,55,0.25)' : '1px solid rgba(255,255,255,0.08)',
+                  color: showMonthPicker ? '#D4AF37' : 'rgba(255,255,255,0.7)',
+                }}
+              >
+                <span>{new Date(historyMonth + '-01').toLocaleDateString('az-AZ', { year: 'numeric', month: 'long' })}</span>
+                <motion.svg
+                  animate={{ rotate: showMonthPicker ? 180 : 0 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </motion.svg>
+              </motion.button>
+
+              <AnimatePresence>
+                {showMonthPicker && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                    className="absolute right-0 top-full mt-2 z-50 w-72 rounded-2xl overflow-hidden"
+                    style={{
+                      background: '#121212',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+                    }}
+                  >
+                    {/* Year navigator */}
+                    <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
+                        onClick={() => setPickerYear(p => p - 1)}
+                        className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+                      >
+                        <ChevronLeft size={16} />
+                      </motion.button>
+                      <motion.span
+                        key={pickerYear}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-sm font-bold text-white/80"
+                      >
+                        {pickerYear}
+                      </motion.span>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
+                        onClick={() => setPickerYear(p => p + 1)}
+                        className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+                      >
+                        <ChevronRight size={16} />
+                      </motion.button>
+                    </div>
+
+                    {/* Month grid */}
+                    <div className="grid grid-cols-4 gap-1.5 px-4 pb-4 pt-1">
+                      {AZ_MONTHS.map((name, idx) => {
+                        const monthStr = `${pickerYear}-${String(idx + 1).padStart(2, '0')}`;
+                        const isSelected = monthStr === historyMonth;
+                        const isCurrent = monthStr === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+                        return (
+                          <motion.button
+                            key={monthStr}
+                            whileHover={{ scale: 1.04 }}
+                            whileTap={{ scale: 0.94 }}
+                            onClick={() => {
+                              setHistoryMonth(monthStr);
+                              setShowMonthPicker(false);
+                            }}
+                            className="relative py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all"
+                            style={{
+                              background: isSelected
+                                ? 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.1))'
+                                : 'transparent',
+                              border: isSelected
+                                ? '1px solid rgba(212,175,55,0.3)'
+                                : isCurrent
+                                  ? '1px solid rgba(255,255,255,0.1)'
+                                  : '1px solid transparent',
+                              color: isSelected ? '#D4AF37' : isCurrent ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.35)',
+                            }}
+                          >
+                            {name}
+                            {isCurrent && !isSelected && (
+                              <span className="absolute top-1 right-1.5 w-1 h-1 rounded-full bg-[#D4AF37]/50" />
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={fetchAllLogs} disabled={allLogsLoading}
+              className="p-2.5 rounded-xl text-white/30 hover:text-white transition-all hover:bg-white/5 active:scale-95"
+            >
               <RefreshCw size={15} className={allLogsLoading ? 'animate-spin' : ''} />
-            </button>
+            </motion.button>
           </div>
         </div>
 

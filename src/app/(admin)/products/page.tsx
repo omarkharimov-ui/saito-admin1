@@ -411,20 +411,6 @@ const ProductsPage = () => {
       toast.error('Hazır məhsul üçün xammal seçilməlidir', { id: 'action-toast' });
       return;
     }
-    try {
-      const detectRes = await fetch('/api/translate-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ detectOnly: true, text: productForm.name }),
-      });
-      if (detectRes.ok) {
-        const { detectedLanguage } = await detectRes.json();
-        if (detectedLanguage === 'other') {
-          toast.error(t('unsupported_language'), { id: 'action-toast' });
-          // bloklamir, davam edir
-        }
-      }
-    } catch { /* silent */ }
     setUpdating(true);
     const productData = {
       name: productForm.name, category_id: productForm.category_id, price: parseFloat(productForm.price),

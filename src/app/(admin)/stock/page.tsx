@@ -428,10 +428,13 @@ export default function StockPage() {
             ingredientId: created.id,
             quantity: initialQty,
             costPerUnit: unitCost > 0 ? unitCost : undefined,
-            reason: 'İlkin qeydiyyat',
+            reason: 'İlkin qeydiyyat — ' + newName.trim(),
           }),
         });
-        if (!logRes.ok) console.warn('Stock_in failed:', await logRes.text());
+        if (!logRes.ok) {
+          const errText = await logRes.text();
+          toast.error('Xammal yaradıldı, amma stoka əlavə edilə bilmədi: ' + errText, { style: toastStyle });
+        }
       }
 
       toast.success('İnqredient əlavə edildi', { style: toastStyle });

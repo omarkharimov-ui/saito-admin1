@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const supabase = svc();
-    const body: (AddStockInPayload | ReportWastePayload) & { type: 'stock_in' | 'waste' } =
+    const body: (AddStockInPayload | ReportWastePayload) & { type: 'stock_in' | 'waste' | 'adjustment' | 'order_consumption' } =
       await req.json();
 
     const { type, ingredientId, quantity, reason } = body;
@@ -62,13 +62,24 @@ export async function POST(req: NextRequest) {
         ingredient_id: ingredientId,
         type,
         quantity,
-        cost_per_unit: type === 'stock_in' ? costPerUnit : null,
+        cost_per_unit: type === 'stock_in' || type === 'adjustment' ? costPerUnit : null,
         reason: reason?.trim() ?? null,
       })
       .select()
       .single();
 
     if (error) throw error;
+
+    // current_stock-u da yenilə (DB trigger olmayana qədər safety net)
+    const delta = type === 'stock_in' || type === 'adjustment' ? quantity : -quantity;
+    const { data: ing } = await supabase.from('ingredients').select('current_stock').eq('id', ingredientId).single();
+    if (ing) {
+      await supabase.from('ingredients').update({
+        current_stock: Math.max(0, (ing.current_stock ?? 0) + delta),
+        updated_at: new Date().toISOString(),
+      }).eq('id', ingredientId);
+    }
+
     return NextResponse.json(data, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

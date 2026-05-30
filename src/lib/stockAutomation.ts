@@ -37,6 +37,8 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
     return;
   }
 
+  console.log('[stockAutomation] Order items:', JSON.stringify(items, null, 2));
+
   const logs: { ingredient_id: string; type: 'order_consumption'; quantity: number; reason: string }[] = [];
 
   // Hazır məhsulların id-lərini topla (resept yox, birbaşa ingredient)
@@ -52,11 +54,14 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
     }
   }
 
+  console.log('[stockAutomation] Ready IDs:', readyProductIds, 'Recipe IDs:', recipeProductIds);
+
   // 2a. HAZIR MƏHSULLAR: birbaşa direct_ingredient_id ilə stock azalt
   for (const item of items) {
     const prod = Array.isArray(item.products) ? item.products[0] : item.products;
     if (prod?.is_ready_product && prod?.direct_ingredient_id) {
       const qty = Number(item.quantity) || 1;
+      console.log(`[stockAutomation] Ready deduct: product=${item.product_id}, ingredient=${prod.direct_ingredient_id}, qty=${qty}`);
       logs.push({
         ingredient_id: prod.direct_ingredient_id,
         type: 'order_consumption',
@@ -73,14 +78,19 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
       .select('menu_item_id, ingredient_id, quantity_required, quantity_brutto')
       .in('menu_item_id', recipeProductIds);
 
+    console.log('[stockAutomation] Recipes found:', recipes?.length || 0, JSON.stringify(recipes, null, 2));
+
     if (recipes && recipes.length > 0) {
       for (const item of items) {
         const prod = Array.isArray(item.products) ? item.products[0] : item.products;
         if (prod?.is_ready_product) continue; // hazır məhsulları skip
 
         const itemRecipes = recipes.filter(r => r.menu_item_id === item.product_id);
+        console.log(`[stockAutomation] Item ${item.product_id} (qty=${item.quantity}): ${itemRecipes.length} recipes matched`);
         for (const rec of itemRecipes) {
-          const deductQty = (rec.quantity_brutto ?? rec.quantity_required) * (Number(item.quantity) || 1);
+          const unitQty = (rec.quantity_brutto ?? rec.quantity_required);
+          const deductQty = unitQty * (Number(item.quantity) || 1);
+          console.log(`[stockAutomation] Recipe deduct: ingredient=${rec.ingredient_id}, unit=${unitQty}, itemQty=${item.quantity}, total=${deductQty}`);
           logs.push({
             ingredient_id: rec.ingredient_id,
             type: 'order_consumption',
@@ -91,6 +101,8 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
       }
     }
   }
+
+  console.log('[stockAutomation] Logs to insert:', JSON.stringify(logs, null, 2));
 
   if (logs.length === 0) {
     console.log(`[stockAutomation] No stock to deduct for order ${orderId}`);

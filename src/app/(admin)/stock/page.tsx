@@ -22,6 +22,13 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 const UNITS: IngredientUnit[] = ['gram', 'piece', 'ml'];
 const UNIT_LABELS: Record<IngredientUnit, string> = { gram: 'qram', piece: 'ədəd', ml: 'ml' };
 
+const LOG_LABELS: Record<string, string> = {
+  stock_in: 'Giriş', waste: 'İtki', adjustment: 'Tənzimləmə', order_consumption: 'Sifariş',
+};
+const LOG_COLORS: Record<string, string> = {
+  stock_in: 'text-emerald-400', waste: 'text-red-400', adjustment: 'text-gold', order_consumption: 'text-white/40',
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function statusMeta(status: string) {
@@ -97,7 +104,7 @@ function StockBar({ ratio, status }: { ratio: number; status: string }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | 'audit' | null;
+type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | 'audit' | 'history' | null;
 interface ActiveModal { mode: ModalMode; row?: InventoryStatusRow }
 
 export default function StockPage() {
@@ -129,6 +136,8 @@ export default function StockPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editVal, setEditVal] = useState('');
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Auto-calculated unit cost from total qty/amount
   const calculatedUnitCost = (() => {
@@ -226,6 +235,17 @@ export default function StockPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ── View History ─────────────────────────────────────────────────────────
+  const handleViewHistory = async (row: InventoryStatusRow) => {
+    setModal({ mode: 'history', row });
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/inventory/logs?ingredientId=${row.id}&limit=100`);
+      setHistoryLogs(res.ok ? await res.json() : []);
+    } catch { setHistoryLogs([]); }
+    finally { setHistoryLoading(false); }
   };
 
   const closeModal = () => {
@@ -620,6 +640,10 @@ export default function StockPage() {
                               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
                               <RefreshCw size={13} className="text-gold" /> Audit
                             </button>
+                            <button onClick={() => { setOpenActionsId(null); handleViewHistory(row); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                              <RefreshCw size={13} className="text-white/40" /> Tarixçə
+                            </button>
                             <div className="h-px bg-white/[0.06]" />
                             <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
                               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05] text-red-400">
@@ -692,6 +716,10 @@ export default function StockPage() {
                                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
                                 <RefreshCw size={13} className="text-gold" /> Audit
                               </button>
+                              <button onClick={() => { setOpenActionsId(null); handleViewHistory(row); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                                <RefreshCw size={13} className="text-white/40" /> Tarixçə
+                              </button>
                               <div className="h-px bg-white/[0.06]" />
                               <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
                                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05] text-red-400">
@@ -744,7 +772,7 @@ export default function StockPage() {
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
                       <p className="text-white/30 text-xs mt-0.5">
                         Cari: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
-                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row.unit]}
+                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span>
                       </p>
                     </div>
@@ -756,7 +784,7 @@ export default function StockPage() {
                   <div className="space-y-3">
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Miqdar ({UNIT_LABELS[modal.row.unit]})
+                        Miqdar ({UNIT_LABELS[modal.row!.unit]})
                       </label>
                       <input type="number" min="0.001" step="0.001" value={qty}
                         onChange={e => setQty(e.target.value)} placeholder="0.000" autoFocus
@@ -765,7 +793,7 @@ export default function StockPage() {
                     </div>
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Maya dəyəri / {UNIT_LABELS[modal.row.unit]} (₼) — istəyə görə
+                        Maya dəyəri / {UNIT_LABELS[modal.row!.unit]} (₼) — istəyə görə
                       </label>
                       <input type="number" min="0" step="0.0001" value={cost}
                         onChange={e => setCost(e.target.value)} placeholder="0.0000"
@@ -803,7 +831,7 @@ export default function StockPage() {
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
                       <p className="text-white/30 text-xs mt-0.5">
                         Cari: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
-                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row.unit]}
+                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span>
                       </p>
                     </div>
@@ -815,7 +843,7 @@ export default function StockPage() {
                   <div className="space-y-3">
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Miqdar ({UNIT_LABELS[modal.row.unit]})
+                        Miqdar ({UNIT_LABELS[modal.row!.unit]})
                       </label>
                       <input type="number" min="0.001" step="0.001" value={qty}
                         onChange={e => setQty(e.target.value)} placeholder="0.000" autoFocus
@@ -854,11 +882,11 @@ export default function StockPage() {
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
                       <p className="text-white/30 text-xs mt-0.5 space-y-0.5">
                         <span>Cari (sistem): <span className="font-semibold text-white/60">
-                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row.unit]}
+                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span></span>
                         <br />
                         <span>Nəzəri: <span className="font-semibold text-white/60">
-                          {fmt(modal.row.theoretical_stock, 1)} {UNIT_LABELS[modal.row.unit]}
+                          {fmt(modal.row.theoretical_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span></span>
                       </p>
                     </div>
@@ -885,7 +913,7 @@ export default function StockPage() {
                         <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Gözlənilən Fərq</span>
                         <span className={`text-sm font-black tabular-nums ${(parseFloat(auditQty) - modal.row.current_stock) !== 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
                           {(parseFloat(auditQty) - modal.row.current_stock) > 0 ? '+' : ''}
-                          {(parseFloat(auditQty) - modal.row.current_stock).toFixed(2)} {UNIT_LABELS[modal.row.unit]}
+                          {(parseFloat(auditQty) - modal.row.current_stock).toFixed(2)} {UNIT_LABELS[modal.row!.unit]}
                         </span>
                       </motion.div>
                     )}
@@ -1145,6 +1173,76 @@ export default function StockPage() {
                   >
                     {saving ? <Loader2 size={16} className="animate-spin text-black" /> : <><Plus size={15} /> Əlavə Et</>}
                   </button>
+                </div>
+              )}
+
+              {/* ── HISTORY ── */}
+              {modal.mode === 'history' && modal.row && (
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#a0a0a0' }}>
+                        <RefreshCw size={10} /> Tarixçə
+                      </span>
+                      <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
+                      <p className="text-white/30 text-xs mt-0.5">
+                        Cari stok: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
+                          {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
+                        </span>
+                      </p>
+                    </div>
+                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="max-h-[50vh] overflow-y-auto space-y-1 pr-1">
+                    {historyLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 size={20} className="animate-spin text-white/15" />
+                      </div>
+                    ) : historyLogs.length === 0 ? (
+                      <div className="text-center py-12 text-white/20 text-xs">
+                        <Package size={28} className="mx-auto mb-2 opacity-30" />
+                        Heç bir əməliyyat tapılmadı
+                      </div>
+                    ) : (
+                      historyLogs.map((log: any, idx: number) => {
+                        const dt = new Date(log.created_at);
+                        const sign = log.type === 'stock_in' ? '+' : log.type === 'adjustment' && log.quantity > 0 ? '+' : '-';
+                        const color = LOG_COLORS[log.type] || 'text-white/40';
+                        return (
+                          <div key={log.id || idx}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-white/[0.02]"
+                          >
+                            <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-bold ${color}`}
+                              style={{ background: log.type === 'stock_in' ? 'rgba(16,185,129,0.1)' : log.type === 'waste' ? 'rgba(239,68,68,0.08)' : 'rgba(212,175,55,0.08)' }}>
+                              {log.type === 'stock_in' ? 'G' : log.type === 'waste' ? 'İ' : log.type === 'adjustment' ? 'T' : 'S'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-bold ${color}`}>{LOG_LABELS[log.type] || log.type}</span>
+                                <span className="text-[9px] text-white/20">
+                                  {dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              {log.reason && <p className="text-[10px] text-white/25 truncate">{log.reason}</p>}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <span className={`text-sm font-black tabular-nums ${color}`}>
+                                {sign}{fmt(Math.abs(log.quantity), 1)}
+                              </span>
+                              <span className="text-[9px] text-white/20 ml-0.5">{UNIT_LABELS[modal.row!.unit]}</span>
+                              {log.cost_per_unit != null && (
+                                <p className="text-[9px] text-white/20">₼{fmtCost(log.cost_per_unit)}/{UNIT_LABELS[modal.row!.unit]}</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               )}
             </motion.div>

@@ -1,6 +1,6 @@
 'use client';
 
-  import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Plus, TrendingDown, TrendingUp,
@@ -13,6 +13,8 @@ import type {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,
 } from '@/types/inventory';
+import { supabase } from '@/lib/supabase';
+import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -158,6 +160,15 @@ export default function StockPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Real-time subscription — inventory_logs və ingredients dəyişikliklərini izlə
+  useEffect(() => {
+    const channel = createRealtimeChannel('stock-page')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => fetchData(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => fetchData(true))
+      .subscribe();
+    return () => { removeRealtimeChannel(channel); };
+  }, [fetchData]);
 
   // Waste standards - əvvəlcə cached datanı çək
   useEffect(() => {

@@ -514,9 +514,10 @@ export default function StockPage() {
             </button>
             <button
               onClick={clearAllIngredients} disabled={clearingAll}
-              className="px-3 py-2.5 rounded-xl text-[11px] font-bold text-red-400/50 hover:text-red-400 hover:bg-red-500/5 transition-all disabled:opacity-30"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
             >
-              {clearingAll ? <Loader2 size={13} className="inline-block mr-1 animate-spin" /> : <Trash2 size={13} className="inline-block mr-1" />}
+              {clearingAll ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
               Hamısını Sil
             </button>
           </div>

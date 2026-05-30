@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { deductStockForOrder } from '@/lib/stockAutomation';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useLanguage, LanguageProvider } from '@/lib/i18n/LanguageContext';
+import { ThemeProvider } from '@/lib/theme/ThemeContext';
 
 interface Category {
   id: string; name: string;
@@ -48,7 +49,7 @@ interface OrderData {
 
 const fmt = (n: number) => n.toFixed(2);
 
-export default function POSPage() {
+function POSPageInner() {
   const { t, language } = useLanguage();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -453,5 +454,15 @@ export default function POSPage() {
       )}
 
     </div>
+  );
+}
+
+export default function POSPage() {
+  return (
+    <ThemeProvider>
+      <LanguageProvider>
+        <POSPageInner />
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

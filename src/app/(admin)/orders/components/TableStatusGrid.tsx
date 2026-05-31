@@ -149,7 +149,6 @@ export interface TableStatusGridProps {
   onEmptyMerge?: (tableNums: number[]) => void;
   onAddEmptyTable?: (emptyTableNum: number, targetOrderId: string) => void;
   onDragStateChange?: (isDragging: boolean) => void;
-  setManualTableNum: (n: number | null) => void;
 }
 
 export function TableStatusGrid({

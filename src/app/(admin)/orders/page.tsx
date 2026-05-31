@@ -16,7 +16,7 @@ import { OrdersGhostLoading } from './components/OrdersGhostLoading';
 import { TableStatusGrid } from './components/TableStatusGrid';
 import { ActiveOrderCard, ArchiveOrderCard } from './components/OrderCard';
 import { OrderModal } from './components/OrderModal';
-import { ManualOrderModal } from './components/ManualOrderModal';
+
 import { ReceiptModal } from './components/ReceiptModal';
 import GoldCalendar from '@/components/GoldCalendar';
 import WaiterMode from './components/WaiterMode';
@@ -49,7 +49,7 @@ export default function OrdersPage() {
   const {
     orders, setOrders, loading, tableCount, delayThreshold, isOnline, openingHours,
     selectedOrder, setSelectedOrder,
-    manualTableNum, setManualTableNum,
+
     updatedLabels, flashIds, confirmedIds, setConfirmedIds,
     staleDismissed, setStaleDismissed, prevStaleKey,
     fetchOrders,
@@ -83,15 +83,14 @@ export default function OrdersPage() {
       });
       return;
     }
-    setExtraTableNums(extra);
-    setManualTableNum(tableNum);
+    const extraQ = extra.length > 0 ? `?extra=${extra.join(',')}` : '';
+    router.push(`/pos/manual/${tableNum}${extraQ}`);
   };
 
   const [tab, setTab]                 = useState<TabKey>('active');
   const [kitchenTab, setKitchenTab]   = useState<'pending' | 'preparing' | 'ready'>('pending');
   const [tableFilter, setTableFilter] = useState<TableFilterType>('all');
   const [isTableDragging, setIsTableDragging] = useState(false);
-  const [extraTableNums, setExtraTableNums]   = useState<number[]>([]);
 
   const [archiveFilter, setArchiveFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'custom' | 'all'>('today');
   const [dateRange, setDateRange]         = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
@@ -662,7 +661,6 @@ export default function OrdersPage() {
           onMoveTable={handleMoveOrder}
           onAddEmptyTable={handleAddEmptyTable}
           onDragStateChange={setIsTableDragging}
-          setManualTableNum={(n) => { if (n !== null) tryOpenManualOrder(n); }}
           onEmptyMerge={handleCreateMergedEmptyOrder}
         />
       )}
@@ -845,24 +843,6 @@ export default function OrdersPage() {
 
       {/* Waiter Mode Overlay */}
       {waiterMode && <WaiterMode onClose={() => setWaiterMode(false)} />}
-
-      {/* Manual Order Modal */}
-      <AnimatePresence>
-        {manualTableNum !== null && (
-          <ManualOrderModal
-            tableNum={manualTableNum}
-            extraTableNums={extraTableNums}
-            onClose={() => { setManualTableNum(null); setExtraTableNums([]); }}
-            onCreated={(newId) => {
-              fetchOrders();
-              if (newId) {
-                setConfirmedIds(prev => new Set(prev).add(newId));
-                setTimeout(() => setConfirmedIds(prev => { const n = new Set(prev); n.delete(newId); return n; }), 3000);
-              }
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

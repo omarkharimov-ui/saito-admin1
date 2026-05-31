@@ -185,16 +185,18 @@ body {
   --pos-text: #ffffff;
   --pos-text-secondary: rgba(255,255,255,0.3);
   --pos-text-muted: rgba(255,255,255,0.2);
+  --pos-icon: rgba(255,255,255,0.25);
   --pos-border: rgba(255,255,255,0.06);
   --pos-border-strong: rgba(255,255,255,0.08);
 }
 [data-light="true"] {
-  --pos-bg: #f5efe6;
-  --pos-bg-secondary: #ede5d9;
-  --pos-bg-card: #e3d9cb;
-  --pos-text: #3b2a1a;
-  --pos-text-secondary: #7a6953;
-  --pos-text-muted: #a8947d;
-  --pos-border: rgba(170,140,110,0.35);
-  --pos-border-strong: rgba(170,140,110,0.55);
+  --pos-bg: #faf8f5;
+  --pos-bg-secondary: #f5f1ec;
+  --pos-bg-card: #ede7e0;
+  --pos-text: #18181b;
+  --pos-text-secondary: #44403c;
+  --pos-text-muted: #57534e;
+  --pos-icon: #78716c;
+  --pos-border: #d6d3d1;
+  --pos-border-strong: #c4bfb8;
 }

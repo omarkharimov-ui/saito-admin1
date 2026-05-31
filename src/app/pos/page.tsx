@@ -416,7 +416,7 @@ function POS() {
                 className={`relative flex-shrink-0 w-12 h-12 rounded-xl text-xs font-bold transition-all ${
                   s ? 'bg-[var(--pos-text)] text-[var(--pos-bg)] shadow-md' :
                   o ? (r ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20') :
-                  'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)]'
+                  'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)] border border-[var(--pos-border)]'
                 }`}
               >{n}{o && <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${r ? 'bg-emerald-400' : 'bg-amber-400'}`} />}</button>
             );
@@ -443,9 +443,9 @@ function POS() {
       {/* ─── SEARCH + CATEGORIES ─── */}
       <div className="flex-shrink-0 px-3 pt-2 pb-1 space-y-1.5">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--pos-text-muted)]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-[var(--pos-bg-card)] border border-[var(--pos-border)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--pos-text)] placeholder:text-[var(--pos-text-muted)] outline-none" />
-          {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--pos-text-muted)]"><X size={14} /></button>}
+          {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]"><X size={14} /></button>}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           {categories.map(c => (

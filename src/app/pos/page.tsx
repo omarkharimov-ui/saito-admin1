@@ -25,10 +25,12 @@ const fmt = (n: number) => n.toFixed(2);
 
 /* ─── Product card ─── */
 function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: number; onAdd: () => void }) {
-  const [imgErr, setImgErr] = useState(false);
+  const [imgState, setImgState] = useState<'loading' | 'ok' | 'err'>('loading');
   const { language } = useLanguage();
   const name = language === 'en' ? (p as any).name_en || p.name : language === 'ru' ? (p as any).name_ru || p.name : (p as any).name_az || p.name;
-  const showImg = !!p.image_url && p.image_url.trim().length > 0 && !imgErr;
+  const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  const hasUrl = !!p.image_url && p.image_url.trim().length > 0;
+  const showImg = hasUrl && imgState !== 'err';
   return (
     <motion.button layout initial={false} whileHover={stock ? { y: -2 } : undefined} whileTap={stock ? { scale: 0.96 } : undefined}
       onClick={stock ? onAdd : undefined}
@@ -36,8 +38,8 @@ function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: nu
     >
       <div className="aspect-square rounded-xl bg-white/[0.03] mb-2 flex items-center justify-center overflow-hidden">
         {showImg
-          ? <img src={p.image_url!} alt={name} className="w-full h-full object-cover" onError={() => setImgErr(true)} />
-          : <ImageOff size={20} className="text-white/[0.08]" />
+          ? <img src={p.image_url!} alt={name} className="w-full h-full object-cover" onLoad={() => setImgState('ok')} onError={() => setImgState('err')} />
+          : <span className="text-2xl font-black text-white/20">{initials}</span>
         }
       </div>
       <p className="text-xs font-semibold text-white/85 truncate">{name}</p>

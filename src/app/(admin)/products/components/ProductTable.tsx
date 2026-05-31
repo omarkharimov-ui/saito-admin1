@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit3, Trash2, Search, Filter, Tag, AlertCircle, X, Sparkles, Zap, FolderPlus, ChevronDown, ChevronRight, MoreVertical } from 'lucide-react';
+import { Plus, Edit3, Trash2, Search, Filter, Tag, AlertCircle, X, Sparkles, Zap, FolderPlus, ChevronDown, ChevronRight, MoreVertical, ImageOff } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Product, Category } from '@/types';
@@ -353,8 +353,11 @@ export function ProductTable({
                                 </td>
                                 <td className="px-6 py-3.5 min-w-[280px] max-w-[340px]">
                                   <div className="flex items-center gap-3.5">
-                                    <div className="w-11 h-11 bg-white/[0.03] border border-white/[0.08] overflow-hidden relative rounded-xl group-hover:border-white/25 transition-transform duration-300 shrink-0">
-                                      <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                    <div className="w-11 h-11 bg-white/[0.03] border border-white/[0.08] overflow-hidden relative rounded-xl group-hover:border-white/25 transition-transform duration-300 shrink-0 flex items-center justify-center">
+                                      {product.image_url
+                                        ? <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                        : <ImageOff size={16} className="text-white/15" />
+                                      }
                                     </div>
                                     <div className="flex min-w-0 flex-col">
                                       <span className="max-w-[220px] truncate font-semibold text-[14px] text-white group-hover:text-white transition-colors"

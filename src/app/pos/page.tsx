@@ -26,7 +26,7 @@ const fmt = (n: number) => n.toFixed(2);
 /* ─── Product card ─── */
 function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: number; onAdd: () => void }) {
   const [imgState, setImgState] = useState<'loading' | 'ok' | 'err'>('loading');
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const name = language === 'en' ? (p as any).name_en || p.name : language === 'ru' ? (p as any).name_ru || p.name : (p as any).name_az || p.name;
   const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
   const hasUrl = !!p.image_url && p.image_url.trim().length > 0;
@@ -44,7 +44,7 @@ function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: nu
       </div>
       <p className="text-xs font-semibold text-white/85 truncate">{name}</p>
       <p className="text-xs font-black text-gold">₼{fmt(p.price)}</p>
-      {!stock && <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center"><span className="text-[10px] font-bold text-white/70 bg-black/70 px-2 py-1 rounded-lg">Bitib</span></div>}
+      {!stock && <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center"><span className="text-[10px] font-bold text-white/70 bg-black/70 px-2 py-1 rounded-lg">{t('out_of_stock')}</span></div>}
       {cart > 0 && <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold text-black text-[10px] font-black flex items-center justify-center">{cart}</span>}
     </motion.button>
   );
@@ -72,7 +72,7 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
       <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 27 }}
         className="bg-[#111] border border-white/[0.08] rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 pt-6 pb-3">
-          <h2 className="text-lg font-bold text-white">Masa {order.table_number}</h2>
+          <h2 className="text-lg font-bold text-white">{t('table')} {order.table_number}</h2>
           <button onClick={onClose} className="text-white/20 hover:text-white/60"><X size={18} /></button>
         </div>
 
@@ -84,21 +84,21 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
               <span className="text-white/80 font-semibold">₼{fmt(i.total_price || 0)}</span>
             </div>
           ))}
-          {items.length > 8 && <p className="text-[10px] text-white/20">+{items.length - 8} daha</p>}
+          {items.length > 8 && <p className="text-[10px] text-white/20">+{items.length - 8} {t('more')}</p>}
           <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between text-sm font-bold text-white">
-            <span>Ara cəmi</span>
+            <span>{t('subtotal_label')}</span>
             <span>₼{fmt(baseTotal)}</span>
           </div>
         </div>
 
         {/* Discount */}
         <div className="px-6 mb-4">
-          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">Endirim</label>
+          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">{t('discount_label')}</label>
           <div className="flex gap-1.5 mb-2">
-            {(['none', 'percent', 'amount'] as const).map(t => (
-              <button key={t} onClick={() => { setDiscountType(t); setDiscountVal(0); }}
-                className={`flex-1 py-2 rounded-xl text-[10px] font-bold ${discountType === t ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
-              >{t === 'none' ? 'Yox' : t === 'percent' ? '%' : '₼'}</button>
+            {(['none', 'percent', 'amount'] as const).map(k => (
+              <button key={k} onClick={() => { setDiscountType(k); setDiscountVal(0); }}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-bold ${discountType === k ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
+              >{k === 'none' ? t('discount_none') : k === 'percent' ? '%' : '₼'}</button>
             ))}
           </div>
           {discountType !== 'none' && (
@@ -113,7 +113,7 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
 
         {/* Split */}
         <div className="px-6 mb-4">
-          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">Bölgü (nəfər)</label>
+          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">{t('split_label')}</label>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map(n => (
               <button key={n} onClick={() => setSplit(n)}
@@ -125,15 +125,15 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
 
         {/* Payment method */}
         <div className="px-6 mb-4">
-          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">Ödəniş üsulu</label>
+          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">{t('payment_method_label')}</label>
           <div className="flex gap-2">
             <button onClick={() => setMethod('cash')}
               className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'cash' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
-              <Banknote size={18} /> Nağd
+              <Banknote size={18} /> {t('cash')}
             </button>
             <button onClick={() => setMethod('card')}
               className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'card' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
-              <CreditCard size={18} /> Kart
+              <CreditCard size={18} /> {t('card')}
             </button>
           </div>
         </div>
@@ -141,9 +141,9 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
         {/* Total & confirm */}
         <div className="px-6 pb-6 pt-2 border-t border-white/[0.06] space-y-3">
           <div className="space-y-1">
-            {split > 1 && <div className="flex items-center justify-between text-xs text-white/40"><span>Adambaşı</span><span className="font-bold text-white">₼{fmt(perPerson)}</span></div>}
+            {split > 1 && <div className="flex items-center justify-between text-xs text-white/40"><span>{t('per_person')}</span><span className="font-bold text-white">₼{fmt(perPerson)}</span></div>}
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-white/30 uppercase tracking-widest">Yekun</span>
+              <span className="text-[10px] text-white/30 uppercase tracking-widest">{t('final_total')}</span>
               {discountAmount > 0 && <span className="text-[10px] text-white/30 line-through mr-2">₼{fmt(baseTotal)}</span>}
               <span className="text-2xl font-black text-white">
                 {discountAmount > 0 || split > 1 ? `₼${fmt(finalTotal)}` : `₼${fmt(baseTotal)}`}
@@ -153,7 +153,7 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
           <button onClick={() => onConfirm({ method, discountType, discountValue: discountVal, splitCount: split })}
             disabled={busy}
             className="w-full py-4 rounded-2xl text-base font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
-          >{busy ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />} Ödənişi Təsdiq et</button>
+          >{busy ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />} {t('confirm_payment')}</button>
         </div>
       </motion.div>
     </div>
@@ -172,12 +172,12 @@ function ReceiptScreen({ paid, onNew }: { paid: OrderData & { payment_method?: s
           className="w-20 h-20 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-5">
           <CheckCircle2 size={40} className="text-emerald-400" />
         </motion.div>
-        <h2 className="text-2xl font-bold text-white mb-1">Ödənildi</h2>
-        <p className="text-white/40 text-sm mb-1">Masa {paid.table_number}</p>
+        <h2 className="text-2xl font-bold text-white mb-1">{t('paid')}</h2>
+        <p className="text-white/40 text-sm mb-1">{t('table')} {paid.table_number}</p>
         <p className="text-white/40 text-sm mb-6 flex items-center justify-center gap-1">
           {paid.payment_method === 'cash' ? <Banknote size={14} /> : <CreditCard size={14} />}
-          {paid.payment_method === 'cash' ? 'Nağd' : 'Kart'}
-          {paid.split_count && paid.split_count > 1 && <span className="flex items-center gap-1 ml-2"><Users size={14} />{paid.split_count} nəfər</span>}
+          {paid.payment_method === 'cash' ? t('cash') : t('card')}
+          {paid.split_count && paid.split_count > 1 && <span className="flex items-center gap-1 ml-2"><Users size={14} />{paid.split_count} {t('person')}</span>}
         </p>
 
         <div className="text-left bg-white/[0.02] rounded-2xl p-4 mb-6 space-y-1">
@@ -189,7 +189,7 @@ function ReceiptScreen({ paid, onNew }: { paid: OrderData & { payment_method?: s
           ))}
           {items.length > 5 && <p className="text-[9px] text-white/20">+{items.length - 5}</p>}
           <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between text-sm font-bold text-white">
-            <span>Cəmi</span>
+            <span>{t('total')}</span>
             <span>₼{fmt(paid.total_amount || 0)}</span>
           </div>
         </div>
@@ -372,7 +372,7 @@ function POS() {
             const s = selTable === n;
             const r = o?.kitchen_status === 'ready';
             return (
-              <button key={n} onClick={() => { setSelTable(s ? null : n); setCart([]); setShowCart(false); }}
+              <button key={n} onClick={() => { setSelTable(s ? null : n); setShowCart(false); }}
                 className={`relative flex-shrink-0 w-12 h-12 rounded-xl text-xs font-bold transition-all ${
                   s ? 'bg-white text-black shadow-md' :
                   o ? (r ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20') :
@@ -385,8 +385,8 @@ function POS() {
         <div className="flex items-center gap-2 px-3 pb-3">
           <span className="text-xs text-white/30">{products.length} {t('items')}</span>
           <span className="text-white/[0.06]">|</span>
-          <span className="text-xs text-white/30">{orders.filter(o => o.status !== 'paid').length} aktiv</span>
-          {activeOrder && <><span className="text-white/[0.06]">|</span><span className="text-xs text-amber-400 font-semibold">Masa {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
+          <span className="text-xs text-white/30">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
+          {activeOrder && <><span className="text-white/[0.06]">|</span><span className="text-xs text-amber-400 font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
           <div className="flex-1" />
           <button onClick={() => setShowCart(!showCart)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-xs font-semibold text-white/70">
@@ -400,7 +400,7 @@ function POS() {
       <div className="flex-shrink-0 px-3 pt-2 pb-1 space-y-1.5">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Axtar..." className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/20 outline-none" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/20 outline-none" />
           {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20"><X size={14} /></button>}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -418,12 +418,12 @@ function POS() {
           {!selTable ? (
             <div className="flex flex-col items-center justify-center h-full text-white/15">
               <Utensils size={40} className="mb-3 opacity-30" />
-              <p className="text-sm">Yuxarıdan masa seçin</p>
+              <p className="text-sm">{t('select_table')}</p>
             </div>
           ) : list.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-white/15">
               <Search size={40} className="mb-3 opacity-30" />
-              <p className="text-sm">Tapılmadı</p>
+              <p className="text-sm">{t('not_found')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
@@ -438,13 +438,13 @@ function POS() {
           <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 320, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
             className="hidden lg:flex flex-col border-l border-white/[0.06] bg-[#0c0c0c] flex-shrink-0 overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-              <span className="text-sm font-bold text-white">{selTable ? `Masa ${selTable}` : 'Səbət'}</span>
+              <span className="text-sm font-bold text-white">{selTable ? `${t('table')} ${selTable}` : t('cart')}</span>
               <button onClick={() => setCart([])} className="text-[10px] text-white/20 hover:text-white/50 mr-3">{t('clear')}</button>
               <button onClick={() => setShowCart(false)} className="text-white/20 hover:text-white/60"><X size={16} /></button>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-white/15 text-xs">Səbət boşdur</div>
+                <div className="flex flex-col items-center justify-center h-full text-white/15 text-xs">{t('cart_empty')}</div>
               ) : cart.map(i => (
                 <div key={i.product.id} className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-3 py-2">
                   <div className="flex-1 min-w-0">
@@ -463,7 +463,7 @@ function POS() {
               <div className="flex items-center justify-between"><span className="text-[10px] text-white/30 uppercase tracking-widest">{t('total')}</span><span className="text-xl font-black text-white">₼{fmt(total)}</span></div>
               <button onClick={sendOrder} disabled={!selTable || cart.length === 0 || busy}
                 className="w-full py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
-              >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Mətbəxə Göndər</button>
+              >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send_to_kitchen')}</button>
             </div>
           </motion.div>
         )}
@@ -486,7 +486,7 @@ function POS() {
           <div className="flex items-center gap-3 pt-1">
             <div className="flex-1"><span className="text-[10px] text-white/30">{t('total')}</span><p className="text-lg font-black text-white">₼{fmt(total)}</p></div>
             <button onClick={sendOrder} disabled={busy} className="flex-1 py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2"
-            >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Göndər</button>
+            >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send')}</button>
           </div>
         </motion.div>
       )}
@@ -504,7 +504,7 @@ function POS() {
               return (
                 <div key={o.id} className={`flex-shrink-0 w-72 rounded-xl border p-3 ${ready ? 'border-emerald-500/30 bg-emerald-500/[0.04]' : 'border-white/[0.06] bg-white/[0.02]'}`}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[10px] font-bold ${ready ? 'text-emerald-400' : 'text-amber-400'}`}>{ready ? 'Hazırdır' : 'Gözləyir'}</span>
+                    <span className={`text-[10px] font-bold ${ready ? 'text-emerald-400' : 'text-amber-400'}`}>{ready ? t('ready') : t('waiting')}</span>
                     <span className="text-xs font-black text-white/70">₼{fmt(o.total_amount || 0)}</span>
                   </div>
                   <div className="space-y-0.5 mb-2 max-h-20 overflow-y-auto">
@@ -513,7 +513,7 @@ function POS() {
                   </div>
                   {ready && <button onClick={() => openCheckout(o)}
                     className="w-full py-2 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 active:scale-[0.97] flex items-center justify-center gap-1"
-                  ><CreditCard size={10} /> Ödəniş • ₼{fmt(o.total_amount || 0)}</button>}
+                  ><CreditCard size={10} /> {t('pay')} • ₼{fmt(o.total_amount || 0)}</button>}
                 </div>
               );
             })}

@@ -253,8 +253,7 @@ function POS() {
       if (!cat && cr.data?.length) setCat(cr.data[0].id);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, []);
-
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { const t = setTimeout(() => setLoading(false), 12000); fetchAll(); return () => clearTimeout(t); }, []);
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | null = null;
     const d = () => { if (t) clearTimeout(t); t = setTimeout(fetchAll, 1000); };
@@ -397,7 +396,7 @@ function POS() {
     return l;
   }, [products, cat, search, getPName]);
 
-  if (loading) return <div className="h-dvh flex items-center justify-center bg-[var(--pos-bg)]"><Loader2 size={24} className="animate-spin text-[var(--pos-text-muted)]" /></div>;
+  if (loading) return <div className="pos-root h-dvh flex items-center justify-center bg-[var(--pos-bg)]"><Loader2 size={24} className="animate-spin text-[var(--pos-text-muted)]" /></div>;
 
   if (paid) return <ReceiptScreen paid={paid} onNew={handleNewOrder} />;
 

@@ -177,12 +177,24 @@ body {
   }
 }
 
-/* ── POS Light Mode ── */
-[data-light-mode="true"] .pos-bg-main { background-color: #f5f0e8 !important; }
-[data-light-mode="true"] .pos-bg-secondary { background-color: #ece6da !important; }
-[data-light-mode="true"] .pos-bg-card { background-color: #e8e0d3 !important; }
-[data-light-mode="true"] .pos-text-primary { color: #1a1a1a !important; }
-[data-light-mode="true"] .pos-text-secondary { color: #6b6358 !important; }
-[data-light-mode="true"] .pos-text-muted { color: #9e9485 !important; }
-[data-light-mode="true"] .pos-border { border-color: rgba(180, 165, 140, 0.3) !important; }
-[data-light-mode="true"] .pos-border-strong { border-color: rgba(180, 165, 140, 0.5) !important; }
+/* ── POS Theme CSS Variables ── */
+.pos-root, [class*="pos-root"] {
+  --pos-bg: #0a0a0a;
+  --pos-bg-secondary: #0c0c0c;
+  --pos-bg-card: rgba(255,255,255,0.04);
+  --pos-text: #ffffff;
+  --pos-text-secondary: rgba(255,255,255,0.3);
+  --pos-text-muted: rgba(255,255,255,0.2);
+  --pos-border: rgba(255,255,255,0.06);
+  --pos-border-strong: rgba(255,255,255,0.08);
+}
+[data-light="true"] {
+  --pos-bg: #f5f0e8;
+  --pos-bg-secondary: #ece6da;
+  --pos-bg-card: #e8e0d3;
+  --pos-text: #1a1a1a;
+  --pos-text-secondary: #6b6358;
+  --pos-text-muted: #9e9485;
+  --pos-border: rgba(180,165,140,0.3);
+  --pos-border-strong: rgba(180,165,140,0.5);
+}

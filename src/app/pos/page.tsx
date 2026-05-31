@@ -422,10 +422,10 @@ function POS() {
           })}
         </div>
         <div className="flex items-center gap-2 px-3 pb-3">
-          <span className="text-xs text-[var(--pos-text-secondary)] font-medium">{products.length} {t('items')}</span>
+          <span className="text-sm text-[var(--pos-text-secondary)] font-semibold">{products.length} {t('items')}</span>
           <span className="text-[var(--pos-border)]">|</span>
-          <span className="text-xs text-[var(--pos-text-secondary)] font-medium">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
-          {activeOrder && <><span className="text-[var(--pos-border)]">|</span><span className="text-xs text-amber-400 font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
+          <span className="text-sm text-[var(--pos-text-secondary)] font-semibold">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
+          {activeOrder && <><span className="text-[var(--pos-border)]">|</span><span className="text-sm text-[var(--pos-table-busy-text)] font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
           <div className="flex-1" />
           <button onClick={() => setLightMode(!lightMode)}
             className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--pos-bg-card)] text-[var(--pos-btn-text)] hover:text-[var(--pos-text)] transition-all">
@@ -443,7 +443,7 @@ function POS() {
       <div className="flex-shrink-0 px-3 pt-2 pb-1 space-y-1.5">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-[var(--pos-search-bg)] border border-[var(--pos-search-border)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--pos-text)] placeholder:text-[var(--pos-text-muted)] outline-none" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-[var(--pos-search-bg)] border border-[var(--pos-search-border)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--pos-text)] placeholder:text-[var(--pos-text-muted)] placeholder:font-medium outline-none shadow-sm" />
           {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]"><X size={14} /></button>}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -461,13 +461,13 @@ function POS() {
         <div className="flex-1 overflow-y-auto px-3 pb-4">
           {!selTable ? (
             <div className="flex flex-col items-center justify-center h-full text-[var(--pos-text-muted)]">
-              <Utensils size={40} className="mb-3 opacity-30" />
-              <p className="text-sm">{t('select_table')}</p>
+              <Utensils size={40} className="mb-3 opacity-60" />
+              <p className="text-sm font-medium tracking-wide">{t('select_table')}</p>
             </div>
           ) : list.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-[var(--pos-text-muted)]">
-              <Search size={40} className="mb-3 opacity-30" />
-              <p className="text-sm">{t('not_found')}</p>
+              <Search size={40} className="mb-3 opacity-60" />
+              <p className="text-sm font-medium tracking-wide">{t('not_found')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
@@ -536,8 +536,8 @@ function POS() {
             <div className="px-5 py-3 space-y-2">
               {cart.length === 0 && (!activeOrder || !activeOrder.order_items?.length) ? (
                 <div className="flex flex-col items-center justify-center py-12 text-[var(--pos-text-muted)]">
-                  <ShoppingBag size={28} className="mb-2 opacity-30" />
-                  <p className="text-xs">{t('cart_empty')}</p>
+                  <ShoppingBag size={28} className="mb-2 opacity-60" />
+                  <p className="text-xs font-medium">{t('cart_empty')}</p>
                 </div>
               ) : cart.length > 0 && (
                 <>

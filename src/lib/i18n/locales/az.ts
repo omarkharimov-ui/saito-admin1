@@ -711,6 +711,8 @@ export const az = {
   order_created_for_table: 'Masa {table} üçün sifariş yaradıldı',
   cancel_order: 'Sifarişi Ləğv Et',
   dismiss_table: 'Masanı boşalt',
+  existing_order: 'Mövcud sifariş',
+  new_items: 'Yeni məhsullar',
   cancelled_items_label: 'Ləğv edilmiş',
   cancel_all_confirm: 'Bütün sifarişi ləğv etməyə əminsiniz?',
   cancel_items_confirm: '{count} ədəd məhsulu ləğv etməyə əminsiniz?',

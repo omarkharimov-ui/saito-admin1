@@ -344,6 +344,14 @@ function POS() {
     } catch (e) { console.error(e); } finally { setPayBusy(false); }
   }, [checkoutOrder, fetchAll]);
 
+  const handleDismissTable = useCallback(async () => {
+    if (!activeOrder) return;
+    await supabase.from('orders').update({ is_served: true }).eq('id', activeOrder.id);
+    setSelTable(null);
+    setCart([]);
+    fetchAll();
+  }, [activeOrder, fetchAll]);
+
   const handleNewOrder = useCallback(() => {
     setPaid(null);
     setSelTable(null);
@@ -414,7 +422,8 @@ function POS() {
 
       {/* ─── MAIN CONTENT ─── */}
       <div className="flex-1 flex min-h-0">
-        <div className={`flex-1 overflow-y-auto px-3 pb-4 ${showCart ? 'hidden lg:block' : ''}`}>
+        {/* ─── PRODUCT GRID ─── */}
+        <div className="flex-1 overflow-y-auto px-3 pb-4">
           {!selTable ? (
             <div className="flex flex-col items-center justify-center h-full text-white/15">
               <Utensils size={40} className="mb-3 opacity-30" />
@@ -432,42 +441,104 @@ function POS() {
           )}
         </div>
 
-        {/* ─── CART ─── */}
-        <AnimatePresence>
-        {showCart && (
-          <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 320, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
-            className="hidden lg:flex flex-col border-l border-white/[0.06] bg-[#0c0c0c] flex-shrink-0 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-              <span className="text-sm font-bold text-white">{selTable ? `${t('table')} ${selTable}` : t('cart')}</span>
-              <button onClick={() => setCart([])} className="text-[10px] text-white/20 hover:text-white/50 mr-3">{t('clear')}</button>
-              <button onClick={() => setShowCart(false)} className="text-white/20 hover:text-white/60"><X size={16} /></button>
+        {/* ─── CART SIDEBAR (always visible on lg+) ─── */}
+        <div className="hidden lg:flex flex-col w-[30%] min-w-[300px] max-w-[400px] border-l border-white/[0.06] bg-[#0c0c0c] flex-shrink-0">
+          {/* Cart header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+            <div>
+              <h2 className="text-sm font-bold text-white">
+                {selTable ? `${t('table')} ${selTable}` : t('cart')}
+              </h2>
+              {activeOrder && (
+                <p className="text-[10px] text-white/30 mt-0.5">
+                  {activeOrder.kitchen_status === 'ready' ? `✅ ${t('ready')}` : `⏳ ${t('waiting')}`}
+                </p>
+              )}
             </div>
-            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
-              {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-white/15 text-xs">{t('cart_empty')}</div>
-              ) : cart.map(i => (
-                <div key={i.product.id} className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-3 py-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-white/80 truncate">{getPName(i.product)}</p>
-                    <p className="text-[10px] text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => chgQty(i.product.id, -1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Minus size={11} /></button>
-                    <span className="w-5 text-center text-sm font-bold text-white">{i.qty}</span>
-                    <button onClick={() => chgQty(i.product.id, 1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Plus size={11} /></button>
-                  </div>
+            <div className="flex items-center gap-2">
+              {activeOrder && (
+                <button onClick={handleDismissTable}
+                  className="text-[10px] text-white/20 hover:text-red-400 transition-colors font-semibold tracking-wider uppercase">
+                  {t('dismiss_table')}
+                </button>
+              )}
+              <button onClick={() => setCart([])}
+                className="text-[10px] text-white/20 hover:text-white/50 transition-colors font-semibold tracking-wider uppercase">
+                {t('clear')}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {/* ─── Existing order items ─── */}
+            {activeOrder && activeOrder.order_items && activeOrder.order_items.length > 0 && (
+              <div className="border-b border-white/[0.06]">
+                <div className="px-5 pt-3 pb-1">
+                  <span className="text-[9px] text-white/30 uppercase tracking-widest font-semibold">{t('existing_order')}</span>
                 </div>
-              ))}
+                <div className="px-5 py-1 space-y-0.5">
+                  {activeOrder.order_items.map(i => (
+                    <div key={i.id} className="flex items-center justify-between text-[11px]">
+                      <span className="text-white/40">{i.quantity}x {i.product_name}</span>
+                      <span className="text-white/50 font-medium">₼{fmt(i.total_price || 0)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-5 py-2 flex items-center justify-between border-t border-white/[0.04] mt-1">
+                  <span className="text-[10px] text-white/30">{t('subtotal_label')}</span>
+                  <span className="text-xs font-bold text-gold">₼{fmt(activeOrder.total_amount || 0)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* ─── New cart items ─── */}
+            <div className="px-5 py-3 space-y-2">
+              {cart.length === 0 && (!activeOrder || !activeOrder.order_items?.length) ? (
+                <div className="flex flex-col items-center justify-center py-12 text-white/15">
+                  <ShoppingBag size={28} className="mb-2 opacity-30" />
+                  <p className="text-xs">{t('cart_empty')}</p>
+                </div>
+              ) : cart.length > 0 && (
+                <>
+                  {activeOrder && activeOrder.order_items && activeOrder.order_items.length > 0 && (
+                    <div className="pb-1">
+                      <span className="text-[9px] text-amber-400/60 uppercase tracking-widest font-semibold">{t('new_items')}</span>
+                    </div>
+                  )}
+                  {cart.map(i => (
+                    <div key={i.product.id} className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-3 py-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-white/80 truncate">{getPName(i.product)}</p>
+                        <p className="text-[10px] text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => chgQty(i.product.id, -1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Minus size={11} /></button>
+                        <span className="w-5 text-center text-sm font-bold text-white">{i.qty}</span>
+                        <button onClick={() => chgQty(i.product.id, 1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Plus size={11} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
-            <div className="px-5 py-4 border-t border-white/[0.06] space-y-2">
-              <div className="flex items-center justify-between"><span className="text-[10px] text-white/30 uppercase tracking-widest">{t('total')}</span><span className="text-xl font-black text-white">₼{fmt(total)}</span></div>
-              <button onClick={sendOrder} disabled={!selTable || cart.length === 0 || busy}
-                className="w-full py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
-              >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send_to_kitchen')}</button>
+          </div>
+
+          {/* ─── Bottom: note + total + send ─── */}
+          <div className="px-5 py-4 border-t border-white/[0.06] space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-white/30 uppercase tracking-widest font-semibold">{t('total_label')}</span>
+              <div className="text-right">
+                {activeOrder && total > 0 && (
+                  <span className="text-[9px] text-white/20 line-through block">₼{fmt(activeOrder.total_amount || 0)}</span>
+                )}
+                <span className="text-lg font-black text-white">₼{fmt((activeOrder?.total_amount || 0) + total)}</span>
+              </div>
             </div>
-          </motion.div>
-        )}
-        </AnimatePresence>
+            <button onClick={sendOrder} disabled={!selTable || cart.length === 0 || busy}
+              className="w-full py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
+            >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send_to_kitchen')}</button>
+          </div>
+        </div>
       </div>
 
       {/* ─── MOBILE CART ─── */}
@@ -491,35 +562,6 @@ function POS() {
         </motion.div>
       )}
       </AnimatePresence>
-
-      {/* ─── TABLE ORDERS ─── */}
-      {selTable && (
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-          className="flex-shrink-0 border-t border-white/[0.06] bg-[#0c0c0c]">
-          <div className="flex gap-2 overflow-x-auto px-3 py-2">
-            {orders.filter(o => o.table_number === selTable && o.status !== 'paid').map((o, idx) => {
-              const items = o.order_items || [];
-              const ready = o.kitchen_status === 'ready';
-              const cnt = items.reduce((s: number, i: any) => s + i.quantity, 0);
-              return (
-                <div key={o.id} className={`flex-shrink-0 w-72 rounded-xl border p-3 ${ready ? 'border-emerald-500/30 bg-emerald-500/[0.04]' : 'border-white/[0.06] bg-white/[0.02]'}`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[10px] font-bold ${ready ? 'text-emerald-400' : 'text-amber-400'}`}>{ready ? t('ready') : t('waiting')}</span>
-                    <span className="text-xs font-black text-white/70">₼{fmt(o.total_amount || 0)}</span>
-                  </div>
-                  <div className="space-y-0.5 mb-2 max-h-20 overflow-y-auto">
-                    {items.slice(0, 5).map((i: any) => <div key={i.id} className="text-[11px] text-white/60">{i.quantity}x {i.product_name}</div>)}
-                    {items.length > 5 && <p className="text-[9px] text-white/20">+{items.length - 5}</p>}
-                  </div>
-                  {ready && <button onClick={() => openCheckout(o)}
-                    className="w-full py-2 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 active:scale-[0.97] flex items-center justify-center gap-1"
-                  ><CreditCard size={10} /> {t('pay')} • ₼{fmt(o.total_amount || 0)}</button>}
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
 
       {/* ─── CHECKOUT OVERLAY ─── */}
       <AnimatePresence>

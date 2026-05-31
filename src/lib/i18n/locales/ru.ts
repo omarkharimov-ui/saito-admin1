@@ -736,6 +736,8 @@ export const ru: TranslationMap = {
   order_created_for_table: 'Заказ создан для Стола {table}',
   cancel_order: 'Отменить заказ',
   dismiss_table: 'Освободить стол',
+  existing_order: 'Существующий заказ',
+  new_items: 'Новые товары',
   cancelled_items_label: 'Отменено',
   cancel_all_confirm: 'Вы уверены, что хотите отменить весь заказ?',
   cancel_items_confirm: 'Вы уверены, что хотите отменить {count} товар(ов)?',

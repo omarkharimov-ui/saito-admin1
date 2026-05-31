@@ -715,6 +715,8 @@ export const en: TranslationMap = {
   order_created_for_table: 'Order created for Table {table}',
   cancel_order: 'Cancel Order',
   dismiss_table: 'Dismiss Table',
+  existing_order: 'Existing order',
+  new_items: 'New items',
   cancelled_items_label: 'Cancelled',
   cancel_all_confirm: 'Are you sure you want to cancel the entire order?',
   cancel_items_confirm: 'Are you sure you want to cancel {count} item(s)?',

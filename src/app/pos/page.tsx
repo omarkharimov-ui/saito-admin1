@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { deductStockForOrder } from '@/lib/stockAutomation';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { LanguageProvider, useLanguage } from '@/lib/i18n/LanguageContext';
-import { ThemeProvider } from '@/lib/theme/ThemeContext';
+import { ThemeProvider, useTheme } from '@/lib/theme/ThemeContext';
 import {
   Search, ShoppingBag, Plus, Minus, Send, CreditCard, X, Loader2, CheckCircle2,
   Printer, ImageOff, Utensils, Banknote, Percent, Users, GitMerge,
@@ -34,7 +34,7 @@ function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: nu
   return (
     <motion.button layout initial={false} whileHover={stock ? { y: -2 } : undefined} whileTap={stock ? { scale: 0.96 } : undefined}
       onClick={stock ? onAdd : undefined}
-      className={`relative rounded-2xl p-3 text-left border ${stock ? 'bg-white/[0.04] border-white/[0.08]' : 'opacity-30 border-white/[0.03]'}`}
+      className={`relative rounded-2xl p-3 text-left border ${stock ? 'bg-white/[0.04] pos-bg-card border-white/[0.08] pos-border' : 'opacity-30 border-white/[0.03] pos-border'}`}
     >
       <div className="aspect-square rounded-xl bg-white/[0.03] mb-2 flex items-center justify-center overflow-hidden">
         {showImg
@@ -42,7 +42,7 @@ function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: nu
           : <span className="text-2xl font-black text-white/20">{initials}</span>
         }
       </div>
-      <p className="text-xs font-semibold text-white/85 truncate">{name}</p>
+      <p className="text-xs font-semibold text-white/85 pos-text-primary truncate">{name}</p>
       <p className="text-xs font-black text-gold">₼{fmt(p.price)}</p>
       {!stock && <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center"><span className="text-[10px] font-bold text-white/70 bg-black/70 px-2 py-1 rounded-lg">{t('out_of_stock')}</span></div>}
       {cart > 0 && <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold text-black text-[10px] font-black flex items-center justify-center">{cart}</span>}
@@ -70,22 +70,22 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 27 }}
-        className="bg-[#111] border border-white/[0.08] rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        className="bg-[#111] pos-bg-secondary border border-white/[0.08] pos-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 pt-6 pb-3">
-          <h2 className="text-lg font-bold text-white">{t('table')} {order.table_number}</h2>
-          <button onClick={onClose} className="text-white/20 hover:text-white/60"><X size={18} /></button>
+          <h2 className="text-lg font-bold text-white pos-text-primary">{t('table')} {order.table_number}</h2>
+          <button onClick={onClose} className="text-white/20 pos-text-muted hover:text-white/60"><X size={18} /></button>
         </div>
 
         {/* Items summary */}
         <div className="px-6 space-y-1.5 mb-4">
           {items.slice(0, 8).map(i => (
             <div key={i.id} className="flex items-center justify-between text-sm">
-              <span className="text-white/60">{i.quantity}x {i.product_name}</span>
-              <span className="text-white/80 font-semibold">₼{fmt(i.total_price || 0)}</span>
+              <span className="text-white/60 pos-text-secondary">{i.quantity}x {i.product_name}</span>
+              <span className="text-white/80 pos-text-primary font-semibold">₼{fmt(i.total_price || 0)}</span>
             </div>
           ))}
-          {items.length > 8 && <p className="text-[10px] text-white/20">+{items.length - 8} {t('more')}</p>}
-          <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between text-sm font-bold text-white">
+          {items.length > 8 && <p className="text-[10px] text-white/20 pos-text-muted">+{items.length - 8} {t('more')}</p>}
+          <div className="border-t border-white/[0.06] pos-border pt-2 flex items-center justify-between text-sm font-bold text-white pos-text-primary">
             <span>{t('subtotal_label')}</span>
             <span>₼{fmt(baseTotal)}</span>
           </div>
@@ -93,19 +93,19 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
 
         {/* Discount */}
         <div className="px-6 mb-4">
-          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">{t('discount_label')}</label>
+          <label className="text-[10px] text-white/30 pos-text-secondary uppercase tracking-widest mb-2 block">{t('discount_label')}</label>
           <div className="flex gap-1.5 mb-2">
             {(['none', 'percent', 'amount'] as const).map(k => (
               <button key={k} onClick={() => { setDiscountType(k); setDiscountVal(0); }}
-                className={`flex-1 py-2 rounded-xl text-[10px] font-bold ${discountType === k ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-bold ${discountType === k ? 'bg-white text-black' : 'bg-white/[0.04] pos-bg-card text-white/40 pos-text-secondary'}`}
               >{k === 'none' ? t('discount_none') : k === 'percent' ? '%' : '₼'}</button>
             ))}
           </div>
           {discountType !== 'none' && (
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 text-xs">{discountType === 'percent' ? '%' : '₼'}</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 pos-text-muted text-xs">{discountType === 'percent' ? '%' : '₼'}</span>
               <input type="number" min={0} max={discountType === 'percent' ? 100 : baseTotal} value={discountVal} onChange={e => setDiscountVal(Number(e.target.value))}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-8 pr-3 py-2 text-sm text-white outline-none" />
+                className="w-full bg-white/[0.04] pos-bg-card border border-white/[0.06] pos-border rounded-xl pl-8 pr-3 py-2 text-sm text-white outline-none" />
             </div>
           )}
           {discountAmount > 0 && <p className="text-[10px] text-emerald-400 mt-1">- ₼{fmt(discountAmount)}</p>}
@@ -113,11 +113,11 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
 
         {/* Split */}
         <div className="px-6 mb-4">
-          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">{t('split_label')}</label>
+          <label className="text-[10px] text-white/30 pos-text-secondary uppercase tracking-widest mb-2 block">{t('split_label')}</label>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map(n => (
               <button key={n} onClick={() => setSplit(n)}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold ${split === n ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold ${split === n ? 'bg-white text-black' : 'bg-white/[0.04] pos-bg-card text-white/40 pos-text-secondary'}`}
               >{n}</button>
             ))}
           </div>
@@ -125,27 +125,27 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
 
         {/* Payment method */}
         <div className="px-6 mb-4">
-          <label className="text-[10px] text-white/30 uppercase tracking-widest mb-2 block">{t('payment_method_label')}</label>
+          <label className="text-[10px] text-white/30 pos-text-secondary uppercase tracking-widest mb-2 block">{t('payment_method_label')}</label>
           <div className="flex gap-2">
             <button onClick={() => setMethod('cash')}
-              className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'cash' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
+              className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'cash' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] pos-bg-card text-white/40 pos-text-secondary border border-white/[0.06] pos-border'}`}>
               <Banknote size={18} /> {t('cash')}
             </button>
             <button onClick={() => setMethod('card')}
-              className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'card' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
+              className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'card' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] pos-bg-card text-white/40 pos-text-secondary border border-white/[0.06] pos-border'}`}>
               <CreditCard size={18} /> {t('card')}
             </button>
           </div>
         </div>
 
         {/* Total & confirm */}
-        <div className="px-6 pb-6 pt-2 border-t border-white/[0.06] space-y-3">
+        <div className="px-6 pb-6 pt-2 border-t border-white/[0.06] pos-border space-y-3">
           <div className="space-y-1">
-            {split > 1 && <div className="flex items-center justify-between text-xs text-white/40"><span>{t('per_person')}</span><span className="font-bold text-white">₼{fmt(perPerson)}</span></div>}
+            {split > 1 && <div className="flex items-center justify-between text-xs text-white/40 pos-text-secondary"><span>{t('per_person')}</span><span className="font-bold text-white pos-text-primary">₼{fmt(perPerson)}</span></div>}
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-white/30 uppercase tracking-widest">{t('final_total')}</span>
-              {discountAmount > 0 && <span className="text-[10px] text-white/30 line-through mr-2">₼{fmt(baseTotal)}</span>}
-              <span className="text-2xl font-black text-white">
+              <span className="text-[10px] text-white/30 pos-text-secondary uppercase tracking-widest">{t('final_total')}</span>
+              {discountAmount > 0 && <span className="text-[10px] text-white/30 pos-text-secondary line-through mr-2">₼{fmt(baseTotal)}</span>}
+              <span className="text-2xl font-black text-white pos-text-primary">
                 {discountAmount > 0 || split > 1 ? `₼${fmt(finalTotal)}` : `₼${fmt(baseTotal)}`}
               </span>
             </div>
@@ -165,41 +165,37 @@ function ReceiptScreen({ paid, onNew }: { paid: OrderData & { payment_method?: s
   const { t } = useLanguage();
   const items = paid.order_items || [];
   return (
-    <div className="h-dvh flex items-center justify-center bg-[#0a0a0a] p-6">
+    <div className="h-dvh flex items-center justify-center bg-[#0a0a0a] pos-bg-main pos-text-primary p-6">
       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="bg-[#111] border border-white/[0.06] rounded-3xl p-8 max-w-sm w-full text-center">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.15 }}
-          className="w-20 h-20 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-5">
-          <CheckCircle2 size={40} className="text-emerald-400" />
-        </motion.div>
-        <h2 className="text-2xl font-bold text-white mb-1">{t('paid')}</h2>
-        <p className="text-white/40 text-sm mb-1">{t('table')} {paid.table_number}</p>
-        <p className="text-white/40 text-sm mb-6 flex items-center justify-center gap-1">
+        className="bg-[#111] pos-bg-secondary border border-white/[0.06] pos-border rounded-3xl p-8 max-w-sm w-full text-center">
+        <h2 className="text-2xl font-bold text-white pos-text-primary mb-1">{t('paid')}</h2>
+        <p className="text-white/40 pos-text-secondary text-sm mb-1">{t('table')} {paid.table_number}</p>
+        <p className="text-white/40 pos-text-secondary text-sm mb-6 flex items-center justify-center gap-1">
           {paid.payment_method === 'cash' ? <Banknote size={14} /> : <CreditCard size={14} />}
           {paid.payment_method === 'cash' ? t('cash') : t('card')}
           {paid.split_count && paid.split_count > 1 && <span className="flex items-center gap-1 ml-2"><Users size={14} />{paid.split_count} {t('person')}</span>}
         </p>
 
-        <div className="text-left bg-white/[0.02] rounded-2xl p-4 mb-6 space-y-1">
+        <div className="text-left bg-white/[0.02] pos-bg-card rounded-2xl p-4 mb-6 space-y-1">
           {items.slice(0, 5).map(i => (
             <div key={i.id} className="flex items-center justify-between text-xs">
-              <span className="text-white/50">{i.quantity}x {i.product_name}</span>
-              <span className="text-white/70 font-semibold">₼{fmt(i.total_price || 0)}</span>
+              <span className="text-white/50 pos-text-secondary">{i.quantity}x {i.product_name}</span>
+              <span className="text-white/70 pos-text-primary font-semibold">₼{fmt(i.total_price || 0)}</span>
             </div>
           ))}
-          {items.length > 5 && <p className="text-[9px] text-white/20">+{items.length - 5}</p>}
-          <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between text-sm font-bold text-white">
+          {items.length > 5 && <p className="text-[9px] text-white/20 pos-text-muted">+{items.length - 5}</p>}
+          <div className="border-t border-white/[0.06] pos-border pt-2 flex items-center justify-between text-sm font-bold text-white pos-text-primary">
             <span>{t('total')}</span>
             <span>₼{fmt(paid.total_amount || 0)}</span>
           </div>
         </div>
 
         <button onClick={() => window.print()}
-          className="w-full py-4 rounded-2xl bg-white/10 text-white text-base font-bold hover:bg-white/20 mb-3 flex items-center justify-center gap-2">
+          className="w-full py-4 rounded-2xl bg-white/10 pos-bg-card text-white pos-text-primary text-base font-bold hover:bg-white/20 mb-3 flex items-center justify-center gap-2">
           <Printer size={18} /> {t('print')}
         </button>
         <button onClick={onNew}
-          className="w-full py-4 rounded-2xl bg-white/[0.04] text-white/50 text-base hover:text-white">{t('new_order')}</button>
+          className="w-full py-4 rounded-2xl bg-white/[0.04] pos-bg-card text-white/50 pos-text-secondary text-base hover:text-white">{t('new_order')}</button>
       </motion.div>
     </div>
   );
@@ -208,6 +204,7 @@ function ReceiptScreen({ paid, onNew }: { paid: OrderData & { payment_method?: s
 /* ─── Main ─── */
 function POS() {
   const { t, language } = useLanguage();
+  const { lightMode, setLightMode } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<RecipeIng[]>([]);
@@ -396,15 +393,15 @@ function POS() {
     return l;
   }, [products, cat, search, getPName]);
 
-  if (loading) return <div className="h-dvh flex items-center justify-center bg-[#0a0a0a]"><Loader2 size={24} className="animate-spin text-white/20" /></div>;
+  if (loading) return <div className="h-dvh flex items-center justify-center bg-[#0a0a0a] pos-bg-main"><Loader2 size={24} className="animate-spin text-white/20 pos-text-muted" /></div>;
 
   if (paid) return <ReceiptScreen paid={paid} onNew={handleNewOrder} />;
 
   return (
-    <div className="h-dvh flex flex-col bg-[#0a0a0a] overflow-hidden select-none">
+    <div className="h-dvh flex flex-col bg-[#0a0a0a] pos-bg-main pos-text-primary overflow-hidden select-none">
 
       {/* ─── TABLE STRIP ─── */}
-      <div className="flex-shrink-0 border-b border-white/[0.06] bg-[#0c0c0c]">
+      <div className="flex-shrink-0 border-b border-white/[0.06] pos-border bg-[#0c0c0c] pos-bg-secondary">
         <div className="flex gap-1.5 px-3 pt-3 pb-2 overflow-x-auto">
           {Array.from({ length: tableCount }, (_, i) => i + 1).map(n => {
             const o = orders.find(x => x.table_number === n && x.status !== 'paid');
@@ -422,11 +419,15 @@ function POS() {
           })}
         </div>
         <div className="flex items-center gap-2 px-3 pb-3">
-          <span className="text-xs text-white/30">{products.length} {t('items')}</span>
-          <span className="text-white/[0.06]">|</span>
-          <span className="text-xs text-white/30">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
-          {activeOrder && <><span className="text-white/[0.06]">|</span><span className="text-xs text-amber-400 font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
+          <span className="text-xs text-white/30 pos-text-secondary">{products.length} {t('items')}</span>
+          <span className="text-white/[0.06] pos-border">|</span>
+          <span className="text-xs text-white/30 pos-text-secondary">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
+          {activeOrder && <><span className="text-white/[0.06] pos-border">|</span><span className="text-xs text-amber-400 font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
           <div className="flex-1" />
+          <button onClick={() => setLightMode(!lightMode)}
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/[0.06] text-xs text-white/40 hover:text-white/80 transition-all">
+            {lightMode ? '🌙' : '☀️'}
+          </button>
           <button onClick={() => setShowCart(!showCart)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-xs font-semibold text-white/70">
             <ShoppingBag size={13} /> ₼{fmt(total)}
@@ -438,8 +439,8 @@ function POS() {
       {/* ─── SEARCH + CATEGORIES ─── */}
       <div className="flex-shrink-0 px-3 pt-2 pb-1 space-y-1.5">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/20 outline-none" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 pos-text-muted" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-white/[0.04] pos-bg-card border border-white/[0.06] pos-border rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/20 outline-none" />
           {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20"><X size={14} /></button>}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -473,15 +474,15 @@ function POS() {
         </div>
 
         {/* ─── CART SIDEBAR (always visible on lg+) ─── */}
-        <div className="hidden lg:flex flex-col w-[30%] min-w-[300px] max-w-[400px] border-l border-white/[0.06] bg-[#0c0c0c] flex-shrink-0">
+        <div className="hidden lg:flex flex-col w-[30%] min-w-[300px] max-w-[400px] border-l border-white/[0.06] pos-border bg-[#0c0c0c] pos-bg-secondary flex-shrink-0">
           {/* Cart header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
             <div>
-              <h2 className="text-sm font-bold text-white">
+              <h2 className="text-sm font-bold text-white pos-text-primary">
                 {selTable ? `${t('table')} ${selTable}` : t('cart')}
               </h2>
               {activeOrder && (
-                <p className="text-[10px] text-white/30 mt-0.5">
+                <p className="text-[10px] text-white/30 pos-text-secondary mt-0.5">
                   {activeOrder.kitchen_status === 'ready' ? `✅ ${t('ready')}` : `⏳ ${t('waiting')}`}
                 </p>
               )}
@@ -490,17 +491,17 @@ function POS() {
               {activeOrder && (
                 <>
                   <button onClick={() => setShowMerge(true)}
-                    className="text-[10px] text-white/20 hover:text-gold transition-colors font-semibold tracking-wider uppercase">
+                    className="text-[10px] text-white/20 pos-text-secondary hover:text-gold transition-colors font-semibold tracking-wider uppercase">
                     {t('merge')}
                   </button>
                   <button onClick={handleDismissTable}
-                    className="text-[10px] text-white/20 hover:text-red-400 transition-colors font-semibold tracking-wider uppercase">
+                    className="text-[10px] text-white/20 pos-text-secondary hover:text-red-400 transition-colors font-semibold tracking-wider uppercase">
                     {t('dismiss_table')}
                   </button>
                 </>
               )}
               <button onClick={() => setCart([])}
-                className="text-[10px] text-white/20 hover:text-white/50 transition-colors font-semibold tracking-wider uppercase">
+                className="text-[10px] text-white/20 pos-text-secondary hover:text-white/50 transition-colors font-semibold tracking-wider uppercase">
                 {t('clear')}
               </button>
             </div>
@@ -509,20 +510,20 @@ function POS() {
           <div className="flex-1 overflow-y-auto min-h-0">
             {/* ─── Existing order items ─── */}
             {activeOrder && activeOrder.order_items && activeOrder.order_items.length > 0 && (
-              <div className="border-b border-white/[0.06]">
+              <div className="border-b border-white/[0.06] pos-border">
                 <div className="px-5 pt-3 pb-1">
-                  <span className="text-[9px] text-white/30 uppercase tracking-widest font-semibold">{t('existing_order')}</span>
+                  <span className="text-[9px] text-white/30 pos-text-secondary uppercase tracking-widest font-semibold">{t('existing_order')}</span>
                 </div>
                 <div className="px-5 py-1 space-y-0.5">
                   {activeOrder.order_items.map(i => (
                     <div key={i.id} className="flex items-center justify-between text-[11px]">
-                      <span className="text-white/40">{i.quantity}x {i.product_name}</span>
-                      <span className="text-white/50 font-medium">₼{fmt(i.total_price || 0)}</span>
+                      <span className="text-white/40 pos-text-secondary">{i.quantity}x {i.product_name}</span>
+                      <span className="text-white/50 pos-text-secondary font-medium">₼{fmt(i.total_price || 0)}</span>
                     </div>
                   ))}
                 </div>
-                <div className="px-5 py-2 flex items-center justify-between border-t border-white/[0.04] mt-1">
-                  <span className="text-[10px] text-white/30">{t('subtotal_label')}</span>
+                <div className="px-5 py-2 flex items-center justify-between border-t border-white/[0.04] pos-border mt-1">
+                  <span className="text-[10px] text-white/30 pos-text-secondary">{t('subtotal_label')}</span>
                   <span className="text-xs font-bold text-gold">₼{fmt(activeOrder.total_amount || 0)}</span>
                 </div>
               </div>
@@ -531,7 +532,7 @@ function POS() {
             {/* ─── New cart items ─── */}
             <div className="px-5 py-3 space-y-2">
               {cart.length === 0 && (!activeOrder || !activeOrder.order_items?.length) ? (
-                <div className="flex flex-col items-center justify-center py-12 text-white/15">
+                <div className="flex flex-col items-center justify-center py-12 text-white/15 pos-text-muted">
                   <ShoppingBag size={28} className="mb-2 opacity-30" />
                   <p className="text-xs">{t('cart_empty')}</p>
                 </div>
@@ -543,15 +544,15 @@ function POS() {
                     </div>
                   )}
                   {cart.map(i => (
-                    <div key={i.product.id} className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-3 py-2">
+                    <div key={i.product.id} className="flex items-center gap-3 bg-white/[0.03] pos-bg-card rounded-xl px-3 py-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-white/80 truncate">{getPName(i.product)}</p>
+                        <p className="text-xs font-semibold text-white/80 pos-text-primary truncate">{getPName(i.product)}</p>
                         <p className="text-[10px] text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <button onClick={() => chgQty(i.product.id, -1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Minus size={11} /></button>
-                        <span className="w-5 text-center text-sm font-bold text-white">{i.qty}</span>
-                        <button onClick={() => chgQty(i.product.id, 1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Plus size={11} /></button>
+                        <button onClick={() => chgQty(i.product.id, -1)} className="w-7 h-7 rounded-full bg-white/[0.06] pos-bg-card flex items-center justify-center text-white/40 pos-text-secondary"><Minus size={11} /></button>
+                        <span className="w-5 text-center text-sm font-bold text-white pos-text-primary">{i.qty}</span>
+                        <button onClick={() => chgQty(i.product.id, 1)} className="w-7 h-7 rounded-full bg-white/[0.06] pos-bg-card flex items-center justify-center text-white/40 pos-text-secondary"><Plus size={11} /></button>
                       </div>
                     </div>
                   ))}
@@ -561,14 +562,14 @@ function POS() {
           </div>
 
           {/* ─── Bottom: note + total + send ─── */}
-          <div className="px-5 py-4 border-t border-white/[0.06] space-y-3">
+          <div className="px-5 py-4 border-t border-white/[0.06] pos-border space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-white/30 uppercase tracking-widest font-semibold">{t('total_label')}</span>
+              <span className="text-[10px] text-white/30 pos-text-secondary uppercase tracking-widest font-semibold">{t('total_label')}</span>
               <div className="text-right">
                 {activeOrder && total > 0 && (
-                  <span className="text-[9px] text-white/20 line-through block">₼{fmt(activeOrder.total_amount || 0)}</span>
+                  <span className="text-[9px] text-white/20 pos-text-muted line-through block">₼{fmt(activeOrder.total_amount || 0)}</span>
                 )}
-                <span className="text-lg font-black text-white">₼{fmt((activeOrder?.total_amount || 0) + total)}</span>
+                <span className="text-lg font-black text-white pos-text-primary">₼{fmt((activeOrder?.total_amount || 0) + total)}</span>
               </div>
             </div>
             <button onClick={sendOrder} disabled={!selTable || cart.length === 0 || busy}
@@ -582,17 +583,17 @@ function POS() {
       <AnimatePresence>
       {showCart && cart.length > 0 && (
         <motion.div initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="lg:hidden flex-shrink-0 border-t border-white/[0.06] bg-[#0c0c0c] px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
+          className="lg:hidden flex-shrink-0 border-t border-white/[0.06] pos-border bg-[#0c0c0c] pos-bg-secondary px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
           {cart.map(i => (
-            <div key={i.product.id} className="flex items-center gap-2 bg-white/[0.03] rounded-xl px-3 py-2">
-              <div className="flex-1 min-w-0"><p className="text-xs font-semibold text-white/80 truncate">{getPName(i.product)}</p><p className="text-[10px] text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p></div>
-              <button onClick={() => chgQty(i.product.id, -1)} className="w-6 h-6 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Minus size={10} /></button>
-              <span className="w-4 text-center text-xs font-bold text-white">{i.qty}</span>
-              <button onClick={() => chgQty(i.product.id, 1)} className="w-6 h-6 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Plus size={10} /></button>
+            <div key={i.product.id} className="flex items-center gap-2 bg-white/[0.03] pos-bg-card rounded-xl px-3 py-2">
+              <div className="flex-1 min-w-0"><p className="text-xs font-semibold text-white/80 pos-text-primary truncate">{getPName(i.product)}</p><p className="text-[10px] text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p></div>
+              <button onClick={() => chgQty(i.product.id, -1)} className="w-6 h-6 rounded-full bg-white/[0.06] pos-bg-card flex items-center justify-center text-white/40 pos-text-secondary"><Minus size={10} /></button>
+              <span className="w-4 text-center text-xs font-bold text-white pos-text-primary">{i.qty}</span>
+              <button onClick={() => chgQty(i.product.id, 1)} className="w-6 h-6 rounded-full bg-white/[0.06] pos-bg-card flex items-center justify-center text-white/40 pos-text-secondary"><Plus size={10} /></button>
             </div>
           ))}
           <div className="flex items-center gap-3 pt-1">
-            <div className="flex-1"><span className="text-[10px] text-white/30">{t('total')}</span><p className="text-lg font-black text-white">₼{fmt(total)}</p></div>
+            <div className="flex-1"><span className="text-[10px] text-white/30 pos-text-secondary">{t('total')}</span><p className="text-lg font-black text-white pos-text-primary">₼{fmt(total)}</p></div>
             <button onClick={sendOrder} disabled={busy} className="flex-1 py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2"
             >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send')}</button>
           </div>
@@ -605,22 +606,22 @@ function POS() {
       {showMerge && activeOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
-            className="bg-[#111] border border-white/[0.08] rounded-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-6 shadow-2xl">
+            className="bg-[#111] pos-bg-secondary border border-white/[0.08] pos-border rounded-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-white">{t('merge')}</h3>
-              <button onClick={() => setShowMerge(false)} className="text-white/20 hover:text-white/60 p-1"><X size={18} /></button>
+              <h3 className="text-base font-bold text-white pos-text-primary">{t('merge')}</h3>
+              <button onClick={() => setShowMerge(false)} className="text-white/20 pos-text-muted hover:text-white/60 p-1"><X size={18} /></button>
             </div>
             {mergeCandidates.length === 0 ? (
-              <p className="text-white/30 text-sm text-center py-6">{t('no_active_orders')}</p>
+              <p className="text-white/30 pos-text-secondary text-sm text-center py-6">{t('no_active_orders')}</p>
             ) : (
               <div className="space-y-1.5">
                 {mergeCandidates.map(o => (
                   <button key={o.id} onClick={() => handleMerge(o.id)}
                     disabled={busy}
-                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-white/[0.06] transition-colors border border-white/[0.06] disabled:opacity-30">
+                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-white/[0.06] transition-colors border border-white/[0.06] pos-border disabled:opacity-30">
                     <div className="text-left">
-                      <p className="text-white text-sm font-medium">{t('table')} {o.table_number}</p>
-                      <p className="text-[10px] text-white/40">₼{fmt(o.total_amount || 0)} • {o.order_items?.length || 0} {t('items')}</p>
+                      <p className="text-white pos-text-primary text-sm font-medium">{t('table')} {o.table_number}</p>
+                      <p className="text-[10px] text-white/40 pos-text-secondary">₼{fmt(o.total_amount || 0)} • {o.order_items?.length || 0} {t('items')}</p>
                     </div>
                     <GitMerge size={16} className="text-gold flex-shrink-0" />
                   </button>

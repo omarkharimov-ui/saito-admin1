@@ -176,3 +176,13 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* ── POS Light Mode ── */
+[data-light-mode="true"] .pos-bg-main { background-color: #f5f0e8 !important; }
+[data-light-mode="true"] .pos-bg-secondary { background-color: #ece6da !important; }
+[data-light-mode="true"] .pos-bg-card { background-color: #e8e0d3 !important; }
+[data-light-mode="true"] .pos-text-primary { color: #1a1a1a !important; }
+[data-light-mode="true"] .pos-text-secondary { color: #6b6358 !important; }
+[data-light-mode="true"] .pos-text-muted { color: #9e9485 !important; }
+[data-light-mode="true"] .pos-border { border-color: rgba(180, 165, 140, 0.3) !important; }
+[data-light-mode="true"] .pos-border-strong { border-color: rgba(180, 165, 140, 0.5) !important; }

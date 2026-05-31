@@ -4,6 +4,8 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 
 type ThemeContextValue = {
   isHighContrast: boolean;
+  lightMode: boolean;
+  setLightMode: (v: boolean) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -15,6 +17,7 @@ function getSystemContrast(): boolean {
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [isHighContrast, setIsHighContrast] = useState(false);
+  const [lightMode, setLightMode] = useState(false);
 
   useEffect(() => {
     const contrastMedia = window.matchMedia('(prefers-contrast: more)');
@@ -31,14 +34,21 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         document.documentElement.removeAttribute('data-contrast');
       }
+      if (lightMode) {
+        document.documentElement.setAttribute('data-light-mode', 'true');
+      } else {
+        document.documentElement.removeAttribute('data-light-mode');
+      }
     } catch {
       // ignore
     }
-  }, [isHighContrast]);
+  }, [isHighContrast, lightMode]);
 
   const value = useMemo(() => ({
     isHighContrast,
-  }), [isHighContrast]);
+    lightMode,
+    setLightMode,
+  }), [isHighContrast, lightMode]);
 
   return (
     <ThemeContext.Provider value={value}>

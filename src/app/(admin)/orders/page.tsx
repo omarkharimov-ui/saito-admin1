@@ -84,7 +84,7 @@ export default function OrdersPage() {
       return;
     }
     const extraQ = extra.length > 0 ? `?extra=${extra.join(',')}` : '';
-    router.push(`/pos/manual/${tableNum}${extraQ}`);
+    router.push(`/orders/manual/${tableNum}${extraQ}`);
   };
 
   const [tab, setTab]                 = useState<TabKey>('active');

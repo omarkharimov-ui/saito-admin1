@@ -4,8 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LanguageProvider, useLanguage } from '@/lib/i18n/LanguageContext';
-import { ThemeProvider } from '@/lib/theme/ThemeContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import {
   Search, Plus, Minus, Send, X, Loader2, ShoppingBag, ArrowLeft, CheckCircle,
 } from 'lucide-react';
@@ -75,7 +74,7 @@ function CartItemRow({ item, onQty, language }: {
   );
 }
 
-function PageContent() {
+export default function ManualOrderPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -95,7 +94,7 @@ function PageContent() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (!tableNum || isNaN(tableNum)) { router.replace('/pos'); return; }
+    if (!tableNum || isNaN(tableNum)) { router.replace('/orders'); return; }
     supabase
       .from('products')
       .select('id, name, name_az, name_en, name_ru, price, image_url, is_available, category:categories(name)')
@@ -222,13 +221,13 @@ function PageContent() {
   }, [products, search, getPName]);
 
   if (loading) return (
-    <div className="h-dvh flex items-center justify-center bg-[#0b0b0b]">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-[#0b0b0b]">
       <Loader2 size={28} className="animate-spin text-white/20" />
     </div>
   );
 
   if (success) return (
-    <div className="h-dvh flex flex-col items-center justify-center bg-[#0b0b0b] text-center px-6">
+    <div className="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-[#0b0b0b] text-center px-6">
       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         className="w-24 h-24 rounded-full bg-emerald-500/15 flex items-center justify-center mb-6">
         <CheckCircle size={48} className="text-emerald-400" />
@@ -239,7 +238,7 @@ function PageContent() {
   );
 
   return (
-    <div className="h-dvh flex flex-col bg-[#0b0b0b] overflow-hidden select-none">
+    <div className="fixed inset-0 z-[300] flex flex-col bg-[#0b0b0b] overflow-hidden select-none">
       {/* ─── HEADER ─── */}
       <header className="flex-shrink-0 border-b border-white/[0.06] bg-[#0f0f0f]">
         <div className="flex items-center gap-4 px-5 py-3">
@@ -273,7 +272,7 @@ function PageContent() {
 
       {/* ─── MAIN CONTENT ─── */}
       <div className="flex-1 flex min-h-0">
-        {/* ─── PRODUCT GRID (70%) ─── */}
+        {/* ─── PRODUCT GRID ─── */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-white/15">
@@ -283,20 +282,14 @@ function PageContent() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
               {filtered.map(p => {
-                const inCart = items
-                  .filter(i => i.product.id === p.id)
-                  .reduce((s, i) => s + i.quantity, 0);
-                return (
-                  <PCard key={p.id} p={p} cart={inCart}
-                    onAdd={() => handleProductClick(p)} language={language}
-                  />
-                );
+                const inCart = items.filter(i => i.product.id === p.id).reduce((s, i) => s + i.quantity, 0);
+                return <PCard key={p.id} p={p} cart={inCart} onAdd={() => handleProductClick(p)} language={language} />;
               })}
             </div>
           )}
         </div>
 
-        {/* ─── CART SIDEBAR (30%) ─── */}
+        {/* ─── CART SIDEBAR ─── */}
         <aside className="w-[30%] min-w-[300px] max-w-[400px] flex flex-col border-l border-white/[0.06] bg-[#0f0f0f] flex-shrink-0">
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
             <div>
@@ -318,11 +311,7 @@ function PageContent() {
             ) : (
               items.map(item => {
                 const key = `${item.product.id}__${item.variant?.id || 'base'}`;
-                return (
-                  <CartItemRow key={key} item={item}
-                    onQty={(d) => changeQty(key, d)} language={language}
-                  />
-                );
+                return <CartItemRow key={key} item={item} onQty={(d) => changeQty(key, d)} language={language} />;
               })
             )}
           </div>
@@ -340,11 +329,7 @@ function PageContent() {
               disabled={items.length === 0 || submitting}
               className="w-full py-3.5 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 transition-all hover:bg-amber-500/25"
             >
-              {submitting ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <Send size={15} />
-              )}
+              {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
               {t('send_to_kitchen')}
             </button>
           </div>
@@ -354,7 +339,7 @@ function PageContent() {
       {/* ─── VARIANT PICKER ─── */}
       <AnimatePresence>
       {variantPicker && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
             transition={{ type: 'spring', stiffness: 300, damping: 27 }}
             className="bg-[#111] border border-white/[0.08] rounded-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-6 shadow-2xl">
@@ -373,9 +358,7 @@ function PageContent() {
                     className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-white/[0.06] transition-colors border border-white/[0.06]">
                     <div className="text-left">
                       <p className="text-white text-sm font-medium">{v.name}</p>
-                      {v.is_default && (
-                        <span className="text-[9px] text-white/25 uppercase tracking-wider">{t('combo_default_variant')}</span>
-                      )}
+                      {v.is_default && <span className="text-[9px] text-white/25 uppercase tracking-wider">{t('combo_default_variant')}</span>}
                     </div>
                     <span className="text-gold text-xs font-bold flex-shrink-0 ml-3">₼{fmt(v.price)}</span>
                   </button>
@@ -387,15 +370,5 @@ function PageContent() {
       )}
       </AnimatePresence>
     </div>
-  );
-}
-
-export default function ManualOrderPage() {
-  return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <PageContent />
-      </LanguageProvider>
-    </ThemeProvider>
   );
 }

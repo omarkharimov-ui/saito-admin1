@@ -189,12 +189,12 @@ body {
   --pos-border-strong: rgba(255,255,255,0.08);
 }
 [data-light="true"] {
-  --pos-bg: #f5f0e8;
-  --pos-bg-secondary: #ece6da;
-  --pos-bg-card: #e8e0d3;
-  --pos-text: #1a1a1a;
-  --pos-text-secondary: #6b6358;
-  --pos-text-muted: #9e9485;
-  --pos-border: rgba(180,165,140,0.3);
-  --pos-border-strong: rgba(180,165,140,0.5);
+  --pos-bg: #f5efe6;
+  --pos-bg-secondary: #ede5d9;
+  --pos-bg-card: #e3d9cb;
+  --pos-text: #3b2a1a;
+  --pos-text-secondary: #7a6953;
+  --pos-text-muted: #a8947d;
+  --pos-border: rgba(170,140,110,0.35);
+  --pos-border-strong: rgba(170,140,110,0.55);
 }

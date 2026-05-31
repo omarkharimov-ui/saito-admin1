@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ClipboardList, WifiOff, Archive, Filter, AlertTriangle, Trash2, Calendar, X, BellRing,
+  ClipboardList, WifiOff, Archive, Filter, AlertTriangle, Trash2, Calendar, X, BellRing, Monitor,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -19,6 +19,7 @@ import { OrderModal } from './components/OrderModal';
 import { ManualOrderModal } from './components/ManualOrderModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import GoldCalendar from '@/components/GoldCalendar';
+import WaiterMode from './components/WaiterMode';
 import type { TabKey, TableFilterType, Order } from './types';
 import { getOrderAgeMinutes } from './utils';
 
@@ -98,6 +99,8 @@ export default function OrdersPage() {
   const [showArchiveFilters, setShowArchiveFilters] = useState(false);
   const [clearingArchive, setClearingArchive]       = useState(false);
   const [confirmClearArchive, setConfirmClearArchive] = useState(false);
+  const [waiterMode, setWaiterMode] = useState(false);
+
   const [dismissedReadyIds, setDismissedReadyIds] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem('dismissedReadyIds');
@@ -532,6 +535,14 @@ export default function OrdersPage() {
               )}
             </AnimatePresence>
 
+            {/* Waiter mode toggle */}
+            <button onClick={() => setWaiterMode(v => !v)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all duration-200 border ${
+                waiterMode ? 'bg-gold/[0.12] text-gold border-gold/30' : 'bg-white/[0.04] text-white/50 border-white/[0.07] hover:text-white/80'
+              }`}>
+              <Monitor size={15} strokeWidth={1.5} />
+            </button>
+
             {/* Tab switcher */}
             <div className="relative flex rounded-xl p-1 bg-white/[0.04] border border-white/[0.07]">
               {(['active', 'archive'] as TabKey[]).map(key => (
@@ -831,6 +842,9 @@ export default function OrdersPage() {
           }}
         />
       )}
+
+      {/* Waiter Mode Overlay */}
+      {waiterMode && <WaiterMode onClose={() => setWaiterMode(false)} />}
 
       {/* Manual Order Modal */}
       <AnimatePresence>

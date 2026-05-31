@@ -453,5 +453,17 @@ ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS split_count integer DEFAULT 1;
 
 -- ═══════════════════════════════════════════════════════════════
+-- 16. DELETE stub/test products (no category, no image, a1b2c3d4 UUID)
+-- ═══════════════════════════════════════════════════════════════
+DELETE FROM order_items
+WHERE product_id IN (
+  SELECT id FROM products
+  WHERE category_id IS NULL AND (image_url IS NULL OR image_url = '')
+);
+
+DELETE FROM products
+WHERE category_id IS NULL AND (image_url IS NULL OR image_url = '');
+
+-- ═══════════════════════════════════════════════════════════════
 
 SELECT 'migration v3 completed' AS status;

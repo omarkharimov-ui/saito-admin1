@@ -36,14 +36,14 @@ function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: nu
       onClick={stock ? onAdd : undefined}
       className={`relative rounded-2xl p-3 text-left border ${stock ? 'bg-[var(--pos-bg-card)] border-[var(--pos-border-strong)]' : 'opacity-30 border-[var(--pos-border)]'}`}
     >
-      <div className="aspect-square rounded-xl bg-[var(--pos-bg-card)] mb-2 flex items-center justify-center overflow-hidden">
+      <div className="aspect-square rounded-xl bg-white/[0.02] mb-2 flex items-center justify-center overflow-hidden">
         {showImg
           ? <img src={p.image_url!} alt={name} className="w-full h-full object-cover" onLoad={() => setImgState('ok')} onError={() => setImgState('err')} />
           : <span className="text-2xl font-black text-[var(--pos-text-muted)]">{initials}</span>
         }
       </div>
       <p className="text-xs font-semibold text-[var(--pos-text)] truncate">{name}</p>
-      <p className="text-xs font-black text-gold">₼{fmt(p.price)}</p>
+      <p className="text-xs font-black text-[var(--pos-price)]">₼{fmt(p.price)}</p>
       {!stock && <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center"><span className="text-[10px] font-bold text-[var(--pos-text)]/70 bg-black/70 px-2 py-1 rounded-lg">{t('out_of_stock')}</span></div>}
       {cart > 0 && <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold text-black text-[10px] font-black flex items-center justify-center">{cart}</span>}
     </motion.button>
@@ -414,25 +414,25 @@ function POS() {
               <button key={n} onClick={() => { setSelTable(s ? null : n); setShowCart(false); }}
                 className={`relative flex-shrink-0 w-12 h-12 rounded-xl text-xs font-bold transition-all ${
                   s ? 'bg-[var(--pos-text)] text-[var(--pos-bg)] shadow-md' :
-                  o ? (r ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20') :
-                  'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)] border border-[var(--pos-border)]'
+                  o ? (r ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-[var(--pos-table-busy-bg)] text-[var(--pos-table-busy-text)] border border-[var(--pos-table-busy-border)]') :
+                  'bg-[var(--pos-table-empty-bg)] text-[var(--pos-table-empty-text)] border border-[var(--pos-border)]'
                 }`}
               >{n}{o && <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${r ? 'bg-emerald-400' : 'bg-amber-400'}`} />}</button>
             );
           })}
         </div>
         <div className="flex items-center gap-2 px-3 pb-3">
-          <span className="text-xs text-[var(--pos-text-secondary)]">{products.length} {t('items')}</span>
+          <span className="text-xs text-[var(--pos-text-secondary)] font-medium">{products.length} {t('items')}</span>
           <span className="text-[var(--pos-border)]">|</span>
-          <span className="text-xs text-[var(--pos-text-secondary)]">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
+          <span className="text-xs text-[var(--pos-text-secondary)] font-medium">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
           {activeOrder && <><span className="text-[var(--pos-border)]">|</span><span className="text-xs text-amber-400 font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
           <div className="flex-1" />
           <button onClick={() => setLightMode(!lightMode)}
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)] hover:text-[var(--pos-text)] transition-all">
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--pos-bg-card)] text-[var(--pos-btn-text)] hover:text-[var(--pos-text)] transition-all">
             {lightMode ? <Moon size={14} /> : <Sun size={14} />}
           </button>
           <button onClick={() => setShowCart(!showCart)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--pos-bg-card)] text-xs font-semibold text-[var(--pos-text-secondary)]">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--pos-bg-card)] text-xs font-semibold text-[var(--pos-btn-text)]">
             <ShoppingBag size={13} /> ₼{fmt(total)}
             {cart.length > 0 && <span className="w-4 h-4 rounded-full bg-gold text-black text-[8px] font-black flex items-center justify-center">{cart.reduce((s, i) => s + i.qty, 0)}</span>}
           </button>
@@ -443,7 +443,7 @@ function POS() {
       <div className="flex-shrink-0 px-3 pt-2 pb-1 space-y-1.5">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-[var(--pos-bg-card)] border border-[var(--pos-border)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--pos-text)] placeholder:text-[var(--pos-text-muted)] outline-none" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-[var(--pos-search-bg)] border border-[var(--pos-search-border)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--pos-text)] placeholder:text-[var(--pos-text-muted)] outline-none" />
           {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]"><X size={14} /></button>}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -477,7 +477,7 @@ function POS() {
         </div>
 
         {/* ─── CART SIDEBAR (always visible on lg+) ─── */}
-        <div className="hidden lg:flex flex-col w-[30%] min-w-[300px] max-w-[400px] border-l border-[var(--pos-border)] bg-[var(--pos-bg-secondary)] flex-shrink-0">
+        <div className="hidden lg:flex flex-col w-[30%] min-w-[300px] max-w-[400px] border-l border-[var(--pos-sidebar-border)] bg-[var(--pos-bg-secondary)] flex-shrink-0">
           {/* Cart header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--pos-border)]">
             <div>
@@ -494,17 +494,17 @@ function POS() {
               {activeOrder && (
                 <>
                   <button onClick={() => setShowMerge(true)}
-                    className="text-[10px] text-[var(--pos-text-secondary)] hover:text-gold transition-colors font-semibold tracking-wider uppercase">
+                    className="text-[10px] text-[var(--pos-btn-text)] font-medium hover:text-gold transition-colors tracking-wider uppercase">
                     {t('merge')}
                   </button>
                   <button onClick={handleDismissTable}
-                    className="text-[10px] text-[var(--pos-text-secondary)] hover:text-red-400 transition-colors font-semibold tracking-wider uppercase">
+                    className="text-[10px] text-[var(--pos-btn-text)] font-medium hover:text-red-400 transition-colors tracking-wider uppercase">
                     {t('dismiss_table')}
                   </button>
                 </>
               )}
               <button onClick={() => setCart([])}
-                className="text-[10px] text-[var(--pos-text-secondary)] hover:text-[var(--pos-text)] transition-colors font-semibold tracking-wider uppercase">
+                className="text-[10px] text-[var(--pos-btn-text)] font-medium hover:text-[var(--pos-text)] transition-colors tracking-wider uppercase">
                 {t('clear')}
               </button>
             </div>
@@ -515,7 +515,7 @@ function POS() {
             {activeOrder && activeOrder.order_items && activeOrder.order_items.length > 0 && (
               <div className="border-b border-[var(--pos-border)]">
                 <div className="px-5 pt-3 pb-1">
-                  <span className="text-[9px] text-[var(--pos-text-secondary)] uppercase tracking-widest font-semibold">{t('existing_order')}</span>
+                  <span className="text-[9px] text-[var(--pos-text-secondary)] uppercase tracking-widest font-medium">{t('existing_order')}</span>
                 </div>
                 <div className="px-5 py-1 space-y-0.5">
                   {activeOrder.order_items.map(i => (
@@ -527,7 +527,7 @@ function POS() {
                 </div>
                 <div className="px-5 py-2 flex items-center justify-between border-t border-[var(--pos-border)] mt-1">
                   <span className="text-[10px] text-[var(--pos-text-secondary)]">{t('subtotal_label')}</span>
-                  <span className="text-xs font-bold text-gold">₼{fmt(activeOrder.total_amount || 0)}</span>
+                  <span className="text-xs font-bold text-[var(--pos-price)]">₼{fmt(activeOrder.total_amount || 0)}</span>
                 </div>
               </div>
             )}
@@ -550,7 +550,7 @@ function POS() {
                     <div key={i.product.id} className="flex items-center gap-3 bg-[var(--pos-bg-card)] rounded-xl px-3 py-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-[var(--pos-text)] truncate">{getPName(i.product)}</p>
-                        <p className="text-[10px] text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p>
+                        <p className="text-[10px] text-[var(--pos-price)] font-bold">₼{fmt(i.product.price * i.qty)}</p>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => chgQty(i.product.id, -1)} className="w-7 h-7 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Minus size={11} /></button>
@@ -567,7 +567,7 @@ function POS() {
           {/* ─── Bottom: note + total + send ─── */}
           <div className="px-5 py-4 border-t border-[var(--pos-border)] space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[var(--pos-text-secondary)] uppercase tracking-widest font-semibold">{t('total_label')}</span>
+              <span className="text-[10px] text-[var(--pos-text-secondary)] uppercase tracking-widest font-medium">{t('total_label')}</span>
               <div className="text-right">
                 {activeOrder && total > 0 && (
                   <span className="text-[9px] text-[var(--pos-text-muted)] line-through block">₼{fmt(activeOrder.total_amount || 0)}</span>
@@ -576,7 +576,7 @@ function POS() {
               </div>
             </div>
             <button onClick={sendOrder} disabled={!selTable || cart.length === 0 || busy}
-              className="w-full py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl text-sm font-bold bg-[var(--pos-send-bg)] text-[var(--pos-send-text)] border border-transparent active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2 hover:bg-[var(--pos-send-hover)] transition-all"
             >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send_to_kitchen')}</button>
           </div>
         </div>
@@ -589,7 +589,7 @@ function POS() {
           className="lg:hidden flex-shrink-0 border-t border-[var(--pos-border)] bg-[var(--pos-bg-secondary)] px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
           {cart.map(i => (
             <div key={i.product.id} className="flex items-center gap-2 bg-[var(--pos-bg-card)] rounded-xl px-3 py-2">
-              <div className="flex-1 min-w-0"><p className="text-xs font-semibold text-[var(--pos-text)] truncate">{getPName(i.product)}</p><p className="text-[10px] text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p></div>
+              <div className="flex-1 min-w-0"><p className="text-xs font-semibold text-[var(--pos-text)] truncate">{getPName(i.product)}</p><p className="text-[10px] text-[var(--pos-price)] font-bold">₼{fmt(i.product.price * i.qty)}</p></div>
               <button onClick={() => chgQty(i.product.id, -1)} className="w-6 h-6 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Minus size={10} /></button>
               <span className="w-4 text-center text-xs font-bold text-[var(--pos-text)]">{i.qty}</span>
               <button onClick={() => chgQty(i.product.id, 1)} className="w-6 h-6 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Plus size={10} /></button>
@@ -597,7 +597,7 @@ function POS() {
           ))}
           <div className="flex items-center gap-3 pt-1">
             <div className="flex-1"><span className="text-[10px] text-[var(--pos-text-secondary)]">{t('total')}</span><p className="text-lg font-black text-[var(--pos-text)]">₼{fmt(total)}</p></div>
-            <button onClick={sendOrder} disabled={busy} className="flex-1 py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2"
+            <button onClick={sendOrder} disabled={busy} className="flex-1 py-3 rounded-xl text-sm font-bold bg-[var(--pos-send-bg)] text-[var(--pos-send-text)] border border-transparent active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2 hover:bg-[var(--pos-send-hover)] transition-all"
             >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send')}</button>
           </div>
         </motion.div>

@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { X, Search, Plus, Minus, CheckCircle, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Search, Plus, Minus, CheckCircle, Loader2, ShoppingBag, Send } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Product, ManualItem, ProductVariant } from '../types';
+
+const fmt = (n: number) => n.toFixed(2);
 
 interface ManualOrderModalProps {
   tableNum: number;
@@ -16,16 +17,40 @@ interface ManualOrderModalProps {
   onCreated: (newOrderId?: string) => void;
 }
 
+function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: () => void; language: string }) {
+  const name = language === 'en' ? (p as any).name_en || p.name : language === 'ru' ? (p as any).name_ru || p.name : (p as any).name_az || p.name;
+  const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  const [imgErr, setImgErr] = useState(false);
+  const showImg = !!p.image_url && !imgErr;
+  return (
+    <motion.button layout initial={false} whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+      onClick={onAdd}
+      className="relative rounded-2xl p-3 text-left border border-white/[0.08] bg-white/[0.04]"
+    >
+      <div className="aspect-square rounded-xl bg-white/[0.03] mb-2 flex items-center justify-center overflow-hidden">
+        {showImg
+          ? <img src={p.image_url!} alt={name} className="w-full h-full object-cover" onError={() => setImgErr(true)} />
+          : <span className="text-2xl font-black text-white/20">{initials}</span>
+        }
+      </div>
+      <p className="text-xs font-semibold text-white/85 truncate">{name}</p>
+      <p className="text-xs font-black text-gold">₼{fmt(p.price)}</p>
+      {cart > 0 && <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold text-black text-[10px] font-black flex items-center justify-center">{cart}</span>}
+    </motion.button>
+  );
+}
+
 export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCreated }: ManualOrderModalProps) {
-  const { t } = useLanguage();
-  const [products, setProducts]           = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
-  const [search, setSearch]               = useState('');
-  const [items, setItems]                 = useState<ManualItem[]>([]);
-  const [note, setNote]                   = useState('');
-  const [submitting, setSubmitting]       = useState(false);
+  const { t, language } = useLanguage();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [items, setItems] = useState<ManualItem[]>([]);
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [variantPicker, setVariantPicker] = useState<{ product: Product; variants: ProductVariant[] } | null>(null);
   const [loadingVariants, setLoadingVariants] = useState(false);
+  const [showCart, setShowCart] = useState(false);
 
   useEffect(() => {
     supabase
@@ -34,7 +59,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
       .order('name_az')
       .then(({ data }) => {
         setProducts((data || []) as Product[]);
-        setLoadingProducts(false);
+        setLoading(false);
       });
   }, []);
 
@@ -48,13 +73,13 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
     setLoadingVariants(false);
     const variants = (data || []) as ProductVariant[];
     if (variants.length === 0) {
-      addItemWithVariant(product, null);
+      addItem(product, null);
     } else {
       setVariantPicker({ product, variants });
     }
   };
 
-  const addItemWithVariant = (product: Product, variant: ProductVariant | null) => {
+  const addItem = (product: Product, variant: ProductVariant | null) => {
     const key = `${product.id}__${variant?.id || 'base'}`;
     setItems(prev => {
       const ex = prev.find(i => `${i.product.id}__${i.variant?.id || 'base'}` === key);
@@ -72,6 +97,13 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
   };
 
   const total = items.reduce((s, i) => s + (i.variant?.price ?? i.product.price) * i.quantity, 0);
+  const cartCount = items.reduce((s, i) => s + i.quantity, 0);
+
+  const getPName = (p: Product) => {
+    if (language === 'en') return (p as any).name_en || p.name;
+    if (language === 'ru') return (p as any).name_ru || p.name;
+    return (p as any).name_az || p.name;
+  };
 
   const handleSubmit = async () => {
     if (items.length === 0) return;
@@ -88,7 +120,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
       const newItems = items.map(i => ({
         product_id: i.product.id,
         variant_id: i.variant?.id || null,
-        product_name: (() => { const az = (i.product as any).name_az || i.product.name; return i.variant ? `${az} (${i.variant.name})` : az; })(),
+        product_name: (() => { const az = getPName(i.product); return i.variant ? `${az} (${i.variant.name})` : az; })(),
         quantity: i.quantity,
         unit_price: i.variant?.price ?? i.product.price,
         total_price: (i.variant?.price ?? i.product.price) * i.quantity,
@@ -115,7 +147,6 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
         createdOrderId = order.id;
       }
 
-      // If extra tables were merged in, create placeholder child orders for them
       if (createdOrderId && extraTableNums.length > 0) {
         for (const extraNum of extraTableNums) {
           await supabase.from('orders').insert({
@@ -129,7 +160,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
         }
       }
       const tableLabel = extraTableNums.length > 0
-        ? `${tableNum}+${extraTableNums.join('+')} `
+        ? `${tableNum}+${extraTableNums.join('+')}`
         : String(tableNum);
       toast.success(t('order_created_for_table').replace('{table}', tableLabel), { id: 'action-toast' });
       onCreated(createdOrderId);
@@ -141,157 +172,175 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
     }
   };
 
-  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = useMemo(() => {
+    if (!search) return products;
+    const q = search.toLowerCase();
+    return products.filter(p => getPName(p).toLowerCase().includes(q));
+  }, [products, search, language]);
 
-  if (typeof document === 'undefined') return null;
-  return createPortal(
-    <>
+  if (loading) return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#0a0a0a]">
+      <Loader2 size={24} className="animate-spin text-white/20" />
+    </div>
+  );
 
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50"
-        onClick={onClose}
-      />
-      <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 pointer-events-none">
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 40 }}
-        transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-        onTouchMove={e => e.stopPropagation()}
-        style={{ touchAction: 'pan-y' }}
-        className="pointer-events-auto w-full md:max-w-xl h-[100dvh] md:h-[600px] bg-[#111] border border-white/8 rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col"
-      >
-        <div className="px-6 pt-6 pb-4 flex items-start justify-between flex-shrink-0">
-          <div>
-            <p className="text-gold font-black text-3xl tracking-widest leading-none">
-              {t('table_label')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}
-            </p>
-            <p className="text-white/30 text-xs mt-1">{t('manual_order_create')}</p>
+  return (
+    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-hidden select-none">
+
+      {/* ─── HEADER ─── */}
+      <div className="flex-shrink-0 border-b border-white/[0.06] bg-[#0c0c0c] px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button onClick={onClose} className="text-white/40 hover:text-white/80">
+            <X size={20} />
+          </button>
+          <div className="flex-1">
+            <p className="text-lg font-bold text-white">{t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</p>
+            <p className="text-xs text-white/30">{t('manual_order_create')}</p>
           </div>
-          <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
-            <X size={18} />
+          <button onClick={() => setShowCart(!showCart)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-xs font-semibold text-white/70">
+            <ShoppingBag size={13} /> ₼{fmt(total)}
+            {cartCount > 0 && <span className="w-4 h-4 rounded-full bg-gold text-black text-[8px] font-black flex items-center justify-center">{cartCount}</span>}
           </button>
         </div>
+      </div>
 
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
-          {/* Product list */}
-          <div className="flex-1 flex flex-col min-h-0 border-b md:border-b-0 md:border-r border-white/5 max-h-[45%] md:max-h-none">
-            <div className="px-4 pb-3 flex-shrink-0">
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder={t('search_products')}
-                  className="w-full bg-white/5 border border-white/8 rounded-xl pl-8 pr-3 py-2 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-colors"
-                />
-              </div>
+      {/* ─── SEARCH ─── */}
+      <div className="flex-shrink-0 px-3 pt-2 pb-1">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_products')}
+            className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/20 outline-none" />
+          {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20"><X size={14} /></button>}
+        </div>
+      </div>
+
+      {/* ─── MAIN CONTENT ─── */}
+      <div className="flex-1 flex min-h-0">
+        <div className={`flex-1 overflow-y-auto px-3 pb-4 ${showCart ? 'hidden lg:block' : ''}`}>
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-white/15">
+              <Search size={40} className="mb-3 opacity-30" />
+              <p className="text-sm">{t('not_found')}</p>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-1 min-h-0">
-              {loadingProducts ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 size={20} className="animate-spin text-white/50" />
-                </div>
-              ) : filtered.map(product => {
-                const inCart = items.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
-                const isLoadingThis = loadingVariants && variantPicker?.product.id === product.id;
-                const isExpanded = variantPicker?.product.id === product.id && !loadingVariants;
-                return (
-                  <React.Fragment key={product.id}>
-                    <button
-                      onClick={() => handleProductClick(product)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left group ${
-                        isExpanded ? 'bg-white/[0.06]' : 'hover:bg-white/5'
-                      }`}
-                    >
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="w-9 h-9 rounded-lg object-cover flex-shrink-0 bg-white/5" />
-                      ) : (
-                        <div className="w-9 h-9 rounded-lg bg-white/5 flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{product.name}</p>
-                        <p className="text-gold text-xs">{product.price.toFixed(2)} ₼</p>
-                      </div>
-                      {isLoadingThis ? (
-                        <Loader2 size={13} className="animate-spin text-white/30 flex-shrink-0" />
-                      ) : inCart > 0 ? (
-                        <span className="text-[10px] font-black bg-gold text-black px-1.5 py-0.5 rounded-full">{inCart}</span>
-                      ) : (
-                        <Plus size={14} className="text-white/20 group-hover:text-white/60 transition-colors" />
-                      )}
-                    </button>
-                    {isExpanded && (
-                      <div className="mx-1 mb-1 rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
-                        {variantPicker!.variants.map(v => (
-                          <button key={v.id} onClick={() => addItemWithVariant(variantPicker!.product, v)}
-                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.06] transition-colors text-left border-b border-white/[0.05] last:border-0">
-                            <div>
-                              <p className="text-white text-sm font-medium">{v.name}</p>
-                              {v.is_default && <span className="text-[9px] text-white/25 uppercase tracking-wider">{t('combo_default_variant')}</span>}
-                            </div>
-                            <span className="text-gold text-xs font-bold">{v.price.toFixed(2)} ₼</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </React.Fragment>
-                );
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+              {filtered.map(p => {
+                const inCart = items.filter(i => i.product.id === p.id).reduce((s, i) => s + i.quantity, 0);
+                return <PCard key={p.id} p={p} cart={inCart} onAdd={() => handleProductClick(p)} language={language} />;
               })}
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Cart */}
-          <div className="md:w-60 flex flex-col flex-shrink-0 min-h-0 flex-1 md:flex-none">
-            <p className="text-[9px] uppercase tracking-widest text-white/30 px-4 pt-4 pb-2 flex-shrink-0">{t('selected_items')}</p>
-            <div className="flex-1 overflow-y-auto px-4 space-y-2 min-h-0">
+        {/* ─── CART ─── */}
+        <AnimatePresence>
+        {showCart && (
+          <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 320, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
+            className="hidden lg:flex flex-col border-l border-white/[0.06] bg-[#0c0c0c] flex-shrink-0 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+              <span className="text-sm font-bold text-white">{t('selected_items')}</span>
+              <button onClick={() => setItems([])} className="text-[10px] text-white/20 hover:text-white/50 mr-3">{t('clear')}</button>
+              <button onClick={() => setShowCart(false)} className="text-white/20 hover:text-white/60"><X size={16} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
               {items.length === 0 ? (
-                <p className="text-white/15 text-xs text-center pt-8">{t('no_items_yet')}</p>
+                <div className="flex flex-col items-center justify-center h-full text-white/15 text-xs">{t('no_items_yet')}</div>
               ) : items.map(item => {
                 const key = `${item.product.id}__${item.variant?.id || 'base'}`;
                 const unitPrice = item.variant?.price ?? item.product.price;
                 return (
-                <div key={key} className="bg-white/[0.03] rounded-xl px-3 py-2">
-                  <p className="text-white text-xs font-medium truncate">{item.product.name}</p>
-                  {item.variant && <p className="text-[10px] text-gold/60 truncate mb-0.5">{item.variant.name}</p>}
-                  <div className="flex items-center justify-between mt-1">
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => changeQty(key, -1)} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center"><Minus size={12} /></button>
-                      <span className="text-white text-sm w-5 text-center">{item.quantity}</span>
-                      <button onClick={() => changeQty(key, 1)} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center"><Plus size={12} /></button>
+                  <div key={key} className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-white/80 truncate">{getPName(item.product)}</p>
+                      {item.variant && <p className="text-[10px] text-gold/60 truncate">{item.variant.name}</p>}
+                      <p className="text-[10px] text-gold font-bold">₼{fmt(unitPrice * item.quantity)}</p>
                     </div>
-                    <span className="text-gold text-xs">{(unitPrice * item.quantity).toFixed(2)} ₼</span>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => changeQty(key, -1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Minus size={11} /></button>
+                      <span className="w-5 text-center text-sm font-bold text-white">{item.quantity}</span>
+                      <button onClick={() => changeQty(key, 1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Plus size={11} /></button>
+                    </div>
                   </div>
-                </div>
                 );
               })}
             </div>
-            <div className="p-4 border-t border-white/5 flex-shrink-0 space-y-2">
-              <input
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                placeholder={t('note_placeholder')}
-                className="w-full bg-white/5 border border-white/8 rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-white/30"
-              />
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-white/30 text-[10px] uppercase tracking-widest">{t('total_label')}</span>
-                <span className="text-white/70 font-black text-lg">{total.toFixed(2)} ₼</span>
+            <div className="px-5 py-4 border-t border-white/[0.06] space-y-2">
+              <input value={note} onChange={e => setNote(e.target.value)} placeholder={t('note_placeholder')}
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none" />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-white/30 uppercase tracking-widest">{t('total_label')}</span>
+                <span className="text-lg font-black text-white">₼{fmt(total)}</span>
               </div>
-              <button
-                onClick={handleSubmit}
-                disabled={items.length === 0 || submitting}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-white/10 text-white text-sm font-bold rounded-xl hover:bg-white/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                {t('create_order')}
-              </button>
+              <button onClick={handleSubmit} disabled={items.length === 0 || submitting}
+                className="w-full py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
+              >{submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('create_order')}</button>
             </div>
-          </div>
-        </div>
-      </motion.div>
+          </motion.div>
+        )}
+        </AnimatePresence>
       </div>
-    </>,
-    document.body
+
+      {/* ─── MOBILE CART ─── */}
+      <AnimatePresence>
+      {showCart && items.length > 0 && (
+        <motion.div initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="lg:hidden flex-shrink-0 border-t border-white/[0.06] bg-[#0c0c0c] px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
+          {items.map(item => {
+            const key = `${item.product.id}__${item.variant?.id || 'base'}`;
+            const unitPrice = item.variant?.price ?? item.product.price;
+            return (
+              <div key={key} className="flex items-center gap-2 bg-white/[0.03] rounded-xl px-3 py-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-white/80 truncate">{getPName(item.product)}</p>
+                  <p className="text-[10px] text-gold font-bold">₼{fmt(unitPrice * item.quantity)}</p>
+                </div>
+                <button onClick={() => changeQty(key, -1)} className="w-6 h-6 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Minus size={10} /></button>
+                <span className="w-4 text-center text-xs font-bold text-white">{item.quantity}</span>
+                <button onClick={() => changeQty(key, 1)} className="w-6 h-6 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Plus size={10} /></button>
+              </div>
+            );
+          })}
+          <div className="flex items-center gap-3 pt-1">
+            <div className="flex-1"><span className="text-[10px] text-white/30">{t('total_label')}</span><p className="text-lg font-black text-white">₼{fmt(total)}</p></div>
+            <button onClick={handleSubmit} disabled={submitting}
+              className="flex-1 py-3 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2"
+            >{submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {t('create_order')}</button>
+          </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+
+      {/* ─── VARIANT PICKER ─── */}
+      <AnimatePresence>
+      {variantPicker && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 27 }}
+            className="bg-[#111] border border-white/[0.08] rounded-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-white">{getPName(variantPicker.product)}</h3>
+              <button onClick={() => setVariantPicker(null)} className="text-white/20 hover:text-white/60"><X size={18} /></button>
+            </div>
+            <div className="space-y-1">
+              {loadingVariants ? (
+                <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-white/30" /></div>
+              ) : (
+                variantPicker.variants.map(v => (
+                  <button key={v.id} onClick={() => addItem(variantPicker.product, v)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl hover:bg-white/[0.06] transition-colors border border-white/[0.06]">
+                    <div>
+                      <p className="text-white text-sm font-medium">{v.name}</p>
+                      {v.is_default && <span className="text-[9px] text-white/25 uppercase tracking-wider">{t('combo_default_variant')}</span>}
+                    </div>
+                    <span className="text-gold text-xs font-bold">₼{fmt(v.price)}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+      </AnimatePresence>
+    </div>
   );
 }

@@ -9,7 +9,7 @@ import { LanguageProvider, useLanguage } from '@/lib/i18n/LanguageContext';
 import { ThemeProvider } from '@/lib/theme/ThemeContext';
 import {
   Search, ShoppingBag, Plus, Minus, Send, CreditCard, X, Loader2, CheckCircle2,
-  Printer, ImageOff, Utensils, Banknote, Percent, Users,
+  Printer, ImageOff, Utensils, Banknote, Percent, Users, GitMerge,
 } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -224,6 +224,7 @@ function POS() {
   const [payBusy, setPayBusy] = useState(false);
   const [paid, setPaid] = useState<OrderData & { payment_method?: string; discount_type?: string; discount_value?: number; paid_amount?: number; split_count?: number } | null>(null);
   const [checkoutOrder, setCheckoutOrder] = useState<OrderData | null>(null);
+  const [showMerge, setShowMerge] = useState(false);
 
   const getPName = useCallback((p: Product) => {
     if (language === 'en') return (p as any).name_en || p.name;
@@ -352,6 +353,36 @@ function POS() {
     fetchAll();
   }, [activeOrder, fetchAll]);
 
+  const handleMerge = useCallback(async (sourceOrderId: string) => {
+    if (!activeOrder) return;
+    setBusy(true);
+    try {
+      const { data: srcItems } = await supabase.from('order_items').select('*').eq('order_id', sourceOrderId);
+      if (srcItems && srcItems.length > 0) {
+        const newItems = srcItems.map((i: any) => ({
+          order_id: activeOrder.id,
+          product_id: i.product_id,
+          variant_id: i.variant_id,
+          product_name: i.product_name,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          total_price: i.total_price,
+        }));
+        await supabase.from('order_items').insert(newItems);
+        const addedTotal = srcItems.reduce((s: number, i: any) => s + (i.total_price || 0), 0);
+        await supabase.from('orders').update({ total_amount: (activeOrder.total_amount || 0) + addedTotal }).eq('id', activeOrder.id);
+      }
+      await supabase.from('orders').update({ merged_into: activeOrder.id, status: 'paid' }).eq('id', sourceOrderId);
+      setShowMerge(false);
+      fetchAll();
+    } catch (e) { console.error(e); } finally { setBusy(false); }
+  }, [activeOrder, fetchAll]);
+
+  const mergeCandidates = useMemo(() =>
+    orders.filter(o => o.id !== activeOrder?.id && o.status !== 'paid'),
+    [orders, activeOrder]
+  );
+
   const handleNewOrder = useCallback(() => {
     setPaid(null);
     setSelTable(null);
@@ -457,10 +488,16 @@ function POS() {
             </div>
             <div className="flex items-center gap-2">
               {activeOrder && (
-                <button onClick={handleDismissTable}
-                  className="text-[10px] text-white/20 hover:text-red-400 transition-colors font-semibold tracking-wider uppercase">
-                  {t('dismiss_table')}
-                </button>
+                <>
+                  <button onClick={() => setShowMerge(true)}
+                    className="text-[10px] text-white/20 hover:text-gold transition-colors font-semibold tracking-wider uppercase">
+                    {t('merge')}
+                  </button>
+                  <button onClick={handleDismissTable}
+                    className="text-[10px] text-white/20 hover:text-red-400 transition-colors font-semibold tracking-wider uppercase">
+                    {t('dismiss_table')}
+                  </button>
+                </>
               )}
               <button onClick={() => setCart([])}
                 className="text-[10px] text-white/20 hover:text-white/50 transition-colors font-semibold tracking-wider uppercase">
@@ -560,6 +597,38 @@ function POS() {
             >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send')}</button>
           </div>
         </motion.div>
+      )}
+      </AnimatePresence>
+
+      {/* ─── MERGE OVERLAY ─── */}
+      <AnimatePresence>
+      {showMerge && activeOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
+            className="bg-[#111] border border-white/[0.08] rounded-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-white">{t('merge')}</h3>
+              <button onClick={() => setShowMerge(false)} className="text-white/20 hover:text-white/60 p-1"><X size={18} /></button>
+            </div>
+            {mergeCandidates.length === 0 ? (
+              <p className="text-white/30 text-sm text-center py-6">{t('no_active_orders')}</p>
+            ) : (
+              <div className="space-y-1.5">
+                {mergeCandidates.map(o => (
+                  <button key={o.id} onClick={() => handleMerge(o.id)}
+                    disabled={busy}
+                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-white/[0.06] transition-colors border border-white/[0.06] disabled:opacity-30">
+                    <div className="text-left">
+                      <p className="text-white text-sm font-medium">{t('table')} {o.table_number}</p>
+                      <p className="text-[10px] text-white/40">₼{fmt(o.total_amount || 0)} • {o.order_items?.length || 0} {t('items')}</p>
+                    </div>
+                    <GitMerge size={16} className="text-gold flex-shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </div>
       )}
       </AnimatePresence>
 

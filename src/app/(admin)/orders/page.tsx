@@ -522,131 +522,121 @@ export default function OrdersPage() {
         )}
       </AnimatePresence>
 
-      {/* Header toolbar — fixed */}
-      <div className="z-50 px-0 pt-4 pb-3 bg-background border-b border-white/[0.06]"
-        style={{ position: 'fixed', top: 0, left: fullscreen ? '2rem' : 'calc(272px + 2rem)', right: '2rem' }}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-xl md:text-3xl font-serif font-bold text-white leading-tight truncate">{t('orders')}</h1>
+      {/* Sifarişlər title + Aktiv/Arxiv tabs */}
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <h1 className="text-xl md:text-3xl font-serif font-bold text-white leading-tight truncate">{t('orders')}</h1>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="relative flex rounded-xl p-1 bg-white/[0.04] border border-white/[0.07]">
+            {(['active', 'archive'] as TabKey[]).map(key => (
+              <button key={key} onClick={() => setTab(key)}
+                className={`relative z-10 px-5 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center gap-2 ${tab === key ? 'text-white font-semibold' : 'text-white/50 hover:text-white/80'}`}>
+                {tab === key && (
+                  <motion.span layoutId="orderTabIndicator" transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    className="absolute inset-0 rounded-xl bg-white/[0.07] border border-white/[0.15]" />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5 whitespace-nowrap">
+                  {key === 'archive' && <Archive size={14} strokeWidth={1.5} />}
+                  {key === 'active' ? t('tab_active') : t('tab_archive')}
+                  {key === 'active' && newCount > 0 && <span className="w-2 h-2 rounded-full bg-gold/70 animate-pulse" />}
+                </span>
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <AnimatePresence>
-              {tab === 'archive' && filtered.length > 0 && (
-                <motion.button
-                  initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
-                  onClick={() => setConfirmClearArchive(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-white/35 hover:text-red-400 border border-white/[0.08] hover:border-red-500/25 hover:bg-red-500/[0.05] transition-all duration-200">
-                  <Trash2 size={14} /> <span className="hidden sm:inline">{archiveFilterLabels[archiveFilter] ?? t('clear_archive')}</span>
-                </motion.button>
-              )}
-            </AnimatePresence>
-
-            {/* Fullscreen toggle */}
-            <button onClick={toggleFullscreen}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all duration-200 border bg-white/[0.04] text-white/50 border-white/[0.07] hover:text-white/80">
-              {fullscreen ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
-            </button>
-
-            {/* Tab switcher */}
-            <div className="relative flex rounded-xl p-1 bg-white/[0.04] border border-white/[0.07]">
-              {(['active', 'archive'] as TabKey[]).map(key => (
-                <button key={key} onClick={() => setTab(key)}
-                  className={`relative z-10 px-5 py-2.5 rounded-xl text-sm transition-all duration-200 flex items-center gap-2 ${tab === key ? 'text-white font-semibold' : 'text-white/50 hover:text-white/80'}`}>
-                  {tab === key && (
-                    <motion.span layoutId="orderTabIndicator" transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                      className="absolute inset-0 rounded-xl bg-white/[0.07] border border-white/[0.15]" />
-                  )}
-                  <span className="relative z-10 flex items-center gap-1.5 whitespace-nowrap">
-                    {key === 'archive' && <Archive size={14} strokeWidth={1.5} />}
-                    {key === 'active' ? t('tab_active') : t('tab_archive')}
-                    {key === 'active' && newCount > 0 && <span className="w-2 h-2 rounded-full bg-gold/70 animate-pulse" />}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Archive filters dropdown */}
-            {tab === 'archive' && (
-              <div className="relative">
-                <button onClick={() => setShowArchiveFilters(v => !v)}
-                  className="flex items-center gap-2.5 px-5 h-11 rounded-xl text-sm font-medium bg-white/[0.05] backdrop-blur-md border border-white/[0.1] text-white/50 hover:text-white hover:bg-white/[0.09] transition-all duration-200">
-                  <Filter size={15} strokeWidth={1.5} /> {t('filter')}
-                </button>
-                <AnimatePresence>
-                  {showArchiveFilters && (
-                    <>
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[110]"
-                        onClick={() => { setShowArchiveFilters(false); setShowDatePicker(false); }} />
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.98 }} transition={{ duration: 0.18 }}
-                        className="absolute right-0 mt-2 z-[111] w-[calc(100vw-2rem)] sm:w-[420px] bg-[#121212] border border-white/10 rounded-2xl shadow-2xl overflow-visible"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                          <p className="text-white/80 text-xs font-semibold uppercase tracking-widest">{t('filter')}</p>
-                          <button onClick={() => { setShowArchiveFilters(false); setShowDatePicker(false); }}
-                            className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white flex items-center justify-center transition-all">
-                            <X size={14} />
-                          </button>
-                        </div>
-                        <div className="p-4 space-y-4">
-                          <div className="space-y-2">
-                            <p className="text-[10px] uppercase tracking-widest text-white/35">{t('filter')}</p>
-                            <div className="grid grid-cols-2 gap-2.5">
-                              {(['today', 'yesterday', 'week', 'month', 'all'] as const).map(f => (
-                                <button key={f} onClick={() => { setArchiveFilter(f); setShowDatePicker(false); setShowArchiveFilters(false); }}
-                                  className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${archiveFilter === f ? 'bg-white/[0.1] text-white border-white/25' : 'bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:text-white'}`}>
-                                  {archiveFilterLabels[f]}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-[10px] uppercase tracking-widest text-white/35">{t('custom_date')}</p>
-                            <button onClick={() => setShowDatePicker(true)}
-                              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${archiveFilter === 'custom' ? 'bg-white/[0.1] text-white border-white/25' : 'bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:text-white'}`}>
-                              <span>{t('selected_date')}</span><Calendar size={15} />
-                            </button>
-                          </div>
-                          {showDatePicker && (
-                            <div className="pt-2 border-t border-white/10 space-y-3">
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="flex flex-col gap-1">
-                                  <label className="text-[10px] text-white/40 uppercase tracking-wider">{t('start')}</label>
-                                  <GoldCalendar
-                                    value={dateRange.start?.toISOString().split('T')[0] || ''}
-                                    onChange={val => setDateRange(prev => ({ ...prev, start: val ? new Date(val) : null }))}
-                                  />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                  <label className="text-[10px] text-white/40 uppercase tracking-wider">{t('end')}</label>
-                                  <GoldCalendar
-                                    value={dateRange.end?.toISOString().split('T')[0] || ''}
-                                    min={dateRange.start?.toISOString().split('T')[0] || ''}
-                                    onChange={val => setDateRange(prev => ({ ...prev, end: val ? new Date(val) : null }))}
-                                  />
-                                </div>
-                              </div>
-                              <button onClick={() => { setArchiveFilter('custom'); setShowArchiveFilters(false); setShowDatePicker(false); }}
-                                disabled={!dateRange.start || !dateRange.end}
-                                className="w-full py-3 rounded-xl bg-white/[0.1] border border-white/20 text-white text-sm font-bold tracking-widest uppercase disabled:opacity-40 transition-colors hover:bg-white/[0.15]">
-                                {t('apply')}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
+          <button onClick={toggleFullscreen}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all duration-200 border bg-white/[0.04] text-white/50 border-white/[0.07] hover:text-white/80">
+            {fullscreen ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
+          </button>
+          {tab === 'archive' && filtered.length > 0 && (
+            <motion.button
+              initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
+              onClick={() => setConfirmClearArchive(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-white/35 hover:text-red-400 border border-white/[0.08] hover:border-red-500/25 hover:bg-red-500/[0.05] transition-all duration-200">
+              <Trash2 size={14} /> <span className="hidden sm:inline">{archiveFilterLabels[archiveFilter] ?? t('clear_archive')}</span>
+            </motion.button>
+          )}
         </div>
       </div>
-      <div className="h-[77px]" />
+
+      {tab === 'archive' && (
+        <div className="mb-4">
+          {/* Archive filters dropdown */}
+          <div className="relative">
+            <button onClick={() => setShowArchiveFilters(v => !v)}
+              className="flex items-center gap-2.5 px-5 h-11 rounded-xl text-sm font-medium bg-white/[0.05] backdrop-blur-md border border-white/[0.1] text-white/50 hover:text-white hover:bg-white/[0.09] transition-all duration-200">
+              <Filter size={15} strokeWidth={1.5} /> {t('filter')}
+            </button>
+            <AnimatePresence>
+              {showArchiveFilters && (
+                <>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[110]"
+                    onClick={() => { setShowArchiveFilters(false); setShowDatePicker(false); }} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.98 }} transition={{ duration: 0.18 }}
+                    className="absolute right-0 mt-2 z-[111] w-[calc(100vw-2rem)] sm:w-[420px] bg-[#121212] border border-white/10 rounded-2xl shadow-2xl overflow-visible"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                      <p className="text-white/80 text-xs font-semibold uppercase tracking-widest">{t('filter')}</p>
+                      <button onClick={() => { setShowArchiveFilters(false); setShowDatePicker(false); }}
+                        className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white flex items-center justify-center transition-all">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <div className="p-4 space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-[10px] uppercase tracking-widest text-white/35">{t('filter')}</p>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {(['today', 'yesterday', 'week', 'month', 'all'] as const).map(f => (
+                            <button key={f} onClick={() => { setArchiveFilter(f); setShowDatePicker(false); setShowArchiveFilters(false); }}
+                              className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${archiveFilter === f ? 'bg-white/[0.1] text-white border-white/25' : 'bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:text-white'}`}>
+                              {archiveFilterLabels[f]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[10px] uppercase tracking-widest text-white/35">{t('custom_date')}</p>
+                        <button onClick={() => setShowDatePicker(true)}
+                          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${archiveFilter === 'custom' ? 'bg-white/[0.1] text-white border-white/25' : 'bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:text-white'}`}>
+                          <span>{t('selected_date')}</span><Calendar size={15} />
+                        </button>
+                      </div>
+                      {showDatePicker && (
+                        <div className="pt-2 border-t border-white/10 space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] text-white/40 uppercase tracking-wider">{t('start')}</label>
+                              <GoldCalendar
+                                value={dateRange.start?.toISOString().split('T')[0] || ''}
+                                onChange={val => setDateRange(prev => ({ ...prev, start: val ? new Date(val) : null }))}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] text-white/40 uppercase tracking-wider">{t('end')}</label>
+                              <GoldCalendar
+                                value={dateRange.end?.toISOString().split('T')[0] || ''}
+                                min={dateRange.start?.toISOString().split('T')[0] || ''}
+                                onChange={val => setDateRange(prev => ({ ...prev, end: val ? new Date(val) : null }))}
+                              />
+                            </div>
+                          </div>
+                          <button onClick={() => { setArchiveFilter('custom'); setShowArchiveFilters(false); setShowDatePicker(false); }}
+                            disabled={!dateRange.start || !dateRange.end}
+                            className="w-full py-3 rounded-xl bg-white/[0.1] border border-white/20 text-white text-sm font-bold tracking-widest uppercase disabled:opacity-40 transition-colors hover:bg-white/[0.15]">
+                            {t('apply')}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* Table status grid */}
       {tab === 'active' && (

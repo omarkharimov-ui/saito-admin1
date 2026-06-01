@@ -308,18 +308,18 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                       <div className="flex items-center gap-1 flex-shrink-0 pt-0.5">
                         <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden">
                           <button onClick={() => changeQty(key, -1)}
-                            className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
-                            <Minus size={10} />
+                            className="w-9 h-9 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                            <Minus size={13} />
                           </button>
-                          <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{item.quantity}</span>
+                          <span className="text-white text-[11px] w-6 text-center font-black tabular-nums">{item.quantity}</span>
                           <button onClick={() => changeQty(key, 1)}
-                            className="w-7 h-7 flex items-center justify-center text-gold active:scale-90 transition-all">
-                            <Plus size={10} />
+                            className="w-9 h-9 flex items-center justify-center text-gold active:scale-90 transition-all">
+                            <Plus size={13} />
                           </button>
                         </div>
                         <button onClick={() => removeItem(key)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
-                          <Trash2 size={11} />
+                          className="w-9 h-9 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>

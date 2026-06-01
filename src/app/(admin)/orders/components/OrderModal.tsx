@@ -321,9 +321,11 @@ export const OrderModal = ({
 
   /* ── Add items (product search inside modal) ── */
   const [allProducts, setAllProducts]   = useState<Product[]>([]);
+  const [categories, setCategories]     = useState<{ id: string; name: string }[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [addSearch, setAddSearch]       = useState('');
   const [addSearchFocused, setAddSearchFocused] = useState(false);
+  const [cat, setCat]                   = useState<string | null>(null);
   const [addItems, setAddItems]         = useState<ManualItem[]>([]);
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [addVariantPicker, setAddVariantPicker] = useState<{ product: Product; variants: import('../types').ProductVariant[] } | null>(null);
@@ -351,30 +353,25 @@ export const OrderModal = ({
   useEffect(() => {
     const fetchProducts = async (attempt = 1) => {
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('id, name, name_az, name_en, name_ru, price, image_url, is_available')
-          .order('name_az');
-        
-        if (error) {
-          console.error(`[OrderModal] products fetch error (attempt ${attempt}):`, error.message);
-          if (attempt < 3) {
-            setTimeout(() => fetchProducts(attempt + 1), 1000 * attempt);
-          }
-          return;
+        const [pr, cr] = await Promise.all([
+          supabase.from('products').select('id, name, name_az, name_en, name_ru, price, image_url, is_available, category_id').order('name_az'),
+          supabase.from('categories').select('*').order('sort_order'),
+        ]);
+        if (pr.error) {
+          console.error(`[OrderModal] products fetch error (attempt ${attempt}):`, pr.error.message);
+          if (attempt < 3) { setTimeout(() => fetchProducts(attempt + 1), 1000 * attempt); return; }
         }
-        
-        setAllProducts((data || []) as Product[]);
+        setAllProducts((pr.data || []) as Product[]);
+        const cats = (cr.data || []) as { id: string; name: string }[];
+        setCategories(cats);
+        if (cats.length && !cat) setCat(cats[0].id);
       } catch (err) {
         console.error(`[OrderModal] products fetch exception (attempt ${attempt}):`, err);
-        if (attempt < 3) {
-          setTimeout(() => fetchProducts(attempt + 1), 1000 * attempt);
-        }
+        if (attempt < 3) { setTimeout(() => fetchProducts(attempt + 1), 1000 * attempt); return; }
       } finally {
         setLoadingProducts(false);
       }
     };
-    
     fetchProducts();
   }, []);
 
@@ -450,6 +447,7 @@ export const OrderModal = ({
 
   const filteredProducts = allProducts.filter(p => {
     const pp = p as any;
+    if (cat && pp.category_id !== cat) return false;
     const localName = (language === 'en' ? pp.name_en : language === 'ru' ? pp.name_ru : pp.name_az) || pp.name_az || pp.name_en || pp.name_ru || p.name || '';
     return localName.toLowerCase().includes(addSearch.toLowerCase());
   });
@@ -562,6 +560,18 @@ export const OrderModal = ({
 
             <div className="flex-1 flex flex-col min-h-0">
               <div className="flex-1 overflow-y-auto px-4 pb-2">
+                {/* Category pills */}
+                {categories.length > 0 && (
+                  <div className="sticky top-0 z-10 flex-shrink-0 bg-[#0a0a0a] pb-3 mb-2 flex gap-2 overflow-x-auto -mx-4 px-4">
+                    {categories.map(c => (
+                      <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
+                        className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold tracking-wider whitespace-nowrap transition-all ${
+                          cat === c.id ? 'bg-white text-black shadow-lg' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
+                        }`}>{c.name}</button>
+                    ))}
+                  </div>
+                )}
+
                 {loadingProducts ? (
                   <div className="flex items-center justify-center py-16">
                     <Loader2 size={22} className="animate-spin text-white/20" />
@@ -575,53 +585,57 @@ export const OrderModal = ({
                     {filteredProducts.map(product => {
                       const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
                       const inOrderItem = order.order_items?.find(oi => oi.product_id === product.id);
-                      const inOrderQty = inOrderItem ? (draftQty[inOrderItem.id] ?? inOrderItem.quantity) : 0;
                       const isSoldOut = (product as any).is_available === false;
                       const pName = (product as any)[`name_${language}`] || (product as any).name_az || product.name;
+                      const initials = pName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+                      const [imgErr, setImgErr] = React.useState(false);
+                      const showImg = !!product.image_url && !imgErr;
                       return (
-                        <div key={product.id}
-                          className={`relative rounded-2xl p-3 text-left border transition-all flex flex-col ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 || inOrderItem ? 'bg-white/[0.04] border-white/[0.12]' : 'bg-[#121212] border-white/[0.07] hover:border-white/[0.15] hover:bg-white/[0.03]'}`}>
-                          <div className="w-12 h-12 rounded-xl bg-white/[0.03] flex items-center justify-center overflow-hidden flex-shrink-0 mb-2">
-                            {product.image_url ? (
-                              <img src={product.image_url} alt={pName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                        <motion.button layout initial={false} whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }}
+                          key={product.id}
+                          onClick={() => handleAddProductClick(product)}
+                          className={`relative rounded-2xl p-4 text-left border transition-all flex flex-col ${
+                            isSoldOut ? 'opacity-50' : ''
+                          } ${
+                            inAddCount > 0 || inOrderItem
+                              ? 'bg-white/[0.04] border-white/[0.15]'
+                              : 'bg-[#141414] border-white/[0.07] hover:bg-white/[0.05]'
+                          }`}>
+                          <div className="aspect-square rounded-xl bg-white/[0.03] mb-2.5 flex items-center justify-center overflow-hidden">
+                            {showImg ? (
+                              <img src={product.image_url!} alt={pName} className="w-full h-full object-cover" onError={() => setImgErr(true)} />
                             ) : (
-                              <span className="text-lg font-black text-white/20">{(pName || '?')[0]}</span>
+                              <span className="text-2xl font-black text-white/20">{initials}</span>
                             )}
                           </div>
-                          <p className="text-sm font-semibold text-white/85 truncate leading-tight mb-0.5">{pName}</p>
-                          <p className="text-xs font-bold text-gold/90 mb-2">{product.price.toFixed(2)} ₼</p>
-                          {loadingAddVariants && addVariantPicker?.product.id === product.id ? (
-                            <div className="flex items-center justify-center py-2"><Loader2 size={14} className="animate-spin text-white/30" /></div>
-                          ) : inOrderItem && cancelStep !== 'select' && order.status !== 'paid' ? (
-                            <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-xl overflow-hidden self-start">
-                              <button onClick={e => handleChangeItemQty(e, inOrderItem, -1)}
-                                className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
-                                <Minus size={10} />
-                              </button>
-                              <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{inOrderQty}</span>
-                              <button onClick={e => handleChangeItemQty(e, inOrderItem, 1)}
-                                className="w-8 h-8 flex items-center justify-center text-gold active:scale-90 transition-all">
-                                <Plus size={10} />
-                              </button>
-                            </div>
-                          ) : inAddCount > 0 ? (
-                            <span className="self-start inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gold/10 border border-gold/25 text-gold text-[10px] font-black">{inAddCount}</span>
-                          ) : !inOrderItem && (
-                            <button onClick={() => handleAddProductClick(product)}
-                              className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.07] text-white/40 hover:text-white/70 text-[10px] font-semibold transition-all active:scale-95">
-                              <Plus size={12} /> {t('add')}
-                            </button>
-                          )}
+                          <p className="text-sm font-semibold text-white/85 truncate leading-tight">{pName}</p>
+                          <p className="text-sm font-black text-gold mt-0.5">{product.price.toFixed(2)} ₼</p>
                           {isSoldOut && (
-                            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/20">
-                              <span className="text-[8px] font-bold text-red-400/80">Bitib</span>
+                            <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[8px] font-bold text-red-400/80">Bitib</span>
+                          )}
+                          {inAddCount > 0 && (
+                            <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-gold text-black text-xs font-black flex items-center justify-center shadow-lg">{inAddCount}</span>
+                          )}
+                          {!inAddCount && inOrderItem && cancelStep !== 'select' && order.status !== 'paid' && (
+                            <div className="absolute top-2 right-2 flex items-center bg-black/60 backdrop-blur-sm border border-white/[0.12] rounded-lg overflow-hidden" onClick={e => { e.stopPropagation(); }}>
+                              <button onClick={e => { e.stopPropagation(); handleChangeItemQty(e, inOrderItem, -1); }}
+                                className="w-7 h-7 flex items-center justify-center text-white/60 hover:text-white active:scale-90 transition-all">
+                                <Minus size={9} />
+                              </button>
+                              <span className="text-white text-[10px] w-4 text-center font-black tabular-nums">{draftQty[inOrderItem.id] ?? inOrderItem.quantity}</span>
+                              <button onClick={e => { e.stopPropagation(); handleChangeItemQty(e, inOrderItem, 1); }}
+                                className="w-7 h-7 flex items-center justify-center text-gold active:scale-90 transition-all">
+                                <Plus size={9} />
+                              </button>
                             </div>
                           )}
-                        </div>
+                        </motion.button>
                       );
                     })}
                   </div>
                 )}
+
+                {/* Variant picker */}
                 {addVariantPicker && !loadingAddVariants && (
                   <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
                     {addVariantPicker.variants.map(v => (
@@ -634,6 +648,8 @@ export const OrderModal = ({
                   </div>
                 )}
               </div>
+
+              {/* Add items confirm bar */}
               {addItems.length > 0 && (
                 <div className="px-5 py-4 border-t border-white/[0.05] flex items-center justify-between flex-shrink-0">
                   <div className="flex items-center gap-1.5">

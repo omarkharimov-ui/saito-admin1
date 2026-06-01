@@ -53,6 +53,7 @@ export interface ManualItem {
   product: Product;
   variant: ProductVariant | null;
   quantity: number;
+  note?: string;
 }
 
 export type TabKey = 'active' | 'archive';

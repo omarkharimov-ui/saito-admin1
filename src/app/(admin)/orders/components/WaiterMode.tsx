@@ -21,27 +21,57 @@ interface CartItem { product: Product; qty: number; }
 
 const fmt = (n: number) => n.toFixed(2);
 
-function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: number; onAdd: () => void }) {
+function PCard({ p, stock, cart, onAdd, animating }: { p: Product; stock: boolean; cart: number; onAdd: () => void; animating?: boolean }) {
   const [imgState, setImgState] = useState<'loading' | 'ok' | 'err'>('loading');
+  const [justAdded, setJustAdded] = useState(false);
   const { t, language } = useLanguage();
   const name = language === 'en' ? (p as any).name_en || p.name : language === 'ru' ? (p as any).name_ru || p.name : (p as any).name_az || p.name;
   const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
   const showImg = !!p.image_url && p.image_url.trim().length > 0 && imgState !== 'err';
+
+  const handleClick = () => {
+    if (!stock) return;
+    setJustAdded(true);
+    onAdd();
+    setTimeout(() => setJustAdded(false), 150);
+  };
+
   return (
-    <motion.button layout initial={false} whileHover={stock ? { y: -2 } : undefined} whileTap={stock ? { scale: 0.96 } : undefined}
-      onClick={stock ? onAdd : undefined}
-      className={`relative rounded-2xl p-4 text-left border ${stock ? 'bg-white/[0.04] border-white/[0.08]' : 'opacity-30 border-white/[0.03]'}`}
+    <motion.button
+      layout
+      initial={false}
+      whileHover={stock ? { y: -2, transition: { duration: 0.15 } } : undefined}
+      whileTap={stock ? { scale: 0.96, transition: { duration: 0.08 } } : undefined}
+      animate={justAdded ? { scale: [1, 1.08, 1], transition: { duration: 0.15 } } : undefined}
+      onClick={handleClick}
+      className={`relative rounded-xl p-2.5 text-left border transition-shadow duration-150 ${stock ? 'bg-white/[0.04] border-white/[0.08] hover:border-white/[0.15] hover:shadow-[0_4px_20px_rgba(212,175,55,0.08)]' : 'opacity-30 border-white/[0.03]'}`}
     >
-      <div className="aspect-square rounded-xl bg-white/[0.03] mb-3 flex items-center justify-center overflow-hidden">
+      <div className="aspect-square rounded-lg bg-white/[0.03] mb-2 flex items-center justify-center overflow-hidden">
         {showImg
           ? <img src={p.image_url!} alt={name} className="w-full h-full object-cover" onLoad={() => setImgState('ok')} onError={() => setImgState('err')} />
-          : <span className="text-3xl font-black text-white/20">{initials}</span>
+          : <span className="text-2xl font-black text-white/20">{initials}</span>
         }
       </div>
-      <p className="text-sm font-semibold text-white/85 truncate">{name}</p>
-      <p className="text-sm font-black text-gold">₼{fmt(p.price)}</p>
-      {!stock && <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center"><span className="text-xs font-bold text-white/70 bg-black/70 px-3 py-1.5 rounded-lg">{t('out_of_stock')}</span></div>}
-      {cart > 0 && <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-gold text-black text-xs font-black flex items-center justify-center">{cart}</span>}
+      <p className="text-xs font-semibold text-white/85 truncate leading-tight">{name}</p>
+      <p className="text-xs font-black text-gold mt-0.5">₼{fmt(p.price)}</p>
+      {!stock && <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center"><span className="text-[10px] font-bold text-white/70 bg-black/70 px-2 py-1 rounded">{t('out_of_stock')}</span></div>}
+      {cart > 0 && (
+        <motion.span
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          className="absolute top-1.5 right-1.5 min-w-[22px] h-[22px] px-1 rounded-full bg-gold text-black text-[10px] font-black flex items-center justify-center shadow-lg"
+        >
+          {cart}
+        </motion.span>
+      )}
+      {animating && (
+        <motion.div
+          initial={{ scale: 1, opacity: 0.8 }}
+          animate={{ scale: 0.3, opacity: 0, y: -100, x: 100 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          className="absolute inset-0 rounded-xl bg-gold/30 pointer-events-none"
+        />
+      )}
     </motion.button>
   );
 }

@@ -561,7 +561,7 @@ export const OrderModal = ({
             </div>
 
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-0.5">
+              <div className="flex-1 overflow-y-auto px-4 pb-2">
                 {loadingProducts ? (
                   <div className="flex items-center justify-center py-16">
                     <Loader2 size={22} className="animate-spin text-white/20" />
@@ -570,56 +570,69 @@ export const OrderModal = ({
                   <div className="flex flex-col items-center justify-center py-16 select-none">
                     <p className="text-white/20 text-sm">{t('search')}...</p>
                   </div>
-                ) : filteredProducts.map(product => {
-                  const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
-                  const inOrderItem = order.order_items?.find(oi => oi.product_id === product.id);
-                  const inOrderQty = inOrderItem ? (draftQty[inOrderItem.id] ?? inOrderItem.quantity) : 0;
-                  const isSoldOut = (product as any).is_available === false;
-                  return (
-                    <React.Fragment key={product.id}>
-                      <div className={`group/row flex items-center gap-3 px-3 py-3 rounded-xl border transition-all ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 || inOrderItem ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
-                        {product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" /> : <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex-shrink-0" />}
-                        <button onClick={() => handleAddProductClick(product)} className="flex-1 min-w-0 text-left">
-                          <p className="text-white/80 text-sm font-medium truncate">{(product as any)[`name_${language}`] || (product as any).name_az || product.name}</p>
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-white/40 text-xs">{product.price.toFixed(2)} ₼</p>
-                            {isSoldOut && <span className="text-[9px] font-bold text-red-400/70 bg-red-500/10 px-1.5 py-0.5 rounded-full">Bitib</span>}
-                            {inOrderItem && <span className="text-[9px] text-white/25 bg-white/[0.04] px-1.5 py-0.5 rounded-full">{t('in_order')} ×{inOrderQty}</span>}
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {filteredProducts.map(product => {
+                      const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
+                      const inOrderItem = order.order_items?.find(oi => oi.product_id === product.id);
+                      const inOrderQty = inOrderItem ? (draftQty[inOrderItem.id] ?? inOrderItem.quantity) : 0;
+                      const isSoldOut = (product as any).is_available === false;
+                      const pName = (product as any)[`name_${language}`] || (product as any).name_az || product.name;
+                      return (
+                        <div key={product.id}
+                          className={`relative rounded-2xl p-3 text-left border transition-all flex flex-col ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 || inOrderItem ? 'bg-white/[0.04] border-white/[0.12]' : 'bg-[#121212] border-white/[0.07] hover:border-white/[0.15] hover:bg-white/[0.03]'}`}>
+                          <div className="w-12 h-12 rounded-xl bg-white/[0.03] flex items-center justify-center overflow-hidden flex-shrink-0 mb-2">
+                            {product.image_url ? (
+                              <img src={product.image_url} alt={pName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-lg font-black text-white/20">{(pName || '?')[0]}</span>
+                            )}
                           </div>
-                        </button>
-                        {loadingAddVariants && addVariantPicker?.product.id === product.id ? <Loader2 size={14} className="animate-spin text-white/30" /> :
-                          inOrderItem && cancelStep !== 'select' && order.status !== 'paid' ? (
-                            <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-xl overflow-hidden flex-shrink-0">
+                          <p className="text-sm font-semibold text-white/85 truncate leading-tight mb-0.5">{pName}</p>
+                          <p className="text-xs font-bold text-gold/90 mb-2">{product.price.toFixed(2)} ₼</p>
+                          {loadingAddVariants && addVariantPicker?.product.id === product.id ? (
+                            <div className="flex items-center justify-center py-2"><Loader2 size={14} className="animate-spin text-white/30" /></div>
+                          ) : inOrderItem && cancelStep !== 'select' && order.status !== 'paid' ? (
+                            <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-xl overflow-hidden self-start">
                               <button onClick={e => handleChangeItemQty(e, inOrderItem, -1)}
-                                className="w-9 h-9 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
-                                <Minus size={11} />
+                                className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                                <Minus size={10} />
                               </button>
-                              <span className="text-white text-xs w-6 text-center font-black tabular-nums">{inOrderQty}</span>
+                              <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{inOrderQty}</span>
                               <button onClick={e => handleChangeItemQty(e, inOrderItem, 1)}
-                                className="w-9 h-9 flex items-center justify-center text-gold active:scale-90 transition-all">
-                                <Plus size={11} />
+                                className="w-8 h-8 flex items-center justify-center text-gold active:scale-90 transition-all">
+                                <Plus size={10} />
                               </button>
                             </div>
                           ) : inAddCount > 0 ? (
-                            <span className="text-[10px] font-black bg-gold text-black px-1.5 py-0.5 rounded-full">{inAddCount}</span>
+                            <span className="self-start inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gold/10 border border-gold/25 text-gold text-[10px] font-black">{inAddCount}</span>
                           ) : !inOrderItem && (
-                            <button onClick={() => handleAddProductClick(product)} className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/[0.06] active:scale-90 flex items-center justify-center text-white/20 transition-all"><Plus size={15} /></button>
-                          )}
-                      </div>
-                      {addVariantPicker?.product.id === product.id && !loadingAddVariants && (
-                        <div className="mx-2 mb-1 rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
-                          {addVariantPicker.variants.map(v => (
-                            <button key={v.id} onClick={() => addToCartWithVariant(addVariantPicker.product, v)}
-                              className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.06] transition-colors text-left border-b border-white/[0.05] last:border-0">
-                              <div><p className="text-white text-sm font-medium">{v.name}</p>{v.is_default && <span className="text-[9px] text-white/20 uppercase tracking-wider">{t('combo_default_variant')}</span>}</div>
-                              <span className="text-gold text-xs font-bold">{v.price.toFixed(2)} ₼</span>
+                            <button onClick={() => handleAddProductClick(product)}
+                              className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.07] text-white/40 hover:text-white/70 text-[10px] font-semibold transition-all active:scale-95">
+                              <Plus size={12} /> {t('add')}
                             </button>
-                          ))}
+                          )}
+                          {isSoldOut && (
+                            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/20">
+                              <span className="text-[8px] font-bold text-red-400/80">Bitib</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
+                {addVariantPicker && !loadingAddVariants && (
+                  <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+                    {addVariantPicker.variants.map(v => (
+                      <button key={v.id} onClick={() => addToCartWithVariant(addVariantPicker.product, v)}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.06] transition-colors text-left border-b border-white/[0.05] last:border-0">
+                        <div><p className="text-white text-sm font-medium">{v.name}</p>{v.is_default && <span className="text-[9px] text-white/20 uppercase tracking-wider">{t('combo_default_variant')}</span>}</div>
+                        <span className="text-gold text-xs font-bold">{v.price.toFixed(2)} ₼</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               {addItems.length > 0 && (
                 <div className="px-5 py-4 border-t border-white/[0.05] flex items-center justify-between flex-shrink-0">

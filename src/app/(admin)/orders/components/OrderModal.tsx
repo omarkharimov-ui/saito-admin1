@@ -607,7 +607,7 @@ export const OrderModal = ({
                       const imgErr = imgErrors.has(product.id);
                       const showImg = !!product.image_url && !imgErr;
                       return (
-                        <motion.button layout="position" initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1, transition: { duration: 0.12 } }}
+                        <motion.button layout="position" initial={false}
                           whileHover={{ y: -2, transition: { duration: 0.15 } }} whileTap={{ scale: 0.94, transition: { duration: 0.08 } }}
                           key={product.id}
                           onClick={() => handleAddProductClick(product)}

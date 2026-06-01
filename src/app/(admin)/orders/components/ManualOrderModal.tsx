@@ -20,8 +20,6 @@ interface ManualOrderModalProps {
 }
 
 const cardVariants = {
-  initial: { scale: 0.96, opacity: 0 },
-  animate: { scale: 1, opacity: 1, transition: { duration: 0.12 } },
   hover: { y: -2, transition: { duration: 0.15 } },
   tap: { scale: 0.94, transition: { duration: 0.08 } },
 };
@@ -32,7 +30,7 @@ function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: 
   const [imgErr, setImgErr] = useState(false);
   const showImg = !!p.image_url && !imgErr;
   return (
-    <motion.button layout="position" variants={cardVariants} initial="initial" animate="animate"
+    <motion.button layout="position" initial={false} variants={cardVariants}
       whileHover="hover" whileTap="tap"
       onClick={onAdd}
       className="relative rounded-xl p-3 text-left border border-white/[0.07] bg-[#141414] hover:bg-white/[0.06] transition-colors"
@@ -203,7 +201,8 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
 
   return (
     <>
-      <div className="bg-[#0a0a0a] rounded-2xl border border-white/[0.06] select-none">
+      <div style={{ background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
+        className="rounded-2xl border border-white/[0.06] select-none">
 
         {/* ─── HEADER ─── */}
         <div className="border-b border-white/[0.06] bg-[#0c0c0c] px-5 py-3.5">
@@ -211,7 +210,9 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
             <button onClick={onClose} className="text-white/40 hover:text-white/80 p-1">
               <ChevronLeft size={20} />
             </button>
-            <p className="text-lg font-bold text-white">{t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</p>
+            <p className="font-black text-lg tracking-widest leading-none"
+              style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              {t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</p>
             {cartCount > 0 && (
               <span className="ml-auto text-sm text-white/30">{cartCount} {t('items')}</span>
             )}
@@ -329,7 +330,8 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                 className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none" />
               <div className="flex items-center justify-between">
                 <span className="text-xs text-white/30 uppercase tracking-widest font-semibold">{t('total_label')}</span>
-                <span className="text-xl font-black text-white">₼{fmt(total)}</span>
+                <span className="text-xl font-black tracking-tight tabular-nums"
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>₼{fmt(total)}</span>
               </div>
               <button onClick={handleSubmit} disabled={items.length === 0 || submitting}
                 className="w-full py-4 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2.5 hover:bg-amber-500/25 transition-all"

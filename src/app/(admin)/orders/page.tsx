@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ClipboardList, WifiOff, Archive, Filter, AlertTriangle, Trash2, Calendar, X, BellRing, Monitor,
+  ClipboardList, WifiOff, Archive, Filter, AlertTriangle, Trash2, Calendar, X, BellRing, Monitor, Maximize2, Minimize2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -104,6 +104,21 @@ export default function OrdersPage() {
   const [confirmClearArchive, setConfirmClearArchive] = useState(false);
   const [waiterMode, setWaiterMode] = useState(false);
   const [manualModalTable, setManualModalTable] = useState<number | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await document.documentElement.requestFullscreen();
+    }
+  }, []);
 
   const [dismissedReadyIds, setDismissedReadyIds] = useState<Set<string>>(() => {
     try {
@@ -539,6 +554,12 @@ export default function OrdersPage() {
                 </motion.button>
               )}
             </AnimatePresence>
+
+            {/* Fullscreen toggle */}
+            <button onClick={toggleFullscreen}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all duration-200 border bg-white/[0.04] text-white/50 border-white/[0.07] hover:text-white/80">
+              {fullscreen ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
+            </button>
 
             {/* Waiter mode toggle */}
             <button onClick={() => setWaiterMode(v => !v)}

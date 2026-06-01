@@ -209,32 +209,20 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
         {/* ─── MAIN SPLIT ─── */}
         <div className="flex flex-col lg:flex-row min-h-[500px]">
           {/* ─── PRODUCT GRID (left ~70%) ─── */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto px-5 py-5">
-              {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-white/15">
-                  <Search size={48} className="mb-3 opacity-30" />
-                  <p className="text-base">{t('not_found')}</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                  {filtered.map(p => {
-                    const inCart = items.filter(i => i.product.id === p.id).reduce((s, i) => s + i.quantity, 0);
-                    return <PCard key={p.id} p={p} cart={inCart} onAdd={() => handleProductClick(p)} language={language} />;
-                  })}
-                </div>
-              )}
-            </div>
-            {/* ─── CATEGORY STRIP (bottom) ─── */}
-            <div className="flex-shrink-0 border-t border-white/[0.06] px-4 py-3">
-              <div className="flex gap-2 overflow-x-auto">
-                {categories.map(c => (
-                  <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
-                    className={`flex-shrink-0 px-6 py-3 rounded-xl text-sm font-bold tracking-wider ${cat === c.id ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
-                  >{c.name}</button>
-                ))}
+          <div className="flex-1 overflow-y-auto px-5 py-5">
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-white/15">
+                <Search size={48} className="mb-3 opacity-30" />
+                <p className="text-base">{t('not_found')}</p>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+                {filtered.map(p => {
+                  const inCart = items.filter(i => i.product.id === p.id).reduce((s, i) => s + i.quantity, 0);
+                  return <PCard key={p.id} p={p} cart={inCart} onAdd={() => handleProductClick(p)} language={language} />;
+                })}
+              </div>
+            )}
           </div>
 
           {/* ─── CART SIDEBAR (right ~30%, always visible) ─── */}
@@ -292,6 +280,19 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
             </div>
           </div>
         </div>
+
+        {/* ─── CATEGORY STRIP (bottom of modal) ─── */}
+        {categories.length > 0 && (
+          <div className="border-t border-white/[0.06] bg-[#0c0c0c] px-4 py-3">
+            <div className="flex gap-2 overflow-x-auto">
+              {categories.map(c => (
+                <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
+                  className={`flex-shrink-0 px-6 py-3 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap ${cat === c.id ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
+                >{c.name}</button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── VARIANT PICKER ─── */}

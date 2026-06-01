@@ -107,13 +107,30 @@ export default function OrdersPage() {
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
+    const sidebarEl = document.querySelector('[style*="width: 272"]');
+    const mainEl = document.querySelector('main');
+
     const handler = () => {
       const isFs = !!document.fullscreenElement;
       setFullscreen(isFs);
-      document.documentElement.toggleAttribute('data-fullscreen', isFs);
+      if (sidebarEl && mainEl) {
+        if (isFs) {
+          (sidebarEl as HTMLElement).style.display = 'none';
+          (mainEl as HTMLElement).style.marginLeft = '0';
+        } else {
+          (sidebarEl as HTMLElement).style.display = '';
+          (mainEl as HTMLElement).style.marginLeft = '';
+        }
+      }
     };
     document.addEventListener('fullscreenchange', handler);
-    return () => document.removeEventListener('fullscreenchange', handler);
+    return () => {
+      document.removeEventListener('fullscreenchange', handler);
+      if (sidebarEl && mainEl) {
+        (sidebarEl as HTMLElement).style.display = '';
+        (mainEl as HTMLElement).style.marginLeft = '';
+      }
+    };
   }, []);
 
   const toggleFullscreen = useCallback(async () => {
@@ -354,13 +371,6 @@ export default function OrdersPage() {
 
   return (
     <div>
-      {fullscreen && (
-        <style>{`
-          [data-fullscreen] [style*="272"] { display: none !important; }
-          [data-fullscreen] .ml-\\[272px\\] { margin-left: 0 !important; }
-        `}</style>
-      )}
-
       {/* Confirm clear archive */}
       {typeof document !== 'undefined' && createPortal(
       <AnimatePresence>

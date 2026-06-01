@@ -38,9 +38,13 @@ export default function AdminDesktopShell({
         />
       )}
 
-      <main className="flex-1 ml-[272px] p-8 min-h-0 overflow-y-auto relative bg-background">
-        <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />
-        {children}
+      <main className="flex-1 ml-[272px] min-h-0 bg-background flex flex-col">
+        <div className="p-8 pb-0 flex-shrink-0">
+          <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-8 pb-8">
+          {children}
+        </div>
       </main>
     </div>
   );

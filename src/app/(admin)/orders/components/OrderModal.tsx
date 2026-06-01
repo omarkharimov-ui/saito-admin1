@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Search, Plus, Minus, CheckCircle, Loader2,
   CreditCard, MoreVertical, Trash2, XCircle, Clock,
   GitMerge, Layers, Printer, ChevronLeft,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -325,6 +325,7 @@ export const OrderModal = ({
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [addSearch, setAddSearch]       = useState('');
   const [addSearchFocused, setAddSearchFocused] = useState(false);
+  const addSearchRef = useRef<HTMLInputElement>(null);
   const [cat, setCat]                   = useState<string | null>(null);
   const [imgErrors, setImgErrors]       = useState<Set<string>>(new Set());
   const [addItems, setAddItems]         = useState<ManualItem[]>([]);
@@ -374,6 +375,7 @@ export const OrderModal = ({
       }
     };
     fetchProducts();
+    setTimeout(() => addSearchRef.current?.focus(), 100);
   }, []);
 
   const handleAddProductClick = async (product: Product) => {
@@ -400,6 +402,20 @@ export const OrderModal = ({
       return [...prev, { product, variant, quantity: 1 }];
     });
     setAddVariantPicker(null);
+  };
+
+  const removeAddItem = (productId: string, variantId?: string | null) => {
+    const key = `${productId}__${variantId || 'base'}`;
+    setAddItems(prev => prev.filter(i => `${i.product.id}__${i.variant?.id || 'base'}` !== key));
+  };
+
+  const handleRemoveItem = (item: any) => {
+    if (item._preview) {
+      const match = addItems.find(ai => `preview-${ai.product.id}` === item.id);
+      if (match) removeAddItem(match.product.id, match.variant?.id);
+    } else {
+      setPendingDeleteItemId(item.id);
+    }
   };
 
   const handleAddItems = async () => {
@@ -547,12 +563,13 @@ export const OrderModal = ({
             <div className="px-4 pt-3 pb-2 flex-shrink-0">
               <div className="relative">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
-                <input
+                <input ref={addSearchRef}
                   value={addSearch}
                   onChange={e => setAddSearch(e.target.value)}
                   onFocus={() => setAddSearchFocused(true)}
                   placeholder={t('add_items')}
-                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-9 pr-4 py-3 text-sm text-white placeholder:text-white/25 outline-none focus:border-white/25 transition-all"
+                  onKeyDown={e => { if (e.key === 'Escape') { addSearchRef.current?.blur(); } }}
+                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-white/25 transition-all"
                 />
               </div>
             </div>
@@ -561,10 +578,10 @@ export const OrderModal = ({
               <div className="flex-1 overflow-y-auto px-4 pb-2">
                 {/* Category pills */}
                 {categories.length > 0 && (
-                  <div className="sticky top-0 z-10 flex-shrink-0 pb-3 mb-2 flex gap-2 overflow-x-auto -mx-4 px-4">
+                  <div className="sticky top-0 z-10 flex-shrink-0 pb-2 mb-1.5 flex gap-1.5 overflow-x-auto -mx-4 px-4">
                     {categories.map(c => (
                       <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
-                        className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold tracking-wider whitespace-nowrap transition-all ${
+                        className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold tracking-wider whitespace-nowrap transition-all ${
                           cat === c.id ? 'bg-white text-black shadow-lg' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
                         }`}>{c.name}</button>
                     ))}
@@ -580,7 +597,7 @@ export const OrderModal = ({
                     <p className="text-white/20 text-sm">{t('search')}...</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
                     {filteredProducts.map(product => {
                       const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
                       const inOrderItem = order.order_items?.find(oi => oi.product_id === product.id);
@@ -590,30 +607,32 @@ export const OrderModal = ({
                       const imgErr = imgErrors.has(product.id);
                       const showImg = !!product.image_url && !imgErr;
                       return (
-                        <motion.button layout initial={false} whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }}
+                        <motion.button layout="position" initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1, transition: { duration: 0.12 } }}
+                          whileHover={{ y: -2, transition: { duration: 0.15 } }} whileTap={{ scale: 0.94, transition: { duration: 0.08 } }}
                           key={product.id}
                           onClick={() => handleAddProductClick(product)}
-                          className={`relative rounded-2xl p-4 text-left border transition-all flex flex-col ${
+                          className={`relative rounded-xl p-3 text-left border transition-all flex flex-col ${
                             isSoldOut ? 'opacity-50' : ''
                           } ${
                             inAddCount > 0 || inOrderItem
                               ? 'bg-white/[0.04] border-white/[0.15]'
                               : 'bg-[#141414] border-white/[0.07] hover:bg-white/[0.05]'
                           }`}>
-                          <div className="aspect-square rounded-xl bg-white/[0.03] mb-2.5 flex items-center justify-center overflow-hidden">
+                          <div className="aspect-square rounded-lg bg-white/[0.03] mb-2 flex items-center justify-center overflow-hidden">
                             {showImg ? (
                               <img src={product.image_url!} alt={pName} className="w-full h-full object-cover" onError={() => setImgErrors(prev => new Set(prev).add(product.id))} />
                             ) : (
-                              <span className="text-2xl font-black text-white/20">{initials}</span>
+                              <span className="text-xl font-black text-white/20">{initials}</span>
                             )}
                           </div>
                           <p className="text-sm font-semibold text-white/85 truncate leading-tight">{pName}</p>
                           <p className="text-sm font-black text-gold mt-0.5">{product.price.toFixed(2)} ₼</p>
                           {isSoldOut && (
-                            <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[8px] font-bold text-red-400/80">Bitib</span>
+                            <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[7px] font-bold text-red-400/80">Bitib</span>
                           )}
                           {inAddCount > 0 && (
-                            <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-gold text-black text-xs font-black flex items-center justify-center shadow-lg">{inAddCount}</span>
+                            <motion.span key={inAddCount} initial={{ scale: 1.4 }} animate={{ scale: 1 }}
+                              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-gold text-black text-[11px] font-black flex items-center justify-center shadow-lg">{inAddCount}</motion.span>
                           )}
                           {!inAddCount && inOrderItem && cancelStep !== 'select' && order.status !== 'paid' && (
                             <div className="absolute top-2 right-2 flex items-center bg-black/60 backdrop-blur-sm border border-white/[0.12] rounded-lg overflow-hidden" onClick={e => { e.stopPropagation(); }}>
@@ -728,17 +747,22 @@ export const OrderModal = ({
             </div>
 
             {/* Items summary list — with +/- */}
-            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+              <AnimatePresence initial={false}>
               {displayItems.map((item: any) => {
                 const itemQty = draftQty[item.id] ?? item.quantity;
                 const unitPrice = item.unit_price || (item.total_price / item.quantity);
                 const isSelected = cancelStep === 'select' && !!selectedCancelItems[item.id];
                 return (
-                  <div key={item.id} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl ${item._preview ? 'bg-white/[0.04] border border-dashed border-gold/20' : isSelected ? 'bg-red-500/[0.06] border border-red-500/30' : 'bg-white/[0.02] border border-white/[0.04]'}`}>
+                  <motion.div key={item.id} layout="position"
+                    initial={{ opacity: 0, scale: 0.95, height: 0 }} animate={{ opacity: 1, scale: 1, height: 'auto' }}
+                    exit={{ opacity: 0, scale: 0.95, height: 0 }} transition={{ duration: 0.15 }}
+                    className="overflow-hidden">
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${item._preview ? 'bg-white/[0.04] border border-dashed border-gold/20' : isSelected ? 'bg-red-500/[0.06] border border-red-500/30' : 'bg-white/[0.02] border border-white/[0.04]'}`}>
                     {item.products?.image_url ? (
-                      <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                      <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
                     ) : (
-                      <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex-shrink-0" />
+                      <div className="w-7 h-7 rounded-lg bg-white/[0.05] flex-shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-white/70 text-xs font-medium truncate">{getProductName(item)}</p>
@@ -755,24 +779,34 @@ export const OrderModal = ({
                         {isSelected && <CheckCircle size={11} className="text-white" />}
                       </button>
                     ) : order.status !== 'paid' && itemQty > 0 ? (
-                      <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden flex-shrink-0">
-                        <button onClick={e => handleChangeItemQty(e, item, -1)}
-                          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
-                          <Minus size={10} />
-                        </button>
-                        <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{itemQty}</span>
-                        <button onClick={e => handleChangeItemQty(e, item, 1)}
-                          className="w-7 h-7 flex items-center justify-center text-gold active:scale-90 transition-all">
-                          <Plus size={10} />
-                        </button>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden">
+                          <button onClick={e => handleChangeItemQty(e, item, -1)}
+                            className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                            <Minus size={10} />
+                          </button>
+                          <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{itemQty}</span>
+                          <button onClick={e => handleChangeItemQty(e, item, 1)}
+                            className="w-7 h-7 flex items-center justify-center text-gold active:scale-90 transition-all">
+                            <Plus size={10} />
+                          </button>
+                        </div>
+                        {!item._preview && (
+                          <button onClick={() => handleRemoveItem(item)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
+                            <Trash2 size={11} />
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <span className="text-white/25 text-[11px] tabular-nums flex-shrink-0">×{itemQty}</span>
                     )}
-                    <span className="text-white/50 text-xs font-semibold tabular-nums w-16 text-right">{(unitPrice * itemQty).toFixed(2)} ₼</span>
+                    <span className="text-white/50 text-xs font-semibold tabular-nums w-14 text-right">{(unitPrice * itemQty).toFixed(2)} ₼</span>
                   </div>
+                  </motion.div>
                 );
               })}
+              </AnimatePresence>
               {loadingCancelled ? (
                 <div className="flex items-center gap-2 text-white/20 text-xs py-2"><Loader2 size={11} className="animate-spin" /> {t('loading')}</div>
               ) : cancelledItemsHistory.length > 0 && (
@@ -934,33 +968,48 @@ export const OrderModal = ({
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+              <AnimatePresence initial={false}>
               {displayItems.map((item: any) => {
                 const mqty = draftQty[item.id] ?? item.quantity;
                 return (
-                  <div key={item.id} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                  <motion.div key={item.id} layout="position"
+                    initial={{ opacity: 0, scale: 0.95, height: 0 }} animate={{ opacity: 1, scale: 1, height: 'auto' }}
+                    exit={{ opacity: 0, scale: 0.95, height: 0 }} transition={{ duration: 0.15 }}
+                    className="overflow-hidden">
+                  <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                     {item.products?.image_url ? <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex-shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium truncate">{getProductName(item)}</p>
                     </div>
                     {order.status !== 'paid' ? (
-                      <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden flex-shrink-0">
-                        <button onClick={e => handleChangeItemQty(e, item, -1)}
-                          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
-                          <Minus size={10} />
-                        </button>
-                        <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{mqty}</span>
-                        <button onClick={e => handleChangeItemQty(e, item, 1)}
-                          className="w-7 h-7 flex items-center justify-center text-gold active:scale-90 transition-all">
-                          <Plus size={10} />
-                        </button>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden flex-shrink-0">
+                          <button onClick={e => handleChangeItemQty(e, item, -1)}
+                            className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                            <Minus size={10} />
+                          </button>
+                          <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{mqty}</span>
+                          <button onClick={e => handleChangeItemQty(e, item, 1)}
+                            className="w-7 h-7 flex items-center justify-center text-gold active:scale-90 transition-all">
+                            <Plus size={10} />
+                          </button>
+                        </div>
+                        {!item._preview && (
+                          <button onClick={() => handleRemoveItem(item)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
+                            <Trash2 size={11} />
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <p className="text-white/25 text-xs">×{mqty}</p>
                     )}
                     <span className="text-white/40 text-sm font-semibold tabular-nums">{((item.unit_price || item.total_price / item.quantity) * mqty).toFixed(2)} ₼</span>
                   </div>
+                  </motion.div>
                 );
               })}
+              </AnimatePresence>
             </div>
             <div className="px-4 pb-6 pt-3 border-t border-white/[0.05] flex-shrink-0 space-y-2">
               {(order.status === 'new' || (order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (

@@ -522,8 +522,8 @@ export default function OrdersPage() {
         )}
       </AnimatePresence>
 
-      {/* Header toolbar */}
-      <div className="sticky top-0 z-20 px-0 pt-4 pb-3 bg-[#0a0a0a] border-b border-white/[0.06] mb-4 lg:backdrop-blur-xl lg:bg-black/80">
+      {/* Header toolbar — sticky at true top of main (negate main p-8) */}
+      <div className="sticky top-0 z-20 -mt-8 -mx-8 px-8 pt-[calc(2rem+16px)] pb-3 bg-[#0a0a0a] border-b border-white/[0.06] mb-4 lg:backdrop-blur-xl lg:bg-black/80">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-xl md:text-3xl font-serif font-bold text-white leading-tight truncate">{t('orders')}</h1>

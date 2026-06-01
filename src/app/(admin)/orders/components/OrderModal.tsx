@@ -538,8 +538,6 @@ export const OrderModal = ({
             </div>
           </div>
 
-        <div className="h-px bg-white/[0.05] mx-5 mt-3 flex-shrink-0" />
-
         {/* ── BODY: 70/30 SHOOTOUT ── */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
 

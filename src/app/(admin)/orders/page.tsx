@@ -74,6 +74,13 @@ export default function OrdersPage() {
   const [confirmClearArchive, setConfirmClearArchive] = useState(false);
   const [manualModalTable, setManualModalTable] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [pageCategories, setPageCategories] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    supabase.from('categories').select('*').order('sort_order').then(({ data }) => {
+      if (data) setPageCategories(data);
+    });
+  }, []);
 
   useEffect(() => {
     let style: HTMLStyleElement | null = null;
@@ -635,6 +642,18 @@ export default function OrdersPage() {
               )}
             </AnimatePresence>
           </div>
+        </div>
+      )}
+
+      {/* Category pills — only on active tab */}
+      {tab === 'active' && pageCategories.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto mb-5 -mx-8 px-8 pb-1">
+          {pageCategories.map(c => (
+            <button key={c.id}
+              className="flex-shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold tracking-wider whitespace-nowrap transition-all bg-white/[0.06] text-white/50 hover:text-white/80">
+              {c.name}
+            </button>
+          ))}
         </div>
       )}
 

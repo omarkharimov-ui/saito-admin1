@@ -334,7 +334,7 @@ export default function OrdersPage() {
   };
 
   return (
-    <div>
+    <div className="flex flex-col h-full">
       {/* Confirm clear archive */}
       {typeof document !== 'undefined' && createPortal(
       <AnimatePresence>
@@ -522,8 +522,8 @@ export default function OrdersPage() {
         )}
       </AnimatePresence>
 
-      {/* Header toolbar — sticky */}
-      <div className="sticky top-0 z-50 px-0 pt-4 pb-3 bg-background border-b border-white/[0.06] mb-4">
+      {/* Header toolbar */}
+      <div className="flex-shrink-0 px-0 pt-4 pb-3 bg-[#0a0a0a] border-b border-white/[0.06] mb-4 lg:backdrop-blur-xl lg:bg-black/80">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-xl md:text-3xl font-serif font-bold text-white leading-tight truncate">{t('orders')}</h1>
@@ -646,6 +646,7 @@ export default function OrdersPage() {
         </div>
       </div>
 
+      <div className="flex-1 min-h-0 overflow-y-auto">
       {/* Table status grid */}
       {tab === 'active' && (
         <TableStatusGrid
@@ -879,6 +880,8 @@ export default function OrdersPage() {
           }}
         />
       )}
+
+      </div>
 
     </div>
   );

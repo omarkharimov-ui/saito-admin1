@@ -204,23 +204,27 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
               className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-11 pr-4 py-4 text-base text-white placeholder:text-white/20 outline-none" />
             {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20"><X size={18} /></button>}
           </div>
-          {/* ─── CATEGORY FILTERS (below search) ─── */}
-          <div className="flex gap-2 overflow-x-auto mt-3">
-            {categories.map(c => (
-              <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
-                className={`flex-shrink-0 px-6 py-3.5 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap transition-all ${
-                  cat === c.id ? 'bg-white text-black shadow-lg' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
-                }`}
-              >{c.name}</button>
-            ))}
-          </div>
         </div>
 
         {/* ─── MAIN SPLIT ─── */}
         <div className="flex flex-col lg:flex-row min-h-[500px]">
-          {/* ─── PRODUCT GRID (left ~70%) ─── */}
-          <div className="flex-1 overflow-y-auto px-5 py-5">
-            {filtered.length === 0 ? (
+          {/* ─── PRODUCT AREA (left ~70%) ─── */}
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* ─── CATEGORY FILTERS (sticky) ─── */}
+            <div className="sticky top-0 z-10 flex-shrink-0 bg-[#0a0a0a] border-b border-white/[0.06] px-5 py-3">
+              <div className="flex gap-2 overflow-x-auto">
+                {categories.map(c => (
+                  <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
+                    className={`flex-shrink-0 px-6 py-3.5 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap transition-all ${
+                      cat === c.id ? 'bg-white text-black shadow-lg' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
+                    }`}
+                  >{c.name}</button>
+                ))}
+              </div>
+            </div>
+            {/* ─── PRODUCT GRID (scrollable) ─── */}
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-white/15">
                 <Search size={48} className="mb-3 opacity-30" />
                 <p className="text-base">{t('not_found')}</p>
@@ -233,6 +237,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                 })}
               </div>
             )}
+          </div>
           </div>
 
           {/* ─── CART SIDEBAR (right ~30%, always visible) ─── */}

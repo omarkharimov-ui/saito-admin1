@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ClipboardList, WifiOff, Archive, Filter, AlertTriangle, Trash2, Calendar, X, BellRing, Monitor, Maximize2, Minimize2,
+  ClipboardList, WifiOff, Archive, Filter, AlertTriangle, Trash2, Calendar, X, BellRing,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -21,7 +21,6 @@ import { OrderModal } from './components/OrderModal';
 
 import { ReceiptModal } from './components/ReceiptModal';
 import GoldCalendar from '@/components/GoldCalendar';
-import WaiterMode from './components/WaiterMode';
 import { ManualOrderModal } from './components/ManualOrderModal';
 import type { TabKey, TableFilterType, Order } from './types';
 import { getOrderAgeMinutes } from './utils';
@@ -50,7 +49,7 @@ export default function OrdersPage() {
   }, [router]);
 
   const {
-    orders, setOrders, loading, tableCount, delayThreshold, isOnline, openingHours,
+    orders, setOrders, loading, tableCount, delayThreshold, isOnline,
     selectedOrder, setSelectedOrder,
 
     updatedLabels, flashIds, confirmedIds, setConfirmedIds,
@@ -61,35 +60,6 @@ export default function OrdersPage() {
   } = useOrders();
 
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
-
-  const isWithinBusinessHours = (): boolean => {
-    if (!openingHours) return true;
-    const match = openingHours.match(/^(\d{2}:\d{2})[\-–](\d{2}:\d{2})$/);
-    if (!match) return true;
-    const now = new Date();
-    const [oh, om] = match[1].split(':').map(Number);
-    const [ch, cm] = match[2].split(':').map(Number);
-    const nowMins = now.getHours() * 60 + now.getMinutes();
-    const openMins = oh * 60 + om;
-    const closeMins = ch * 60 + cm;
-    if (closeMins > openMins) return nowMins >= openMins && nowMins < closeMins;
-    return nowMins >= openMins || nowMins < closeMins;
-  };
-
-  const tryOpenManualOrder = (tableNum: number, extra: number[] = []) => {
-    if (!isWithinBusinessHours()) {
-      const match = openingHours.match(/^(\d{2}:\d{2})[\-–](\d{2}:\d{2})$/);
-      const hours = match ? `${match[1]} – ${match[2]}` : openingHours;
-      toast.error(`İş saatları xaricindədir (${hours})`, {
-        id: 'action-toast',
-        icon: '🌙',
-        duration: 4000,
-      });
-      return;
-    }
-    const extraQ = extra.length > 0 ? `?extra=${extra.join(',')}` : '';
-    router.push(`/orders/manual/${tableNum}${extraQ}`);
-  };
 
   const [tab, setTab]                 = useState<TabKey>('active');
   const [kitchenTab, setKitchenTab]   = useState<'pending' | 'preparing' | 'ready'>('pending');
@@ -102,39 +72,7 @@ export default function OrdersPage() {
   const [showArchiveFilters, setShowArchiveFilters] = useState(false);
   const [clearingArchive, setClearingArchive]       = useState(false);
   const [confirmClearArchive, setConfirmClearArchive] = useState(false);
-  const [waiterMode, setWaiterMode] = useState(false);
   const [manualModalTable, setManualModalTable] = useState<number | null>(null);
-  const [fullscreen, setFullscreen] = useState(false);
-
-  useEffect(() => {
-    let style: HTMLStyleElement | null = null;
-    const handler = () => {
-      const isFs = !!document.fullscreenElement;
-      setFullscreen(isFs);
-      if (isFs && !style) {
-        style = document.createElement('style');
-        style.id = 'fs-sidebar';
-        style.textContent = `div[style*="width: 272"] { display: none !important; } main { margin-left: 0 !important; }`;
-        document.head.appendChild(style);
-      } else if (!isFs && style) {
-        style.remove();
-        style = null;
-      }
-    };
-    document.addEventListener('fullscreenchange', handler);
-    return () => {
-      document.removeEventListener('fullscreenchange', handler);
-      if (style) style.remove();
-    };
-  }, []);
-
-  const toggleFullscreen = useCallback(async () => {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    } else {
-      await document.documentElement.requestFullscreen();
-    }
-  }, []);
 
   const [dismissedReadyIds, setDismissedReadyIds] = useState<Set<string>>(() => {
     try {
@@ -571,20 +509,6 @@ export default function OrdersPage() {
               )}
             </AnimatePresence>
 
-            {/* Fullscreen toggle */}
-            <button onClick={toggleFullscreen}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all duration-200 border bg-white/[0.04] text-white/50 border-white/[0.07] hover:text-white/80">
-              {fullscreen ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
-            </button>
-
-            {/* Waiter mode toggle */}
-            <button onClick={() => setWaiterMode(v => !v)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all duration-200 border ${
-                waiterMode ? 'bg-gold/[0.12] text-gold border-gold/30' : 'bg-white/[0.04] text-white/50 border-white/[0.07] hover:text-white/80'
-              }`}>
-              <Monitor size={15} strokeWidth={1.5} />
-            </button>
-
             {/* Tab switcher */}
             <div className="relative flex rounded-xl p-1 bg-white/[0.04] border border-white/[0.07]">
               {(['active', 'archive'] as TabKey[]).map(key => (
@@ -894,9 +818,6 @@ export default function OrdersPage() {
           }}
         />
       )}
-
-      {/* Waiter Mode — full screen overlay */}
-      {waiterMode && <WaiterMode onClose={() => setWaiterMode(false)} />}
 
     </div>
   );

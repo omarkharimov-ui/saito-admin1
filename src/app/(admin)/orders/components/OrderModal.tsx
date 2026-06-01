@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import {
   X, Search, Plus, Minus, CheckCircle, Loader2,
   CreditCard, MoreVertical, Trash2, XCircle, Clock,
-  GitMerge, Layers, Printer, ChevronLeft,
+  GitMerge, Layers, Printer, ChevronLeft, ShoppingCart,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -453,7 +453,10 @@ export const OrderModal = ({
   });
   const addTotal = addItems.reduce((s, i) => s + (i.variant?.price ?? i.product.price) * i.quantity, 0);
 
-  const [mobileTab, setMobileTab] = React.useState<'order' | 'products'>('order');
+  const [mobileTab, setMobileTab] = React.useState<'order' | 'summary'>('order');
+
+  /* ── New: toggle between items view and add-products view ── */
+  const [leftView, setLeftView] = useState<'items' | 'add'>('items');
 
   if (typeof document === 'undefined') return null;
   return createPortal(
@@ -478,7 +481,7 @@ export const OrderModal = ({
           background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)',
           touchAction: 'pan-y',
         }}
-        className={`pointer-events-auto relative w-full ${order.status === 'paid' ? 'md:max-w-md' : 'md:max-w-3xl'} h-[100dvh] md:h-[88vh] rounded-t-[28px] md:rounded-[28px] shadow-[0_-8px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)] flex flex-col overflow-hidden`}
+        className={`pointer-events-auto relative w-full ${order.status === 'paid' ? 'md:max-w-md' : 'md:max-w-6xl'} h-[100dvh] md:h-[88vh] rounded-t-[28px] md:rounded-[28px] shadow-[0_-8px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)] flex flex-col overflow-hidden`}
       >
         {/* drag handle — mobile only */}
         <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
@@ -490,7 +493,7 @@ export const OrderModal = ({
           style={{ background: 'radial-gradient(ellipse,rgba(212,175,55,0.15) 0%,transparent 70%)' }} />
 
         {/* Header */}
-        <div className="px-5 pt-2 pb-0 flex items-center justify-between flex-shrink-0">
+        <div className="px-5 pt-2 pb-0 flex items-center justify-between flex-shrink-0 min-h-[48px]">
           <div className="flex items-center gap-3 min-w-0">
             {isMergedOrder ? (
               <div className="flex items-center gap-2">
@@ -529,78 +532,31 @@ export const OrderModal = ({
               if (status === 'new') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('new')}</span>;
               return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-white/5 text-white/40 border border-white/10">{t('badge_waiting')}</span>;
             })()}
-            {order.status !== 'paid' && (
-              <div className="relative">
-                <button onClick={() => {
-                  if (confirmClear || confirmCancel) { setConfirmClear(false); setConfirmCancel(false); setShowMenu(false); }
-                  else { setShowMenu(!showMenu); if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); } }
-                }} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${confirmClear || confirmCancel ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-white/10 text-white/40 hover:text-white'}`}>
-                  {confirmClear || confirmCancel ? <X size={18} /> : <MoreVertical size={18} />}
-                </button>
-                {(showMenu || confirmClear || confirmCancel) && (
-                  <div className="absolute right-0 top-11 w-52 bg-[#1c1c1c] border border-white/[0.08] rounded-2xl shadow-2xl z-50 overflow-hidden">
-                    {!confirmClear && !confirmCancel && isMergedOrder && (
-                      <button onClick={() => { setShowMenu(false); setShowMerge(true); setSelectedTablesToSplit(new Set()); }}
-                        className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
-                        <GitMerge size={15} className="text-gold/70" />
-                        <div>
-                          <p className="text-sm font-semibold text-gold/90">{t('unmerge_tables')}</p>
-                          <p className="text-[10px] text-white/30">{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
-                        </div>
-                      </button>
-                    )}
-                    {!confirmClear && !confirmCancel && (
-                      <button onClick={() => { setShowMenu(false); setSelectedCancelItems({}); setCancelStep('select'); }}
-                        className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-red-500/5 transition-colors text-left border-t border-white/5">
-                        <Trash2 size={15} className="text-red-400/70" />
-                        <span className="text-red-400 text-sm">{t('cancel_order')}</span>
-                      </button>
-                    )}
-                    {order.table_number && (
-                      confirmClear ? (
-                        <div className="px-4 py-3 border-t border-white/5">
-                          <p className="text-white/60 text-sm mb-3 font-medium">{t('are_you_sure')}</p>
-                          <div className="flex gap-2">
-                            <button onClick={() => { setShowMenu(false); setConfirmClear(false); }} className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/50 text-sm transition-all">{t('no')}</button>
-                            <button onClick={() => { setShowMenu(false); setConfirmClear(false); act(() => onClearTable(order.table_number!)); }} disabled={acting}
-                              className="flex-1 py-2.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-semibold border border-red-500/40 transition-all disabled:opacity-40">{t('yes_delete')}</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button onClick={() => { setConfirmClear(true); if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); } }}
-                          className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-orange-500/5 transition-colors text-left border-t border-white/5">
-                          <X size={15} className="text-orange-400/70" />
-                          <span className="text-orange-300 text-sm">{t('dismiss_table')}</span>
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
             <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
               <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Mobile Tab Switcher — only when not paid and has products panel */}
+        {/* Mobile Tab Switcher */}
         {order.status !== 'paid' && (
           <div className="md:hidden px-5 pt-3 pb-0 flex-shrink-0">
             <div className="flex bg-white/[0.04] rounded-2xl p-1 gap-1">
-              {(['order', 'products'] as const).map(tab => (
+              {(['order', 'summary'] as const).map(tab => (
                 <button key={tab} onClick={() => setMobileTab(tab)}
                   className={`flex-1 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200 relative ${mobileTab === tab ? 'text-black' : 'text-white/40'}`}>
                   {mobileTab === tab && (
                     <div className="absolute inset-0 rounded-xl" style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)' }} />
                   )}
-                  <span className="relative z-10">
-                    {tab === 'order' ? t('selected_items') : t('add_items')}
+                  <span className="relative z-10 flex items-center justify-center gap-1.5">
+                    {tab === 'order' ? t('selected_items') : t('total_label')}
                     {tab === 'order' && displayItems.length > 0 && (
-                      <span className={`ml-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full ${mobileTab === 'order' ? 'bg-black/20 text-black' : 'bg-white/10 text-white/50'}`}>{displayItems.length}</span>
+                      <span className={`ml-1 text-[9px] font-black px-1.5 py-0.5 rounded-full ${mobileTab === 'order' ? 'bg-black/20 text-black' : 'bg-white/10 text-white/50'}`}>{displayItems.length}</span>
                     )}
-                    {tab === 'products' && addItems.length > 0 && (
-                      <span className={`ml-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full ${mobileTab === 'products' ? 'bg-black/20 text-black' : 'bg-gold text-black'}`}>{addItems.length}</span>
+                    {tab === 'summary' && (
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${mobileTab === 'summary' ? 'bg-black/20 text-black' : 'bg-gold text-black'}`}>
+                        {draftTotal.toFixed(2)} ₼
+                      </span>
                     )}
                   </span>
                 </button>
@@ -611,27 +567,130 @@ export const OrderModal = ({
 
         <div className="h-px bg-white/[0.05] mx-5 mt-3 flex-shrink-0" />
 
-          {/* ── MOBILE PRODUCTS OVERLAY — sits directly on modal root ── */}
-        {order.status !== 'paid' && mobileTab === 'products' && (
-              <div
-                className="md:hidden absolute inset-0 z-30 flex flex-col rounded-t-[28px] overflow-hidden"
-                style={{ background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
-              >
-                <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-                  <div className="w-10 h-1 rounded-full bg-white/15" />
-                </div>
-                <div className="px-4 pt-2 pb-3 flex-shrink-0 flex items-center gap-2">
-                  <button onClick={() => setMobileTab('order')}
-                    className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-white/50 active:scale-90 transition-all flex-shrink-0">
-                    <ChevronLeft size={20} />
-                  </button>
-                  <div className="relative flex-1">
-                    <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" />
-                    <input value={addSearch} onChange={e => setAddSearch(e.target.value)}
-                      placeholder={t('search')}
-                      className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-white/25 transition-all" />
+        {/* ── BODY: 70/30 SHOOTOUT ── */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+
+          {/* ═══ LEFT 70%: Items as cards (or add products) ═══ */}
+          <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${order.status === 'paid' ? 'hidden md:hidden' : ''}`}>
+            {/* Search / Toggle bar */}
+            <div className="px-4 pt-3 pb-2 flex-shrink-0 flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                <input
+                  value={leftView === 'add' ? addSearch : ''}
+                  onChange={e => {
+                    if (leftView === 'items') {
+                      // filter items locally
+                    } else {
+                      setAddSearch(e.target.value);
+                    }
+                  }}
+                  onFocus={() => { if (leftView === 'items') setLeftView('add'); }}
+                  placeholder={leftView === 'items' ? t('search') + '...' : t('add_items')}
+                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-9 pr-4 py-3 text-sm text-white placeholder:text-white/25 outline-none focus:border-white/25 transition-all"
+                />
+              </div>
+              <button onClick={() => setLeftView(v => v === 'items' ? 'add' : 'items')}
+                className={`px-4 py-3 rounded-xl text-xs font-bold tracking-wide transition-all border whitespace-nowrap flex items-center gap-2 ${
+                  leftView === 'add' ? 'bg-gold/[0.12] text-gold border-gold/30' : 'bg-white/[0.04] text-white/50 border-white/[0.07] hover:text-white/80'
+                }`}>
+                {leftView === 'items' ? <Plus size={14} /> : <ShoppingCart size={14} />}
+                {leftView === 'items' ? t('add_items') : t('selected_items')}
+              </button>
+            </div>
+
+            {/* Items view: cards */}
+            {leftView === 'items' && (
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {displayItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full select-none">
+                    <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.05] flex items-center justify-center mb-3">
+                      <Plus size={20} className="text-white/15" />
+                    </div>
+                    <p className="text-white/25 text-sm font-medium">{t('add_items')}</p>
+                    <p className="text-white/12 text-xs mt-1">{t('modal_select_product_hint')}</p>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {displayItems.map((item: any) => {
+                      const itemQty = draftQty[item.id] ?? item.quantity;
+                      const unitPrice = item.unit_price || (item.total_price / item.quantity);
+                      const lineTotal = unitPrice * itemQty;
+                      const isSelected = cancelStep === 'select' && !!selectedCancelItems[item.id];
+                      return (
+                        <div key={item.id}
+                          className={`rounded-2xl border overflow-hidden transition-all flex flex-col ${
+                            item._preview ? 'border-dashed border-gold/30 bg-white/[0.04]' :
+                            isSelected ? 'border-red-500/30 bg-red-500/[0.06]' :
+                            'border-white/[0.06] bg-white/[0.035] hover:border-white/[0.12]'
+                          }`}>
+                          {/* Image */}
+                          <div className="relative">
+                            {item.products?.image_url ? (
+                              <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async"
+                                className="w-full h-20 sm:h-24 object-cover" />
+                            ) : (
+                              <div className="w-full h-20 sm:h-24 bg-white/[0.06] flex items-center justify-center">
+                                <span className="text-white/10 text-3xl font-black">{(getProductName(item) || '?')[0]}</span>
+                              </div>
+                            )}
+                            {/* Qty badge */}
+                            <div className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 flex items-center justify-center">
+                              <span className="text-white text-[11px] font-black tabular-nums">×{itemQty}</span>
+                            </div>
+                            {/* Cancel selection checkbox */}
+                            {cancelStep === 'select' && (
+                              <button onClick={() => {
+                                if (isSelected) {
+                                  setSelectedCancelItems(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+                                } else {
+                                  setSelectedCancelItems(prev => ({ ...prev, [item.id]: itemQty }));
+                                }
+                              }}
+                                className="absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all bg-black/40 backdrop-blur-sm ${
+                                  isSelected ? 'bg-red-500 border-red-500' : 'border-white/40'
+                                }">
+                                {isSelected && <CheckCircle size={12} className="text-white" />}
+                              </button>
+                            )}
+                          </div>
+                          {/* Info */}
+                          <div className="flex-1 flex flex-col p-3 gap-1">
+                            <p className={`text-sm font-medium truncate leading-tight ${isSelected ? 'text-red-300' : 'text-white/90'}`}>
+                              {getProductName(item)}
+                            </p>
+                            <p className="text-white/40 text-[11px]">{unitPrice.toFixed(2)} ₼</p>
+                            <div className="mt-auto flex items-center justify-between pt-1">
+                              <span className="font-bold text-sm tabular-nums"
+                                style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                {lineTotal.toFixed(2)} ₼
+                              </span>
+                              {cancelStep !== 'select' && order.status !== 'paid' && (
+                                <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-xl overflow-hidden">
+                                  <button onClick={e => handleChangeItemQty(e, item, -1)}
+                                    className="w-9 h-9 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                                    <Minus size={11} />
+                                  </button>
+                                  <span className="text-white text-xs w-6 text-center font-black tabular-nums">{itemQty}</span>
+                                  <button onClick={e => handleChangeItemQty(e, item, 1)}
+                                    className="w-9 h-9 flex items-center justify-center text-gold active:scale-90 transition-all">
+                                    <Plus size={11} />
+                                  </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Add products view */}
+            {leftView === 'add' && (
+              <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-0.5">
                   {loadingProducts ? (
                     <div className="flex items-center justify-center py-16">
@@ -647,7 +706,7 @@ export const OrderModal = ({
                     const isSoldOut = (product as any).is_available === false;
                     return (
                       <React.Fragment key={product.id}>
-                        <div className={`group/row flex items-center gap-3 px-2.5 py-2.5 rounded-xl border transition-all ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
+                        <div className={`group/row flex items-center gap-3 px-3 py-3 rounded-xl border transition-all ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
                           {product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" /> : <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex-shrink-0" />}
                           <button onClick={() => handleAddProductClick(product)} className="flex-1 min-w-0 text-left">
                             <p className="text-white/80 text-sm font-medium truncate">{(product as any)[`name_${language}`] || (product as any).name_az || product.name}</p>
@@ -676,201 +735,133 @@ export const OrderModal = ({
                     );
                   })}
                 </div>
-                <div className="px-5 py-4 border-t border-white/[0.05] flex items-center justify-between flex-shrink-0">
-                  {addItems.length > 0 && (
+                {addItems.length > 0 && (
+                  <div className="px-5 py-4 border-t border-white/[0.05] flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-white/25 text-[10px] uppercase tracking-widest">{t('addition')}</span>
                       <span className="text-gold font-bold text-sm">+{addTotal.toFixed(2)} ₼</span>
                     </div>
-                  )}
-                  <button onClick={() => setMobileTab('order')}
-                    style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)' }}
-                    className={`${addItems.length > 0 ? '' : 'w-full'} flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-black text-xs font-black tracking-wide active:scale-95 transition-all`}>
-                    {t('selected_items')}
-                    {displayItems.length > 0 && <span className="bg-black/20 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full">{displayItems.length}</span>}
-                  </button>
-                </div>
+                    <button onClick={() => setLeftView('items')}
+                      style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)' }}
+                      className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-black text-xs font-black tracking-wide active:scale-95 transition-all">
+                      {t('confirm_changes')}
+                    </button>
+                  </div>
+                )}
               </div>
-        )}
+            )}
+          </div>
 
-        {/* Body */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
-
-          {/* ── DESKTOP LEFT — product catalog ── */}
-          {order.status !== 'paid' && (
-            <div className="hidden md:flex flex-col w-72 flex-shrink-0 border-r border-white/[0.05] min-h-0">
-              <div className="px-4 pt-4 pb-2 flex-shrink-0">
-                <p className="text-[9px] uppercase tracking-widest text-white/20 mb-2">{t('add_items')}</p>
+          {/* ═══ RIGHT 30%: Summary + Actions ═══ */}
+          <div className={`w-80 flex-shrink-0 ${order.status === 'paid' ? 'hidden' : 'hidden md:flex'} flex-col border-l border-white/[0.05]`}>
+            {/* Three-dot menu bar */}
+            <div className="px-5 pt-4 pb-3 flex-shrink-0 border-b border-white/[0.05] flex items-center justify-between">
+              <div>
+                <p className="text-[9px] uppercase tracking-widest text-white/20">{t('total_label')}</p>
+                <p className="font-black text-2xl tracking-tight tabular-nums"
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  {draftTotal.toFixed(2)} ₼
+                </p>
+              </div>
+              {order.status !== 'paid' && (
                 <div className="relative">
-                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
-                  <input value={addSearch} onChange={e => setAddSearch(e.target.value)} onFocus={() => setAddSearchFocused(true)} onBlur={() => setTimeout(() => setAddSearchFocused(false), 150)}
-                    placeholder={t('search')}
-                    className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-white/25 transition-all" />
-                  {addSearchFocused && !addSearch && allProducts.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 z-10 flex flex-wrap gap-1 p-2 bg-[#1a1a1a] border border-white/[0.07] rounded-xl shadow-xl">
-                        {allProducts.slice(0, 4).map(p => (
-                          <button key={p.id} onMouseDown={() => handleAddProductClick(p)}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 border border-white/8 text-white/50 text-[10px] font-medium transition-all hover:bg-white/10 hover:text-white/80">
-                            {((p as any)[`name_${language}`] || (p as any).name_az || p.name).split(' ').slice(0, 2).join(' ')}
-                          </button>
-                        ))}
-                      </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-0.5">
-                {filteredProducts.map(product => {
-                  const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
-                  const inOrder = order.order_items?.find(oi => oi.product_id === product.id);
-                  const isSoldOut = (product as any).is_available === false;
-                  return (
-                    <React.Fragment key={product.id}>
-                      <div className={`group/row flex items-center gap-2.5 px-2 py-1.5 rounded-xl border transition-all ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
-                        {product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex-shrink-0" />}
-                        <button onClick={() => handleAddProductClick(product)} className="flex-1 min-w-0 text-left">
-                          <p className="text-white/75 text-xs font-medium truncate group-hover/row:text-white transition-colors">{(product as any)[`name_${language}`] || (product as any).name_az || product.name}</p>
-                          <div className="flex items-center gap-1">
-                            <p className="text-white/40 text-[10px]">{product.price.toFixed(2)} ₼</p>
-                            {isSoldOut && <span className="text-[9px] font-bold text-red-400/70 bg-red-500/10 px-1 py-0.5 rounded">Bitib</span>}
-                            {inOrder && <span className="text-[9px] text-white/20 bg-white/[0.03] px-1 py-0.5 rounded">{t('in_order')} ×{inOrder.quantity}</span>}
+                  <button onClick={() => {
+                    if (confirmClear || confirmCancel) { setConfirmClear(false); setConfirmCancel(false); setShowMenu(false); }
+                    else { setShowMenu(!showMenu); if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); } }
+                  }} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${confirmClear || confirmCancel ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-white/10 text-white/40 hover:text-white'}`}>
+                    {confirmClear || confirmCancel ? <X size={18} /> : <MoreVertical size={18} />}
+                  </button>
+                  {(showMenu || confirmClear || confirmCancel) && (
+                    <div className="absolute right-0 top-11 w-52 bg-[#1c1c1c] border border-white/[0.08] rounded-2xl shadow-2xl z-50 overflow-hidden">
+                      {!confirmClear && !confirmCancel && isMergedOrder && (
+                        <button onClick={() => { setShowMenu(false); setShowMerge(true); setSelectedTablesToSplit(new Set()); }}
+                          className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
+                          <GitMerge size={15} className="text-gold/70" />
+                          <div>
+                            <p className="text-sm font-semibold text-gold/90">{t('unmerge_tables')}</p>
+                            <p className="text-[10px] text-white/30">{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
                           </div>
                         </button>
-                        {loadingAddVariants && addVariantPicker?.product.id === product.id ? <Loader2 size={11} className="animate-spin text-white/30" /> :
-                          inAddCount > 0 ? <span className="text-[9px] font-black bg-gold text-black px-1.5 py-0.5 rounded-full">{inAddCount}</span> :
-                          <button onClick={() => handleAddProductClick(product)} className="w-7 h-7 rounded-lg bg-white/[0.03] border border-white/[0.05] group-hover/row:bg-white/8 group-hover/row:border-white/15 active:scale-90 flex items-center justify-center text-white/20 transition-all"><Plus size={11} /></button>}
-                      </div>
-                      {addVariantPicker?.product.id === product.id && !loadingAddVariants && (
-                        <div className="mx-1 mb-1 rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
-                          {addVariantPicker.variants.map(v => (
-                            <button key={v.id} onClick={() => addToCartWithVariant(addVariantPicker.product, v)}
-                              className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/[0.05] transition-colors text-left border-b border-white/[0.04] last:border-0">
-                              <div><p className="text-white text-xs font-medium">{v.name}</p>{v.is_default && <span className="text-[9px] text-white/15 uppercase tracking-wider">{t('combo_default_variant')}</span>}</div>
-                              <span className="text-gold text-xs font-bold">{v.price.toFixed(2)} ₼</span>
-                            </button>
-                          ))}
-                        </div>
                       )}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-              {addItems.length > 0 && (
-                <div className="px-4 py-3 border-t border-white/[0.05] flex items-center justify-between">
-                  <span className="text-white/25 text-[9px] uppercase tracking-widest">{t('addition')}</span>
-                  <span className="text-gold font-bold text-sm">+{addTotal.toFixed(2)} ₼</span>
+                      {!confirmClear && !confirmCancel && (
+                        <button onClick={() => { setShowMenu(false); setSelectedCancelItems({}); setCancelStep('select'); }}
+                          className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-red-500/5 transition-colors text-left border-t border-white/5">
+                          <Trash2 size={15} className="text-red-400/70" />
+                          <span className="text-red-400 text-sm">{t('cancel_order')}</span>
+                        </button>
+                      )}
+                      {order.table_number && (
+                        confirmClear ? (
+                          <div className="px-4 py-3 border-t border-white/5">
+                            <p className="text-white/60 text-sm mb-3 font-medium">{t('are_you_sure')}</p>
+                            <div className="flex gap-2">
+                              <button onClick={() => { setShowMenu(false); setConfirmClear(false); }} className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/50 text-sm transition-all">{t('no')}</button>
+                              <button onClick={() => { setShowMenu(false); setConfirmClear(false); act(() => onClearTable(order.table_number!)); }} disabled={acting}
+                                className="flex-1 py-2.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-semibold border border-red-500/40 transition-all disabled:opacity-40">{t('yes_delete')}</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setConfirmClear(true); if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); } }}
+                            className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-orange-500/5 transition-colors text-left border-t border-white/5">
+                            <X size={15} className="text-orange-400/70" />
+                            <span className="text-orange-300 text-sm">{t('dismiss_table')}</span>
+                          </button>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
 
-          {/* ── ORDER PANEL (right on desktop, main on mobile) ── */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 space-y-2">
-              {displayItems.length === 0 && order.status !== 'paid' && cancelStep === 'none' && (
-                <div className="flex flex-col items-center justify-center h-full select-none">
-                  <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.05] flex items-center justify-center mb-3">
-                    <Plus size={20} className="text-white/15" />
+            {/* Items summary list */}
+            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
+              {displayItems.map((item: any) => {
+                const itemQty = draftQty[item.id] ?? item.quantity;
+                const unitPrice = item.unit_price || (item.total_price / item.quantity);
+                return (
+                  <div key={item.id} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl ${item._preview ? 'bg-white/[0.04] border border-dashed border-gold/20' : 'bg-white/[0.02] border border-white/[0.04]'}`}>
+                    {item.products?.image_url ? (
+                      <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white/70 text-xs font-medium truncate">{getProductName(item)}</p>
+                    </div>
+                    <span className="text-white/25 text-[11px] tabular-nums">×{itemQty}</span>
+                    <span className="text-white/50 text-xs font-semibold tabular-nums w-16 text-right">{(unitPrice * itemQty).toFixed(2)} ₼</span>
                   </div>
-                  <p className="text-white/25 text-sm font-medium">{t('add_items')}</p>
-                  <p className="text-white/12 text-xs mt-1">{t('modal_select_product_hint')}</p>
-                </div>
-              )}
-              {displayItems.map((item: any) => (
-                <div key={item.id}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all ${
-                    item._preview ? 'bg-white/[0.04] border-white/10 border-dashed' :
-                    cancelStep === 'select' && selectedCancelItems[item.id] ? 'bg-red-500/[0.07] border-red-500/20' :
-                    cancelStep === 'select' ? 'bg-white/[0.02] border-white/[0.05]' :
-                    'bg-white/[0.035] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1]'
-                  }`}>
-                  {cancelStep === 'select' && (
-                    <button onClick={() => {
-                      if (selectedCancelItems[item.id]) { setSelectedCancelItems(prev => { const n = { ...prev }; delete n[item.id]; return n; }); }
-                      else { setSelectedCancelItems(prev => ({ ...prev, [item.id]: 1 })); }
-                    }} className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${selectedCancelItems[item.id] ? 'bg-red-500 border-red-500' : 'border-white/20'}`}>
-                      {selectedCancelItems[item.id] && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                    </button>
-                  )}
-                  {item.products?.image_url ? <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex-shrink-0" />}
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${cancelStep === 'select' && selectedCancelItems[item.id] ? 'text-red-300' : 'text-white'}`}>{getProductName(item)}</p>
-                    {cancelStep !== 'select' && (draftQty[item.id] ?? item.quantity) > 1 && <p className="text-white/25 text-xs">×{draftQty[item.id] ?? item.quantity}</p>}
-                  </div>
-                  {cancelStep === 'select' ? (
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {selectedCancelItems[item.id] ? (
-                        <>
-                          <button onClick={() => setSelectedCancelItems(prev => ({ ...prev, [item.id]: Math.max(1, (prev[item.id] || item.quantity) - 1) }))} className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center"><Minus size={8} /></button>
-                          <div className="flex flex-col items-center">
-                            <span className="text-red-300 text-sm w-5 text-center font-bold tabular-nums leading-none">{selectedCancelItems[item.id]}</span>
-                            <span className="text-[9px] text-red-400/40">/ {item.quantity}</span>
-                          </div>
-                          <button onClick={() => setSelectedCancelItems(prev => ({ ...prev, [item.id]: Math.min(item.quantity, (prev[item.id] || 0) + 1) }))} className="w-6 h-6 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center"><Plus size={8} /></button>
-                          <span className="text-red-400/60 text-xs ml-1 w-12 text-right tabular-nums">-{((item.unit_price || item.total_price / item.quantity) * selectedCancelItems[item.id]).toFixed(2)} ₼</span>
-                        </>
-                      ) : <span className="text-white/25 text-xs">×{item.quantity}</span>}
-                    </div>
-                  ) : order.status !== 'paid' ? (
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-xl overflow-hidden">
-                        <button onClick={e => handleChangeItemQty(e, item, -1)} disabled={order.kitchen_status === 'ready'}
-                          className="w-10 h-10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/[0.05] active:scale-90 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
-                          <Minus size={11} />
-                        </button>
-                        <span className="text-white text-sm w-7 text-center font-black tabular-nums">{draftQty[item.id] ?? item.quantity}</span>
-                        <button onClick={e => handleChangeItemQty(e, item, 1)} className="w-10 h-10 flex items-center justify-center text-gold active:scale-90 transition-all"><Plus size={11} /></button>
-                      </div>
-                      <span className="text-white/40 text-sm font-semibold tabular-nums">{item.total_price?.toFixed(2)} ₼</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-white/25 text-xs">×{item.quantity}</span>
-                      <span className="text-white/40 text-sm">{item.total_price?.toFixed(2)} ₼</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {order.customer_note && (
-                <p className="text-white/25 text-xs italic px-1 pt-1">{t('note_label')}: "{order.customer_note}"</p>
-              )}
+                );
+              })}
               {loadingCancelled ? (
-                <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-2 text-white/20 text-xs"><Loader2 size={11} className="animate-spin" /> {t('loading')}</div>
+                <div className="flex items-center gap-2 text-white/20 text-xs py-2"><Loader2 size={11} className="animate-spin" /> {t('loading')}</div>
               ) : cancelledItemsHistory.length > 0 && (
-                <div className="mt-2 pt-3 border-t border-white/[0.06]">
-                  <p className="text-white/25 text-[9px] uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <div className="mt-2 pt-2 border-t border-white/[0.06]">
+                  <p className="text-white/25 text-[9px] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                     <XCircle size={9} className="text-red-400/50" /> {t('cancelled_items_label')}
                   </p>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {cancelledItemsHistory.map((record: any, idx: number) => (
-                      <div key={idx} className="border-l-2 border-red-400/20 pl-3 py-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-white/25 text-[10px]">{new Date(record.created_at).toLocaleTimeString(language === 'az' ? 'az-AZ' : language === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                          <span className="text-[10px] text-red-400/50">{getCancellationReasonLabel(record.reason, record.reason_text)}</span>
-                        </div>
-                        {(record.items || []).slice(0, 2).map((item: any, i: number) => (
-                          <div key={i} className="flex items-center justify-between text-xs">
-                            <span className="text-white/40">{item.name} <span className="text-white/20">×{item.quantity}</span></span>
-                            <span className="text-red-400/40 text-[11px]">-{(item.unit_price * item.quantity).toFixed(2)} ₼</span>
-                          </div>
+                      <div key={idx} className="border-l-2 border-red-400/20 pl-2 py-1">
+                        <div className="text-white/25 text-[10px]">{new Date(record.created_at).toLocaleTimeString(language === 'az' ? 'az-AZ' : language === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                        {(record.items || []).slice(0, 1).map((item: any, i: number) => (
+                          <div key={i} className="text-white/40 text-[11px]">{item.name} <span className="text-white/20">×{item.quantity}</span></div>
                         ))}
-                        {(record.items || []).length > 2 && <span className="text-white/15 text-[10px]">+{(record.items || []).length - 2} {t('modal_more_items')}</span>}
+                        {(record.items || []).length > 1 && <span className="text-white/15 text-[10px]">+{(record.items || []).length - 1} {t('modal_more_items')}</span>}
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+              {order.customer_note && (
+                <p className="text-white/25 text-xs italic px-1 pt-1">{t('note_label')}: "{order.customer_note}"</p>
+              )}
             </div>
 
-            {/* Footer — total + actions */}
-            <div className="px-5 pb-6 pt-3 flex-shrink-0 space-y-2.5 border-t border-white/[0.05]">
-              <div className="flex items-center justify-between">
-                <span className="text-white/20 text-[10px] font-medium tracking-widest uppercase">{t('total_label')}</span>
-                <span className="font-black text-2xl tracking-tight tabular-nums"
-                  style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                  {draftTotal.toFixed(2)} ₼
-                </span>
-              </div>
-
+            {/* Actions */}
+            <div className="px-5 pb-5 pt-3 flex-shrink-0 border-t border-white/[0.05] space-y-2.5">
+              {/* Primary action: Save / Confirm */}
               {(order.status === 'new' || (order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
                 <button disabled={acting} onClick={handleSaveAll}
                   style={{ background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', backgroundSize: '200% 200%', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
@@ -882,25 +873,28 @@ export const OrderModal = ({
                 </button>
               )}
 
+              {/* Dismiss table (empty order) */}
               {order.status !== 'paid' && !!order.table_number && displayItems.length === 0 && !hasDraft && addItems.length === 0 && cancelStep !== 'select' && (
-                    <button disabled={acting} onClick={() => { onClose(); onClearTable(order.table_number!); }}
-                      className="w-full min-h-[48px] flex items-center justify-center gap-2 bg-white/[0.03] border border-white/15 text-white/40 font-bold rounded-2xl hover:bg-white/[0.06] hover:text-white/60 active:scale-[0.97] transition-all disabled:opacity-40 text-sm">
-                      <X size={15} /> {t('dismiss_table')}
-                    </button>
+                <button disabled={acting} onClick={() => { onClose(); onClearTable(order.table_number!); }}
+                  className="w-full min-h-[48px] flex items-center justify-center gap-2 bg-white/[0.03] border border-white/15 text-white/40 font-bold rounded-2xl hover:bg-white/[0.06] hover:text-white/60 active:scale-[0.97] transition-all disabled:opacity-40 text-sm">
+                  <X size={15} /> {t('dismiss_table')}
+                </button>
               )}
 
+              {/* Ready to pay */}
               {order.status === 'confirmed' && order.kitchen_status === 'ready' && !hasDraft && addItems.length === 0 && !confirmPay && cancelStep !== 'select' && displayItems.length > 0 && (
-                  <div className="flex gap-2">
-                    <button onClick={() => setShowReceipt(true)} className="min-h-[48px] px-4 flex items-center justify-center bg-white/[0.04] border border-white/12 text-white/35 font-bold rounded-2xl hover:bg-white/[0.08] hover:text-white hover:border-white/25 active:scale-[0.97] transition-all">
-                      <Printer size={15} />
-                    </button>
-                    <button disabled={acting} onClick={() => setConfirmPay(true)}
-                      className="flex-1 min-h-[48px] flex items-center justify-center gap-2 bg-emerald-500/[0.08] border border-emerald-500/30 text-emerald-400 font-bold rounded-2xl hover:bg-emerald-500/[0.14] hover:border-emerald-500/50 active:scale-[0.97] transition-all disabled:opacity-40 text-sm">
-                      <CreditCard size={15} /> {t('close_bill')}
-                    </button>
-                  </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowReceipt(true)} className="min-h-[48px] px-4 flex items-center justify-center bg-white/[0.04] border border-white/12 text-white/35 font-bold rounded-2xl hover:bg-white/[0.08] hover:text-white hover:border-white/25 active:scale-[0.97] transition-all">
+                    <Printer size={15} />
+                  </button>
+                  <button disabled={acting} onClick={() => setConfirmPay(true)}
+                    className="flex-1 min-h-[48px] flex items-center justify-center gap-2 bg-emerald-500/[0.08] border border-emerald-500/30 text-emerald-400 font-bold rounded-2xl hover:bg-emerald-500/[0.14] hover:border-emerald-500/50 active:scale-[0.97] transition-all disabled:opacity-40 text-sm">
+                    <CreditCard size={15} /> {t('close_bill')}
+                  </button>
+                </div>
               )}
 
+              {/* Pay confirmation */}
               {order.status === 'confirmed' && order.kitchen_status === 'ready' && confirmPay && (
                 <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 space-y-2">
                   <p className="text-white text-sm font-semibold text-center">{t('confirm_close_bill')}</p>
@@ -919,6 +913,7 @@ export const OrderModal = ({
                 </div>
               )}
 
+              {/* Paid state */}
               {order.status === 'paid' && (
                 <div className="flex items-center justify-between py-2">
                   <div className="flex items-center gap-2 text-white/20 text-sm"><CheckCircle size={13} /> {t('completed')}</div>
@@ -929,6 +924,7 @@ export const OrderModal = ({
                 </div>
               )}
 
+              {/* Cancel selection action bar */}
               {order.status !== 'paid' && cancelStep === 'select' && (
                 <div className="border border-red-500/20 rounded-2xl p-3 space-y-2 bg-red-500/[0.03]">
                   <div className="flex items-center justify-between">
@@ -946,6 +942,100 @@ export const OrderModal = ({
             </div>
           </div>
         </div>
+
+        {/* ── MOBILE SUMMARY OVERLAY ── */}
+        {order.status !== 'paid' && mobileTab === 'summary' && (
+          <div className="md:hidden absolute inset-0 z-30 flex flex-col rounded-t-[28px] overflow-hidden"
+            style={{ background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}>
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-10 h-1 rounded-full bg-white/15" />
+            </div>
+            <div className="px-4 py-2 flex-shrink-0 flex items-center gap-2">
+              <button onClick={() => setMobileTab('order')}
+                className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-white/50 active:scale-90 transition-all flex-shrink-0">
+                <ChevronLeft size={20} />
+              </button>
+              <div className="flex-1">
+                <p className="font-black text-xl tracking-tight"
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  {draftTotal.toFixed(2)} ₼
+                </p>
+              </div>
+              <div className="relative" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => setShowMenu(!showMenu)}
+                    className="w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
+                    <MoreVertical size={18} />
+                  </button>
+                  {showMenu && (
+                    <div className="absolute right-0 top-11 w-52 bg-[#1c1c1c] border border-white/[0.08] rounded-2xl shadow-2xl z-50 overflow-hidden">
+                      {isMergedOrder && (
+                        <button onClick={() => { setShowMenu(false); setShowMerge(true); setSelectedTablesToSplit(new Set()); }}
+                          className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
+                          <GitMerge size={15} className="text-gold/70" />
+                          <div>
+                            <p className="text-sm font-semibold text-gold/90">{t('unmerge_tables')}</p>
+                            <p className="text-[10px] text-white/30">{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
+                          </div>
+                        </button>
+                      )}
+                      <button onClick={() => { setShowMenu(false); setSelectedCancelItems({}); setCancelStep('select'); }}
+                        className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-red-500/5 transition-colors text-left border-t border-white/5">
+                        <Trash2 size={15} className="text-red-400/70" />
+                        <span className="text-red-400 text-sm">{t('cancel_order')}</span>
+                      </button>
+                      {order.table_number && (
+                        <button onClick={() => { setConfirmClear(true); }}
+                          className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-orange-500/5 transition-colors text-left border-t border-white/5">
+                          <X size={15} className="text-orange-400/70" />
+                          <span className="text-orange-300 text-sm">{t('dismiss_table')}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+              {displayItems.map((item: any) => (
+                <div key={item.id} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                  {item.products?.image_url ? <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex-shrink-0" />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{getProductName(item)}</p>
+                    <p className="text-white/25 text-xs">×{draftQty[item.id] ?? item.quantity}</p>
+                  </div>
+                  <span className="text-white/40 text-sm font-semibold tabular-nums">{((item.unit_price || item.total_price / item.quantity) * (draftQty[item.id] ?? item.quantity)).toFixed(2)} ₼</span>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 pb-6 pt-3 border-t border-white/[0.05] flex-shrink-0 space-y-2">
+              {(order.status === 'new' || (order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
+                <button disabled={acting} onClick={handleSaveAll}
+                  style={{ background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
+                  className="w-full min-h-[52px] flex items-center justify-center gap-2 px-6 font-black rounded-2xl active:scale-[0.97] disabled:opacity-40 text-black text-sm tracking-wide">
+                  {acting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                  {order.status === 'new' && !hasDraft && addItems.length === 0 && t('confirm_order')}
+                  {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}
+                  {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && t('save_changes')}
+                </button>
+              )}
+              {order.status === 'confirmed' && order.kitchen_status === 'ready' && !hasDraft && addItems.length === 0 && !confirmPay && displayItems.length > 0 && (
+                <button disabled={acting} onClick={() => setConfirmPay(true)}
+                  className="w-full min-h-[48px] flex items-center justify-center gap-2 bg-emerald-500/[0.08] border border-emerald-500/30 text-emerald-400 font-bold rounded-2xl active:scale-[0.97] disabled:opacity-40 text-sm">
+                  <CreditCard size={15} /> {t('close_bill')}
+                </button>
+              )}
+              {cancelStep === 'select' && (
+                <div className="border border-red-500/20 rounded-2xl p-3 space-y-2 bg-red-500/[0.03]">
+                  <p className="text-white/50 text-xs font-medium">{t('confirm_cancel_items')}</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setCancelStep('none'); setSelectedCancelItems({}); }} className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/40 text-sm">{t('imtina_et')}</button>
+                    <button disabled={Object.keys(selectedCancelItems).length === 0} onClick={() => setCancelStep('reason')}
+                      className="flex-1 py-2.5 border border-red-500/35 text-red-400 text-sm font-semibold rounded-xl disabled:opacity-30">{t('davam_et')}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Split Tables Modal — checkbox selection */}
         {showMerge && (
@@ -1054,7 +1144,7 @@ export const OrderModal = ({
         {cancelStep === 'reason' && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center">
             <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" onClick={() => setCancelStep('select')} />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 0.95 }}
               className="relative z-10 w-full max-w-full sm:max-w-lg mx-4 bg-[#0f0f0f] border border-red-500/30 rounded-2xl p-6 shadow-2xl">
               <div className="text-center mb-6">
                 <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/25 flex items-center justify-center mb-4">

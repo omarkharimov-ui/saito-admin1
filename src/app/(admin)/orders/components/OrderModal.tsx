@@ -23,9 +23,6 @@ interface OrderModalProps {
   onConfirm: (id: string) => Promise<void>;
   onClearTable: (tableNum: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  tableNumbers?: number[];
-  activeOrders?: Order[];
-  onSelectTable?: (num: number) => void;
   allOrders?: Order[];
   onOrdersUpdate?: (updater: (prev: Order[]) => Order[]) => void;
   inline?: boolean;
@@ -33,7 +30,6 @@ interface OrderModalProps {
 
 export const OrderModal = ({
   order, onClose, onRefresh, onPay, onConfirm, onClearTable, onDelete,
-  tableNumbers = [], activeOrders = [], onSelectTable,
   allOrders = [], onOrdersUpdate, inline = false,
 }: OrderModalProps) => {
   const { t, language } = useLanguage();
@@ -532,30 +528,6 @@ export const OrderModal = ({
             </button>
           </div>
         </div>
-
-        {/* ─── TABLE STATUS BAR ─── */}
-        {tableNumbers.length > 0 && onSelectTable && (
-          <div className="px-5 pt-2.5 pb-1 overflow-x-auto flex-shrink-0">
-            <div className="flex gap-1.5 min-w-max">
-              {tableNumbers.map(n => {
-                const o = activeOrders.find(ord => ord.table_number === n);
-                const isCurrent = n === order.table_number;
-                const isActive = !!o;
-                return (
-                  <button key={n} onClick={() => { if (!isCurrent) onSelectTable(n); }}
-                    className={`flex-shrink-0 w-9 h-9 rounded-xl text-[11px] font-black tracking-wider transition-all ${
-                      isCurrent
-                        ? 'bg-gold text-black shadow-lg shadow-gold/20'
-                        : isActive
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
-                          : 'bg-white/5 text-white/30 border border-white/10 hover:bg-white/10 hover:text-white/60'
-                    }`}
-                  >{n}</button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Mobile Tab Switcher */}
         <div className="md:hidden px-5 pt-3 pb-0 flex-shrink-0">

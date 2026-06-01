@@ -133,8 +133,6 @@ export default function OrdersPage() {
     return true;
   }), [orders]);
   const newCount     = useMemo(() => orders.filter(o => o.status === 'new').length, [orders]);
-  const tableNumbers = useMemo(() => Array.from({ length: tableCount }, (_, i) => i + 1), [tableCount]);
-  const activeOrdersForNav = useMemo(() => activeOrders.filter(o => o.status !== 'paid'), [activeOrders]);
   const handleSelectTable = useCallback((tableNum: number) => {
     const order = activeOrders.find(o => o.table_number === tableNum);
     setSelectedOrder(order ?? null);
@@ -670,9 +668,9 @@ export default function OrdersPage() {
           key="table-grid"
           orders={activeOrders}
           allOrders={orders}
-          onTableClick={setSelectedOrder}
+          onTableClick={(order) => handleSelectTable(order.table_number!)}
           onClearTable={handleClearTable}
-          onEmptyTableClick={(n) => setManualModalTable(n)}
+          onEmptyTableClick={handleSelectTable}
           tableCount={tableCount}
           tableFilter={tableFilter}
           setTableFilter={setTableFilter}
@@ -693,11 +691,8 @@ export default function OrdersPage() {
           <ManualOrderModal
             key={manualModalTable}
             tableNum={manualModalTable}
-            tableNumbers={tableNumbers}
-            activeOrders={activeOrders}
             onClose={() => { setManualModalTable(null); setSelectedOrder(null); }}
             onCreated={() => { setManualModalTable(null); setSelectedOrder(null); fetchOrders(); }}
-            onSelectTable={handleSelectTable}
           />
         </div>
       ) : selectedOrder && selectedOrder.status !== 'paid' && tab === 'active' ? (
@@ -705,8 +700,6 @@ export default function OrdersPage() {
           <OrderModal
             key={selectedOrder.id}
             order={selectedOrder}
-            tableNumbers={tableNumbers}
-            activeOrders={activeOrdersForNav}
             inline
             onClose={() => { setSelectedOrder(null); setManualModalTable(null); }}
             onRefresh={fetchOrders}
@@ -716,7 +709,6 @@ export default function OrdersPage() {
               setSelectedOrder(null);
             }}
             onClearTable={handleClearTable}
-            onSelectTable={handleSelectTable}
             onDelete={handleDeleteOrder}
             allOrders={orders}
             onOrdersUpdate={(updater) => setOrders(prev => {

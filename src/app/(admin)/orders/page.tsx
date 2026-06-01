@@ -107,7 +107,11 @@ export default function OrdersPage() {
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
-    const handler = () => setFullscreen(!!document.fullscreenElement);
+    const handler = () => {
+      const isFs = !!document.fullscreenElement;
+      setFullscreen(isFs);
+      document.documentElement.toggleAttribute('data-fullscreen', isFs);
+    };
     document.addEventListener('fullscreenchange', handler);
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
@@ -350,6 +354,13 @@ export default function OrdersPage() {
 
   return (
     <div>
+      {fullscreen && (
+        <style>{`
+          [data-fullscreen] [style*="272"] { display: none !important; }
+          [data-fullscreen] .ml-\\[272px\\] { margin-left: 0 !important; }
+        `}</style>
+      )}
+
       {/* Confirm clear archive */}
       {typeof document !== 'undefined' && createPortal(
       <AnimatePresence>

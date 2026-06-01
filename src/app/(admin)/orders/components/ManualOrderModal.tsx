@@ -196,40 +196,45 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
           </div>
         </div>
 
-        {/* ─── SEARCH + CATEGORIES ─── */}
-        <div className="px-4 pt-4 pb-3 space-y-3 border-b border-white/[0.06]">
+        {/* ─── SEARCH ─── */}
+        <div className="px-4 pt-4 pb-3 border-b border-white/[0.06]">
           <div className="relative">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_products')}
               className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-11 pr-4 py-4 text-base text-white placeholder:text-white/20 outline-none" />
             {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20"><X size={18} /></button>}
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {categories.map(c => (
-              <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
-                className={`flex-shrink-0 px-6 py-3 rounded-xl text-sm font-bold tracking-wider ${cat === c.id ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
-              >{c.name}</button>
-            ))}
-          </div>
         </div>
 
         {/* ─── MAIN SPLIT ─── */}
         <div className="flex flex-col lg:flex-row min-h-[500px]">
           {/* ─── PRODUCT GRID (left ~70%) ─── */}
-          <div className="flex-1 overflow-y-auto px-5 py-5 max-h-[60vh] lg:max-h-[50vh]">
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-white/15">
-                <Search size={48} className="mb-3 opacity-30" />
-                <p className="text-base">{t('not_found')}</p>
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-white/15">
+                  <Search size={48} className="mb-3 opacity-30" />
+                  <p className="text-base">{t('not_found')}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+                  {filtered.map(p => {
+                    const inCart = items.filter(i => i.product.id === p.id).reduce((s, i) => s + i.quantity, 0);
+                    return <PCard key={p.id} p={p} cart={inCart} onAdd={() => handleProductClick(p)} language={language} />;
+                  })}
+                </div>
+              )}
+            </div>
+            {/* ─── CATEGORY STRIP (bottom) ─── */}
+            <div className="flex-shrink-0 border-t border-white/[0.06] px-4 py-3">
+              <div className="flex gap-2 overflow-x-auto">
+                {categories.map(c => (
+                  <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
+                    className={`flex-shrink-0 px-6 py-3 rounded-xl text-sm font-bold tracking-wider ${cat === c.id ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
+                  >{c.name}</button>
+                ))}
               </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                {filtered.map(p => {
-                  const inCart = items.filter(i => i.product.id === p.id).reduce((s, i) => s + i.quantity, 0);
-                  return <PCard key={p.id} p={p} cart={inCart} onAdd={() => handleProductClick(p)} language={language} />;
-                })}
-              </div>
-            )}
+            </div>
           </div>
 
           {/* ─── CART SIDEBAR (right ~30%, always visible) ─── */}

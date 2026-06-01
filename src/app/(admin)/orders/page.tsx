@@ -667,6 +667,18 @@ export default function OrdersPage() {
         />
       )}
 
+      {/* Manual Order Section — inline below table grid */}
+      {manualModalTable && (
+        <div className="mt-4">
+          <ManualOrderModal
+            key={manualModalTable}
+            tableNum={manualModalTable}
+            onClose={() => setManualModalTable(null)}
+            onCreated={() => { setManualModalTable(null); fetchOrders(); }}
+          />
+        </div>
+      )}
+
       {/* Order cards */}
       <div className="mt-4">
         {loading ? (
@@ -846,14 +858,6 @@ export default function OrdersPage() {
       {/* Waiter Mode — full screen overlay */}
       {waiterMode && <WaiterMode onClose={() => setWaiterMode(false)} />}
 
-      {/* Manual Order Modal — for empty tables */}
-      {manualModalTable && (
-        <ManualOrderModal
-          tableNum={manualModalTable}
-          onClose={() => setManualModalTable(null)}
-          onCreated={() => { setManualModalTable(null); fetchOrders(); }}
-        />
-      )}
     </div>
   );
 }

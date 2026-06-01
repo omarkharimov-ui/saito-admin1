@@ -31,8 +31,13 @@ export interface Order {
 export interface Product {
   id: string;
   name: string;
+  name_az?: string;
+  name_en?: string;
+  name_ru?: string;
   price: number;
   image_url: string | null;
+  is_available?: boolean;
+  category_id?: string | null;
   category?: { name: string }[] | { name: string } | null;
   translations?: Record<string, { name?: string }> | null;
 }

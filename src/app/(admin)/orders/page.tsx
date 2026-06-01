@@ -522,8 +522,9 @@ export default function OrdersPage() {
         )}
       </AnimatePresence>
 
-      {/* Header toolbar */}
-      <div className="sticky top-0 z-50 px-0 pt-4 pb-3 bg-background border-b border-white/[0.06] mb-4">
+      {/* Header toolbar — fixed */}
+      <div className="z-50 px-0 pt-4 pb-3 bg-background border-b border-white/[0.06]"
+        style={{ position: 'fixed', top: 0, left: fullscreen ? '2rem' : 'calc(272px + 2rem)', right: '2rem' }}>
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-xl md:text-3xl font-serif font-bold text-white leading-tight truncate">{t('orders')}</h1>
@@ -645,6 +646,7 @@ export default function OrdersPage() {
           </div>
         </div>
       </div>
+      <div className="h-[77px]" />
 
       {/* Table status grid */}
       {tab === 'active' && (

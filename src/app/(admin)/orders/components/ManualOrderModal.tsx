@@ -27,7 +27,7 @@ function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: 
   return (
     <motion.button layout initial={false} whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }}
       onClick={onAdd}
-      className="relative rounded-2xl p-4 text-left border border-white/[0.08] bg-[#141414] hover:bg-white/[0.06] transition-colors"
+      className="relative rounded-2xl p-5 text-left border border-white/[0.08] bg-[#141414] hover:bg-white/[0.06] transition-colors"
     >
       <div className="aspect-square rounded-xl bg-white/[0.03] mb-3 flex items-center justify-center overflow-hidden">
         {showImg
@@ -35,10 +35,10 @@ function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: 
           : <span className="text-3xl font-black text-white/20">{initials}</span>
         }
       </div>
-      <p className="text-sm font-semibold text-white/85 truncate leading-tight">{name}</p>
-      <p className="text-sm font-black text-gold mt-0.5">₼{fmt(p.price)}</p>
+      <p className="text-base font-semibold text-white/85 truncate leading-tight">{name}</p>
+      <p className="text-base font-black text-gold mt-1">₼{fmt(p.price)}</p>
       {cart > 0 && (
-        <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gold text-black text-xs font-black flex items-center justify-center shadow-lg">
+        <span className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gold text-black text-sm font-black flex items-center justify-center shadow-lg">
           {cart}
         </span>
       )}
@@ -184,27 +184,27 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
       <div className="bg-[#0a0a0a] rounded-2xl border border-white/[0.06] overflow-hidden select-none">
 
         {/* ─── HEADER ─── */}
-        <div className="border-b border-white/[0.06] bg-[#0c0c0c] px-5 py-3">
-          <div className="flex items-center gap-3">
+        <div className="border-b border-white/[0.06] bg-[#0c0c0c] px-6 py-4">
+          <div className="flex items-center gap-4">
             <button onClick={onClose} className="text-white/40 hover:text-white/80 p-1">
-              <ChevronLeft size={20} />
+              <ChevronLeft size={22} />
             </button>
-            <p className="text-lg font-bold text-white">{t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</p>
+            <p className="text-xl font-bold text-white">{t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</p>
             {cartCount > 0 && (
-              <span className="ml-auto text-xs text-white/30">{cartCount} {t('items')}</span>
+              <span className="ml-auto text-sm text-white/30">{cartCount} {t('items')}</span>
             )}
           </div>
         </div>
 
         {/* ─── SEARCH + CATEGORIES ─── */}
-        <div className="px-4 pt-3 pb-2 space-y-2 border-b border-white/[0.06]">
+        <div className="px-4 pt-4 pb-3 space-y-3 border-b border-white/[0.06]">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_products')}
-              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-10 pr-3 py-3.5 text-sm text-white placeholder:text-white/20 outline-none" />
-            {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20"><X size={16} /></button>}
+              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-11 pr-4 py-4 text-base text-white placeholder:text-white/20 outline-none" />
+            {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20"><X size={18} /></button>}
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {categories.map(c => (
               <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
                 className={`flex-shrink-0 px-6 py-3 rounded-xl text-sm font-bold tracking-wider ${cat === c.id ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
@@ -214,16 +214,16 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
         </div>
 
         {/* ─── MAIN SPLIT ─── */}
-        <div className="flex flex-col lg:flex-row min-h-[400px]">
+        <div className="flex flex-col lg:flex-row min-h-[500px]">
           {/* ─── PRODUCT GRID (left ~70%) ─── */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 max-h-[60vh] lg:max-h-[50vh]">
+          <div className="flex-1 overflow-y-auto px-5 py-5 max-h-[60vh] lg:max-h-[50vh]">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-white/15">
                 <Search size={48} className="mb-3 opacity-30" />
                 <p className="text-base">{t('not_found')}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
                 {filtered.map(p => {
                   const inCart = items.filter(i => i.product.id === p.id).reduce((s, i) => s + i.quantity, 0);
                   return <PCard key={p.id} p={p} cart={inCart} onAdd={() => handleProductClick(p)} language={language} />;
@@ -233,37 +233,37 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
           </div>
 
           {/* ─── CART SIDEBAR (right ~30%, always visible) ─── */}
-          <div className="lg:w-[30%] lg:min-w-[300px] lg:max-w-[380px] border-t lg:border-t-0 lg:border-l border-white/[0.06] bg-[#0c0c0c] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-              <span className="text-base font-bold text-white">{t('cart')}{cartCount > 0 && <> · {cartCount}</>}</span>
+          <div className="lg:w-[30%] lg:min-w-[320px] lg:max-w-[400px] border-t lg:border-t-0 lg:border-l border-white/[0.06] bg-[#0c0c0c] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
+              <span className="text-lg font-bold text-white">{t('cart')}{cartCount > 0 && <> · {cartCount}</>}</span>
               {items.length > 0 && (
-                <button onClick={() => setItems([])} className="text-xs text-white/20 hover:text-white/50 font-semibold tracking-wider uppercase">
+                <button onClick={() => setItems([])} className="text-sm text-white/20 hover:text-white/50 font-semibold tracking-wider uppercase">
                   {t('clear')}
                 </button>
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2 max-h-[30vh]">
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 max-h-[30vh]">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-white/15 py-8">
-                  <p className="text-sm font-medium">{t('no_items_yet')}</p>
+                  <p className="text-base font-medium">{t('no_items_yet')}</p>
                 </div>
               ) : items.map(item => {
                 const key = `${item.product.id}__${item.variant?.id || 'base'}`;
                 const unitPrice = item.variant?.price ?? item.product.price;
                 return (
-                  <div key={key} className="flex items-center gap-3 bg-[#141414] rounded-xl px-4 py-3 border border-white/[0.06]">
+                  <div key={key} className="flex items-center gap-4 bg-[#141414] rounded-xl px-5 py-4 border border-white/[0.06]">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white/80 truncate">{getPName(item.product)}</p>
-                      {item.variant && <p className="text-xs text-gold/60 truncate">{item.variant.name}</p>}
-                      <p className="text-xs text-gold font-bold mt-0.5">₼{fmt(unitPrice * item.quantity)}</p>
+                      <p className="text-base font-semibold text-white/80 truncate">{getPName(item.product)}</p>
+                      {item.variant && <p className="text-sm text-gold/60 truncate">{item.variant.name}</p>}
+                      <p className="text-sm text-gold font-bold mt-1">₼{fmt(unitPrice * item.quantity)}</p>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-3 flex-shrink-0">
                       <button onClick={() => changeQty(key, -1)}
                         className="w-12 h-12 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.12] transition-all">
                         <Minus size={16} />
                       </button>
-                      <span className="w-7 text-center text-base font-bold text-white">{item.quantity}</span>
+                      <span className="w-8 text-center text-lg font-bold text-white">{item.quantity}</span>
                       <button onClick={() => changeQty(key, 1)}
                         className="w-12 h-12 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.12] transition-all">
                         <Plus size={16} />
@@ -274,16 +274,16 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
               })}
             </div>
 
-            <div className="px-5 py-4 border-t border-white/[0.06] space-y-3">
+            <div className="px-6 py-5 border-t border-white/[0.06] space-y-4">
               <input value={note} onChange={e => setNote(e.target.value)} placeholder={t('note_placeholder')}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none" />
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3.5 text-base text-white placeholder:text-white/20 outline-none" />
               <div className="flex items-center justify-between">
-                <span className="text-xs text-white/30 uppercase tracking-widest font-semibold">{t('total_label')}</span>
-                <span className="text-xl font-black text-white">₼{fmt(total)}</span>
+                <span className="text-sm text-white/30 uppercase tracking-widest font-semibold">{t('total_label')}</span>
+                <span className="text-2xl font-black text-white">₼{fmt(total)}</span>
               </div>
               <button onClick={handleSubmit} disabled={items.length === 0 || submitting}
-                className="w-full py-4 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2 hover:bg-amber-500/25 transition-all"
-              >{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} {t('create_order')}</button>
+                className="w-full py-5 rounded-xl text-base font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3 hover:bg-amber-500/25 transition-all"
+              >{submitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />} {t('create_order')}</button>
             </div>
           </div>
         </div>

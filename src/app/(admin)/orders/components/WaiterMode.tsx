@@ -182,7 +182,7 @@ function ReceiptScreen({ paid, onNew }: { paid: OrderData & { payment_method?: s
   );
 }
 
-export default function WaiterMode({ onClose, inline, preselectTable }: { onClose: () => void; inline?: boolean; preselectTable?: number }) {
+export default function WaiterMode({ onClose }: { onClose: () => void }) {
   const { t, language } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -191,7 +191,7 @@ export default function WaiterMode({ onClose, inline, preselectTable }: { onClos
   const [categories, setCategories] = useState<Category[]>([]);
   const [tableCount, setTableCount] = useState(30);
   const [loading, setLoading] = useState(true);
-  const [selTable, setSelTable] = useState<number | null>(preselectTable ?? null);
+  const [selTable, setSelTable] = useState<number | null>(null);
   const [cat, setCat] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
@@ -317,19 +317,19 @@ export default function WaiterMode({ onClose, inline, preselectTable }: { onClos
   }, [products, cat, search, getPName]);
 
   if (loading) return (
-    <div className={`${inline ? 'h-64' : 'fixed inset-0 z-[200]'} bg-[#0a0a0a] flex items-center justify-center`}>
+    <div className="fixed inset-0 z-[200] bg-[#0a0a0a] flex items-center justify-center">
       <Loader2 size={24} className="animate-spin text-white/20" />
     </div>
   );
 
   if (paid) return (
-    <div className={`${inline ? '' : 'fixed inset-0 z-[200]'} bg-[#0a0a0a]`}>
+    <div className="fixed inset-0 z-[200] bg-[#0a0a0a]">
       <ReceiptScreen paid={paid} onNew={() => { setPaid(null); setSelTable(null); setCart([]); }} />
     </div>
   );
 
   return (
-    <div className={`${inline ? 'flex flex-col' : 'fixed inset-0 z-[200] flex flex-col'} bg-[#0a0a0a] overflow-hidden select-none`}>
+    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-hidden select-none">
 
       {/* ─── HEADER ─── */}
       <div className="flex-shrink-0 border-b border-white/[0.06] bg-[#0c0c0c]">

@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ClipboardList, WifiOff, Archive, Filter, AlertTriangle, Trash2, Calendar, X, BellRing, Monitor, ArrowLeft,
+  ClipboardList, WifiOff, Archive, Filter, AlertTriangle, Trash2, Calendar, X, BellRing, Monitor,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -99,7 +99,6 @@ export default function OrdersPage() {
   const [clearingArchive, setClearingArchive]       = useState(false);
   const [confirmClearArchive, setConfirmClearArchive] = useState(false);
   const [waiterMode, setWaiterMode] = useState(false);
-  const [activeTableForPOS, setActiveTableForPOS] = useState<number | null>(null);
 
   const [dismissedReadyIds, setDismissedReadyIds] = useState<Set<string>>(() => {
     try {
@@ -644,14 +643,14 @@ export default function OrdersPage() {
       </div>
 
       {/* Table status grid */}
-      {tab === 'active' && !activeTableForPOS && (
+      {tab === 'active' && (
         <TableStatusGrid
           key="table-grid"
           orders={activeOrders}
           allOrders={orders}
-          onTableClick={(o) => setActiveTableForPOS(o.table_number!)}
+          onTableClick={setSelectedOrder}
           onClearTable={handleClearTable}
-          onEmptyTableClick={(n) => setActiveTableForPOS(n)}
+          onEmptyTableClick={(n) => tryOpenManualOrder(n)}
           tableCount={tableCount}
           tableFilter={tableFilter}
           setTableFilter={setTableFilter}
@@ -844,20 +843,6 @@ export default function OrdersPage() {
 
       {/* Waiter Mode — full screen overlay */}
       {waiterMode && <WaiterMode onClose={() => setWaiterMode(false)} />}
-
-      {/* Inline POS mode — when a table is selected for ordering */}
-      {activeTableForPOS && (
-        <div className="fixed inset-0 z-[300] flex flex-col bg-[#0a0a0a] overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.06] bg-[#0c0c0c]">
-            <button onClick={() => { setActiveTableForPOS(null); }}
-              className="text-sm text-white/50 hover:text-white/80 font-semibold flex items-center gap-1">
-              <ArrowLeft size={16} /> {t('orders')}
-            </button>
-            <span className="text-sm font-bold text-white">{t('table')} {activeTableForPOS}</span>
-          </div>
-          <WaiterMode key={activeTableForPOS} inline preselectTable={activeTableForPOS} onClose={() => setActiveTableForPOS(null)} />
-        </div>
-      )}
     </div>
   );
 }

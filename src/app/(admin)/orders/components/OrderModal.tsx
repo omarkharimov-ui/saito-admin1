@@ -326,6 +326,7 @@ export const OrderModal = ({
   const [addSearch, setAddSearch]       = useState('');
   const [addSearchFocused, setAddSearchFocused] = useState(false);
   const [cat, setCat]                   = useState<string | null>(null);
+  const [imgErrors, setImgErrors]       = useState<Set<string>>(new Set());
   const [addItems, setAddItems]         = useState<ManualItem[]>([]);
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [addVariantPicker, setAddVariantPicker] = useState<{ product: Product; variants: import('../types').ProductVariant[] } | null>(null);
@@ -588,7 +589,7 @@ export const OrderModal = ({
                       const isSoldOut = (product as any).is_available === false;
                       const pName = (product as any)[`name_${language}`] || (product as any).name_az || product.name;
                       const initials = pName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-                      const [imgErr, setImgErr] = React.useState(false);
+                      const imgErr = imgErrors.has(product.id);
                       const showImg = !!product.image_url && !imgErr;
                       return (
                         <motion.button layout initial={false} whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }}
@@ -603,7 +604,7 @@ export const OrderModal = ({
                           }`}>
                           <div className="aspect-square rounded-xl bg-white/[0.03] mb-2.5 flex items-center justify-center overflow-hidden">
                             {showImg ? (
-                              <img src={product.image_url!} alt={pName} className="w-full h-full object-cover" onError={() => setImgErr(true)} />
+                              <img src={product.image_url!} alt={pName} className="w-full h-full object-cover" onError={() => setImgErrors(prev => new Set(prev).add(product.id))} />
                             ) : (
                               <span className="text-2xl font-black text-white/20">{initials}</span>
                             )}

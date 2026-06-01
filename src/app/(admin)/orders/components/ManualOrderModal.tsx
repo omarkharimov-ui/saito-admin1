@@ -45,7 +45,7 @@ function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: 
       <p className="text-sm font-black text-gold mt-0.5">₼{fmt(p.price)}</p>
       {cart > 0 && (
         <motion.span key={cart} initial={{ scale: 1.4 }} animate={{ scale: 1 }}
-          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold text-black text-[11px] font-black flex items-center justify-center shadow-lg">
+          className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-gold text-black text-[11px] font-black flex items-center justify-center shadow-lg">
           {cart}
         </motion.span>
       )}

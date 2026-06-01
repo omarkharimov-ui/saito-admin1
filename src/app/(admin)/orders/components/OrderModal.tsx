@@ -632,20 +632,7 @@ export const OrderModal = ({
                           )}
                           {inAddCount > 0 && (
                             <motion.span key={inAddCount} initial={{ scale: 1.4 }} animate={{ scale: 1 }}
-                              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-gold text-black text-[11px] font-black flex items-center justify-center shadow-lg">{inAddCount}</motion.span>
-                          )}
-                          {!inAddCount && inOrderItem && cancelStep !== 'select' && order.status !== 'paid' && (
-                            <div className="absolute top-2 right-2 flex items-center bg-black/60 backdrop-blur-sm border border-white/[0.12] rounded-lg overflow-hidden" onClick={e => { e.stopPropagation(); }}>
-                              <button onClick={e => { e.stopPropagation(); handleChangeItemQty(e, inOrderItem, -1); }}
-                                className="w-12 h-12 flex items-center justify-center text-white/60 hover:text-white active:scale-90 transition-all">
-                                <Minus size={16} />
-                              </button>
-                              <span className="text-white text-[12px] w-6 text-center font-black tabular-nums">{draftQty[inOrderItem.id] ?? inOrderItem.quantity}</span>
-                              <button onClick={e => { e.stopPropagation(); handleChangeItemQty(e, inOrderItem, 1); }}
-                                className="w-12 h-12 flex items-center justify-center text-gold active:scale-90 transition-all">
-                                <Plus size={16} />
-                              </button>
-                            </div>
+                              className="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full bg-gold text-black text-[11px] font-black flex items-center justify-center shadow-lg">{inAddCount}</motion.span>
                           )}
                         </motion.button>
                       );

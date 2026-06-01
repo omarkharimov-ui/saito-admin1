@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Search, Plus, Minus, Send, Loader2, ChevronLeft, Trash2 } from 'lucide-react';
+import { X, Search, Plus, Minus, Send, Loader2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
@@ -206,16 +206,18 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
 
         {/* ─── HEADER ─── */}
         <div className="border-b border-white/[0.06] bg-[#0c0c0c] px-5 py-3.5">
-          <div className="flex items-center gap-3">
-            <button onClick={onClose} className="text-white/40 hover:text-white/80 p-1">
-              <ChevronLeft size={20} />
-            </button>
+          <div className="flex items-center justify-between">
             <p className="font-black text-lg tracking-widest leading-none"
               style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               {t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</p>
-            {cartCount > 0 && (
-              <span className="ml-auto text-sm text-white/30">{cartCount} {t('items')}</span>
-            )}
+            <div className="flex items-center gap-2">
+              {cartCount > 0 && (
+                <span className="text-sm text-white/30">{cartCount} {t('items')}</span>
+              )}
+              <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
+                <X size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -303,19 +305,21 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                             className="mt-1.5 w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-[11px] text-white/60 placeholder:text-white/15 outline-none focus:border-white/20 transition-all" />
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0 pt-0.5">
-                        <button onClick={() => changeQty(key, -1)}
-                          className="w-9 h-9 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.12] transition-all active:scale-90">
-                          <Minus size={14} />
-                        </button>
-                        <span className="w-6 text-center text-base font-bold text-white">{item.quantity}</span>
-                        <button onClick={() => changeQty(key, 1)}
-                          className="w-9 h-9 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.12] transition-all active:scale-90">
-                          <Plus size={14} />
-                        </button>
+                      <div className="flex items-center gap-1 flex-shrink-0 pt-0.5">
+                        <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden">
+                          <button onClick={() => changeQty(key, -1)}
+                            className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                            <Minus size={10} />
+                          </button>
+                          <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{item.quantity}</span>
+                          <button onClick={() => changeQty(key, 1)}
+                            className="w-7 h-7 flex items-center justify-center text-gold active:scale-90 transition-all">
+                            <Plus size={10} />
+                          </button>
+                        </div>
                         <button onClick={() => removeItem(key)}
-                          className="w-9 h-9 rounded-full bg-white/[0.04] flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-90 ml-1">
-                          <Trash2 size={13} />
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
+                          <Trash2 size={11} />
                         </button>
                       </div>
                     </div>

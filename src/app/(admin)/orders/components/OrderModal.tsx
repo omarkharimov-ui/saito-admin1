@@ -25,10 +25,12 @@ interface OrderModalProps {
   onDelete: (id: string) => Promise<void>;
   allOrders?: Order[];
   onOrdersUpdate?: (updater: (prev: Order[]) => Order[]) => void;
+  inline?: boolean;
 }
 
 export const OrderModal = ({
-  order, onClose, onRefresh, onPay, onClearTable, allOrders = [], onOrdersUpdate,
+  order, onClose, onRefresh, onPay, onConfirm, onClearTable, onDelete,
+  allOrders = [], onOrdersUpdate, inline = false,
 }: OrderModalProps) => {
   const { t, language } = useLanguage();
 
@@ -458,31 +460,8 @@ export const OrderModal = ({
   /* ── New: toggle between items view and add-products view ── */
   const [leftView, setLeftView] = useState<'items' | 'add'>('items');
 
-  if (typeof document === 'undefined') return null;
-  return createPortal(
-    <>
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70]"
-        onClick={isLocked || isConfirming ? undefined : onClose}
-      />
-
-      <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 pointer-events-none">
-      <motion.div
-        key={`modal-${order.id}`}
-        initial={{ opacity: 0, y: '100%' }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: '100%' }}
-        transition={{ type: 'spring', stiffness: 380, damping: 40, mass: 0.9 }}
-        onClick={e => e.stopPropagation()}
-        onTouchMove={e => e.stopPropagation()}
-        style={{
-          background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)',
-          touchAction: 'pan-y',
-        }}
-        className="pointer-events-auto relative w-full md:max-w-6xl h-[100dvh] md:h-[88vh] rounded-t-[28px] md:rounded-[28px] shadow-[0_-8px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)] flex flex-col overflow-hidden"
-      >
+  const modalContent = (
+    <>  {/* START MODAL CONTENT */}
         {/* drag handle — mobile only */}
         <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="w-10 h-1 rounded-full bg-white/15" />
@@ -1188,24 +1167,78 @@ export const OrderModal = ({
             </motion.div>
           </div>
         )}
+      </>
+    );
+
+  if (inline) {
+    return (
+      <div
+        style={{ background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
+        className="rounded-2xl border border-white/[0.07] shadow-lg flex flex-col overflow-hidden"
+      >
+        {modalContent}
+        {showReceipt && (
+          <ReceiptModal
+            order={order}
+            onClose={() => setShowReceipt(false)}
+            getProductName={(item) => {
+              const p = item.products as any;
+              return p?.name_az || p?.name_en || p?.name_ru || item.product_name;
+            }}
+            onPay={order.status !== 'paid' ? async () => {
+              await onPay(order);
+              setShowReceipt(false);
+              closeAndRefresh();
+            } : undefined}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70]"
+        onClick={isLocked || isConfirming ? undefined : onClose}
+      />
+
+      <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 pointer-events-none">
+      <motion.div
+        key={`modal-${order.id}`}
+        initial={{ opacity: 0, y: '100%' }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: '100%' }}
+        transition={{ type: 'spring', stiffness: 380, damping: 40, mass: 0.9 }}
+        onClick={e => e.stopPropagation()}
+        onTouchMove={e => e.stopPropagation()}
+        style={{
+          background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)',
+          touchAction: 'pan-y',
+        }}
+        className="pointer-events-auto relative w-full md:max-w-6xl h-[100dvh] md:h-[88vh] rounded-t-[28px] md:rounded-[28px] shadow-[0_-8px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)] flex flex-col overflow-hidden"
+      >
+        {modalContent}
+        {showReceipt && (
+          <ReceiptModal
+            order={order}
+            onClose={() => setShowReceipt(false)}
+            getProductName={(item) => {
+              const p = item.products as any;
+              return p?.name_az || p?.name_en || p?.name_ru || item.product_name;
+            }}
+            onPay={order.status !== 'paid' ? async () => {
+              await onPay(order);
+              setShowReceipt(false);
+              closeAndRefresh();
+            } : undefined}
+          />
+        )}
       </motion.div>
       </div>
-
-      {showReceipt && (
-        <ReceiptModal
-          order={order}
-          onClose={() => setShowReceipt(false)}
-          getProductName={(item) => {
-            const p = item.products as any;
-            return p?.name_az || p?.name_en || p?.name_ru || item.product_name;
-          }}
-          onPay={order.status !== 'paid' ? async () => {
-            await onPay(order);
-            setShowReceipt(false);
-            closeAndRefresh();
-          } : undefined}
-        />
-      )}
     </>,
     document.body
   );

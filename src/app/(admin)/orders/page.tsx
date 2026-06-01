@@ -679,6 +679,30 @@ export default function OrdersPage() {
             onCreated={() => { setManualModalTable(null); fetchOrders(); }}
           />
         </div>
+      ) : selectedOrder && selectedOrder.status !== 'paid' && tab === 'active' ? (
+        <div className="mt-4">
+          <OrderModal
+            key={selectedOrder.id}
+            order={selectedOrder}
+            inline
+            onClose={() => setSelectedOrder(null)}
+            onRefresh={fetchOrders}
+            onConfirm={handleConfirm}
+            onPay={async (order) => {
+              setReceiptOrder(order);
+              setSelectedOrder(null);
+            }}
+            onClearTable={handleClearTable}
+            onDelete={handleDeleteOrder}
+            allOrders={orders}
+            onOrdersUpdate={(updater) => setOrders(prev => {
+              const next = updater(prev);
+              try { localStorage.setItem('saito_orders_cache', JSON.stringify(next)); } catch {}
+              setSelectedOrder(sel => sel ? (next.find(o => o.id === sel.id) ?? sel) : null);
+              return next;
+            })}
+          />
+        </div>
       ) : loading ? (
         <div className="mt-4">
           <OrdersGhostLoading />
@@ -814,9 +838,9 @@ export default function OrdersPage() {
           </div>
         )}
 
-      {/* Order Detail Modal */}
+      {/* Order Detail Modal — only for paid/archive orders */}
       <AnimatePresence>
-        {selectedOrder && (
+        {selectedOrder && selectedOrder.status === 'paid' && (
           <OrderModal
             key={selectedOrder.id}
             order={selectedOrder}

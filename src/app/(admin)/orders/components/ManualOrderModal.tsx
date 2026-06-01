@@ -211,7 +211,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
           {/* ─── PRODUCT AREA (left ~70%) ─── */}
           <div className="flex-1 flex flex-col min-h-0">
             {/* ─── CATEGORY FILTERS (sticky) ─── */}
-            <div className="sticky top-0 z-10 flex-shrink-0 bg-[#0a0a0a] border-b border-white/[0.06] px-5 py-3">
+            <div className="sticky top-0 z-10 flex-shrink-0 bg-[#0a0a0a] px-5 py-3">
               <div className="flex gap-2 overflow-x-auto">
                 {categories.map(c => (
                   <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}

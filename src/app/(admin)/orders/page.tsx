@@ -12,6 +12,8 @@ import { createPortal } from 'react-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useOrders } from './hooks/useOrders';
+import { GoldSpinner } from './components/GoldSpinner';
+import { RowSkeleton } from '@/components/SkeletonLoader';
 import { OrdersGhostLoading } from './components/OrdersGhostLoading';
 import { TableStatusGrid } from './components/TableStatusGrid';
 import { ActiveOrderCard, ArchiveOrderCard } from './components/OrderCard';
@@ -55,6 +57,7 @@ export default function OrdersPage() {
     staleDismissed, setStaleDismissed, prevStaleKey,
     fetchOrders,
     handleConfirm, handlePay, handleDeleteOrder, handleClearTable, handleMergeOrders, handleMoveOrder, handleAddEmptyTable, handleCreateMergedEmptyOrder,
+    handleStartPreparing, handleMarkReady,
   } = useOrders();
 
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
@@ -267,6 +270,7 @@ export default function OrdersPage() {
   useEffect(() => {
     const newIds = readyOrders.map(o => o.id).sort().join(',');
     if (prevReadyKeyRef.current !== newIds) {
+      const added = readyOrders.filter(o => !prevReadyKeyRef.current.split(',').filter(Boolean).includes(o.id));
       prevReadyKeyRef.current = newIds;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -667,8 +671,8 @@ export default function OrdersPage() {
         />
       )}
 
-      {/* Manual Order Section — inline below table grid */}
-      {manualModalTable && (
+      {/* Order cards OR manual order (when table selected) */}
+      {manualModalTable ? (
         <div className="mt-4">
           <ManualOrderModal
             key={manualModalTable}
@@ -677,13 +681,12 @@ export default function OrdersPage() {
             onCreated={() => { setManualModalTable(null); fetchOrders(); }}
           />
         </div>
-      )}
-
-      {/* Order cards */}
-      <div className="mt-4">
-        {loading ? (
+      ) : loading ? (
+        <div className="mt-4">
           <OrdersGhostLoading />
-        ) : filtered.length === 0 ? (
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="mt-4">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center justify-center py-24 select-none">
             <div className="w-20 h-20 rounded-3xl bg-white/[0.03] border border-white/5 flex items-center justify-center mb-5">
@@ -696,7 +699,8 @@ export default function OrdersPage() {
               {tab === 'active' ? t('new_orders_will_appear') : ''}
             </p>
           </motion.div>
-        ) : tab === 'active' ? (() => {
+        </div>
+      ) : tab === 'active' ? (() => {
           const pendingOrders   = filtered.filter(o => o.status === 'new' || (o.status === 'confirmed' && !o.kitchen_accepted_at));
           const preparingOrders = filtered.filter(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing');
           const readyOrders     = filtered.filter(o => o.kitchen_status === 'ready');
@@ -811,7 +815,6 @@ export default function OrdersPage() {
             </AnimatePresence>
           </div>
         )}
-      </div>
 
       {/* Order Detail Modal */}
       <AnimatePresence>

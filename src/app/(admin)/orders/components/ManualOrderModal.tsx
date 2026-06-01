@@ -201,13 +201,13 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_products')}
-              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-10 pr-3 py-3 text-sm text-white placeholder:text-white/20 outline-none" />
+              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-10 pr-3 py-3.5 text-sm text-white placeholder:text-white/20 outline-none" />
             {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20"><X size={16} /></button>}
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             {categories.map(c => (
               <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
-                className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold tracking-wider ${cat === c.id ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
+                className={`flex-shrink-0 px-6 py-3 rounded-xl text-sm font-bold tracking-wider ${cat === c.id ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
               >{c.name}</button>
             ))}
           </div>
@@ -260,13 +260,13 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button onClick={() => changeQty(key, -1)}
-                        className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.12] transition-all">
-                        <Minus size={14} />
+                        className="w-12 h-12 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.12] transition-all">
+                        <Minus size={16} />
                       </button>
-                      <span className="w-6 text-center text-base font-bold text-white">{item.quantity}</span>
+                      <span className="w-7 text-center text-base font-bold text-white">{item.quantity}</span>
                       <button onClick={() => changeQty(key, 1)}
-                        className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.12] transition-all">
-                        <Plus size={14} />
+                        className="w-12 h-12 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.12] transition-all">
+                        <Plus size={16} />
                       </button>
                     </div>
                   </div>

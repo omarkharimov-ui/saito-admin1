@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import {
   X, Search, Plus, Minus, CheckCircle, Loader2,
   CreditCard, MoreVertical, Trash2, XCircle, Clock,
-  GitMerge, Layers, Printer, ChevronLeft, ShoppingCart,
+  GitMerge, Layers, Printer, ChevronLeft,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -457,9 +457,6 @@ export const OrderModal = ({
 
   const [mobileTab, setMobileTab] = React.useState<'order' | 'summary'>('order');
 
-  /* ── New: toggle between items view and add-products view ── */
-  const [leftView, setLeftView] = useState<'items' | 'add'>('items');
-
   const modalContent = (
     <>  {/* START MODAL CONTENT */}
         {/* drag handle — mobile only */}
@@ -547,186 +544,97 @@ export const OrderModal = ({
         {/* ── BODY: 70/30 SHOOTOUT ── */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
 
-          {/* ═══ LEFT 70%: Items as cards (or add products) ═══ */}
+          {/* ═══ LEFT 70%: Products browser ═══ */}
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            {/* Search / Toggle bar */}
-            <div className="px-4 pt-3 pb-2 flex-shrink-0 flex items-center gap-2">
-              <div className="relative flex-1">
+            {/* Search */}
+            <div className="px-4 pt-3 pb-2 flex-shrink-0">
+              <div className="relative">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                 <input
-                  value={leftView === 'add' ? addSearch : ''}
-                  onChange={e => {
-                    if (leftView === 'items') {
-                      // filter items locally
-                    } else {
-                      setAddSearch(e.target.value);
-                    }
-                  }}
-                  onFocus={() => { if (leftView === 'items') setLeftView('add'); }}
-                  placeholder={leftView === 'items' ? t('search') + '...' : t('add_items')}
+                  value={addSearch}
+                  onChange={e => setAddSearch(e.target.value)}
+                  onFocus={() => setAddSearchFocused(true)}
+                  placeholder={t('add_items')}
                   className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-9 pr-4 py-3 text-sm text-white placeholder:text-white/25 outline-none focus:border-white/25 transition-all"
                 />
               </div>
-              <button onClick={() => setLeftView(v => v === 'items' ? 'add' : 'items')}
-                className={`px-4 py-3 rounded-xl text-xs font-bold tracking-wide transition-all border whitespace-nowrap flex items-center gap-2 ${
-                  leftView === 'add' ? 'bg-gold/[0.12] text-gold border-gold/30' : 'bg-white/[0.04] text-white/50 border-white/[0.07] hover:text-white/80'
-                }`}>
-                {leftView === 'items' ? <Plus size={14} /> : <ShoppingCart size={14} />}
-                {leftView === 'items' ? t('add_items') : t('selected_items')}
-              </button>
             </div>
 
-            {/* Items view: cards */}
-            {leftView === 'items' && (
-              <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {displayItems.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full select-none">
-                    <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.05] flex items-center justify-center mb-3">
-                      <Plus size={20} className="text-white/15" />
-                    </div>
-                    <p className="text-white/25 text-sm font-medium">{t('add_items')}</p>
-                    <p className="text-white/12 text-xs mt-1">{t('modal_select_product_hint')}</p>
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-0.5">
+                {loadingProducts ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 size={22} className="animate-spin text-white/20" />
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {displayItems.map((item: any) => {
-                      const itemQty = draftQty[item.id] ?? item.quantity;
-                      const unitPrice = item.unit_price || (item.total_price / item.quantity);
-                      const lineTotal = unitPrice * itemQty;
-                      const isSelected = cancelStep === 'select' && !!selectedCancelItems[item.id];
-                      return (
-                        <div key={item.id}
-                          className={`rounded-2xl border overflow-hidden transition-all flex flex-col ${
-                            item._preview ? 'border-dashed border-gold/30 bg-white/[0.04]' :
-                            isSelected ? 'border-red-500/30 bg-red-500/[0.06]' :
-                            'border-white/[0.06] bg-white/[0.035] hover:border-white/[0.12]'
-                          }`}>
-                          {/* Image */}
-                          <div className="relative">
-                            {item.products?.image_url ? (
-                              <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async"
-                                className="w-full h-20 sm:h-24 object-cover" />
-                            ) : (
-                              <div className="w-full h-20 sm:h-24 bg-white/[0.06] flex items-center justify-center">
-                                <span className="text-white/10 text-3xl font-black">{(getProductName(item) || '?')[0]}</span>
-                              </div>
-                            )}
-                            {/* Qty badge */}
-                            <div className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 flex items-center justify-center">
-                              <span className="text-white text-[11px] font-black tabular-nums">×{itemQty}</span>
-                            </div>
-                            {/* Cancel selection checkbox */}
-                            {cancelStep === 'select' && (
-                              <button onClick={() => {
-                                if (isSelected) {
-                                  setSelectedCancelItems(prev => { const n = { ...prev }; delete n[item.id]; return n; });
-                                } else {
-                                  setSelectedCancelItems(prev => ({ ...prev, [item.id]: itemQty }));
-                                }
-                              }}
-                                className="absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all bg-black/40 backdrop-blur-sm ${
-                                  isSelected ? 'bg-red-500 border-red-500' : 'border-white/40'
-                                }">
-                                {isSelected && <CheckCircle size={12} className="text-white" />}
-                              </button>
-                            )}
+                ) : filteredProducts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 select-none">
+                    <p className="text-white/20 text-sm">{t('search')}...</p>
+                  </div>
+                ) : filteredProducts.map(product => {
+                  const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
+                  const inOrderItem = order.order_items?.find(oi => oi.product_id === product.id);
+                  const inOrderQty = inOrderItem ? (draftQty[inOrderItem.id] ?? inOrderItem.quantity) : 0;
+                  const isSoldOut = (product as any).is_available === false;
+                  return (
+                    <React.Fragment key={product.id}>
+                      <div className={`group/row flex items-center gap-3 px-3 py-3 rounded-xl border transition-all ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 || inOrderItem ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
+                        {product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" /> : <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex-shrink-0" />}
+                        <button onClick={() => handleAddProductClick(product)} className="flex-1 min-w-0 text-left">
+                          <p className="text-white/80 text-sm font-medium truncate">{(product as any)[`name_${language}`] || (product as any).name_az || product.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-white/40 text-xs">{product.price.toFixed(2)} ₼</p>
+                            {isSoldOut && <span className="text-[9px] font-bold text-red-400/70 bg-red-500/10 px-1.5 py-0.5 rounded-full">Bitib</span>}
+                            {inOrderItem && <span className="text-[9px] text-white/25 bg-white/[0.04] px-1.5 py-0.5 rounded-full">{t('in_order')} ×{inOrderQty}</span>}
                           </div>
-                          {/* Info */}
-                          <div className="flex-1 flex flex-col p-3 gap-1">
-                            <p className={`text-sm font-medium truncate leading-tight ${isSelected ? 'text-red-300' : 'text-white/90'}`}>
-                              {getProductName(item)}
-                            </p>
-                            <p className="text-white/40 text-[11px]">{unitPrice.toFixed(2)} ₼</p>
-                            <div className="mt-auto flex items-center justify-between pt-1">
-                              <span className="font-bold text-sm tabular-nums"
-                                style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                                {lineTotal.toFixed(2)} ₼
-                              </span>
-                              {cancelStep !== 'select' && order.status !== 'paid' && (
-                                <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-xl overflow-hidden">
-                                  <button onClick={e => handleChangeItemQty(e, item, -1)}
-                                    className="w-9 h-9 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
-                                    <Minus size={11} />
-                                  </button>
-                                  <span className="text-white text-xs w-6 text-center font-black tabular-nums">{itemQty}</span>
-                                  <button onClick={e => handleChangeItemQty(e, item, 1)}
-                                    className="w-9 h-9 flex items-center justify-center text-gold active:scale-90 transition-all">
-                                    <Plus size={11} />
-                                  </button>
+                        </button>
+                        {loadingAddVariants && addVariantPicker?.product.id === product.id ? <Loader2 size={14} className="animate-spin text-white/30" /> :
+                          inOrderItem && cancelStep !== 'select' && order.status !== 'paid' ? (
+                            <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-xl overflow-hidden flex-shrink-0">
+                              <button onClick={e => handleChangeItemQty(e, inOrderItem, -1)}
+                                className="w-9 h-9 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                                <Minus size={11} />
+                              </button>
+                              <span className="text-white text-xs w-6 text-center font-black tabular-nums">{inOrderQty}</span>
+                              <button onClick={e => handleChangeItemQty(e, inOrderItem, 1)}
+                                className="w-9 h-9 flex items-center justify-center text-gold active:scale-90 transition-all">
+                                <Plus size={11} />
+                              </button>
                             </div>
+                          ) : inAddCount > 0 ? (
+                            <span className="text-[10px] font-black bg-gold text-black px-1.5 py-0.5 rounded-full">{inAddCount}</span>
+                          ) : !inOrderItem && (
+                            <button onClick={() => handleAddProductClick(product)} className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/[0.06] active:scale-90 flex items-center justify-center text-white/20 transition-all"><Plus size={15} /></button>
                           )}
-                        </div>
                       </div>
-                    </div>
-                  );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Add products view */}
-            {leftView === 'add' && (
-              <div className="flex-1 flex flex-col min-h-0">
-                <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-0.5">
-                  {loadingProducts ? (
-                    <div className="flex items-center justify-center py-16">
-                      <Loader2 size={22} className="animate-spin text-white/20" />
-                    </div>
-                  ) : filteredProducts.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 select-none">
-                      <p className="text-white/20 text-sm">{t('search')}...</p>
-                    </div>
-                  ) : filteredProducts.map(product => {
-                    const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
-                    const inOrder = order.order_items?.find(oi => oi.product_id === product.id);
-                    const isSoldOut = (product as any).is_available === false;
-                    return (
-                      <React.Fragment key={product.id}>
-                        <div className={`group/row flex items-center gap-3 px-3 py-3 rounded-xl border transition-all ${isSoldOut ? 'opacity-50' : ''} ${inAddCount > 0 ? 'bg-white/5 border-white/10' : 'border-transparent'}`}>
-                          {product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" /> : <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex-shrink-0" />}
-                          <button onClick={() => handleAddProductClick(product)} className="flex-1 min-w-0 text-left">
-                            <p className="text-white/80 text-sm font-medium truncate">{(product as any)[`name_${language}`] || (product as any).name_az || product.name}</p>
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-white/40 text-xs">{product.price.toFixed(2)} ₼</p>
-                              {isSoldOut && <span className="text-[9px] font-bold text-red-400/70 bg-red-500/10 px-1.5 py-0.5 rounded-full">Bitib</span>}
-                              {inOrder && <span className="text-[9px] text-white/25 bg-white/[0.04] px-1.5 py-0.5 rounded-full">{t('in_order')} ×{inOrder.quantity}</span>}
-                            </div>
-                          </button>
-                          {loadingAddVariants && addVariantPicker?.product.id === product.id ? <Loader2 size={14} className="animate-spin text-white/30" /> :
-                            inAddCount > 0 ? <span className="text-[10px] font-black bg-gold text-black px-1.5 py-0.5 rounded-full">{inAddCount}</span> :
-                            <button onClick={() => handleAddProductClick(product)} className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/[0.06] active:scale-90 flex items-center justify-center text-white/20 transition-all"><Plus size={15} /></button>}
+                      {addVariantPicker?.product.id === product.id && !loadingAddVariants && (
+                        <div className="mx-2 mb-1 rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+                          {addVariantPicker.variants.map(v => (
+                            <button key={v.id} onClick={() => addToCartWithVariant(addVariantPicker.product, v)}
+                              className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.06] transition-colors text-left border-b border-white/[0.05] last:border-0">
+                              <div><p className="text-white text-sm font-medium">{v.name}</p>{v.is_default && <span className="text-[9px] text-white/20 uppercase tracking-wider">{t('combo_default_variant')}</span>}</div>
+                              <span className="text-gold text-xs font-bold">{v.price.toFixed(2)} ₼</span>
+                            </button>
+                          ))}
                         </div>
-                        {addVariantPicker?.product.id === product.id && !loadingAddVariants && (
-                          <div className="mx-2 mb-1 rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
-                            {addVariantPicker.variants.map(v => (
-                              <button key={v.id} onClick={() => addToCartWithVariant(addVariantPicker.product, v)}
-                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.06] transition-colors text-left border-b border-white/[0.05] last:border-0">
-                                <div><p className="text-white text-sm font-medium">{v.name}</p>{v.is_default && <span className="text-[9px] text-white/20 uppercase tracking-wider">{t('combo_default_variant')}</span>}</div>
-                                <span className="text-gold text-xs font-bold">{v.price.toFixed(2)} ₼</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-                {addItems.length > 0 && (
-                  <div className="px-5 py-4 border-t border-white/[0.05] flex items-center justify-between flex-shrink-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-white/25 text-[10px] uppercase tracking-widest">{t('addition')}</span>
-                      <span className="text-gold font-bold text-sm">+{addTotal.toFixed(2)} ₼</span>
-                    </div>
-                    <button onClick={() => setLeftView('items')}
-                      style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)' }}
-                      className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-black text-xs font-black tracking-wide active:scale-95 transition-all">
-                      {t('confirm_changes')}
-                    </button>
-                  </div>
-                )}
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </div>
-            )}
+              {addItems.length > 0 && (
+                <div className="px-5 py-4 border-t border-white/[0.05] flex items-center justify-between flex-shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-white/25 text-[10px] uppercase tracking-widest">{t('addition')}</span>
+                    <span className="text-gold font-bold text-sm">+{addTotal.toFixed(2)} ₼</span>
+                  </div>
+                  <button onClick={handleAddItems}
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)' }}
+                    className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-black text-xs font-black tracking-wide active:scale-95 transition-all">
+                    {t('confirm_changes')}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ═══ RIGHT 30%: Summary + Actions ═══ */}
@@ -791,13 +699,14 @@ export const OrderModal = ({
               )}
             </div>
 
-            {/* Items summary list */}
+            {/* Items summary list — with +/- */}
             <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
               {displayItems.map((item: any) => {
                 const itemQty = draftQty[item.id] ?? item.quantity;
                 const unitPrice = item.unit_price || (item.total_price / item.quantity);
+                const isSelected = cancelStep === 'select' && !!selectedCancelItems[item.id];
                 return (
-                  <div key={item.id} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl ${item._preview ? 'bg-white/[0.04] border border-dashed border-gold/20' : 'bg-white/[0.02] border border-white/[0.04]'}`}>
+                  <div key={item.id} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl ${item._preview ? 'bg-white/[0.04] border border-dashed border-gold/20' : isSelected ? 'bg-red-500/[0.06] border border-red-500/30' : 'bg-white/[0.02] border border-white/[0.04]'}`}>
                     {item.products?.image_url ? (
                       <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
                     ) : (
@@ -806,7 +715,32 @@ export const OrderModal = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-white/70 text-xs font-medium truncate">{getProductName(item)}</p>
                     </div>
-                    <span className="text-white/25 text-[11px] tabular-nums">×{itemQty}</span>
+                    {cancelStep === 'select' ? (
+                      <button onClick={() => {
+                        if (isSelected) {
+                          setSelectedCancelItems(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+                        } else {
+                          setSelectedCancelItems(prev => ({ ...prev, [item.id]: itemQty }));
+                        }
+                      }}
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${isSelected ? 'bg-red-500 border-red-500' : 'border-white/40'}`}>
+                        {isSelected && <CheckCircle size={11} className="text-white" />}
+                      </button>
+                    ) : order.status !== 'paid' && itemQty > 0 ? (
+                      <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden flex-shrink-0">
+                        <button onClick={e => handleChangeItemQty(e, item, -1)}
+                          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                          <Minus size={10} />
+                        </button>
+                        <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{itemQty}</span>
+                        <button onClick={e => handleChangeItemQty(e, item, 1)}
+                          className="w-7 h-7 flex items-center justify-center text-gold active:scale-90 transition-all">
+                          <Plus size={10} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-white/25 text-[11px] tabular-nums flex-shrink-0">×{itemQty}</span>
+                    )}
                     <span className="text-white/50 text-xs font-semibold tabular-nums w-16 text-right">{(unitPrice * itemQty).toFixed(2)} ₼</span>
                   </div>
                 );
@@ -972,16 +906,33 @@ export const OrderModal = ({
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
-              {displayItems.map((item: any) => (
-                <div key={item.id} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                  {item.products?.image_url ? <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex-shrink-0" />}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{getProductName(item)}</p>
-                    <p className="text-white/25 text-xs">×{draftQty[item.id] ?? item.quantity}</p>
+              {displayItems.map((item: any) => {
+                const mqty = draftQty[item.id] ?? item.quantity;
+                return (
+                  <div key={item.id} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                    {item.products?.image_url ? <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">{getProductName(item)}</p>
+                    </div>
+                    {order.status !== 'paid' ? (
+                      <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden flex-shrink-0">
+                        <button onClick={e => handleChangeItemQty(e, item, -1)}
+                          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                          <Minus size={10} />
+                        </button>
+                        <span className="text-white text-[11px] w-5 text-center font-black tabular-nums">{mqty}</span>
+                        <button onClick={e => handleChangeItemQty(e, item, 1)}
+                          className="w-7 h-7 flex items-center justify-center text-gold active:scale-90 transition-all">
+                          <Plus size={10} />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-white/25 text-xs">×{mqty}</p>
+                    )}
+                    <span className="text-white/40 text-sm font-semibold tabular-nums">{((item.unit_price || item.total_price / item.quantity) * mqty).toFixed(2)} ₼</span>
                   </div>
-                  <span className="text-white/40 text-sm font-semibold tabular-nums">{((item.unit_price || item.total_price / item.quantity) * (draftQty[item.id] ?? item.quantity)).toFixed(2)} ₼</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="px-4 pb-6 pt-3 border-t border-white/[0.05] flex-shrink-0 space-y-2">
               {(order.status === 'new' || (order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (

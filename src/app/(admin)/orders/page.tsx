@@ -135,6 +135,16 @@ export default function OrdersPage() {
   const newCount     = useMemo(() => orders.filter(o => o.status === 'new').length, [orders]);
   const tableNumbers = useMemo(() => Array.from({ length: tableCount }, (_, i) => i + 1), [tableCount]);
   const activeOrdersForNav = activeOrders.filter(o => o.status !== 'paid');
+  const handleSelectTable = useCallback((tableNum: number) => {
+    const order = activeOrders.find(o => o.table_number === tableNum);
+    if (order) {
+      setSelectedOrder(order);
+      setManualModalTable(null);
+    } else {
+      setManualModalTable(tableNum);
+      setSelectedOrder(null);
+    }
+  }, [activeOrders]);
 
   const handleDismissReady = useCallback(async (orderId: string) => {
     // Find the order and its merged children
@@ -689,9 +699,11 @@ export default function OrdersPage() {
             key={manualModalTable}
             tableNum={manualModalTable}
             tableNumbers={tableNumbers}
+            activeOrders={activeOrders}
             onClose={() => setManualModalTable(null)}
             onCreated={() => { setManualModalTable(null); fetchOrders(); }}
             onSwitchTable={setManualModalTable}
+            onSelectTable={handleSelectTable}
           />
         </div>
       ) : selectedOrder && selectedOrder.status !== 'paid' && tab === 'active' ? (
@@ -701,6 +713,8 @@ export default function OrdersPage() {
             order={selectedOrder}
             allActiveOrders={activeOrdersForNav}
             onSwitchOrder={(o) => setSelectedOrder(o)}
+            tableNumbers={tableNumbers}
+            onSelectTable={handleSelectTable}
             inline
             onClose={() => setSelectedOrder(null)}
             onRefresh={fetchOrders}

@@ -204,6 +204,16 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
               className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-11 pr-4 py-4 text-base text-white placeholder:text-white/20 outline-none" />
             {search && <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20"><X size={18} /></button>}
           </div>
+          {/* ─── CATEGORY FILTERS (below search) ─── */}
+          <div className="flex gap-2 overflow-x-auto mt-3">
+            {categories.map(c => (
+              <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
+                className={`flex-shrink-0 px-6 py-3.5 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap transition-all ${
+                  cat === c.id ? 'bg-white text-black shadow-lg' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
+                }`}
+              >{c.name}</button>
+            ))}
+          </div>
         </div>
 
         {/* ─── MAIN SPLIT ─── */}
@@ -281,20 +291,6 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
           </div>
         </div>
 
-        {/* ─── CATEGORY STRIP (always visible at bottom) ─── */}
-        <div className="border-t border-white/[0.08] bg-[#111] px-4 py-4">
-          <div className="flex gap-2 overflow-x-auto">
-            {categories.length === 0 ? (
-              <span className="text-sm text-white/20 italic">Kateqoriya yoxdur</span>
-            ) : categories.map(c => (
-              <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
-                className={`flex-shrink-0 px-6 py-3.5 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap transition-all ${
-                  cat === c.id ? 'bg-white text-black shadow-lg' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
-                }`}
-              >{c.name}</button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* ─── VARIANT PICKER ─── */}

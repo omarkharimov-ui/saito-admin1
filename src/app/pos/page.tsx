@@ -10,6 +10,7 @@ import { ThemeProvider, useTheme } from '@/lib/theme/ThemeContext';
 import {
   Search, ShoppingBag, Plus, Minus, Send, CreditCard, X, Loader2, CheckCircle2,
   Printer, ImageOff, Utensils, Banknote, Percent, Users, GitMerge, Sun, Moon,
+  Maximize, Minimize,
 } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -226,6 +227,21 @@ function POS() {
   const [paid, setPaid] = useState<OrderData & { payment_method?: string; discount_type?: string; discount_value?: number; paid_amount?: number; split_count?: number } | null>(null);
   const [checkoutOrder, setCheckoutOrder] = useState<OrderData | null>(null);
   const [showMerge, setShowMerge] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await document.documentElement.requestFullscreen();
+    }
+  }, []);
 
   const getPName = useCallback((p: Product) => {
     if (language === 'en') return (p as any).name_en || p.name;
@@ -427,6 +443,10 @@ function POS() {
           <span className="text-sm text-[var(--pos-text-secondary)] font-semibold">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
           {activeOrder && <><span className="text-[var(--pos-border)] px-1 text-lg font-thin">|</span><span className="text-sm text-[var(--pos-table-busy-text)] font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
           <div className="flex-1" />
+          <button onClick={toggleFullscreen}
+            className="flex items-center justify-center w-9 h-9 rounded-lg bg-[var(--pos-bg-card)] text-[var(--pos-btn-text)] hover:text-[var(--pos-text)] transition-all">
+            {fullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+          </button>
           <button onClick={() => setLightMode(!lightMode)}
             className="flex items-center justify-center w-9 h-9 rounded-lg bg-[var(--pos-bg-card)] text-[var(--pos-btn-text)] hover:text-[var(--pos-text)] transition-all">
             {lightMode ? <Moon size={16} /> : <Sun size={16} />}

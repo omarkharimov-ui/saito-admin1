@@ -680,7 +680,7 @@ export default function OrdersPage() {
           />
         </div>
       ) : selectedOrder && selectedOrder.status !== 'paid' && tab === 'active' ? (
-        <div className="mt-4">
+        <div className="mt-4 h-[calc(100vh-120px)] overflow-hidden">
           <OrderModal
             key={selectedOrder.id}
             order={selectedOrder}

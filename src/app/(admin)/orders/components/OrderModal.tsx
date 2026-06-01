@@ -1138,7 +1138,7 @@ export const OrderModal = ({
     return (
       <div
         style={{ background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
-        className="rounded-2xl border border-white/[0.07] shadow-lg flex flex-col overflow-hidden"
+        className="rounded-2xl border border-white/[0.07] shadow-lg flex flex-col overflow-hidden h-full"
       >
         {modalContent}
         {showReceipt && (

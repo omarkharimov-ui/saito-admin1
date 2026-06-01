@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import type { Product, ManualItem, ProductVariant } from '../types';
+import type { Product, ManualItem, ProductVariant, Order } from '../types';
 
 const fmt = (n: number) => n.toFixed(2);
 
@@ -15,8 +15,11 @@ interface Category { id: string; name: string; }
 interface ManualOrderModalProps {
   tableNum: number;
   extraTableNums?: number[];
+  tableNumbers: number[];
+  activeOrders: Order[];
   onClose: () => void;
   onCreated: (newOrderId?: string) => void;
+  onSelectTable: (num: number) => void;
 }
 
 const cardVariants = {
@@ -53,7 +56,7 @@ function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: 
   );
 }
 
-export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCreated }: ManualOrderModalProps) {
+export function ManualOrderModal({ tableNum, extraTableNums = [], tableNumbers, activeOrders, onClose, onCreated, onSelectTable }: ManualOrderModalProps) {
   const { t, language } = useLanguage();
   const searchRef = useRef<HTMLInputElement>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -218,6 +221,28 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                 <X size={18} />
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ─── TABLE STATUS BAR ─── */}
+        <div className="px-4 py-2.5 border-b border-white/[0.06] overflow-x-auto">
+          <div className="flex gap-1.5 min-w-max">
+            {tableNumbers.map(n => {
+              const order = activeOrders.find(o => o.table_number === n);
+              const isCurrent = n === tableNum;
+              const isActive = !!order;
+              return (
+                <button key={n} onClick={() => { if (!isCurrent) onSelectTable(n); }}
+                  className={`flex-shrink-0 w-9 h-9 rounded-xl text-[11px] font-black tracking-wider transition-all ${
+                    isCurrent
+                      ? 'bg-gold text-black shadow-lg shadow-gold/20'
+                      : isActive
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                        : 'bg-white/5 text-white/30 border border-white/10 hover:bg-white/10 hover:text-white/60'
+                  }`}
+                >{n}</button>
+              );
+            })}
           </div>
         </div>
 

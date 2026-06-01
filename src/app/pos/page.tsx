@@ -34,18 +34,18 @@ function PCard({ p, stock, cart, onAdd }: { p: Product; stock: boolean; cart: nu
   return (
     <motion.button layout initial={false} whileHover={stock ? { y: -2 } : undefined} whileTap={stock ? { scale: 0.96 } : undefined}
       onClick={stock ? onAdd : undefined}
-      className={`relative rounded-2xl p-3 text-left border ${stock ? 'bg-[var(--pos-bg-card)] border-[var(--pos-border-strong)]' : 'opacity-30 border-[var(--pos-border)]'}`}
+      className={`relative rounded-2xl p-4 text-left border ${stock ? 'bg-[var(--pos-bg-card)] border-[var(--pos-border-strong)]' : 'opacity-30 border-[var(--pos-border)]'}`}
     >
-      <div className="aspect-square rounded-xl bg-white/[0.02] mb-2 flex items-center justify-center overflow-hidden">
+      <div className="aspect-square rounded-xl bg-white/[0.02] mb-3 flex items-center justify-center overflow-hidden">
         {showImg
           ? <img src={p.image_url!} alt={name} className="w-full h-full object-cover" onLoad={() => setImgState('ok')} onError={() => setImgState('err')} />
-          : <span className="text-2xl font-black text-[var(--pos-text-muted)]">{initials}</span>
+          : <span className="text-3xl font-black text-[var(--pos-text-muted)]">{initials}</span>
         }
       </div>
-      <p className="text-xs font-semibold text-[var(--pos-text)] truncate">{name}</p>
-      <p className="text-xs font-black text-[var(--pos-price)]">₼{fmt(p.price)}</p>
-      {!stock && <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center"><span className="text-[10px] font-bold text-[var(--pos-text)]/70 bg-black/70 px-2 py-1 rounded-lg">{t('out_of_stock')}</span></div>}
-      {cart > 0 && <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-gold text-black text-[10px] font-black flex items-center justify-center">{cart}</span>}
+      <p className="text-sm font-semibold text-[var(--pos-text)] truncate">{name}</p>
+      <p className="text-sm font-black text-[var(--pos-price)]">₼{fmt(p.price)}</p>
+      {!stock && <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center"><span className="text-xs font-bold text-[var(--pos-text)]/70 bg-black/70 px-3 py-1.5 rounded-lg">{t('out_of_stock')}</span></div>}
+      {cart > 0 && <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-gold text-black text-xs font-black flex items-center justify-center">{cart}</span>}
     </motion.button>
   );
 }
@@ -84,8 +84,8 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
               <span className="text-[var(--pos-text)] font-semibold">₼{fmt(i.total_price || 0)}</span>
             </div>
           ))}
-          {items.length > 8 && <p className="text-[10px] text-[var(--pos-text-muted)]">+{items.length - 8} {t('more')}</p>}
-          <div className="border-t border-[var(--pos-border)] pt-2 flex items-center justify-between text-sm font-bold text-[var(--pos-text)]">
+          {items.length > 8 && <p className="text-xs text-[var(--pos-text-muted)]">+{items.length - 8} {t('more')}</p>}
+          <div className="border-t border-[var(--pos-border)] pt-2 flex items-center justify-between text-base font-bold text-[var(--pos-text)]">
             <span>{t('subtotal_label')}</span>
             <span>₼{fmt(baseTotal)}</span>
           </div>
@@ -93,11 +93,11 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
 
         {/* Discount */}
         <div className="px-6 mb-4">
-          <label className="text-[10px] text-[var(--pos-text-secondary)] uppercase tracking-widest mb-2 block">{t('discount_label')}</label>
+          <label className="text-xs text-[var(--pos-text-secondary)] uppercase tracking-widest mb-2 block">{t('discount_label')}</label>
           <div className="flex gap-1.5 mb-2">
             {(['none', 'percent', 'amount'] as const).map(k => (
               <button key={k} onClick={() => { setDiscountType(k); setDiscountVal(0); }}
-                className={`flex-1 py-2 rounded-xl text-[10px] font-bold ${discountType === k ? 'bg-[var(--pos-text)] text-[var(--pos-bg)]' : 'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)]'}`}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold ${discountType === k ? 'bg-[var(--pos-text)] text-[var(--pos-bg)]' : 'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)]'}`}
               >{k === 'none' ? t('discount_none') : k === 'percent' ? '%' : '₼'}</button>
             ))}
           </div>
@@ -108,16 +108,16 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
                 className="w-full bg-[var(--pos-bg-card)] border border-[var(--pos-border)] rounded-xl pl-8 pr-3 py-2 text-sm text-[var(--pos-text)] outline-none" />
             </div>
           )}
-          {discountAmount > 0 && <p className="text-[10px] text-emerald-400 mt-1">- ₼{fmt(discountAmount)}</p>}
+          {discountAmount > 0 && <p className="text-xs text-emerald-400 mt-1">- ₼{fmt(discountAmount)}</p>}
         </div>
 
         {/* Split */}
         <div className="px-6 mb-4">
-          <label className="text-[10px] text-[var(--pos-text-secondary)] uppercase tracking-widest mb-2 block">{t('split_label')}</label>
+          <label className="text-xs text-[var(--pos-text-secondary)] uppercase tracking-widest mb-2 block">{t('split_label')}</label>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map(n => (
               <button key={n} onClick={() => setSplit(n)}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold ${split === n ? 'bg-[var(--pos-text)] text-[var(--pos-bg)]' : 'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)]'}`}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold ${split === n ? 'bg-[var(--pos-text)] text-[var(--pos-bg)]' : 'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)]'}`}
               >{n}</button>
             ))}
           </div>
@@ -125,7 +125,7 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
 
         {/* Payment method */}
         <div className="px-6 mb-4">
-          <label className="text-[10px] text-[var(--pos-text-secondary)] uppercase tracking-widest mb-2 block">{t('payment_method_label')}</label>
+          <label className="text-xs text-[var(--pos-text-secondary)] uppercase tracking-widest mb-2 block">{t('payment_method_label')}</label>
           <div className="flex gap-2">
             <button onClick={() => setMethod('cash')}
               className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'cash' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)] border border-[var(--pos-border)]'}`}>
@@ -141,10 +141,10 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
         {/* Total & confirm */}
         <div className="px-6 pb-6 pt-2 border-t border-[var(--pos-border)] space-y-3">
           <div className="space-y-1">
-            {split > 1 && <div className="flex items-center justify-between text-xs text-[var(--pos-text-secondary)]"><span>{t('per_person')}</span><span className="font-bold text-[var(--pos-text)]">₼{fmt(perPerson)}</span></div>}
+            {split > 1 && <div className="flex items-center justify-between text-sm text-[var(--pos-text-secondary)]"><span>{t('per_person')}</span><span className="font-bold text-[var(--pos-text)]">₼{fmt(perPerson)}</span></div>}
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[var(--pos-text-secondary)] uppercase tracking-widest">{t('final_total')}</span>
-              {discountAmount > 0 && <span className="text-[10px] text-[var(--pos-text-secondary)] line-through mr-2">₼{fmt(baseTotal)}</span>}
+              <span className="text-xs text-[var(--pos-text-secondary)] uppercase tracking-widest">{t('final_total')}</span>
+              {discountAmount > 0 && <span className="text-xs text-[var(--pos-text-secondary)] line-through mr-2">₼{fmt(baseTotal)}</span>}
               <span className="text-2xl font-black text-[var(--pos-text)]">
                 {discountAmount > 0 || split > 1 ? `₼${fmt(finalTotal)}` : `₼${fmt(baseTotal)}`}
               </span>
@@ -182,13 +182,13 @@ function ReceiptScreen({ paid, onNew }: { paid: OrderData & { payment_method?: s
 
         <div className="text-left bg-[var(--pos-bg-card)] rounded-2xl p-4 mb-6 space-y-1">
           {items.slice(0, 5).map(i => (
-            <div key={i.id} className="flex items-center justify-between text-xs">
+            <div key={i.id} className="flex items-center justify-between text-sm">
               <span className="text-[var(--pos-text-secondary)]">{i.quantity}x {i.product_name}</span>
               <span className="text-[var(--pos-text)] font-semibold">₼{fmt(i.total_price || 0)}</span>
             </div>
           ))}
-          {items.length > 5 && <p className="text-[9px] text-[var(--pos-text-muted)]">+{items.length - 5}</p>}
-          <div className="border-t border-[var(--pos-border)] pt-2 flex items-center justify-between text-sm font-bold text-[var(--pos-text)]">
+          {items.length > 5 && <p className="text-[10px] text-[var(--pos-text-muted)]">+{items.length - 5}</p>}
+          <div className="border-t border-[var(--pos-border)] pt-2 flex items-center justify-between text-base font-bold text-[var(--pos-text)]">
             <span>{t('total')}</span>
             <span>₼{fmt(paid.total_amount || 0)}</span>
           </div>
@@ -405,51 +405,51 @@ function POS() {
 
       {/* ─── TABLE STRIP ─── */}
       <div className="flex-shrink-0 border-b border-[var(--pos-border)] bg-[var(--pos-bg-secondary)]">
-        <div className="flex gap-1.5 px-3 pt-3 pb-2 overflow-x-auto">
+        <div className="flex gap-2 px-3 pt-3 pb-2 overflow-x-auto">
           {Array.from({ length: tableCount }, (_, i) => i + 1).map(n => {
             const o = orders.find(x => x.table_number === n && x.status !== 'paid');
             const s = selTable === n;
             const r = o?.kitchen_status === 'ready';
             return (
               <button key={n} onClick={() => { setSelTable(s ? null : n); setShowCart(false); }}
-                className={`relative flex-shrink-0 w-12 h-12 rounded-xl text-xs font-bold transition-all ${
+                className={`relative flex-shrink-0 w-14 h-14 rounded-xl text-sm font-bold transition-all ${
                   s ? 'bg-[var(--pos-text)] text-[var(--pos-bg)] shadow-md' :
                   o ? (r ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-[var(--pos-table-busy-bg)] text-[var(--pos-table-busy-text)] border border-[var(--pos-table-busy-border)]') :
                   'bg-[var(--pos-table-empty-bg)] text-[var(--pos-table-empty-text)] border border-[var(--pos-border)]'
                 }`}
-              >{n}{o && <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${r ? 'bg-emerald-400' : 'bg-amber-400'}`} />}</button>
+              >{n}{o && <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${r ? 'bg-emerald-400' : 'bg-rose-400'}`} />}</button>
             );
           })}
         </div>
         <div className="flex items-center gap-2 px-3 pb-3">
           <span className="text-sm text-[var(--pos-text-secondary)] font-semibold">{products.length} {t('items')}</span>
-          <span className="text-[var(--pos-border)]">|</span>
+          <span className="text-[var(--pos-border)] px-1 text-lg font-thin">|</span>
           <span className="text-sm text-[var(--pos-text-secondary)] font-semibold">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
-          {activeOrder && <><span className="text-[var(--pos-border)]">|</span><span className="text-sm text-[var(--pos-table-busy-text)] font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
+          {activeOrder && <><span className="text-[var(--pos-border)] px-1 text-lg font-thin">|</span><span className="text-sm text-[var(--pos-table-busy-text)] font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
           <div className="flex-1" />
           <button onClick={() => setLightMode(!lightMode)}
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--pos-bg-card)] text-[var(--pos-btn-text)] hover:text-[var(--pos-text)] transition-all">
-            {lightMode ? <Moon size={14} /> : <Sun size={14} />}
+            className="flex items-center justify-center w-9 h-9 rounded-lg bg-[var(--pos-bg-card)] text-[var(--pos-btn-text)] hover:text-[var(--pos-text)] transition-all">
+            {lightMode ? <Moon size={16} /> : <Sun size={16} />}
           </button>
           <button onClick={() => setShowCart(!showCart)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--pos-bg-card)] text-xs font-semibold text-[var(--pos-btn-text)]">
-            <ShoppingBag size={13} /> ₼{fmt(total)}
-            {cart.length > 0 && <span className="w-4 h-4 rounded-full bg-gold text-black text-[8px] font-black flex items-center justify-center">{cart.reduce((s, i) => s + i.qty, 0)}</span>}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--pos-bg-card)] text-sm font-semibold text-[var(--pos-btn-text)]">
+            <ShoppingBag size={15} /> ₼{fmt(total)}
+            {cart.length > 0 && <span className="w-5 h-5 rounded-full bg-gold text-black text-[10px] font-black flex items-center justify-center">{cart.reduce((s, i) => s + i.qty, 0)}</span>}
           </button>
         </div>
       </div>
 
       {/* ─── SEARCH + CATEGORIES ─── */}
-      <div className="flex-shrink-0 px-3 pt-2 pb-1 space-y-1.5">
+      <div className="flex-shrink-0 px-3 pt-3 pb-2 space-y-2">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-[var(--pos-search-bg)] border border-[var(--pos-search-border)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--pos-text)] placeholder:text-[var(--pos-text-muted)] placeholder:font-medium outline-none shadow-sm" />
-          {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]"><X size={14} /></button>}
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-[var(--pos-search-bg)] border border-[var(--pos-search-border)] rounded-xl pl-10 pr-3 py-3 text-sm text-[var(--pos-text)] placeholder:text-[var(--pos-text-muted)] placeholder:font-medium outline-none shadow-sm" />
+          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--pos-icon)]"><X size={16} /></button>}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           {categories.map(c => (
             <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider ${cat === c.id ? 'bg-[var(--pos-text)] text-[var(--pos-bg)]' : 'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)]'}`}
+              className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold tracking-wider ${cat === c.id ? 'bg-[var(--pos-text)] text-[var(--pos-bg)]' : 'bg-[var(--pos-bg-card)] text-[var(--pos-text-secondary)]'}`}
             >{c.name}</button>
           ))}
         </div>
@@ -461,16 +461,16 @@ function POS() {
         <div className="flex-1 overflow-y-auto px-3 pb-4">
           {!selTable ? (
             <div className="flex flex-col items-center justify-center h-full text-[var(--pos-text-muted)]">
-              <Utensils size={40} className="mb-3 opacity-60" />
-              <p className="text-sm font-medium tracking-wide">{t('select_table')}</p>
+              <Utensils size={48} className="mb-3 opacity-60" />
+              <p className="text-base font-medium tracking-wide">{t('select_table')}</p>
             </div>
           ) : list.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-[var(--pos-text-muted)]">
-              <Search size={40} className="mb-3 opacity-60" />
-              <p className="text-sm font-medium tracking-wide">{t('not_found')}</p>
+              <Search size={48} className="mb-3 opacity-60" />
+              <p className="text-base font-medium tracking-wide">{t('not_found')}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {list.map(p => <PCard key={p.id} p={p} stock={avail[p.id] !== false} cart={cart.find(i => i.product.id === p.id)?.qty || 0} onAdd={() => addItem(p)} />)}
             </div>
           )}
@@ -481,11 +481,11 @@ function POS() {
           {/* Cart header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--pos-border)]">
             <div>
-              <h2 className="text-sm font-bold text-[var(--pos-text)]">
+              <h2 className="text-base font-bold text-[var(--pos-text)]">
                 {selTable ? `${t('table')} ${selTable}` : t('cart')}
               </h2>
               {activeOrder && (
-                <p className="text-[10px] text-[var(--pos-text-secondary)] mt-0.5">
+                <p className="text-xs text-[var(--pos-text-secondary)] mt-0.5">
                   {activeOrder.kitchen_status === 'ready' ? `✅ ${t('ready')}` : `⏳ ${t('waiting')}`}
                 </p>
               )}
@@ -494,17 +494,17 @@ function POS() {
               {activeOrder && (
                 <>
                   <button onClick={() => setShowMerge(true)}
-                    className="text-[10px] text-[var(--pos-btn-text)] font-medium hover:text-gold transition-colors tracking-wider uppercase">
+                    className="text-xs text-[var(--pos-btn-text)] font-medium hover:text-gold transition-colors tracking-wider uppercase">
                     {t('merge')}
                   </button>
                   <button onClick={handleDismissTable}
-                    className="text-[10px] text-[var(--pos-btn-text)] font-medium hover:text-red-400 transition-colors tracking-wider uppercase">
+                    className="text-xs text-[var(--pos-btn-text)] font-medium hover:text-red-400 transition-colors tracking-wider uppercase">
                     {t('dismiss_table')}
                   </button>
                 </>
               )}
               <button onClick={() => setCart([])}
-                className="text-[10px] text-[var(--pos-btn-text)] font-medium hover:text-[var(--pos-text)] transition-colors tracking-wider uppercase">
+                className="text-xs text-[var(--pos-btn-text)] font-medium hover:text-[var(--pos-text)] transition-colors tracking-wider uppercase">
                 {t('clear')}
               </button>
             </div>
@@ -515,19 +515,19 @@ function POS() {
             {activeOrder && activeOrder.order_items && activeOrder.order_items.length > 0 && (
               <div className="border-b border-[var(--pos-border)]">
                 <div className="px-5 pt-3 pb-1">
-                  <span className="text-[9px] text-[var(--pos-text-secondary)] uppercase tracking-widest font-medium">{t('existing_order')}</span>
+                  <span className="text-xs text-[var(--pos-text-secondary)] uppercase tracking-widest font-medium">{t('existing_order')}</span>
                 </div>
                 <div className="px-5 py-1 space-y-0.5">
                   {activeOrder.order_items.map(i => (
-                    <div key={i.id} className="flex items-center justify-between text-[11px]">
+                    <div key={i.id} className="flex items-center justify-between text-sm">
                       <span className="text-[var(--pos-text-secondary)]">{i.quantity}x {i.product_name}</span>
                       <span className="text-[var(--pos-text-secondary)] font-medium">₼{fmt(i.total_price || 0)}</span>
                     </div>
                   ))}
                 </div>
                 <div className="px-5 py-2 flex items-center justify-between border-t border-[var(--pos-border)] mt-1">
-                  <span className="text-[10px] text-[var(--pos-text-secondary)]">{t('subtotal_label')}</span>
-                  <span className="text-xs font-bold text-[var(--pos-price)]">₼{fmt(activeOrder.total_amount || 0)}</span>
+                  <span className="text-xs text-[var(--pos-text-secondary)]">{t('subtotal_label')}</span>
+                  <span className="text-sm font-bold text-[var(--pos-price)]">₼{fmt(activeOrder.total_amount || 0)}</span>
                 </div>
               </div>
             )}
@@ -536,26 +536,26 @@ function POS() {
             <div className="px-5 py-3 space-y-2">
               {cart.length === 0 && (!activeOrder || !activeOrder.order_items?.length) ? (
                 <div className="flex flex-col items-center justify-center py-12 text-[var(--pos-text-muted)]">
-                  <ShoppingBag size={28} className="mb-2 opacity-60" />
-                  <p className="text-xs font-medium">{t('cart_empty')}</p>
+                  <ShoppingBag size={32} className="mb-2 opacity-60" />
+                  <p className="text-sm font-medium">{t('cart_empty')}</p>
                 </div>
               ) : cart.length > 0 && (
                 <>
                   {activeOrder && activeOrder.order_items && activeOrder.order_items.length > 0 && (
                     <div className="pb-1">
-                      <span className="text-[9px] text-amber-400/60 uppercase tracking-widest font-semibold">{t('new_items')}</span>
+                      <span className="text-xs text-amber-400/60 uppercase tracking-widest font-semibold">{t('new_items')}</span>
                     </div>
                   )}
                   {cart.map(i => (
-                    <div key={i.product.id} className="flex items-center gap-3 bg-[var(--pos-bg-card)] rounded-xl px-3 py-2">
+                    <div key={i.product.id} className="flex items-center gap-3 bg-[var(--pos-bg-card)] rounded-xl px-4 py-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-[var(--pos-text)] truncate">{getPName(i.product)}</p>
-                        <p className="text-[10px] text-[var(--pos-price)] font-bold">₼{fmt(i.product.price * i.qty)}</p>
+                        <p className="text-sm font-semibold text-[var(--pos-text)] truncate">{getPName(i.product)}</p>
+                        <p className="text-xs text-[var(--pos-price)] font-bold">₼{fmt(i.product.price * i.qty)}</p>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <button onClick={() => chgQty(i.product.id, -1)} className="w-7 h-7 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Minus size={11} /></button>
-                        <span className="w-5 text-center text-sm font-bold text-[var(--pos-text)]">{i.qty}</span>
-                        <button onClick={() => chgQty(i.product.id, 1)} className="w-7 h-7 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Plus size={11} /></button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => chgQty(i.product.id, -1)} className="w-8 h-8 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Minus size={13} /></button>
+                        <span className="w-6 text-center text-base font-bold text-[var(--pos-text)]">{i.qty}</span>
+                        <button onClick={() => chgQty(i.product.id, 1)} className="w-8 h-8 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Plus size={13} /></button>
                       </div>
                     </div>
                   ))}
@@ -567,17 +567,17 @@ function POS() {
           {/* ─── Bottom: note + total + send ─── */}
           <div className="px-5 py-4 border-t border-[var(--pos-border)] space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[var(--pos-text-secondary)] uppercase tracking-widest font-medium">{t('total_label')}</span>
+              <span className="text-xs text-[var(--pos-text-secondary)] uppercase tracking-widest font-medium">{t('total_label')}</span>
               <div className="text-right">
                 {activeOrder && total > 0 && (
-                  <span className="text-[9px] text-[var(--pos-text-muted)] line-through block">₼{fmt(activeOrder.total_amount || 0)}</span>
+                  <span className="text-[10px] text-[var(--pos-text-muted)] line-through block">₼{fmt(activeOrder.total_amount || 0)}</span>
                 )}
-                <span className="text-lg font-black text-[var(--pos-text)]">₼{fmt((activeOrder?.total_amount || 0) + total)}</span>
+                <span className="text-xl font-black text-[var(--pos-text)]">₼{fmt((activeOrder?.total_amount || 0) + total)}</span>
               </div>
             </div>
             <button onClick={sendOrder} disabled={!selTable || cart.length === 0 || busy}
-              className="w-full py-3 rounded-xl text-sm font-bold bg-[var(--pos-send-bg)] text-[var(--pos-send-text)] border border-transparent active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2 hover:bg-[var(--pos-send-hover)] transition-all"
-            >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send_to_kitchen')}</button>
+              className="w-full py-4 rounded-xl text-sm font-bold bg-[var(--pos-send-bg)] text-[var(--pos-send-text)] border border-transparent active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2 hover:bg-[var(--pos-send-hover)] transition-all"
+            >{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} {t('send_to_kitchen')}</button>
           </div>
         </div>
       </div>
@@ -588,17 +588,17 @@ function POS() {
         <motion.div initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className="lg:hidden flex-shrink-0 border-t border-[var(--pos-border)] bg-[var(--pos-bg-secondary)] px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
           {cart.map(i => (
-            <div key={i.product.id} className="flex items-center gap-2 bg-[var(--pos-bg-card)] rounded-xl px-3 py-2">
-              <div className="flex-1 min-w-0"><p className="text-xs font-semibold text-[var(--pos-text)] truncate">{getPName(i.product)}</p><p className="text-[10px] text-[var(--pos-price)] font-bold">₼{fmt(i.product.price * i.qty)}</p></div>
-              <button onClick={() => chgQty(i.product.id, -1)} className="w-6 h-6 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Minus size={10} /></button>
-              <span className="w-4 text-center text-xs font-bold text-[var(--pos-text)]">{i.qty}</span>
-              <button onClick={() => chgQty(i.product.id, 1)} className="w-6 h-6 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Plus size={10} /></button>
+            <div key={i.product.id} className="flex items-center gap-3 bg-[var(--pos-bg-card)] rounded-xl px-3 py-2.5">
+              <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-[var(--pos-text)] truncate">{getPName(i.product)}</p><p className="text-xs text-[var(--pos-price)] font-bold">₼{fmt(i.product.price * i.qty)}</p></div>
+              <button onClick={() => chgQty(i.product.id, -1)} className="w-7 h-7 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Minus size={11} /></button>
+              <span className="w-5 text-center text-sm font-bold text-[var(--pos-text)]">{i.qty}</span>
+              <button onClick={() => chgQty(i.product.id, 1)} className="w-7 h-7 rounded-full bg-[var(--pos-bg-card)] flex items-center justify-center text-[var(--pos-text-secondary)]"><Plus size={11} /></button>
             </div>
           ))}
           <div className="flex items-center gap-3 pt-1">
-            <div className="flex-1"><span className="text-[10px] text-[var(--pos-text-secondary)]">{t('total')}</span><p className="text-lg font-black text-[var(--pos-text)]">₼{fmt(total)}</p></div>
-            <button onClick={sendOrder} disabled={busy} className="flex-1 py-3 rounded-xl text-sm font-bold bg-[var(--pos-send-bg)] text-[var(--pos-send-text)] border border-transparent active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2 hover:bg-[var(--pos-send-hover)] transition-all"
-            >{busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t('send')}</button>
+            <div className="flex-1"><span className="text-xs text-[var(--pos-text-secondary)]">{t('total')}</span><p className="text-xl font-black text-[var(--pos-text)]">₼{fmt(total)}</p></div>
+            <button onClick={sendOrder} disabled={busy} className="flex-1 py-3.5 rounded-xl text-sm font-bold bg-[var(--pos-send-bg)] text-[var(--pos-send-text)] border border-transparent active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2 hover:bg-[var(--pos-send-hover)] transition-all"
+            >{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} {t('send')}</button>
           </div>
         </motion.div>
       )}
@@ -623,10 +623,10 @@ function POS() {
                     disabled={busy}
                     className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-[var(--pos-bg-card)] transition-colors border border-[var(--pos-border)] disabled:opacity-30">
                     <div className="text-left">
-                      <p className="text-[var(--pos-text)] text-sm font-medium">{t('table')} {o.table_number}</p>
-                      <p className="text-[10px] text-[var(--pos-text-secondary)]">₼{fmt(o.total_amount || 0)} • {o.order_items?.length || 0} {t('items')}</p>
+                      <p className="text-[var(--pos-text)] text-base font-medium">{t('table')} {o.table_number}</p>
+                      <p className="text-xs text-[var(--pos-text-secondary)]">₼{fmt(o.total_amount || 0)} • {o.order_items?.length || 0} {t('items')}</p>
                     </div>
-                    <GitMerge size={16} className="text-gold flex-shrink-0" />
+                    <GitMerge size={18} className="text-gold flex-shrink-0" />
                   </button>
                 ))}
               </div>

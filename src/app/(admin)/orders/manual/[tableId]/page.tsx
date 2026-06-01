@@ -55,11 +55,11 @@ function CartItemRow({ item, onQty, language }: {
     : (item.product as any).name_az || item.product.name;
   const unitPrice = item.variant?.price ?? item.product.price;
   return (
-    <div className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-3 py-2.5">
+    <div className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-4 py-3">
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-white/80 truncate">{name}</p>
-        {item.variant && <p className="text-[10px] text-gold/60 truncate">{item.variant.name}</p>}
-        <p className="text-[10px] text-gold font-bold mt-0.5">₼{fmt(unitPrice * item.quantity)}</p>
+        <p className="text-sm font-semibold text-white/80 truncate">{name}</p>
+        {item.variant && <p className="text-xs text-gold/60 truncate">{item.variant.name}</p>}
+        <p className="text-xs text-gold font-bold mt-0.5">₼{fmt(unitPrice * item.quantity)}</p>
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <button onClick={() => onQty(-1)} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.12] transition-all">
@@ -249,15 +249,15 @@ export default function ManualOrderPage() {
           <div className="flex items-baseline gap-2 flex-shrink-0">
             <h1 className="text-lg font-bold text-white">{t('table')} {tableNum}</h1>
             {extraTableNums.length > 0 && (
-              <span className="text-xs text-white/30">+{extraTableNums.join('+')}</span>
+              <span className="text-sm text-white/30">+{extraTableNums.join('+')}</span>
             )}
           </div>
           <div className="flex-1">
             <div className="relative max-w-lg ml-auto">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20" />
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20" />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder={t('search_products')}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-10 pr-9 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.15] transition-colors"
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-10 pr-9 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.15] transition-colors"
               />
               {search && (
                 <button onClick={() => setSearch('')}
@@ -293,11 +293,11 @@ export default function ManualOrderPage() {
         <aside className="w-[30%] min-w-[300px] max-w-[400px] flex flex-col border-l border-white/[0.06] bg-[#0f0f0f] flex-shrink-0">
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
             <div>
-              <h2 className="text-sm font-bold text-white">{t('cart')}</h2>
-              <p className="text-[10px] text-white/30">{t('table')} {tableNum}</p>
+              <h2 className="text-base font-bold text-white">{t('cart')}</h2>
+              <p className="text-xs text-white/30">{t('table')} {tableNum}</p>
             </div>
             <button onClick={() => setItems([])}
-              className="text-[10px] text-white/20 hover:text-white/50 transition-colors font-semibold tracking-wider uppercase">
+              className="text-xs text-white/20 hover:text-white/50 transition-colors font-semibold tracking-wider uppercase">
               {t('clear')}
             </button>
           </div>
@@ -305,8 +305,8 @@ export default function ManualOrderPage() {
           <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-white/15">
-                <ShoppingBag size={32} className="mb-3 opacity-30" />
-                <p className="text-xs">{t('cart_empty')}</p>
+                <ShoppingBag size={40} className="mb-3 opacity-30" />
+                <p className="text-sm font-medium">{t('cart_empty')}</p>
               </div>
             ) : (
               items.map(item => {
@@ -319,17 +319,17 @@ export default function ManualOrderPage() {
           <div className="px-5 py-4 border-t border-white/[0.06] space-y-3">
             <input value={note} onChange={e => setNote(e.target.value)}
               placeholder={t('note_placeholder')}
-              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-white/20 outline-none focus:border-white/[0.15] transition-colors"
+              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-3.5 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.15] transition-colors"
             />
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-white/30 uppercase tracking-widest font-semibold">{t('total_label')}</span>
+              <span className="text-xs text-white/30 uppercase tracking-widest font-semibold">{t('total_label')}</span>
               <span className="text-2xl font-black text-white tracking-tight">₼{fmt(total)}</span>
             </div>
             <button onClick={handleSubmit}
               disabled={items.length === 0 || submitting}
-              className="w-full py-3.5 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 transition-all hover:bg-amber-500/25"
+              className="w-full py-4 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 transition-all hover:bg-amber-500/25"
             >
-              {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               {t('send_to_kitchen')}
             </button>
           </div>
@@ -356,11 +356,11 @@ export default function ManualOrderPage() {
                 variantPicker.variants.map(v => (
                   <button key={v.id} onClick={() => addItem(variantPicker.product, v)}
                     className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-white/[0.06] transition-colors border border-white/[0.06]">
-                    <div className="text-left">
-                      <p className="text-white text-sm font-medium">{v.name}</p>
-                      {v.is_default && <span className="text-[9px] text-white/25 uppercase tracking-wider">{t('combo_default_variant')}</span>}
-                    </div>
-                    <span className="text-gold text-xs font-bold flex-shrink-0 ml-3">₼{fmt(v.price)}</span>
+                      <div className="text-left">
+                        <p className="text-white text-sm font-medium">{v.name}</p>
+                        {v.is_default && <span className="text-[10px] text-white/25 uppercase tracking-wider">{t('combo_default_variant')}</span>}
+                      </div>
+                      <span className="text-gold text-sm font-bold flex-shrink-0 ml-3">₼{fmt(v.price)}</span>
                   </button>
                 ))
               )}

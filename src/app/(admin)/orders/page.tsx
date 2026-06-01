@@ -20,6 +20,7 @@ import { OrderModal } from './components/OrderModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import GoldCalendar from '@/components/GoldCalendar';
 import WaiterMode from './components/WaiterMode';
+import { ManualOrderModal } from './components/ManualOrderModal';
 import type { TabKey, TableFilterType, Order } from './types';
 import { getOrderAgeMinutes } from './utils';
 
@@ -99,6 +100,7 @@ export default function OrdersPage() {
   const [clearingArchive, setClearingArchive]       = useState(false);
   const [confirmClearArchive, setConfirmClearArchive] = useState(false);
   const [waiterMode, setWaiterMode] = useState(false);
+  const [manualModalTable, setManualModalTable] = useState<number | null>(null);
 
   const [dismissedReadyIds, setDismissedReadyIds] = useState<Set<string>>(() => {
     try {
@@ -650,7 +652,7 @@ export default function OrdersPage() {
           allOrders={orders}
           onTableClick={setSelectedOrder}
           onClearTable={handleClearTable}
-          onEmptyTableClick={(n) => tryOpenManualOrder(n)}
+          onEmptyTableClick={(n) => setManualModalTable(n)}
           tableCount={tableCount}
           tableFilter={tableFilter}
           setTableFilter={setTableFilter}
@@ -843,6 +845,15 @@ export default function OrdersPage() {
 
       {/* Waiter Mode — full screen overlay */}
       {waiterMode && <WaiterMode onClose={() => setWaiterMode(false)} />}
+
+      {/* Manual Order Modal — for empty tables */}
+      {manualModalTable && (
+        <ManualOrderModal
+          tableNum={manualModalTable}
+          onClose={() => setManualModalTable(null)}
+          onCreated={() => { setManualModalTable(null); fetchOrders(); }}
+        />
+      )}
     </div>
   );
 }

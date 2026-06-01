@@ -481,7 +481,7 @@ export const OrderModal = ({
           background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)',
           touchAction: 'pan-y',
         }}
-        className={`pointer-events-auto relative w-full ${order.status === 'paid' ? 'md:max-w-md' : 'md:max-w-6xl'} h-[100dvh] md:h-[88vh] rounded-t-[28px] md:rounded-[28px] shadow-[0_-8px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)] flex flex-col overflow-hidden`}
+        className="pointer-events-auto relative w-full md:max-w-6xl h-[100dvh] md:h-[88vh] rounded-t-[28px] md:rounded-[28px] shadow-[0_-8px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.06)] flex flex-col overflow-hidden"
       >
         {/* drag handle — mobile only */}
         <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
@@ -539,8 +539,7 @@ export const OrderModal = ({
         </div>
 
         {/* Mobile Tab Switcher */}
-        {order.status !== 'paid' && (
-          <div className="md:hidden px-5 pt-3 pb-0 flex-shrink-0">
+        <div className="md:hidden px-5 pt-3 pb-0 flex-shrink-0">
             <div className="flex bg-white/[0.04] rounded-2xl p-1 gap-1">
               {(['order', 'summary'] as const).map(tab => (
                 <button key={tab} onClick={() => setMobileTab(tab)}
@@ -563,7 +562,6 @@ export const OrderModal = ({
               ))}
             </div>
           </div>
-        )}
 
         <div className="h-px bg-white/[0.05] mx-5 mt-3 flex-shrink-0" />
 
@@ -571,7 +569,7 @@ export const OrderModal = ({
         <div className="flex flex-1 min-h-0 overflow-hidden">
 
           {/* ═══ LEFT 70%: Items as cards (or add products) ═══ */}
-          <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${order.status === 'paid' ? 'hidden md:hidden' : ''}`}>
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Search / Toggle bar */}
             <div className="px-4 pt-3 pb-2 flex-shrink-0 flex items-center gap-2">
               <div className="relative flex-1">
@@ -753,7 +751,7 @@ export const OrderModal = ({
           </div>
 
           {/* ═══ RIGHT 30%: Summary + Actions ═══ */}
-          <div className={`w-80 flex-shrink-0 ${order.status === 'paid' ? 'hidden' : 'hidden md:flex'} flex-col border-l border-white/[0.05]`}>
+          <div className="w-80 flex-shrink-0 hidden md:flex flex-col border-l border-white/[0.05]">
             {/* Three-dot menu bar */}
             <div className="px-5 pt-4 pb-3 flex-shrink-0 border-b border-white/[0.05] flex items-center justify-between">
               <div>

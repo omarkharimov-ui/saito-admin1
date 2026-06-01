@@ -11,6 +11,7 @@ import { DeleteCampaignModal, DeleteAllCampaignsModal } from './components/Campa
 import { toast } from 'react-hot-toast';
 import { CampaignsSkeleton } from './components/CampaignsSkeleton';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import { motion } from 'framer-motion';
 
 // Helper to interpolate translation templates with variables
@@ -25,9 +26,11 @@ const CampaignsPage = () => {
   const { t, language } = useLanguage();
 
   /* ─── Loading state ─── */
-  const [loading, setLoading] = useState(() => {
+  const [rawLoading, setLoading] = useState(() => {
     try { return !localStorage.getItem('saito_campaigns_cache'); } catch { return true; }
   });
+  // Enforce minimum loading time to prevent skeleton flicker
+  const loading = useMinimumLoadingTime(rawLoading, 600);
 
 
   /* ─── AI helpers ─── */

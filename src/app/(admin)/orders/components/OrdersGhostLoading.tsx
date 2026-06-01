@@ -7,7 +7,12 @@ export function OrdersGhostLoading() {
   return (
     <div className="space-y-4">
       {/* Table Status Grid - Real Form */}
-      <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4">
+      <motion.div
+        initial={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.8 }}
+        className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4"
+      >
         <div className="h-4 w-32 bg-white/[0.08] rounded mb-4" />
         <div className="flex flex-wrap gap-2">
           {Array.from({ length: 24 }).map((_, i) => (
@@ -22,10 +27,15 @@ export function OrdersGhostLoading() {
             <div className="h-4 w-4 bg-white/[0.1] rounded-full" />
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Status Bar - Real Form */}
-      <div className="h-14 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center px-4 gap-6">
+      <motion.div
+        initial={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.8 }}
+        className="h-14 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center px-4 gap-6"
+      >
         <div className="flex items-center gap-2 flex-1">
           <div className="w-2 h-2 rounded-full bg-white/[0.1]" />
           <div className="h-4 w-20 bg-white/[0.08] rounded" />
@@ -41,10 +51,15 @@ export function OrdersGhostLoading() {
           <div className="h-4 w-16 bg-white/[0.08] rounded" />
           <div className="h-5 w-6 bg-white/[0.08] rounded-full" />
         </div>
-      </div>
+      </motion.div>
 
       {/* Order Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <motion.div
+        initial={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.8 }}
+        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+      >
       {Array.from({ length: 6 }).map((_, i) => (
         <motion.div
           key={i}
@@ -90,7 +105,7 @@ export function OrdersGhostLoading() {
           </div>
         </motion.div>
       ))}
-    </div>
+      </motion.div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Calendar, Search, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import ReservationFilters from './components/ReservationFilters';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { ReservationTableRow, ReservationCard } from './components/ReservationRow';
@@ -20,9 +21,11 @@ const ReservationsPage = () => {
     try { const r = localStorage.getItem('saito_reservations_cache'); return r ? JSON.parse(r) : []; } catch { return []; }
   });
   const [orders, setOrders] = useState<{table_number: number; status: string}[]>([]);
-  const [loading, setLoading] = useState(() => {
+  const [rawLoading, setLoading] = useState(() => {
     try { return !localStorage.getItem('saito_reservations_cache'); } catch { return true; }
   });
+  // Enforce minimum loading time to prevent skeleton flicker
+  const loading = useMinimumLoadingTime(rawLoading, 600);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [isMdUp, setIsMdUp] = useState(false);

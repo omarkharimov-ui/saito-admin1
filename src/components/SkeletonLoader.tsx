@@ -11,7 +11,7 @@ export function ComboCardSkeleton({ count = 4 }: { count?: number }) {
     <motion.div 
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.8 }}
       className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-2xl overflow-hidden">
@@ -54,7 +54,7 @@ export function CardSkeleton({ count = 6 }: { count?: number }) {
     <motion.div 
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.8 }}
       className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
@@ -81,7 +81,7 @@ export function TableSkeleton({ rows = 8 }: { rows?: number }) {
     <motion.div 
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.8 }}
       className="space-y-3">
       {/* Header */}
       <div className="flex gap-4 px-4 py-3 bg-white/[0.02] rounded-xl">
@@ -108,7 +108,7 @@ export function StatSkeleton({ count = 4 }: { count?: number }) {
     <motion.div 
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.8 }}
       className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
@@ -125,7 +125,7 @@ export function RowSkeleton({ count = 6 }: { count?: number }) {
     <motion.div 
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.8 }}
       className="space-y-3">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 px-4 py-4 bg-white/[0.02] rounded-xl">

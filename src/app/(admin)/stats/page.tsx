@@ -16,6 +16,7 @@ import StatsCancellationChart from './components/StatsCancellationChart';
 import StatsMobileView from './components/StatsMobileView';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import { StatSkeleton } from '@/components/SkeletonLoader';
 
 const interpolateTemplate = (template: string, variables: Record<string, string | number>): string =>
@@ -25,7 +26,8 @@ const StatsPage = () => {
   const { t, language, getCategoryTranslation } = useLanguage();
 
   /* ─── Filter state ─── */
-  const [loading, setLoading] = useState(false);
+  const [rawLoading, setLoading] = useState(true);
+  const loading = useMinimumLoadingTime(rawLoading, 600);
   const [timeFilter, setTimeFilter] = useState('today');
   const [categories, setCategories] = useState<{ id: string; name: string; translations?: any }[]>([]);
   const [selectedCancellationReason, setSelectedCancellationReason] = useState<string | null>(null);

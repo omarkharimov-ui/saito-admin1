@@ -6,7 +6,12 @@ import { motion } from 'framer-motion';
 
 export function CampaignsSkeleton() {
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.8 }}
+      className="space-y-6"
+    >
       {/* Header Skeleton */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
@@ -89,6 +94,6 @@ export function CampaignsSkeleton() {
           ))}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

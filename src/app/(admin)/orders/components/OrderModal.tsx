@@ -54,6 +54,7 @@ export const OrderModal = ({
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [showMenu, setShowMenu]     = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
   const [cancelStep, setCancelStep] = useState<'none' | 'confirm' | 'select' | 'reason'>('none');
   const [cancelReason, setCancelReason] = useState('');
   const [isConfirming] = useState(false);
@@ -736,52 +737,18 @@ export const OrderModal = ({
                 </p>
               </div>
               {order.status !== 'paid' && (
-                <div className="relative">
-                  <button onClick={() => {
-                    if (confirmClear || confirmCancel) { setConfirmClear(false); setConfirmCancel(false); setShowMenu(false); }
-                    else { setShowMenu(!showMenu); if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); } }
+                <div>
+                  <button onClick={(e) => {
+                    if (confirmClear || confirmCancel) { setConfirmClear(false); setConfirmCancel(false); setShowMenu(false); setMenuAnchor(null); }
+                    else {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                      setShowMenu(!showMenu);
+                      if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); }
+                    }
                   }} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${confirmClear || confirmCancel ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-white/10 text-white/40 hover:text-white'}`}>
                     {confirmClear || confirmCancel ? <X size={18} /> : <MoreVertical size={18} />}
                   </button>
-                  {(showMenu || confirmClear || confirmCancel) && (
-                    <div className="absolute right-0 top-11 w-52 bg-[#1c1c1c] border border-white/[0.08] rounded-2xl shadow-2xl z-50 overflow-hidden">
-                      {!confirmClear && !confirmCancel && isMergedOrder && (
-                        <button onClick={() => { setShowMenu(false); setShowMerge(true); setSelectedTablesToSplit(new Set()); }}
-                          className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
-                          <GitMerge size={15} className="text-gold/70" />
-                          <div>
-                            <p className="text-sm font-semibold text-gold/90">{t('unmerge_tables')}</p>
-                            <p className="text-[10px] text-white/30">{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
-                          </div>
-                        </button>
-                      )}
-                      {!confirmClear && !confirmCancel && (
-                        <button onClick={() => { setShowMenu(false); setSelectedCancelItems({}); setCancelStep('select'); }}
-                          className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-red-500/5 transition-colors text-left border-t border-white/5">
-                          <Trash2 size={15} className="text-red-400/70" />
-                          <span className="text-red-400 text-sm">{t('cancel_order')}</span>
-                        </button>
-                      )}
-                      {order.table_number && (
-                        confirmClear ? (
-                          <div className="px-4 py-3 border-t border-white/5">
-                            <p className="text-white/60 text-sm mb-3 font-medium">{t('are_you_sure')}</p>
-                            <div className="flex gap-2">
-                              <button onClick={() => { setShowMenu(false); setConfirmClear(false); }} className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/50 text-sm transition-all">{t('no')}</button>
-                              <button onClick={() => { setShowMenu(false); setConfirmClear(false); act(() => onClearTable(order.table_number!)); }} disabled={acting}
-                                className="flex-1 py-2.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-semibold border border-red-500/40 transition-all disabled:opacity-40">{t('yes_delete')}</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button onClick={() => { setConfirmClear(true); if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); } }}
-                            className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-orange-500/5 transition-colors text-left border-t border-white/5">
-                            <X size={15} className="text-orange-400/70" />
-                            <span className="text-orange-300 text-sm">{t('dismiss_table')}</span>
-                          </button>
-                        )
-                      )}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -985,37 +952,15 @@ export const OrderModal = ({
                   {draftTotal.toFixed(2)} ₼
                 </p>
               </div>
-              <div className="relative" onClick={e => e.stopPropagation()}>
-                  <button onClick={() => setShowMenu(!showMenu)}
+              <div onClick={e => e.stopPropagation()}>
+                  <button onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                    setShowMenu(!showMenu);
+                  }}
                     className="w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
                     <MoreVertical size={18} />
                   </button>
-                  {showMenu && (
-                    <div className="absolute right-0 top-11 w-52 bg-[#1c1c1c] border border-white/[0.08] rounded-2xl shadow-2xl z-50 overflow-hidden">
-                      {isMergedOrder && (
-                        <button onClick={() => { setShowMenu(false); setShowMerge(true); setSelectedTablesToSplit(new Set()); }}
-                          className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
-                          <GitMerge size={15} className="text-gold/70" />
-                          <div>
-                            <p className="text-sm font-semibold text-gold/90">{t('unmerge_tables')}</p>
-                            <p className="text-[10px] text-white/30">{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
-                          </div>
-                        </button>
-                      )}
-                      <button onClick={() => { setShowMenu(false); setSelectedCancelItems({}); setCancelStep('select'); }}
-                        className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-red-500/5 transition-colors text-left border-t border-white/5">
-                        <Trash2 size={15} className="text-red-400/70" />
-                        <span className="text-red-400 text-sm">{t('cancel_order')}</span>
-                      </button>
-                      {order.table_number && (
-                        <button onClick={() => { setConfirmClear(true); }}
-                          className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-orange-500/5 transition-colors text-left border-t border-white/5">
-                          <X size={15} className="text-orange-400/70" />
-                          <span className="text-orange-300 text-sm">{t('dismiss_table')}</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
@@ -1246,6 +1191,49 @@ export const OrderModal = ({
               </div>
             </motion.div>
           </div>
+        )}
+
+        {/* Portal menu — never clipped by overflow-hidden */}
+        {typeof document !== 'undefined' && (showMenu || confirmClear || confirmCancel) && menuAnchor && createPortal(
+          <div onClick={e => e.stopPropagation()} className="fixed z-[100] w-52 bg-[#1c1c1c] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden"
+            style={{ top: menuAnchor.top, right: menuAnchor.right }}>
+            {!confirmClear && !confirmCancel && isMergedOrder && (
+              <button onClick={() => { setShowMenu(false); setShowMerge(true); setSelectedTablesToSplit(new Set()); setMenuAnchor(null); }}
+                className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
+                <GitMerge size={15} className="text-gold/70" />
+                <div>
+                  <p className="text-sm font-semibold text-gold/90">{t('unmerge_tables')}</p>
+                  <p className="text-[10px] text-white/30">{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
+                </div>
+              </button>
+            )}
+            {!confirmClear && !confirmCancel && (
+              <button onClick={() => { setShowMenu(false); setSelectedCancelItems({}); setCancelStep('select'); setMenuAnchor(null); }}
+                className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-red-500/5 transition-colors text-left border-t border-white/5">
+                <Trash2 size={15} className="text-red-400/70" />
+                <span className="text-red-400 text-sm">{t('cancel_order')}</span>
+              </button>
+            )}
+            {order.table_number && (
+              confirmClear ? (
+                <div className="px-4 py-3 border-t border-white/5">
+                  <p className="text-white/60 text-sm mb-3 font-medium">{t('are_you_sure')}</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setShowMenu(false); setConfirmClear(false); setMenuAnchor(null); }} className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/50 text-sm transition-all">{t('no')}</button>
+                    <button onClick={() => { setShowMenu(false); setConfirmClear(false); setMenuAnchor(null); act(() => onClearTable(order.table_number!)); }} disabled={acting}
+                      className="flex-1 py-2.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-semibold border border-red-500/40 transition-all disabled:opacity-40">{t('yes_delete')}</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => { setConfirmClear(true); if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); } setMenuAnchor(null); }}
+                  className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-orange-500/5 transition-colors text-left border-t border-white/5">
+                  <X size={15} className="text-orange-400/70" />
+                  <span className="text-orange-300 text-sm">{t('dismiss_table')}</span>
+                </button>
+              )
+            )}
+          </div>,
+          document.body
         )}
       </>
     );

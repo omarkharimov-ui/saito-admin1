@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Product, Category } from '@/types';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 
 import { ProductTable } from './components/ProductTable';
 import { ProductModal } from './components/ProductModal';
@@ -67,9 +68,11 @@ const ProductsPage = () => {
       return [];
     }
   });
-  const [loading, setLoading] = useState(() => {
+  const [rawLoading, setLoading] = useState(() => {
     try { return !localStorage.getItem('saito_products_cache'); } catch { return true; }
   });
+  // Enforce minimum loading time to prevent skeleton flicker
+  const loading = useMinimumLoadingTime(rawLoading, 600);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<string[]>(() => {
     try { const r = localStorage.getItem('saito_expanded_categories'); return r ? JSON.parse(r) : []; } catch { return []; }

@@ -181,7 +181,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
 
   return (
     <>
-      <div className="bg-[#0a0a0a] rounded-2xl border border-white/[0.06] overflow-hidden select-none">
+      <div className="bg-[#0a0a0a] rounded-2xl border border-white/[0.06] select-none">
 
         {/* ─── HEADER ─── */}
         <div className="border-b border-white/[0.06] bg-[#0c0c0c] px-6 py-4">
@@ -281,18 +281,20 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
           </div>
         </div>
 
-        {/* ─── CATEGORY STRIP (bottom of modal) ─── */}
-        {categories.length > 0 && (
-          <div className="border-t border-white/[0.06] bg-[#0c0c0c] px-4 py-3">
-            <div className="flex gap-2 overflow-x-auto">
-              {categories.map(c => (
-                <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
-                  className={`flex-shrink-0 px-6 py-3 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap ${cat === c.id ? 'bg-white text-black' : 'bg-white/[0.04] text-white/40'}`}
-                >{c.name}</button>
-              ))}
-            </div>
+        {/* ─── CATEGORY STRIP (always visible at bottom) ─── */}
+        <div className="border-t border-white/[0.08] bg-[#111] px-4 py-4">
+          <div className="flex gap-2 overflow-x-auto">
+            {categories.length === 0 ? (
+              <span className="text-sm text-white/20 italic">Kateqoriya yoxdur</span>
+            ) : categories.map(c => (
+              <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
+                className={`flex-shrink-0 px-6 py-3.5 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap transition-all ${
+                  cat === c.id ? 'bg-white text-black shadow-lg' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
+                }`}
+              >{c.name}</button>
+            ))}
           </div>
-        )}
+        </div>
       </div>
 
       {/* ─── VARIANT PICKER ─── */}

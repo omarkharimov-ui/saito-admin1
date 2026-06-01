@@ -107,29 +107,24 @@ export default function OrdersPage() {
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
-    const sidebarEl = document.querySelector('[style*="width: 272"]');
-    const mainEl = document.querySelector('main');
-
+    let style: HTMLStyleElement | null = null;
     const handler = () => {
       const isFs = !!document.fullscreenElement;
       setFullscreen(isFs);
-      if (sidebarEl && mainEl) {
-        if (isFs) {
-          (sidebarEl as HTMLElement).style.display = 'none';
-          (mainEl as HTMLElement).style.marginLeft = '0';
-        } else {
-          (sidebarEl as HTMLElement).style.display = '';
-          (mainEl as HTMLElement).style.marginLeft = '';
-        }
+      if (isFs && !style) {
+        style = document.createElement('style');
+        style.id = 'fs-sidebar';
+        style.textContent = `div[style*="width: 272"] { display: none !important; } main { margin-left: 0 !important; }`;
+        document.head.appendChild(style);
+      } else if (!isFs && style) {
+        style.remove();
+        style = null;
       }
     };
     document.addEventListener('fullscreenchange', handler);
     return () => {
       document.removeEventListener('fullscreenchange', handler);
-      if (sidebarEl && mainEl) {
-        (sidebarEl as HTMLElement).style.display = '';
-        (mainEl as HTMLElement).style.marginLeft = '';
-      }
+      if (style) style.remove();
     };
   }, []);
 

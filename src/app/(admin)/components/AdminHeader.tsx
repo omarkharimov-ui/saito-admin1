@@ -77,19 +77,7 @@ const AdminHeaderInner = ({
 
   return (
     <header className="mb-8 flex items-start sm:items-center justify-between gap-3 sm:gap-4 relative">
-      <div className="flex items-start sm:items-center gap-3">
-        <div>
-          <h1 className="text-[10px] sm:text-sm tracking-[0.3em] uppercase font-medium italic text-white/40">
-            {t('welcome')},{' '}
-            <span className={role === 'superadmin' ? 'text-gold' : 'text-white/60'}>
-              {role === 'superadmin' ? t('superadmin') : t('admin')}
-            </span>
-          </h1>
-          <Link href="/" className="text-lg sm:text-2xl font-serif font-bold mt-1 sm:mt-2 inline-block text-foreground">
-            Saito Admin
-          </Link>
-        </div>
-      </div>
+      <div className="flex-1" />
 
       <div className="flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-7">
         {/* Language switcher */}

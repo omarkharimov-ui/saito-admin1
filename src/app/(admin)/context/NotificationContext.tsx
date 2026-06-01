@@ -299,7 +299,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           showNotificationRef.current(title, body);
           addNotificationRef.current(title, body, 'reservation');
           toast.success((t) => <span onClick={() => dismissToast(t)}>Yeni rezervasiya: {guestName}{guestDate ? ` (${guestDate})` : ''}</span>, {
-            duration: 4000, style: { background: '#1a1a1a', color: '#fff', border: '1px solid #D4AF3740', cursor: 'pointer', animation: 'toast-shake 0.3s cubic-bezier(0.36,0.07,0.19,0.97)' }
+            duration: 4000, style: { background: '#1a1a1a', color: '#fff', border: '1px solid #D4AF3740', cursor: 'pointer' }
           });
         }
       )
@@ -336,7 +336,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               toast((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
                 duration: 3000,
                 icon: undefined,
-                style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold', cursor: 'pointer', animation: 'toast-shake 0.3s cubic-bezier(0.36,0.07,0.19,0.97)' },
+                style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold', cursor: 'pointer' },
               });
             }
           }
@@ -383,7 +383,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               toast.success((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
                 duration: 5000,
                 icon: undefined,
-                style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 'bold', cursor: 'pointer', animation: 'toast-shake 0.3s cubic-bezier(0.36,0.07,0.19,0.97)' },
+                style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 'bold', cursor: 'pointer' },
               });
             }
           }
@@ -413,7 +413,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             showNotificationRef.current(title, body);
             addNotificationRef.current(title, body, 'order');
             toast.success((t) => <span onClick={() => dismissToast(t)}>{toastBody}</span>, {
-              duration: 4000, style: { background: '#1a1a1a', color: '#fff', border: '1px solid #D4AF3740', cursor: 'pointer', animation: 'toast-shake 0.3s cubic-bezier(0.36,0.07,0.19,0.97)' }
+              duration: 4000, style: { background: '#1a1a1a', color: '#fff', border: '1px solid #D4AF3740', cursor: 'pointer' }
             });
           }
         }

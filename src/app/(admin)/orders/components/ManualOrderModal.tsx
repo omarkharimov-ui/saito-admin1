@@ -15,10 +15,8 @@ interface Category { id: string; name: string; }
 interface ManualOrderModalProps {
   tableNum: number;
   extraTableNums?: number[];
-  tableNumbers: number[];
   onClose: () => void;
   onCreated: (newOrderId?: string) => void;
-  onSwitchTable: (num: number) => void;
 }
 
 const cardVariants = {
@@ -55,7 +53,7 @@ function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: 
   );
 }
 
-export function ManualOrderModal({ tableNum, extraTableNums = [], tableNumbers, onClose, onCreated, onSwitchTable }: ManualOrderModalProps) {
+export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCreated }: ManualOrderModalProps) {
   const { t, language } = useLanguage();
   const searchRef = useRef<HTMLInputElement>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -209,19 +207,9 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], tableNumbers, 
         {/* ─── HEADER ─── */}
         <div className="border-b border-white/[0.06] bg-[#0c0c0c] px-5 py-3.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button onClick={() => { const i = tableNumbers.indexOf(tableNum); if (i > 0) onSwitchTable(tableNumbers[i - 1]); }}
-                disabled={tableNumbers.indexOf(tableNum) <= 0}
-                className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none"
-              ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-              <button onClick={() => { const i = tableNumbers.indexOf(tableNum); if (i < tableNumbers.length - 1) onSwitchTable(tableNumbers[i + 1]); }}
-                disabled={tableNumbers.indexOf(tableNum) >= tableNumbers.length - 1}
-                className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none"
-              ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
-              <p className="font-black text-lg tracking-widest leading-none"
-                style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                {t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</p>
-            </div>
+            <p className="font-black text-lg tracking-widest leading-none"
+              style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              {t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</p>
             <div className="flex items-center gap-2">
               {cartCount > 0 && (
                 <span className="text-sm text-white/30">{cartCount} {t('items')}</span>

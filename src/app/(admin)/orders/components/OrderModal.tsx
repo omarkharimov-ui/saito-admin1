@@ -23,8 +23,6 @@ interface OrderModalProps {
   onConfirm: (id: string) => Promise<void>;
   onClearTable: (tableNum: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  allActiveOrders?: Order[];
-  onSwitchOrder?: (order: Order) => void;
   allOrders?: Order[];
   onOrdersUpdate?: (updater: (prev: Order[]) => Order[]) => void;
   inline?: boolean;
@@ -32,7 +30,7 @@ interface OrderModalProps {
 
 export const OrderModal = ({
   order, onClose, onRefresh, onPay, onConfirm, onClearTable, onDelete,
-  allActiveOrders = [], onSwitchOrder, allOrders = [], onOrdersUpdate, inline = false,
+  allOrders = [], onOrdersUpdate, inline = false,
 }: OrderModalProps) => {
   const { t, language } = useLanguage();
 
@@ -490,21 +488,6 @@ export const OrderModal = ({
           <div className="flex items-center gap-3 min-w-0">
             {isMergedOrder ? (
               <div className="flex items-center gap-2">
-                {allActiveOrders.length > 0 && onSwitchOrder && (() => {
-                  const idx = allActiveOrders.findIndex(o => o.id === order.id);
-                  return (
-                    <>
-                      <button onClick={() => idx > 0 && onSwitchOrder(allActiveOrders[idx - 1])}
-                        disabled={idx <= 0}
-                        className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none"
-                      ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-                      <button onClick={() => idx < allActiveOrders.length - 1 && onSwitchOrder(allActiveOrders[idx + 1])}
-                        disabled={idx >= allActiveOrders.length - 1}
-                        className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none"
-                      ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
-                    </>
-                  );
-                })()}
                 <Layers size={16} className="text-white/40 flex-shrink-0" strokeWidth={1.5} />
                 <p className="font-black text-2xl tracking-widest leading-none whitespace-nowrap"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
@@ -515,27 +498,10 @@ export const OrderModal = ({
                 </span>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                {allActiveOrders.length > 0 && onSwitchOrder && (() => {
-                  const idx = allActiveOrders.findIndex(o => o.id === order.id);
-                  return (
-                    <>
-                      <button onClick={() => idx > 0 && onSwitchOrder(allActiveOrders[idx - 1])}
-                        disabled={idx <= 0}
-                        className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none"
-                      ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-                      <button onClick={() => idx < allActiveOrders.length - 1 && onSwitchOrder(allActiveOrders[idx + 1])}
-                        disabled={idx >= allActiveOrders.length - 1}
-                        className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white transition-all disabled:opacity-20 disabled:pointer-events-none"
-                      ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
-                    </>
-                  );
-                })()}
-                <p className="font-black text-2xl tracking-widest leading-none whitespace-nowrap"
-                  style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                  {order.table_number ? `${t('table_label')} ${order.table_number}` : '—'}
-                </p>
-              </div>
+              <p className="font-black text-2xl tracking-widest leading-none whitespace-nowrap"
+                style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                {order.table_number ? `${t('table_label')} ${order.table_number}` : '—'}
+              </p>
             )}
             <span className="text-white/20 text-[11px] flex items-center gap-1">
               <Clock size={9} />

@@ -995,6 +995,7 @@ export const ru: TranslationMap = {
   ready_notif_table: 'Стол',
   ready_notif_group: 'Группа',
   ready_notif_dismiss_all: 'Закрыть все',
+  kitchen_tab_all: 'Все',
   kitchen_tab_pending: 'Ожидает',
   kitchen_tab_preparing: 'Готовится',
   kitchen_tab_ready: 'Готово',

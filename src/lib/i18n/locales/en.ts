@@ -974,6 +974,7 @@ export const en: TranslationMap = {
   ready_notif_table: 'Table',
   ready_notif_group: 'Group',
   ready_notif_dismiss_all: 'Dismiss all',
+  kitchen_tab_all: 'All',
   kitchen_tab_pending: 'Pending',
   kitchen_tab_preparing: 'Preparing',
   kitchen_tab_ready: 'Ready',

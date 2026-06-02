@@ -973,6 +973,7 @@ export const az = {
   ready_notif_table: 'Masa',
   ready_notif_group: 'Qrup',
   ready_notif_dismiss_all: 'Hamısını sil',
+  kitchen_tab_all: 'Hamısı',
   kitchen_tab_pending: 'Gözlənilir',
   kitchen_tab_preparing: 'Hazırlanır',
   kitchen_tab_ready: 'Hazırdır',

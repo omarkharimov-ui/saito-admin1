@@ -98,6 +98,18 @@ export type Database = {
           returned_amount: number | null;
           items: Json | null;
           created_at: string | null;
+          order_type: string | null;
+          customer_id: string | null;
+          kitchen_status: string | null;
+          kitchen_accepted_at: string | null;
+          kitchen_ready_at: string | null;
+          payment_method: string | null;
+          discount_type: string | null;
+          discount_value: number | null;
+          paid_amount: number | null;
+          split_count: number | null;
+          guest_count: number | null;
+          tip_amount: number | null;
         };
         Insert: {
           id?: string;
@@ -108,6 +120,18 @@ export type Database = {
           returned_amount?: number | null;
           items?: Json | null;
           created_at?: string | null;
+          order_type?: string | null;
+          customer_id?: string | null;
+          kitchen_status?: string | null;
+          kitchen_accepted_at?: string | null;
+          kitchen_ready_at?: string | null;
+          payment_method?: string | null;
+          discount_type?: string | null;
+          discount_value?: number | null;
+          paid_amount?: number | null;
+          split_count?: number | null;
+          guest_count?: number | null;
+          tip_amount?: number | null;
         };
         Update: {
           table_number?: number | null;
@@ -116,6 +140,18 @@ export type Database = {
           customer_note?: string | null;
           returned_amount?: number | null;
           items?: Json | null;
+          order_type?: string | null;
+          customer_id?: string | null;
+          kitchen_status?: string | null;
+          kitchen_accepted_at?: string | null;
+          kitchen_ready_at?: string | null;
+          payment_method?: string | null;
+          discount_type?: string | null;
+          discount_value?: number | null;
+          paid_amount?: number | null;
+          split_count?: number | null;
+          guest_count?: number | null;
+          tip_amount?: number | null;
         };
         Relationships: [];
       };
@@ -130,6 +166,7 @@ export type Database = {
           unit_price: number | null;
           total_price: number | null;
           created_at: string | null;
+          course: string | null;
         };
         Insert: {
           id?: string;
@@ -141,6 +178,7 @@ export type Database = {
           unit_price?: number | null;
           total_price?: number | null;
           created_at?: string | null;
+          course?: string | null;
         };
         Update: {
           product_id?: string | null;
@@ -149,6 +187,55 @@ export type Database = {
           quantity?: number | null;
           unit_price?: number | null;
           total_price?: number | null;
+          course?: string | null;
+        };
+        Relationships: [];
+      };
+      customers: {
+        Row: {
+          id: string;
+          name: string;
+          phone: string | null;
+          total_visits: number | null;
+          total_spent: number | null;
+          last_order_at: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          phone?: string | null;
+          total_visits?: number | null;
+          total_spent?: number | null;
+          last_order_at?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          name?: string;
+          phone?: string | null;
+          total_visits?: number | null;
+          total_spent?: number | null;
+          last_order_at?: string | null;
+        };
+        Relationships: [];
+      };
+      clock_events: {
+        Row: {
+          id: string;
+          staff_id: string;
+          clock_in: string;
+          clock_out: string | null;
+        };
+        Insert: {
+          id?: string;
+          staff_id: string;
+          clock_in?: string;
+          clock_out?: string | null;
+        };
+        Update: {
+          staff_id?: string;
+          clock_in?: string;
+          clock_out?: string | null;
         };
         Relationships: [];
       };
@@ -327,6 +414,26 @@ export type Database = {
           reason_text?: string | null;
           total_amount?: number | null;
           items?: Json | null;
+        };
+        Relationships: [];
+      };
+      table_floors: {
+        Row: {
+          id: string;
+          table_number: number;
+          floor_name: string;
+          sort_order: number;
+        };
+        Insert: {
+          id?: string;
+          table_number: number;
+          floor_name?: string;
+          sort_order?: number;
+        };
+        Update: {
+          table_number?: number;
+          floor_name?: string;
+          sort_order?: number;
         };
         Relationships: [];
       };

@@ -8,7 +8,7 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import {
   Search, ShoppingBag, Plus, Minus, Send, CreditCard, X, Loader2, CheckCircle2,
-  Printer, ImageOff, Utensils, Banknote, Users, ArrowLeft,
+  Printer, ImageOff, Utensils, Banknote, Users, ArrowLeft, Package,
 } from 'lucide-react';
 
 interface Product { id: string; name: string; name_az?: string; name_en?: string; name_ru?: string; price: number; image_url: string | null; is_ready_product?: boolean; direct_ingredient_id?: string | null; category_id?: string | null; }
@@ -77,16 +77,17 @@ function PCard({ p, stock, cart, onAdd, animating }: { p: Product; stock: boolea
 }
 
 function CheckoutPanel({ order, onClose, onConfirm, busy }: {
-  order: OrderData; onClose: () => void; onConfirm: (p: { method: string; discountType: string; discountValue: number; splitCount: number }) => void; busy: boolean;
+  order: OrderData; onClose: () => void; onConfirm: (p: { method: string; discountType: string; discountValue: number; splitCount: number; tipAmount: number }) => void; busy: boolean;
 }) {
   const { t } = useLanguage();
   const [method, setMethod] = useState<'cash' | 'card'>('card');
   const [discountType, setDiscountType] = useState<'none' | 'percent' | 'amount'>('none');
   const [discountVal, setDiscountVal] = useState(0);
+  const [tipVal, setTipVal] = useState(0);
   const [split, setSplit] = useState(1);
   const baseTotal = order.total_amount || 0;
   const discountAmount = discountType === 'percent' ? baseTotal * (Math.min(discountVal, 100) / 100) : discountType === 'amount' ? Math.min(discountVal, baseTotal) : 0;
-  const finalTotal = baseTotal - discountAmount;
+  const finalTotal = baseTotal - discountAmount + tipVal;
   const perPerson = split > 1 ? finalTotal / split : finalTotal;
   const items = order.order_items || [];
   return (
@@ -129,6 +130,16 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
           {discountAmount > 0 && <p className="text-xs text-emerald-400 mt-1">- ₼{fmt(discountAmount)}</p>}
         </div>
         <div className="px-6 mb-4">
+          <label className="text-xs text-white/30 uppercase tracking-widest mb-2 block">{t('tip')}</label>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setTipVal(Math.max(0, tipVal - 1))}
+              className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/40 font-bold hover:bg-white/10">−</button>
+            <span className="flex-1 text-center text-lg font-bold text-white tabular-nums">{tipVal} ₼</span>
+            <button onClick={() => setTipVal(tipVal + 1)}
+              className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/40 font-bold hover:bg-white/10">+</button>
+          </div>
+        </div>
+        <div className="px-6 mb-4">
           <label className="text-xs text-white/30 uppercase tracking-widest mb-2 block">{t('split_label')}</label>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map(n => (
@@ -157,10 +168,10 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
             <div className="flex items-center justify-between">
               <span className="text-xs text-white/30 uppercase tracking-widest">{t('final_total')}</span>
               {discountAmount > 0 && <span className="text-xs text-white/30 line-through mr-2">₼{fmt(baseTotal)}</span>}
-              <span className="text-2xl font-black text-white">{discountAmount > 0 || split > 1 ? `₼${fmt(finalTotal)}` : `₼${fmt(baseTotal)}`}</span>
+              <span className="text-2xl font-black text-white">{tipVal > 0 || discountAmount > 0 || split > 1 ? `₼${fmt(finalTotal)}` : `₼${fmt(baseTotal)}`}</span>
             </div>
           </div>
-          <button onClick={() => onConfirm({ method, discountType, discountValue: discountVal, splitCount: split })}
+          <button onClick={() => onConfirm({ method, discountType, discountValue: discountVal, splitCount: split, tipAmount: tipVal })}
             disabled={busy}
             className="w-full py-4 rounded-2xl text-base font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
           >{busy ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />} {t('confirm_payment')}</button>
@@ -223,12 +234,13 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [selTable, setSelTable] = useState<number | null>(null);
   const [cat, setCat] = useState<string | null>(null);
+  const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [payBusy, setPayBusy] = useState(false);
-  const [paid, setPaid] = useState<OrderData & { payment_method?: string; discount_type?: string; discount_value?: number; paid_amount?: number; split_count?: number } | null>(null);
+  const [paid, setPaid] = useState<OrderData & { payment_method?: string; discount_type?: string; discount_value?: number; paid_amount?: number; split_count?: number; tip_amount?: number } | null>(null);
   const [checkoutOrder, setCheckoutOrder] = useState<OrderData | null>(null);
   const initialCatRef = useRef(false);
 
@@ -309,12 +321,12 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
     if (!selTable || cart.length === 0) return;
     setBusy(true);
     try {
-      const items = cart.map(i => ({ product_id: i.product.id, product_name: getPName(i.product), quantity: i.qty, unit_price: i.product.price, total_price: i.product.price * i.qty }));
+      const items = cart.map(i => ({ product_id: i.product.id, product_name: getPName(i.product), quantity: i.qty, unit_price: i.product.price, total_price: i.product.price * i.qty, course: 'main' }));
       if (activeOrder) {
         await supabase.from('order_items').insert(items.map(i => ({ ...i, order_id: activeOrder.id })));
-        await supabase.from('orders').update({ total_amount: (activeOrder.total_amount || 0) + total, status: 'confirmed', kitchen_status: 'pending' }).eq('id', activeOrder.id);
+        await supabase.from('orders').update({ total_amount: (activeOrder.total_amount || 0) + total, status: 'confirmed', kitchen_status: 'pending', order_type: orderType }).eq('id', activeOrder.id);
       } else {
-        const { data: o, error } = await supabase.from('orders').insert({ table_number: selTable, total_amount: total, status: 'confirmed', kitchen_status: 'pending' }).select().single();
+        const { data: o, error } = await supabase.from('orders').insert({ table_number: selTable, total_amount: total, status: 'confirmed', kitchen_status: 'pending', order_type: orderType }).select().single();
         if (error) throw error;
         await supabase.from('order_items').insert(items.map(i => ({ ...i, order_id: o.id })));
       }
@@ -322,7 +334,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
     } catch (e) { console.error(e); } finally { setBusy(false); }
   }, [selTable, cart, total, activeOrder, fetchAll, getPName]);
 
-  const confirmPayment = useCallback(async (p: { method: string; discountType: string; discountValue: number; splitCount: number }) => {
+  const confirmPayment = useCallback(async (p: { method: string; discountType: string; discountValue: number; splitCount: number; tipAmount: number }) => {
     if (!checkoutOrder) return;
     setPayBusy(true);
     try {
@@ -330,10 +342,10 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       const discountAmount = p.discountType === 'percent' ? base * (Math.min(p.discountValue, 100) / 100) : p.discountType === 'amount' ? Math.min(p.discountValue, base) : 0;
       const paidAmount = base - discountAmount;
       await supabase.from('orders').update({
-        status: 'paid', payment_method: p.method, discount_type: p.discountType, discount_value: p.discountValue, paid_amount: paidAmount, split_count: p.splitCount,
+        status: 'paid', payment_method: p.method, discount_type: p.discountType, discount_value: p.discountValue, paid_amount: paidAmount, split_count: p.splitCount, tip_amount: p.tipAmount,
       }).eq('id', checkoutOrder.id);
       try { await deductStockForOrder(checkoutOrder.id); } catch (e) { console.error(e); }
-      setPaid({ ...checkoutOrder, payment_method: p.method, discount_type: p.discountType, discount_value: p.discountValue, paid_amount: paidAmount, split_count: p.splitCount });
+      setPaid({ ...checkoutOrder, payment_method: p.method, discount_type: p.discountType, discount_value: p.discountValue, paid_amount: paidAmount, split_count: p.splitCount, tip_amount: p.tipAmount });
       setCheckoutOrder(null);
       fetchAll();
     } catch (e) { console.error(e); } finally { setPayBusy(false); }
@@ -464,6 +476,20 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
               ))}
             </div>
             <div className="px-5 py-4 border-t border-white/[0.06] space-y-2">
+              <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-xl">
+                <button onClick={() => setOrderType('dine_in')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'dine_in' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+                  <Utensils size={13} /> {t('dine_in')}
+                </button>
+                <button onClick={() => setOrderType('takeaway')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'takeaway' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+                  <ShoppingBag size={13} /> {t('takeaway')}
+                </button>
+                <button onClick={() => setOrderType('delivery')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'delivery' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+                  <Package size={13} /> {t('delivery')}
+                </button>
+              </div>
               <div className="flex items-center justify-between"><span className="text-xs text-white/30 uppercase tracking-widest">{t('total')}</span><span className="text-xl font-black text-white">₼{fmt(total)}</span></div>
               <button onClick={sendOrder} disabled={!selTable || cart.length === 0 || busy}
                 className="w-full py-4 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
@@ -487,6 +513,20 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
               <button onClick={() => chgQty(i.product.id, 1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Plus size={11} /></button>
             </div>
           ))}
+          <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-xl">
+            <button onClick={() => setOrderType('dine_in')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'dine_in' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+              <Utensils size={13} /> {t('dine_in')}
+            </button>
+            <button onClick={() => setOrderType('takeaway')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'takeaway' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+              <ShoppingBag size={13} /> {t('takeaway')}
+            </button>
+            <button onClick={() => setOrderType('delivery')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'delivery' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+              <Package size={13} /> {t('delivery')}
+            </button>
+          </div>
           <div className="flex items-center gap-3 pt-1">
             <div className="flex-1"><span className="text-xs text-white/30">{t('total')}</span><p className="text-xl font-black text-white">₼{fmt(total)}</p></div>
             <button onClick={sendOrder} disabled={busy} className="flex-1 py-3.5 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2"

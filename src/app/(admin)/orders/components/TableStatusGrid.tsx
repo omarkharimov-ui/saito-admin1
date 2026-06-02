@@ -10,10 +10,11 @@ import {
 } from '@dnd-kit/core';
 import { rectSortingStrategy, SortableContext } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Order, TableFilterType } from '../types';
+import type { Order, TableFilterType, TableFloor } from '../types';
 import { getOrderAgeMinutes, getKitchenStatusConfig } from '../utils';
 import { GitMerge } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { supabase } from '@/lib/supabase';
 
 /* ─── TableCell ─── */
 const TableCell = React.memo(function TableCell({
@@ -173,6 +174,24 @@ export function TableStatusGrid({
   const [tooltipState, setTooltipState] = useState<{
     visible: boolean; order: Order | null; position: { x: number; y: number } | null;
   }>({ visible: false, order: null, position: null });
+
+  const [floorAssignments, setFloorAssignments] = useState<Map<number, string>>(new Map());
+  const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from('table_floors').select('*').order('sort_order').then(({ data }) => {
+      if (data) {
+        const map = new Map<number, string>();
+        (data as TableFloor[]).forEach(f => map.set(f.table_number, f.floor_name));
+        setFloorAssignments(map);
+      }
+    });
+  }, []);
+
+  const floorNames = useMemo(() => {
+    const names = new Set(floorAssignments.values());
+    return Array.from(names);
+  }, [floorAssignments]);
 
   useEffect(() => { onDragStateChange?.(draggingNum !== null); }, [draggingNum, onDragStateChange]);
 
@@ -399,17 +418,31 @@ export function TableStatusGrid({
 
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <p className="text-[9px] uppercase tracking-[0.25em] text-white/60 font-semibold">{t('table_status')}</p>
+          {floorNames.length > 1 && (
+            <div className="flex items-center gap-1 ml-auto">
+              <button onClick={() => setSelectedFloor(null)}
+                className={`px-2.5 py-1.5 rounded-lg text-[9px] font-bold tracking-wider uppercase transition-all ${!selectedFloor ? 'bg-white/15 text-white' : 'bg-white/[0.04] text-white/40 hover:text-white/70'}`}>
+                {t('all_floors')}
+              </button>
+              {floorNames.map(name => (
+                <button key={name} onClick={() => setSelectedFloor(name)}
+                  className={`px-2.5 py-1.5 rounded-lg text-[9px] font-bold tracking-wider uppercase transition-all ${selectedFloor === name ? 'bg-white/15 text-white' : 'bg-white/[0.04] text-white/40 hover:text-white/70'}`}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}
           autoScroll={{ threshold: { x: 0.2, y: 0.2 }, acceleration: 10 }}>
           <SortableContext items={visibleTables.map(String)} strategy={rectSortingStrategy}>
             <div
-              key={tableFilter}
+              key={`${tableFilter}-${selectedFloor || 'all'}`}
               className="grid gap-3 sm:gap-4 overflow-visible"
               style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))' }}
             >
-              {visibleTables.map((num) => {
+              {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
 
                 const { status, order } = getTableStatus(num);
@@ -584,6 +617,11 @@ export function TableStatusGrid({
                         {!isMerged && ageMin > 0 && (
                           <span className="text-[10px] tabular-nums font-medium" style={{ color: '#ffffff' }}>
                             {ageMin}d
+                          </span>
+                        )}
+                        {!isMerged && order?.guest_count && order.guest_count > 1 && (
+                          <span className="text-[8px] font-semibold text-white/40 flex items-center gap-0.5">
+                            {order.guest_count} {t('guest_short')}
                           </span>
                         )}
                       </span>

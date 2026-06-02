@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Search, Plus, Minus, Send, Loader2, Trash2 } from 'lucide-react';
+import { X, Search, Plus, Minus, Send, Loader2, Trash2, Utensils, ShoppingBag, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
@@ -62,6 +62,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState<string | null>(null);
   const [items, setItems] = useState<ManualItem[]>([]);
+  const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [variantPicker, setVariantPicker] = useState<{ product: Product; variants: ProductVariant[] } | null>(null);
@@ -155,6 +156,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
         quantity: i.quantity,
         unit_price: i.variant?.price ?? i.product.price,
         total_price: (i.variant?.price ?? i.product.price) * i.quantity,
+        course: 'main',
         note: i.note?.trim() || null,
       }));
       let createdOrderId: string | undefined;
@@ -163,13 +165,14 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
         await supabase.from('order_items').insert(newItems.map(i => ({ ...i, order_id: existing.id })));
         await supabase.from('orders').update({
           total_amount: (existing.total_amount || 0) + total, status: 'confirmed', kitchen_status: 'pending',
+          order_type: orderType,
           ...(note.trim() ? { customer_note: note.trim() } : {}),
         }).eq('id', existing.id);
         createdOrderId = existing.id;
       } else {
         const { data: order, error } = await supabase
           .from('orders')
-          .insert({ table_number: tableNum, total_amount: total, status: 'confirmed', customer_note: note.trim() || null })
+          .insert({ table_number: tableNum, total_amount: total, status: 'confirmed', order_type: orderType, customer_note: note.trim() || null })
           .select().single();
         if (error) throw error;
         await supabase.from('order_items').insert(newItems.map(i => ({ ...i, order_id: order.id })));
@@ -178,7 +181,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
       if (createdOrderId && extraTableNums.length > 0) {
         for (const extraNum of extraTableNums) {
           await supabase.from('orders').insert({
-            table_number: extraNum, total_amount: 0, status: 'paid', merged_into: createdOrderId, kitchen_status: 'pending', is_rush: false,
+            table_number: extraNum, total_amount: 0, status: 'paid', merged_into: createdOrderId, kitchen_status: 'pending', is_rush: false, order_type: orderType,
           });
         }
       }
@@ -330,6 +333,21 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
             </div>
 
             <div className="px-5 py-4 border-t border-white/[0.06] space-y-3">
+              {/* Order type toggle */}
+              <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-xl">
+                <button onClick={() => setOrderType('dine_in')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'dine_in' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+                  <Utensils size={13} /> {t('dine_in')}
+                </button>
+                <button onClick={() => setOrderType('takeaway')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'takeaway' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+                  <ShoppingBag size={13} /> {t('takeaway')}
+                </button>
+                <button onClick={() => setOrderType('delivery')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'delivery' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+                  <Package size={13} /> {t('delivery')}
+                </button>
+              </div>
               <input value={note} onChange={e => setNote(e.target.value)} placeholder={t('note_placeholder')}
                 className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none" />
               <div className="flex items-center justify-between">

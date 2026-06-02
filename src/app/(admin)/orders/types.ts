@@ -8,6 +8,13 @@ export interface OrderItem {
   products?: { image_url: string | null; translations?: Record<string, { name?: string }> | null } | null;
   is_on_hold?: boolean;
   prepared_quantity?: number;
+  course?: string;
+}
+
+export function getOrderTypeLabel(type: string | undefined, t: (key: string) => string): string {
+  if (type === 'takeaway') return t('takeaway');
+  if (type === 'delivery') return t('delivery');
+  return t('dine_in');
 }
 
 export interface Order {
@@ -26,6 +33,17 @@ export interface Order {
   order_items?: OrderItem[];
   void_reason?: string | null;
   is_served?: boolean | null;
+  order_type?: 'dine_in' | 'takeaway' | 'delivery';
+  customer_id?: string | null;
+  guest_count?: number;
+  tip_amount?: number;
+}
+
+export interface TableFloor {
+  id: string;
+  table_number: number;
+  floor_name: string;
+  sort_order: number;
 }
 
 export interface Product {

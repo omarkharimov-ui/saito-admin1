@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Clock, Users } from 'lucide-react';
+import { Clock, Utensils, ShoppingBag, Package, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Order, BadgeType } from '../types';
@@ -96,14 +96,21 @@ export const HorizontalOrderCard = React.memo(function HorizontalOrderCard({
         {/* Row 2: items summary */}
         <div className="flex items-center gap-2 text-[10px] text-white/50">
           <span className="font-medium">{totalItems} {t('products')}</span>
+          {order.guest_count && order.guest_count > 1 && (
+            <span className="flex items-center gap-0.5 text-white/30"><Users size={8} />{order.guest_count}</span>
+          )}
           <span className="text-white/20">•</span>
           <span className="font-black text-xs tabular-nums text-white/80">{total.toFixed(2)} ₼</span>
         </div>
 
-        {/* Row 3: time */}
-        <div className="flex items-center gap-1 mt-0.5 text-[9px] text-white/30">
+        {/* Row 3: time + order type */}
+        <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-white/30">
           <Clock size={9} />
           <span>{timeAgo(order.created_at, t)}</span>
+          <span className="text-white/15">|</span>
+          {order.order_type === 'takeaway' ? <ShoppingBag size={9} className="text-amber-400/60" />
+            : order.order_type === 'delivery' ? <Package size={9} className="text-blue-400/60" />
+            : <Utensils size={9} className="text-emerald-400/60" />}
         </div>
       </div>
     </motion.div>

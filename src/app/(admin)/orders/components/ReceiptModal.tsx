@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Printer, CreditCard, Loader2 } from 'lucide-react';
+import { X, Printer, CreditCard, Banknote, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import ReceiptPreview from './ReceiptPreview';
@@ -12,7 +12,7 @@ interface ReceiptModalProps {
   order: Order;
   onClose: () => void;
   getProductName: (item: OrderItem) => string;
-  onPay?: () => Promise<void>;
+  onPay?: (paymentMethod?: string, tipAmount?: number) => Promise<void>;
 }
 
 interface RestaurantInfo {
@@ -42,12 +42,14 @@ function formatTime(iso: string) {
 export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptModalProps) {
   const [mounted, setMounted] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
+  const [tipAmount, setTipAmount] = useState(0);
 
   const handlePayAndClose = async () => {
     if (!onPay) return;
     setPaying(true);
     try {
-      await onPay();
+      await onPay(paymentMethod, tipAmount);
     } finally {
       setPaying(false);
       onClose();
@@ -87,7 +89,7 @@ export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptM
   const items = order.order_items ?? [];
   const subtotal = items.reduce((sum, i) => sum + i.total_price, 0);
   const serviceFee = restaurant.receipt_show_service_fee ? subtotal * (restaurant.receipt_service_fee_pct / 100) : 0;
-  const total = subtotal + serviceFee;
+  const total = subtotal + serviceFee + tipAmount;
 
   const handlePrint = () => {
     const win = window.open('', '_blank', 'width=400,height=700');
@@ -106,6 +108,13 @@ export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptM
       ? `<div style="display:flex;font-size:11px;margin-bottom:4px">
           <span style="flex:1">Servis haqqı (${restaurant.receipt_service_fee_pct}%)</span>
           <span style="width:56px;text-align:right">${serviceFee.toFixed(2)}</span>
+        </div>`
+      : '';
+
+    const tipHtml = tipAmount > 0
+      ? `<div style="display:flex;font-size:11px;margin-bottom:4px">
+          <span style="flex:1">Çaypulu</span>
+          <span style="width:56px;text-align:right">${tipAmount.toFixed(2)}</span>
         </div>`
       : '';
 
@@ -136,6 +145,7 @@ export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptM
         ${itemsHtml}
         <hr style="border:none;border-top:1px dashed #000;margin:8px 0"/>
         ${serviceFeeHtml}
+        ${tipHtml}
         <div style="display:flex;justify-content:space-between;font-size:20px">
           <b>YEKUN:</b>
           <b>${total.toFixed(2)}&nbsp;${restaurant.receipt_currency}</b>
@@ -185,6 +195,34 @@ export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptM
               </button>
             )}
           </div>
+
+          {/* Payment method toggler */}
+          {onPay && (
+            <div className="w-full md:w-auto flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-xl">
+              <button onClick={() => setPaymentMethod('card')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold tracking-widest uppercase transition-all duration-200 ${paymentMethod === 'card' ? 'bg-emerald-500/20 text-emerald-400 shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+                <CreditCard size={14} /> Kart
+              </button>
+              <button onClick={() => setPaymentMethod('cash')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold tracking-widest uppercase transition-all duration-200 ${paymentMethod === 'cash' ? 'bg-amber-500/20 text-amber-400 shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
+                <Banknote size={14} /> Nağd
+              </button>
+            </div>
+          )}
+
+          {/* Tip input */}
+          {onPay && (
+            <div className="w-full md:w-auto flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5">
+              <span className="text-xs text-white/40 font-medium">Çaypulu</span>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => setTipAmount(Math.max(0, tipAmount - 1))}
+                  className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 text-sm font-bold hover:bg-white/10 transition-all">−</button>
+                <span className="w-14 text-center text-sm font-bold text-white tabular-nums">{tipAmount} ₼</span>
+                <button onClick={() => setTipAmount(tipAmount + 1)}
+                  className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 text-sm font-bold hover:bg-white/10 transition-all">+</button>
+              </div>
+            </div>
+          )}
 
           {/* Receipt paper */}
           <div id="receipt-print-area" className="w-full md:w-auto overflow-x-auto">

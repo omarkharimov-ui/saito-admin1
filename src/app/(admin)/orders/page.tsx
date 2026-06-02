@@ -15,6 +15,7 @@ import { useOrders } from './hooks/useOrders';
 import { OrdersGhostLoading } from './components/OrdersGhostLoading';
 import { TableStatusGrid } from './components/TableStatusGrid';
 import { HorizontalOrderCard } from './components/HorizontalOrderCard';
+import { ClockButton } from './components/ClockButton';
 import { OrderModal } from './components/OrderModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { ManualOrderModal } from './components/ManualOrderModal';
@@ -288,10 +289,13 @@ export default function OrdersPage() {
             <span className="w-2 h-2 rounded-full bg-gold/70 animate-pulse" />
           )}
         </div>
-        <button onClick={toggleFullscreen}
-          className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.07] text-white/50 hover:text-white/80 transition-all">
-          {fullscreen ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <ClockButton />
+          <button onClick={toggleFullscreen}
+            className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.07] text-white/50 hover:text-white/80 transition-all">
+            {fullscreen ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
+          </button>
+        </div>
       </div>
 
       {/* Table Status Grid — fills remaining space */}
@@ -500,8 +504,8 @@ export default function OrdersPage() {
             const p = item.products as any;
             return p?.name_az || p?.name_en || p?.name_ru || item.product_name;
           }}
-          onPay={async () => {
-            await handlePay(receiptOrder);
+          onPay={async (paymentMethod, tipAmount) => {
+            await handlePay(receiptOrder, paymentMethod || 'card', tipAmount);
             setReceiptOrder(null);
           }}
         />

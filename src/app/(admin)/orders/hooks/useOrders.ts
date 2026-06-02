@@ -203,7 +203,7 @@ export function useOrders() {
     }
   }, [fetchOrders, t]);
 
-  const handlePay = useCallback(async (order: Order) => {
+  const handlePay = useCallback(async (order: Order, paymentMethod?: string, tipAmount?: number) => {
     try {
       // Find child orders before paying
       const { data: children } = await supabase
@@ -215,7 +215,10 @@ export function useOrders() {
       setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !allIds.includes(x.id))));
 
       // 2. DB operations
-      await supabase.from('orders').update({ status: 'paid' }).eq('id', order.id);
+      await supabase.from('orders').update({
+        status: 'paid', payment_method: paymentMethod || 'card',
+        ...(tipAmount !== undefined ? { tip_amount: tipAmount } : {}),
+      }).eq('id', order.id);
       if (childIds.length > 0) {
         await supabase.from('order_items').delete().in('order_id', childIds);
         await supabase.from('orders').delete().in('id', childIds);

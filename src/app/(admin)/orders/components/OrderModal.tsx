@@ -6,6 +6,7 @@ import {
   X, Search, Plus, Minus, CheckCircle, Loader2,
   CreditCard, MoreVertical, Trash2, XCircle, Clock,
   GitMerge, Layers, Printer, ChevronLeft,
+  Utensils, ShoppingBag, Package, User, Users,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -13,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Order, OrderItem, Product, ManualItem } from '../types';
 import { ReceiptModal } from './ReceiptModal';
+import { CustomerSelect } from './CustomerSelect';
 import { getStatusConfig, timeAgo } from '../utils';
 
 interface OrderModalProps {
@@ -59,12 +61,40 @@ export const OrderModal = ({
   const [merging, setMerging]       = useState(false);
   const [unmerging, setUnmerging]   = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showCustomerSelect, setShowCustomerSelect] = useState(false);
+  const [customerName, setCustomerName] = useState<string | null>(null);
+  const [guestCount, setGuestCount] = useState(order.guest_count || 1);
+  const [tipAmount, setTipAmount] = useState(order.tip_amount || 0);
   const [selectedTablesToSplit, setSelectedTablesToSplit] = useState<Set<number>>(new Set());
+
+  const handleCustomerSelect = async (customerId: string | null) => {
+    try {
+      await supabase.from('orders').update({ customer_id: customerId }).eq('id', order.id);
+      if (customerId) {
+        const { data } = await supabase.from('customers').select('name').eq('id', customerId).single();
+        if (data) setCustomerName(data.name);
+      } else {
+        setCustomerName(null);
+      }
+    } catch (e) {
+      console.error('Failed to update customer:', e);
+    }
+  };
 
   const mergedFromTables = allOrders
     .filter(o => o.merged_into === order.id && o.table_number !== null)
     .map(o => o.table_number as number);
   const isMergedOrder = mergedFromTables.length > 0;
+
+  useEffect(() => {
+    if (order.customer_id) {
+      supabase.from('customers').select('name').eq('id', order.customer_id).single().then(({ data }) => {
+        if (data) setCustomerName(data.name);
+      });
+    } else {
+      setCustomerName(null);
+    }
+  }, [order.customer_id]);
 
   // Calculate group number based on creation order of merged groups
   const groupNumber = React.useMemo(() => {
@@ -509,6 +539,29 @@ export const OrderModal = ({
                 ? new Date(order.created_at).toLocaleDateString(language === 'az' ? 'az-AZ' : language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' })
                 : timeAgo(order.created_at, t)}
             </span>
+            {order.order_type && order.order_type !== 'dine_in' && (
+              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1 ${order.order_type === 'takeaway' ? 'text-amber-400/70 bg-amber-500/10 border border-amber-500/20' : 'text-blue-400/70 bg-blue-500/10 border border-blue-500/20'}`}>
+                {order.order_type === 'takeaway' ? <ShoppingBag size={9} /> : <Package size={9} />}
+                {order.order_type === 'takeaway' ? t('takeaway') : t('delivery')}
+              </span>
+            )}
+            {order.status !== 'paid' && (
+              <button onClick={() => setShowCustomerSelect(true)}
+                className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1 transition-all ${customerName ? 'bg-indigo-500/10 text-indigo-400/80 border border-indigo-500/20 hover:bg-indigo-500/20' : 'bg-white/[0.04] text-white/25 border border-white/[0.08] hover:text-white/50 hover:border-white/20'}`}>
+                <User size={9} />
+                {customerName || t('customer')}
+              </button>
+            )}
+            {order.status !== 'paid' && (
+              <div className="flex items-center gap-1 text-white/30">
+                <Users size={9} />
+                <button onClick={async () => { const n = Math.max(1, (guestCount || 1) - 1); setGuestCount(n); await supabase.from('orders').update({ guest_count: n }).eq('id', order.id); }}
+                  className="w-4 h-4 rounded flex items-center justify-center hover:bg-white/10 text-[10px] font-bold">−</button>
+                <span className="text-[11px] font-semibold text-white/50 w-4 text-center tabular-nums">{guestCount}</span>
+                <button onClick={async () => { const n = (guestCount || 1) + 1; setGuestCount(n); await supabase.from('orders').update({ guest_count: n }).eq('id', order.id); }}
+                  className="w-4 h-4 rounded flex items-center justify-center hover:bg-white/10 text-[10px] font-bold">+</button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {/* Status Badge */}
@@ -751,8 +804,11 @@ export const OrderModal = ({
                     ) : (
                       <div className="w-7 h-7 rounded-lg bg-white/[0.05] flex-shrink-0" />
                     )}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex items-center gap-1.5">
                       <p className="text-white/70 text-xs font-medium truncate">{getProductName(item)}</p>
+                      {item.course && item.course !== 'main' && (
+                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>
+                      )}
                     </div>
                     {cancelStep === 'select' ? (
                       <button onClick={() => {
@@ -856,6 +912,17 @@ export const OrderModal = ({
                 <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 space-y-2">
                   <p className="text-white text-sm font-semibold text-center">{t('confirm_close_bill')}</p>
                   <p className="text-white/35 text-xs text-center">{t('pay_choose_receipt')}</p>
+                  {/* Tip input */}
+                  <div className="flex items-center justify-between bg-white/[0.04] rounded-xl px-3 py-2">
+                    <span className="text-xs text-white/40">{t('tip')}</span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => { const n = Math.max(0, (tipAmount || 0) - 1); setTipAmount(n); }}
+                        className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 text-sm font-bold hover:bg-white/10">−</button>
+                      <span className="w-12 text-center text-sm font-bold text-white tabular-nums">{tipAmount} ₼</span>
+                      <button onClick={() => { setTipAmount((tipAmount || 0) + 1); }}
+                        className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 text-sm font-bold hover:bg-white/10">+</button>
+                    </div>
+                  </div>
                   <div className="flex flex-col gap-2 mt-1">
                     <button disabled={acting} onClick={() => { setConfirmPay(false); setShowReceipt(true); }}
                       className="w-full flex items-center justify-center gap-2 py-3 bg-gold/10 border border-gold/25 text-gold text-sm font-bold rounded-xl hover:bg-gold/20 active:scale-[0.98] transition-all disabled:opacity-40">
@@ -962,8 +1029,11 @@ export const OrderModal = ({
                     className="overflow-hidden">
                   <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                     {item.products?.image_url ? <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex-shrink-0" />}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex items-center gap-1.5">
                       <p className="text-white text-sm font-medium truncate">{getProductName(item)}</p>
+                      {item.course && item.course !== 'main' && (
+                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>
+                      )}
                     </div>
                     {order.status !== 'paid' ? (
                       <div className="flex items-center gap-1 flex-shrink-0">
@@ -1182,6 +1252,7 @@ export const OrderModal = ({
 
   if (inline) {
     return (
+      <>
       <div
         style={{ background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
         className="rounded-2xl border border-white/[0.07] shadow-lg flex flex-col overflow-hidden h-full"
@@ -1203,6 +1274,14 @@ export const OrderModal = ({
           />
         )}
       </div>
+      {showCustomerSelect && (
+        <CustomerSelect
+          selectedId={order.customer_id}
+          onSelect={handleCustomerSelect}
+          onClose={() => setShowCustomerSelect(false)}
+        />
+      )}
+      </>
     );
   }
 
@@ -1249,6 +1328,13 @@ export const OrderModal = ({
         )}
       </motion.div>
       </div>
+      {showCustomerSelect && (
+        <CustomerSelect
+          selectedId={order.customer_id}
+          onSelect={handleCustomerSelect}
+          onClose={() => setShowCustomerSelect(false)}
+        />
+      )}
     </>,
     document.body
   );

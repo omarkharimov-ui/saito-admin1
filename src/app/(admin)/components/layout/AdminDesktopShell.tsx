@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Sidebar from '../Sidebar';
 import { AdminHeader } from '../AdminHeader';
 import SimpleToaster from './SimpleToaster';
+import { LayoutProvider } from '../../context/LayoutContext';
 
 export default function AdminDesktopShell({
   role,
@@ -39,8 +40,10 @@ export default function AdminDesktopShell({
       )}
 
       <main className="flex-1 ml-[272px] p-8 min-h-0 overflow-y-auto relative bg-background">
-        <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />
-        {children}
+        <LayoutProvider>
+          <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />
+          {children}
+        </LayoutProvider>
       </main>
     </div>
   );

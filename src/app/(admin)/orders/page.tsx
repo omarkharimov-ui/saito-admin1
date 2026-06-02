@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useNotifications } from '../context/NotificationContext';
+import { useLayout } from '../context/LayoutContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useOrders } from './hooks/useOrders';
 import { GoldSpinner } from './components/GoldSpinner';
@@ -138,6 +139,9 @@ export default function OrdersPage() {
     setSelectedOrder(order ?? null);
     setManualModalTable(order ? null : tableNum);
   }, [activeOrders]);
+  const { setIsModalOpen } = useLayout();
+  const isModalActive = manualModalTable !== null || (selectedOrder !== null && selectedOrder.status !== 'paid');
+  useEffect(() => { setIsModalOpen(isModalActive); }, [isModalActive, setIsModalOpen]);
 
   const handleDismissReady = useCallback(async (orderId: string) => {
     // Find the order and its merged children
@@ -535,7 +539,7 @@ export default function OrdersPage() {
       </AnimatePresence>
 
       {/* Sifarişlər title + Aktiv/Arxiv tabs */}
-      <div className="flex items-center justify-between gap-4 mb-4">
+      <div className={`flex items-center justify-between gap-4 mb-4 transition-opacity duration-100 ${isModalActive ? 'opacity-0 pointer-events-none h-0 overflow-hidden mb-0' : ''}`}>
         <h1 className="text-xl md:text-3xl font-serif font-bold text-white leading-tight truncate">{t('orders')}</h1>
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="relative flex rounded-xl p-1 bg-white/[0.04] border border-white/[0.07]">
@@ -652,7 +656,7 @@ export default function OrdersPage() {
 
       {/* Category pills — only on active tab */}
       {tab === 'active' && pageCategories.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto mb-5 -mx-8 px-8 pb-1">
+        <div className={`flex gap-2 overflow-x-auto mb-5 -mx-8 px-8 pb-1 transition-opacity duration-100 ${isModalActive ? 'opacity-0 pointer-events-none h-0 overflow-hidden mb-0' : ''}`}>
           {pageCategories.map(c => (
             <button key={c.id}
               className="flex-shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold tracking-wider whitespace-nowrap transition-all bg-white/[0.06] text-white/50 hover:text-white/80">

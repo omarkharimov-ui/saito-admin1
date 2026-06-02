@@ -7,6 +7,7 @@ import { Bell, ChevronDown } from 'lucide-react';
 import { NotificationProvider, useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useLayout } from '../context/LayoutContext';
 
 const AdminHeaderInner = ({
   role,
@@ -18,6 +19,7 @@ const AdminHeaderInner = ({
   const { pendingCount, notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
   const { t, language, setLanguage } = useLanguage();
   const { isHighContrast } = useTheme();
+  const { isModalOpen } = useLayout();
   const [showDropdown, setShowDropdown] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -79,7 +81,7 @@ const AdminHeaderInner = ({
     <header className="mb-8 flex items-start sm:items-center justify-between gap-3 sm:gap-4 relative">
       <div className="flex-1" />
 
-      <div className="flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-7">
+      <div className={`flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-7 transition-opacity duration-100 ${isModalOpen ? 'opacity-0 pointer-events-none' : ''}`}>
         {/* Language switcher */}
         <div className="relative z-50">
           <button

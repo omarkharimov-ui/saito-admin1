@@ -778,12 +778,10 @@ export const OrderModal = ({
                             <Plus size={16} />
                           </button>
                         </div>
-                        {!item._preview && (
-                          <button onClick={() => handleRemoveItem(item)}
-                            className="w-12 h-12 rounded-full flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
-                            <Trash2 size={18} />
-                          </button>
-                        )}
+                        <button onClick={() => handleRemoveItem(item)}
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     ) : (
                       <span className="text-white/25 text-[11px] tabular-nums flex-shrink-0">×{itemQty}</span>
@@ -821,13 +819,12 @@ export const OrderModal = ({
 
             {/* Actions */}
             <div className="px-5 pb-5 pt-3 flex-shrink-0 border-t border-white/[0.05] space-y-2.5">
-              {/* Primary action: Save / Confirm */}
-              {(order.status === 'new' || (order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
+              {/* Primary action: Save changes (only when there are actual changes) */}
+              {((order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
                 <button disabled={acting} onClick={handleSaveAll}
                   style={{ background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', backgroundSize: '200% 200%', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
                   className="w-full min-h-[52px] flex items-center justify-center gap-2 px-6 font-black rounded-2xl transition-all active:scale-[0.97] disabled:opacity-40 text-black text-sm tracking-wide">
                   {acting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                  {order.status === 'new' && !hasDraft && addItems.length === 0 && t('confirm_order')}
                   {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}
                   {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && t('save_changes')}
                 </button>
@@ -981,12 +978,10 @@ export const OrderModal = ({
                             <Plus size={16} />
                           </button>
                         </div>
-                        {!item._preview && (
-                          <button onClick={() => handleRemoveItem(item)}
-                            className="w-12 h-12 rounded-full flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
-                            <Trash2 size={18} />
-                          </button>
-                        )}
+                        <button onClick={() => handleRemoveItem(item)}
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     ) : (
                       <p className="text-white/25 text-xs">×{mqty}</p>

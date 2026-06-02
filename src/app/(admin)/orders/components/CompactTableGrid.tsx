@@ -97,6 +97,7 @@ interface CompactTableGridProps {
   onAddEmptyTable?: (emptyTableNum: number, targetOrderId: string) => void;
   onEmptyMerge?: (tableNums: number[]) => void;
   onDragStateChange?: (isDragging: boolean) => void;
+  compact?: boolean;
   t: (key: any) => string;
 }
 
@@ -116,6 +117,7 @@ export function CompactTableGrid({
   orders, allOrders, tableCount,
   onTableClick, onEmptyTableClick,
   onMergeTables, onMoveTable, onAddEmptyTable, onEmptyMerge, onDragStateChange,
+  compact = false,
   t,
 }: CompactTableGridProps) {
   const [draggingNum, setDraggingNum] = useState<number | null>(null);
@@ -205,8 +207,11 @@ export function CompactTableGrid({
           autoScroll={false}
         >
           <div
-            className="grid overflow-visible"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(42px, 1fr))', gap: 5 }}
+            className={`grid overflow-visible ${compact ? 'max-h-[56px] overflow-hidden' : ''}`}
+            style={{
+              gridTemplateColumns: 'repeat(auto-fill, minmax(48px, 1fr))',
+              gap: 5,
+            }}
           >
             {tableList.map((num) => {
               const { status, order } = getTableStatus(num);
@@ -236,7 +241,7 @@ export function CompactTableGrid({
           {typeof document !== 'undefined' && (
             <DragOverlay dropAnimation={null} style={{ zIndex: 9999, pointerEvents: 'none' }}>
               {draggingNum && (
-                <div className="w-[42px] h-[42px] rounded-xl bg-white/[0.12] border border-white/30 flex items-center justify-center text-sm font-bold text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
+                <div className="w-[48px] h-[48px] rounded-xl bg-white/[0.12] border border-white/30 flex items-center justify-center text-sm font-bold text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
                   {draggingNum}
                 </div>
               )}

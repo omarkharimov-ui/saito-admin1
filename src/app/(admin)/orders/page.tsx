@@ -329,6 +329,7 @@ export default function OrdersPage() {
           onAddEmptyTable={handleAddEmptyTable}
           onEmptyMerge={handleCreateMergedEmptyOrder}
           onDragStateChange={setIsTableDragging}
+          compact={isModalActive}
           t={t}
         />
       </div>
@@ -383,10 +384,10 @@ export default function OrdersPage() {
           </motion.div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col min-h-0 px-2 pb-4 mt-3">
+        <div className="flex-shrink-0 px-2 pb-3 mt-2" style={{ height: '22vh' }}>
           {/* Filter pills */}
           {isCardsView && (
-            <div className="flex items-center gap-1.5 mb-3 flex-shrink-0">
+            <div className="flex items-center gap-1.5 mb-2">
               {([
                 { key: 'all' as const, label: t('kitchen_tab_all') },
                 { key: 'pending' as const, label: t('kitchen_tab_pending') },
@@ -396,7 +397,7 @@ export default function OrdersPage() {
                 <button
                   key={pill.key}
                   onClick={() => setCardFilter(pill.key)}
-                  className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-150
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-all duration-150 whitespace-nowrap
                     ${cardFilter === pill.key
                       ? 'bg-white/10 text-white border border-white/20'
                       : 'text-white/40 hover:text-white/70 border border-transparent hover:border-white/10'
@@ -408,17 +409,17 @@ export default function OrdersPage() {
             </div>
           )}
 
-          {/* Cards grid */}
-          <div className="flex-1 overflow-y-auto min-h-0">
-            <div
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-3"
-              style={{
-                opacity: isTableDragging ? 0.3 : 1,
-                filter: isTableDragging ? 'blur(4px)' : 'none',
-                transition: 'opacity 0.2s, filter 0.2s',
-                pointerEvents: isTableDragging ? 'none' : 'auto',
-              }}
-            >
+          {/* Horizontal-scrolling cards */}
+          <div
+            className="h-full overflow-x-auto overflow-y-hidden -mx-2 px-2"
+            style={{
+              opacity: isTableDragging ? 0.3 : 1,
+              filter: isTableDragging ? 'blur(4px)' : 'none',
+              transition: 'opacity 0.2s, filter 0.2s',
+              pointerEvents: isTableDragging ? 'none' : 'auto',
+            }}
+          >
+            <div className="flex gap-3 h-full items-stretch" style={{ width: 'max-content', minWidth: '100%' }}>
               <AnimatePresence mode="popLayout" initial={false}>
                 {filtered
                   .filter(order => !order.merged_into)
@@ -427,12 +428,13 @@ export default function OrdersPage() {
                     key={order.id}
                     layoutId={order.id}
                     layout
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    initial={{ opacity: 0, scale: 0.9, x: -20 }}
                     animate={updatedLabels.has(order.id)
-                      ? { opacity: 1, scale: [1, 1.03, 1], y: 0 }
-                      : { opacity: 1, scale: 1, y: 0 }}
+                      ? { opacity: 1, scale: [1, 1.03, 1], x: 0 }
+                      : { opacity: 1, scale: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.18 } }}
                     transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 1, layout: { type: 'spring', stiffness: 500, damping: 35 } }}
+                    className="flex-shrink-0 w-[240px]"
                   >
                     <ActiveOrderCard
                       order={order}

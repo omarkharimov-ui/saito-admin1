@@ -393,7 +393,7 @@ export default function OrdersPage() {
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
             className="flex-shrink-0 pb-2 px-4"
-            style={{ height: '16vh' }}
+            style={{ height: '11vh' }}
           >
             <div
               className="h-full overflow-x-auto overflow-y-hidden -mx-4 px-4 scrollbar-thin"
@@ -428,7 +428,7 @@ export default function OrdersPage() {
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
             className="flex-shrink-0 flex items-center justify-center pb-2"
-            style={{ height: '16vh' }}
+            style={{ height: '11vh' }}
           >
             <div className="flex flex-col items-center justify-center select-none">
               <ClipboardList size={24} className="text-white/10 mb-2" />

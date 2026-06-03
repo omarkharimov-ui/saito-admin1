@@ -247,7 +247,7 @@ export default function OrdersPage() {
   const showCards = !isModalActive && !loading && cardOrders.length > 0;
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col">
+    <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
 
       {/* Stale orders banner */}
       <AnimatePresence>
@@ -304,11 +304,10 @@ export default function OrdersPage() {
         </div>
       </motion.div>
 
-      {/* Table Status Grid — 75vh normal, 20vh when modal opens, smooth spring */}
-      <motion.div
-        className="min-h-0 px-4 pb-1 overflow-hidden"
-        animate={{ height: isModalActive ? '20vh' : '75vh' }}
-        transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+      {/* Table Status Grid — fills remaining normally, shrinks to 20vh when modal opens */}
+      <div
+        className="min-h-0 px-4 pb-1 overflow-hidden transition-all duration-500 ease-out"
+        style={{ flex: isModalActive ? '0 0 20vh' : '1 1 0%' }}
       >
         {loading ? (
           <OrdersGhostLoading />
@@ -332,7 +331,7 @@ export default function OrdersPage() {
             onEmptyMerge={handleCreateMergedEmptyOrder}
           />
         )}
-      </motion.div>
+      </div>
 
       {/* Bottom panel — 20vh cards normally, flex-1 modal when open */}
       <AnimatePresence mode="popLayout">

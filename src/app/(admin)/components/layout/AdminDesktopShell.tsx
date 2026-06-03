@@ -39,7 +39,7 @@ export default function AdminDesktopShell({
         />
       )}
 
-      <main className="flex-1 ml-[272px] p-8 min-h-0 overflow-y-auto relative bg-background">
+      <main className="flex-1 ml-[272px] px-8 min-h-0 overflow-hidden relative bg-background flex flex-col">
         <LayoutProvider>
           <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />
           {children}

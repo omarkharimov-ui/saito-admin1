@@ -281,65 +281,62 @@ export default function OrdersPage() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 px-4 py-3 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl md:text-2xl font-serif font-bold text-white leading-tight">{t('orders')}</h1>
-          {newCount > 0 && (
-            <span className="w-2 h-2 rounded-full bg-gold/70 animate-pulse" />
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <ClockButton />
-          <button onClick={toggleFullscreen}
-            className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.07] text-white/50 hover:text-white/80 transition-all">
-            {fullscreen ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Table Status Grid — animates up & shrinks when modal opens */}
+      {/* Header — hides smoothly when modal opens */}
       <motion.div
-        className="min-h-0 px-4 pb-2 overflow-hidden"
-        animate={{
-          flex: isModalActive ? '0 0 40vh' : '1 1 0%',
-        }}
+        animate={{ height: isModalActive ? 0 : 'auto', opacity: isModalActive ? 0 : 1 }}
         transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+        className="flex-shrink-0 overflow-hidden"
       >
-        <motion.div
-          animate={{
-            scale: isModalActive ? 0.82 : 1,
-            y: isModalActive ? -20 : 0,
-          }}
-          transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="h-full origin-top"
-        >
-          {loading ? (
-            <OrdersGhostLoading />
-          ) : (
-            <TableStatusGrid
-              orders={activeOrders}
-              allOrders={orders}
-              onTableClick={(order) => handleSelectTable(order.table_number!)}
-              onClearTable={handleClearTable}
-              onEmptyTableClick={handleSelectTable}
-              tableCount={tableCount}
-              tableFilter="all"
-              setTableFilter={() => {}}
-              loading={false}
-              t={t}
-              delayThreshold={delayThreshold}
-              onMergeTables={handleMergeOrders}
-              onMoveTable={handleMoveOrder}
-              onAddEmptyTable={handleAddEmptyTable}
-              onDragStateChange={setIsTableDragging}
-              onEmptyMerge={handleCreateMergedEmptyOrder}
-            />
-          )}
-        </motion.div>
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl md:text-2xl font-serif font-bold text-white leading-tight">{t('orders')}</h1>
+            {newCount > 0 && (
+              <span className="w-2 h-2 rounded-full bg-gold/70 animate-pulse" />
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <ClockButton />
+            <button onClick={toggleFullscreen}
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.07] text-white/50 hover:text-white/80 transition-all">
+              {fullscreen ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
+            </button>
+          </div>
+        </div>
       </motion.div>
 
-      {/* Bottom: animated slide-up panel */}
+      {/* Table Status Grid — big flex-1 normally, shrinks to 20vh when modal opens */}
+      <div
+        className="min-h-0 px-4 pb-1 overflow-hidden"
+        style={{
+          flex: isModalActive ? '0 0 20vh' : '1 1 0%',
+          transition: 'flex 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        {loading ? (
+          <OrdersGhostLoading />
+        ) : (
+          <TableStatusGrid
+            orders={activeOrders}
+            allOrders={orders}
+            onTableClick={(order) => handleSelectTable(order.table_number!)}
+            onClearTable={handleClearTable}
+            onEmptyTableClick={handleSelectTable}
+            tableCount={tableCount}
+            tableFilter="all"
+            setTableFilter={() => {}}
+            loading={false}
+            t={t}
+            delayThreshold={delayThreshold}
+            onMergeTables={handleMergeOrders}
+            onMoveTable={handleMoveOrder}
+            onAddEmptyTable={handleAddEmptyTable}
+            onDragStateChange={setIsTableDragging}
+            onEmptyMerge={handleCreateMergedEmptyOrder}
+          />
+        )}
+      </div>
+
+      {/* Bottom panel — cards (20vh) normally, fills remaining space when modal opens */}
       <AnimatePresence mode="popLayout">
         {manualModalTable ? (
           <motion.div
@@ -348,8 +345,7 @@ export default function OrdersPage() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 60, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-            className="flex-shrink-0 px-4 pb-4 overflow-hidden"
-            style={{ height: '55vh' }}
+            className="flex-1 min-h-0 px-4 pb-4 overflow-hidden"
           >
             <ManualOrderModal
               key={manualModalTable}
@@ -365,8 +361,7 @@ export default function OrdersPage() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 60, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-            className="flex-shrink-0 px-4 pb-4 overflow-hidden"
-            style={{ height: '55vh' }}
+            className="flex-1 min-h-0 px-4 pb-4 overflow-hidden"
           >
             <OrderModal
               key={selectedOrder.id}
@@ -393,12 +388,12 @@ export default function OrdersPage() {
         ) : showCards ? (
           <motion.div
             key="cards"
-            initial={{ y: 30, opacity: 0 }}
+            initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 30, opacity: 0 }}
+            exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
             className="flex-shrink-0 pb-3 px-4"
-            style={{ height: '16vh' }}
+            style={{ height: '20vh' }}
           >
             <div
               className="h-full overflow-x-auto overflow-y-hidden -mx-4 px-4 scrollbar-thin"
@@ -428,12 +423,12 @@ export default function OrdersPage() {
         ) : loading ? null : (
           <motion.div
             key="empty"
-            initial={{ y: 30, opacity: 0 }}
+            initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 30, opacity: 0 }}
+            exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
             className="flex-shrink-0 flex items-center justify-center pb-4"
-            style={{ height: '16vh' }}
+            style={{ height: '20vh' }}
           >
             <div className="flex flex-col items-center justify-center select-none">
               <ClipboardList size={24} className="text-white/10 mb-2" />

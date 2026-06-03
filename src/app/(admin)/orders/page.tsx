@@ -298,101 +298,150 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Table Status Grid — fills remaining space */}
-      <div className="flex-1 min-h-0 px-4 pb-2 overflow-y-auto">
-        {loading ? (
-          <OrdersGhostLoading />
-        ) : (
-          <TableStatusGrid
-            orders={activeOrders}
-            allOrders={orders}
-            onTableClick={(order) => handleSelectTable(order.table_number!)}
-            onClearTable={handleClearTable}
-            onEmptyTableClick={handleSelectTable}
-            tableCount={tableCount}
-            tableFilter="all"
-            setTableFilter={() => {}}
-            loading={false}
-            t={t}
-            delayThreshold={delayThreshold}
-            onMergeTables={handleMergeOrders}
-            onMoveTable={handleMoveOrder}
-            onAddEmptyTable={handleAddEmptyTable}
-            onDragStateChange={setIsTableDragging}
-            onEmptyMerge={handleCreateMergedEmptyOrder}
-          />
-        )}
-      </div>
+      {/* Table Status Grid — animates up & shrinks when modal opens */}
+      <motion.div
+        className="min-h-0 px-4 pb-2 overflow-hidden"
+        animate={{
+          flex: isModalActive ? '0 0 40vh' : '1 1 0%',
+        }}
+        transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+      >
+        <motion.div
+          animate={{
+            scale: isModalActive ? 0.82 : 1,
+            y: isModalActive ? -20 : 0,
+          }}
+          transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+          className="h-full origin-top"
+        >
+          {loading ? (
+            <OrdersGhostLoading />
+          ) : (
+            <TableStatusGrid
+              orders={activeOrders}
+              allOrders={orders}
+              onTableClick={(order) => handleSelectTable(order.table_number!)}
+              onClearTable={handleClearTable}
+              onEmptyTableClick={handleSelectTable}
+              tableCount={tableCount}
+              tableFilter="all"
+              setTableFilter={() => {}}
+              loading={false}
+              t={t}
+              delayThreshold={delayThreshold}
+              onMergeTables={handleMergeOrders}
+              onMoveTable={handleMoveOrder}
+              onAddEmptyTable={handleAddEmptyTable}
+              onDragStateChange={setIsTableDragging}
+              onEmptyMerge={handleCreateMergedEmptyOrder}
+            />
+          )}
+        </motion.div>
+      </motion.div>
 
-      {/* Bottom: horizontal cards OR modal */}
-      {manualModalTable ? (
-        <div className="flex-shrink-0 px-4 pb-4 overflow-hidden" style={{ height: '55vh' }}>
-          <ManualOrderModal
-            key={manualModalTable}
-            tableNum={manualModalTable}
-            onClose={() => { setManualModalTable(null); setSelectedOrder(null); }}
-            onCreated={() => { setManualModalTable(null); setSelectedOrder(null); fetchOrders(); }}
-          />
-        </div>
-      ) : selectedOrder && selectedOrder.status !== 'paid' ? (
-        <div className="flex-shrink-0 px-4 pb-4 overflow-hidden" style={{ height: '55vh' }}>
-          <OrderModal
-            key={selectedOrder.id}
-            order={selectedOrder}
-            inline
-            onClose={() => { setSelectedOrder(null); setManualModalTable(null); }}
-            onRefresh={fetchOrders}
-            onConfirm={handleConfirm}
-            onPay={async (order) => {
-              setReceiptOrder(order);
-              setSelectedOrder(null);
-            }}
-            onClearTable={handleClearTable}
-            onDelete={handleDeleteOrder}
-            allOrders={orders}
-            onOrdersUpdate={(updater) => setOrders(prev => {
-              const next = updater(prev);
-              try { localStorage.setItem('saito_orders_cache', JSON.stringify(next)); } catch {}
-              setSelectedOrder(sel => sel ? (next.find(o => o.id === sel.id) ?? sel) : null);
-              return next;
-            })}
-          />
-        </div>
-      ) : showCards ? (
-        <div className="flex-shrink-0 pb-3 px-4" style={{ height: '16vh' }}>
-          <div
-            className="h-full overflow-x-auto overflow-y-hidden -mx-4 px-4 scrollbar-thin"
-            style={{
-              opacity: isTableDragging ? 0.3 : 1,
-              filter: isTableDragging ? 'blur(4px)' : 'none',
-              transition: 'opacity 0.2s, filter 0.2s',
-              pointerEvents: isTableDragging ? 'none' : 'auto',
-            }}
+      {/* Bottom: animated slide-up panel */}
+      <AnimatePresence mode="popLayout">
+        {manualModalTable ? (
+          <motion.div
+            key="manual"
+            initial={{ y: 60, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 60, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+            className="flex-shrink-0 px-4 pb-4 overflow-hidden"
+            style={{ height: '55vh' }}
           >
-            <div className="flex gap-2.5 h-full items-stretch" style={{ width: 'max-content', minWidth: '100%' }}>
-              <AnimatePresence mode="popLayout" initial={false}>
-                {cardOrders.map(order => (
-                  <HorizontalOrderCard
-                    key={order.id}
-                    order={order}
-                    allOrders={orders}
-                    confirmedIds={confirmedIds}
-                    delayThreshold={delayThreshold}
-                    onClick={() => setSelectedOrder(order)}
-                  />
-                ))}
-              </AnimatePresence>
+            <ManualOrderModal
+              key={manualModalTable}
+              tableNum={manualModalTable}
+              onClose={() => { setManualModalTable(null); setSelectedOrder(null); }}
+              onCreated={() => { setManualModalTable(null); setSelectedOrder(null); fetchOrders(); }}
+            />
+          </motion.div>
+        ) : selectedOrder && selectedOrder.status !== 'paid' ? (
+          <motion.div
+            key="order"
+            initial={{ y: 60, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 60, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+            className="flex-shrink-0 px-4 pb-4 overflow-hidden"
+            style={{ height: '55vh' }}
+          >
+            <OrderModal
+              key={selectedOrder.id}
+              order={selectedOrder}
+              inline
+              onClose={() => { setSelectedOrder(null); setManualModalTable(null); }}
+              onRefresh={fetchOrders}
+              onConfirm={handleConfirm}
+              onPay={async (order) => {
+                setReceiptOrder(order);
+                setSelectedOrder(null);
+              }}
+              onClearTable={handleClearTable}
+              onDelete={handleDeleteOrder}
+              allOrders={orders}
+              onOrdersUpdate={(updater) => setOrders(prev => {
+                const next = updater(prev);
+                try { localStorage.setItem('saito_orders_cache', JSON.stringify(next)); } catch {}
+                setSelectedOrder(sel => sel ? (next.find(o => o.id === sel.id) ?? sel) : null);
+                return next;
+              })}
+            />
+          </motion.div>
+        ) : showCards ? (
+          <motion.div
+            key="cards"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 30, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+            className="flex-shrink-0 pb-3 px-4"
+            style={{ height: '16vh' }}
+          >
+            <div
+              className="h-full overflow-x-auto overflow-y-hidden -mx-4 px-4 scrollbar-thin"
+              style={{
+                opacity: isTableDragging ? 0.3 : 1,
+                filter: isTableDragging ? 'blur(4px)' : 'none',
+                transition: 'opacity 0.2s, filter 0.2s',
+                pointerEvents: isTableDragging ? 'none' : 'auto',
+              }}
+            >
+              <div className="flex gap-2.5 h-full items-stretch" style={{ width: 'max-content', minWidth: '100%' }}>
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {cardOrders.map(order => (
+                    <HorizontalOrderCard
+                      key={order.id}
+                      order={order}
+                      allOrders={orders}
+                      confirmedIds={confirmedIds}
+                      delayThreshold={delayThreshold}
+                      onClick={() => setSelectedOrder(order)}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
             </div>
-          </div>
-        </div>
-      ) : loading ? null : (
-        <div className="flex-shrink-0 flex items-center justify-center pb-4" style={{ height: '16vh' }}>
-          <div className="flex flex-col items-center justify-center select-none">
-            <ClipboardList size={24} className="text-white/10 mb-2" />
-            <p className="text-white/25 text-sm">{t('no_active_orders')}</p>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        ) : loading ? null : (
+          <motion.div
+            key="empty"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 30, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+            className="flex-shrink-0 flex items-center justify-center pb-4"
+            style={{ height: '16vh' }}
+          >
+            <div className="flex flex-col items-center justify-center select-none">
+              <ClipboardList size={24} className="text-white/10 mb-2" />
+              <p className="text-white/25 text-sm">{t('no_active_orders')}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Ready notifications — portal */}
       {createPortal(

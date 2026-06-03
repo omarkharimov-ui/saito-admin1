@@ -412,7 +412,7 @@ export function TableStatusGrid({
   return (
     <>
       <div
-        className="relative bg-white/[0.03] border border-white/[0.07] rounded-2xl px-2 pt-2 pb-0 backdrop-blur-sm"
+        className="relative bg-white/[0.03] border border-white/[0.07] rounded-2xl px-2 pt-2 pb-0 backdrop-blur-sm h-full"
         style={{ overflow: 'clip' }}
       >
 

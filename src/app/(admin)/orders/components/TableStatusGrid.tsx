@@ -412,7 +412,7 @@ export function TableStatusGrid({
   return (
     <>
       <div
-        className="relative mb-8 bg-white/[0.03] border border-white/[0.07] rounded-2xl p-4 backdrop-blur-sm"
+        className="relative bg-white/[0.03] border border-white/[0.07] rounded-2xl p-3 backdrop-blur-sm"
         style={{ overflow: 'clip' }}
       >
 
@@ -439,8 +439,8 @@ export function TableStatusGrid({
           <SortableContext items={visibleTables.map(String)} strategy={rectSortingStrategy}>
             <div
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className="grid gap-3 sm:gap-4 overflow-visible"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))' }}
+              className="grid gap-2 sm:gap-3 overflow-visible"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(85px, 1fr))' }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;

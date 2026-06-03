@@ -306,7 +306,7 @@ export default function OrdersPage() {
 
       {/* Table Status Grid — fills remaining normally, shrinks to 20vh when modal opens */}
       <div
-        className="min-h-0 px-4 pb-1 overflow-hidden transition-all duration-500 ease-out"
+        className="min-h-0 px-4 overflow-hidden transition-all duration-500 ease-out"
         style={{ flex: isModalActive ? '0 0 20vh' : '1 1 0%' }}
       >
         {loading ? (

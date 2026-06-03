@@ -412,11 +412,11 @@ export function TableStatusGrid({
   return (
     <>
       <div
-        className="relative bg-white/[0.03] border border-white/[0.07] rounded-2xl p-3 backdrop-blur-sm"
+        className="relative bg-white/[0.03] border border-white/[0.07] rounded-2xl p-2 backdrop-blur-sm"
         style={{ overflow: 'clip' }}
       >
 
-        <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-3 mb-2">
           <p className="text-[9px] uppercase tracking-[0.25em] text-white/60 font-semibold">{t('table_status')}</p>
           {floorNames.length > 1 && (
             <div className="flex items-center gap-1 ml-auto">
@@ -439,8 +439,8 @@ export function TableStatusGrid({
           <SortableContext items={visibleTables.map(String)} strategy={rectSortingStrategy}>
             <div
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className="grid gap-2 sm:gap-3 overflow-visible"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(85px, 1fr))' }}
+              className="grid gap-1.5 sm:gap-2 overflow-visible"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))' }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;

@@ -58,7 +58,7 @@ const TableCell = React.memo(function TableCell({
 
   return (
     <div
-      className="relative group/table h-full"
+      className="relative group/table"
       style={colSpan > 1 ? { gridColumn: `span ${colSpan}` } : undefined}
     >
       <button
@@ -457,7 +457,7 @@ export function TableStatusGrid({
             <div
               ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className="grid gap-1.5 sm:gap-2 overflow-visible flex-1 min-h-0"
+              className="grid gap-1.5 sm:gap-2 overflow-visible flex-1 min-h-0 items-center"
               style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gridTemplateRows: `repeat(${gridRows}, minmax(90px, 1fr))` }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
@@ -528,7 +528,7 @@ export function TableStatusGrid({
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
-                      ${isMerged ? 'aspect-auto' : 'h-full'}
+                      ${isMerged ? 'aspect-auto self-stretch' : 'aspect-square'}
                     `}
                   >
                     {/* Hover merge progress ring — premium */}

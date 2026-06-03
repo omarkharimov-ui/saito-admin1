@@ -304,13 +304,11 @@ export default function OrdersPage() {
         </div>
       </motion.div>
 
-      {/* Table Status Grid — big flex-1 normally, shrinks to 20vh when modal opens */}
-      <div
+      {/* Table Status Grid — 75vh normal, 20vh when modal opens, smooth spring */}
+      <motion.div
         className="min-h-0 px-4 pb-1 overflow-hidden"
-        style={{
-          flex: isModalActive ? '0 0 20vh' : '1 1 0%',
-          transition: 'flex 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
+        animate={{ height: isModalActive ? '20vh' : '75vh' }}
+        transition={{ type: 'spring', stiffness: 280, damping: 28 }}
       >
         {loading ? (
           <OrdersGhostLoading />
@@ -334,9 +332,9 @@ export default function OrdersPage() {
             onEmptyMerge={handleCreateMergedEmptyOrder}
           />
         )}
-      </div>
+      </motion.div>
 
-      {/* Bottom panel — cards (20vh) normally, fills remaining space when modal opens */}
+      {/* Bottom panel — 20vh cards normally, flex-1 modal when open */}
       <AnimatePresence mode="popLayout">
         {manualModalTable ? (
           <motion.div
@@ -393,7 +391,7 @@ export default function OrdersPage() {
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
             className="flex-shrink-0 pb-2 px-4"
-            style={{ height: '16vh' }}
+            style={{ height: '20vh' }}
           >
             <div
               className="h-full overflow-x-auto overflow-y-hidden -mx-4 px-4 scrollbar-thin"
@@ -428,7 +426,7 @@ export default function OrdersPage() {
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
             className="flex-shrink-0 flex items-center justify-center pb-2"
-            style={{ height: '16vh' }}
+            style={{ height: '20vh' }}
           >
             <div className="flex flex-col items-center justify-center select-none">
               <ClipboardList size={24} className="text-white/10 mb-2" />

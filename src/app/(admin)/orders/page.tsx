@@ -329,6 +329,7 @@ export default function OrdersPage() {
             onAddEmptyTable={handleAddEmptyTable}
             onDragStateChange={setIsTableDragging}
             onEmptyMerge={handleCreateMergedEmptyOrder}
+            isCompact={isModalActive}
           />
         )}
       </div>

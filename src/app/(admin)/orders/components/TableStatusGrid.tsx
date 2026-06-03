@@ -150,12 +150,13 @@ export interface TableStatusGridProps {
   onEmptyMerge?: (tableNums: number[]) => void;
   onAddEmptyTable?: (emptyTableNum: number, targetOrderId: string) => void;
   onDragStateChange?: (isDragging: boolean) => void;
+  isCompact?: boolean;
 }
 
 export function TableStatusGrid({
   orders, allOrders, onTableClick, onEmptyTableClick, tableCount,
   tableFilter, setTableFilter, loading, t, delayThreshold,
-  onMergeTables, onMoveTable, onEmptyMerge, onAddEmptyTable, onDragStateChange,
+  onMergeTables, onMoveTable, onEmptyMerge, onAddEmptyTable, onDragStateChange, isCompact,
 }: TableStatusGridProps) {
   const [draggingNum, setDraggingNum] = useState<number | null>(null);
   const [overNum, setOverNum]         = useState<number | null>(null);
@@ -457,8 +458,8 @@ export function TableStatusGrid({
             <div
               ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className="grid gap-1.5 sm:gap-2 overflow-visible flex-1 min-h-0 items-center"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gridTemplateRows: `repeat(${gridRows}, minmax(90px, 1fr))` }}
+              className={`grid gap-1.5 sm:gap-2 overflow-visible flex-1 min-h-0 ${isCompact ? '' : 'items-center'}`}
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gridTemplateRows: `repeat(${gridRows}, ${isCompact ? '1fr' : 'minmax(90px, 1fr)'})` }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
@@ -525,7 +526,7 @@ export function TableStatusGrid({
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
-                      aspect-square
+                      ${isCompact ? '' : 'aspect-square'}
                     `}
                   >
                     {/* Hover merge progress ring — premium */}

@@ -493,10 +493,7 @@ export function TableStatusGrid({
                       ${isGhostChained ? 'scale-110' : ''}
                       ${isDragTarget ? 'scale-105' : ''}
                     `}
-                    style={{ 
-                      gridColumn: isMerged ? 'span 2' : undefined,
-                      transition: 'transform 0.2s ease',
-                    }}
+                    style={{ transition: 'transform 0.2s ease' }}
                   >
                   <TableCell
                     key={num}
@@ -508,7 +505,7 @@ export function TableStatusGrid({
                     onMouseEnter={!isEmpty && order ? (e) => handleTableMouseEnter(order, e) : undefined}
                     onMouseMove={!isEmpty && order ? handleTableMouseMove : undefined}
                     onMouseLeave={handleTableMouseLeave}
-                    colSpan={isMerged ? 1 + mergedFromNums.length : 1}
+                    colSpan={1}
                     style={isEmpty && isDragTarget ? {
                       boxShadow: '0 0 28px rgba(212,175,55,0.7), 0 0 0 2px rgba(212,175,55,0.55)',
                       transform: 'scale(1.08)',
@@ -528,7 +525,7 @@ export function TableStatusGrid({
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
-                      ${isMerged ? 'aspect-auto self-stretch' : 'aspect-square'}
+                      aspect-square
                     `}
                   >
                     {/* Hover merge progress ring — premium */}
@@ -572,7 +569,7 @@ export function TableStatusGrid({
                     })()}
                     {/* SVG status ring */}
                     {(isNew || isConfirmed) && (() => {
-                      const vw = isMerged ? 56 * (1 + mergedFromNums.length) : 56;
+                      const vw = 56;
                       const vh = 56;
                       const w  = vw - 3;
                       const h  = vh - 3;

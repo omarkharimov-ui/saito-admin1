@@ -412,11 +412,11 @@ export function TableStatusGrid({
   return (
     <>
       <div
-        className="relative bg-white/[0.03] border border-white/[0.07] rounded-2xl px-2 pt-2 pb-0 backdrop-blur-sm h-full"
+        className="relative bg-white/[0.03] border border-white/[0.07] rounded-2xl px-2 pt-2 pb-0 backdrop-blur-sm h-full flex flex-col"
         style={{ overflow: 'clip' }}
       >
 
-        <div className="flex flex-wrap items-center gap-3 mb-2">
+        <div className="flex flex-wrap items-center gap-3 mb-2 flex-shrink-0">
           <p className="text-[9px] uppercase tracking-[0.25em] text-white/60 font-semibold">{t('table_status')}</p>
           {floorNames.length > 1 && (
             <div className="flex items-center gap-1 ml-auto">
@@ -439,8 +439,8 @@ export function TableStatusGrid({
           <SortableContext items={visibleTables.map(String)} strategy={rectSortingStrategy}>
             <div
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className="grid gap-1.5 sm:gap-2 overflow-visible"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))' }}
+              className="grid gap-1.5 sm:gap-2 overflow-visible flex-1 min-h-0"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gridAutoRows: 'minmax(90px, 1fr)' }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
@@ -503,7 +503,7 @@ export function TableStatusGrid({
                           : '0 0 16px ' + glowColor) + ', inset 0 1px 0 rgba(255,255,255,0.05)',
                       ...(isDragTarget ? { transform: 'scale(1.1)' } : {}),
                     } : undefined}
-                    className={`relative w-full aspect-square flex items-center justify-center font-bold text-base
+                    className={`relative w-full flex items-center justify-center font-bold text-base
                       ${isEmpty && !isGhostChained && !isDragTarget ? 'rounded-2xl text-white/40 bg-white/[0.04] border border-white/[0.12]' : ''}
                       ${isEmpty && isDragTarget && !isGhostChained ? 'rounded-2xl text-gold/60 bg-gold/[0.06] border border-gold/50' : ''}
                       ${isGhostChained ? 'rounded-2xl text-gold/80 bg-gold/[0.08] border border-gold/40' : ''}

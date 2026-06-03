@@ -494,7 +494,7 @@ export function TableStatusGrid({
                       ${isGhostChained ? 'scale-110' : ''}
                       ${isDragTarget ? 'scale-105' : ''}
                     `}
-                    style={{ transition: 'transform 0.2s ease' }}
+                    style={{ transition: 'transform 0.2s ease', ...(isMerged ? { gridColumn: 'span 2' } : {}) }}
                   >
                   <TableCell
                     key={num}
@@ -526,7 +526,7 @@ export function TableStatusGrid({
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
-                      ${isCompact ? '' : 'aspect-square'}
+                      ${isCompact ? '' : (isMerged ? 'self-stretch' : 'aspect-square')}
                     `}
                   >
                     {/* Hover merge progress ring — premium */}

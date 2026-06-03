@@ -58,7 +58,7 @@ const TableCell = React.memo(function TableCell({
 
   return (
     <div
-      className="relative group/table"
+      className="relative group/table h-full"
       style={colSpan > 1 ? { gridColumn: `span ${colSpan}` } : undefined}
     >
       <button
@@ -194,6 +194,21 @@ export function TableStatusGrid({
   }, [floorAssignments]);
 
   useEffect(() => { onDragStateChange?.(draggingNum !== null); }, [draggingNum, onDragStateChange]);
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [gridCols, setGridCols] = useState(8);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      const c = Math.max(1, Math.floor((w + 6) / 126));
+      setGridCols(c);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -384,6 +399,8 @@ export function TableStatusGrid({
     return filtered;
   }, [tableList, mergedTableNums, getTableStatus, tableFilter]);
 
+  const gridRows = useMemo(() => Math.max(1, Math.ceil(visibleTables.length / gridCols)), [visibleTables.length, gridCols]);
+
   const _filterBtn = (key: TableFilterType, label: string, count: number) => (
     <button
       key={key}
@@ -438,9 +455,10 @@ export function TableStatusGrid({
           autoScroll={{ threshold: { x: 0.2, y: 0.2 }, acceleration: 10 }}>
           <SortableContext items={visibleTables.map(String)} strategy={rectSortingStrategy}>
             <div
+              ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className="grid gap-1.5 sm:gap-2 overflow-visible"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}
+              className="grid gap-1.5 sm:gap-2 overflow-visible flex-1 min-h-0"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gridTemplateRows: `repeat(${gridRows}, minmax(90px, 1fr))` }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
@@ -503,14 +521,14 @@ export function TableStatusGrid({
                           : '0 0 16px ' + glowColor) + ', inset 0 1px 0 rgba(255,255,255,0.05)',
                       ...(isDragTarget ? { transform: 'scale(1.1)' } : {}),
                     } : undefined}
-                    className={`relative w-full aspect-square flex items-center justify-center font-bold text-base
+                    className={`relative w-full flex items-center justify-center font-bold text-base
                       ${isEmpty && !isGhostChained && !isDragTarget ? 'rounded-2xl text-white/40 bg-white/[0.04] border border-white/[0.12]' : ''}
                       ${isEmpty && isDragTarget && !isGhostChained ? 'rounded-2xl text-gold/60 bg-gold/[0.06] border border-gold/50' : ''}
                       ${isGhostChained ? 'rounded-2xl text-gold/80 bg-gold/[0.08] border border-gold/40' : ''}
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
-                      ${isMerged ? 'aspect-auto h-[72px]' : ''}
+                      ${isMerged ? 'aspect-auto h-[72px]' : 'h-full'}
                     `}
                   >
                     {/* Hover merge progress ring — premium */}

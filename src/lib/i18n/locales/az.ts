@@ -397,6 +397,8 @@ export const az = {
   tab_analytics: 'AI Analitika',
   tab_kitchen: 'Mətbəx',
   tab_users: 'Hesablar',
+  tab_floors: 'Zallar & Mərtəbələr',
+  floor_plan_settings: 'Zal və Mərtəbə Planı',
 
   // General Tab
   gen_restaurant_name: 'Restoran Adı',

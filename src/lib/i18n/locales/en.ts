@@ -400,6 +400,8 @@ export const en: TranslationMap = {
   tab_analytics: 'AI Analytics',
   tab_kitchen: 'Kitchen',
   tab_users: 'Accounts',
+  tab_floors: 'Halls & Floors',
+  floor_plan_settings: 'Hall & Floor Plan',
 
   // General Tab
   gen_restaurant_name: 'Restaurant Name',

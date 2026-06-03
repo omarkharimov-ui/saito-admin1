@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, ChevronLeft } from 'lucide-react';
+import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
@@ -13,8 +13,9 @@ import AnalyticsTab from './tabs/AnalyticsTab';
 import KitchenTab from './tabs/KitchenTab';
 import UsersTab from './tabs/UsersTab';
 import ReceiptTab from './tabs/ReceiptTab';
+import FloorsTab from './tabs/FloorsTab';
 
-type Tab = 'general' | 'staff' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'users';
+type Tab = 'general' | 'staff' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'users' | 'floors';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
@@ -26,6 +27,7 @@ const TAB_DEFS: TabDef[] = [
   { key: 'kitchen',   labelKey: 'tab_kitchen',   icon: <Timer size={20} />,       desc: 'Mətbəx ayarları' },
   { key: 'receipt',   labelKey: 'tab_receipt',   icon: <Receipt size={20} />,     desc: 'Çek və çıxarış' },
   { key: 'users',     labelKey: 'tab_users',     icon: <ShieldCheck size={20} />, desc: 'Admin hesabları', superadminOnly: true },
+  { key: 'floors',    labelKey: 'tab_floors',    icon: <MapPin size={20} />,      desc: 'Zallar, mərtəbələr, masa planı' },
 ];
 
 function getCookieRole(): string | null {
@@ -44,6 +46,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'kitchen'   && <KitchenTab initialData={settingsData} />}
       {tab === 'receipt'   && <ReceiptTab initialData={settingsData} />}
       {tab === 'users'     && isSuperadmin && <UsersTab role={getCookieRole()} />}
+      {tab === 'floors'    && <FloorsTab />}
     </>
   );
 }

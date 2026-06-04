@@ -725,7 +725,7 @@ export const OrderModal = ({
           </div>
 
           {/* ═══ RIGHT 30%: Summary + Actions ═══ */}
-          <div className="w-80 flex-shrink-0 hidden md:flex flex-col min-h-0 border-l border-white/[0.05]">
+          <div className="w-80 flex-shrink-0 hidden md:flex flex-col border-l border-white/[0.05]">
             {/* Three-dot menu bar */}
             <div className="px-5 pt-4 pb-3 flex-shrink-0 border-b border-white/[0.05] flex items-center justify-between">
               <div>

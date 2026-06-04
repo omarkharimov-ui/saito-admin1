@@ -251,7 +251,7 @@ export default function OrdersPage() {
 
       {/* Stale orders banner */}
       <AnimatePresence>
-        {staleOrders.length > 0 && !staleDismissed && !isModalActive && (
+        {staleOrders.length > 0 && !staleDismissed && (
           <motion.div
             key={staleKey}
             drag="x" dragConstraints={{ left: 0, right: 400 }} dragElastic={0.1}
@@ -285,7 +285,7 @@ export default function OrdersPage() {
       <motion.div
         animate={{ height: isModalActive ? 0 : 'auto', opacity: isModalActive ? 0 : 1 }}
         transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-        className="flex-shrink-0 overflow-hidden min-h-0"
+        className="flex-shrink-0 overflow-hidden"
       >
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">
@@ -369,7 +369,7 @@ export default function OrdersPage() {
           />
         </div>
       ) : showCards ? (
-        <div className="flex-shrink-0 px-4" style={{ height: '20vh' }}>
+        <div className="flex-shrink-0 pb-1 px-4" style={{ height: '12vh' }}>
           <div
             className="h-full overflow-x-auto overflow-y-hidden -mx-4 px-4 scrollbar-thin"
             style={{
@@ -396,7 +396,7 @@ export default function OrdersPage() {
           </div>
         </div>
       ) : loading ? null : (
-        <div className="flex-shrink-0 flex items-center justify-center" style={{ height: '20vh' }}>
+        <div className="flex-shrink-0 flex items-center justify-center pb-1" style={{ height: '12vh' }}>
           <div className="flex flex-col items-center justify-center select-none">
             <ClipboardList size={24} className="text-white/10 mb-2" />
             <p className="text-white/25 text-sm">{t('no_active_orders')}</p>

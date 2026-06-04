@@ -458,8 +458,8 @@ export function TableStatusGrid({
             <div
               ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className={`grid overflow-visible flex-1 min-h-0 ${isCompact ? 'gap-1' : 'items-center gap-1.5 sm:gap-2'}`}
-              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 64 : 120}px, 1fr))`, gridTemplateRows: `repeat(${gridRows}, ${isCompact ? '1fr' : 'minmax(90px, 1fr)'})` }}
+              className={`grid gap-1.5 sm:gap-2 overflow-visible flex-1 min-h-0 ${isCompact ? '' : 'items-center'}`}
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gridTemplateRows: `repeat(${gridRows}, ${isCompact ? '1fr' : 'minmax(90px, 1fr)'})` }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
@@ -494,7 +494,7 @@ export function TableStatusGrid({
                       ${isGhostChained ? 'scale-110' : ''}
                       ${isDragTarget ? 'scale-105' : ''}
                     `}
-                    style={{ transition: 'transform 0.2s ease' }}
+                    style={{ transition: 'transform 0.2s ease', ...(isMerged ? { gridColumn: 'span 2' } : {}) }}
                   >
                   <TableCell
                     key={num}
@@ -526,7 +526,7 @@ export function TableStatusGrid({
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
-                      ${isCompact ? '' : 'aspect-square'}
+                      ${isCompact ? '' : (isMerged ? 'self-stretch' : 'aspect-square')}
                     `}
                   >
                     {/* Hover merge progress ring — premium */}
@@ -602,46 +602,44 @@ export function TableStatusGrid({
                         <span className="hidden group-hover/btn:block text-xl font-thin">+</span>
                       </span>
                     ) : (
-                      <span className="relative z-10 flex flex-col items-center justify-center w-full h-full px-1">
-                        {/* Top: table/group number — thin, uppercase */}
-                        <span className="text-[9px] font-light tracking-[0.15em] text-white/30 leading-none uppercase">
-                          {isMerged
-                            ? (() => {
-                                const allMergedParents = allOrders
-                                  .filter(o => o.status !== 'paid' && o.table_number !== null && allOrders.some(c => c.merged_into === o.id))
-                                  .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                                const gIdx = allMergedParents.findIndex(o => o.id === order?.id);
-                                return `${t('group_label')} ${String(gIdx + 1).padStart(2, '0')}`;
-                              })()
-                            : `${t('table_label')} ${String(num).padStart(2, '0')}`}
-                        </span>
-
-                        {/* Middle: price or guest count — premium gold */}
-                        {order?.total_amount != null && order.total_amount > 0 && (
-                          <span className="text-xs sm:text-sm font-bold tracking-tight mt-1 leading-none"
-                            style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                            {order.total_amount.toFixed(2)} ₼
-                          </span>
-                        )}
-
-                        {/* Bottom: guest count or kitchen status — micro */}
-                        <span className="flex items-center gap-1 mt-0.5">
-                          {order?.guest_count && order.guest_count > 1 && (
-                            <span className="text-[8px] font-medium text-white/35 tracking-tight">
-                              {order.guest_count} {t('guest_short')}
-                            </span>
-                          )}
-                          {ageMin > 0 && (
-                            <span className="text-[8px] tabular-nums text-white/25">{ageMin}d</span>
-                          )}
-                          {isMerged && (
-                            <span className="text-[7px] font-semibold text-white/20">
+                      <span className="relative z-10 flex flex-col items-center leading-none gap-0.5">
+                        {isMerged ? (
+                          <span className="flex flex-col items-center gap-0.5">
+                            {(() => {
+                              const allMergedParents = allOrders
+                                .filter(o => o.status !== 'paid' && o.table_number !== null && allOrders.some(c => c.merged_into === o.id))
+                                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                              const gIdx = allMergedParents.findIndex(o => o.id === order?.id);
+                              const gNum = gIdx + 1;
+                              return (
+                                <span className="text-[11px] font-black tracking-wide leading-none whitespace-nowrap" style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                  {t('group_label')} {gNum}
+                                </span>
+                              );
+                            })()}
+                            {/* Kitchen status + time */}
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-tight text-white">
                               {kitchenStatus === 'ready' ? t('grid_status_ready')
                                 : (kitchenStatus === 'cooking' || kitchenStatus === 'preparing') ? t('grid_status_preparing')
                                 : t('grid_status_pending')}
+                              {ageMin > 0 && <span>• {ageMin}d</span>}
                             </span>
-                          )}
-                        </span>
+                          </span>
+                        ) : (
+                          <span className="font-black text-base tracking-tight" style={{ color: '#ffffff' }}>
+                            {num}
+                          </span>
+                        )}
+                        {!isMerged && ageMin > 0 && (
+                          <span className="text-[10px] tabular-nums font-medium" style={{ color: '#ffffff' }}>
+                            {ageMin}d
+                          </span>
+                        )}
+                        {!isMerged && order?.guest_count && order.guest_count > 1 && (
+                          <span className="text-[8px] font-semibold text-white/40 flex items-center gap-0.5">
+                            {order.guest_count} {t('guest_short')}
+                          </span>
+                        )}
                       </span>
                     )}
                   </TableCell>

@@ -304,10 +304,10 @@ export default function OrdersPage() {
         </div>
       </motion.div>
 
-      {/* Table Status Grid — fills remaining normally, shrinks to 20vh when modal opens */}
+      {/* Table Status Grid — fills remaining normally, capped when modal opens */}
       <div
-        className="min-h-0 px-4 overflow-hidden transition-all duration-500 ease-out mb-2"
-        style={{ flex: isModalActive ? '0 0 20vh' : '1 1 0%' }}
+        className="min-h-0 px-4 overflow-hidden transition-all duration-500 ease-out"
+        style={{ flex: isModalActive ? '0 0 30vh' : '1 1 0%', maxHeight: isModalActive ? '30vh' : 'none' }}
       >
         {loading ? (
           <OrdersGhostLoading />
@@ -369,7 +369,7 @@ export default function OrdersPage() {
           />
         </div>
       ) : showCards ? (
-        <div className="flex-shrink-0 pb-1 px-4" style={{ height: '12vh' }}>
+        <div className="flex-shrink-0 px-4" style={{ height: '20vh' }}>
           <div
             className="h-full overflow-x-auto overflow-y-hidden -mx-4 px-4 scrollbar-thin"
             style={{
@@ -396,7 +396,7 @@ export default function OrdersPage() {
           </div>
         </div>
       ) : loading ? null : (
-        <div className="flex-shrink-0 flex items-center justify-center pb-1" style={{ height: '12vh' }}>
+        <div className="flex-shrink-0 flex items-center justify-center" style={{ height: '20vh' }}>
           <div className="flex flex-col items-center justify-center select-none">
             <ClipboardList size={24} className="text-white/10 mb-2" />
             <p className="text-white/25 text-sm">{t('no_active_orders')}</p>

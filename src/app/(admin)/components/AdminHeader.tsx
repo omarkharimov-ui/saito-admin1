@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Bell, ChevronDown } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { NotificationProvider, useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -78,7 +79,11 @@ const AdminHeaderInner = ({
   };
 
   return (
-    <header className="mb-8 flex items-start sm:items-center justify-between gap-3 sm:gap-4 relative">
+    <motion.header
+      animate={isModalOpen ? { height: 0, marginBottom: 0, opacity: 0, padding: 0, overflow: 'hidden' } : { height: 'auto', marginBottom: 32, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      className="flex items-start sm:items-center justify-between gap-3 sm:gap-4 relative overflow-hidden"
+    >
       <div className="flex-1" />
 
       <div className={`flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-7 transition-opacity duration-100 ${isModalOpen ? 'opacity-0 pointer-events-none' : ''}`}>
@@ -190,7 +195,7 @@ const AdminHeaderInner = ({
             )}
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 };
 

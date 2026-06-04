@@ -285,7 +285,7 @@ export default function OrdersPage() {
       <motion.div
         animate={{ height: isModalActive ? 0 : 'auto', opacity: isModalActive ? 0 : 1 }}
         transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-        className="flex-shrink-0 overflow-hidden"
+        className="flex-shrink-0 overflow-hidden min-h-0"
       >
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">

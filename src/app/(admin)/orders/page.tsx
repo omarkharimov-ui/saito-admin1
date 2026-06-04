@@ -251,7 +251,7 @@ export default function OrdersPage() {
 
       {/* Stale orders banner */}
       <AnimatePresence>
-        {staleOrders.length > 0 && !staleDismissed && (
+        {staleOrders.length > 0 && !staleDismissed && !isModalActive && (
           <motion.div
             key={staleKey}
             drag="x" dragConstraints={{ left: 0, right: 400 }} dragElastic={0.1}

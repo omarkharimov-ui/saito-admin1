@@ -526,7 +526,7 @@ export function TableStatusGrid({
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
-                      ${isCompact ? '' : (isMerged ? 'self-stretch' : 'aspect-square')}
+                      ${isCompact ? '' : (isMerged ? 'aspect-[2/1]' : 'aspect-square')}
                     `}
                   >
                     {/* Hover merge progress ring — premium */}

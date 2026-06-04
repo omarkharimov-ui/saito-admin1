@@ -458,8 +458,8 @@ export function TableStatusGrid({
             <div
               ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className={`grid gap-1.5 sm:gap-2 overflow-visible flex-1 min-h-0 ${isCompact ? '' : 'items-center'}`}
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gridTemplateRows: `repeat(${gridRows}, ${isCompact ? '1fr' : 'minmax(90px, 1fr)'})` }}
+              className={`grid gap-1.5 sm:gap-2 overflow-visible flex-1 min-h-0 ${isCompact ? 'items-stretch' : 'items-center'}`}
+              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 72 : 120}px, 1fr))`, gridTemplateRows: `repeat(${gridRows}, ${isCompact ? '1fr' : 'minmax(90px, 1fr)'})` }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;

@@ -458,8 +458,8 @@ export function TableStatusGrid({
             <div
               ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className={`grid overflow-visible flex-1 min-h-0 items-center ${isCompact ? 'gap-1' : 'gap-1.5 sm:gap-2'}`}
-              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 60 : 120}px, 1fr))`, gridTemplateRows: `repeat(${gridRows}, ${isCompact ? '1fr' : 'minmax(90px, 1fr)'})` }}
+              className={`grid overflow-visible flex-1 min-h-0 ${isCompact ? 'gap-1' : 'items-center gap-1.5 sm:gap-2'}`}
+              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 64 : 120}px, 1fr))`, gridTemplateRows: `repeat(${gridRows}, ${isCompact ? '1fr' : 'minmax(90px, 1fr)'})` }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
@@ -526,7 +526,7 @@ export function TableStatusGrid({
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
-                      aspect-square ${isCompact ? 'max-h-full' : ''}
+                      ${isCompact ? '' : 'aspect-square'}
                     `}
                   >
                     {/* Hover merge progress ring — premium */}

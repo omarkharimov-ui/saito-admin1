@@ -311,7 +311,7 @@ export default function OrdersPage() {
       {/* Table Status Grid — fills remaining normally, shrinks to 20vh when modal opens */}
       <div
         className="min-h-0 px-4 overflow-hidden transition-all duration-500 ease-out"
-        style={{ flex: isModalActive ? '0 0 auto' : '1 1 0%' }}
+        style={{ flex: isModalActive ? '0 0 auto' : '1 1 0%', maxHeight: isModalActive ? '15vh' : 'none' }}
       >
         {loading ? (
           <OrdersGhostLoading />

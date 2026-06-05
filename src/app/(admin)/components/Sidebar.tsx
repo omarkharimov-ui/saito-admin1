@@ -48,7 +48,7 @@ const Sidebar = ({
       style={{ width: 272 }}
     >
       {/* Glass panel */}
-      <div className="m-3 flex-1 flex flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-[rgba(10,10,10,0.82)] backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+      <div className="mx-3 mt-3 flex-1 flex flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-[rgba(10,10,10,0.82)] backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
 
         {/* Brand */}
         <div className="px-6 pt-6 pb-5">

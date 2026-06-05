@@ -255,7 +255,7 @@ export default function OrdersPage() {
 
       {/* Stale orders banner */}
       <AnimatePresence>
-        {staleOrders.length > 0 && !staleDismissed && (
+        {staleOrders.length > 0 && !staleDismissed && !isModalActive && (
           <motion.div
             key={staleKey}
             drag="x" dragConstraints={{ left: 0, right: 400 }} dragElastic={0.1}
@@ -276,7 +276,7 @@ export default function OrdersPage() {
 
       {/* Offline banner */}
       <AnimatePresence>
-        {!isOnline && (
+        {!isOnline && !isModalActive && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex items-center gap-2.5 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm">
             <WifiOff size={15} className="flex-shrink-0" />
@@ -311,7 +311,7 @@ export default function OrdersPage() {
       {/* Table Status Grid — fills remaining normally, shrinks to 20vh when modal opens */}
       <div
         className="min-h-0 px-4 overflow-hidden transition-all duration-500 ease-out"
-        style={{ flex: isModalActive ? '0 0 32vh' : '1 1 0%' }}
+        style={{ flex: isModalActive ? '0 0 25vh' : '1 1 0%' }}
       >
         {loading ? (
           <OrdersGhostLoading />

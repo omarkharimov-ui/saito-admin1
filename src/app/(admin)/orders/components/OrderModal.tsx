@@ -651,7 +651,7 @@ export const OrderModal = ({
                     <p className="text-white/20 text-sm">{t('search')}...</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
                     {filteredProducts.map(product => {
                       const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
                       const inOrderItem = order.order_items?.find(oi => oi.product_id === product.id);

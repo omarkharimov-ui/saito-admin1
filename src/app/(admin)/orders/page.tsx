@@ -302,7 +302,7 @@ export default function OrdersPage() {
         <div
           className="flex-shrink-0 min-h-0"
           style={{
-            maxHeight: isModalActive ? 150 : undefined,
+            maxHeight: isModalActive ? 160 : undefined,
             overflow: isModalActive ? 'hidden auto' : 'visible',
           }}
         >

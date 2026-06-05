@@ -33,16 +33,18 @@ function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: 
     <motion.button layout="position" initial={false} variants={cardVariants}
       whileHover="hover" whileTap="tap"
       onClick={onAdd}
-      className="relative rounded-xl p-3 text-left border border-white/[0.07] bg-[#141414] hover:bg-white/[0.06] transition-colors"
+      className="relative rounded-xl text-left border transition-all flex flex-col overflow-hidden aspect-square bg-[#141414] border-white/[0.07] hover:bg-white/[0.06]"
     >
-      <div className="aspect-square rounded-lg bg-white/[0.03] mb-2 flex items-center justify-center overflow-hidden">
+      <div className="flex-1 min-h-0 w-full overflow-hidden flex items-center justify-center bg-white/[0.03]">
         {showImg
           ? <img src={p.image_url!} alt={name} className="w-full h-full object-cover" onError={() => setImgErr(true)} />
           : <span className="text-xl font-black text-white/20">{initials}</span>
         }
       </div>
-      <p className="text-sm font-semibold text-white/85 truncate leading-tight">{name}</p>
-      <p className="text-sm font-black text-gold mt-0.5">₼{fmt(p.price)}</p>
+      <div className="px-3 pb-3 pt-2.5 flex flex-col gap-0.5">
+        <p className="text-sm font-semibold text-white/85 truncate leading-tight">{name}</p>
+        <p className="text-sm font-black text-gold">₼{fmt(p.price)}</p>
+      </div>
       {cart > 0 && (
         <motion.span key={cart} initial={{ scale: 1.4 }} animate={{ scale: 1 }}
           className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-gold text-black text-[11px] font-black flex items-center justify-center shadow-lg">
@@ -259,7 +261,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                 <p className="text-base">{t('not_found')}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
                 {filtered.map(p => {
                   const inCart = items.filter(i => i.product.id === p.id).reduce((s, i) => s + i.quantity, 0);
                   return <PCard key={p.id} p={p} cart={inCart} onAdd={() => handleProductClick(p)} language={language} />;
@@ -280,7 +282,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 max-h-[30vh]">
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
               <AnimatePresence initial={false}>
               {items.length === 0 ? (
                 <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-full text-white/15 py-8">

@@ -198,14 +198,19 @@ export function TableStatusGrid({
 
   const gridRef = useRef<HTMLDivElement>(null);
   const [gridCols, setGridCols] = useState(8);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
     const el = gridRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth;
-      const c = Math.max(1, Math.floor((w + 6) / 126));
+      const colMin = 120;
+      const gap = 6;
+      const colStep = colMin + gap;
+      const c = Math.max(1, Math.floor((w + gap) / colStep));
       setGridCols(c);
+      setContainerWidth(w);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -402,6 +407,19 @@ export function TableStatusGrid({
 
   const gridRows = useMemo(() => Math.max(1, Math.ceil(visibleTables.length / gridCols)), [visibleTables.length, gridCols]);
 
+  const compactGridHeight = useMemo(() => {
+    if (!isCompact || !containerWidth) return undefined;
+    const colMin = 64;
+    const gap = 4;
+    const compactCols = Math.max(1, Math.floor((containerWidth + gap) / (colMin + gap)));
+    const totalGapX = (compactCols - 1) * gap;
+    const colWidth = (containerWidth - totalGapX) / compactCols;
+    const compactRows = Math.max(1, Math.ceil(visibleTables.length / compactCols));
+    const totalGapY = (compactRows - 1) * gap;
+    const maxH = window.innerHeight * 0.32;
+    return Math.min(colWidth * compactRows + totalGapY, maxH);
+  }, [isCompact, containerWidth, visibleTables.length]);
+
   const _filterBtn = (key: TableFilterType, label: string, count: number) => (
     <button
       key={key}
@@ -459,7 +477,7 @@ export function TableStatusGrid({
               ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
               className={`grid overflow-visible flex-1 min-h-0 ${isCompact ? 'gap-1' : 'gap-1.5 sm:gap-2'} ${isCompact ? '' : 'items-center'}`}
-              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 64 : 120}px, 1fr))`, gridTemplateRows: isCompact ? 'none' : `repeat(${gridRows}, minmax(90px, 1fr))`, gridAutoRows: isCompact ? 'auto' : undefined }}
+              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 64 : 120}px, 1fr))`, gridTemplateRows: isCompact ? `repeat(${gridRows}, 1fr)` : `repeat(${gridRows}, minmax(90px, 1fr))`, height: isCompact && compactGridHeight ? compactGridHeight : undefined }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
@@ -526,7 +544,7 @@ export function TableStatusGrid({
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
-                      ${isMerged ? 'self-stretch' : 'aspect-square'}
+                      ${isCompact ? 'self-stretch' : (isMerged ? 'self-stretch' : 'aspect-square')}
                     `}
                   >
                     {/* Hover merge progress ring — premium */}

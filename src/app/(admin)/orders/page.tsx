@@ -253,37 +253,29 @@ export default function OrdersPage() {
   return (
     <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
 
-      {/* Stale orders banner */}
-      <AnimatePresence mode="popLayout">
-        {staleOrders.length > 0 && !staleDismissed && !isModalActive && (
-          <motion.div
-            key={staleKey}
-            drag="x" dragConstraints={{ left: 0, right: 400 }} dragElastic={0.1}
-            onDragEnd={(_e, info) => { if (info.offset.x > 60 || info.velocity.x > 300) setStaleDismissed(true); }}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: 400 }}
-            transition={{ duration: 0.25 }}
-            className="flex items-center gap-2.5 px-4 py-2 bg-red-500/10 border border-red-500/25 text-red-400 text-sm cursor-grab active:cursor-grabbing select-none"
-          >
-            <AlertTriangle size={15} className="flex-shrink-0 animate-pulse" />
-            <span className="font-semibold flex-1">{getStaleOrdersText()}</span>
-            <button onClick={() => setStaleDismissed(true)}
-              className="ml-2 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-500/20 transition-colors">
-              <X size={12} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Stale orders banner — instant hide on modal */}
+      {(staleOrders.length > 0 && !staleDismissed && !isModalActive) && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="flex items-center gap-2.5 px-4 py-2 bg-red-500/10 border border-red-500/25 text-red-400 text-sm"
+        >
+          <AlertTriangle size={15} className="flex-shrink-0 animate-pulse" />
+          <span className="font-semibold flex-1">{getStaleOrdersText()}</span>
+          <button onClick={() => setStaleDismissed(true)}
+            className="ml-2 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-500/20 transition-colors">
+            <X size={12} />
+          </button>
+        </motion.div>
+      )}
 
-      {/* Offline banner */}
-      <AnimatePresence>
-        {!isOnline && !isModalActive && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex items-center gap-2.5 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm">
-            <WifiOff size={15} className="flex-shrink-0" />
-            <span>{t('offline_message')}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Offline banner — instant hide on modal */}
+      {(!isOnline && !isModalActive) && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="flex items-center gap-2.5 px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm">
+          <WifiOff size={15} className="flex-shrink-0" />
+          <span>{t('offline_message')}</span>
+        </motion.div>
+      )}
 
       {/* Header — removed from DOM when modal opens so grid moves up */}
       {!isModalActive && (
@@ -307,7 +299,7 @@ export default function OrdersPage() {
       {/* Table Status Grid — fills remaining normally, shrinks when modal opens */}
       <div
         className="min-h-0 px-4 overflow-hidden"
-        style={{ flex: isModalActive ? '0 0 18vh' : '1 1 0%' }}
+        style={{ flex: isModalActive ? '0 0 auto' : '1 1 0%' }}
       >
         {loading ? (
           <OrdersGhostLoading />

@@ -476,8 +476,8 @@ export function TableStatusGrid({
             <div
               ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className={`grid overflow-visible flex-1 min-h-0 ${isCompact ? 'gap-1' : 'gap-1.5 sm:gap-2'} ${isCompact ? '' : 'items-center'}`}
-              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 64 : 120}px, 1fr))`, gridTemplateRows: isCompact ? `repeat(${gridRows}, 1fr)` : `repeat(${gridRows}, minmax(90px, 1fr))`, height: isCompact && compactGridHeight ? compactGridHeight : undefined }}
+              className={`grid overflow-visible flex-1 min-h-0 ${isCompact ? 'gap-1.5' : 'gap-1.5 sm:gap-2'} ${isCompact ? '' : 'items-center'}`}
+              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 72 : 120}px, 1fr))`, gridTemplateRows: isCompact ? `repeat(${gridRows}, 1fr)` : `repeat(${gridRows}, minmax(90px, 1fr))`, height: isCompact && compactGridHeight ? compactGridHeight : undefined }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
@@ -533,7 +533,7 @@ export function TableStatusGrid({
                       boxShadow: (isDragTarget
                         ? `0 0 32px rgba(245,158,11,0.7), 0 0 0 2px rgba(245,158,11,0.5), 0 0 16px ${glowColor}`
                         : isMerged
-                          ? '0 0 18px rgba(245,158,11,0.3), 0 0 0 1px rgba(245,158,11,0.35)'
+                          ? '0 0 12px rgba(245,158,11,0.2), 0 0 0 1px rgba(245,158,11,0.25)'
                           : '0 0 16px ' + glowColor) + ', inset 0 1px 0 rgba(255,255,255,0.05)',
                       ...(isDragTarget ? { transform: 'scale(1.1)' } : {}),
                     } : undefined}

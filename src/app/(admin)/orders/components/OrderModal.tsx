@@ -608,11 +608,11 @@ export const OrderModal = ({
             </div>
           </div>
 
-        {/* ── BODY: 70/30 SHOOTOUT ── */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* ── BODY: Products grid (left) + Summary (right) ── */}
+        <div className="flex-1 min-h-0 overflow-hidden md:grid md:grid-cols-[1fr_380px] md:gap-6 md:p-6">
 
-          {/* ═══ LEFT 70%: Products browser ═══ */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* ═══ LEFT: Products browser ═══ */}
+          <div className="flex flex-col min-h-0 overflow-hidden">
             {/* Search */}
             <div className="px-4 pt-3 pb-2 flex-shrink-0">
               <div className="relative">
@@ -651,7 +651,7 @@ export const OrderModal = ({
                     <p className="text-white/20 text-sm">{t('search')}...</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                     {filteredProducts.map(product => {
                       const inAddCount = addItems.filter(i => i.product.id === product.id).reduce((s, i) => s + i.quantity, 0);
                       const inOrderItem = order.order_items?.find(oi => oi.product_id === product.id);
@@ -665,22 +665,22 @@ export const OrderModal = ({
                           whileHover={{ y: -2, transition: { duration: 0.15 } }} whileTap={{ scale: 0.94, transition: { duration: 0.08 } }}
                           key={product.id}
                           onClick={() => handleAddProductClick(product)}
-                          className={`relative rounded-xl p-3 text-left border transition-all flex flex-col ${
+                          className={`relative rounded-xl p-4 text-left border transition-all flex flex-col ${
                             isSoldOut ? 'opacity-50' : ''
                           } ${
                             inAddCount > 0 || inOrderItem
                               ? 'bg-white/[0.04] border-white/[0.15]'
                               : 'bg-[#141414] border-white/[0.07] hover:bg-white/[0.05]'
                           }`}>
-                          <div className="aspect-square rounded-lg bg-white/[0.03] mb-2 flex items-center justify-center overflow-hidden">
+                          <div className="aspect-square bg-white/[0.03] mb-3 -mx-4 -mt-4 flex items-center justify-center overflow-hidden rounded-t-xl">
                             {showImg ? (
                               <img src={product.image_url!} alt={pName} className="w-full h-full object-cover" onError={() => setImgErrors(prev => new Set(prev).add(product.id))} />
                             ) : (
                               <span className="text-xl font-black text-white/20">{initials}</span>
                             )}
                           </div>
-                          <p className="text-sm font-semibold text-white/85 truncate leading-tight">{pName}</p>
-                          <p className="text-sm font-black text-gold mt-0.5">{product.price.toFixed(2)} ₼</p>
+                          <p className="text-sm font-semibold text-white/85 truncate leading-tight px-0.5">{pName}</p>
+                          <p className="text-sm font-black text-gold mt-1 px-0.5">{product.price.toFixed(2)} ₼</p>
                           {isSoldOut && (
                             <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[7px] font-bold text-red-400/80">Bitib</span>
                           )}
@@ -725,8 +725,8 @@ export const OrderModal = ({
             </div>
           </div>
 
-          {/* ═══ RIGHT 30%: Summary + Actions ═══ */}
-          <div className="w-80 flex-shrink-0 hidden md:flex flex-col border-l border-white/[0.05]">
+          {/* ═══ RIGHT: Summary + Actions ═══ */}
+          <div className="hidden md:flex flex-col">
             {/* Three-dot menu bar */}
             <div className="px-5 pt-4 pb-3 flex-shrink-0 border-b border-white/[0.05] flex items-center justify-between">
               <div>
@@ -756,7 +756,12 @@ export const OrderModal = ({
             {/* Items summary list — with +/- */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
               <AnimatePresence initial={false}>
-              {displayItems.map((item: any) => {
+              {displayItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 select-none">
+                  <ShoppingBag size={28} className="text-white/[0.07] mb-3" />
+                  <p className="text-white/[0.25] text-xs font-medium">{t('no_items_yet')}</p>
+                </div>
+              ) : displayItems.map((item: any) => {
                 const itemQty = draftQty[item.id] ?? item.quantity;
                 const unitPrice = item.unit_price || (item.total_price / item.quantity);
                 const isSelected = cancelStep === 'select' && !!selectedCancelItems[item.id];
@@ -846,7 +851,7 @@ export const OrderModal = ({
               {((order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
                 <button disabled={acting} onClick={handleSaveAll}
                   style={{ background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', backgroundSize: '200% 200%', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
-                  className="w-full min-h-[52px] flex items-center justify-center gap-2 px-6 font-black rounded-2xl transition-all active:scale-[0.97] disabled:opacity-40 text-black text-sm tracking-wide">
+                  className="w-full min-h-[52px] flex items-center justify-center gap-2 px-6 font-black rounded-2xl transition-all active:scale-[0.97] disabled:opacity-30 text-black text-sm tracking-wide">
                   {acting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                   {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}
                   {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && t('save_changes')}
@@ -1012,7 +1017,7 @@ export const OrderModal = ({
               {(order.status === 'new' || (order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
                 <button disabled={acting} onClick={handleSaveAll}
                   style={{ background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
-                  className="w-full min-h-[52px] flex items-center justify-center gap-2 px-6 font-black rounded-2xl active:scale-[0.97] disabled:opacity-40 text-black text-sm tracking-wide">
+                  className="w-full min-h-[52px] flex items-center justify-center gap-2 px-6 font-black rounded-2xl active:scale-[0.97] disabled:opacity-30 text-black text-sm tracking-wide">
                   {acting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                   {order.status === 'new' && !hasDraft && addItems.length === 0 && t('confirm_order')}
                   {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}

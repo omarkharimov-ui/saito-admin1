@@ -356,8 +356,9 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>₼{fmt(total)}</span>
               </div>
               <button onClick={handleSubmit} disabled={items.length === 0 || submitting}
-                className="w-full py-4 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2.5 hover:bg-amber-500/25 transition-all"
-              >{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} {t('create_order')}</button>
+                style={items.length > 0 && !submitting ? { background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', backgroundSize: '200% 200%', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' } : { background: 'rgba(255,255,255,0.04)' }}
+                className="w-full py-4 rounded-xl text-sm font-bold active:scale-[0.98] disabled:opacity-25 flex items-center justify-center gap-2.5 transition-all"
+              >{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} <span className={items.length > 0 && !submitting ? 'text-black' : 'text-white/40'}>{t('create_order')}</span></button>
             </div>
           </div>
         </div>

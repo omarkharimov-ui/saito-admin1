@@ -9,6 +9,7 @@ import {
   PackagePlus,
   Warehouse,
   ScrollText,
+  Monitor,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -31,6 +32,7 @@ export function getAdminNavItems(
 ): AdminNavItem[] {
   return [
     { id: 'dashboard', name: t('dashboard'), href: '/', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
+    { id: 'pos', name: 'POS', href: '/pos', icon: Monitor, roles: ['admin', 'superadmin'] },
     {
       id: 'reservations',
       name: t('reservations'),

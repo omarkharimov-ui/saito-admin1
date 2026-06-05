@@ -226,23 +226,25 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
           </div>
         </div>
 
-        {/* ─── SEARCH ─── */}
-        <div className="px-4 pt-3 pb-2.5 border-b border-white/[0.06]">
-          <div className="relative">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20" />
-            <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_products')}
-              onKeyDown={e => { if (e.key === 'Escape') { searchRef.current?.blur(); } }}
-              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-10 pr-9 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-all" />
-            {search && <button onClick={() => { setSearch(''); searchRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50"><X size={16} /></button>}
-          </div>
-        </div>
+        {/* ─── BODY: Products (left) + Cart (right) ─── */}
+        <div className="flex-1 flex overflow-hidden">
 
-        {/* ─── MAIN SPLIT ─── */}
-        <div className="flex flex-col lg:flex-row min-h-[500px]">
-          {/* ─── PRODUCT AREA (left ~70%) ─── */}
-          <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
-            {/* ─── CATEGORY FILTERS (sticky) ─── */}
-            <div className="sticky top-0 z-10 flex-shrink-0 px-4 py-2.5">
+          {/* ═══ LEFT: Products ═══ */}
+          <section className="flex-1 h-full flex flex-col overflow-hidden p-5">
+            {/* Title */}
+            <div className="flex-shrink-0 mb-4">
+              <h2 className="text-xl text-amber-400 font-bold">{t('new_order')} · {t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</h2>
+            </div>
+            {/* Search */}
+            <div className="relative mb-3 flex-shrink-0">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20" />
+              <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_products')}
+                onKeyDown={e => { if (e.key === 'Escape') { searchRef.current?.blur(); } }}
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-10 pr-9 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-all" />
+              {search && <button onClick={() => { setSearch(''); searchRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50"><X size={16} /></button>}
+            </div>
+            {/* Categories */}
+            <div className="flex-shrink-0 mb-2">
               <div className="flex gap-1.5 overflow-x-auto">
                 {categories.map(c => (
                   <button key={c.id} onClick={() => setCat(cat === c.id ? null : c.id)}
@@ -253,8 +255,8 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                 ))}
               </div>
             </div>
-            {/* ─── PRODUCT GRID (scrollable) ─── */}
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            {/* Product grid */}
+            <div className="flex-1 overflow-y-auto pr-2">
               {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-white/15">
                 <Search size={40} className="mb-3 opacity-30" />
@@ -269,10 +271,10 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
               </div>
             )}
           </div>
-          </div>
+          </section>
 
-          {/* ─── CART SIDEBAR (right ~30%, always visible) ─── */}
-          <div className="lg:w-[30%] lg:min-w-[300px] lg:max-w-[380px] border-t lg:border-t-0 lg:border-l border-white/[0.06] bg-[#0c0c0c] flex flex-col">
+          {/* ═══ RIGHT: Cart ═══ */}
+          <section className="w-[380px] h-full border-l border-white/[0.06] bg-neutral-950/50 flex flex-col flex-shrink-0">
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
               <span className="text-base font-bold text-white">{t('cart')}{cartCount > 0 && <> · {cartCount}</>}</span>
               {items.length > 0 && (
@@ -362,7 +364,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                 className="w-full py-4 rounded-xl text-sm font-bold active:scale-[0.98] disabled:opacity-25 flex items-center justify-center gap-2.5 transition-all"
               >{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} <span className={items.length > 0 && !submitting ? 'text-black' : 'text-white/40'}>{t('create_order')}</span></button>
             </div>
-          </div>
+          </section>
         </div>
 
       </div>

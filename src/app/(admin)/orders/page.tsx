@@ -296,42 +296,33 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Main content area: vertical layout */}
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col px-4 pb-4">
-        {/* Table Status Grid — compact header when modal open, fills otherwise */}
-        <div
-          className="flex-shrink-0 min-h-0"
-          style={{
-            maxHeight: isModalActive ? 160 : undefined,
-            overflow: isModalActive ? 'hidden auto' : 'visible',
-          }}
-        >
-          {loading ? <OrdersGhostLoading /> : (
-            <TableStatusGrid
-              orders={activeOrders}
-              allOrders={orders}
-              onTableClick={(order) => handleSelectTable(order.table_number!)}
-              onClearTable={handleClearTable}
-              onEmptyTableClick={handleSelectTable}
-              tableCount={tableCount}
-              tableFilter="all"
-              setTableFilter={() => {}}
-              loading={false}
-              t={t}
-              delayThreshold={delayThreshold}
-              onMergeTables={handleMergeOrders}
-              onMoveTable={handleMoveOrder}
-              onAddEmptyTable={handleAddEmptyTable}
-              onDragStateChange={setIsTableDragging}
-              onEmptyMerge={handleCreateMergedEmptyOrder}
-              isCompact={isModalActive}
-            />
-          )}
-        </div>
-
-        {/* Bottom stage — modal when open, cards/empty otherwise */}
-        {isModalActive ? (
-          <div className="flex-1 min-h-0 overflow-hidden pt-3">
+      {/* ── MAIN CONTENT ── */}
+      {isModalActive ? (
+        <>
+          <header className="w-full h-[150px] flex-shrink-0 overflow-y-auto px-4 border-b border-white/[0.06] bg-neutral-900/50">
+            {loading ? <OrdersGhostLoading /> : (
+              <TableStatusGrid
+                orders={activeOrders}
+                allOrders={orders}
+                onTableClick={(order) => handleSelectTable(order.table_number!)}
+                onClearTable={handleClearTable}
+                onEmptyTableClick={handleSelectTable}
+                tableCount={tableCount}
+                tableFilter="all"
+                setTableFilter={() => {}}
+                loading={false}
+                t={t}
+                delayThreshold={delayThreshold}
+                onMergeTables={handleMergeOrders}
+                onMoveTable={handleMoveOrder}
+                onAddEmptyTable={handleAddEmptyTable}
+                onDragStateChange={setIsTableDragging}
+                onEmptyMerge={handleCreateMergedEmptyOrder}
+                isCompact={true}
+              />
+            )}
+          </header>
+          <div className="flex-1 flex overflow-hidden w-full">
             {manualModalTable ? (
               <ManualOrderModal
                 key={manualModalTable}
@@ -360,39 +351,62 @@ export default function OrdersPage() {
               />
             ) : null}
           </div>
-        ) : (
-          <>
-            {showCards ? (
-              <div className="flex-shrink-0 mt-3" style={{ height: '12vh' }}>
-                <div className="h-full overflow-x-auto overflow-y-hidden -mx-4 px-4 scrollbar-thin"
-                  style={{
-                    opacity: isTableDragging ? 0.3 : 1,
-                    filter: isTableDragging ? 'blur(4px)' : 'none',
-                    transition: 'opacity 0.2s, filter 0.2s',
-                    pointerEvents: isTableDragging ? 'none' : 'auto',
-                  }}>
-                  <div className="flex gap-2.5 h-full items-stretch" style={{ width: 'max-content', minWidth: '100%' }}>
-                    <AnimatePresence mode="popLayout" initial={false}>
-                      {cardOrders.map(order => (
-                        <HorizontalOrderCard key={order.id} order={order} allOrders={orders}
-                          confirmedIds={confirmedIds} delayThreshold={delayThreshold}
-                          onClick={() => setSelectedOrder(order)} />
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </div>
-            ) : loading ? null : (
-              <div className="flex-shrink-0 flex items-center justify-center mt-3" style={{ height: '12vh' }}>
-                <div className="flex flex-col items-center justify-center select-none">
-                  <ClipboardList size={24} className="text-white/10 mb-2" />
-                  <p className="text-white/25 text-sm">{t('no_active_orders')}</p>
-                </div>
-              </div>
+        </>
+      ) : (
+        <>
+          <div className="flex-1 min-h-0 overflow-hidden px-4">
+            {loading ? <OrdersGhostLoading /> : (
+              <TableStatusGrid
+                orders={activeOrders}
+                allOrders={orders}
+                onTableClick={(order) => handleSelectTable(order.table_number!)}
+                onClearTable={handleClearTable}
+                onEmptyTableClick={handleSelectTable}
+                tableCount={tableCount}
+                tableFilter="all"
+                setTableFilter={() => {}}
+                loading={false}
+                t={t}
+                delayThreshold={delayThreshold}
+                onMergeTables={handleMergeOrders}
+                onMoveTable={handleMoveOrder}
+                onAddEmptyTable={handleAddEmptyTable}
+                onDragStateChange={setIsTableDragging}
+                onEmptyMerge={handleCreateMergedEmptyOrder}
+                isCompact={false}
+              />
             )}
-          </>
-        )}
-      </div>
+          </div>
+          {showCards ? (
+            <div className="flex-shrink-0 pb-1 px-4" style={{ height: '12vh' }}>
+              <div className="h-full overflow-x-auto overflow-y-hidden -mx-4 px-4 scrollbar-thin"
+                style={{
+                  opacity: isTableDragging ? 0.3 : 1,
+                  filter: isTableDragging ? 'blur(4px)' : 'none',
+                  transition: 'opacity 0.2s, filter 0.2s',
+                  pointerEvents: isTableDragging ? 'none' : 'auto',
+                }}>
+                <div className="flex gap-2.5 h-full items-stretch" style={{ width: 'max-content', minWidth: '100%' }}>
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    {cardOrders.map(order => (
+                      <HorizontalOrderCard key={order.id} order={order} allOrders={orders}
+                        confirmedIds={confirmedIds} delayThreshold={delayThreshold}
+                        onClick={() => setSelectedOrder(order)} />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          ) : loading ? null : (
+            <div className="flex-shrink-0 flex items-center justify-center pb-1" style={{ height: '12vh' }}>
+              <div className="flex flex-col items-center justify-center select-none">
+                <ClipboardList size={24} className="text-white/10 mb-2" />
+                <p className="text-white/25 text-sm">{t('no_active_orders')}</p>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Ready notifications — portal */}
       {createPortal(

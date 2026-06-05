@@ -285,12 +285,8 @@ export default function OrdersPage() {
         )}
       </AnimatePresence>
 
-      {/* Header — hides smoothly when modal opens */}
-      <motion.div
-        animate={{ height: isModalActive ? 0 : 'auto', opacity: isModalActive ? 0 : 1 }}
-        transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-        className="flex-shrink-0 overflow-hidden"
-      >
+      {/* Header — removed from DOM when modal opens so grid moves up */}
+      {!isModalActive && (
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">
             <h1 className="text-xl md:text-2xl font-serif font-bold text-white leading-tight">{t('orders')}</h1>
@@ -306,11 +302,11 @@ export default function OrdersPage() {
             </button>
           </div>
         </div>
-      </motion.div>
+      )}
 
-      {/* Table Status Grid — fills remaining normally, shrinks to 20vh when modal opens */}
+      {/* Table Status Grid — fills remaining normally, shrinks when modal opens */}
       <div
-        className="min-h-0 px-4 overflow-hidden transition-all duration-500 ease-out"
+        className="min-h-0 px-4 overflow-hidden"
         style={{ flex: isModalActive ? '0 0 auto' : '1 1 0%', maxHeight: isModalActive ? '15vh' : 'none' }}
       >
         {loading ? (

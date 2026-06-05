@@ -409,14 +409,14 @@ export function TableStatusGrid({
 
   const compactGridHeight = useMemo(() => {
     if (!isCompact || !containerWidth) return undefined;
-    const colMin = 64;
-    const gap = 4;
+    const colMin = 48;
+    const gap = 3;
     const compactCols = Math.max(1, Math.floor((containerWidth + gap) / (colMin + gap)));
     const totalGapX = (compactCols - 1) * gap;
     const colWidth = (containerWidth - totalGapX) / compactCols;
     const compactRows = Math.max(1, Math.ceil(visibleTables.length / compactCols));
     const totalGapY = (compactRows - 1) * gap;
-    const maxH = window.innerHeight * 0.32;
+    const maxH = window.innerHeight * 0.18;
     return Math.min(colWidth * compactRows + totalGapY, maxH);
   }, [isCompact, containerWidth, visibleTables.length]);
 
@@ -448,8 +448,8 @@ export function TableStatusGrid({
   return (
     <>
       <div
-        className="relative bg-white/[0.03] border border-white/[0.07] rounded-2xl px-2 pt-2 pb-0 backdrop-blur-sm h-full flex flex-col"
-        style={{ overflow: 'clip' }}
+        className={`relative bg-white/[0.03] border border-white/[0.07] rounded-2xl px-2 pt-2 pb-0 backdrop-blur-sm flex flex-col ${isCompact ? '' : 'h-full'}`}
+        style={{ overflow: isCompact ? 'hidden auto' : 'clip' }}
       >
 
         <div className="flex flex-wrap items-center gap-3 mb-2 flex-shrink-0">
@@ -476,8 +476,8 @@ export function TableStatusGrid({
             <div
               ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className={`grid overflow-visible flex-1 min-h-0 ${isCompact ? 'gap-2' : 'gap-1.5 sm:gap-2'} ${isCompact ? '' : 'items-center'}`}
-              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 80 : 120}px, 1fr))`, gridTemplateRows: isCompact ? `repeat(${gridRows}, auto)` : `repeat(${gridRows}, minmax(90px, 1fr))`, height: isCompact && compactGridHeight ? compactGridHeight : undefined }}
+              className={`grid min-h-0 ${isCompact ? 'gap-1.5 overflow-y-auto' : 'gap-1.5 sm:gap-2 overflow-visible items-center'} flex-1`}
+              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 48 : 120}px, 1fr))`, gridTemplateRows: isCompact ? `repeat(${gridRows}, auto)` : `repeat(${gridRows}, minmax(90px, 1fr))`, height: isCompact && compactGridHeight ? compactGridHeight : undefined }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
@@ -630,13 +630,13 @@ export function TableStatusGrid({
                               const gIdx = allMergedParents.findIndex(o => o.id === order?.id);
                               const gNum = gIdx + 1;
                               return (
-                                <span className="text-[11px] font-black tracking-wide leading-none whitespace-nowrap" style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                                  {t('group_label')} {gNum}
+                                <span className={`${isCompact ? 'text-[8px]' : 'text-[11px]'} font-black tracking-wide leading-none whitespace-nowrap`} style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                  {t('group_label_short') || t('group_label')} {gNum}
                                 </span>
                               );
                             })()}
                             {/* Kitchen status + time */}
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-tight text-white">
+                            <span className={`inline-flex items-center gap-1 ${isCompact ? 'text-[7px]' : 'text-[10px]'} font-bold tracking-tight text-white`}>
                               {kitchenStatus === 'ready' ? t('grid_status_ready')
                                 : (kitchenStatus === 'cooking' || kitchenStatus === 'preparing') ? t('grid_status_preparing')
                                 : t('grid_status_pending')}
@@ -644,17 +644,17 @@ export function TableStatusGrid({
                             </span>
                           </span>
                         ) : (
-                          <span className="font-black text-base tracking-tight" style={{ color: '#ffffff' }}>
+                          <span className={`font-black ${isCompact ? 'text-xs' : 'text-base'} tracking-tight`} style={{ color: '#ffffff' }}>
                             {num}
                           </span>
                         )}
                         {!isMerged && ageMin > 0 && (
-                          <span className="text-[10px] tabular-nums font-medium" style={{ color: '#ffffff' }}>
+                          <span className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} tabular-nums font-medium`} style={{ color: '#ffffff' }}>
                             {ageMin}d
                           </span>
                         )}
                         {!isMerged && order?.guest_count && order.guest_count > 1 && (
-                          <span className="text-[8px] font-semibold text-white/40 flex items-center gap-0.5">
+                          <span className={`${isCompact ? 'text-[7px]' : 'text-[8px]'} font-semibold text-white/40 flex items-center gap-0.5`}>
                             {order.guest_count} {t('guest_short')}
                           </span>
                         )}

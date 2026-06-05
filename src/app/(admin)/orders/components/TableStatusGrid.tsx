@@ -409,8 +409,8 @@ export function TableStatusGrid({
 
   const compactGridHeight = useMemo(() => {
     if (!isCompact || !containerWidth) return undefined;
-    const colMin = 56;
-    const gap = 4;
+    const colMin = 52;
+    const gap = 3;
     const compactCols = Math.max(1, Math.floor((containerWidth + gap) / (colMin + gap)));
     const totalGapX = (compactCols - 1) * gap;
     const colWidth = (containerWidth - totalGapX) / compactCols;
@@ -476,8 +476,8 @@ export function TableStatusGrid({
             <div
               ref={gridRef}
               key={`${tableFilter}-${selectedFloor || 'all'}`}
-              className={`grid min-h-0 ${isCompact ? 'gap-2 overflow-y-auto' : 'gap-1.5 sm:gap-2 overflow-visible items-center'} flex-1`}
-              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 56 : 120}px, 1fr))`, gridTemplateRows: isCompact ? `repeat(${gridRows}, auto)` : `repeat(${gridRows}, minmax(90px, 1fr))`, height: isCompact && compactGridHeight ? compactGridHeight : undefined }}
+              className={`grid min-h-0 ${isCompact ? 'gap-1.5 overflow-y-auto' : 'gap-1.5 sm:gap-2 overflow-visible items-center'} flex-1`}
+              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${isCompact ? 52 : 120}px, 1fr))`, gridTemplateRows: isCompact ? `repeat(${gridRows}, auto)` : `repeat(${gridRows}, minmax(90px, 1fr))`, height: isCompact && compactGridHeight ? compactGridHeight : undefined }}
             >
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;

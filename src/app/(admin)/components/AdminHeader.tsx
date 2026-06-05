@@ -78,7 +78,7 @@ const AdminHeaderInner = ({
   };
 
   return (
-    <header className="mb-8 flex items-start sm:items-center justify-between gap-3 sm:gap-4 relative">
+    <header className={`flex items-start sm:items-center justify-between gap-3 sm:gap-4 relative ${isModalOpen ? 'h-0 overflow-hidden mb-0 opacity-0' : 'mb-8'}`}>
       <div className="flex-1" />
 
       <div className={`flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-7 transition-opacity duration-100 ${isModalOpen ? 'opacity-0 pointer-events-none' : ''}`}>

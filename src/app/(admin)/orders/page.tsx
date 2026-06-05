@@ -301,7 +301,7 @@ export default function OrdersPage() {
         className="min-h-0 px-4"
         style={{
           flex: isModalActive ? '0 0 auto' : '1 1 0%',
-          maxHeight: isModalActive ? 165 : undefined,
+          maxHeight: isModalActive ? 210 : undefined,
           overflow: isModalActive ? 'hidden auto' : 'hidden',
         }}
       >

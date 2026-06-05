@@ -665,22 +665,24 @@ export const OrderModal = ({
                           whileHover={{ y: -2, transition: { duration: 0.15 } }} whileTap={{ scale: 0.94, transition: { duration: 0.08 } }}
                           key={product.id}
                           onClick={() => handleAddProductClick(product)}
-                          className={`relative rounded-xl p-4 text-left border transition-all flex flex-col ${
+                          className={`relative rounded-xl text-left border transition-all flex flex-col overflow-hidden aspect-square ${
                             isSoldOut ? 'opacity-50' : ''
                           } ${
                             inAddCount > 0 || inOrderItem
                               ? 'bg-white/[0.04] border-white/[0.15]'
                               : 'bg-[#141414] border-white/[0.07] hover:bg-white/[0.05]'
                           }`}>
-                          <div className="aspect-square bg-white/[0.03] mb-3 -mx-4 -mt-4 flex items-center justify-center overflow-hidden rounded-t-xl">
+                          <div className="flex-1 min-h-0 w-full overflow-hidden flex items-center justify-center bg-white/[0.03]">
                             {showImg ? (
                               <img src={product.image_url!} alt={pName} className="w-full h-full object-cover" onError={() => setImgErrors(prev => new Set(prev).add(product.id))} />
                             ) : (
                               <span className="text-xl font-black text-white/20">{initials}</span>
                             )}
                           </div>
-                          <p className="text-sm font-semibold text-white/85 truncate leading-tight px-0.5">{pName}</p>
-                          <p className="text-sm font-black text-gold mt-1 px-0.5">{product.price.toFixed(2)} ₼</p>
+                          <div className="px-3 pb-3 pt-2.5 flex flex-col gap-0.5">
+                            <p className="text-sm font-semibold text-white/85 truncate leading-tight">{pName}</p>
+                            <p className="text-sm font-black text-gold">{product.price.toFixed(2)} ₼</p>
+                          </div>
                           {isSoldOut && (
                             <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[7px] font-bold text-red-400/80">Bitib</span>
                           )}

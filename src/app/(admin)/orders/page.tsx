@@ -254,7 +254,7 @@ export default function OrdersPage() {
     <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
 
       {/* Stale orders banner */}
-      <AnimatePresence>
+      <AnimatePresence mode="popLayout">
         {staleOrders.length > 0 && !staleDismissed && !isModalActive && (
           <motion.div
             key={staleKey}

@@ -25,7 +25,7 @@ export function CartPanel({
 
   if (!cart) {
     return (
-      <div className={`flex flex-col items-center justify-center h-full py-12 ${lightMode ? 'text-gray-300' : 'text-white/15'}`}>
+      <div className={`flex flex-col items-center justify-center h-full py-12 ${lightMode ? 'text-gray-400' : 'text-white/15'}`}>
         <ShoppingBag size={40} className="mb-3 opacity-30" />
         <p className="text-sm">Masa seçilməyib</p>
       </div>
@@ -38,7 +38,7 @@ export function CartPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className={`flex items-center justify-between flex-shrink-0 pb-3 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+      <div className={`flex items-center justify-between flex-shrink-0 pb-3 border-b ${lightMode ? 'border-gray-200/80' : 'border-white/[0.06]'}`}>
         <div className="flex items-center gap-2">
           <button onClick={onBack}
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100' : 'text-white/30 hover:text-white/70 hover:bg-white/5'}`}>
@@ -46,12 +46,12 @@ export function CartPanel({
           </button>
           <div>
             <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {cart.table_number}</p>
-            <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{cart.items.length} məhsul · {cart.guest_count} nəfər</p>
+            <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{cart.items.length} məhsul · {cart.guest_count} nəfər</p>
           </div>
         </div>
         {!isEmpty && (
           <button onClick={onClear}
-            className={`h-9 px-3 rounded-xl text-xs font-semibold transition-all ${lightMode ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-white/20 hover:text-red-400 hover:bg-red-500/10'}`}>
+            className={`h-9 px-3 rounded-xl text-xs font-semibold transition-all ${lightMode ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-white/20 hover:text-red-400 hover:bg-red-500/10'}`}>
             Təmizlə
           </button>
         )}
@@ -64,7 +64,7 @@ export function CartPanel({
             <motion.div
               key="empty"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-300' : 'text-white/15'}`}
+              className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/15'}`}
             >
               <p className="text-sm font-medium">Məhsul əlavə edin</p>
             </motion.div>
@@ -77,28 +77,28 @@ export function CartPanel({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20, height: 0 }}
                 transition={{ duration: 0.15 }}
-                className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 border ${lightMode ? 'bg-white border-gray-200 shadow-sm' : 'bg-[#141414] border-white/[0.06]'}`}
+                className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 border ${lightMode ? 'bg-white border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)]' : 'bg-[#141414] border-white/[0.06]'}`}
               >
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold truncate ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>{item.product_name}</p>
+                  <p className={`text-sm font-semibold truncate ${lightMode ? 'text-gray-800' : 'text-white/80'}`}>{item.product_name}</p>
                   {item.modifiers.length > 0 && (
-                    <p className={`text-[10px] truncate ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
+                    <p className={`text-[10px] truncate ${lightMode ? 'text-gray-500' : 'text-white/30'}`}>
                       {item.modifiers.map(m => m.label).join(', ')}
                     </p>
                   )}
                   <p className="text-xs font-bold text-gold mt-0.5">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <div className={`flex items-center rounded-xl overflow-hidden ${lightMode ? 'bg-gray-100 border border-gray-200' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
-                    <button onClick={() => onUpdateQty(idx, -1)} className={`w-11 h-11 flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600' : 'text-white/40 hover:text-white'}`}>
+                  <div className={`flex items-center rounded-xl overflow-hidden ${lightMode ? 'bg-gray-50 border border-gray-200' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
+                    <button onClick={() => onUpdateQty(idx, -1)} className={`w-11 h-11 flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-500 hover:text-gray-700' : 'text-white/40 hover:text-white'}`}>
                       <Minus size={16} />
                     </button>
-                    <span className={`text-sm min-w-[24px] text-center font-black tabular-nums ${lightMode ? 'text-gray-800' : 'text-white'}`}>{item.quantity}</span>
+                    <span className={`text-sm min-w-[24px] text-center font-black tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{item.quantity}</span>
                     <button onClick={() => onUpdateQty(idx, 1)} className="w-11 h-11 flex items-center justify-center text-gold active:scale-90 transition-all">
                       <Plus size={16} />
                     </button>
                   </div>
-                  <button onClick={() => onRemove(idx)} className={`w-11 h-11 rounded-xl flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-300 hover:text-red-500 hover:bg-red-50' : 'text-white/20 hover:text-red-400 hover:bg-red-500/10'}`}>
+                  <button onClick={() => onRemove(idx)} className={`w-11 h-11 rounded-xl flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-white/20 hover:text-red-400 hover:bg-red-500/10'}`}>
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -109,9 +109,9 @@ export function CartPanel({
       </div>
 
       {/* Footer */}
-      <div className={`flex-shrink-0 pt-3 border-t space-y-2.5 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+      <div className={`flex-shrink-0 pt-3 border-t space-y-2.5 ${lightMode ? 'border-gray-200/80' : 'border-white/[0.06]'}`}>
         <div className="flex items-center justify-between px-1">
-          <span className={`text-xs uppercase tracking-widest font-semibold ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('total_label')}</span>
+          <span className={`text-xs uppercase tracking-widest font-semibold ${lightMode ? 'text-gray-500' : 'text-white/30'}`}>{t('total_label')}</span>
           <span className="text-xl font-black tracking-tight tabular-nums text-gold">{total.toFixed(2)} ₼</span>
         </div>
         <button

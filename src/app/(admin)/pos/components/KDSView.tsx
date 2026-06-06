@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, ChefHat, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface KDSOrder {
   id: string;
@@ -23,6 +24,7 @@ function timeElapsed(dateStr: string): { text: string; urgent: boolean } {
 
 export function KDSView({ onBack }: { onBack: () => void }) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [orders, setOrders] = useState<KDSOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,15 +73,15 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0 pb-3 border-b border-white/[0.06]">
+      <div className={`flex items-center justify-between flex-shrink-0 pb-3 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
         <div className="flex items-center gap-3">
-          <ChefHat size={20} className="text-white/40" />
+          <ChefHat size={20} className={lightMode ? 'text-gray-400' : 'text-white/40'} />
           <div>
-            <p className="text-lg font-bold text-white">Mətbəx Ekranı</p>
-            <p className="text-xs text-white/40">{orders.length} aktiv sifariş</p>
+            <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Mətbəx Ekranı</p>
+            <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{orders.length} aktiv sifariş</p>
           </div>
         </div>
-        <button onClick={onBack} className="text-xs text-white/30 hover:text-white/60 font-semibold transition-all">
+        <button onClick={onBack} className={`text-xs font-semibold transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600' : 'text-white/30 hover:text-white/60'}`}>
           Geri
         </button>
       </div>
@@ -87,11 +89,11 @@ export function KDSView({ onBack }: { onBack: () => void }) {
       {/* Orders */}
       <div className="flex-1 overflow-y-auto py-3 space-y-3">
         {loading ? (
-          <div className="flex items-center justify-center h-full text-white/15">
+          <div className={`flex items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/15'}`}>
             <p className="text-sm">Yüklənir...</p>
           </div>
         ) : orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-white/15">
+          <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/15'}`}>
             <CheckCircle2 size={40} className="mb-3 opacity-30" />
             <p className="text-sm">Bütün sifarişlər hazırdır</p>
           </div>
@@ -107,21 +109,25 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   className={`rounded-2xl border p-4 ${
-                    elapsed.urgent ? 'border-red-500/30 bg-red-500/5' : 'border-white/[0.08] bg-white/[0.02]'
+                    elapsed.urgent
+                      ? (lightMode ? 'border-red-300 bg-red-50 shadow-sm' : 'border-red-500/30 bg-red-500/5')
+                      : (lightMode ? 'border-gray-200 bg-white shadow-sm' : 'border-white/[0.08] bg-white/[0.02]')
                   }`}
                 >
                   {/* Header */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-xl font-black text-white">Masa {order.table_number}</span>
+                      <span className={`text-xl font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {order.table_number}</span>
                       <span className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold tracking-wider ${
-                        elapsed.urgent ? 'bg-red-500/10 text-red-300' : 'bg-white/5 text-white/40'
+                        elapsed.urgent
+                          ? (lightMode ? 'bg-red-100 text-red-700' : 'bg-red-500/10 text-red-300')
+                          : (lightMode ? 'bg-gray-100 text-gray-500' : 'bg-white/5 text-white/40')
                       }`}>
                         <Clock size={10} />
                         {elapsed.text}
                       </span>
                     </div>
-                    {elapsed.urgent && <AlertTriangle size={16} className="text-red-400 animate-pulse" />}
+                    {elapsed.urgent && <AlertTriangle size={16} className={`animate-pulse ${lightMode ? 'text-red-500' : 'text-red-400'}`} />}
                   </div>
 
                   {/* Items */}
@@ -129,16 +135,16 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                     {order.items.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-white/80">{item.name}</span>
+                          <span className={`text-sm ${lightMode ? 'text-gray-800' : 'text-white/80'}`}>{item.name}</span>
                           {item.modifiers && (
-                            <span className="text-[9px] text-white/30">{item.modifiers}</span>
+                            <span className={`text-[9px] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{item.modifiers}</span>
                           )}
                         </div>
-                        <span className="text-sm font-bold text-white/60">×{item.quantity}</span>
+                        <span className={`text-sm font-bold ${lightMode ? 'text-gray-600' : 'text-white/60'}`}>×{item.quantity}</span>
                       </div>
                     ))}
                     {order.items.some(i => i.special_notes) && (
-                      <p className="text-[10px] text-amber-400/60 italic mt-1">
+                      <p className={`text-[10px] italic mt-1 ${lightMode ? 'text-amber-600/70' : 'text-amber-400/60'}`}>
                         Qeyd: {order.items.filter(i => i.special_notes).map(i => i.special_notes).join(', ')}
                       </p>
                     )}
@@ -148,13 +154,13 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                   <div className="flex gap-2">
                     {order.status === 'pending' && (
                       <button onClick={() => handleStatusUpdate(order.id, 'cooking')}
-                        className="flex-1 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-bold hover:bg-blue-500/20 transition-all">
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${lightMode ? 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300 hover:bg-blue-500/20'}`}>
                         Qəbul et
                       </button>
                     )}
                     {order.status === 'cooking' && (
                       <button onClick={() => handleStatusUpdate(order.id, 'ready')}
-                        className="flex-1 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold hover:bg-emerald-500/20 transition-all">
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${lightMode ? 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20'}`}>
                         Hazırdır
                       </button>
                     )}

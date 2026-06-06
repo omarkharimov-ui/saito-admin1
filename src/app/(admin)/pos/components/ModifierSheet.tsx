@@ -75,7 +75,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             className="fixed bottom-0 left-0 right-0 z-50 max-h-[85vh] overflow-y-auto p-4 pb-8"
           >
-            <div className={`max-w-lg mx-auto rounded-3xl border p-5 shadow-2xl ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0c0c0c]/95 backdrop-blur-xl border-white/[0.08]'}`}>
+            <div className={`max-w-lg mx-auto rounded-3xl border p-5 ${lightMode ? 'bg-white border-gray-200 shadow-2xl shadow-black/10' : 'bg-[#0c0c0c]/95 backdrop-blur-xl border-white/[0.08] shadow-2xl'}`}>
               {/* Header */}
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -97,8 +97,8 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                       onClick={() => setDoneness(d.id === doneness ? null : d.id)}
                       className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
                         doneness === d.id
-                          ? lightMode ? 'bg-gray-800 text-white' : 'bg-white text-black'
-                          : lightMode ? 'bg-gray-100 text-gray-500' : 'bg-white/[0.06] text-white/50'
+                          ? lightMode ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-black'
+                          : lightMode ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-white/[0.06] text-white/50'
                       }`}
                     >{d.label}</button>
                   ))}
@@ -116,7 +116,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                         key={e.id}
                         onClick={() => setSelectedExtras(prev => sel ? prev.filter(x => x !== e.id) : [...prev, e.id])}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all border ${
-                          sel ? 'bg-gold/10 border-gold/25 text-gold' : lightMode ? 'bg-gray-50 border-gray-200 text-gray-500' : 'bg-white/[0.03] border-white/[0.06] text-white/60'
+                          sel ? (lightMode ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-gold/10 border-gold/25 text-gold') : lightMode ? 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100' : 'bg-white/[0.03] border-white/[0.06] text-white/60'
                         }`}
                       >
                         <span>{e.label}</span>
@@ -138,7 +138,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                         key={r.id}
                         onClick={() => setSelectedRemovals(prev => sel ? prev.filter(x => x !== r.id) : [...prev, r.id])}
                         className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-                          sel ? 'bg-red-500/10 border-red-500/25 text-red-300' : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
+                          sel ? (lightMode ? 'bg-red-50 border-red-300 text-red-700' : 'bg-red-500/10 border-red-500/25 text-red-300') : lightMode ? 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
                         }`}
                       >{r.label}</button>
                     );
@@ -153,7 +153,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   placeholder="Xüsusi istəklər..."
-                  className={`w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-800 placeholder:text-gray-400 focus:border-gray-300' : 'bg-white/[0.04] border border-white/[0.07] text-white placeholder:text-white/20 focus:border-white/25'}`}
+                  className={`w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all ${lightMode ? 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-400 shadow-sm' : 'bg-white/[0.04] border border-white/[0.07] text-white placeholder:text-white/20 focus:border-white/25'}`}
                 />
               </div>
 

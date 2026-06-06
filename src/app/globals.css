@@ -177,6 +177,12 @@ body {
   }
 }
 
+/* ── Light mode override for POS fullscreen ── */
+[data-light-mode="true"] body,
+[data-light-mode="true"] html {
+  background-color: #ffffff !important;
+}
+
 /* ── POS Theme CSS Variables ── */
 .pos-root, [class*="pos-root"] {
   --pos-bg: #0a0a0a;

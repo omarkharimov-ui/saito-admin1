@@ -9,27 +9,27 @@ const statusConfig: Record<string, { label: string; dot: string; bg: string; bor
   empty: {
     label: 'Boş', dot: 'bg-emerald-400', bg: 'bg-emerald-500/5', border: 'border-emerald-500/20',
     text: 'text-emerald-300', glow: 'shadow-[0_0_20px_rgba(52,211,153,0.08)]',
-    lightBg: 'bg-emerald-50', lightBorder: 'border-emerald-200', lightText: 'text-emerald-600',
+    lightBg: 'bg-emerald-50/70', lightBorder: 'border-emerald-200', lightText: 'text-emerald-700',
   },
   active: {
     label: 'Aktiv', dot: 'bg-blue-400', bg: 'bg-blue-500/5', border: 'border-blue-500/20',
     text: 'text-blue-300', glow: 'shadow-[0_0_20px_rgba(96,165,250,0.08)]',
-    lightBg: 'bg-blue-50', lightBorder: 'border-blue-200', lightText: 'text-blue-600',
+    lightBg: 'bg-blue-50/70', lightBorder: 'border-blue-200', lightText: 'text-blue-700',
   },
   waiting_bill: {
     label: 'Hesab', dot: 'bg-amber-400', bg: 'bg-amber-500/5', border: 'border-amber-500/25',
     text: 'text-amber-300', glow: 'shadow-[0_0_25px_rgba(251,191,36,0.12)]',
-    lightBg: 'bg-amber-50', lightBorder: 'border-amber-200', lightText: 'text-amber-600',
+    lightBg: 'bg-amber-50/70', lightBorder: 'border-amber-200', lightText: 'text-amber-700',
   },
   cooking: {
     label: 'Mətbəx', dot: 'bg-violet-400', bg: 'bg-violet-500/5', border: 'border-violet-500/20',
     text: 'text-violet-300', glow: 'shadow-[0_0_20px_rgba(167,139,250,0.08)]',
-    lightBg: 'bg-violet-50', lightBorder: 'border-violet-200', lightText: 'text-violet-600',
+    lightBg: 'bg-violet-50/70', lightBorder: 'border-violet-200', lightText: 'text-violet-700',
   },
   problem: {
     label: 'Problem', dot: 'bg-red-400', bg: 'bg-red-500/5', border: 'border-red-500/25',
     text: 'text-red-300', glow: 'shadow-[0_0_25px_rgba(248,113,113,0.12)]',
-    lightBg: 'bg-red-50', lightBorder: 'border-red-200', lightText: 'text-red-600',
+    lightBg: 'bg-red-50/70', lightBorder: 'border-red-200', lightText: 'text-red-700',
   },
 };
 
@@ -61,7 +61,7 @@ export function TableCard({
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative flex flex-col rounded-2xl border p-3.5 text-left transition-all ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? cfg.lightBorder : cfg.border} ${isSelected ? (lightMode ? 'ring-2 ring-gray-800/20 shadow-lg' : 'ring-2 ring-white/30 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm' : cfg.glow}`}
+      className={`relative flex flex-col rounded-2xl border p-3.5 text-left transition-all ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? cfg.lightBorder : cfg.border} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/30 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow}`}
     >
       {/* Pulse for waiting */}
       {table.status === 'waiting_bill' && (
@@ -75,10 +75,10 @@ export function TableCard({
       {/* Header row: number + status + 3-dot */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-800 text-white' : 'bg-white/20 text-white') : lightMode ? 'bg-gray-100 text-gray-500' : 'bg-white/[0.06] text-white/70'}`}>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/70'}`}>
             {table.table_number}
           </div>
-          <span className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? cfg.lightBg : cfg.bg}`}>
+          <span className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/60' : cfg.bg}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
             {cfg.label}
           </span>
@@ -93,7 +93,7 @@ export function TableCard({
         {onAction && (
           <button
             onClick={e => { e.stopPropagation(); onAction(); }}
-            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${lightMode ? 'text-gray-300 hover:text-gray-500 hover:bg-gray-100' : 'text-white/20 hover:text-white/60 hover:bg-white/5'}`}
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600 hover:bg-white/60' : 'text-white/20 hover:text-white/60 hover:bg-white/5'}`}
           >
             <MoreVertical size={14} />
           </button>
@@ -103,7 +103,7 @@ export function TableCard({
       {/* Info */}
       {isOccupied && (
         <div className="space-y-1.5 mt-0.5">
-          <div className={`flex items-center gap-2.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
+          <div className={`flex items-center gap-2.5 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
             <div className="flex items-center gap-1.5">
               <Users size={11} />
               <span className="text-[11px] font-medium tabular-nums">{table.guest_count}</span>
@@ -124,7 +124,7 @@ export function TableCard({
       {/* Empty state */}
       {!isOccupied && (
         <div className="py-2.5 flex items-center justify-center">
-          <span className={`text-[10px] uppercase tracking-[0.15em] font-semibold ${lightMode ? 'text-gray-300' : 'text-white/15'}`}>Boş</span>
+          <span className={`text-[10px] uppercase tracking-[0.15em] font-semibold ${lightMode ? 'text-gray-400' : 'text-white/15'}`}>Boş</span>
         </div>
       )}
     </motion.button>

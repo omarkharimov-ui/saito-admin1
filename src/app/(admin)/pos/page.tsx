@@ -185,7 +185,7 @@ export default function POSPage() {
   }, [actionSheetTable, pos]);
 
   return (
-    <div ref={posRef} className={`h-full w-full overflow-hidden flex flex-col ${lightMode ? 'bg-[#F8F6F0] text-[#1C1C1A]' : 'bg-[#080808] text-white'}`}>
+    <div ref={posRef} className={`h-full w-full overflow-hidden flex flex-col ${lightMode ? 'bg-white text-gray-900' : 'bg-[#080808] text-white'}`}>
       {/* ── View container ── */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
@@ -201,20 +201,20 @@ export default function POSPage() {
                     {pos.floors.length > 0 && (
                       <div className="relative">
                         <button onClick={() => setFloorDropdownOpen(!floorDropdownOpen)}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${lightMode ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-white/[0.06] text-white/60 hover:text-white/80'}`}>
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${lightMode ? 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 shadow-sm' : 'bg-white/[0.06] text-white/60 hover:text-white/80'}`}>
                           {selectedFloorName} <ChevronDown size={14} className={`transition-transform ${floorDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {floorDropdownOpen && (
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setFloorDropdownOpen(false)} />
-                            <div className={`absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 shadow-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-[#141414] border-white/[0.08]'}`}>
+                            <div className={`absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 ${lightMode ? 'bg-white border-gray-200 shadow-lg shadow-black/8' : 'bg-[#141414] border-white/[0.08] shadow-xl'}`}>
                               {pos.floors.map(f => (
                                 <button key={f.name}
                                   onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
                                   className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                                     f.name === selectedFloorName
-                                      ? lightMode ? 'bg-gray-100 text-black' : 'bg-white/10 text-white'
-                                      : lightMode ? 'text-gray-600 hover:bg-gray-50' : 'text-white/50 hover:text-white'
+                                      ? lightMode ? 'bg-gray-900 text-white' : 'bg-white/10 text-white'
+                                      : lightMode ? 'text-gray-600 hover:bg-gray-100' : 'text-white/50 hover:text-white'
                                   }`}>
                                   {f.name}
                                 </button>
@@ -227,11 +227,11 @@ export default function POSPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setLightMode(!lightMode)}
-                      className={`p-2.5 rounded-xl transition-all ${lightMode ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-white/[0.06] text-white/40 hover:text-white/70'}`}>
+                      className={`p-2.5 rounded-xl transition-all ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-500 hover:bg-gray-200 shadow-sm' : 'bg-white/[0.06] text-white/40 hover:text-white/70'}`}>
                       {lightMode ? <Moon size={18} /> : <Sun size={18} />}
                     </button>
                     <button onClick={toggleFullscreen}
-                      className={`p-2.5 rounded-xl transition-all ${lightMode ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-white/[0.06] text-white/40 hover:text-white/70'}`}>
+                      className={`p-2.5 rounded-xl transition-all ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-500 hover:bg-gray-200 shadow-sm' : 'bg-white/[0.06] text-white/40 hover:text-white/70'}`}>
                       {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
                     </button>
                     {mergeMode && (
@@ -246,17 +246,17 @@ export default function POSPage() {
                         <button onClick={() => { setMergeMode(!mergeMode); setSelectedForMerge([]); }}
                           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                             mergeMode
-                              ? lightMode ? 'bg-blue-50 border border-blue-200 text-blue-600' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                              ? lightMode ? 'bg-blue-50 border border-blue-200 text-blue-700 shadow-sm' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
                               : lightMode
-                                ? 'bg-gray-200 text-gray-500 hover:bg-gray-300 border-0'
+                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
                                 : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
                           }`}>Birləşdir</button>
                         <button onClick={() => { setTransferMode(!transferMode); setTransferSource(null); }}
                           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                             transferMode
-                              ? lightMode ? 'bg-violet-50 border border-violet-200 text-violet-600' : 'bg-violet-500/10 border border-violet-500/20 text-violet-300'
+                              ? lightMode ? 'bg-violet-50 border border-violet-200 text-violet-700 shadow-sm' : 'bg-violet-500/10 border border-violet-500/20 text-violet-300'
                               : lightMode
-                                ? 'bg-gray-200 text-gray-500 hover:bg-gray-300 border-0'
+                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
                                 : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
                           }`}>
                           {transferMode ? (transferSource ? `Masa ${transferSource} → ?` : 'Mənbə seç') : 'Köçür'}
@@ -272,7 +272,7 @@ export default function POSPage() {
                 {pos.loading && pos.tables.length === 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
                     {Array.from({ length: 12 }).map((_, i) => (
-                      <div key={i} className={`rounded-2xl border p-4 ${lightMode ? 'bg-white border-gray-200' : 'bg-[#141414] border-white/[0.06]'}`}>
+                      <div key={i} className={`rounded-2xl border p-4 ${lightMode ? 'bg-white border-gray-200 shadow-sm' : 'bg-[#141414] border-white/[0.06]'}`}>
                         <div className={`h-4 w-12 rounded-full animate-pulse mb-3 ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />
                         <div className={`h-3 w-20 rounded-full animate-pulse mb-2 ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                         <div className={`h-3 w-16 rounded-full animate-pulse ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
@@ -293,7 +293,7 @@ export default function POSPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className={`flex items-center justify-center h-full ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <div className={`flex items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/20'}`}>
                     <p className="text-sm">Mərtəbə tapılmadı</p>
                   </div>
                 )}
@@ -316,7 +316,7 @@ export default function POSPage() {
                   cartCounts={cartCounts}
                 />
               </div>
-              <div className={`w-full md:w-[360px] xl:w-[400px] h-full md:max-h-full border-t md:border-t-0 md:border-l p-4 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-neutral-950/50'}`}>
+              <div className={`w-full md:w-[360px] xl:w-[400px] h-full md:max-h-full border-t md:border-t-0 md:border-l p-4 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'border-gray-200 bg-gray-50/50' : 'border-white/[0.06] bg-neutral-950/50'}`}>
                 <CartPanel
                   cart={pos.cart}
                   onUpdateQty={pos.updateCartItemQty}
@@ -337,9 +337,9 @@ export default function POSPage() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="h-full overflow-y-auto p-4 sm:p-6"
             >
-              <h2 className={`text-lg font-bold mb-4 ${lightMode ? 'text-gray-800' : 'text-white'}`}>Ödənişlər</h2>
+              <h2 className={`text-lg font-bold mb-4 ${lightMode ? 'text-gray-900' : 'text-white'}`}>Ödənişlər</h2>
               {pos.tables.filter(t => t.status !== 'empty' && t.total_amount > 0).length === 0 ? (
-                <div className={`flex flex-col items-center justify-center h-64 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                <div className={`flex flex-col items-center justify-center h-64 ${lightMode ? 'text-gray-400' : 'text-white/20'}`}>
                   <CreditCard size={48} className="mb-4 opacity-30" />
                   <p className="text-sm">Aktiv ödəniş yoxdur</p>
                 </div>
@@ -350,15 +350,15 @@ export default function POSPage() {
                       key={table.table_number}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`flex items-center justify-between p-4 rounded-2xl border ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.08] bg-white/[0.02]'}`}
+                      className={`flex items-center justify-between p-4 rounded-2xl border ${lightMode ? 'border-gray-200 bg-white shadow-sm' : 'border-white/[0.08] bg-white/[0.02]'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${lightMode ? 'bg-gray-100 text-gray-500' : 'bg-white/[0.06] text-white/70'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${lightMode ? 'bg-gray-100 text-gray-700' : 'bg-white/[0.06] text-white/70'}`}>
                           {table.table_number}
                         </div>
                         <div>
                           <p className="text-sm font-semibold">Masa {table.table_number}</p>
-                          <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{table.guest_count} nəfər · {table.order_count} sifariş</p>
+                          <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{table.guest_count} nəfər · {table.order_count} sifariş</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -378,7 +378,7 @@ export default function POSPage() {
       </div>
 
       {/* ── Bottom Tab Bar ── */}
-      <div className={`flex-shrink-0 border-t ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0c0c0c]/95 backdrop-blur-xl'}`}>
+      <div className={`flex-shrink-0 border-t ${lightMode ? 'border-gray-200 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.04)]' : 'border-white/[0.06] bg-[#0c0c0c]/95 backdrop-blur-xl'}`}>
         <div className="flex items-center justify-around px-2 py-1.5">
           {tabs.map(tab => {
             const Icon = tab.icon;
@@ -394,7 +394,7 @@ export default function POSPage() {
                   }
                 }}
                 className={`flex flex-col items-center gap-0.5 px-6 py-2 rounded-xl transition-all ${
-                  isActive ? (lightMode ? 'text-black bg-gray-100' : 'text-white bg-white/[0.08]') : lightMode ? 'text-gray-400 hover:text-gray-600' : 'text-white/30 hover:text-white/60'
+                  isActive ? (lightMode ? 'text-gray-900 bg-gray-100 shadow-sm' : 'text-white bg-white/[0.08]') : lightMode ? 'text-gray-400 hover:text-gray-600' : 'text-white/30 hover:text-white/60'
                 }`}
               >
                 <Icon size={20} />
@@ -450,7 +450,7 @@ export default function POSPage() {
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8"
             >
-              <div className={`max-w-sm mx-auto rounded-3xl border p-5 shadow-2xl ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0c0c0c]/95 backdrop-blur-xl border-white/[0.08]'}`}>
+              <div className={`max-w-sm mx-auto rounded-3xl border p-5 ${lightMode ? 'bg-white border-gray-200 shadow-2xl shadow-black/10' : 'bg-[#0c0c0c]/95 backdrop-blur-xl border-white/[0.08] shadow-2xl'}`}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {payTableNumber}</p>
@@ -469,13 +469,13 @@ export default function POSPage() {
                 <div className="flex gap-2 mb-4">
                   <button onClick={() => setPayMethod('card')}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border ${
-                      payMethod === 'card' ? 'bg-gold/10 border-gold/25 text-gold' : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
+                      payMethod === 'card' ? (lightMode ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-gold/10 border-gold/25 text-gold') : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
                     }`}>
                     Kart
                   </button>
                   <button onClick={() => setPayMethod('cash')}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border ${
-                      payMethod === 'cash' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300' : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
+                      payMethod === 'cash' ? (lightMode ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300') : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
                     }`}>
                     Nağd
                   </button>
@@ -489,8 +489,8 @@ export default function POSPage() {
                         onClick={() => setPayTip(amount)}
                         className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
                           payTip === amount
-                            ? lightMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white/10 border-white/20 text-white'
-                            : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
+                            ? lightMode ? 'bg-gray-900 border-gray-800 text-white shadow-sm' : 'bg-white/10 border-white/20 text-white'
+                            : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
                         }`}>
                         {amount === 0 ? 'Yox' : `${amount} ₼`}
                       </button>
@@ -499,8 +499,8 @@ export default function POSPage() {
                 </div>
 
                 <div className={`flex items-center justify-between py-3 border-t mb-3 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
-                  <span className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>Cəmi</span>
-                  <span className={`text-xl font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>{(payAmount + payTip).toFixed(2)} ₼</span>
+                  <span className={`text-sm font-medium ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>Cəmi</span>
+                  <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{(payAmount + payTip).toFixed(2)} ₼</span>
                 </div>
 
                 <button onClick={handleCloseBill} disabled={submitting}

@@ -73,7 +73,7 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                 </p>
               </div>
 
-              <div className={`rounded-3xl border p-4 shadow-2xl ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0c0c0c]/95 backdrop-blur-xl border-white/[0.08]'}`}>
+              <div className={`rounded-3xl border p-4 ${lightMode ? 'bg-white border-gray-200 shadow-2xl shadow-black/10' : 'bg-[#0c0c0c]/95 backdrop-blur-xl border-white/[0.08] shadow-2xl'}`}>
                 <div className="grid grid-cols-4 gap-2">
                   {visible.map((action) => {
                     const Icon = action.icon;
@@ -98,12 +98,12 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                         className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all ${lightMode ? action.lightBg : action.bg} ${lightMode ? action.lightBorder : action.border}`}
                       >
                         <Icon size={20} className={lightMode ? action.lightColor : action.color} />
-                        <span className={`text-[9px] font-bold tracking-wider uppercase ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{action.label}</span>
+                        <span className={`text-[9px] font-bold tracking-wider uppercase ${lightMode ? 'text-gray-600' : 'text-white/50'}`}>{action.label}</span>
                       </motion.button>
                     );
                   })}
                 </div>
-                <button onClick={onClose} className={`w-full mt-3 py-3 rounded-2xl text-sm font-semibold transition-all ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-500 hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10'}`}>
+                <button onClick={onClose} className={`w-full mt-3 py-3 rounded-2xl text-sm font-semibold transition-all ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10'}`}>
                   Bağla
                 </button>
               </div>

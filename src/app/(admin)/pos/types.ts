@@ -13,6 +13,7 @@ export interface PosTable {
   total_amount: number;
   order_count: number;
   order_ids: string[];
+  merged_orders?: { id: string; table_number: number }[];
 }
 
 export interface Modifier {

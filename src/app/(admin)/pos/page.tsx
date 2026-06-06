@@ -11,6 +11,7 @@ import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
+import { toast } from 'react-hot-toast';
 import type { ModifierSelection, PaymentInfo } from './types';
 import type { Product } from '../orders/types';
 
@@ -33,7 +34,7 @@ export default function POSPage() {
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
   const [transferMode, setTransferMode] = useState(false);
-  const [transferTarget, setTransferTarget] = useState<number | null>(null);
+  const [transferSource, setTransferSource] = useState<number | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [floorDropdownOpen, setFloorDropdownOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -130,18 +131,20 @@ export default function POSPage() {
       return;
     }
     if (transferMode) {
-      if (transferTarget === null) {
-        setTransferTarget(table.table_number);
+      if (transferSource === null) {
+        setTransferSource(table.table_number);
+      } else if (table.table_number === transferSource) {
+        setTransferSource(null); // tap again → deselect
       } else {
-        pos.transferTable(transferTarget, table.table_number);
+        pos.transferTable(transferSource, table.table_number);
         setTransferMode(false);
-        setTransferTarget(null);
+        setTransferSource(null);
       }
       return;
     }
     // Direct: tap table → go to order view
     pos.selectTable(table);
-  }, [mergeMode, selectedForMerge, transferMode, transferTarget, pos]);
+  }, [mergeMode, selectedForMerge, transferMode, transferSource, pos]);
 
   const handleTableAction = useCallback((table: any) => {
     setActionSheetTable(table);
@@ -162,11 +165,30 @@ export default function POSPage() {
     }
   }, [actionSheetTable, openPayment]);
 
+  const handleSplitTable = useCallback(async () => {
+    if (!actionSheetTable) return;
+    try {
+      const res = await fetch('/api/orders/split', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: actionSheetTable.table_number }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Masa ${actionSheetTable.table_number} ayrıldı`);
+      pos.fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi');
+    }
+    setActionSheetOpen(false);
+    setActionSheetTable(null);
+  }, [actionSheetTable, pos]);
+
   return (
-    <div ref={posRef} className={`h-full w-full overflow-hidden flex flex-col ${lightMode ? 'bg-gray-50 text-gray-900' : 'bg-[#080808] text-white'}`}>
+    <div ref={posRef} className={`h-full w-full overflow-hidden flex flex-col ${lightMode ? 'bg-[#F8F6F0] text-[#1C1C1A]' : 'bg-[#080808] text-white'}`}>
       {/* ── View container ── */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           {/* ═══ FLOOR VIEW ═══ */}
           {pos.activeView === 'floor' && (
             <motion.div
@@ -223,16 +245,28 @@ export default function POSPage() {
                         {selectedForMerge.length} masanı birləşdir
                       </button>
                     )}
-                    <button onClick={() => setMergeMode(!mergeMode)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                        mergeMode ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300' : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
-                      }`}>Birləşdir</button>
-                    <button onClick={() => setTransferMode(!transferMode)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                        transferMode ? 'bg-violet-500/10 border border-violet-500/20 text-violet-300' : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
-                      }`}>
-                      {transferMode ? (transferTarget ? 'Hədəf masanı seç' : 'Mənbə masanı seç') : 'Köçür'}
-                    </button>
+                    {activeFloor?.tables.some(t => t.status !== 'empty') && (
+                      <>
+                        <button onClick={() => { setMergeMode(!mergeMode); setSelectedForMerge([]); }}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                            mergeMode
+                              ? lightMode ? 'bg-blue-50 border border-blue-200 text-blue-600' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                              : lightMode
+                                ? 'bg-gray-200 text-gray-500 hover:bg-gray-300 border-0'
+                                : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
+                          }`}>Birləşdir</button>
+                        <button onClick={() => { setTransferMode(!transferMode); setTransferSource(null); }}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                            transferMode
+                              ? lightMode ? 'bg-violet-50 border border-violet-200 text-violet-600' : 'bg-violet-500/10 border border-violet-500/20 text-violet-300'
+                              : lightMode
+                                ? 'bg-gray-200 text-gray-500 hover:bg-gray-300 border-0'
+                                : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
+                          }`}>
+                          {transferMode ? (transferSource ? `Masa ${transferSource} → ?` : 'Mənbə seç') : 'Köçür'}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -248,11 +282,12 @@ export default function POSPage() {
                         onTap={() => handleTableTap(table)}
                         onAction={() => handleTableAction(table)}
                         isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
+                        isTransferSource={transferMode && transferSource === table.table_number}
                       />
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-white/20">
+                  <div className={`flex items-center justify-center h-full ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                     <p className="text-sm">Mərtəbə tapılmadı</p>
                   </div>
                 )}
@@ -275,7 +310,7 @@ export default function POSPage() {
                   cartCounts={cartCounts}
                 />
               </div>
-              <div className="w-full md:w-[360px] xl:w-[400px] h-full md:max-h-full border-t md:border-t-0 md:border-l border-white/[0.06] bg-neutral-950/50 p-4 flex flex-col flex-shrink-0 overflow-hidden">
+              <div className={`w-full md:w-[360px] xl:w-[400px] h-full md:max-h-full border-t md:border-t-0 md:border-l p-4 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-neutral-950/50'}`}>
                 <CartPanel
                   cart={pos.cart}
                   onUpdateQty={pos.updateCartItemQty}
@@ -297,9 +332,9 @@ export default function POSPage() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="h-full overflow-y-auto p-4 sm:p-6"
             >
-              <h2 className="text-lg font-bold mb-4">Ödənişlər</h2>
+              <h2 className={`text-lg font-bold mb-4 ${lightMode ? 'text-gray-800' : 'text-white'}`}>Ödənişlər</h2>
               {pos.tables.filter(t => t.status !== 'empty' && t.total_amount > 0).length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-white/20">
+                <div className={`flex flex-col items-center justify-center h-64 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                   <CreditCard size={48} className="mb-4 opacity-30" />
                   <p className="text-sm">Aktiv ödəniş yoxdur</p>
                 </div>
@@ -310,15 +345,15 @@ export default function POSPage() {
                       key={table.table_number}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center justify-between p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02]"
+                      className={`flex items-center justify-between p-4 rounded-2xl border ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.08] bg-white/[0.02]'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center text-sm font-black text-white/70">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${lightMode ? 'bg-gray-100 text-gray-500' : 'bg-white/[0.06] text-white/70'}`}>
                           {table.table_number}
                         </div>
                         <div>
                           <p className="text-sm font-semibold">Masa {table.table_number}</p>
-                          <p className="text-xs text-white/40">{table.guest_count} nəfər · {table.order_count} sifariş</p>
+                          <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{table.guest_count} nəfər · {table.order_count} sifariş</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -354,7 +389,7 @@ export default function POSPage() {
                   }
                 }}
                 className={`flex flex-col items-center gap-0.5 px-6 py-2 rounded-xl transition-all ${
-                  isActive ? (lightMode ? 'text-black bg-gray-100' : 'text-white bg-white/[0.08]') : 'text-white/30 hover:text-white/60'
+                  isActive ? (lightMode ? 'text-black bg-gray-100' : 'text-white bg-white/[0.08]') : lightMode ? 'text-gray-400 hover:text-gray-600' : 'text-white/30 hover:text-white/60'
                 }`}
               >
                 <Icon size={20} />
@@ -373,7 +408,7 @@ export default function POSPage() {
         onAddOrder={handleActionAddOrder}
         onMerge={() => { setMergeMode(true); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); }}
         onTransfer={() => { setTransferMode(true); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); }}
-        onSplitBill={() => { setActionSheetOpen(false); setActionSheetTable(null); }}
+        onSplitBill={handleSplitTable}
         onCloseBill={handleActionCloseBill}
         onPrint={() => { setActionSheetOpen(false); setActionSheetTable(null); }}
         onSaveDraft={() => { pos.saveCart(); setActionSheetOpen(false); setActionSheetTable(null); }}
@@ -410,14 +445,14 @@ export default function POSPage() {
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8"
             >
-              <div className="max-w-sm mx-auto rounded-3xl border border-white/[0.08] bg-[#0c0c0c]/95 backdrop-blur-xl p-5 shadow-2xl">
+              <div className={`max-w-sm mx-auto rounded-3xl border p-5 shadow-2xl ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0c0c0c]/95 backdrop-blur-xl border-white/[0.08]'}`}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-lg font-bold text-white">Masa {payTableNumber}</p>
-                    <p className="text-sm text-white/40">Ödəniş</p>
+                    <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {payTableNumber}</p>
+                    <p className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>Ödəniş</p>
                   </div>
                   <button onClick={() => !submitting && setPaymentOpen(false)}
-                    className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-white/40 hover:text-white">
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-400 hover:text-gray-600' : 'bg-white/5 text-white/40 hover:text-white'}`}>
                     <X size={18} />
                   </button>
                 </div>
@@ -429,26 +464,28 @@ export default function POSPage() {
                 <div className="flex gap-2 mb-4">
                   <button onClick={() => setPayMethod('card')}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border ${
-                      payMethod === 'card' ? 'bg-gold/10 border-gold/25 text-gold' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
+                      payMethod === 'card' ? 'bg-gold/10 border-gold/25 text-gold' : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
                     }`}>
                     Kart
                   </button>
                   <button onClick={() => setPayMethod('cash')}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border ${
-                      payMethod === 'cash' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
+                      payMethod === 'cash' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300' : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
                     }`}>
                     Nağd
                   </button>
                 </div>
 
                 <div className="mb-4">
-                  <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold mb-2">Çay pulu</p>
+                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Çay pulu</p>
                   <div className="flex gap-1.5">
                     {[0, 1, 2, 5, 10].map(amount => (
                       <button key={amount}
                         onClick={() => setPayTip(amount)}
                         className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
-                          payTip === amount ? 'bg-white/10 border-white/20 text-white' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
+                          payTip === amount
+                            ? lightMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white/10 border-white/20 text-white'
+                            : lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
                         }`}>
                         {amount === 0 ? 'Yox' : `${amount} ₼`}
                       </button>
@@ -456,9 +493,9 @@ export default function POSPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between py-3 border-t border-white/[0.06] mb-3">
-                  <span className="text-sm text-white/40">Cəmi</span>
-                  <span className="text-xl font-black text-white">{(payAmount + payTip).toFixed(2)} ₼</span>
+                <div className={`flex items-center justify-between py-3 border-t mb-3 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+                  <span className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>Cəmi</span>
+                  <span className={`text-xl font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>{(payAmount + payTip).toFixed(2)} ₼</span>
                 </div>
 
                 <button onClick={handleCloseBill} disabled={submitting}

@@ -67,8 +67,12 @@ const FloorsTab = () => {
 
   const removeFloor = async (idx: number) => {
     const floor = floors[idx];
-    if (floor.ids && Object.keys(floor.ids).length > 0) {
-      await supabase.from('table_floors').delete().in('id', Object.values(floor.ids));
+    const ids = Object.values(floor.ids);
+    if (ids.length > 0) {
+      await supabase.from('table_floors').delete().in('id', ids);
+    } else {
+      // Remove placeholder row (table_number = 0)
+      await supabase.from('table_floors').delete().eq('floor_name', floor.name);
     }
     const next = floors.filter((_, i) => i !== idx);
     setFloors(next.map((f, i) => ({ ...f, sort_order: i })));
@@ -101,7 +105,7 @@ const FloorsTab = () => {
     setDirty(true);
   };
 
-  const removeTableFromFloor = (idx: number, tableNum: number) => {
+  const removeTableFromFloor = async (idx: number, tableNum: number) => {
     const next = [...floors];
     next[idx] = {
       ...next[idx],
@@ -117,6 +121,7 @@ const FloorsTab = () => {
     setSaving(true);
     // Collect all DB row IDs that should remain
     const keepIds = new Set<string>();
+    const keptFloorNames = new Set(floors.map(f => f.name));
     for (const floor of floors) {
       for (const tableNum of floor.tables) {
         if (floor.ids[tableNum]) {
@@ -125,10 +130,10 @@ const FloorsTab = () => {
       }
     }
 
-    // Delete rows no longer in any floor
-    const { data: allRows } = await supabase.from('table_floors').select('id');
+    // Delete rows no longer in any floor (keep placeholders for existing floors)
+    const { data: allRows } = await supabase.from('table_floors').select('id, floor_name');
     if (allRows) {
-      const toDelete = allRows.filter(r => !keepIds.has(r.id)).map(r => r.id);
+      const toDelete = allRows.filter(r => !keepIds.has(r.id) && !keptFloorNames.has(r.floor_name)).map(r => r.id);
       if (toDelete.length > 0) {
         await supabase.from('table_floors').delete().in('id', toDelete);
       }
@@ -136,19 +141,28 @@ const FloorsTab = () => {
 
     // Upsert current state
     for (const floor of floors) {
-      for (const tableNum of floor.tables) {
-        const existingId = floor.ids[tableNum];
-        if (existingId) {
-          await supabase.from('table_floors').update({ floor_name: floor.name, sort_order: floor.sort_order }).eq('id', existingId);
-        } else {
-          const { data } = await supabase.from('table_floors').insert({ table_number: tableNum, floor_name: floor.name, sort_order: floor.sort_order }).select('id').single();
-          if (data) floor.ids[tableNum] = data.id;
+      if (floor.tables.length === 0) {
+        // Floor has no tables — insert a placeholder row so the name persists
+        const existingRows = await supabase.from('table_floors').select('id').eq('floor_name', floor.name).limit(1);
+        if (existingRows.data && existingRows.data.length === 0) {
+          await supabase.from('table_floors').insert({ table_number: 0, floor_name: floor.name, sort_order: floor.sort_order });
+        }
+      } else {
+        for (const tableNum of floor.tables) {
+          const existingId = floor.ids[tableNum];
+          if (existingId) {
+            await supabase.from('table_floors').update({ floor_name: floor.name, sort_order: floor.sort_order }).eq('id', existingId);
+          } else {
+            const { data } = await supabase.from('table_floors').insert({ table_number: tableNum, floor_name: floor.name, sort_order: floor.sort_order }).select('id').single();
+            if (data) floor.ids[tableNum] = data.id;
+          }
         }
       }
     }
 
     setDirty(false);
     setSaving(false);
+    await loadAll();
     toast.success(t('settings_updated'));
   };
 

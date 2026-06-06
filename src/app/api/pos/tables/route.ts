@@ -56,6 +56,9 @@ export async function GET() {
       else if (hasCooking) status = 'cooking';
       else status = 'active';
 
+      // Skip table_number 0 (placeholder rows for empty floors)
+      if (f.table_number === 0) continue;
+
       floorMap[fn].tables.push({
         id: f.id,
         table_number: f.table_number,

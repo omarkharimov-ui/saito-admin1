@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, X, Save, Loader2, MapPin } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Save, Loader2, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { GsLoader, inputCls, labelCls } from './_shared';
+import { GsLoader, inputCls } from './_shared';
 
 type FloorRow = { id: string; table_number: number; floor_name: string; sort_order: number };
 
@@ -157,11 +157,6 @@ const FloorsTab = () => {
     }
   };
 
-  const assignedTables = new Set<number>();
-  for (const f of floors) for (const t of f.tables) assignedTables.add(t);
-  const unassigned: number[] = [];
-  for (let i = 1; i <= maxTable; i++) if (!assignedTables.has(i)) unassigned.push(i);
-
   if (loading) return <GsLoader />;
 
   return (
@@ -211,21 +206,17 @@ const FloorsTab = () => {
 
             {/* Assigned tables */}
             <div className="flex flex-wrap gap-1.5">
-              {floor.tables.length === 0 && (
-                <span className="text-[11px] text-white/20 italic">Masa təyin edilməyib</span>
-              )}
               {floor.tables.map(tn => (
-                <span key={tn} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-[11px] font-semibold text-white/60">
+                <span key={tn} className="px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-[11px] font-semibold text-white/60">
                   #{tn}
-                  <button onClick={() => removeTableFromFloor(idx, tn)} className="text-white/20 hover:text-red-400 transition-all">
-                    <X size={10} />
-                  </button>
                 </span>
               ))}
             </div>
 
-            {/* Add table to floor */}
-            <TableAdder maxTable={maxTable} assigned={assignedTables} onSelect={n => addTableToFloor(idx, n)} />
+            {/* Quick-select table grid */}
+            <TablePicker maxTable={maxTable} floorTables={floor.tables}
+              onSelect={n => addTableToFloor(idx, n)}
+              onDeselect={n => removeTableFromFloor(idx, n)} />
           </div>
         ))}
       </div>
@@ -242,64 +233,29 @@ const FloorsTab = () => {
           Əlavə et
         </button>
       </div>
-
-      {/* Unassigned tables */}
-      {unassigned.length > 0 && (
-        <div className="bg-white/[0.02] border border-dashed border-white/[0.06] rounded-2xl p-5">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold mb-3">Təyin olunmamış masalar</p>
-          <div className="flex flex-wrap gap-1.5">
-            {unassigned.map(tn => (
-              <span key={tn} className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-dashed border-white/[0.08] text-[11px] font-semibold text-white/30">
-                #{tn}
-              </span>
-            ))}
-          </div>
-          <p className="text-[10px] text-white/15 mt-3">Masa nömrələrini yuxarıdakı zallara əlavə edin</p>
-        </div>
-      )}
     </div>
   );
 };
 
-function TableAdder({ maxTable, assigned, onSelect }: { maxTable: number; assigned: Set<number>; onSelect: (n: number) => void }) {
-  const [value, setValue] = useState('');
-  const [showQuick, setShowQuick] = useState(false);
-
-  const handleAdd = () => {
-    const n = Number(value);
-    if (n >= 1 && n <= maxTable && !assigned.has(n)) {
-      onSelect(n);
-      setValue('');
-    }
-  };
-
+function TablePicker({ maxTable, floorTables, onSelect, onDeselect }:
+  { maxTable: number; floorTables: number[]; onSelect: (n: number) => void; onDeselect: (n: number) => void }) {
+  const assigned = new Set(floorTables);
   return (
-    <>
-      <div className="flex items-center gap-2">
-        <input value={value} onChange={e => setValue(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleAdd()}
-          placeholder="Masa nömrəsi (1–200)"
-          className="w-32 bg-black/50 border border-white/20 px-2.5 py-1.5 rounded-lg text-xs text-white outline-none focus:border-gold/40 transition-all" />
-        <button onClick={handleAdd}
-          disabled={!value || assigned.has(Number(value)) || Number(value) < 1 || Number(value) > maxTable}
-          className="px-3 py-1.5 bg-white/[0.06] rounded-lg text-[10px] font-bold text-white/50 hover:text-white hover:bg-white/10 transition-all disabled:opacity-20">
-          + Əlavə et
-        </button>
-        <button onClick={() => setShowQuick(!showQuick)} className="text-[10px] text-gold/60 hover:text-gold underline underline-offset-2">
-          {showQuick ? 'Gizlət' : 'Sürətli seç'}
-        </button>
-      </div>
-      {showQuick && (
-        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-          {Array.from({ length: maxTable }, (_, i) => i + 1).filter(n => !assigned.has(n)).map(n => (
-            <button key={n} onClick={() => onSelect(n)}
-              className="px-2 py-0.5 rounded bg-white/[0.06] text-[10px] text-white/40 hover:text-white hover:bg-white/10 transition-all">
-              #{n}
-            </button>
-          ))}
-        </div>
-      )}
-    </>
+    <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+      {Array.from({ length: maxTable }, (_, i) => i + 1).map(n => {
+        const isAssigned = assigned.has(n);
+        return (
+          <button key={n} onClick={() => isAssigned ? onDeselect(n) : onSelect(n)}
+            className={`px-2 py-0.5 rounded text-[10px] transition-all ${
+              isAssigned
+                ? 'bg-gold/20 text-gold font-semibold'
+                : 'bg-white/[0.06] text-white/40 hover:text-white hover:bg-white/10'
+            }`}>
+            #{n}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

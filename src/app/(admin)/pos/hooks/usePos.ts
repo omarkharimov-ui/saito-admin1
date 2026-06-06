@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -27,8 +26,9 @@ function saveCache(key: string, data: unknown) {
 
 export function usePos() {
   const { t, language } = useLanguage();
-  const cartKey = useRef(0);
   const [, forceUpdate] = useState(0);
+  const languageRef = useRef(language);
+  languageRef.current = language;
 
   /* ── State ── */
   const [tables, setTables] = useState<PosTable[]>([]);
@@ -38,8 +38,12 @@ export function usePos() {
   const [loading, setLoading] = useState(true);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [cart, setCart] = useState<PosCart | null>(null);
-  const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing' | 'kds'>('floor');
+  const cartRef = useRef<PosCart | null>(null);
+  const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [orderHistory, setOrderHistory] = useState<any[]>([]);
+
+  // Keep cartRef in sync
+  cartRef.current = cart;
 
   /* ── Data Fetching ── */
   const fetchData = useCallback(async () => {
@@ -122,9 +126,11 @@ export function usePos() {
 
   /* ── Cart Operations ── */
   const addToCart = useCallback((product: Product, modifiers?: ModifierSelection[], notes?: string, variantId?: string) => {
-    if (!cart) return;
+    const currentCart = cartRef.current;
+    if (!currentCart) return;
+    const langs = languageRef.current;
     const key = `${product.id}__${variantId || 'base'}__${modifiers?.map(m => m.modifier_id).sort().join(',') || ''}`;
-    const existing = cart.items.find(i => {
+    const existing = currentCart.items.find(i => {
       const ek = `${i.product_id}__${i.variant_id || 'base'}__${i.modifiers.map(m => m.modifier_id).sort().join(',')}`;
       return ek === key;
     });
@@ -140,7 +146,7 @@ export function usePos() {
       const unitPrice = modifiers?.reduce((s, m) => s + m.price_adjust, product.price) ?? product.price;
       const newItem: PosCartItem = {
         product_id: product.id,
-        product_name: (product as any)[`name_${language}`] || product.name,
+        product_name: (product as any)[`name_${langs}`] || product.name,
         product_image: product.image_url,
         unit_price: unitPrice,
         quantity: 1,
@@ -150,12 +156,10 @@ export function usePos() {
       };
       setCart(prev => prev ? { ...prev, items: [...prev.items, newItem] } : null);
     }
-    cartKey.current++;
     forceUpdate(n => n + 1);
-  }, [cart]);
+  }, []);
 
   const updateCartItemQty = useCallback((index: number, delta: number) => {
-    if (!cart) return;
     setCart(prev => {
       if (!prev) return null;
       const items = [...prev.items];
@@ -167,32 +171,33 @@ export function usePos() {
       }
       return { ...prev, items };
     });
-  }, [cart]);
+  }, []);
 
   const removeCartItem = useCallback((index: number) => {
-    if (!cart) return;
     setCart(prev => prev ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : null);
-  }, [cart]);
+  }, []);
 
   const clearCart = useCallback(() => {
     setCart(null);
   }, []);
 
   const saveCart = useCallback(() => {
-    if (!cart) return;
+    const currentCart = cartRef.current;
+    if (!currentCart) return;
     const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-    all[cart.table_number] = cart;
+    all[currentCart.table_number] = currentCart;
     saveCache(POS_CART_KEY + '_all', all);
     toast.success('Səbət yadda saxlandı');
     backToFloor();
-  }, [cart, backToFloor, t]);
+  }, [backToFloor]);
 
   /* ── Order Operations ── */
   const placeOrder = useCallback(async () => {
-    if (!cart || cart.items.length === 0) return;
+    const currentCart = cartRef.current;
+    if (!currentCart || currentCart.items.length === 0) return;
 
     try {
-      const orderItems = cart.items.map(item => ({
+      const orderItems = currentCart.items.map(item => ({
         product_id: item.product_id,
         variant_id: item.variant_id || null,
         quantity: item.quantity,
@@ -208,12 +213,12 @@ export function usePos() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          table_number: cart.table_number,
+          table_number: currentCart.table_number,
           total_amount: totalAmount,
           status: 'confirmed',
-          order_type: cart.order_type,
-          guest_count: cart.guest_count,
-          customer_note: cart.notes || null,
+          order_type: currentCart.order_type,
+          guest_count: currentCart.guest_count,
+          customer_note: currentCart.notes || null,
           items: orderItems,
           source: 'pos',
         }),
@@ -221,10 +226,10 @@ export function usePos() {
 
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to place order');
 
-      toast.success(`Masa ${cart.table_number} — sifariş göndərildi`);
+      toast.success(`Masa ${currentCart.table_number} — sifariş göndərildi`);
 
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-      delete all[cart.table_number];
+      delete all[currentCart.table_number];
       saveCache(POS_CART_KEY + '_all', all);
 
       clearCart();
@@ -233,7 +238,7 @@ export function usePos() {
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
     }
-  }, [cart, clearCart, backToFloor, fetchData, t]);
+  }, [clearCart, backToFloor, fetchData]);
 
   /* ── Billing ── */
   const closeBill = useCallback(async (orderId: string, payment: PaymentInfo) => {

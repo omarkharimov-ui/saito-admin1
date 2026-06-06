@@ -119,51 +119,35 @@ const FloorsTab = () => {
 
   const saveAll = async () => {
     setSaving(true);
-    // Collect all DB row IDs that should remain
-    const keepIds = new Set<string>();
-    const keptFloorNames = new Set(floors.map(f => f.name));
-    for (const floor of floors) {
-      for (const tableNum of floor.tables) {
-        if (floor.ids[tableNum]) {
-          keepIds.add(floor.ids[tableNum]);
-        }
+    try {
+      // Delete all existing rows and re-insert current state
+      const { data: existing } = await supabase.from('table_floors').select('id');
+      if (existing && existing.length > 0) {
+        await supabase.from('table_floors').delete().in('id', existing.map(r => r.id));
       }
-    }
 
-    // Delete rows no longer in any floor (keep placeholders for existing floors)
-    const { data: allRows } = await supabase.from('table_floors').select('id, floor_name');
-    if (allRows) {
-      const toDelete = allRows.filter(r => !keepIds.has(r.id) && !keptFloorNames.has(r.floor_name)).map(r => r.id);
-      if (toDelete.length > 0) {
-        await supabase.from('table_floors').delete().in('id', toDelete);
-      }
-    }
-
-    // Upsert current state
-    for (const floor of floors) {
-      if (floor.tables.length === 0) {
-        // Floor has no tables — insert a placeholder row so the name persists
-        const existingRows = await supabase.from('table_floors').select('id').eq('floor_name', floor.name).limit(1);
-        if (existingRows.data && existingRows.data.length === 0) {
-          await supabase.from('table_floors').insert({ table_number: 0, floor_name: floor.name, sort_order: floor.sort_order });
-        }
-      } else {
-        for (const tableNum of floor.tables) {
-          const existingId = floor.ids[tableNum];
-          if (existingId) {
-            await supabase.from('table_floors').update({ floor_name: floor.name, sort_order: floor.sort_order }).eq('id', existingId);
-          } else {
-            const { data } = await supabase.from('table_floors').insert({ table_number: tableNum, floor_name: floor.name, sort_order: floor.sort_order }).select('id').single();
-            if (data) floor.ids[tableNum] = data.id;
+      const rows: { table_number: number; floor_name: string; sort_order: number }[] = [];
+      for (const floor of floors) {
+        if (floor.tables.length === 0) {
+          rows.push({ table_number: 0, floor_name: floor.name, sort_order: floor.sort_order });
+        } else {
+          for (const tableNum of floor.tables) {
+            rows.push({ table_number: tableNum, floor_name: floor.name, sort_order: floor.sort_order });
           }
         }
       }
-    }
+      if (rows.length > 0) {
+        await supabase.from('table_floors').insert(rows);
+      }
 
-    setDirty(false);
-    setSaving(false);
-    await loadAll();
-    toast.success(t('settings_updated'));
+      setDirty(false);
+      await loadAll();
+      toast.success(t('settings_updated'));
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const assignedTables = new Set<number>();

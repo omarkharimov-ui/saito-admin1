@@ -158,10 +158,8 @@ const FloorsTab = () => {
     }
   };
 
-  const totalAssigned = floors.reduce((s, f) => s + f.tables.length, 0);
-
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-3xl space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -173,50 +171,41 @@ const FloorsTab = () => {
         </div>
         {dirty && (
           <button onClick={saveAll} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-gold/20 border border-gold/30 rounded-xl text-gold text-xs font-bold tracking-wider hover:bg-gold/30 transition-all disabled:opacity-40">
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            className="flex items-center gap-2 px-5 py-3 bg-gold/20 border border-gold/30 rounded-xl text-gold text-sm font-bold tracking-wider hover:bg-gold/30 transition-all disabled:opacity-40">
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {t('save_settings')}
           </button>
         )}
       </div>
 
-      {/* Stats bar */}
-      <div className="flex items-center gap-4 text-[11px]">
-        <span className="text-white/40">Cəmi <strong className="text-white/70">{maxTable}</strong> masa</span>
-        <span className="text-white/20">·</span>
-        <span className="text-yellow-400/70"><strong className="text-yellow-400">{totalAssigned}</strong> təyin edilib</span>
-        <span className="text-white/20">·</span>
-        <span className="text-white/30">{maxTable - totalAssigned} boş</span>
-      </div>
-
       {/* Floor cards */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {floors.map((floor, idx) => (
           <div key={floor.name} className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
             {/* Floor header */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.05]">
-              <GripVertical size={14} className="text-white/20 flex-shrink-0" />
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.05]">
+              <GripVertical size={18} className="text-white/20 flex-shrink-0" />
               <input value={floor.name} onChange={e => updateFloorName(idx, e.target.value)}
-                className="flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-white/20" />
-              <span className="text-[10px] text-white/30 bg-white/[0.06] px-2 py-0.5 rounded-md">{floor.tables.length} masa</span>
-              <div className="flex items-center gap-0.5">
+                className="flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/20" />
+              <span className="text-xs text-white/40 bg-white/[0.06] px-3 py-1 rounded-full">{floor.tables.length} masa</span>
+              <div className="flex items-center gap-1">
                 <button onClick={() => moveFloor(idx, -1)} disabled={idx === 0}
-                  className="w-6 h-6 rounded-md bg-white/[0.06] flex items-center justify-center text-white/30 hover:text-white disabled:opacity-20 transition-all">
-                  <ChevronUp size={12} />
+                  className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20 transition-all">
+                  <ChevronUp size={15} />
                 </button>
                 <button onClick={() => moveFloor(idx, 1)} disabled={idx === floors.length - 1}
-                  className="w-6 h-6 rounded-md bg-white/[0.06] flex items-center justify-center text-white/30 hover:text-white disabled:opacity-20 transition-all">
-                  <ChevronDown size={12} />
+                  className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20 transition-all">
+                  <ChevronDown size={15} />
                 </button>
               </div>
               <button onClick={() => setDeleteTarget({ idx, name: floor.name })}
-                className="w-6 h-6 rounded-md bg-red-500/10 flex items-center justify-center text-red-400/50 hover:bg-red-500/20 hover:text-red-400 transition-all">
-                <Trash2 size={12} />
+                className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400/60 hover:bg-red-500/20 hover:text-red-400 transition-all">
+                <Trash2 size={15} />
               </button>
             </div>
 
             {/* Grid */}
-            <div className="px-4 py-3">
+            <div className="px-5 py-4">
               <TablePicker maxTable={maxTable} floorTables={floor.tables}
                 onSelect={n => addTableToFloor(idx, n)}
                 onDeselect={n => removeTableFromFloor(idx, n)} />
@@ -230,10 +219,10 @@ const FloorsTab = () => {
         <input value={newFloorName} onChange={e => setNewFloorName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && addFloor()}
           placeholder="Yeni zal / mərtəbə adı..."
-          className={`${inputCls} flex-1`} />
+          className={`${inputCls} flex-1 text-base py-4`} />
         <button onClick={addFloor} disabled={!newFloorName.trim()}
-          className="flex items-center gap-2 px-5 py-3 bg-gold/15 border border-gold/25 rounded-xl text-gold text-xs font-bold tracking-wider hover:bg-gold/25 transition-all disabled:opacity-30">
-          <Plus size={15} />
+          className="flex items-center gap-2 px-6 py-4 bg-gold/15 border border-gold/25 rounded-xl text-gold text-sm font-bold tracking-wider hover:bg-gold/25 transition-all disabled:opacity-30">
+          <Plus size={18} />
           Əlavə et
         </button>
       </div>
@@ -264,17 +253,17 @@ function TablePicker({ maxTable, floorTables, onSelect, onDeselect }:
   { maxTable: number; floorTables: number[]; onSelect: (n: number) => void; onDeselect: (n: number) => void }) {
   const assigned = new Set(floorTables);
   return (
-    <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
       {Array.from({ length: maxTable }, (_, i) => i + 1).map(n => {
         const isAssigned = assigned.has(n);
         return (
           <button key={n} onClick={() => isAssigned ? onDeselect(n) : onSelect(n)}
-            className={`px-2 py-0.5 rounded text-[10px] transition-all ${
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all min-w-[44px] ${
               isAssigned
                 ? 'bg-gold/20 text-gold font-semibold'
-                : 'bg-white/[0.06] text-white/40 hover:text-white hover:bg-white/10'
+                : 'bg-white/[0.06] text-white/50 hover:text-white hover:bg-white/10'
             }`}>
-            #{n}
+            {n}
           </button>
         );
       })}

@@ -188,12 +188,12 @@ export default function POSPage() {
     <div ref={posRef} className={`h-full w-full overflow-hidden flex flex-col ${lightMode ? 'bg-[#F8F6F0] text-[#1C1C1A]' : 'bg-[#080808] text-white'}`}>
       {/* ── View container ── */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait">
           {/* ═══ FLOOR VIEW ═══ */}
           {pos.activeView === 'floor' && (
             <motion.div
               key="floor"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="h-full overflow-hidden flex flex-col"
             >
               {/* Top bar */}

@@ -11,6 +11,7 @@ import { Product, Category } from '@/types';
 import type { ProductVariantForm, ProductModifierForm } from '../page';
 import { useModalFormDirty } from '@/hooks/useFormDirty';
 import { useAiFlags } from '@/hooks/useAiFlags';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 function VariantSelector({
   variants,
@@ -21,6 +22,7 @@ function VariantSelector({
 }) {
   const [translatingIdx, setTranslatingIdx] = useState<number | null>(null);
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
 
   const updateRow = (i: number, patch: Partial<ProductVariantForm>) => {
     onChange(variants.map((v, idx) => idx === i ? { ...v, ...patch } : v));
@@ -66,13 +68,13 @@ function VariantSelector({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 mb-1">
-        <Ruler size={12} className="text-white/30" />
-        <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-semibold">{t('variant_type_tab')}</span>
+        <Ruler size={12} className={lightMode ? 'text-gray-400' : 'text-white/30'} />
+        <span className={`text-[10px] uppercase tracking-[0.2em] font-semibold ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('variant_type_tab')}</span>
       </div>
-      {variants.length === 0 && <p className="text-[11px] text-white/25 italic py-1">{t('variant_no_olcu')}</p>}
+      {variants.length === 0 && <p className={`text-[11px] italic py-1 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('variant_no_olcu')}</p>}
       {variants.length > 0 && (
         <div className="flex items-center gap-1.5 px-1 mb-1">
-          <span className="text-[9px] uppercase tracking-widest text-white/20">{t('combo_default_variant')}:</span>
+          <span className={`text-[9px] uppercase tracking-widest ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('combo_default_variant')}:</span>
         </div>
       )}
       <AnimatePresence>
@@ -96,22 +98,22 @@ function VariantSelector({
                 onChange={(e) => updateRow(i, { name: e.target.value, translations: null })}
                 onBlur={(e) => autoTranslateOlcu(i, e.target.value)}
                 placeholder={t('variant_size_placeholder')}
-                className="w-full bg-white/[0.07] border border-white/[0.12] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/35 transition-all" />
+                className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-white/35 transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.07] border-white/[0.12] text-white placeholder:text-white/30'}`} />
               {translatingIdx === i && (
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                  <Loader2 size={10} className="animate-spin text-white/50" />
+                  <Loader2 size={10} className={`animate-spin ${lightMode ? 'text-gray-500' : 'text-white/50'}`} />
                 </span>
               )}
             </div>
             <input type="number" step="0.01" min="0" value={v.price} onChange={(e) => updateRow(i, { price: e.target.value })} placeholder="₼"
-              className="w-20 bg-white/[0.07] border border-white/[0.12] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/35 transition-all" />
+              className={`w-20 border rounded-xl px-3 py-2 text-sm outline-none focus:border-white/35 transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.07] border-white/[0.12] text-white placeholder:text-white/30'}`} />
             <button type="button" onClick={() => removeRow(i)}
               className="flex-shrink-0 w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center transition-all"><Trash2 size={12} /></button>
           </motion.div>
         ))}
       </AnimatePresence>
       <button type="button" onClick={addOlcu}
-        className="flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.12] text-white/40 hover:text-white/70 text-[11px] font-bold uppercase tracking-widest transition-all">
+        className={`flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl border hover:text-white/70 text-[11px] font-bold uppercase tracking-widest transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-400' : 'bg-white/[0.05] border-white/[0.12] text-white/40'}`}>
         <Plus size={13} /> {t('variant_add_olcu')}
       </button>
     </div>
@@ -127,6 +129,7 @@ function ModifierSelector({
   onChange: (m: ProductModifierForm[]) => void;
 }) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
 
   const updateRow = (i: number, patch: Partial<ProductModifierForm>) => {
     onChange(modifiers.map((m, idx) => idx === i ? { ...m, ...patch } : m));
@@ -143,10 +146,10 @@ function ModifierSelector({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 mb-1">
-        <Zap size={12} className="text-white/30" />
-        <span className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-semibold">{t('modifiers_section')}</span>
+        <Zap size={12} className={lightMode ? 'text-gray-400' : 'text-white/30'} />
+        <span className={`text-[10px] uppercase tracking-[0.2em] font-semibold ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('modifiers_section')}</span>
       </div>
-      {modifiers.length === 0 && <p className="text-[11px] text-white/25 italic py-1">{t('modifiers_empty')}</p>}
+      {modifiers.length === 0 && <p className={`text-[11px] italic py-1 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('modifiers_empty')}</p>}
       <AnimatePresence>
         {modifiers.map((m, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.14 }} className="flex items-center gap-2">
@@ -155,14 +158,14 @@ function ModifierSelector({
               value={m.name}
               onChange={(e) => updateRow(i, { name: e.target.value })}
               placeholder={t('modifier_name_placeholder')}
-              className="flex-1 bg-white/[0.07] border border-white/[0.12] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/35 transition-all"
+              className={`flex-1 border rounded-xl px-3 py-2 text-sm outline-none focus:border-white/35 transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.07] border-white/[0.12] text-white placeholder:text-white/30'}`}
             />
             <input
               type="number" step="0.01" min="0"
               value={m.price}
               onChange={(e) => updateRow(i, { price: e.target.value })}
               placeholder="₼"
-              className="w-20 bg-white/[0.07] border border-white/[0.12] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/35 transition-all"
+              className={`w-20 border rounded-xl px-3 py-2 text-sm outline-none focus:border-white/35 transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.07] border-white/[0.12] text-white placeholder:text-white/30'}`}
             />
             <button
               type="button"
@@ -177,7 +180,7 @@ function ModifierSelector({
       <button
         type="button"
         onClick={addModifier}
-        className="flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.12] text-white/40 hover:text-white/70 text-[11px] font-bold uppercase tracking-widest transition-all"
+        className={`flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl border hover:text-white/70 text-[11px] font-bold uppercase tracking-widest transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-400' : 'bg-white/[0.05] border-white/[0.12] text-white/40'}`}
       >
         <Plus size={13} /> {t('modifier_add')}
       </button>
@@ -234,6 +237,7 @@ export function ProductModal({
   onSubmit, getCategoryName, normalizeProductName,
 }: ProductModalProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   
   // Use global hook for dirty checking - exclude category for new products
   // so initial category selection doesn't trigger dirty state
@@ -355,25 +359,25 @@ export function ProductModal({
             <motion.div
               initial={{ opacity: 0, scale: 0.97, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.97, y: 20 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-              className="relative w-full max-w-[860px] bg-card/98 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/60 flex flex-col max-h-[92vh] overflow-hidden"
+              className={`relative w-full max-w-[860px] bg-card/98 backdrop-blur-xl border rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden ${lightMode ? 'border-gray-200 shadow-black/8' : 'border-white/10 shadow-black/60'}`}
             >
-              <button onClick={closeWithReset} className="absolute top-5 right-5 z-10 w-10 h-10 rounded-full bg-white/8 hover:bg-white/15 text-white/50 hover:text-white flex items-center justify-center transition-all"><X size={18} /></button>
+              <button onClick={closeWithReset} className={`absolute top-5 right-5 z-10 w-10 h-10 rounded-full bg-white/8 hover:bg-white/15 flex items-center justify-center transition-all ${lightMode ? 'text-gray-500 hover:text-gray-900' : 'text-white/50 hover:text-white'}`}><X size={18} /></button>
               <div className="flex flex-col flex-1 min-h-0">
                 <div className="px-8 lg:px-12 pt-7 pb-0 shrink-0">
-                  <h2 className="text-3xl font-serif font-bold mb-1 tracking-tight text-white">{editingProduct ? t('edit_product') : t('new_product')}</h2>
+                  <h2 className={`text-3xl font-serif font-bold mb-1 tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{editingProduct ? t('edit_product') : t('new_product')}</h2>
                   <p className="text-[10px] text-gold uppercase tracking-[0.4em] mb-5">{t('premium_collection')}</p>
                 </div>
                 <form id="product-modal-form" noValidate onSubmit={onSubmit} className="flex-1 overflow-y-auto px-8 lg:px-12 pb-4 space-y-5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gold/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gold/40">
               {/* Group 1: Əsas Məlumatlar */}
               <div>
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />
+                <p className={`text-[9px] uppercase tracking-[0.3em] font-bold mb-3 flex items-center gap-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <span className={`w-4 h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />
                   {t('basic_info_section')}
-                  <span className="flex-1 h-px bg-white/5" />
+                  <span className={`flex-1 h-px ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-widest text-white/40">{t('product_name_label')}</label>
+                    <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('product_name_label')}</label>
                     <div className="relative">
                       <input
                         type="text"
@@ -384,7 +388,7 @@ export function ProductModal({
                           if (corrected !== e.target.value) onFormChange({ ...productForm, name: corrected });
                         }}
                         placeholder={ghostMain?.name ? '' : t('product_name_label')}
-                        className={`w-full bg-white/[0.07] border rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-transform duration-300 ${nameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
+                        className={`w-full border rounded-xl px-4 py-2.5 text-sm outline-none transition-transform duration-300 ${lightMode ? 'bg-gray-100 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.07] text-white placeholder:text-white/30'}${nameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
                       />
                       <AnimatePresence>
                         {ghostMain?.name && !productForm.name && (
@@ -395,7 +399,7 @@ export function ProductModal({
                             className="absolute inset-0 flex items-center px-4 pointer-events-none overflow-hidden gap-[0.28em]"
                           >
                             {ghostMain.name.split(' ').map((word, i) => (
-                              <motion.span key={i} variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.22 }} className="text-sm text-white/30 italic shrink-0">
+                              <motion.span key={i} variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.22 }} className={`text-sm italic shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                                 {word}
                               </motion.span>
                             ))}
@@ -406,7 +410,7 @@ export function ProductModal({
                     {nameError && <p className="text-[10px] text-red-400 mt-1">{t('product_name_required')}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-widest text-white/40">
+                    <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
                       {t('price_label')}
                       {productForm.variants.length > 0 && (
                         <span className="ml-1.5 text-gold/60 normal-case tracking-normal">{t('price_from_variant')}</span>
@@ -417,7 +421,7 @@ export function ProductModal({
                       value={productForm.price}
                       readOnly={productForm.variants.length > 0}
                       onChange={(e) => { if (productForm.variants.length > 0) return; onFormChange({ ...productForm, price: e.target.value }); if (priceError) onPriceErrorChange(false); }}
-                      className={`w-full border rounded-xl px-4 py-2.5 text-sm placeholder:text-white/30 outline-none transition-all duration-300 ${
+                      className={`w-full border rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-300 ${lightMode ? 'placeholder:text-gray-400' : 'placeholder:text-white/30'}${
                         productForm.variants.length > 0
                           ? 'bg-white/[0.03] border-white/[0.06] text-gold/80 cursor-default'
                           : priceError
@@ -432,10 +436,10 @@ export function ProductModal({
 
               {/* Group 2: Kateqoriya */}
               <div>
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />
+                <p className={`text-[9px] uppercase tracking-[0.3em] font-bold mb-3 flex items-center gap-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <span className={`w-4 h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />
                   {t('product_category')}
-                  <span className="flex-1 h-px bg-white/5" />
+                  <span className={`flex-1 h-px ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
                   {categories.map(cat => (
@@ -450,41 +454,41 @@ export function ProductModal({
 
               {/* Group 3: Şəkil + Mətn */}
               <div>
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />
+                <p className={`text-[9px] uppercase tracking-[0.3em] font-bold mb-3 flex items-center gap-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <span className={`w-4 h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />
                   {t('sales_params_section')}
-                  <span className="flex-1 h-px bg-white/5" />
+                  <span className={`flex-1 h-px ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                 </p>
                 {/* ── AI hint card (loading + result) — above grid ── */}
                 <AnimatePresence>
                   {(uploadingImage || visionLoadingMain || !!ghostMain) && (
                     <motion.div initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.97 }} transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }} className="mb-3">
                       {(uploadingImage || visionLoadingMain) ? (
-                        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/[0.07]">
+                        <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}`}>
                           <div className="shrink-0 flex items-end gap-[3px] pb-0.5">
                             {[0, 0.15, 0.3].map((delay, i) => (
                               <motion.span key={i} animate={{ y: [0, -4, 0], opacity: [0.25, 0.6, 0.25] }} transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut', delay }} className="block rounded-full bg-white/40" style={{ width: i === 1 ? 5 : 4, height: i === 1 ? 5 : 4 }} />
                             ))}
                           </div>
                           <div>
-                            <p className="text-[11px] font-medium text-white/50 leading-tight">{t('vision_analyzing')}</p>
-                            <p className="text-[9px] text-white/20 uppercase tracking-[0.2em] mt-0.5">{t('vision_reading')}</p>
+                            <p className={`text-[11px] font-medium leading-tight ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{t('vision_analyzing')}</p>
+                            <p className={`text-[9px] uppercase tracking-[0.2em] mt-0.5 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('vision_reading')}</p>
                           </div>
                         </div>
                       ) : (
-                        <motion.div ref={orbMainRef} animate={{ y: [0, -2, 0], boxShadow: ['0 0 0px rgba(212,175,55,0)', '0 0 18px rgba(212,175,55,0.18)', '0 0 0px rgba(212,175,55,0)'] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }} className="group relative flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/10 overflow-hidden cursor-default" style={{ background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(12px)' }}>
+                        <motion.div ref={orbMainRef} animate={{ y: [0, -2, 0], boxShadow: ['0 0 0px rgba(212,175,55,0)', '0 0 18px rgba(212,175,55,0.18)', '0 0 0px rgba(212,175,55,0)'] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }} className={`group relative flex items-center gap-3 px-4 py-3 rounded-2xl border overflow-hidden cursor-default ${lightMode ? 'border-gray-200' : 'border-white/10'}`} style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.03)', backdropFilter: 'blur(12px)' }}>
                           <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.2), 0 0 24px rgba(255,255,255,0.05)' }} />
                           <motion.div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent -skew-x-12 pointer-events-none" animate={{ x: ['-120%', '220%'] }} transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2, ease: 'easeInOut' }} />
-                          <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }} className="shrink-0"><Bot size={15} className="text-white/60" /></motion.div>
+                          <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }} className="shrink-0"><Bot size={15} className={lightMode ? 'text-gray-500' : 'text-white/60'} /></motion.div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[9px] text-white/60 uppercase tracking-[0.22em] font-bold leading-tight">{t('ai_hint_ready_title')}</p>
-                            <p className="text-[11px] text-white/55 mt-0.5 leading-tight">{t('ai_hint_ready_desc')}</p>
+                            <p className={`text-[9px] uppercase tracking-[0.22em] font-bold leading-tight ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{t('ai_hint_ready_title')}</p>
+                            <p className={`text-[11px] mt-0.5 leading-tight ${lightMode ? 'text-gray-500' : 'text-white/55'}`}>{t('ai_hint_ready_desc')}</p>
                           </div>
-                          <motion.button type="button" whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={applyGhostMain} className="shrink-0 relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/20 text-white/70 text-[9px] font-bold uppercase tracking-wider transition-opacity duration-200">
+                          <motion.button type="button" whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={applyGhostMain} className={`shrink-0 relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-opacity duration-200 ${lightMode ? 'border-gray-300 text-gray-600' : 'border-white/20 text-white/70'}`}>
                             <motion.span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 pointer-events-none" animate={{ x: ['-130%', '230%'] }} transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.2, ease: 'easeInOut' }} />
                             <Wand2 size={9} /> {t('ai_hint_apply')}
                           </motion.button>
-                          <button type="button" onClick={dismissGhostMain} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-xl text-white/20 hover:text-white/55 hover:bg-white/[0.05] transition-all"><X size={13} /></button>
+                          <button type="button" onClick={dismissGhostMain} className={`shrink-0 w-7 h-7 flex items-center justify-center rounded-xl hover:text-white/55 transition-all ${lightMode ? 'text-gray-300 hover:bg-gray-100' : 'text-white/20 hover:bg-white/[0.05]'}`}><X size={13} /></button>
                         </motion.div>
                       )}
                     </motion.div>
@@ -494,7 +498,7 @@ export function ProductModal({
                   {/* Image upload */}
                   <div className="relative group">
                     <input type="file" accept="image/*" onChange={handleMainImageUpload} className="hidden" id="product-image-upload" />
-                    <label htmlFor="product-image-upload" className="w-24 h-24 rounded-xl bg-white/[0.02] border-2 border-dashed border-white/10 flex items-center justify-center hover:border-white/30 hover:bg-white/[0.05] hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-transform duration-300 cursor-pointer overflow-hidden relative">
+                    <label htmlFor="product-image-upload" className={`w-24 h-24 rounded-xl border-2 border-dashed flex items-center justify-center hover:border-white/30 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-transform duration-300 cursor-pointer overflow-hidden relative ${lightMode ? 'bg-gray-50 border-gray-200 hover:bg-gray-100' : 'bg-white/[0.02] border-white/10 hover:bg-white/[0.05]'}`}>
                       {uploadingImage ? (
                         <svg width="32" height="32" viewBox="0 0 32 32" className="animate-spin">
                           <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2.5"/>
@@ -504,13 +508,13 @@ export function ProductModal({
                         <>
                           <img src={productForm.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }} />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-transform duration-300 flex items-center justify-center">
-                            <Upload size={18} className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <Upload size={18} className={`opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${lightMode ? 'text-gray-900' : 'text-white'}`} />
                           </div>
                         </>
                       ) : (
                         <div className="flex flex-col items-center gap-1.5">
                           <Upload size={20} className="text-gold/40" />
-                          <span className="text-[8px] uppercase font-bold tracking-widest text-white/20">{t('select_file')}</span>
+                          <span className={`text-[8px] uppercase font-bold tracking-widest ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('select_file')}</span>
                         </div>
                       )}
                     </label>
@@ -518,7 +522,7 @@ export function ProductModal({
                   {/* Description + Ingredients */}
                   <div className="space-y-2.5">
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">{t('product_description_label')}</label>
+                      <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('product_description_label')}</label>
                       <div className="relative">
                         <textarea value={productForm.description}
                           onChange={(e) => { if (e.target.value.length <= 150) onFormChange({ ...productForm, description: e.target.value }); }}
@@ -531,13 +535,13 @@ export function ProductModal({
                             } catch { /* silent */ }
                           }}
                           placeholder={ghostMain?.description ? '' : t('description_placeholder')}
-                          className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 pb-5 text-sm text-white placeholder:text-white/15 focus:border-white/30 outline-none transition-transform duration-300 h-[72px] resize-y min-h-[52px] max-h-[160px]"
+                          className={`w-full border rounded-xl px-3.5 py-2 pb-5 text-sm placeholder:text-white/15 focus:border-white/30 outline-none transition-transform duration-300 h-[72px] resize-y min-h-[52px] max-h-[160px] ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-900' : 'bg-white/[0.03] border-white/10 text-white'}`}
                         />
                         <AnimatePresence>
                           {ghostMain?.description && !productForm.description && (
                             <motion.div initial="hidden" animate="visible" exit={{ opacity: 0, y: 4, transition: { duration: 0.2 } }} variants={{ visible: { transition: { staggerChildren: 0.03 } } }} className="absolute inset-0 px-3.5 py-2 pb-5 pointer-events-none overflow-hidden flex flex-wrap content-start gap-x-[0.28em] gap-y-0">
                               {ghostMain.description.split(' ').map((word, i) => (
-                                <motion.span key={i} variants={{ hidden: { opacity: 0, x: -5 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.2 }} className="text-sm text-white/30 italic leading-snug shrink-0">{word}</motion.span>
+                                <motion.span key={i} variants={{ hidden: { opacity: 0, x: -5 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.2 }} className={`text-sm italic leading-snug shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{word}</motion.span>
                               ))}
                             </motion.div>
                           )}
@@ -548,7 +552,7 @@ export function ProductModal({
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">{t('ingredients_label')} {t('ingredients_hint')}</label>
+                      <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('ingredients_label')} {t('ingredients_hint')}</label>
                       <div className="relative">
                         <textarea value={productForm.ingredients}
                           onChange={(e) => onFormChange({ ...productForm, ingredients: e.target.value })}
@@ -561,12 +565,12 @@ export function ProductModal({
                             } catch { /* silent */ }
                           }}
                           placeholder={ghostMain?.ingredients ? '' : 'Somon, avokado, krem pendir, kəndir toxumu...'}
-                          className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder:text-white/15 focus:border-white/30 outline-none transition-transform duration-300 h-[38px] resize-none" />
+                          className={`w-full border rounded-xl px-3.5 py-2 text-sm placeholder:text-white/15 focus:border-white/30 outline-none transition-transform duration-300 h-[38px] resize-none ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-900' : 'bg-white/[0.03] border-white/10 text-white'}`} />
                         <AnimatePresence>
                           {ghostMain?.ingredients && !productForm.ingredients && (
                             <motion.div initial="hidden" animate="visible" exit={{ opacity: 0, y: 4, transition: { duration: 0.2 } }} variants={{ visible: { transition: { staggerChildren: 0.025 } } }} className="absolute inset-0 px-3.5 py-2 pointer-events-none overflow-hidden flex flex-wrap content-start gap-x-[0.28em] gap-y-0">
                               {ghostMain.ingredients.split(' ').map((word, i) => (
-                                <motion.span key={i} variants={{ hidden: { opacity: 0, x: -5 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.2 }} className="text-sm text-white/30 italic leading-snug shrink-0">{word}</motion.span>
+                                <motion.span key={i} variants={{ hidden: { opacity: 0, x: -5 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.2 }} className={`text-sm italic leading-snug shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{word}</motion.span>
                               ))}
                             </motion.div>
                           )}
@@ -634,15 +638,15 @@ export function ProductModal({
                       className="overflow-hidden"
                     >
                       <div className="flex items-center gap-2 pl-1">
-                        <span className="text-[10px] text-white/30 uppercase tracking-wider">Anbar:</span>
+                        <span className={`text-[10px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Anbar:</span>
                         <select
                           value={productForm.direct_ingredient_id}
                           onChange={(e) => onFormChange({ ...productForm, direct_ingredient_id: e.target.value })}
-                          className="flex-1 max-w-xs bg-white/[0.05] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-white/25"
+                          className={`flex-1 max-w-xs border rounded-lg px-3 py-1.5 text-xs outline-none ${lightMode ? 'bg-gray-100 border-gray-200 text-gray-900 focus:border-gray-400' : 'bg-white/[0.05] border-white/10 text-white focus:border-white/25'}`}
                         >
-                          <option value="" className="bg-[#1a1a1a] text-white/40">Xəmmal seçin...</option>
+                          <option value="" className={lightMode ? 'bg-gray-100 text-gray-400' : 'bg-[#1a1a1a] text-white/40'}>Xəmmal seçin...</option>
                           {ingredients.map(i => (
-                            <option key={i.id} value={i.id} className="bg-[#1a1a1a]">{i.name} ({i.unit})</option>
+                            <option key={i.id} value={i.id} className={lightMode ? 'bg-gray-100' : 'bg-[#1a1a1a]'}>{i.name} ({i.unit})</option>
                           ))}
                         </select>
                       </div>
@@ -653,10 +657,10 @@ export function ProductModal({
 
               {/* Group 5: Variants — Multi-Layered Selector */}
               <div>
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />
+                <p className={`text-[9px] uppercase tracking-[0.3em] font-bold mb-3 flex items-center gap-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <span className={`w-4 h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />
                   {t('variants_section')}
-                  <span className="flex-1 h-px bg-white/5" />
+                  <span className={`flex-1 h-px ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                 </p>
                 <VariantSelector
                   variants={productForm.variants}
@@ -672,10 +676,10 @@ export function ProductModal({
 
               {/* Group 6: Modifiers */}
               <div>
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />
+                <p className={`text-[9px] uppercase tracking-[0.3em] font-bold mb-3 flex items-center gap-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <span className={`w-4 h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />
                   {t('modifiers_section')}
-                  <span className="flex-1 h-px bg-white/5" />
+                  <span className={`flex-1 h-px ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                 </p>
                 <ModifierSelector
                   modifiers={productForm.modifiers}
@@ -683,9 +687,9 @@ export function ProductModal({
                 />
               </div>
                 </form>
-                <div className="px-8 lg:px-12 py-4 bg-card/80 backdrop-blur-xl border-t border-white/5 rounded-b-2xl flex items-center gap-4 shrink-0">
+                <div className={`px-8 lg:px-12 py-4 bg-card/80 backdrop-blur-xl border-t rounded-b-2xl flex items-center gap-4 shrink-0 ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
 
-                  <button type="button" onClick={closeWithReset} className="px-8 py-3.5 rounded-xl bg-white/[0.05] text-white/40 border border-white/[0.12] hover:bg-white/10 hover:text-white text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all">
+                  <button type="button" onClick={closeWithReset} className={`px-8 py-3.5 rounded-xl border text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all ${lightMode ? 'bg-gray-100 text-gray-400 border-gray-300 hover:bg-gray-200 hover:text-gray-900' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-white/10 hover:text-white'}`}>
                     {t('cancel') || 'LƏĞV ET'}
                   </button>
                   <button type="submit" form="product-modal-form" disabled={updating || uploadingImage || !isDirty}
@@ -704,16 +708,16 @@ export function ProductModal({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed inset-0 z-[110] md:hidden bg-[#0a0a0a] flex flex-col"
+            className={`fixed inset-0 z-[110] md:hidden flex flex-col ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}
           >
             {/* Mobile Header */}
             <div className="sticky top-0 z-10 px-5 pt-14 pb-4 bg-gradient-to-b from-[#0a0a0a] via-[#0a0a0a]/95 to-transparent shrink-0">
-              <button onClick={closeWithReset} className="absolute top-12 left-5 w-10 h-10 flex items-center justify-center rounded-full bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/[0.1] transition-all">
+              <button onClick={closeWithReset} className={`absolute top-12 left-5 w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/[0.1] transition-all ${lightMode ? 'bg-gray-100 text-gray-500 hover:text-gray-900' : 'bg-white/[0.05] text-white/60 hover:text-white'}`}>
                 <ChevronLeft size={22} />
               </button>
               <div className="text-center">
-                <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] mb-1">{t('premium_collection')}</p>
-                <h1 className="text-2xl font-serif text-white tracking-tight">{editingProduct ? t('edit_product') : t('new_product')}</h1>
+                <p className={`text-[10px] uppercase tracking-[0.4em] mb-1 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('premium_collection')}</p>
+                <h1 className={`text-2xl font-serif tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{editingProduct ? t('edit_product') : t('new_product')}</h1>
               </div>
             </div>
 
@@ -723,19 +727,19 @@ export function ProductModal({
 
               {/* Name */}
               <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-white/40">{t('product_name_label')}</label>
+                <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('product_name_label')}</label>
                 <div className="relative">
                   <input type="text" value={productForm.name}
                     onChange={(e) => { onFormChange({ ...productForm, name: e.target.value }); if (nameError) onNameErrorChange(false); }}
                     onBlur={(e) => { const c = normalizeProductName(e.target.value); if (c !== e.target.value) onFormChange({ ...productForm, name: c }); }}
                     placeholder={ghostMain?.name ? `AI: ${ghostMain.name}` : t('product_name_label')}
-                    className={`w-full bg-white/[0.07] border rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition-all ${nameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-all ${lightMode ? 'bg-gray-100 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.07] text-white placeholder:text-white/30'}${nameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
                   />
                   <AnimatePresence>
                     {ghostMain?.name && !productForm.name && (
                       <motion.div initial="hidden" animate="visible" exit={{ opacity: 0 }} variants={{ visible: { transition: { staggerChildren: 0.04 } } }} className="absolute inset-0 flex items-center px-4 pointer-events-none overflow-hidden gap-[0.28em]">
                         {ghostMain.name.split(' ').map((word, i) => (
-                          <motion.span key={i} variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.22 }} className="text-sm text-white/30 italic shrink-0">{word}</motion.span>
+                          <motion.span key={i} variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.22 }} className={`text-sm italic shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{word}</motion.span>
                         ))}
                       </motion.div>
                     )}
@@ -746,7 +750,7 @@ export function ProductModal({
 
               {/* Price */}
               <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-white/40">
+                <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
                   {t('price_label')}
                   {productForm.variants.length > 0 && <span className="ml-1.5 text-gold/60 normal-case tracking-normal">({t('price_from_variant')})</span>}
                 </label>
@@ -754,15 +758,15 @@ export function ProductModal({
                   value={productForm.price}
                   readOnly={productForm.variants.length > 0}
                   onChange={(e) => { if (productForm.variants.length > 0) return; onFormChange({ ...productForm, price: e.target.value }); if (priceError) onPriceErrorChange(false); }}
-                  className={`w-full border rounded-xl px-4 py-3 text-sm placeholder:text-white/30 outline-none transition-all ${productForm.variants.length > 0 ? 'bg-white/[0.03] border-white/[0.06] text-gold/80 cursor-default' : priceError ? 'bg-white/[0.07] border-red-500/70 focus:border-red-400 text-white' : 'bg-white/[0.07] border-white/[0.12] focus:border-white/35 text-white'}`}
+                  className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-all ${lightMode ? 'placeholder:text-gray-400' : 'placeholder:text-white/30'}${productForm.variants.length > 0 ? 'bg-white/[0.03] border-white/[0.06] text-gold/80 cursor-default' : priceError ? 'bg-white/[0.07] border-red-500/70 focus:border-red-400 text-white' : 'bg-white/[0.07] border-white/[0.12] focus:border-white/35 text-white'}`}
                 />
                 {priceError && <p className="text-[10px] text-red-400 mt-1">{t('price_required')}</p>}
               </div>
 
               {/* Category */}
               <div className="space-y-2">
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />{t('product_category')}<span className="flex-1 h-px bg-white/5" />
+                <p className={`text-[9px] uppercase tracking-[0.3em] font-bold flex items-center gap-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <span className={`w-4 h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />{t('product_category')}<span className={`flex-1 h-px ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
                   {categories.map(cat => (
@@ -777,38 +781,38 @@ export function ProductModal({
 
               {/* Sales Params */}
               <div className="space-y-3">
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />{t('sales_params_section')}<span className="flex-1 h-px bg-white/5" />
+                <p className={`text-[9px] uppercase tracking-[0.3em] font-bold flex items-center gap-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <span className={`w-4 h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />{t('sales_params_section')}<span className={`flex-1 h-px ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                 </p>
                 {/* AI hint */}
                 <AnimatePresence>
                   {(uploadingImage || visionLoadingMain || !!ghostMain) && (
                     <motion.div initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.97 }} className="mb-3">
                       {(uploadingImage || visionLoadingMain) ? (
-                        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/[0.07]">
+                        <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}`}>
                           <div className="shrink-0 flex items-end gap-[3px] pb-0.5">
                             {[0, 0.15, 0.3].map((delay, i) => (
                               <motion.span key={i} animate={{ y: [0, -4, 0], opacity: [0.25, 0.6, 0.25] }} transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut', delay }} className="block rounded-full bg-white/40" style={{ width: i === 1 ? 5 : 4, height: i === 1 ? 5 : 4 }} />
                             ))}
                           </div>
                           <div>
-                            <p className="text-[11px] font-medium text-white/50 leading-tight">{t('vision_analyzing')}</p>
-                            <p className="text-[9px] text-white/20 uppercase tracking-[0.2em] mt-0.5">{t('vision_reading')}</p>
+                            <p className={`text-[11px] font-medium leading-tight ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{t('vision_analyzing')}</p>
+                            <p className={`text-[9px] uppercase tracking-[0.2em] mt-0.5 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('vision_reading')}</p>
                           </div>
                         </div>
                       ) : (
-                        <motion.div ref={orbMainRef} animate={{ y: [0, -2, 0], boxShadow: ['0 0 0px rgba(212,175,55,0)', '0 0 18px rgba(212,175,55,0.18)', '0 0 0px rgba(212,175,55,0)'] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }} className="group relative flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(12px)' }}>
+                        <motion.div ref={orbMainRef} animate={{ y: [0, -2, 0], boxShadow: ['0 0 0px rgba(212,175,55,0)', '0 0 18px rgba(212,175,55,0.18)', '0 0 0px rgba(212,175,55,0)'] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }} className={`group relative flex items-center gap-3 px-4 py-3 rounded-2xl border overflow-hidden ${lightMode ? 'border-gray-200' : 'border-white/10'}`} style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.03)', backdropFilter: 'blur(12px)' }}>
                           <motion.div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent -skew-x-12 pointer-events-none" animate={{ x: ['-120%', '220%'] }} transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2, ease: 'easeInOut' }} />
-                          <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }} className="shrink-0"><Bot size={15} className="text-white/60" /></motion.div>
+                          <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }} className="shrink-0"><Bot size={15} className={lightMode ? 'text-gray-500' : 'text-white/60'} /></motion.div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[9px] text-white/60 uppercase tracking-[0.22em] font-bold leading-tight">{t('ai_hint_ready_title')}</p>
-                            <p className="text-[11px] text-white/55 mt-0.5 leading-tight">{t('ai_hint_ready_desc')}</p>
+                            <p className={`text-[9px] uppercase tracking-[0.22em] font-bold leading-tight ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{t('ai_hint_ready_title')}</p>
+                            <p className={`text-[11px] mt-0.5 leading-tight ${lightMode ? 'text-gray-500' : 'text-white/55'}`}>{t('ai_hint_ready_desc')}</p>
                           </div>
-                          <motion.button type="button" whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={applyGhostMain} className="shrink-0 relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/20 text-white/70 text-[9px] font-bold uppercase tracking-wider">
+                          <motion.button type="button" whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={applyGhostMain} className={`shrink-0 relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[9px] font-bold uppercase tracking-wider ${lightMode ? 'border-gray-300 text-gray-600' : 'border-white/20 text-white/70'}`}>
                             <motion.span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 pointer-events-none" animate={{ x: ['-130%', '230%'] }} transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.2, ease: 'easeInOut' }} />
                             <Wand2 size={9} /> {t('ai_hint_apply')}
                           </motion.button>
-                          <button type="button" onClick={dismissGhostMain} className="shrink-0 w-7 h-7 flex items-center justify-center rounded-xl text-white/20 hover:text-white/55 hover:bg-white/[0.05] transition-all"><X size={13} /></button>
+                          <button type="button" onClick={dismissGhostMain} className={`shrink-0 w-7 h-7 flex items-center justify-center rounded-xl hover:text-white/55 transition-all ${lightMode ? 'text-gray-300 hover:bg-gray-100' : 'text-white/20 hover:bg-white/[0.05]'}`}><X size={13} /></button>
                         </motion.div>
                       )}
                     </motion.div>
@@ -818,7 +822,7 @@ export function ProductModal({
                 <div className="grid grid-cols-[auto_1fr] gap-3">
                   <div className="relative group">
                     <input type="file" accept="image/*" onChange={handleMainImageUpload} className="hidden" id="product-image-upload-mobile" />
-                    <label htmlFor="product-image-upload-mobile" className="w-24 h-24 rounded-xl bg-white/[0.02] border-2 border-dashed border-white/10 flex items-center justify-center hover:border-white/30 hover:bg-white/[0.05] transition-all cursor-pointer overflow-hidden relative">
+                    <label htmlFor="product-image-upload-mobile" className={`w-24 h-24 rounded-xl border-2 border-dashed flex items-center justify-center hover:border-white/30 transition-all cursor-pointer overflow-hidden relative ${lightMode ? 'bg-gray-50 border-gray-200 hover:bg-gray-100' : 'bg-white/[0.02] border-white/10 hover:bg-white/[0.05]'}`}>
                       {uploadingImage ? (
                         <svg width="32" height="32" viewBox="0 0 32 32" className="animate-spin">
                           <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2.5"/>
@@ -828,32 +832,32 @@ export function ProductModal({
                         <>
                           <img src={productForm.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center">
-                            <Upload size={18} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Upload size={18} className={`opacity-0 group-hover:opacity-100 transition-opacity ${lightMode ? 'text-gray-900' : 'text-white'}`} />
                           </div>
                         </>
                       ) : (
                         <div className="flex flex-col items-center gap-1.5">
                           <Upload size={20} className="text-gold/40" />
-                          <span className="text-[8px] uppercase font-bold tracking-widest text-white/20">{t('select_file')}</span>
+                          <span className={`text-[8px] uppercase font-bold tracking-widest ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('select_file')}</span>
                         </div>
                       )}
                     </label>
                   </div>
                   <div className="space-y-2.5">
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">{t('product_description_label')}</label>
+                      <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('product_description_label')}</label>
                       <textarea value={productForm.description}
                         onChange={(e) => { if (e.target.value.length <= 150) onFormChange({ ...productForm, description: e.target.value }); }}
                         placeholder={ghostMain?.description ? '' : t('description_placeholder')}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 pb-5 text-sm text-white placeholder:text-white/15 focus:border-white/30 outline-none transition-all h-[72px] resize-y min-h-[52px] max-h-[160px]"
+                        className={`w-full border rounded-xl px-3.5 py-2 pb-5 text-sm placeholder:text-white/15 focus:border-white/30 outline-none transition-all h-[72px] resize-y min-h-[52px] max-h-[160px] ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-900' : 'bg-white/[0.03] border-white/10 text-white'}`}
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">{t('ingredients_label')} {t('ingredients_hint')}</label>
+                      <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('ingredients_label')} {t('ingredients_hint')}</label>
                       <textarea value={productForm.ingredients}
                         onChange={(e) => onFormChange({ ...productForm, ingredients: e.target.value })}
                         placeholder={ghostMain?.ingredients ? '' : 'Somon, avokado, krem pendir...'}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder:text-white/15 focus:border-white/30 outline-none transition-all h-[38px] resize-none"
+                        className={`w-full border rounded-xl px-3.5 py-2 text-sm placeholder:text-white/15 focus:border-white/30 outline-none transition-all h-[38px] resize-none ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-900' : 'bg-white/[0.03] border-white/10 text-white'}`}
                       />
                     </div>
                   </div>
@@ -892,15 +896,15 @@ export function ProductModal({
                 {/* Hazır məhsul ingredient dropdown — mobile */}
                 {productForm.is_ready_product && (
                   <div className="flex items-center gap-2 pl-1">
-                    <span className="text-[10px] text-white/30 uppercase tracking-wider">Anbar:</span>
+                    <span className={`text-[10px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Anbar:</span>
                     <select
                       value={productForm.direct_ingredient_id}
                       onChange={(e) => onFormChange({ ...productForm, direct_ingredient_id: e.target.value })}
-                      className="flex-1 max-w-xs bg-white/[0.05] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-white/25"
+                      className={`flex-1 max-w-xs border rounded-lg px-3 py-1.5 text-xs outline-none ${lightMode ? 'bg-gray-100 border-gray-200 text-gray-900 focus:border-gray-400' : 'bg-white/[0.05] border-white/10 text-white focus:border-white/25'}`}
                     >
-                      <option value="" className="bg-[#1a1a1a] text-white/40">Xəmmal seçin...</option>
+                      <option value="" className={lightMode ? 'bg-gray-100 text-gray-400' : 'bg-[#1a1a1a] text-white/40'}>Xəmmal seçin...</option>
                       {ingredients.map(i => (
-                        <option key={i.id} value={i.id} className="bg-[#1a1a1a]">{i.name} ({i.unit})</option>
+                        <option key={i.id} value={i.id} className={lightMode ? 'bg-gray-100' : 'bg-[#1a1a1a]'}>{i.name} ({i.unit})</option>
                       ))}
                     </select>
                   </div>
@@ -909,8 +913,8 @@ export function ProductModal({
 
               {/* Variants */}
               <div className="space-y-2">
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />{t('variants_section')}<span className="flex-1 h-px bg-white/5" />
+                <p className={`text-[9px] uppercase tracking-[0.3em] font-bold flex items-center gap-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <span className={`w-4 h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />{t('variants_section')}<span className={`flex-1 h-px ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                 </p>
                 <VariantSelector
                   variants={productForm.variants}
@@ -924,8 +928,8 @@ export function ProductModal({
 
               {/* Modifiers */}
               <div className="space-y-2">
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />{t('modifiers_section')}<span className="flex-1 h-px bg-white/5" />
+                <p className={`text-[9px] uppercase tracking-[0.3em] font-bold flex items-center gap-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
+                  <span className={`w-4 h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />{t('modifiers_section')}<span className={`flex-1 h-px ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
                 </p>
                 <ModifierSelector
                   modifiers={productForm.modifiers}
@@ -935,7 +939,7 @@ export function ProductModal({
 
               {/* Mobile Footer - scrolls naturally with form, z-index above hamburger */}
               <div className="z-[70] px-0 py-6 flex items-center gap-3">
-                <button type="button" onClick={closeWithReset} className="px-6 py-3.5 rounded-xl bg-white/[0.05] text-white/40 border border-white/[0.10] text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all">
+                <button type="button" onClick={closeWithReset} className={`px-6 py-3.5 rounded-xl border text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all ${lightMode ? 'bg-gray-100 text-gray-400 border-gray-300' : 'bg-white/[0.05] text-white/40 border-white/[0.10]'}`}>
                   {t('cancel') || 'LƏĞV ET'}
                 </button>
                 <button type="submit" disabled={updating || uploadingImage || !isDirty}

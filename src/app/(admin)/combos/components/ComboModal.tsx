@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { createPortal } from 'react-dom';
 import type { Combo, ComboItem, Product, ProductVariant } from '@/types';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface ComboFormItem {
   product_id: string;
@@ -51,6 +52,7 @@ type PickerState = { productId: string; variants: ProductVariant[]; selectedVari
 
 export default function ComboModal({ open, editingCombo, products, onClose, onSaved }: ComboModalProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [form, setForm] = useState<ComboForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -277,15 +279,15 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                 <div className="flex-shrink-0">
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                   <button onClick={() => fileRef.current?.click()}
-                    className="w-24 h-24 rounded-xl border-2 border-dashed border-white/[0.12] hover:border-white/25 bg-white/[0.03] flex flex-col items-center justify-center gap-1 transition-all group overflow-hidden">
+                    className={`w-24 h-24 rounded-xl border-2 border-dashed hover:border-white/25 flex flex-col items-center justify-center gap-1 transition-all group overflow-hidden ${lightMode ? 'border-gray-300 bg-gray-50' : 'border-white/[0.12] bg-white/[0.03]'}`}>
                     {uploadingImage ? (
-                      <Loader2 size={20} className="animate-spin text-white/30" />
+                      <Loader2 size={20} className={`animate-spin ${lightMode ? 'text-gray-400' : 'text-white/30'}`} />
                     ) : form.image_url ? (
                       <img src={form.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     ) : (
                       <>
-                        <Upload size={18} className="text-white/20 group-hover:text-white/40 transition-colors" />
-                        <span className="text-[9px] text-white/20 group-hover:text-white/40">{t('combo_image')}</span>
+                        <Upload size={18} className={`group-hover:text-white/40 transition-colors ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
+                        <span className={`text-[9px] group-hover:text-white/40 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('combo_image')}</span>
                       </>
                     )}
                   </button>
@@ -294,7 +296,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                 {/* Ad + Qiymət - İnterfeys dilinə görə */}
                 <div className="flex-1 space-y-4">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">{t('combo_name')}</label>
+                    <label className={`block text-[10px] uppercase tracking-[0.2em] mb-1.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('combo_name')}</label>
                     <input
                       type="text" 
                       value={language === 'az' ? form.name_az : language === 'ru' ? form.name_ru : form.name_en}
@@ -305,16 +307,16 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                         else setForm(prev => ({ ...prev, name_en: val }));
                       }}
                       placeholder={language === 'az' ? 'Məs: Ailə Paketi' : language === 'ru' ? 'Название...' : 'Name...'}
-                      className="w-full bg-white/[0.05] border border-white/[0.10] rounded-xl px-4 py-3.5 text-base text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-all"
+                      className={`w-full border rounded-xl px-4 py-3.5 text-base outline-none focus:border-white/30 transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/20'}`}
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">{t('combo_price')}</label>
+                    <label className={`block text-[10px] uppercase tracking-[0.2em] mb-1.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('combo_price')}</label>
                     <input
                       type="number" step="0.01" min="0" value={form.price}
                       onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))}
                       placeholder="0.00"
-                      className="w-full bg-white/[0.05] border border-white/[0.10] rounded-xl px-4 py-3.5 text-base text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-all"
+                      className={`w-full border rounded-xl px-4 py-3.5 text-base outline-none focus:border-white/30 transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/20'}`}
                     />
                   </div>
                 </div>
@@ -322,7 +324,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
 
               {/* Açıqlama - İnterfeys dilinə görə */}
               <div>
-                <label className="block text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">{t('combo_description')}</label>
+                <label className={`block text-[10px] uppercase tracking-[0.2em] mb-1.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('combo_description')}</label>
                 <textarea
                   value={language === 'az' ? form.description_az : language === 'ru' ? form.description_ru : form.description_en}
                   onChange={e => {
@@ -333,7 +335,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                   }}
                   placeholder={language === 'az' ? 'Kombo haqqında qısa məlumat...' : language === 'ru' ? 'Описание...' : 'Description...'}
                   rows={3}
-                  className="w-full bg-white/[0.05] border border-white/[0.10] rounded-xl px-4 py-3.5 text-base text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-all resize-none"
+                  className={`w-full border rounded-xl px-4 py-3.5 text-base outline-none focus:border-white/30 transition-all resize-none ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/20'}`}
                 />
               </div>
 
@@ -354,13 +356,13 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
               {/* Məhsullar */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-white/30">{t('combo_items')}</label>
+                  <label className={`text-[10px] uppercase tracking-[0.2em] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('combo_items')}</label>
                 </div>
 
                 {/* Item siyahısı */}
                 <div className="space-y-2 mb-3">
                   {form.items.length === 0 ? (
-                    <div className="py-4 text-center text-[13px] text-white/25 border border-dashed border-white/[0.08] rounded-xl">
+                    <div className={`py-4 text-center text-[13px] border border-dashed rounded-xl ${lightMode ? 'text-gray-300 border-gray-200' : 'text-white/25 border-white/[0.08]'}`}>
                       {t('combo_no_items')}
                     </div>
                   ) : (
@@ -369,26 +371,26 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                       const itemKey = `${item.product_id}__${item.variant_id || 'base'}`;
                       const unitPrice = item.variant?.price ?? prod?.price ?? 0;
                       return (
-                        <div key={itemKey} className="flex items-center gap-3 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 hover:border-white/[0.12] transition-colors">
+                        <div key={itemKey} className={`flex items-center gap-3 border rounded-xl px-3 py-2.5 hover:border-white/[0.12] transition-colors ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.07]'}`}>
                           {/* Şəkil */}
-                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/[0.08] flex-shrink-0 bg-white/[0.03]">
+                          <div className={`w-10 h-10 rounded-lg overflow-hidden border flex-shrink-0 ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/[0.08] bg-white/[0.03]'}`}>
                             {prod?.image_url && <img src={prod.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
                           </div>
                           {/* Ad + Variant + Qiymət */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-[13px] text-white font-semibold truncate">{prod?.name || item.product_id}</p>
+                            <p className={`text-[13px] font-semibold truncate ${lightMode ? 'text-gray-900' : 'text-white'}`}>{prod?.name || item.product_id}</p>
                             {item.variant && (
                               <span className="inline-block text-[10px] text-gold/70 bg-gold/10 border border-gold/20 rounded-md px-1.5 py-0.5 mt-0.5">{item.variant.name}</span>
                             )}
-                            <p className="text-[11px] text-white/35 mt-0.5">₼{unitPrice.toFixed(2)} × {item.quantity} = <span className="text-white/50 font-semibold">₼{(unitPrice * item.quantity).toFixed(2)}</span></p>
+                            <p className={`text-[11px] mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>₼{unitPrice.toFixed(2)} × {item.quantity} = <span className={`font-semibold ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>₼{(unitPrice * item.quantity).toFixed(2)}</span></p>
                           </div>
                           {/* Say kontrolları */}
-                          <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5">
+                          <div className={`flex items-center gap-1 rounded-lg p-0.5 ${lightMode ? 'bg-gray-50/80' : 'bg-white/[0.04]'}`}>
                             <button onClick={() => updateQty(item.product_id, item.variant_id || null, item.quantity - 1)}
-                              className="w-7 h-7 rounded-md hover:bg-white/[0.10] text-white/50 hover:text-white flex items-center justify-center text-base font-bold transition-all">−</button>
-                            <span className="w-7 text-center text-sm text-white font-bold tabular-nums">{item.quantity}</span>
+                              className={`w-7 h-7 rounded-md flex items-center justify-center text-base font-bold transition-all ${lightMode ? 'hover:bg-gray-200 text-gray-500 hover:text-gray-900' : 'hover:bg-white/[0.10] text-white/50 hover:text-white'}`}>−</button>
+                            <span className={`w-7 text-center text-sm font-bold tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{item.quantity}</span>
                             <button onClick={() => updateQty(item.product_id, item.variant_id || null, item.quantity + 1)}
-                              className="w-7 h-7 rounded-md hover:bg-white/[0.10] text-white/50 hover:text-white flex items-center justify-center text-base font-bold transition-all">+</button>
+                              className={`w-7 h-7 rounded-md flex items-center justify-center text-base font-bold transition-all ${lightMode ? 'hover:bg-gray-200 text-gray-500 hover:text-gray-900' : 'hover:bg-white/[0.10] text-white/50 hover:text-white'}`}>+</button>
                           </div>
                           {/* Sil */}
                           <button onClick={() => removeItem(item.product_id, item.variant_id || null)}
@@ -405,7 +407,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                 <div className="relative">
                   <button
                     onClick={() => { setShowProductPicker(v => !v); setVariantPicker(null); setProductSearch(''); }}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-dashed border-white/[0.10] hover:border-white/[0.20] text-white/40 hover:text-white text-[12px] font-semibold transition-all w-full justify-center"
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed hover:border-white/[0.20] text-[12px] font-semibold transition-all w-full justify-center ${lightMode ? 'bg-gray-50/80 hover:bg-gray-100 border-gray-300 text-gray-400 hover:text-gray-900' : 'bg-white/[0.04] hover:bg-white/[0.07] border-white/[0.10] text-white/40 hover:text-white'}`}
                   >
                     {t('combo_add_product')}
                   </button>
@@ -414,36 +416,36 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                     {showProductPicker && (
                       <motion.div
                         initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                        className="absolute bottom-full mb-2 left-0 right-0 bg-[#141414] border border-white/[0.10] rounded-xl shadow-2xl z-20 overflow-hidden"
+                        className={`absolute bottom-full mb-2 left-0 right-0 border rounded-xl shadow-2xl z-20 overflow-hidden ${lightMode ? 'bg-gray-50 border-gray-300' : 'bg-[#141414] border-white/[0.10]'}`}
                         onClick={e => e.stopPropagation()}
                       >
                         {!variantPicker ? (
                           <>
-                            <div className="p-2 border-b border-white/[0.06]">
+                            <div className={`p-2 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
                               <input
                                 autoFocus
                                 type="text" value={productSearch}
                                 onChange={e => setProductSearch(e.target.value)}
                                 placeholder={t('search')}
-                                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/20"
+                                className={`w-full border rounded-lg px-3 py-2 text-sm outline-none focus:border-white/20 ${lightMode ? 'bg-gray-100 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/20'}`}
                               />
                             </div>
                             <div className="max-h-48 overflow-y-auto py-1">
                               {loadingVariants ? (
-                                <div className="flex items-center justify-center py-4"><Loader2 size={16} className="animate-spin text-white/20" /></div>
+                                <div className="flex items-center justify-center py-4"><Loader2 size={16} className={`animate-spin ${lightMode ? 'text-gray-300' : 'text-white/20'}`} /></div>
                               ) : filteredProducts.length === 0 ? (
-                                <p className="px-3 py-3 text-sm text-white/25 text-center">{t('error_not_found')}</p>
+                                <p className={`px-3 py-3 text-sm text-center ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('error_not_found')}</p>
                               ) : filteredProducts.map(p => (
                                 <button key={p.id} onClick={() => loadVariantsForProduct(p)}
-                                  className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-white/[0.05] transition-colors text-left">
-                                  <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/[0.07] flex-shrink-0 bg-white/[0.03]">
+                                  className={`flex items-center gap-3 w-full px-3 py-2.5 transition-colors text-left ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
+                                  <div className={`w-8 h-8 rounded-lg overflow-hidden border flex-shrink-0 ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/[0.07] bg-white/[0.03]'}`}>
                                     {p.image_url && <img src={p.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-white truncate">{p.name}</p>
-                                    <p className="text-[11px] text-white/35">₼{p.price?.toFixed(2)}</p>
+                                    <p className={`text-sm truncate ${lightMode ? 'text-gray-900' : 'text-white'}`}>{p.name}</p>
+                                    <p className={`text-[11px] ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>₼{p.price?.toFixed(2)}</p>
                                   </div>
-                                  <ChevronDown size={13} className="text-white/20 -rotate-90" />
+                                  <ChevronDown size={13} className={`-rotate-90 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
                                 </button>
                               ))}
                             </div>
@@ -451,11 +453,11 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                         ) : (
                           /* Variant seçim panel */
                           <>
-                            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/[0.06]">
-                              <button onClick={() => setVariantPicker(null)} className="text-white/30 hover:text-white transition-colors">
+                            <div className={`flex items-center gap-2 px-3 py-2.5 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+                              <button onClick={() => setVariantPicker(null)} className={`transition-colors ${lightMode ? 'text-gray-400 hover:text-gray-900' : 'text-white/30 hover:text-white'}`}>
                                 <ChevronDown size={14} className="rotate-90" />
                               </button>
-                              <span className="text-[11px] text-white/40 font-semibold uppercase tracking-wider">{t('combo_select_variant')}</span>
+                              <span className={`text-[11px] font-semibold uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('combo_select_variant')}</span>
                             </div>
                             <div className="py-1">
                               {variantPicker.variants.map(v => {
@@ -463,13 +465,13 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                                 return (
                                   <button key={v.id}
                                     onClick={() => prod && addProductWithVariant(prod, v.id, v)}
-                                    className="flex items-center justify-between w-full px-4 py-2.5 hover:bg-white/[0.05] transition-colors text-left">
+                                    className={`flex items-center justify-between w-full px-4 py-2.5 transition-colors text-left ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
                                     <div>
-                                      <p className="text-sm text-white font-medium">{v.name}</p>
+                                      <p className={`text-sm font-medium ${lightMode ? 'text-gray-900' : 'text-white'}`}>{v.name}</p>
                                       <p className="text-[11px] text-gold/70">₼{v.price?.toFixed(2)}</p>
                                     </div>
                                     {v.is_default && (
-                                      <span className="text-[9px] uppercase tracking-widest text-white/25 border border-white/[0.08] rounded-md px-1.5 py-0.5">{t('combo_default_variant')}</span>
+                                      <span className={`text-[9px] uppercase tracking-widest border rounded-md px-1.5 py-0.5 ${lightMode ? 'text-gray-300 border-gray-200' : 'text-white/25 border-white/[0.08]'}`}>{t('combo_default_variant')}</span>
                                     )}
                                   </button>
                                 );
@@ -484,13 +486,13 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
 
                 {/* Qənaət göstəricisi - premium 3 sətir */}
                 {separateTotal > 0 && comboPrice > 0 && (
-                  <div className="mt-3 rounded-xl border border-white/[0.07] overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.05]">
-                      <span className="text-[11px] text-white/35 uppercase tracking-wider">{t('combo_normal_price')}</span>
-                      <span className="text-[13px] text-white/40 line-through tabular-nums">₼{separateTotal.toFixed(2)}</span>
+                  <div className={`mt-3 rounded-xl border overflow-hidden ${lightMode ? 'border-gray-200' : 'border-white/[0.07]'}`}>
+                    <div className={`flex items-center justify-between px-4 py-2.5 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
+                      <span className={`text-[11px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{t('combo_normal_price')}</span>
+                      <span className={`text-[13px] line-through tabular-nums ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>₼{separateTotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.05]">
-                      <span className="text-[11px] text-white/35 uppercase tracking-wider">{t('combo_price')}</span>
+                    <div className={`flex items-center justify-between px-4 py-2.5 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
+                      <span className={`text-[11px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{t('combo_price')}</span>
                       <span className="text-[14px] font-bold text-gold tabular-nums">₼{comboPrice.toFixed(2)}</span>
                     </div>
                     {saving_amount > 0 && (
@@ -516,16 +518,16 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-            className="fixed inset-0 z-[120] flex flex-col bg-[#0a0a0a] md:hidden"
+            className={`fixed inset-0 z-[120] flex flex-col md:hidden ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}
             style={{ overflowY: 'auto' }}
           >
             {/* Mobile Header */}
-            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-4 border-b border-white/[0.06] bg-[#0a0a0a]">
-              <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/[0.05] text-white/50 hover:text-white transition-all">
+            <div className={`sticky top-0 z-10 flex items-center gap-3 px-4 py-4 border-b ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0a0a0a]'}`}>
+              <button onClick={onClose} className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${lightMode ? 'bg-gray-100 text-gray-500 hover:text-gray-900' : 'bg-white/[0.05] text-white/50 hover:text-white'}`}>
                 <ChevronLeft size={22} />
               </button>
               <div className="flex-1 text-center">
-                <h2 className="text-[17px] font-serif font-bold text-white">{editingCombo ? t('combo_edit') : t('combo_new')}</h2>
+                <h2 className={`text-[17px] font-serif font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{editingCombo ? t('combo_edit') : t('combo_new')}</h2>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-gold/60 mt-0.5">COMBO</p>
               </div>
               <div className="w-10" />
@@ -539,7 +541,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
             {/* Mobile Footer */}
             <div className="fixed bottom-0 inset-x-0 px-5 pb-8 pt-4 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/95 to-transparent z-10">
               <div className="flex gap-3">
-                <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl bg-white/[0.05] border border-white/[0.08] text-white/50 text-[12px] font-bold uppercase tracking-widest transition-all">
+                <button onClick={onClose} className={`flex-1 py-3.5 rounded-2xl border text-[12px] font-bold uppercase tracking-widest transition-all ${lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.05] border-white/[0.08] text-white/50'}`}>
                   {t('cancel')}
                 </button>
                 <button onClick={handleSave} disabled={saving}
@@ -561,21 +563,21 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
             initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="relative w-full max-w-5xl max-h-[92vh] overflow-y-auto bg-[#0e0e0e] border border-white/[0.08] rounded-2xl shadow-2xl"
+            className={`relative w-full max-w-5xl max-h-[92vh] overflow-y-auto border rounded-2xl shadow-2xl ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0e0e0e] border-white/[0.08]'}`}
             onClick={e => e.stopPropagation()}
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-8 py-6 bg-[#0e0e0e] border-b border-white/[0.06]">
+            <div className={`sticky top-0 z-10 flex items-center justify-between px-8 py-6 border-b ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0e0e0e] border-white/[0.06]'}`}>
               <div>
-                <h2 className="text-2xl font-serif font-bold text-white">{editingCombo ? t('combo_edit') : t('combo_new')}</h2>
+                <h2 className={`text-2xl font-serif font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{editingCombo ? t('combo_edit') : t('combo_new')}</h2>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-gold/70 mt-0.5">COMBO</p>
               </div>
-              <button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center border border-white/[0.08] hover:bg-white/[0.06] text-white/40 hover:text-white transition-all">
+              <button onClick={onClose} className={`w-9 h-9 rounded-xl flex items-center justify-center border hover:bg-white/[0.06] transition-all ${lightMode ? 'border-gray-200 text-gray-400 hover:text-gray-900' : 'border-white/[0.08] text-white/40 hover:text-white'}`}>
                 <X size={16} />
               </button>
             </div>
             {formContent}
-            <div className="sticky bottom-0 px-8 py-5 bg-[#0e0e0e] border-t border-white/[0.06] flex gap-3">
-              <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white/50 hover:text-white text-[12px] font-bold uppercase tracking-widest transition-all">
+            <div className={`sticky bottom-0 px-8 py-5 border-t flex gap-3 ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0e0e0e] border-white/[0.06]'}`}>
+              <button onClick={onClose} className={`flex-1 py-3 rounded-xl border text-[12px] font-bold uppercase tracking-widest transition-all ${lightMode ? 'bg-gray-50/80 hover:bg-gray-100 border-gray-200 text-gray-500 hover:text-gray-900' : 'bg-white/[0.04] hover:bg-white/[0.07] border-white/[0.08] text-white/50 hover:text-white'}`}>
                 {t('cancel')}
               </button>
               <button onClick={handleSave} disabled={saving}

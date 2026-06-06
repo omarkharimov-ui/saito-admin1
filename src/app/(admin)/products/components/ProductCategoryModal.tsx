@@ -59,24 +59,24 @@ export function ProductCategoryModal({
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} onClick={onClose} className="absolute inset-0 bg-black/55 backdrop-blur-sm" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} onClick={onClose} className={`absolute inset-0 backdrop-blur-sm ${lightMode ? 'bg-black/10' : 'bg-black/55'}`} />
           <motion.div
             initial={{ opacity: 0, scale: 0.92, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 30 }} transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-            className="relative w-full max-w-full sm:max-w-3xl backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden max-h-[90vh] flex flex-col"
+            className={`relative w-full max-w-full sm:max-w-3xl backdrop-blur-xl border rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col ${lightMode ? 'border-gray-200 shadow-black/8' : 'border-white/10 shadow-black/60'}`}
             style={{ background: lightMode ? '#ffffff' : 'linear-gradient(#141414,#111111) padding-box, linear-gradient(135deg,rgba(255,255,255,0.07) 0%,rgba(255,255,255,0.02) 100%) border-box', border: lightMode ? '1px solid #e5e7eb' : '1px solid transparent' }}
           >
-            <div className="px-8 md:px-12 pt-7 pb-5 border-b border-white/[0.06] flex items-center justify-between shrink-0 bg-white/[0.02]">
+            <div className={`px-8 md:px-12 pt-7 pb-5 border-b flex items-center justify-between shrink-0 ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/[0.06] bg-white/[0.02]'}`}>
               <div>
-                <h2 className="text-2xl font-serif font-bold tracking-tight text-white">{t('category_management')}</h2>
-                <p className="text-[10px] text-white/50 uppercase tracking-[0.4em] mt-0.5">{t('saito_menu_architecture')}</p>
+                <h2 className={`text-2xl font-serif font-bold tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('category_management')}</h2>
+                <p className={`text-[10px] uppercase tracking-[0.4em] mt-0.5 ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{t('saito_menu_architecture')}</p>
               </div>
               <div className="flex items-center gap-2.5">
                 <button onClick={() => onFormChange(emptyForm)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/[0.06] text-gold/70 border border-gold/20 text-[10px] font-bold tracking-widest uppercase transition-transform duration-200 hover:bg-gold/[0.12] hover:text-gold hover:border-gold/40">
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/[0.06] text-gold/70 border border-gold/20 text-[10px] font-bold tracking-widest uppercase transition-transform duration-200 hover:bg-gold/[0.12] hover:text-gold ${lightMode ? 'hover:border-amber-600/40' : 'hover:border-gold/40'}`}>
                   <Plus size={13} /> {t('new_category_btn')}
                 </button>
-                <button onClick={onClose} className="w-9 h-9 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 hover:text-white flex items-center justify-center transition-transform duration-200">
+                <button onClick={onClose} className={`w-9 h-9 rounded-xl hover:bg-white/[0.08] border flex items-center justify-center transition-transform duration-200 ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-400 hover:text-gray-900' : 'bg-white/[0.04] border-white/[0.08] text-white/40 hover:text-white'}`}>
                   <X size={16} />
                 </button>
               </div>
@@ -84,13 +84,13 @@ export function ProductCategoryModal({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-0 flex-1 overflow-hidden">
               {/* Left: Form */}
-              <div className="relative px-8 md:px-12 py-7 border-r border-white/[0.06] overflow-y-auto">
-                <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/[0.03] rounded-full blur-3xl pointer-events-none" />
-                <h3 className="text-[9px] uppercase tracking-[0.3em] text-white/25 font-bold mb-5 relative">{categoryForm.id ? t('edit_category') : t('new_category_create')}</h3>
+              <div className={`relative px-8 md:px-12 py-7 border-r overflow-y-auto ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+                <div className={`absolute bottom-0 left-0 w-40 h-40 rounded-full blur-3xl pointer-events-none ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`} />
+                <h3 className={`text-[9px] uppercase tracking-[0.3em] font-bold mb-5 relative ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{categoryForm.id ? t('edit_category') : t('new_category_create')}</h3>
                 <form noValidate onSubmit={onSubmit} className="space-y-4 relative">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">{t('category_name_label')}</label>
+                      <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('category_name_label')}</label>
                       <span className={`text-[9px] font-mono transition-colors duration-300 ${categoryForm.name.length > 25 ? 'text-white/70' : 'text-white/15'}`}>{categoryForm.name.length}/30</span>
                     </div>
                     <input
@@ -120,21 +120,21 @@ export function ProductCategoryModal({
                           }
                         } catch { /* silent */ }
                       }}
-                      className={`w-full bg-white/[0.07] border rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition-all ${catNameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
+                      className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-all ${lightMode ? 'bg-gray-100 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.07] text-white placeholder:text-white/30'}${catNameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
                       placeholder={t('example') + ': Rolls'}
                     />
                     {catNameError && <p className="text-[10px] text-red-400 mt-1">{t('category_name_label')} {t('required')}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-widest text-white/40">Slug {t('optional')}</label>
+                    <label className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Slug {t('optional')}</label>
                     <input type="text" value={categoryForm.slug} onChange={(e) => { setSlugManuallyEdited(true); onFormChange({ ...categoryForm, slug: e.target.value }); }}
-                      className="w-full bg-white/[0.07] border border-white/[0.12] rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-white/35 outline-none transition-all"
+                      className={`w-full border rounded-xl px-4 py-3 text-sm focus:border-white/35 outline-none transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.07] border-white/[0.12] text-white placeholder:text-white/30'}`}
                       placeholder={t('slug_example')} />
                   </div>
                   <div className="flex gap-2 pt-1">
                     {categoryForm.id && (
                       <button type="button" onClick={() => onFormChange(emptyForm)}
-                        className="shrink-0 px-4 py-2.5 rounded-xl bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all transition-premium">
+                        className={`shrink-0 px-4 py-2.5 rounded-xl border text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all transition-premium ${lightMode ? 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-200 hover:text-gray-900' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10 hover:text-white'}`}>
                         {t('cancel')}
                       </button>
                     )}
@@ -149,7 +149,7 @@ export function ProductCategoryModal({
 
               {/* Right: List */}
               <div className="px-6 md:px-8 py-7 flex flex-col min-h-0">
-                <h3 className="text-[9px] uppercase tracking-[0.3em] text-white/25 font-bold mb-4 shrink-0">{t('existing_categories')}</h3>
+                <h3 className={`text-[9px] uppercase tracking-[0.3em] font-bold mb-4 shrink-0 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('existing_categories')}</h3>
                 <div className="space-y-1.5 overflow-y-auto flex-1 pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
                   {categories.map((cat) => (
                     <div key={cat.id} className={`group flex items-center justify-between px-4 py-3 rounded-xl border transition-transform duration-200 ${categoryForm.id === cat.id ? 'bg-white/10 border-white/30' : 'bg-white/[0.05] border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.15]'}`}>
@@ -162,10 +162,10 @@ export function ProductCategoryModal({
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => onEditCategory(cat)} className="w-8 h-8 rounded-lg bg-white/[0.03] border border-white/[0.06] text-white/20 flex items-center justify-center transition-transform duration-200">
+                        <button onClick={() => onEditCategory(cat)} className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-transform duration-200 ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-300' : 'bg-white/[0.03] border-white/[0.06] text-white/20'}`}>
                           <Edit3 size={13} />
                         </button>
-                        <button onClick={() => onDeleteCategory(cat.id, cat.name)} className="w-8 h-8 rounded-lg bg-white/[0.03] hover:bg-red-500/10 border border-white/[0.06] hover:border-red-500/20 text-white/20 hover:text-red-400 flex items-center justify-center transition-transform duration-200">
+                        <button onClick={() => onDeleteCategory(cat.id, cat.name)} className={`w-8 h-8 rounded-lg hover:bg-red-500/10 border hover:border-red-500/20 hover:text-red-400 flex items-center justify-center transition-transform duration-200 ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-300' : 'bg-white/[0.03] border-white/[0.06] text-white/20'}`}>
                           <Trash2 size={13} />
                         </button>
                       </div>

@@ -26,6 +26,7 @@ const cardVariants = {
 };
 
 function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: () => void; language: string }) {
+  const { lightMode } = useTheme();
   const name = language === 'en' ? (p as any).name_en || p.name : language === 'ru' ? (p as any).name_ru || p.name : (p as any).name_az || p.name;
   const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
   const [imgErr, setImgErr] = useState(false);
@@ -34,16 +35,16 @@ function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: 
     <motion.button layout="position" initial={false} variants={cardVariants}
       whileHover="hover" whileTap="tap"
       onClick={onAdd}
-      className="relative rounded-xl text-left border transition-all flex flex-col overflow-hidden aspect-square bg-[#141414] border-white/[0.07] hover:bg-white/[0.06]"
+      className={`relative rounded-xl text-left border transition-all flex flex-col overflow-hidden aspect-square hover:bg-white/[0.06] ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-[#141414] border-white/[0.07]'}`}
     >
-      <div className="flex-1 min-h-0 w-full overflow-hidden flex items-center justify-center bg-white/[0.03]">
+      <div className={`flex-1 min-h-0 w-full overflow-hidden flex items-center justify-center ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
         {showImg
           ? <img src={p.image_url!} alt={name} className="w-full h-full object-cover" onError={() => setImgErr(true)} />
-          : <span className="text-xl font-black text-white/20">{initials}</span>
+          : <span className={`text-xl font-black ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{initials}</span>
         }
       </div>
       <div className="px-3 pb-3 pt-2.5 flex flex-col gap-0.5">
-        <p className="text-sm font-semibold text-white/85 truncate leading-tight">{name}</p>
+        <p className={`text-sm font-semibold truncate leading-tight ${lightMode ? 'text-gray-800' : 'text-white/85'}`}>{name}</p>
         <p className="text-sm font-black text-gold">₼{fmt(p.price)}</p>
       </div>
       {cart > 0 && (
@@ -201,27 +202,27 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center py-12 bg-[#0a0a0a] rounded-2xl border border-white/[0.06]">
-      <Loader2 size={20} className="animate-spin text-white/20" />
+    <div className={`flex items-center justify-center py-12 rounded-2xl border ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0a0a0a] border-white/[0.06]'}`}>
+      <Loader2 size={20} className={`animate-spin ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
     </div>
   );
 
   return (
     <>
       <div style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
-        className="rounded-2xl border border-white/[0.06] select-none">
+        className={`rounded-2xl border select-none ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
 
         {/* ─── HEADER ─── */}
-        <div className="border-b border-white/[0.06] bg-[#0c0c0c] px-5 py-3.5">
+        <div className={`border-b px-5 py-3.5 ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0c0c0c]'}`}>
           <div className="flex items-center justify-between">
             <p className="font-black text-lg tracking-widest leading-none"
               style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               {t('table')} {tableNum}{extraTableNums.length > 0 ? `+${extraTableNums.join('+')}` : ''}</p>
             <div className="flex items-center gap-2">
               {cartCount > 0 && (
-                <span className="text-sm text-white/30">{cartCount} {t('items')}</span>
+                <span className={`text-sm ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{cartCount} {t('items')}</span>
               )}
-              <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
+              <button onClick={onClose} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-900' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
                 <X size={18} />
               </button>
             </div>
@@ -239,11 +240,11 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
             </div>
             {/* Search */}
             <div className="relative mb-3 flex-shrink-0">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20" />
+              <Search size={16} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
               <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_products')}
                 onKeyDown={e => { if (e.key === 'Escape') { searchRef.current?.blur(); } }}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-10 pr-9 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-all" />
-              {search && <button onClick={() => { setSearch(''); searchRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50"><X size={16} /></button>}
+                className={`w-full border rounded-xl pl-10 pr-9 py-3 text-sm outline-none focus:border-white/20 transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/20'}`} />
+              {search && <button onClick={() => { setSearch(''); searchRef.current?.focus(); }} className={`absolute right-3 top-1/2 -translate-y-1/2 hover:text-white/50 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}><X size={16} /></button>}
             </div>
             {/* Categories */}
             <div className="flex-shrink-0 mb-2">
@@ -260,7 +261,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
             {/* Product grid */}
             <div className="flex-1 overflow-y-auto pr-2">
               {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-white/15">
+              <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>
                 <Search size={40} className="mb-3 opacity-30" />
                 <p className="text-base">{t('not_found')}</p>
               </div>
@@ -276,11 +277,11 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
           </section>
 
           {/* ═══ RIGHT: Cart ═══ */}
-          <section className="w-[380px] h-full border-l border-white/[0.06] bg-neutral-950/50 flex flex-col flex-shrink-0">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-              <span className="text-base font-bold text-white">{t('cart')}{cartCount > 0 && <> · {cartCount}</>}</span>
+          <section className={`w-[380px] h-full border-l bg-neutral-950/50 flex flex-col flex-shrink-0 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+              <span className={`text-base font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('cart')}{cartCount > 0 && <> · {cartCount}</>}</span>
               {items.length > 0 && (
-                <button onClick={() => setItems([])} className="text-xs text-white/20 hover:text-white/50 font-semibold tracking-wider uppercase">
+                <button onClick={() => setItems([])} className={`text-xs hover:text-white/50 font-semibold tracking-wider uppercase ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                   {t('clear')}
                 </button>
               )}
@@ -289,7 +290,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
               <AnimatePresence initial={false}>
               {items.length === 0 ? (
-                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-full text-white/15 py-8">
+                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex flex-col items-center justify-center h-full py-8 ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>
                   <p className="text-sm font-medium">{t('no_items_yet')}</p>
                 </motion.div>
               ) : items.map(item => {
@@ -301,9 +302,9 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                     exit={{ opacity: 0, scale: 0.95, height: 0 }} transition={{ duration: 0.15 }}
                     className="overflow-hidden"
                   >
-                    <div className="flex items-start gap-3 bg-[#141414] rounded-xl px-4 py-3 border border-white/[0.06]">
+                    <div className={`flex items-start gap-3 rounded-xl px-4 py-3 border ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-[#141414] border-white/[0.06]'}`}>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white/80 truncate">{getPName(item.product)}</p>
+                        <p className={`text-sm font-semibold truncate ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>{getPName(item.product)}</p>
                         {item.variant && <p className="text-xs text-gold/60 truncate">{item.variant.name}</p>}
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className="text-xs text-gold font-bold">₼{fmt(unitPrice * item.quantity)}</span>
@@ -311,23 +312,23 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                         {item.note !== undefined && (
                           <input value={item.note || ''} onChange={e => setItemNote(key, e.target.value)}
                             placeholder={t('note_placeholder')}
-                            className="mt-1.5 w-full bg-white/[0.04] border border-white/[0.06] rounded-lg px-2.5 py-1.5 text-[11px] text-white/60 placeholder:text-white/15 outline-none focus:border-white/20 transition-all" />
+                            className={`mt-1.5 w-full border rounded-lg px-2.5 py-1.5 text-[11px] placeholder:text-white/15 outline-none focus:border-white/20 transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-500' : 'bg-white/[0.04] border-white/[0.06] text-white/60'}`} />
                         )}
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0 pt-0.5">
-                        <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden">
+                        <div className={`flex items-center border rounded-lg overflow-hidden ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.07]'}`}>
                           <button onClick={() => changeQty(key, -1)}
-                            className="w-12 h-12 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                            className={`w-12 h-12 flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}>
                             <Minus size={16} />
                           </button>
-                          <span className="text-white text-[13px] w-7 text-center font-black tabular-nums">{item.quantity}</span>
+                          <span className={`text-[13px] w-7 text-center font-black tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{item.quantity}</span>
                           <button onClick={() => changeQty(key, 1)}
                             className="w-12 h-12 flex items-center justify-center text-gold active:scale-90 transition-all">
                             <Plus size={16} />
                           </button>
                         </div>
                         <button onClick={() => removeItem(key)}
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
+                          className={`w-12 h-12 rounded-full flex items-center justify-center hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                           <Trash2 size={18} />
                         </button>
                       </div>
@@ -338,9 +339,9 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
               </AnimatePresence>
             </div>
 
-            <div className="px-5 py-4 border-t border-white/[0.06] space-y-3">
+            <div className={`px-5 py-4 border-t space-y-3 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
               {/* Order type toggle */}
-              <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-xl">
+              <div className={`flex items-center gap-1.5 p-1 border rounded-xl ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.08]'}`}>
                 <button onClick={() => setOrderType('dine_in')}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'dine_in' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
                   <Utensils size={13} /> {t('dine_in')}
@@ -355,14 +356,14 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
                 </button>
               </div>
               <input value={note} onChange={e => setNote(e.target.value)} placeholder={t('note_placeholder')}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none" />
+                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/20'}`} />
               <div className="flex items-center justify-between">
-                <span className="text-xs text-white/30 uppercase tracking-widest font-semibold">{t('total_label')}</span>
+                <span className={`text-xs uppercase tracking-widest font-semibold ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('total_label')}</span>
                 <span className="text-xl font-black tracking-tight tabular-nums"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>₼{fmt(total)}</span>
               </div>
               <button onClick={handleSubmit} disabled={items.length === 0 || submitting}
-                style={items.length > 0 && !submitting ? { background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', backgroundSize: '200% 200%', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' } : { background: 'rgba(255,255,255,0.04)' }}
+                style={items.length > 0 && !submitting ? { background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', backgroundSize: '200% 200%', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' } : { background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.04)' }}
                 className="w-full py-4 rounded-xl text-sm font-bold active:scale-[0.98] disabled:opacity-25 flex items-center justify-center gap-2.5 transition-all"
               >{submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} <span className={items.length > 0 && !submitting ? 'text-black' : 'text-white/40'}>{t('create_order')}</span></button>
             </div>
@@ -375,21 +376,21 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
       {variantPicker && (
         <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
-            className="bg-[#111] border border-white/[0.08] rounded-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-6">
+            className={`bg-[#111] border rounded-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-6 ${lightMode ? 'border-gray-200' : 'border-white/[0.08]'}`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-white">{getPName(variantPicker.product)}</h3>
-              <button onClick={() => setVariantPicker(null)} className="text-white/20 hover:text-white/60"><X size={18} /></button>
+              <h3 className={`text-base font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{getPName(variantPicker.product)}</h3>
+              <button onClick={() => setVariantPicker(null)} className={lightMode ? 'text-gray-300 hover:text-gray-600' : 'text-white/20 hover:text-white/60'}><X size={18} /></button>
             </div>
             <div className="space-y-1">
               {loadingVariants ? (
-                <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-white/30" /></div>
+                <div className="flex justify-center py-6"><Loader2 size={20} className={`animate-spin ${lightMode ? 'text-gray-400' : 'text-white/30'}`} /></div>
               ) : (
                 variantPicker.variants.map(v => (
                   <button key={v.id} onClick={() => addItem(variantPicker.product, v)}
-                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-white/[0.06] transition-colors border border-white/[0.06]">
+                    className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-white/[0.06] transition-colors border ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
                     <div>
-                      <p className="text-white text-sm font-medium">{v.name}</p>
-                      {v.is_default && <span className="text-[10px] text-white/25 uppercase tracking-wider">{t('combo_default_variant')}</span>}
+                      <p className={`text-sm font-medium ${lightMode ? 'text-gray-900' : 'text-white'}`}>{v.name}</p>
+                      {v.is_default && <span className={`text-[10px] uppercase tracking-wider ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('combo_default_variant')}</span>}
                     </div>
                     <span className="text-gold text-sm font-bold">₼{fmt(v.price)}</span>
                   </button>

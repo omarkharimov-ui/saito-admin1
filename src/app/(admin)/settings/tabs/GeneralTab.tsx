@@ -7,6 +7,7 @@ import { Save, Loader2, Store, MapPin, Phone, Clock, Camera, ChevronRight, Mail 
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { inputCls, labelCls } from './_shared';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 function parseHours(raw: string): { open: string; close: string } {
   const match = raw?.match(/^(\d{2}:\d{2})[–\-](\d{2}:\d{2})$/);
@@ -16,6 +17,7 @@ function parseHours(raw: string): { open: string; close: string } {
 
 const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null }) => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [loading, setLoading] = useState(false); // Instant load - no spinner
   const [updating, setUpdating] = useState(false);
   const [settings, setSettings] = useState({ id: '1', restaurant_name: 'Saito Sushi', address: '', phone: '', contact_email: '', opening_hours: '10:00-22:00', instagram_url: '', morning_greeting_enabled: true as boolean | string });
@@ -74,7 +76,7 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
             <label className={labelCls}><Clock size={11} /> {t('gen_work_hours')}</label>
             <div className="flex items-center gap-2">
               <div className="flex-1">
-                <p className="text-[9px] uppercase tracking-[0.18em] text-white/50 mb-1.5">{t('gen_open_time')}</p>
+                <p className={`text-[9px] uppercase tracking-[0.18em] mb-1.5 ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{t('gen_open_time')}</p>
                 <input
                   type="time"
                   value={openTime}
@@ -82,9 +84,9 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
                   className={inputCls + ' [color-scheme:dark] text-center'}
                 />
               </div>
-              <ChevronRight size={14} className="text-white/20 mt-5 flex-shrink-0" />
+              <ChevronRight size={14} className={`mt-5 flex-shrink-0 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
               <div className="flex-1">
-                <p className="text-[9px] uppercase tracking-[0.18em] text-white/50 mb-1.5">{t('gen_close_time')}</p>
+                <p className={`text-[9px] uppercase tracking-[0.18em] mb-1.5 ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{t('gen_close_time')}</p>
                 <input
                   type="time"
                   value={closeTime}
@@ -93,7 +95,7 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
                 />
               </div>
             </div>
-            <p className="text-[10px] text-white/45 mt-1.5">{t('gen_work_hours_hint')} <span className="text-gold/80 font-mono">{openTime} – {closeTime}</span></p>
+            <p className={`text-[10px] mt-1.5 ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>{t('gen_work_hours_hint')} <span className="text-gold/80 font-mono">{openTime} – {closeTime}</span></p>
           </div>
           <div><label className={labelCls}><Camera size={11} /> {t('gen_instagram')}</label><input className={inputCls} placeholder="https://instagram.com/…" value={settings.instagram_url} onChange={e => setSettings({ ...settings, instagram_url: e.target.value })} /></div>
         </div>

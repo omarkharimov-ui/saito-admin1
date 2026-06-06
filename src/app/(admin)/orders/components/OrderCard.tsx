@@ -6,10 +6,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Order, BadgeType } from '../types';
 import { timeAgo, getOrderAgeMinutes, getProgressProps, getStatusConfig } from '../utils';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 /* ─── KitchenBadge ─── */
 const KitchenBadge = React.memo(function KitchenBadge({ badgeType }: { badgeType: BadgeType }) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   if (!badgeType) return null;
   const base = 'text-[9px] font-black px-2.5 py-1 rounded-full inline-flex items-center gap-1';
   const anim = {
@@ -21,8 +23,8 @@ const KitchenBadge = React.memo(function KitchenBadge({ badgeType }: { badgeType
   const badge =
     badgeType === 'ready'     ? <motion.span key="ready"     {...anim} className={`${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/30`}>{t('badge_ready')}</motion.span> :
     badgeType === 'preparing' ? <motion.span key="preparing" {...anim} className={`${base} bg-blue-500/15 text-blue-400 border border-blue-500/30`}>{t('badge_preparing')}</motion.span> :
-    badgeType === 'confirmed' ? <motion.span key="confirmed" {...anim} className={`${base} bg-white/5 text-white/70 border border-white/20`}>{t('badge_confirmed')}</motion.span> :
-    <motion.span key="waiting" {...anim} className={`${base} bg-white/5 text-white/50 border border-white/10`}>{t('badge_waiting')}</motion.span>;
+    badgeType === 'confirmed' ? <motion.span key="confirmed" {...anim} className={`${base}border ${lightMode ? 'bg-gray-100 text-gray-600 border-gray-300' : 'bg-white/5 text-white/70 border-white/20'}`}>{t('badge_confirmed')}</motion.span> :
+    <motion.span key="waiting" {...anim} className={`${base}border ${lightMode ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-white/5 text-white/50 border-white/10'}`}>{t('badge_waiting')}</motion.span>;
   return <AnimatePresence mode="wait" initial={false}>{badge}</AnimatePresence>;
 });
 
@@ -42,6 +44,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
   order, allOrders, updatedLabels, flashIds, confirmedIds, delayThreshold, onClick,
 }: ActiveCardProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
 
   const badgeLabel = updatedLabels.get(order.id);
   const isUpdated  = !!badgeLabel;
@@ -117,8 +120,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
          ══════════════════════════════════════ */}
       <div
         onClick={onClick}
-        className={`md:hidden relative cursor-pointer border-b border-white/[0.06] transition-colors duration-150 active:bg-white/[0.04]
-          ${isEmptyGroup ? 'opacity-40' : ''}`}
+        className={`md:hidden relative cursor-pointer border-b transition-colors duration-150 active:bg-white/[0.04] ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}${isEmptyGroup ? 'opacity-40' : ''}`}
         style={{ background: 'transparent' }}
       >
         {/* left status bar */}
@@ -145,7 +147,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
                   : order.table_number ?? '—'}
               </span>
               {/* time */}
-              <span className="text-[10px] font-mono text-white/25 tabular-nums">{timeAgo(order.created_at, t)}</span>
+              <span className={`text-[10px] font-mono tabular-nums ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{timeAgo(order.created_at, t)}</span>
             </div>
             {/* total — right, serif feel */}
             {!isEmptyGroup && (
@@ -161,26 +163,26 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
             <div className="flex flex-col gap-0.5">
               {order.order_items.slice(0, 4).map(item => (
                 <div key={item.id} className="flex items-baseline justify-between">
-                  <span className="text-white/60 text-[11px] font-medium truncate mr-2 leading-snug">
+                  <span className={`text-[11px] font-medium truncate mr-2 leading-snug ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>
                     {(item.products as any)?.[`name_${language}`] || (item.products as any)?.name_az || item.product_name}
-                    <span className="text-white/25 ml-1 font-mono">— {item.quantity}x</span>
+                    <span className={`ml-1 font-mono ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>— {item.quantity}x</span>
                   </span>
-                  <span className="text-white/35 text-[10px] tabular-nums flex-shrink-0">{item.total_price?.toFixed(2)}</span>
+                  <span className={`text-[10px] tabular-nums flex-shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{item.total_price?.toFixed(2)}</span>
                 </div>
               ))}
               {order.order_items.length > 4 && (
-                <span className="text-white/20 text-[10px] font-mono mt-0.5">+{order.order_items.length - 4}</span>
+                <span className={`text-[10px] font-mono mt-0.5 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>+{order.order_items.length - 4}</span>
               )}
             </div>
           ) : isEmptyGroup ? (
-            <span className="text-white/20 text-[10px] font-mono">{t('empty_group_kitchen_hint')}</span>
+            <span className={`text-[10px] font-mono ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('empty_group_kitchen_hint')}</span>
           ) : (
-            <span className="text-white/20 text-[10px] font-mono">{t('no_product_data')}</span>
+            <span className={`text-[10px] font-mono ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('no_product_data')}</span>
           )}
 
           {/* progress bar (cooking) */}
           {order.status !== 'paid' && !isKitchenReady && !!order.kitchen_accepted_at && (
-            <div className="mt-2 h-[1px] w-full bg-white/[0.05] overflow-hidden">
+            <div className={`mt-2 h-[1px] w-full overflow-hidden ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`}>
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${prog.pct}%` }}
@@ -195,7 +197,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
           )}
 
           {order.customer_note && (
-            <p className="text-white/20 text-[10px] italic mt-1 font-mono truncate">// {order.customer_note}</p>
+            <p className={`text-[10px] italic mt-1 font-mono truncate ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>// {order.customer_note}</p>
           )}
         </div>
       </div>
@@ -205,7 +207,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
          ══════════════════════════════════════ */}
       <div
         onClick={onClick}
-        className={`hidden md:flex relative backdrop-blur-xl border border-white/[0.08] rounded-2xl overflow-hidden flex-col cursor-pointer transition-all duration-300 hover:-translate-y-1 group/card md:min-h-[280px] ${isEmptyGroup ? 'bg-white/[0.015]' : 'bg-white/[0.03]'} ${borderClass}`}
+        className={`hidden md:flex relative backdrop-blur-xl border rounded-2xl overflow-hidden flex-col cursor-pointer transition-all duration-300 hover:-translate-y-1 group/card md:min-h-[280px] ${lightMode ? 'border-gray-200' : 'border-white/[0.08]'}${isEmptyGroup ? 'bg-white/[0.015]' : 'bg-white/[0.03]'} ${borderClass}`}
       >
         {order.status === 'new' && (
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-orange-500/70 to-transparent" />
@@ -216,7 +218,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
             (order.kitchen_status === 'cooking' || order.kitchen_status === 'preparing') ? 'via-blue-400/70' : 'via-amber-400/50'
           }`} />
         )}
-        <div className="px-5 pt-5 pb-3 border-b border-white/[0.05]">
+        <div className={`px-5 pt-5 pb-3 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0 flex-1">
               {isMergedCard ? (
@@ -234,7 +236,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
             <div className="flex flex-col items-end gap-1 shrink-0">
               <div className="flex items-center gap-1.5 flex-wrap justify-end">
                 {isEmptyGroup
-                  ? <motion.span key="draft" initial={{ opacity: 0, scale: 0.75 }} animate={{ opacity: 1, scale: 1 }} className="text-[9px] font-black px-2.5 py-1 rounded-full inline-flex items-center gap-1 bg-white/[0.06] text-white/30 border border-white/10 uppercase tracking-widest">{t('draft')}</motion.span>
+                  ? <motion.span key="draft" initial={{ opacity: 0, scale: 0.75 }} animate={{ opacity: 1, scale: 1 }} className={`text-[9px] font-black px-2.5 py-1 rounded-full inline-flex items-center gap-1 border uppercase tracking-widest ${lightMode ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white/[0.06] text-white/30 border-white/10'}`}>{t('draft')}</motion.span>
                   : badgeType && <KitchenBadge badgeType={badgeType} />}
               </div>
               {badgeLabel && (
@@ -250,11 +252,11 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Clock size={10} className="text-white/50 flex-shrink-0" />
-            <span className="text-white/50 text-xs">{timeAgo(order.created_at, t)}</span>
+            <Clock size={10} className={`flex-shrink-0 ${lightMode ? 'text-gray-500' : 'text-white/50'}`} />
+            <span className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{timeAgo(order.created_at, t)}</span>
           </div>
           {order.status !== 'paid' && !isKitchenReady && !!order.kitchen_accepted_at && (
-            <div className="mt-2.5 h-[3px] w-full bg-white/[0.06] rounded-full overflow-hidden">
+            <div className={`mt-2.5 h-[3px] w-full rounded-full overflow-hidden ${lightMode ? 'bg-gray-100' : 'bg-white/[0.06]'}`}>
               <motion.div initial={{ width: 0 }} animate={{ width: `${prog.pct}%` }} transition={{ duration: 0.8, ease: 'easeOut' }}
                 style={{ height: '100%', borderRadius: 9999, backgroundImage: `linear-gradient(90deg, ${prog.from}, ${prog.to}, ${prog.from})`, backgroundSize: '200% 100%', backgroundColor: 'transparent', boxShadow: prog.glow, animation: 'progressShimmer 1.8s linear infinite' }}
               />
@@ -264,30 +266,30 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
         <div className="flex-1 px-5 py-4 space-y-2.5">
           {isMergedCard && (!order.order_items || order.order_items.length === 0) && (
             <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg">
-              <span className="text-[10px] text-white/40 font-medium tracking-wide">{t('empty_group_kitchen_hint')}</span>
+              <span className={`text-[10px] font-medium tracking-wide ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('empty_group_kitchen_hint')}</span>
             </div>
           )}
           {order.order_items && order.order_items.length > 0 ? (
             order.order_items.slice(0, 3).map(item => (
               <div key={item.id} className="flex justify-between items-center">
-                <span className="text-white text-[15px] font-medium truncate mr-1">
+                <span className={`text-[15px] font-medium truncate mr-1 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                   {(item.products as any)?.[`name_${language}`] || (item.products as any)?.name_az || item.product_name}
-                  <span className="text-white/60 ml-1 text-xs font-normal">×{item.quantity}</span>
+                  <span className={`ml-1 text-xs font-normal ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>×{item.quantity}</span>
                 </span>
-                <span className="text-white/80 flex-shrink-0 text-sm tabular-nums font-semibold">{item.total_price?.toFixed(2)} ₼</span>
+                <span className={`flex-shrink-0 text-sm tabular-nums font-semibold ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>{item.total_price?.toFixed(2)} ₼</span>
               </div>
             ))
-          ) : !isMergedCard && <p className="text-white/50 text-sm">{t('no_product_data')}</p>}
+          ) : !isMergedCard && <p className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{t('no_product_data')}</p>}
           {order.order_items && order.order_items.length > 3 && (
-            <p className="text-white/55 text-xs">+{order.order_items.length - 3} {t('more_products').replace('{count}', '').trim()}</p>
+            <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/55'}`}>+{order.order_items.length - 3} {t('more_products').replace('{count}', '').trim()}</p>
           )}
           {order.customer_note && (
-            <p className="text-white/55 text-xs italic pt-2 border-t border-white/[0.08] mt-1">"{order.customer_note}"</p>
+            <p className={`text-xs italic pt-2 border-t mt-1 ${lightMode ? 'text-gray-500 border-gray-200' : 'text-white/55 border-white/[0.08]'}`}>"{order.customer_note}"</p>
           )}
         </div>
-        <div className="px-5 py-3.5 border-t border-white/[0.05] bg-white/[0.015]">
+        <div className={`px-5 py-3.5 border-t bg-white/[0.015] ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-white/70 text-[10px] uppercase tracking-widest">{t('total_label')}</span>
+            <span className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>{t('total_label')}</span>
             <span className="font-black text-xl tabular-nums" style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               {total.toFixed(2)} ₼
             </span>
@@ -307,6 +309,7 @@ interface ArchiveCardProps {
 
 export const ArchiveOrderCard = React.memo(function ArchiveOrderCard({ order, allOrders = [], onClick }: ArchiveCardProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   // @ts-ignore
   const cfg = getStatusConfig(t)[order.status] ?? getStatusConfig(t).paid;
 
@@ -330,11 +333,11 @@ export const ArchiveOrderCard = React.memo(function ArchiveOrderCard({ order, al
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
       whileHover={{ scale: 1.02, transition: { duration: 0.18 } }}
       onClick={onClick}
-      className="relative bg-white/[0.06] backdrop-blur-md border border-white/[0.12] rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all duration-300 hover:bg-white/[0.09] hover:border-white/[0.2] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)] min-h-[190px] md:min-h-[260px]"
+      className={`relative backdrop-blur-md border rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all duration-300 hover:bg-white/[0.09] hover:border-white/[0.2] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)] min-h-[190px] md:min-h-[260px] ${lightMode ? 'bg-gray-100 border-gray-300' : 'bg-white/[0.06] border-white/[0.12]'}`}
     >
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
 
-      <div className="px-3 pt-3 pb-2 md:px-5 md:pt-5 md:pb-3 border-b border-white/[0.05]">
+      <div className={`px-3 pt-3 pb-2 md:px-5 md:pt-5 md:pb-3 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
         <div className="flex items-start justify-between gap-2 mb-2">
           {isMerged ? (
             <div className="flex items-center gap-3">
@@ -350,11 +353,11 @@ export const ArchiveOrderCard = React.memo(function ArchiveOrderCard({ order, al
             </p>
           )}
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/[0.12] text-white/60 border border-white/[0.15]">{cfg.label}</span>
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/[0.12] border ${lightMode ? 'text-gray-500 border-gray-300' : 'text-white/60 border-white/[0.15]'}`}>{cfg.label}</span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 text-white/65 text-xs">
-          <Clock size={10} className="text-white/65" />
+        <div className={`flex items-center gap-1.5 text-xs ${lightMode ? 'text-gray-600' : 'text-white/65'}`}>
+          <Clock size={10} className={lightMode ? 'text-gray-600' : 'text-white/65'} />
           {new Date(order.created_at).toLocaleDateString(
             language === 'az' ? 'az-AZ' : language === 'ru' ? 'ru-RU' : 'en-US',
             { day: 'numeric', month: 'long', year: 'numeric' }
@@ -366,23 +369,23 @@ export const ArchiveOrderCard = React.memo(function ArchiveOrderCard({ order, al
         {order.order_items && order.order_items.length > 0 ? (
           order.order_items.slice(0, 3).map(item => (
             <div key={item.id} className="flex justify-between items-center">
-              <span className="text-white text-[12px] md:text-sm truncate mr-1">
+              <span className={`text-[12px] md:text-sm truncate mr-1 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                 {(item.products as any)?.[`name_${language}`] || (item.products as any)?.name_az || item.product_name}
-                <span className="text-white/65 ml-1 text-[10px] md:text-xs">×{item.quantity}</span>
+                <span className={`ml-1 text-[10px] md:text-xs ${lightMode ? 'text-gray-600' : 'text-white/65'}`}>×{item.quantity}</span>
               </span>
-              <span className="text-white/80 flex-shrink-0 text-[11px] md:text-xs tabular-nums">{item.total_price?.toFixed(2)} ₼</span>
+              <span className={`flex-shrink-0 text-[11px] md:text-xs tabular-nums ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>{item.total_price?.toFixed(2)} ₼</span>
             </div>
           ))
         ) : (
-          <p className="text-white/60 text-xs">{t('no_product_data')}</p>
+          <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{t('no_product_data')}</p>
         )}
         {order.order_items && order.order_items.length > 3 && (
-          <p className="text-white/65 text-xs">+{order.order_items.length - 3} {t('more_products').replace('{count}', '').trim()}</p>
+          <p className={`text-xs ${lightMode ? 'text-gray-600' : 'text-white/65'}`}>+{order.order_items.length - 3} {t('more_products').replace('{count}', '').trim()}</p>
         )}
       </div>
 
-      <div className="px-3 py-2.5 md:px-5 md:py-3.5 border-t border-white/[0.08] flex items-center justify-between bg-white/[0.04]">
-        <span className="text-white/70 text-[10px] uppercase tracking-widest">{t('total_label')}</span>
+      <div className={`px-3 py-2.5 md:px-5 md:py-3.5 border-t flex items-center justify-between ${lightMode ? 'border-gray-200 bg-gray-50/80' : 'border-white/[0.08] bg-white/[0.04]'}`}>
+        <span className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>{t('total_label')}</span>
         <span className="font-black text-base md:text-xl tabular-nums"
           style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           {(order.order_items?.reduce((s, i) => s + (i.total_price || 0), 0) ?? order.total_amount)?.toFixed(2)} ₼

@@ -4,9 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 export function ClockButton() {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [clockedIn, setClockedIn] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

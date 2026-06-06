@@ -4,6 +4,7 @@ import React from 'react';
 import { TrendingUp, BarChart2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface ChartPoint {
   date: string;
@@ -17,6 +18,7 @@ interface Props {
 
 const StatsRevenueChart = ({ chartData, loading }: Props) => {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const isEmpty = !chartData || chartData.length === 0 || chartData.every(d => d.value === 0);
 
   const emptyMsg = language === 'az'
@@ -32,21 +34,21 @@ const StatsRevenueChart = ({ chartData, loading }: Props) => {
       : 'Dynamics will appear here once orders come in';
 
   return (
-    <div className="bg-card border border-white/5 p-4 md:p-8 rounded-2xl">
+    <div className={`bg-card border p-4 md:p-8 rounded-2xl ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
       <div className="flex items-center justify-between mb-4 md:mb-8">
-        <h3 className="text-base md:text-xl font-serif font-bold text-white flex items-center gap-2 md:gap-3">
+        <h3 className={`text-base md:text-xl font-serif font-bold flex items-center gap-2 md:gap-3 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
           <TrendingUp size={16} className="text-gold md:w-5 md:h-5" />
           {t('stats_revenue_dynamics')}
         </h3>
       </div>
       {isEmpty || loading ? (
         <div className="h-[180px] md:h-[350px] w-full flex flex-col items-center justify-center gap-4 select-none">
-          <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.1)]">
+          <div className={`w-12 h-12 md:w-16 md:h-16 rounded-2xl border flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.1)] ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.08]'}`}>
             <BarChart2 size={22} className="text-gold/40 md:w-7 md:h-7" />
           </div>
           <div className="text-center">
-            <p className="text-white/50 text-sm font-medium">{emptyMsg}</p>
-            <p className="text-white/25 text-xs mt-1 hidden md:block">{emptyHint}</p>
+            <p className={`text-sm font-medium ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{emptyMsg}</p>
+            <p className={`text-xs mt-1 hidden md:block ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{emptyHint}</p>
           </div>
         </div>
       ) : (
@@ -80,7 +82,7 @@ const StatsRevenueChart = ({ chartData, loading }: Props) => {
             />
             <Tooltip
               cursor={{ stroke: 'rgba(184,150,74,0.15)', strokeWidth: 1 }}
-              contentStyle={{ background: '#0f0f0f', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', fontSize: '12px', padding: '7px 12px', boxShadow: '0 4px 24px rgba(0,0,0,0.6)' }}
+              contentStyle={{ background: lightMode ? '#ffffff' : '#0f0f0f', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', fontSize: '12px', padding: '7px 12px', boxShadow: '0 4px 24px rgba(0,0,0,0.6)' }}
               labelStyle={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 3 }}
               itemStyle={{ color: '#D4AF37', fontWeight: 700 }}
               formatter={(value) => [`₼${Number(value).toFixed(2)}`, '']}

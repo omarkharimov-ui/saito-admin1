@@ -6,6 +6,7 @@ import {
   Search, X, Loader2, History, ShoppingCart, FileText,
   Plus, Trash2, RotateCcw, ChevronDown, Clock,
 } from 'lucide-react';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface HistoryEvent {
   id: string;
@@ -80,6 +81,7 @@ function groupByDay(events: HistoryEvent[]) {
 
 export default function HistoryPage() {
   const [events, setEvents] = useState<HistoryEvent[]>([]);
+  const { lightMode } = useTheme();
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -114,7 +116,7 @@ export default function HistoryPage() {
   const hasFilter = search.trim() || filter !== 'all';
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white pb-24 relative">
+    <div className={`min-h-screen pb-24 relative ${lightMode ? 'bg-white text-gray-900' : 'bg-[#080808] text-white'}`}>
       {/* Ambient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full opacity-[0.012]"
@@ -133,7 +135,7 @@ export default function HistoryPage() {
             </div>
             <div>
               <h1 className="text-lg sm:text-xl font-bold tracking-tight">Tarixçə</h1>
-              <p className="text-[11px] text-white/25">
+              <p className={`text-[11px] ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>
                 {events.length > 0 ? `${events.length} hadisə` : 'Stok, sifariş və resept hadisələri'}
               </p>
             </div>
@@ -143,17 +145,17 @@ export default function HistoryPage() {
         {/* ── Search + Filter bar ── */}
         <div className="mb-6 space-y-3">
           <div className="relative">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/15 pointer-events-none" />
+            <Search size={14} className={`absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${lightMode ? 'text-gray-200' : 'text-white/15'}`} />
             <input
               ref={searchRef}
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Hadisə və ya məhsul axtar..."
-              className="w-full pl-10 pr-9 py-3 rounded-xl text-sm bg-white/[0.03] border border-white/[0.07] text-white placeholder:text-white/15 outline-none focus:border-indigo-400/25 transition-all duration-300"
+              className={`w-full pl-10 pr-9 py-3 rounded-xl text-sm border placeholder:text-white/15 outline-none focus:border-indigo-400/25 transition-all duration-300 ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-900' : 'bg-white/[0.03] border-white/[0.07] text-white'}`}
             />
             {search && (
               <button onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/60 transition-colors">
+                className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${lightMode ? 'text-gray-300 hover:text-gray-600' : 'text-white/20 hover:text-white/60'}`}>
                 <X size={14} />
               </button>
             )}
@@ -174,7 +176,7 @@ export default function HistoryPage() {
               ))}
             </div>
             {count > 0 && (
-              <span className="text-[10px] text-white/15 tabular-nums">
+              <span className={`text-[10px] tabular-nums ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>
                 {count} hadisə
               </span>
             )}
@@ -186,7 +188,7 @@ export default function HistoryPage() {
           <div className="flex items-center justify-center py-32">
             <div className="flex flex-col items-center gap-3">
               <Loader2 size={22} className="animate-spin" style={{ color: '#818CF8' }} />
-              <span className="text-[11px] text-white/15">Yüklənir...</span>
+              <span className={`text-[11px] ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>Yüklənir...</span>
             </div>
           </div>
         ) : filtered.length === 0 ? (
@@ -194,10 +196,10 @@ export default function HistoryPage() {
             className="text-center py-32"
           >
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <History size={24} className="text-white/10" />
+              style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.03)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}>
+              <History size={24} className={lightMode ? 'text-gray-200' : 'text-white/10'} />
             </div>
-            <p className="text-sm font-medium text-white/20">
+            <p className={`text-sm font-medium ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
               {hasFilter ? 'Heç nə tapılmadı' : 'Hələ hadisə yoxdur'}
             </p>
             {hasFilter && (
@@ -217,14 +219,14 @@ export default function HistoryPage() {
                   <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/[0.07]">
                     {dateLabel(day.date)}
                   </span>
-                  <div className="flex-1 h-px bg-white/[0.03]" />
+                  <div className={`flex-1 h-px ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`} />
                   <span className="text-[8px] text-white/[0.06] tabular-nums">{day.items.length}</span>
                 </div>
 
                 {/* Events */}
                 <div className="relative">
                   {/* Timeline line */}
-                  <div className="absolute left-[17px] top-3 bottom-3 w-px bg-white/[0.04]" />
+                  <div className={`absolute left-[17px] top-3 bottom-3 w-px ${lightMode ? 'bg-gray-50/80' : 'bg-white/[0.04]'}`} />
 
                   <div className="space-y-2.5">
                     {day.items.map((ev, i) => {
@@ -255,17 +257,17 @@ export default function HistoryPage() {
                           {/* Card */}
                           <div className="rounded-xl px-4 py-3 transition-all duration-200 group-hover:bg-white/[0.015]"
                             style={{
-                              background: 'rgba(255,255,255,0.025)',
-                              border: '1px solid rgba(255,255,255,0.05)',
+                              background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.025)',
+                              border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.05)',
                             }}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-[13px] font-semibold text-white/85 truncate">
+                                  <span className={`text-[13px] font-semibold truncate ${lightMode ? 'text-gray-800' : 'text-white/85'}`}>
                                     {ev.label}
                                   </span>
-                                  <span className="text-[11px] text-white/30 font-medium truncate">
+                                  <span className={`text-[11px] font-medium truncate ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                                     {ev.entityName}
                                   </span>
                                 </div>
@@ -281,12 +283,12 @@ export default function HistoryPage() {
                                     </span>
                                   )}
                                   {ev.cost !== null && (
-                                    <span className="text-[10px] text-white/20 tabular-nums">
+                                    <span className={`text-[10px] tabular-nums ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                                       ₼{Number(ev.cost).toFixed(2)}
                                     </span>
                                   )}
                                   {ev.detail && (
-                                    <span className="text-[10px] text-white/20 truncate max-w-[200px]">
+                                    <span className={`text-[10px] truncate max-w-[200px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                                       {ev.detail}
                                     </span>
                                   )}

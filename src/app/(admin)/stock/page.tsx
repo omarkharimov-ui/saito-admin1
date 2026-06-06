@@ -69,30 +69,32 @@ const modalV = {
 function StatCard({ icon, label, value, sub, accent }: {
   icon: React.ReactNode; label: string; value: string | number; sub?: string; accent?: string;
 }) {
+  const { lightMode } = useTheme();
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
       className="relative overflow-hidden rounded-2xl p-5 flex flex-col gap-3"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+      style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.025)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.07)' }}
     >
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold tracking-widest uppercase text-white/30">{label}</span>
+        <span className={`text-[11px] font-semibold tracking-widest uppercase ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{label}</span>
         <span className={accent ?? 'text-white/20'}>{icon}</span>
       </div>
       <div>
         <p className="text-3xl font-black tabular-nums leading-none">{value}</p>
-        {sub && <p className="text-[11px] text-white/30 mt-1">{sub}</p>}
+        {sub && <p className={`text-[11px] mt-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{sub}</p>}
       </div>
     </motion.div>
   );
 }
 
 function StockBar({ ratio, status }: { ratio: number; status: string }) {
+  const { lightMode } = useTheme();
   const meta = statusMeta(status);
   const pct = Math.min(Math.max(ratio, 0), 200);
   const displayPct = Math.min(pct, 100);
   return (
-    <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+    <div className={`w-full h-1.5 rounded-full overflow-hidden ${lightMode ? 'bg-gray-100' : 'bg-white/[0.06]'}`}>
       <motion.div
         className={`h-full rounded-full ${meta.bar}`}
         initial={{ width: 0 }}
@@ -162,7 +164,7 @@ export default function StockPage() {
     return base / (1 - wp / 100);
   })();
 
-  const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
+  const toastStyle = { background: lightMode ? '#ffffff' : '#0f0f0f', color: lightMode ? '#111827' : '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
 
   // Filter logs by search when in history view
   const monthlyLogs = useMemo(() => {
@@ -504,7 +506,7 @@ export default function StockPage() {
   const stats = data?.stats;
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white pb-20">
+    <div className={`min-h-screen pb-20 ${lightMode ? 'bg-white text-gray-900' : 'bg-[#080808] text-white'}`}>
       {/* ── Ambient background ── */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"
@@ -520,14 +522,14 @@ export default function StockPage() {
         >
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#1e1600,#140f00)', border: '1px solid rgba(212,175,55,0.2)' }}>
+              style={{ background: lightMode ? 'linear-gradient(135deg,#fffbeb,#fef3c7)' : 'linear-gradient(135deg,#1e1600,#140f00)', border: '1px solid rgba(212,175,55,0.2)' }}>
               <Package size={20} className="text-[#D4AF37]" />
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-tight leading-none">
                 Anbar İdarəetməsi
               </h1>
-              <p className="text-[11px] text-white/25 uppercase tracking-[0.2em] mt-1">
+              <p className={`text-[11px] uppercase tracking-[0.2em] mt-1 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>
                 Inventory Management System
               </p>
             </div>
@@ -607,11 +609,11 @@ export default function StockPage() {
         {/* ── Search + Filter bar ── */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
+            <Search size={14} className={`absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${lightMode ? 'text-gray-300' : 'text-white/25'}`} />
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder={viewMode === 'stock' ? 'Xammal axtar...' : 'Məhsul axtar...'}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/30 transition-colors"
+              className={`w-full pl-9 pr-4 py-2.5 rounded-xl text-sm border outline-none focus:border-[#D4AF37]/30 transition-colors ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20'}`}
             />
           </div>
           <div className="flex gap-2">
@@ -636,11 +638,11 @@ export default function StockPage() {
         {/* ── Inventory Table ── */}
         {loading ? (
           <div className="flex items-center justify-center h-48">
-            <Loader2 size={28} className="animate-spin text-white/15" />
+            <Loader2 size={28} className={`animate-spin ${lightMode ? 'text-gray-200' : 'text-white/15'}`} />
           </div>
         ) : rows.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="text-center py-24 text-white/20">
+            className={`text-center py-24 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
             <Package size={44} className="mx-auto mb-4 opacity-20" />
             <p className="text-sm font-medium">
               {search || filter !== 'all' ? 'Axtarış nəticəsi tapılmadı' : 'Hələ xammal əlavə edilməyib'}
@@ -650,15 +652,15 @@ export default function StockPage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="rounded-2xl"
-            style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+            style={{ border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}
           >
             {/* Table head */}
             <div
-              className="hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-white/20"
+              className={`hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase ${lightMode ? 'text-gray-300' : 'text-white/20'}`}
               style={{
                 gridTemplateColumns: '1fr 120px 100px 130px 60px',
-                background: 'rgba(255,255,255,0.018)',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                background: lightMode ? '#fafafa' : 'rgba(255,255,255,0.018)',
+                borderBottom: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.05)',
               }}
             >
               <span>Xammal</span>
@@ -695,7 +697,7 @@ export default function StockPage() {
                         <div className="mt-1.5">
                           <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
                         </div>
-                        <p className="text-[10px] text-white/20 mt-1">
+                        <p className={`text-[10px] mt-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                           {UNIT_LABELS[row.unit]} · alış: ₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]}
                           {(row as any).cold_waste_percentage > 0 && <span className="text-red-400/40 ml-1.5">· itki: {row.cold_waste_percentage}%</span>}
                         </p>
@@ -707,13 +709,13 @@ export default function StockPage() {
                       <span className="text-base font-black tabular-nums" style={{ color: meta.text }}>
                         {fmt(row.current_stock, 1)}
                       </span>
-                      <span className="text-[10px] text-white/25 ml-1">{UNIT_LABELS[row.unit]}</span>
+                      <span className={`text-[10px] ml-1 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{UNIT_LABELS[row.unit]}</span>
                     </div>
 
                     {/* Critical limit */}
                     <div className="text-right">
-                      <span className="text-sm text-white/35 tabular-nums">{fmt(row.critical_limit, 0)}</span>
-                      <span className="text-[10px] text-white/20 ml-1">{UNIT_LABELS[row.unit]}</span>
+                      <span className={`text-sm tabular-nums ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{fmt(row.critical_limit, 0)}</span>
+                      <span className={`text-[10px] ml-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{UNIT_LABELS[row.unit]}</span>
                     </div>
 
                     {/* Status */}
@@ -727,7 +729,7 @@ export default function StockPage() {
                     {/* Actions — 3 nöqtə dropdown */}
                     <div className="flex items-center justify-end relative">
                       <button onClick={() => setOpenActionsId(openActionsId === row.id ? null : row.id)}
-                        className="w-8 h-8 rounded-xl hover:bg-white/[0.06] transition-all flex items-center justify-center text-white/30 hover:text-white active:scale-90"
+                        className={`w-8 h-8 rounded-xl hover:bg-white/[0.06] transition-all flex items-center justify-center active:scale-90 ${lightMode ? 'text-gray-400 hover:text-gray-900' : 'text-white/30 hover:text-white'}`}
                       >
                         <span className="text-lg font-bold leading-none tracking-[0.1em]">⋯</span>
                       </button>
@@ -737,24 +739,24 @@ export default function StockPage() {
                           <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-xl overflow-hidden"
                             style={{ background: lightMode ? '#ffffff' : '#141414', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 12px 40px rgba(0,0,0,0.08)' : '0 12px 40px rgba(0,0,0,0.6)' }}>
                             <button onClick={() => { setModal({ mode: 'stock_in', row }); setOpenActionsId(null); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
                               <TrendingUp size={13} className="text-emerald-400" /> Mal Girişi
                             </button>
                             <button onClick={() => { setModal({ mode: 'waste', row }); setOpenActionsId(null); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
                               <TrendingDown size={13} className="text-red-400" /> İtki
                             </button>
                             <button onClick={() => { setModal({ mode: 'audit', row }); setOpenActionsId(null); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
                               <RefreshCw size={13} className="text-gold" /> Audit
                             </button>
                             <button onClick={() => { setOpenActionsId(null); handleViewHistory(row); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                              <RefreshCw size={13} className="text-white/40" /> Tarixçə
+                              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
+                              <RefreshCw size={13} className={lightMode ? 'text-gray-400' : 'text-white/40'} /> Tarixçə
                             </button>
-                            <div className="h-px bg-white/[0.06]" />
+                            <div className={`h-px ${lightMode ? 'bg-gray-100' : 'bg-white/[0.06]'}`} />
                             <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05] text-red-400">
+                              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors text-red-400 ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
                               <Trash2 size={13} /> Sil
                             </button>
                           </div>
@@ -773,7 +775,7 @@ export default function StockPage() {
                         </div>
                         <div>
                           <p className="text-sm font-semibold">{row.name}</p>
-                          <p className="text-[10px] text-white/25">{UNIT_LABELS[row.unit]}</p>
+                          <p className={`text-[10px] ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{UNIT_LABELS[row.unit]}</p>
                         </div>
                       </div>
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold ${meta.bg} border ${meta.border} ${meta.text}`}>
@@ -787,11 +789,11 @@ export default function StockPage() {
                         <span className="text-lg font-black tabular-nums" style={{ color: meta.text }}>
                           {fmt(row.current_stock, 1)}
                         </span>
-                        <span className="text-xs text-white/25 ml-1">/ {fmt(row.critical_limit, 0)} {UNIT_LABELS[row.unit]}</span>
+                        <span className={`text-xs ml-1 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>/ {fmt(row.critical_limit, 0)} {UNIT_LABELS[row.unit]}</span>
                       </div>
                       <div className="flex gap-1.5 relative">
                         <button onClick={() => setOpenActionsId(openActionsId === row.id ? null : row.id)}
-                          className="w-8 h-8 rounded-xl hover:bg-white/[0.06] transition-all flex items-center justify-center text-white/30 hover:text-white active:scale-90">
+                          className={`w-8 h-8 rounded-xl hover:bg-white/[0.06] transition-all flex items-center justify-center active:scale-90 ${lightMode ? 'text-gray-400 hover:text-gray-900' : 'text-white/30 hover:text-white'}`}>
                           <span className="text-lg font-bold leading-none tracking-[0.1em]">⋯</span>
                         </button>
                         {openActionsId === row.id && (
@@ -800,24 +802,24 @@ export default function StockPage() {
                             <div className="absolute right-0 -top-1 z-50 min-w-[140px] rounded-xl overflow-hidden translate-y-[-100%]"
                               style={{ background: lightMode ? '#ffffff' : '#141414', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 12px 40px rgba(0,0,0,0.08)' : '0 12px 40px rgba(0,0,0,0.6)' }}>
                               <button onClick={() => { setModal({ mode: 'stock_in', row }); setOpenActionsId(null); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
                                 <TrendingUp size={13} className="text-emerald-400" /> Mal Girişi
                               </button>
                               <button onClick={() => { setModal({ mode: 'waste', row }); setOpenActionsId(null); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
                                 <TrendingDown size={13} className="text-red-400" /> İtki
                               </button>
                               <button onClick={() => { setModal({ mode: 'audit', row }); setOpenActionsId(null); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
                                 <RefreshCw size={13} className="text-gold" /> Audit
                               </button>
                               <button onClick={() => { setOpenActionsId(null); handleViewHistory(row); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                                <RefreshCw size={13} className="text-white/40" /> Tarixçə
+                                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
+                                <RefreshCw size={13} className={lightMode ? 'text-gray-400' : 'text-white/40'} /> Tarixçə
                               </button>
-                              <div className="h-px bg-white/[0.06]" />
+                              <div className={`h-px ${lightMode ? 'bg-gray-100' : 'bg-white/[0.06]'}`} />
                               <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05] text-red-400">
+                                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors text-red-400 ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/[0.05]'}`}>
                                 <Trash2 size={13} /> Sil
                               </button>
                             </div>
@@ -838,16 +840,16 @@ export default function StockPage() {
         {/* ── Premium Calendar Picker ── */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <p className="text-xs font-bold uppercase tracking-[0.15em] text-white/40">
-              {historyDay ? 'Günlük Tarixçə' : 'Aylıq Tarixçə'} <span className="text-white/15">({filteredLogs.length})</span>
+            <p className={`text-xs font-bold uppercase tracking-[0.15em] ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
+              {historyDay ? 'Günlük Tarixçə' : 'Aylıq Tarixçə'} <span className={lightMode ? 'text-gray-200' : 'text-white/15'}>({filteredLogs.length})</span>
             </p>
             {historyDay && (
               <motion.button
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 onClick={() => setHistoryDay(null)}
-                className="text-[10px] font-bold px-2 py-1 rounded-lg text-white/40 hover:text-white transition-all"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all ${lightMode ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}
+                style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.05)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)' }}
               >
                 Bütün ay
               </motion.button>
@@ -888,8 +890,8 @@ export default function StockPage() {
                     transition={{ type: 'spring', stiffness: 350, damping: 25 }}
                     className="absolute right-0 top-full mt-2 z-50 w-80 rounded-2xl overflow-hidden"
                     style={{
-                      background: '#121212',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: lightMode ? '#f9fafb' : '#121212',
+                      border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)',
                       boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
                     }}
                   >
@@ -898,7 +900,7 @@ export default function StockPage() {
                       <motion.button
                         whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
                         onClick={() => setPickerYear(p => p - 1)}
-                        className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+                        className={`p-1.5 rounded-lg hover:text-white/70 transition-colors ${lightMode ? 'text-gray-400 hover:bg-gray-100' : 'text-white/30 hover:bg-white/5'}`}
                       >
                         <ChevronLeft size={16} />
                       </motion.button>
@@ -907,11 +909,11 @@ export default function StockPage() {
                           key={pickerYear + 'y'}
                           initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="text-sm font-bold text-white/80"
+                          className={`text-sm font-bold ${lightMode ? 'text-gray-700' : 'text-white/80'}`}
                         >
                           {pickerYear}
                         </motion.span>
-                        <span className="text-sm font-bold text-white/40">·</span>
+                        <span className={`text-sm font-bold ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>·</span>
                         <motion.span
                           key={pickerYear + 'm'}
                           initial={{ opacity: 0, y: 4 }}
@@ -924,7 +926,7 @@ export default function StockPage() {
                       <motion.button
                         whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
                         onClick={() => setPickerYear(p => p + 1)}
-                        className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+                        className={`p-1.5 rounded-lg hover:text-white/70 transition-colors ${lightMode ? 'text-gray-400 hover:bg-gray-100' : 'text-white/30 hover:bg-white/5'}`}
                       >
                         <ChevronRight size={16} />
                       </motion.button>
@@ -933,7 +935,7 @@ export default function StockPage() {
                     {/* Day-of-week headers */}
                     <div className="grid grid-cols-7 gap-1 px-4 pt-3 pb-1">
                       {['B.e', 'Ç.a', 'Ç', 'C.a', 'C', 'Ş', 'B'].map(d => (
-                        <span key={d} className="text-center text-[10px] font-bold uppercase tracking-wider text-white/20">
+                        <span key={d} className={`text-center text-[10px] font-bold uppercase tracking-wider ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                           {d}
                         </span>
                       ))}
@@ -991,7 +993,7 @@ export default function StockPage() {
                     </div>
 
                     {/* Month pills */}
-                    <div className="border-t border-white/[0.06] px-4 py-3" style={{ background: 'rgba(255,255,255,0.015)' }}>
+                    <div className={`border-t px-4 py-3 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`} style={{ background: 'rgba(255,255,255,0.015)' }}>
                       <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                         {AZ_MONTHS.map((name, idx) => {
                           const monthStr = `${pickerYear}-${String(idx + 1).padStart(2, '0')}`;
@@ -1046,9 +1048,9 @@ export default function StockPage() {
               {fmt(monthlySummary.adjustment, 1)}
             </p>
           </div>
-          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Sifariş Sərfiyyatı</p>
-            <p className="text-lg font-black text-white/70 tabular-nums mt-1">
+          <div className="rounded-xl px-4 py-3" style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.03)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)' }}>
+            <p className={`text-[10px] uppercase tracking-wider font-bold ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Sifariş Sərfiyyatı</p>
+            <p className={`text-lg font-black tabular-nums mt-1 ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>
               {fmt(monthlySummary.orderConsumption, 1)}
             </p>
           </div>
@@ -1056,12 +1058,12 @@ export default function StockPage() {
 
         {/* ── History table ── */}
         <div className="rounded-2xl overflow-hidden"
-          style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="hidden lg:grid gap-4 px-6 py-3 text-[11px] font-bold tracking-[0.15em] uppercase text-white/30"
+          style={{ border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}>
+          <div className={`hidden lg:grid gap-4 px-6 py-3 text-[11px] font-bold tracking-[0.15em] uppercase ${lightMode ? 'text-gray-400' : 'text-white/30'}`}
             style={{
               gridTemplateColumns: '120px 1fr 100px 90px 110px 1fr',
-              background: 'rgba(255,255,255,0.018)',
-              borderBottom: '1px solid rgba(255,255,255,0.05)',
+              background: lightMode ? '#fafafa' : 'rgba(255,255,255,0.018)',
+              borderBottom: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.05)',
             }}>
             <span>Növ</span>
             <span>Xammal</span>
@@ -1075,7 +1077,7 @@ export default function StockPage() {
               <Loader2 size={24} className="animate-spin text-white/[0.12]" />
             </div>
           ) : filteredLogs.length === 0 ? (
-            <div className="text-center py-16 text-white/20 text-sm">
+            <div className={`text-center py-16 text-sm ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
               <Package size={36} className="mx-auto mb-3 opacity-20" />
               {search.trim() ? 'Axtarış nəticəsi tapılmadı' : 'Heç bir əməliyyat tapılmadı'}
             </div>
@@ -1098,19 +1100,19 @@ export default function StockPage() {
                       style={{ background: bgMap[log.type] || 'rgba(255,255,255,0.04)' }}>
                       {LOG_LABELS[log.type] || log.type}
                     </span>
-                    <span className="truncate text-sm font-semibold text-white/90">
+                    <span className={`truncate text-sm font-semibold ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>
                       {log.ingredient?.name || log.ingredient_id?.slice(0, 8)}
                     </span>
                     <span className={`text-right text-sm font-bold tabular-nums ${color}`}>
                       {sign}{fmt(Math.abs(log.quantity), 1)} {log.ingredient?.unit || ''}
                     </span>
-<span className="text-right text-xs text-white/50 tabular-nums">
+<span className={`text-right text-xs tabular-nums ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
   {log.type === 'order_consumption' ? '—' : log.cost_per_unit != null ? `₼${fmtCost(log.cost_per_unit)}` : '—'}
 </span>
-<span className="text-right text-xs text-white/50">
+<span className={`text-right text-xs ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
   {dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
 </span>
-<span className="text-xs text-white/40 truncate">
+<span className={`text-xs truncate ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
   {log.type === 'order_consumption' ? '—' : log.note || '—'}
 </span>
 
@@ -1121,12 +1123,12 @@ export default function StockPage() {
       style={{ background: bgMap[log.type] || 'rgba(255,255,255,0.04)' }}>
       {LOG_LABELS[log.type] || log.type}
     </span>
-    <span className="text-xs text-white/50">
+    <span className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
       {dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
     </span>
   </div>
   <div className="flex items-center justify-between">
-    <span className="text-sm font-semibold text-white/90">
+    <span className={`text-sm font-semibold ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>
       {log.ingredient?.name || log.ingredient_id?.slice(0, 8)}
     </span>
     <span className={`text-sm font-bold tabular-nums ${color}`}>
@@ -1134,9 +1136,9 @@ export default function StockPage() {
     </span>
   </div>
   {log.type !== 'order_consumption' && (
-    <div className="flex items-center justify-between text-[11px] text-white/50">
+    <div className={`flex items-center justify-between text-[11px] ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
       <span>{log.cost_per_unit != null ? `Maya: ₼${fmtCost(log.cost_per_unit)}` : 'Maya: —'}</span>
-      {log.note && <span className="truncate ml-2 text-white/30">{log.note}</span>}
+      {log.note && <span className={`truncate ml-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{log.note}</span>}
     </div>
   )}
 </div>
@@ -1171,7 +1173,7 @@ export default function StockPage() {
             >
               {/* Drag handle (mobile) */}
               <div className="sm:hidden flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-white/15" />
+                <div className={`w-10 h-1 rounded-full ${lightMode ? 'bg-gray-200' : 'bg-white/15'}`} />
               </div>
 
               {/* ── STOCK IN ── */}
@@ -1183,50 +1185,50 @@ export default function StockPage() {
                         <TrendingUp size={10} /> Mal Qəbulu
                       </span>
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
-                      <p className="text-white/30 text-xs mt-0.5">
+                      <p className={`text-xs mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                         Cari: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
                           {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span>
                       </p>
                     </div>
-                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                    <button onClick={closeModal} className={`transition-colors mt-1 ${lightMode ? 'text-gray-300 hover:text-gray-900' : 'text-white/25 hover:text-white'}`}>
                       <X size={18} />
                     </button>
                   </div>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         Miqdar ({UNIT_LABELS[modal.row!.unit]})
                       </label>
                       <input type="number" min="0.001" step="0.001" value={qty}
                         onChange={e => setQty(e.target.value)} placeholder="0.000" autoFocus
-                        className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-base font-bold"
+                        className={`w-full px-4 py-3.5 rounded-xl border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-base font-bold ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         Maya dəyəri / {UNIT_LABELS[modal.row!.unit]} (₼) — istəyə görə
                       </label>
                       <input type="number" min="0" step="0.0001" value={cost}
                         onChange={e => setCost(e.target.value)} placeholder="0.0000"
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-sm"
+                        className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         Qeyd — istəyə görə
                       </label>
                       <input type="text" value={reason}
                         onChange={e => setReason(e.target.value)} placeholder="Məs: Limasol çatdırılması"
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-sm"
+                        className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-emerald-500/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
                   </div>
 
                   <button onClick={handleStockIn} disabled={saving || !qty.trim()}
                     className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
-                    style={{ background: 'linear-gradient(135deg,#0a5c41,#0f7a57)', color: '#fff', border: '1px solid rgba(16,185,129,0.25)' }}
+                    style={{ background: lightMode ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'linear-gradient(135deg,#0a5c41,#0f7a57)', color: '#fff', border: '1px solid rgba(16,185,129,0.25)' }}
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <><TrendingUp size={15} /> Stoku Artır</>}
                   </button>
@@ -1242,34 +1244,34 @@ export default function StockPage() {
                         <TrendingDown size={10} /> İtki / Zay Qeydi
                       </span>
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
-                      <p className="text-white/30 text-xs mt-0.5">
+                      <p className={`text-xs mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                         Cari: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
                           {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span>
                       </p>
                     </div>
-                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                    <button onClick={closeModal} className={`transition-colors mt-1 ${lightMode ? 'text-gray-300 hover:text-gray-900' : 'text-white/25 hover:text-white'}`}>
                       <X size={18} />
                     </button>
                   </div>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         Miqdar ({UNIT_LABELS[modal.row!.unit]})
                       </label>
                       <input type="number" min="0.001" step="0.001" value={qty}
                         onChange={e => setQty(e.target.value)} placeholder="0.000" autoFocus
-                        className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-red-500/40 transition-colors text-base font-bold"
+                        className={`w-full px-4 py-3.5 rounded-xl border border-white/[0.09] outline-none focus:border-red-500/40 transition-colors text-base font-bold ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         Səbəb <span className="text-red-400">*</span>
                       </label>
                       <input type="text" value={reason}
                         onChange={e => setReason(e.target.value)} placeholder="Məs: Bitmə tarixi keçdi, Zədəli"
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-red-500/40 transition-colors text-sm"
+                        className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-red-500/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
                   </div>
@@ -1293,28 +1295,28 @@ export default function StockPage() {
                         <RefreshCw size={10} /> İnventarizasiya
                       </span>
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
-                      <p className="text-white/30 text-xs mt-0.5 space-y-0.5">
-                        <span>Cari (sistem): <span className="font-semibold text-white/60">
+                      <p className={`text-xs mt-0.5 space-y-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
+                        <span>Cari (sistem): <span className={`font-semibold ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>
                           {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span></span>
                         <br />
-                        <span>Nəzəri: <span className="font-semibold text-white/60">
+                        <span>Nəzəri: <span className={`font-semibold ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>
                           {fmt(modal.row.theoretical_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span></span>
                       </p>
                     </div>
-                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                    <button onClick={closeModal} className={`transition-colors mt-1 ${lightMode ? 'text-gray-300 hover:text-gray-900' : 'text-white/25 hover:text-white'}`}>
                       <X size={18} />
                     </button>
                   </div>
 
                   <div className="rounded-xl p-4"
                     style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)' }}>
-                    <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold mb-0.5">Real Faktiki Stok</p>
-                    <p className="text-[10px] text-white/20 mb-3">Fiziki olaraq hazırda anbarda olan miqdarı daxil edin. Sistem nəzəri stoku bu dəyərlə əvəzləyəcək və fərqi adjustment kimi qeydə alacaq.</p>
+                    <p className={`text-[10px] uppercase tracking-wider font-semibold mb-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Real Faktiki Stok</p>
+                    <p className={`text-[10px] mb-3 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>Fiziki olaraq hazırda anbarda olan miqdarı daxil edin. Sistem nəzəri stoku bu dəyərlə əvəzləyəcək və fərqi adjustment kimi qeydə alacaq.</p>
                     <input type="number" min="0" step="0.001" value={auditQty}
                       onChange={e => setAuditQty(e.target.value)} placeholder="0.000" autoFocus
-                      className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-base font-bold"
+                      className={`w-full px-4 py-3.5 rounded-xl border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-base font-bold ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                     />
                     {auditQty.trim() && !isNaN(parseFloat(auditQty)) && (
                       <motion.div
@@ -1323,7 +1325,7 @@ export default function StockPage() {
                         className="mt-3 flex items-center justify-between px-3 py-2 rounded-lg"
                         style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.12)' }}
                       >
-                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Gözlənilən Fərq</span>
+                        <span className={`text-[10px] uppercase tracking-wider font-semibold ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Gözlənilən Fərq</span>
                         <span className={`text-sm font-black tabular-nums ${(parseFloat(auditQty) - modal.row.current_stock) !== 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
                           {(parseFloat(auditQty) - modal.row.current_stock) > 0 ? '+' : ''}
                           {(parseFloat(auditQty) - modal.row.current_stock).toFixed(2)} {UNIT_LABELS[modal.row!.unit]}
@@ -1352,17 +1354,17 @@ export default function StockPage() {
                       </span>
                       <h2 className="text-xl font-bold">İnqredient əlavə et</h2>
                     </div>
-                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                    <button onClick={closeModal} className={`transition-colors mt-1 ${lightMode ? 'text-gray-300 hover:text-gray-900' : 'text-white/25 hover:text-white'}`}>
                       <X size={18} />
                     </button>
                   </div>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Ad</label>
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>Ad</label>
                       <input type="text" value={newName} onChange={e => { setNewName(e.target.value); setFormErrors(p => ({ ...p, name: false })); setShowWasteCalc(false); lookupWasteStandard(e.target.value); }}
                         placeholder="Məs: Avokado" autoFocus
-                        className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border outline-none transition-colors text-sm font-semibold"
+                        className={`w-full px-4 py-3.5 rounded-xl border outline-none transition-colors text-sm font-semibold ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                         style={{
                           borderColor: formErrors.name ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
                           background: formErrors.name ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
@@ -1385,43 +1387,43 @@ export default function StockPage() {
                           >
                             <div className="flex items-center gap-2">
                               <Lightbulb size={12} className="text-gold" />
-                              <span className="text-[10px] text-white/40">
+                              <span className={`text-[10px] ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
                                 Standart itki: <span className="font-bold text-gold">{match.waste_percentage}%</span>
-                                <span className="text-white/20 ml-1">· {match.note || ''}</span>
+                                <span className={`ml-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>· {match.note || ''}</span>
                               </span>
                             </div>
-                            <span className="text-[9px] font-bold text-gold hover:text-white transition-colors">Tətbiq et →</span>
+                            <span className={`text-[9px] font-bold text-gold transition-colors ${lightMode ? 'hover:text-gray-900' : 'hover:text-white'}`}>Tətbiq et →</span>
                           </motion.div>
                         );
                       })()}
                     </div>
 
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Təchizatçı <span className="text-white/20">— istəyə görə</span>
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
+                        Təchizatçı <span className={lightMode ? 'text-gray-300' : 'text-white/20'}>— istəyə görə</span>
                       </label>
                       <input type="text" value={newSupplier} onChange={e => setNewSupplier(e.target.value)}
                         placeholder="Məs: Limasol, Baku Fish Co..."
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                        className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Vahid</label>
+                        <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>Vahid</label>
                         <select value={newUnit} onChange={e => setNewUnit(e.target.value as IngredientUnit)}
-                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                          className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                         >
                           {UNITS.map(u => (
-                            <option key={u} value={u} style={{ background: '#111' }}>{UNIT_LABELS[u]}</option>
+                            <option key={u} value={u} style={{ background: lightMode ? '#ffffff' : '#111' }}>{UNIT_LABELS[u]}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Kritik limit</label>
+                        <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>Kritik limit</label>
                         <input type="number" min="0" step="1" value={newLimit}
                           onChange={e => { setNewLimit(e.target.value); setFormErrors(p => ({ ...p, criticalLimit: false })); }}
-                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                          className={`w-full px-4 py-3 rounded-xl outline-none focus:border-[#D4AF37]/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                           style={{
                             borderColor: formErrors.criticalLimit ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
                             background: formErrors.criticalLimit ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
@@ -1436,13 +1438,13 @@ export default function StockPage() {
                       <p className="text-[10px] font-bold uppercase tracking-wider text-gold/60">Son Alış Fakturası</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                          <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                             Alınan Miqdar
                           </label>
                           <input type="number" min="0" step="1" value={newTotalQty}
                             onChange={e => { setNewTotalQty(e.target.value); setFormErrors(p => ({ ...p, totalQty: false })); }}
                             placeholder="Məs: 5000"
-                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border outline-none transition-colors text-sm font-bold"
+                            className={`w-full px-4 py-3 rounded-xl border outline-none transition-colors text-sm font-bold ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                             style={{
                               borderColor: formErrors.totalQty ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
                               background: formErrors.totalQty ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
@@ -1450,13 +1452,13 @@ export default function StockPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                          <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
             Ümumi Məbləğ (₼)
                           </label>
                           <input type="number" min="0" step="0.01" value={newTotalAmount}
                             onChange={e => { setNewTotalAmount(e.target.value); setFormErrors(p => ({ ...p, totalAmount: false })); }}
                             placeholder="Məs: 150"
-                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border outline-none transition-colors text-sm font-bold"
+                            className={`w-full px-4 py-3 rounded-xl border outline-none transition-colors text-sm font-bold ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                             style={{
                               borderColor: formErrors.totalAmount ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.09)',
                               background: formErrors.totalAmount ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.04)',
@@ -1471,7 +1473,7 @@ export default function StockPage() {
                           className="flex items-center justify-between px-3 py-2 rounded-lg"
                           style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.15)' }}
                         >
-                          <span className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Vahid Maya Dəyəri</span>
+                          <span className={`text-[10px] uppercase tracking-wider font-semibold ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Vahid Maya Dəyəri</span>
                           <span className="text-sm font-black text-gold tabular-nums">
                             ₼{fmtCost(calculatedUnitCost)} / {UNIT_LABELS[newUnit]}
                           </span>
@@ -1482,22 +1484,22 @@ export default function StockPage() {
                     {/* İtki faizi */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                          İtki Faizi (%) <span className="text-white/20">— istəyə görə</span>
+                        <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
+                          İtki Faizi (%) <span className={lightMode ? 'text-gray-300' : 'text-white/20'}>— istəyə görə</span>
                         </label>
                         <input type="number" min="0" max="99" step="1" value={newWastePct}
                           onChange={e => setNewWastePct(e.target.value)}
                           placeholder="Məs: 10"
-                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                          className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                         />
                       </div>
                       <div>
-                        <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                          Maya dəyəri / vahid (₼) <span className="text-white/20">— manual</span>
+                        <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
+                          Maya dəyəri / vahid (₼) <span className={lightMode ? 'text-gray-300' : 'text-white/20'}>— manual</span>
                         </label>
                         <input type="number" min="0" step="0.0001" value={newCost}
                           onChange={e => setNewCost(e.target.value)} placeholder="0.0000"
-                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                          className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                         />
                       </div>
                     </div>
@@ -1512,7 +1514,7 @@ export default function StockPage() {
                       >
                         <div>
                           <span className="text-[10px] uppercase tracking-wider text-red-400/60 font-semibold">Effektiv Maya (itki daxil)</span>
-                          <p className="text-[9px] text-white/20">+{parseFloat(newWastePct)}% itki uyğunlaşdırması</p>
+                          <p className={`text-[9px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>+{parseFloat(newWastePct)}% itki uyğunlaşdırması</p>
                         </div>
                         <span className="text-sm font-black text-red-400 tabular-nums">
                           ₼{fmtCost(effectiveUnitCost)} / {UNIT_LABELS[newUnit]}
@@ -1547,22 +1549,22 @@ export default function StockPage() {
                             <div className="mt-2 p-3 rounded-xl space-y-2"
                               style={{ background: 'rgba(212,175,55,0.03)', border: '1px solid rgba(212,175,55,0.08)' }}
                             >
-                              <p className="text-[9px] text-white/25 leading-relaxed">
+                              <p className={`text-[9px] leading-relaxed ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>
                                 Sınaq bişirilməsi: götürdüyünüz çəki və təmizləndikdən sonra qalan çəkini daxil edin, proqram itki faizini avtomatik hesablasın.
                               </p>
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <label className="text-[8px] text-white/30 uppercase tracking-wider block mb-1">Götürülən (qr)</label>
+                                  <label className={`text-[8px] uppercase tracking-wider block mb-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Götürülən (qr)</label>
                                   <input type="number" min="0" step="1" value={calcRaw}
                                     onChange={e => setCalcRaw(e.target.value)} placeholder="1000"
-                                    className="w-full px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.07] outline-none focus:border-gold/30 transition-colors text-sm"
+                                    className={`w-full px-3 py-2 rounded-lg border outline-none focus:border-gold/30 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80 border-gray-200' : 'text-white bg-white/[0.04] border-white/[0.07]'}`}
                                   />
                                 </div>
                                 <div>
-                                  <label className="text-[8px] text-white/30 uppercase tracking-wider block mb-1">Təmiz qalan (qr)</label>
+                                  <label className={`text-[8px] uppercase tracking-wider block mb-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Təmiz qalan (qr)</label>
                                   <input type="number" min="0" step="1" value={calcClean}
                                     onChange={e => setCalcClean(e.target.value)} placeholder="880"
-                                    className="w-full px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.07] outline-none focus:border-gold/30 transition-colors text-sm"
+                                    className={`w-full px-3 py-2 rounded-lg border outline-none focus:border-gold/30 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80 border-gray-200' : 'text-white bg-white/[0.04] border-white/[0.07]'}`}
                                   />
                                 </div>
                               </div>
@@ -1575,7 +1577,7 @@ export default function StockPage() {
                                     className="flex items-center justify-between px-3 py-2 rounded-lg"
                                     style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.12)' }}
                                   >
-                                    <span className="text-[9px] text-white/40">Hesablanmış itki faizi</span>
+                                    <span className={`text-[9px] ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Hesablanmış itki faizi</span>
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm font-black text-gold tabular-nums">{pct.toFixed(1)}%</span>
                                       <button
@@ -1611,17 +1613,17 @@ export default function StockPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
-                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#a0a0a0' }}>
+                        style={{ background: lightMode ? '#e5e7eb' : 'rgba(255,255,255,0.06)', border: lightMode ? '1px solid #d1d5db' : '1px solid rgba(255,255,255,0.12)', color: lightMode ? '#6b7280' : '#a0a0a0' }}>
                         <RefreshCw size={10} /> Tarixçə
                       </span>
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
-                      <p className="text-white/30 text-xs mt-0.5">
+                      <p className={`text-xs mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                         Cari stok: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
                           {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span>
                       </p>
                     </div>
-                    <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors mt-1">
+                    <button onClick={closeModal} className={`transition-colors mt-1 ${lightMode ? 'text-gray-300 hover:text-gray-900' : 'text-white/25 hover:text-white'}`}>
                       <X size={18} />
                     </button>
                   </div>
@@ -1629,10 +1631,10 @@ export default function StockPage() {
                   <div className="max-h-[50vh] overflow-y-auto space-y-1 pr-1">
                     {historyLoading ? (
                       <div className="flex items-center justify-center py-12">
-                        <Loader2 size={20} className="animate-spin text-white/15" />
+                        <Loader2 size={20} className={`animate-spin ${lightMode ? 'text-gray-200' : 'text-white/15'}`} />
                       </div>
                     ) : historyLogs.length === 0 ? (
-                      <div className="text-center py-12 text-white/20 text-xs">
+                      <div className={`text-center py-12 text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                         <Package size={28} className="mx-auto mb-2 opacity-30" />
                         Heç bir əməliyyat tapılmadı
                       </div>
@@ -1643,7 +1645,7 @@ export default function StockPage() {
                         const color = LOG_COLORS[log.type] || 'text-white/40';
                         return (
                           <div key={log.id || idx}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-white/[0.02]"
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${lightMode ? 'hover:bg-gray-50' : 'hover:bg-white/[0.02]'}`}
                           >
                             <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-bold ${color}`}
                               style={{ background: log.type === 'stock_in' ? 'rgba(16,185,129,0.1)' : log.type === 'waste' ? 'rgba(239,68,68,0.08)' : 'rgba(212,175,55,0.08)' }}>
@@ -1652,19 +1654,19 @@ export default function StockPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className={`text-xs font-bold ${color}`}>{LOG_LABELS[log.type] || log.type}</span>
-                                <span className="text-[9px] text-white/20">
+                                <span className={`text-[9px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                                   {dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
-                              {log.reason && <p className="text-[10px] text-white/25 truncate">{log.reason}</p>}
+                              {log.reason && <p className={`text-[10px] truncate ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{log.reason}</p>}
                             </div>
                             <div className="text-right flex-shrink-0">
                               <span className={`text-sm font-black tabular-nums ${color}`}>
                                 {sign}{fmt(Math.abs(log.quantity), 1)}
                               </span>
-                              <span className="text-[9px] text-white/20 ml-0.5">{UNIT_LABELS[modal.row!.unit]}</span>
+                              <span className={`text-[9px] ml-0.5 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{UNIT_LABELS[modal.row!.unit]}</span>
                               {log.cost_per_unit != null && (
-                                <p className="text-[9px] text-white/20">₼{fmtCost(log.cost_per_unit)}/{UNIT_LABELS[modal.row!.unit]}</p>
+                                <p className={`text-[9px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>₼{fmtCost(log.cost_per_unit)}/{UNIT_LABELS[modal.row!.unit]}</p>
                               )}
                             </div>
                           </div>

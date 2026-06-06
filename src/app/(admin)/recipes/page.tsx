@@ -12,6 +12,7 @@ import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RecipeConstructorModal } from './components/RecipeConstructorModal';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Ingredient {
   id: string;
@@ -57,6 +58,7 @@ interface CookbookRecipe {
 
 export default function RecipesPage() {
   const { language } = useLanguage();
+  const { lightMode } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
@@ -367,8 +369,8 @@ export default function RecipesPage() {
             <CookingPot size={18} className="text-gold" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Reseptlər</h1>
-            <p className="text-white/30 text-xs">Hər məhsulun hazırlanması üçün tələb olunan xəmmal</p>
+            <h1 className={`text-xl font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Reseptlər</h1>
+            <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Hər məhsulun hazırlanması üçün tələb olunan xəmmal</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -383,7 +385,7 @@ export default function RecipesPage() {
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
           >
             <BookOpen size={14} /> Kokbuk Yüklä {cookbookResults.length > 0 && (
-              <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{cookbookResults.length}</span>
+              <span className={`bg-emerald-500 text-[10px] px-1.5 py-0.5 rounded-full ${lightMode ? 'text-gray-900' : 'text-white'}`}>{cookbookResults.length}</span>
             )}
           </button>
           <button
@@ -391,7 +393,7 @@ export default function RecipesPage() {
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
           >
             <BrainCircuit size={14} /> AI Təkliflər {aiSuggestedRecipes.length > 0 && (
-              <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
+              <span className={`bg-blue-500 text-[10px] px-1.5 py-0.5 rounded-full ${lightMode ? 'text-gray-900' : 'text-white'}`}>{aiSuggestedRecipes.length}</span>
             )}
           </button>
           <button
@@ -416,7 +418,7 @@ export default function RecipesPage() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-blue-400" />
-                  <span className="text-sm font-bold text-white">AI Resept Təklifləri</span>
+                  <span className={`text-sm font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>AI Resept Təklifləri</span>
                 </div>
                 <button
                   onClick={generateAiSuggestions}
@@ -429,7 +431,7 @@ export default function RecipesPage() {
               </div>
 
               {aiSuggestedRecipes.length === 0 && (
-                <p className="text-white/30 text-xs py-2">Hazırda AI təklif yoxdur. "Yeni təkliflər yarat" basaraq satış data-sına əsasən təkliflər ala bilərsən.</p>
+                <p className={`text-xs py-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Hazırda AI təklif yoxdur. "Yeni təkliflər yarat" basaraq satış data-sına əsasən təkliflər ala bilərsən.</p>
               )}
 
               <div className="space-y-2">
@@ -438,11 +440,11 @@ export default function RecipesPage() {
                   if (!prod) return null;
                   const prodRecipes = aiSuggestedRecipes.filter(r => r.menu_item_id === pid);
                   return (
-                    <div key={pid} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+                    <div key={pid} className={`rounded-xl border p-3 ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/[0.06] bg-white/[0.03]'}`}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Bot size={14} className="text-purple-400" />
-                          <span className="text-sm font-medium text-white">{getProductName(prod)}</span>
+                          <span className={`text-sm font-medium ${lightMode ? 'text-gray-900' : 'text-white'}`}>{getProductName(prod)}</span>
                           <span className="text-[10px] text-purple-400/60 bg-purple-500/10 px-1.5 py-0.5 rounded-full">AI Təklif</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -456,7 +458,7 @@ export default function RecipesPage() {
                       </div>
                       <div className="space-y-1">
                         {prodRecipes.map(r => (
-                          <div key={r.id} className="flex items-center gap-2 text-xs text-white/50">
+                          <div key={r.id} className={`flex items-center gap-2 text-xs ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
                             <span className="w-1.5 h-1.5 rounded-full bg-purple-400/40" />
                             {getIngredientName(r.ingredient_id)} × {r.quantity_required}
                           </div>
@@ -482,8 +484,8 @@ export default function RecipesPage() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Library size={16} className="text-emerald-400" />
-                  <span className="text-sm font-bold text-white">Kokbuk Parser</span>
-                  <span className="text-white/20 text-[10px]">PDF resept kitabını yüklə, AI hamısını parse edəcək</span>
+                  <span className={`text-sm font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Kokbuk Parser</span>
+                  <span className={`text-[10px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>PDF resept kitabını yüklə, AI hamısını parse edəcək</span>
                 </div>
                 {cookbookResults.length > 0 && (
                   <button
@@ -507,13 +509,13 @@ export default function RecipesPage() {
                   {cookbookLoading ? (
                     <div className="flex flex-col items-center gap-2">
                       <Loader2 size={24} className="animate-spin text-emerald-400" />
-                      <p className="text-white/40 text-xs">Kokbuk parse edilir, bu bir neçə saniyə çəkə bilər...</p>
+                      <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Kokbuk parse edilir, bu bir neçə saniyə çəkə bilər...</p>
                     </div>
                   ) : (
                     <>
-                      <Upload size={28} className="mx-auto mb-2 text-white/20" />
-                      <p className="text-white/40 text-sm font-medium">Resept kitabını (PDF) bura sürüklə</p>
-                      <p className="text-white/20 text-xs mt-1">və ya kliklə seç — AI bütün reseptləri parse edəcək</p>
+                      <Upload size={28} className={`mx-auto mb-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
+                      <p className={`text-sm font-medium ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Resept kitabını (PDF) bura sürüklə</p>
+                      <p className={`text-xs mt-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>və ya kliklə seç — AI bütün reseptləri parse edəcək</p>
                       <input type="file" accept=".pdf,.txt" onChange={handleCookbookSelect} className="hidden" id="cookbook-file" />
                       <label htmlFor="cookbook-file" className="inline-block mt-3 px-4 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold cursor-pointer hover:bg-emerald-500/20 transition-all">
                         Fayl seç
@@ -526,11 +528,11 @@ export default function RecipesPage() {
               {cookbookResults.length > 0 && (
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
                   {cookbookResults.map((recipe, idx) => (
-                    <div key={idx} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+                    <div key={idx} className={`rounded-xl border p-3 ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/[0.06] bg-white/[0.03]'}`}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <BookOpen size={12} className="text-emerald-400" />
-                          <span className="text-sm font-medium text-white">{recipe.recipeName}</span>
+                          <span className={`text-sm font-medium ${lightMode ? 'text-gray-900' : 'text-white'}`}>{recipe.recipeName}</span>
                           {recipe.confidence > 0.7 && <span className="text-[10px] text-emerald-400/60 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">Yüksək uyğunluq</span>}
                         </div>
                         <button
@@ -542,21 +544,21 @@ export default function RecipesPage() {
                         </button>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-white/20 text-[10px]">Məhsul:</span>
+                        <span className={`text-[10px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>Məhsul:</span>
                         <select
                           value={cookbookMatchMap[recipe.recipeName] || recipe.suggestedProductId || ''}
                           onChange={e => setCookbookMatchMap(prev => ({ ...prev, [recipe.recipeName]: e.target.value }))}
-                          className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-white/20"
+                          className={`flex-1 border rounded-lg px-2 py-1 text-xs outline-none focus:border-white/20 ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900' : 'bg-white/[0.04] border-white/[0.07] text-white'}`}
                         >
-                          <option value="" className="bg-[#1a1a1a]">Məhsul seç...</option>
+                          <option value="" className={lightMode ? 'bg-gray-100' : 'bg-[#1a1a1a]'}>Məhsul seç...</option>
                           {products.map(p => (
-                            <option key={p.id} value={p.id} className="bg-[#1a1a1a]">{getProductName(p)}</option>
+                            <option key={p.id} value={p.id} className={lightMode ? 'bg-gray-100' : 'bg-[#1a1a1a]'}>{getProductName(p)}</option>
                           ))}
                         </select>
                       </div>
                       <div className="space-y-1">
                         {recipe.ingredients.map((ing, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs text-white/50">
+                          <div key={i} className={`flex items-center gap-2 text-xs ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40" />
                             {ing.ingredient_name} × {ing.quantity_required} {ing.unit}
                           </div>
@@ -576,18 +578,18 @@ export default function RecipesPage() {
 
       {/* Search */}
       <div className="relative mb-4">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+        <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${lightMode ? 'text-gray-300' : 'text-white/25'}`} />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Məhsul axtar..."
-          className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/25 transition-all"
+          className={`w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white placeholder:text-white/20 focus:border-white/25'}`}
         />
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 size={24} className="animate-spin text-white/20" />
+          <Loader2 size={24} className={`animate-spin ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
         </div>
       ) : (
         <div className="space-y-2">
@@ -597,33 +599,33 @@ export default function RecipesPage() {
             const hasAi = recs.some(r => r.is_ai_suggested);
             const name = getProductName(product);
             return (
-              <div key={product.id} className={`rounded-2xl border ${hasAi ? 'border-purple-500/20' : 'border-white/[0.06]'} bg-white/[0.02] overflow-hidden`}>
+              <div key={product.id} className={`rounded-2xl border ${hasAi ? 'border-purple-500/20' : 'border-white/[0.06]'}overflow-hidden ${lightMode ? 'bg-gray-50' : 'bg-white/[0.02]'}`}>
                 <button
                   onClick={() => setExpandedProduct(isExpanded ? null : product.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-all text-left"
+                  className={`w-full flex items-center gap-3 px-4 py-3 transition-all text-left ${lightMode ? 'hover:bg-gray-50' : 'hover:bg-white/[0.03]'}`}
                 >
                   {product.image_url ? (
                     <img src={product.image_url} alt={name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
                   ) : (
-                    <div className="w-9 h-9 rounded-lg bg-white/[0.05] flex-shrink-0" />
+                    <div className={`w-9 h-9 rounded-lg flex-shrink-0 ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`} />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-white truncate">{name}</p>
+                      <p className={`text-sm font-medium truncate ${lightMode ? 'text-gray-900' : 'text-white'}`}>{name}</p>
                       {hasAi && <Sparkles size={11} className="text-purple-400 flex-shrink-0" />}
                     </div>
-                    <p className="text-white/30 text-xs">{product.price.toFixed(2)} ₼ · {recs.length} resept {hasAi && '· AI təklif var'}</p>
+                    <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{product.price.toFixed(2)} ₼ · {recs.length} resept {hasAi && '· AI təklif var'}</p>
                   </div>
-                  {isExpanded ? <ChevronUp size={16} className="text-white/30" /> : <ChevronDown size={16} className="text-white/30" />}
+                  {isExpanded ? <ChevronUp size={16} className={lightMode ? 'text-gray-400' : 'text-white/30'} /> : <ChevronDown size={16} className={lightMode ? 'text-gray-400' : 'text-white/30'} />}
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-white/[0.05]">
+                  <div className={`px-4 pb-4 border-t ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
                     {/* Document Upload Zone */}
-                    <div className="mt-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-3">
+                    <div className={`mt-3 rounded-xl border border-dashed p-3 ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/10 bg-white/[0.02]'}`}>
                       <div className="flex items-center gap-2 mb-2">
-                        <FileText size={13} className="text-white/30" />
-                        <span className="text-[10px] uppercase tracking-wider text-white/30 font-semibold">AI Resept Parser</span>
+                        <FileText size={13} className={lightMode ? 'text-gray-400' : 'text-white/30'} />
+                        <span className={`text-[10px] uppercase tracking-wider font-semibold ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>AI Resept Parser</span>
                       </div>
                       {uploadTarget === product.id ? (
                         <div className="space-y-2">
@@ -633,18 +635,18 @@ export default function RecipesPage() {
                             onDrop={handleFileDrop}
                             className={`rounded-lg border border-dashed p-4 text-center transition-all ${dragOver ? 'border-blue-500/40 bg-blue-500/5' : 'border-white/10 bg-white/[0.02]'}`}
                           >
-                            <Upload size={20} className="mx-auto mb-1 text-white/20" />
-                            <p className="text-white/30 text-xs">PDF, Word və ya TXT faylını bura sürüklə</p>
+                            <Upload size={20} className={`mx-auto mb-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
+                            <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>PDF, Word və ya TXT faylını bura sürüklə</p>
                             <input type="file" accept=".txt,.pdf,.doc,.docx" onChange={handleFileSelect} className="hidden" id={`file-${product.id}`} />
                             <label htmlFor={`file-${product.id}`} className="text-blue-400/70 text-xs cursor-pointer hover:text-blue-400">və ya kliklə seç</label>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-white/20 text-[10px]">və ya yaz:</span>
+                            <span className={`text-[10px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>və ya yaz:</span>
                             <input
                               value={uploadText}
                               onChange={e => setUploadText(e.target.value)}
                               placeholder="Resept mətnini bura yaz..."
-                              className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1 text-xs text-white placeholder:text-white/15 outline-none focus:border-white/20"
+                              className={`flex-1 border rounded-lg px-2 py-1 text-xs placeholder:text-white/15 outline-none focus:border-white/20 ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900' : 'bg-white/[0.04] border-white/[0.07] text-white'}`}
                             />
                             <button
                               onClick={parseFromText}
@@ -655,7 +657,7 @@ export default function RecipesPage() {
                             </button>
                             <button
                               onClick={() => { setUploadTarget(null); setUploadText(''); }}
-                              className="text-white/20 text-[10px] hover:text-white/40"
+                              className={`text-[10px] hover:text-white/40 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}
                             >
                               Ləğv
                             </button>
@@ -677,11 +679,11 @@ export default function RecipesPage() {
                           <div key={r.id} className={`flex items-center justify-between px-3 py-2 rounded-xl border ${r.is_ai_suggested ? 'bg-purple-500/[0.04] border-purple-500/15' : 'bg-white/[0.03] border-white/[0.05]'}`}>
                             <div className="flex items-center gap-2">
                               <span className={`w-2 h-2 rounded-full ${r.is_ai_suggested ? 'bg-purple-400/60' : 'bg-amber-400/60'}`} />
-                              <span className="text-white/70 text-sm">{r.ingredient?.name || getIngredientName(r.ingredient_id)}</span>
-                              <span className="text-white/30 text-xs">× {r.quantity_required} {r.ingredient?.unit || ''}</span>
+                              <span className={`text-sm ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>{r.ingredient?.name || getIngredientName(r.ingredient_id)}</span>
+                              <span className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>× {r.quantity_required} {r.ingredient?.unit || ''}</span>
                               {r.is_ai_suggested && <span className="text-[9px] text-purple-400/50 bg-purple-500/10 px-1 py-0.5 rounded">AI</span>}
                             </div>
-                            <button onClick={() => handleDelete(r.id)} className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all flex items-center justify-center">
+                            <button onClick={() => handleDelete(r.id)} className={`w-7 h-7 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-all flex items-center justify-center ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                               <Trash2 size={13} />
                             </button>
                           </div>
@@ -695,11 +697,11 @@ export default function RecipesPage() {
                         <select
                           value={newIngredientId}
                           onChange={e => setNewIngredientId(e.target.value)}
-                          className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                          className={`flex-1 border rounded-xl px-3 py-2 text-sm outline-none ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 focus:border-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white focus:border-white/25'}`}
                         >
-                          <option value="" className="bg-[#1a1a1a]">Xəmmal seç</option>
+                          <option value="" className={lightMode ? 'bg-gray-100' : 'bg-[#1a1a1a]'}>Xəmmal seç</option>
                           {ingredients.map(i => (
-                            <option key={i.id} value={i.id} className="bg-[#1a1a1a]">{i.name} ({i.unit}) — {i.current_stock}</option>
+                            <option key={i.id} value={i.id} className={lightMode ? 'bg-gray-100' : 'bg-[#1a1a1a]'}>{i.name} ({i.unit}) — {i.current_stock}</option>
                           ))}
                         </select>
                         <input
@@ -707,7 +709,7 @@ export default function RecipesPage() {
                           value={newQuantity}
                           onChange={e => setNewQuantity(e.target.value)}
                           placeholder="Miqdar"
-                          className="w-28 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/25"
+                          className={`w-28 border rounded-xl px-3 py-2 text-sm outline-none ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white placeholder:text-white/20 focus:border-white/25'}`}
                         />
                         <button
                           onClick={() => handleAdd(product.id)}
@@ -718,7 +720,7 @@ export default function RecipesPage() {
                         </button>
                         <button
                           onClick={() => { setAddingFor(null); setNewIngredientId(''); setNewQuantity(''); }}
-                          className="px-3 py-2 rounded-xl text-white/30 text-xs hover:text-white/60 transition-all"
+                          className={`px-3 py-2 rounded-xl text-xs transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600' : 'text-white/30 hover:text-white/60'}`}
                         >
                           Ləğv
                         </button>
@@ -731,10 +733,10 @@ export default function RecipesPage() {
                         >
                           <CookingPot size={13} /> Resept Konstruktoru
                         </button>
-                        <span className="text-white/10 text-[10px]">|</span>
+                        <span className={`text-[10px] ${lightMode ? 'text-gray-200' : 'text-white/10'}`}>|</span>
                         <button
                           onClick={() => setAddingFor(product.id)}
-                          className="flex items-center gap-2 text-white/40 text-xs font-bold hover:text-white/70 transition-all"
+                          className={`flex items-center gap-2 text-xs font-bold hover:text-white/70 transition-all ${lightMode ? 'text-gray-400' : 'text-white/40'}`}
                         >
                           <Plus size={13} /> Sətir əlavə et
                         </button>
@@ -746,7 +748,7 @@ export default function RecipesPage() {
             );
           })}
           {filteredProducts.length === 0 && (
-            <div className="text-center py-16 text-white/20 text-sm">Məhsul tapılmadı</div>
+            <div className={`text-center py-16 text-sm ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>Məhsul tapılmadı</div>
           )}
         </div>
       )}

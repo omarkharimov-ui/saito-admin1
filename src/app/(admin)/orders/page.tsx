@@ -22,6 +22,7 @@ import { ReceiptModal } from './components/ReceiptModal';
 import { ManualOrderModal } from './components/ManualOrderModal';
 import type { Order } from './types';
 import { getOrderAgeMinutes } from './utils';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 function getCookieRole(): string | null {
   if (typeof document === 'undefined') return null;
@@ -32,6 +33,7 @@ function getCookieRole(): string | null {
 export default function OrdersPage() {
   const router = useRouter();
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const { notifications, markAsRead } = useNotifications();
 
   useEffect(() => {
@@ -281,7 +283,7 @@ export default function OrdersPage() {
       {!isModalActive && (
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-serif font-bold text-white leading-tight">{t('orders')}</h1>
+            <h1 className={`text-xl md:text-2xl font-serif font-bold leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('orders')}</h1>
             {newCount > 0 && (
               <span className="w-2 h-2 rounded-full bg-gold/70 animate-pulse" />
             )}
@@ -289,7 +291,7 @@ export default function OrdersPage() {
           <div className="flex items-center gap-2">
             <ClockButton />
             <button onClick={toggleFullscreen}
-              className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.07] text-white/50 hover:text-white/80 transition-all">
+              className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-500 hover:text-gray-800' : 'bg-white/[0.04] border-white/[0.07] text-white/50 hover:text-white/80'}`}>
               {fullscreen ? <Minimize2 size={15} strokeWidth={1.5} /> : <Maximize2 size={15} strokeWidth={1.5} />}
             </button>
           </div>
@@ -299,7 +301,7 @@ export default function OrdersPage() {
       {/* ── MAIN CONTENT ── */}
       {isModalActive ? (
         <>
-          <header className="w-full h-[150px] flex-shrink-0 overflow-y-auto px-4 border-b border-white/[0.06] bg-neutral-900/50">
+          <header className={`w-full h-[150px] flex-shrink-0 overflow-y-auto px-4 border-b bg-neutral-900/50 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
             {loading ? <OrdersGhostLoading /> : (
               <TableStatusGrid
                 orders={activeOrders}
@@ -400,8 +402,8 @@ export default function OrdersPage() {
           ) : loading ? null : (
             <div className="flex-shrink-0 flex items-center justify-center pb-1" style={{ height: '12vh' }}>
               <div className="flex flex-col items-center justify-center select-none">
-                <ClipboardList size={24} className="text-white/10 mb-2" />
-                <p className="text-white/25 text-sm">{t('no_active_orders')}</p>
+                <ClipboardList size={24} className={`mb-2 ${lightMode ? 'text-gray-200' : 'text-white/10'}`} />
+                <p className={`text-sm ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('no_active_orders')}</p>
               </div>
             </div>
           )}
@@ -420,7 +422,7 @@ export default function OrdersPage() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: -8 }}
                 onClick={() => handleDismissAllReady(readyOrders.map(o => o.id))}
-                className="pointer-events-auto px-3 py-1.5 rounded-lg bg-white/[0.08] backdrop-blur-sm border border-white/25 text-white/60 hover:text-white hover:border-white/40 text-[10px] font-semibold transition-all duration-200 hover:scale-105 shadow-lg"
+                className={`pointer-events-auto px-3 py-1.5 rounded-lg backdrop-blur-sm border hover:border-white/40 text-[10px] font-semibold transition-all duration-200 hover:scale-105 shadow-lg ${lightMode ? 'bg-gray-200 border-gray-300 text-gray-500 hover:text-gray-900' : 'bg-white/[0.08] border-white/25 text-white/60 hover:text-white'}`}
               >
                 {t('ready_notif_dismiss_all')}
               </motion.button>

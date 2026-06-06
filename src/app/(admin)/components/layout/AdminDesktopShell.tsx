@@ -5,6 +5,7 @@ import Sidebar from '../Sidebar';
 import { AdminHeader } from '../AdminHeader';
 import SimpleToaster from './SimpleToaster';
 import { LayoutProvider } from '../../context/LayoutContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 export default function AdminDesktopShell({
   role,
@@ -14,6 +15,7 @@ export default function AdminDesktopShell({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { lightMode } = useTheme();
   const handleToggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function AdminDesktopShell({
         <button
           type="button"
           aria-label="Menyunu bağla"
-          className="fixed inset-0 bg-black/55 z-40"
+          className={`fixed inset-0 z-40 ${lightMode ? 'bg-black/10' : 'bg-black/55'}`}
           onClick={() => setSidebarOpen(false)}
         />
       )}

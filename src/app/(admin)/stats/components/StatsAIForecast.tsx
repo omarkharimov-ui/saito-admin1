@@ -44,23 +44,23 @@ const StatsAIForecast = ({ forecast, anomalies }: Props) => {
             </div>
             <div>
               <h3 className="text-sm font-bold text-gold">{t('stats_forecast_title')}</h3>
-              <p className="text-[10px] text-white/40 uppercase tracking-wider">{t('stats_forecast_subtitle')}</p>
+              <p className={`text-[10px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('stats_forecast_subtitle')}</p>
             </div>
           </div>
           <div className="space-y-3">
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-serif font-bold text-white">₼{forecast.predictedRevenue.toLocaleString()}</span>
+              <span className={`text-2xl font-serif font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼{forecast.predictedRevenue.toLocaleString()}</span>
               <span className={`text-xs font-bold ${forecast.trend >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {forecast.trend >= 0 ? '+' : ''}{forecast.trend.toFixed(1)}%
               </span>
             </div>
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${forecast.confidence === 'high' ? 'bg-green-500' : forecast.confidence === 'medium' ? 'bg-yellow-500' : 'bg-red-500'}`} />
-              <span className="text-xs text-white/50">
+              <span className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
                 {t('stats_confidence')}: {forecast.confidence === 'high' ? t('stats_confidence_high') : forecast.confidence === 'medium' ? t('stats_confidence_medium') : t('stats_confidence_low')}
               </span>
             </div>
-            <p className="text-xs text-white/40">{t('stats_forecast_desc')}</p>
+            <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('stats_forecast_desc')}</p>
           </div>
         </motion.div>
       )}
@@ -79,7 +79,7 @@ const StatsAIForecast = ({ forecast, anomalies }: Props) => {
               <h3 className={`text-sm font-bold ${anomaly.severity === 'critical' ? 'text-red-400' : 'text-orange-400'}`}>
                 {anomaly.severity === 'critical' ? t('stats_alert_critical') : t('stats_alert_warning')}
               </h3>
-              <p className="text-xs text-white/60 mt-2 leading-relaxed">{anomaly.message}</p>
+              <p className={`text-xs mt-2 leading-relaxed ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{anomaly.message}</p>
             </div>
           </div>
         </motion.div>

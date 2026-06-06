@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 const languages = [
   { code: 'az', label: 'AZ', name: 'Azərbaycanca' },
@@ -147,6 +148,7 @@ function OrbitingGlobeOverlay({ visible, text }: { visible: boolean; text: strin
 
 export function LanguageSwitcher() {
   const { language, setLanguage } = useLanguage();
+  const { lightMode } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [targetLang, setTargetLang] = useState<string>('az');
@@ -226,7 +228,7 @@ export function LanguageSwitcher() {
                     className="h-8 px-3 rounded-lg flex items-center justify-center cursor-pointer select-none min-w-[70px] hover:translate-x-[-2px] transition-transform"
                     style={{
                       background: 'rgba(8,8,8,0.8)',
-                      border: '1px solid rgba(255,255,255,0.07)',
+                      border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.07)',
                       backdropFilter: 'blur(12px)',
                     }}
                   >

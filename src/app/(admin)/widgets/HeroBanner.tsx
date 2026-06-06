@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface DashboardStats {
   dailyRevenue: number;
@@ -17,6 +18,7 @@ interface DashboardStats {
 
 export default function HeroBanner() {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [greeting, setGreeting] = useState('');
   const [userName, setUserName] = useState('');
   const [stats, setStats] = useState<DashboardStats>({
@@ -84,7 +86,7 @@ export default function HeroBanner() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl bg-[#0a0a0a] p-4 sm:p-6 lg:p-8"
+      className={`relative overflow-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl p-4 sm:p-6 lg:p-8 ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}
     >
       {/* Animated gradient backgrounds */}
       <div className="absolute inset-0 overflow-hidden">
@@ -96,7 +98,7 @@ export default function HeroBanner() {
         <motion.div
           animate={{ x: [0, -20, 0], y: [0, 30, 0], opacity: [0.2, 0.4, 0.2] }}
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute -bottom-20 -left-20 w-80 h-80 bg-white/[0.02] rounded-full blur-[80px]"
+          className={`absolute -bottom-20 -left-20 w-80 h-80 rounded-full blur-[80px] ${lightMode ? 'bg-gray-50' : 'bg-white/[0.02]'}`}
         />
       </div>
 
@@ -119,7 +121,7 @@ export default function HeroBanner() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="text-2xl md:text-3xl font-serif font-bold text-white"
+              className={`text-2xl md:text-3xl font-serif font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}
             >
               {greeting}{userName ? `, ${userName}` : ''}
             </motion.h1>
@@ -127,7 +129,7 @@ export default function HeroBanner() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.5 }}
-              className="text-white/40 text-sm mt-1"
+              className={`text-sm mt-1 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}
             >
               {t('restaurant_running_smoothly')}
             </motion.p>
@@ -139,14 +141,14 @@ export default function HeroBanner() {
           {/* Top: Revenue + sparkline */}
           <div className="relative mb-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] uppercase tracking-[0.35em] font-semibold text-white/40">
+              <span className={`text-[10px] uppercase tracking-[0.35em] font-semibold ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
                 {t('today_revenue')}
               </span>
-              <span className="text-[11px] text-white/20">{t('today')}</span>
+              <span className={`text-[11px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('today')}</span>
             </div>
             
             <div className="flex items-end justify-between">
-              <h2 className="font-serif font-bold text-white leading-none tracking-tight relative z-10">
+              <h2 className={`font-serif font-bold leading-none tracking-tight relative z-10 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                 <AnimatePresence mode="wait">
                   {loading ? (
                     <motion.span
@@ -154,7 +156,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="block h-14 w-48 rounded-xl bg-white/[0.05] animate-pulse"
+                      className={`block h-14 w-48 rounded-xl animate-pulse ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`}
                     />
                   ) : (
                     <motion.span
@@ -207,7 +209,7 @@ export default function HeroBanner() {
               >
                 {stats.dailyNetProfit >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                 Qazanc: ₼{Math.abs(stats.dailyNetProfit).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                {stats.foodCostPct > 0 && <span className="text-white/30 font-normal"> · FC {stats.foodCostPct.toFixed(1)}%</span>}
+                {stats.foodCostPct > 0 && <span className={`font-normal ${lightMode ? 'text-gray-400' : 'text-white/30'}`}> · FC {stats.foodCostPct.toFixed(1)}%</span>}
               </div>
               {stats.criticalStockCount > 0 && (
                 <div
@@ -224,7 +226,7 @@ export default function HeroBanner() {
           {/* Bottom: 3-col Stats */}
           <div className="grid grid-cols-3">
             <div className="p-4">
-              <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-white/30 block mb-2 leading-relaxed">
+              <span className={`text-[9px] uppercase tracking-[0.3em] font-medium block mb-2 leading-relaxed ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                 {t('today_orders')}
               </span>
               <div className="flex items-end gap-2">
@@ -235,7 +237,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="block h-8 w-10 rounded-md bg-white/[0.05] animate-pulse"
+                      className={`block h-8 w-10 rounded-md animate-pulse ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`}
                     />
                   ) : (
                     <motion.span
@@ -243,7 +245,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
-                      className="font-serif font-bold text-2xl md:text-3xl text-white leading-none"
+                      className={`font-serif font-bold text-2xl md:text-3xl leading-none ${lightMode ? 'text-gray-900' : 'text-white'}`}
                     >
                       {stats.todayOrders}
                     </motion.span>
@@ -263,7 +265,7 @@ export default function HeroBanner() {
             </div>
             
             <div className="p-4">
-              <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-white/30 block mb-2 leading-relaxed">
+              <span className={`text-[9px] uppercase tracking-[0.3em] font-medium block mb-2 leading-relaxed ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                 {t('active_tables')}
               </span>
               <div className="flex items-end gap-2">
@@ -274,7 +276,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="block h-8 w-10 rounded-md bg-white/[0.05] animate-pulse"
+                      className={`block h-8 w-10 rounded-md animate-pulse ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`}
                     />
                   ) : (
                     <motion.span
@@ -282,7 +284,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
-                      className="font-serif font-bold text-2xl md:text-3xl text-white leading-none"
+                      className={`font-serif font-bold text-2xl md:text-3xl leading-none ${lightMode ? 'text-gray-900' : 'text-white'}`}
                     >
                       {stats.activeTables}
                     </motion.span>
@@ -302,7 +304,7 @@ export default function HeroBanner() {
             </div>
             
             <div className="p-4">
-              <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-white/30 block mb-2 leading-relaxed">
+              <span className={`text-[9px] uppercase tracking-[0.3em] font-medium block mb-2 leading-relaxed ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                 {t('todays_favorite')}
               </span>
               <AnimatePresence mode="wait">
@@ -312,7 +314,7 @@ export default function HeroBanner() {
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="block h-8 w-24 rounded-md bg-white/[0.05] animate-pulse"
+                    className={`block h-8 w-24 rounded-md animate-pulse ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`}
                   />
                 ) : (
                   <motion.span
@@ -320,7 +322,7 @@ export default function HeroBanner() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
-                    className="font-serif font-bold text-lg md:text-xl text-white truncate block leading-tight"
+                    className={`font-serif font-bold text-lg md:text-xl truncate block leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}
                   >
                     {stats.topProduct}
                   </motion.span>

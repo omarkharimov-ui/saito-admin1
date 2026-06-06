@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit3, Trash2, PackagePlus, Loader2, ShoppingBag, AlertCircle } from 'lucide-react';
 import type { Combo, Product } from '@/types';
 import ComboModal from './components/ComboModal';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 const COMBO_CACHE_KEY = 'saito_combos_cache';
 const PRODUCT_CACHE_KEY = 'saito_combos_products_cache';
@@ -21,6 +22,7 @@ function writeCache<T>(key: string, val: T) {
 
 export default function CombosPage() {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [combos, setCombos] = useState<Combo[]>(() => readCache<Combo[]>(COMBO_CACHE_KEY) || []);
   const [products, setProducts] = useState<Product[]>(() => readCache<Product[]>(PRODUCT_CACHE_KEY) || []);
   const [modalOpen, setModalOpen] = useState(false);
@@ -113,30 +115,30 @@ export default function CombosPage() {
 
   if (fetching && combos.length === 0) {
     return (
-      <div className="min-h-screen bg-[#080808] px-6 py-8">
+      <div className={`min-h-screen px-6 py-8 ${lightMode ? 'bg-white' : 'bg-[#080808]'}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="space-y-2">
-            <div className="h-7 w-32 bg-white/[0.05] rounded-xl animate-pulse" />
-            <div className="h-3 w-16 bg-white/[0.03] rounded-lg animate-pulse" />
+            <div className={`h-7 w-32 rounded-xl animate-pulse ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`} />
+            <div className={`h-3 w-16 rounded-lg animate-pulse ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`} />
           </div>
-          <div className="h-10 w-36 bg-white/[0.05] rounded-xl animate-pulse" />
+          <div className={`h-10 w-36 rounded-xl animate-pulse ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-[#0e0e0e] border border-white/[0.07] rounded-2xl overflow-hidden animate-pulse">
-              <div className="h-36 bg-white/[0.04]" />
+            <div key={i} className={`border rounded-2xl overflow-hidden animate-pulse ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0e0e0e] border-white/[0.07]'}`}>
+              <div className={`h-36 ${lightMode ? 'bg-gray-50/80' : 'bg-white/[0.04]'}`} />
               <div className="p-4 space-y-3">
                 <div className="flex justify-between">
-                  <div className="h-4 w-28 bg-white/[0.05] rounded-lg" />
-                  <div className="h-5 w-12 bg-white/[0.05] rounded-lg" />
+                  <div className={`h-4 w-28 rounded-lg ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`} />
+                  <div className={`h-5 w-12 rounded-lg ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`} />
                 </div>
-                <div className="h-3 w-full bg-white/[0.03] rounded-lg" />
+                <div className={`h-3 w-full rounded-lg ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`} />
                 <div className="flex gap-2">
-                  {[1,2,3].map(j => <div key={j} className="h-7 w-20 bg-white/[0.04] rounded-lg" />)}
+                  {[1,2,3].map(j => <div key={j} className={`h-7 w-20 rounded-lg ${lightMode ? 'bg-gray-50/80' : 'bg-white/[0.04]'}`} />)}
                 </div>
-                <div className="flex gap-2 pt-2 border-t border-white/[0.05]">
-                  <div className="h-7 w-24 bg-white/[0.04] rounded-lg" />
-                  <div className="ml-auto h-5 w-16 bg-white/[0.03] rounded-lg" />
+                <div className={`flex gap-2 pt-2 border-t ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
+                  <div className={`h-7 w-24 rounded-lg ${lightMode ? 'bg-gray-50/80' : 'bg-white/[0.04]'}`} />
+                  <div className={`ml-auto h-5 w-16 rounded-lg ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`} />
                 </div>
               </div>
             </div>
@@ -147,12 +149,12 @@ export default function CombosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080808] px-6 py-8 pb-28 md:pb-8">
+    <div className={`min-h-screen px-6 py-8 pb-28 md:pb-8 ${lightMode ? 'bg-white' : 'bg-[#080808]'}`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-serif font-bold text-white">{t('combos')}</h1>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-white/25 mt-1">
+          <h1 className={`text-2xl font-serif font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('combos')}</h1>
+          <p className={`text-[11px] uppercase tracking-[0.25em] mt-1 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>
             {combos.length} combo
           </p>
         </div>
@@ -167,13 +169,13 @@ export default function CombosPage() {
       {enrichedCombos.length === 0 ? (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center justify-center py-24 gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.07] flex items-center justify-center">
-            <PackagePlus size={28} className="text-white/15" />
+          <div className={`w-16 h-16 rounded-2xl border flex items-center justify-center ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.07]'}`}>
+            <PackagePlus size={28} className={lightMode ? 'text-gray-200' : 'text-white/15'} />
           </div>
-          <p className="text-white/40 font-medium">{t('combo_empty')}</p>
-          <p className="text-white/20 text-sm">{t('combo_empty_hint')}</p>
+          <p className={`font-medium ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('combo_empty')}</p>
+          <p className={`text-sm ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('combo_empty_hint')}</p>
           <button onClick={openNew}
-            className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-white/50 hover:text-white text-[12px] font-semibold transition-all">
+            className={`mt-2 flex items-center gap-2 px-5 py-2.5 rounded-xl hover:bg-white/[0.08] border text-[12px] font-semibold transition-all ${lightMode ? 'bg-gray-100 border-gray-200 text-gray-500 hover:text-gray-900' : 'bg-white/[0.05] border-white/[0.08] text-white/50 hover:text-white'}`}>
             <Plus size={14} />
             {t('combo_new')}
           </button>
@@ -189,21 +191,21 @@ export default function CombosPage() {
             return (
               <div key={combo.id}
                 onClick={() => openEdit(combo)}
-                className="bg-[#0e0e0e] border border-white/[0.07] rounded-2xl overflow-hidden hover:border-white/[0.12] transition-all group cursor-pointer active:scale-[0.98]"
+                className={`border rounded-2xl overflow-hidden hover:border-white/[0.12] transition-all group cursor-pointer active:scale-[0.98] ${lightMode ? 'bg-white border-gray-200' : 'bg-[#0e0e0e] border-white/[0.07]'}`}
               >
                   {/* Şəkil */}
-                  <div className="relative h-36 bg-white/[0.03]">
+                  <div className={`relative h-36 ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
                     {combo.image_url ? (
                       <img src={combo.image_url} alt={(combo as any)[`name_${language}`] || combo.name} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <PackagePlus size={32} className="text-white/10" />
+                        <PackagePlus size={32} className={lightMode ? 'text-gray-200' : 'text-white/10'} />
                       </div>
                     )}
                     {/* Badges */}
                     <div className="absolute top-2.5 left-2.5 flex gap-1.5">
                       {!combo.is_active && (
-                        <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/40 text-[10px] font-bold uppercase tracking-wider border border-white/[0.10]">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${lightMode ? 'bg-gray-200 text-gray-400 border-gray-300' : 'bg-white/10 text-white/40 border-white/[0.10]'}`}>
                           {t('combo_inactive')}
                         </span>
                       )}
@@ -211,7 +213,7 @@ export default function CombosPage() {
                     {/* Actions — always visible on mobile, hover-only on desktop */}
                     <div className="absolute top-2.5 right-2.5 flex gap-1.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button onClick={(e) => { e.stopPropagation(); openEdit(combo); }}
-                        className="w-8 h-8 rounded-xl bg-black/60 backdrop-blur-sm border border-white/[0.12] flex items-center justify-center text-white/60 hover:text-white transition-colors">
+                        className={`w-8 h-8 rounded-xl bg-black/60 backdrop-blur-sm border flex items-center justify-center transition-colors ${lightMode ? 'border-gray-300 text-gray-500 hover:text-gray-900' : 'border-white/[0.12] text-white/60 hover:text-white'}`}>
                         <Edit3 size={13} />
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(combo); }}
@@ -224,46 +226,46 @@ export default function CombosPage() {
                   {/* Content */}
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="font-semibold text-white text-[15px] leading-snug">{(combo as any)[`name_${language}`] || combo.name}</h3>
+                      <h3 className={`font-semibold text-[15px] leading-snug ${lightMode ? 'text-gray-900' : 'text-white'}`}>{(combo as any)[`name_${language}`] || combo.name}</h3>
                       <div className="text-right flex-shrink-0">
                         <p className="text-gold font-black text-[16px]">₼{combo.price.toFixed(2)}</p>
                         {saving > 0 && separateTotal > 0 && (
-                          <p className="text-[10px] text-white/30 line-through">₼{separateTotal.toFixed(2)}</p>
+                          <p className={`text-[10px] line-through ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>₼{separateTotal.toFixed(2)}</p>
                         )}
                       </div>
                     </div>
 
                     {((combo as any)[`description_${language}`] || combo.description) && (
-                      <p className="text-[12px] text-white/35 mb-3 line-clamp-2">{(combo as any)[`description_${language}`] || combo.description}</p>
+                      <p className={`text-[12px] mb-3 line-clamp-2 ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{(combo as any)[`description_${language}`] || combo.description}</p>
                     )}
 
                     {/* Items preview */}
                     {(combo.items || []).length > 0 && (
                       <div className="flex items-center gap-1.5 mb-3 flex-wrap">
                         {(combo.items || []).slice(0, 4).map(item => (
-                          <div key={item.product_id} className="flex items-center gap-1 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1">
+                          <div key={item.product_id} className={`flex items-center gap-1 border rounded-lg px-2 py-1 ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.07]'}`}>
                             {item.product?.image_url && (
                               <img src={item.product.image_url} alt="" loading="lazy" decoding="async" className="w-4 h-4 rounded object-cover" />
                             )}
-                            <span className="text-[11px] text-white/50 truncate max-w-[80px]">{item.product?.name}</span>
-                            {item.quantity > 1 && <span className="text-[10px] text-white/30">×{item.quantity}</span>}
+                            <span className={`text-[11px] truncate max-w-[80px] ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{item.product?.name}</span>
+                            {item.quantity > 1 && <span className={`text-[10px] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>×{item.quantity}</span>}
                           </div>
                         ))}
                         {(combo.items || []).length > 4 && (
-                          <span className="text-[11px] text-white/25">+{(combo.items || []).length - 4}</span>
+                          <span className={`text-[11px] ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>+{(combo.items || []).length - 4}</span>
                         )}
                       </div>
                     )}
 
                     {/* Footer */}
-                    <div className="flex items-center gap-2 pt-3 border-t border-white/[0.05]">
+                    <div className={`flex items-center gap-2 pt-3 border-t ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
                       <button onClick={(e) => { e.stopPropagation(); toggleActive(combo); }}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${combo.is_active ? 'bg-green-500/[0.07] text-green-400/90 border-green-500/20 hover:border-green-500/35' : 'bg-white/[0.03] text-white/25 border-white/[0.06] hover:border-white/15'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${combo.is_active ? 'bg-green-400' : 'bg-white/20'}`} />
                         {combo.is_active ? t('combo_active') : t('combo_inactive')}
                       </button>
 
-                      <div className="ml-auto flex items-center gap-1 text-[11px] text-white/25">
+                      <div className={`ml-auto flex items-center gap-1 text-[11px] ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>
                         <ShoppingBag size={11} />
                         {(combo.items || []).length} {t('combo_col_items').toLowerCase()}
                       </div>
@@ -282,21 +284,21 @@ export default function CombosPage() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmDelete(null)} />
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-full sm:max-w-sm bg-[#111] border border-white/[0.08] rounded-2xl p-6 shadow-2xl">
+              className={`relative w-full max-w-full sm:max-w-sm bg-[#111] border rounded-2xl p-6 shadow-2xl ${lightMode ? 'border-gray-200' : 'border-white/[0.08]'}`}>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
                   <AlertCircle size={20} className="text-red-400" />
                 </div>
-                <h3 className="text-white font-semibold">{t('combo_delete')}</h3>
+                <h3 className={`font-semibold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('combo_delete')}</h3>
               </div>
-              <p className="text-white/50 text-sm mb-6">{t('combo_confirm_delete')}</p>
+              <p className={`text-sm mb-6 ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{t('combo_confirm_delete')}</p>
               <div className="flex gap-3">
                 <button onClick={() => setConfirmDelete(null)}
-                  className="flex-1 py-2.5 rounded-xl bg-white/[0.05] text-white/50 hover:text-white text-sm font-semibold transition-all border border-white/[0.08]">
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all border ${lightMode ? 'bg-gray-100 text-gray-500 hover:text-gray-900 border-gray-200' : 'bg-white/[0.05] text-white/50 hover:text-white border-white/[0.08]'}`}>
                   {t('cancel')}
                 </button>
                 <button onClick={() => handleDelete(confirmDelete)} disabled={!!deletingId}
-                  className="flex-1 py-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white text-sm font-bold transition-all flex items-center justify-center gap-2">
+                  className={`flex-1 py-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-sm font-bold transition-all flex items-center justify-center gap-2 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                   {deletingId === confirmDelete.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                   {t('delete')}
                 </button>

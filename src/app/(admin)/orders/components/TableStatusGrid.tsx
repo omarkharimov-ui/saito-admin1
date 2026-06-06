@@ -15,6 +15,7 @@ import { getOrderAgeMinutes, getKitchenStatusConfig } from '../utils';
 import { GitMerge } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 /* ─── TableCell ─── */
 const TableCell = React.memo(function TableCell({
@@ -87,6 +88,7 @@ function TableTooltip({
   delayThreshold?: number;
   t: (key: string) => string;
 }) {
+  const { lightMode } = useTheme();
   if (!visible || !order || !position) return null;
 
   const ageMin       = order.kitchen_accepted_at ? getOrderAgeMinutes(order.kitchen_accepted_at) : 0;
@@ -102,7 +104,7 @@ function TableTooltip({
       style={{ left: position.x, top: position.y - 10, transform: 'translate(-50%, -100%)' }}
     >
       <div className="opacity-100 transition-all duration-200">
-        <div className="relative bg-black/90 backdrop-blur-xl border border-white/[0.15] rounded-xl px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.7)] min-w-[160px]">
+        <div className={`relative bg-black/90 backdrop-blur-xl border rounded-xl px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.7)] min-w-[160px] ${lightMode ? 'border-gray-300' : 'border-white/[0.15]'}`}>
           <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/[0.06] via-transparent to-white/[0.02] pointer-events-none" />
           <div className="relative">
             <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border mb-2 ${kitchenCfg.bg} ${kitchenCfg.color} ${kitchenCfg.border}`}>
@@ -111,7 +113,7 @@ function TableTooltip({
             <p className="text-base font-black text-gold tabular-nums">{order.total_amount?.toFixed(2)} ₼</p>
             {order.order_items && order.order_items.length > 0 && (
               <div className="mt-1.5 space-y-1">
-                <p className="text-[11px] text-white/60">{order.order_items.length} {t('grid_product_count')}</p>
+                <p className={`text-[11px] ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{order.order_items.length} {t('grid_product_count')}</p>
                 {prepTime && <p className="text-[10px] text-emerald-400/90">{prepTime} {t('grid_prep_done')}</p>}
                 {order.kitchen_accepted_at && !order.kitchen_ready_at && (() => {
                   const isOverdue = (kitchenStatus === 'cooking' || kitchenStatus === 'preparing') && ageMin >= delayThreshold;
@@ -125,7 +127,7 @@ function TableTooltip({
             )}
           </div>
         </div>
-        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-black/90 border-b border-r border-white/[0.15] rotate-45" />
+        <div className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-black/90 border-b border-r rotate-45 ${lightMode ? 'border-gray-300' : 'border-white/[0.15]'}`} />
       </div>
     </div>,
     document.body
@@ -159,6 +161,7 @@ export function TableStatusGrid({
   onMergeTables, onMoveTable, onEmptyMerge, onAddEmptyTable, onDragStateChange, isCompact,
 }: TableStatusGridProps) {
   const [draggingNum, setDraggingNum] = useState<number | null>(null);
+  const { lightMode } = useTheme();
   const [overNum, setOverNum]         = useState<number | null>(null);
   const overNumRef                    = useRef<number | null>(null);
   const hoverTimerRef                 = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -448,12 +451,12 @@ export function TableStatusGrid({
   return (
     <>
       <div
-        className={`relative bg-white/[0.03] border border-white/[0.07] rounded-2xl px-2 pt-2 pb-0 backdrop-blur-sm flex flex-col ${isCompact ? '' : 'h-full'}`}
+        className={`relative border rounded-2xl px-2 pt-2 pb-0 backdrop-blur-sm flex flex-col ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}${isCompact ? '' : 'h-full'}`}
         style={{ overflow: isCompact ? 'hidden auto' : 'clip' }}
       >
 
         <div className="flex flex-wrap items-center gap-3 mb-2 flex-shrink-0">
-          <p className="text-[9px] uppercase tracking-[0.25em] text-white/60 font-semibold">{t('table_status')}</p>
+          <p className={`text-[9px] uppercase tracking-[0.25em] font-semibold ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{t('table_status')}</p>
           {floorNames.length > 1 && (
             <div className="flex items-center gap-1 ml-auto">
               <button onClick={() => setSelectedFloor(null)}
@@ -612,10 +615,10 @@ export function TableStatusGrid({
                       );
                     })()}
 
-                    {isEmpty && <div className="absolute inset-0 rounded-2xl border border-white/[0.08] bg-white/[0.02]" />}
+                    {isEmpty && <div className={`absolute inset-0 rounded-2xl border ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/[0.08] bg-white/[0.02]'}`} />}
 
                     {isEmpty ? (
-                      <span className="relative z-10 transition-all duration-200 text-white/55 group-hover/btn:text-white/90 group-hover/btn:scale-110">
+                      <span className={`relative z-10 transition-all duration-200 group-hover/btn:text-white/90 group-hover/btn:scale-110 ${lightMode ? 'text-gray-500' : 'text-white/55'}`}>
                         <span className="group-hover/btn:hidden">{num}</span>
                         <span className="hidden group-hover/btn:block text-xl font-thin">+</span>
                       </span>
@@ -636,7 +639,7 @@ export function TableStatusGrid({
                               );
                             })()}
                             {/* Kitchen status + time */}
-                            <span className={`inline-flex items-center gap-1 ${isCompact ? 'text-[7px]' : 'text-[10px]'} font-bold tracking-tight text-white`}>
+                            <span className={`inline-flex items-center gap-1 ${isCompact ? 'text-[7px]' : 'text-[10px]'}font-bold tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                               {kitchenStatus === 'ready' ? t('grid_status_ready')
                                 : (kitchenStatus === 'cooking' || kitchenStatus === 'preparing') ? t('grid_status_preparing')
                                 : t('grid_status_pending')}
@@ -644,17 +647,17 @@ export function TableStatusGrid({
                             </span>
                           </span>
                         ) : (
-                          <span className={`font-black ${isCompact ? 'text-xs' : 'text-base'} tracking-tight`} style={{ color: '#ffffff' }}>
+                          <span className={`font-black ${isCompact ? 'text-xs' : 'text-base'} tracking-tight`} style={{ color: lightMode ? '#111827' : '#ffffff' }}>
                             {num}
                           </span>
                         )}
                         {!isMerged && ageMin > 0 && (
-                          <span className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} tabular-nums font-medium`} style={{ color: '#ffffff' }}>
+                          <span className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} tabular-nums font-medium`} style={{ color: lightMode ? '#111827' : '#ffffff' }}>
                             {ageMin}d
                           </span>
                         )}
                         {!isMerged && order?.guest_count && order.guest_count > 1 && (
-                          <span className={`${isCompact ? 'text-[7px]' : 'text-[8px]'} font-semibold text-white/40 flex items-center gap-0.5`}>
+                          <span className={`${isCompact ? 'text-[7px]' : 'text-[8px]'}font-semibold flex items-center gap-0.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
                             {order.guest_count} {t('guest_short')}
                           </span>
                         )}
@@ -707,7 +710,7 @@ export function TableStatusGrid({
                 })();
                 return (
                   <div
-                    className={`rounded-2xl bg-white/[0.07] border border-white/[0.1] flex items-center justify-center cursor-grabbing relative overflow-hidden ${isMergedPreview ? 'h-[72px] px-6' : 'w-[64px] h-[64px]'}`}
+                    className={`rounded-2xl border border-white/[0.1] flex items-center justify-center cursor-grabbing relative overflow-hidden ${lightMode ? 'bg-gray-100' : 'bg-white/[0.07]'}${isMergedPreview ? 'h-[72px] px-6' : 'w-[64px] h-[64px]'}`}
                     style={{
                       boxShadow: `0 25px 50px rgba(0,0,0,0.6), 0 0 32px ${glowColor}, 0 0 0 1px rgba(255,255,255,0.08)`,
                       borderColor: 'rgba(255,255,255,0.4)',
@@ -756,7 +759,7 @@ export function TableStatusGrid({
               animate={{ scale: 1, opacity: 1, y: 0 }} 
               exit={{ scale: 0.8, opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="bg-[#1a1a1a] border border-gold/30 rounded-2xl p-6 max-w-full sm:max-w-sm w-full mx-4 shadow-[0_25px_50px_rgba(0,0,0,0.5)]"
+              className={`border border-gold/30 rounded-2xl p-6 max-w-full sm:max-w-sm w-full mx-4 shadow-[0_25px_50px_rgba(0,0,0,0.5)] ${lightMode ? 'bg-gray-100' : 'bg-[#1a1a1a]'}`}
               onClick={e => e.stopPropagation()}
             >
               <div className="text-center mb-6">
@@ -764,7 +767,7 @@ export function TableStatusGrid({
                 <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-4">
                   <GitMerge size={32} className="text-gold" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">
+                <h3 className={`text-xl font-bold mb-2 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                   {pendingMerge.sourceOrderId && pendingMerge.targetOrderId
                     ? t('merge_tables_confirm')
                     : pendingMerge.sourceOrderId
@@ -773,7 +776,7 @@ export function TableStatusGrid({
                         ? t('merge_table')
                         : t('merge_tables')}
                 </h3>
-                <p className="text-white/60 text-sm">
+                <p className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>
                   {[pendingMerge.sourceNum, ...(pendingMerge.extraChain || [pendingMerge.targetNum])].map(n => `${t('table_label')} ${n}`).join(' + ')}
                   {pendingMerge.sourceOrderId && pendingMerge.targetOrderId
                     ? ` ${t('orders_will_merge')}`
@@ -789,7 +792,7 @@ export function TableStatusGrid({
                   onClick={() => setPendingMerge(null)}
                   whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.05)' }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex-1 py-3 px-4 rounded-xl border border-white/20 text-white/70 font-semibold hover:bg-white/5 transition-all">
+                  className={`flex-1 py-3 px-4 rounded-xl border font-semibold transition-all ${lightMode ? 'border-gray-300 text-gray-600 hover:bg-gray-100' : 'border-white/20 text-white/70 hover:bg-white/5'}`}>
                   {t('cancel')}
                 </motion.button>
                 <motion.button

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Armchair, Users, Clock, CheckCircle2, Utensils } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface TableStatus {
   tableNumber: number;
@@ -15,6 +16,7 @@ interface TableStatus {
 
 export default function LiveFloorSnapshot() {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [tableCount, setTableCount] = useState(12);
   const [tables, setTables] = useState<TableStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,7 @@ export default function LiveFloorSnapshot() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl bg-[#0a0a0a] p-6"
+      className={`relative overflow-hidden rounded-3xl p-6 ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -127,13 +129,13 @@ export default function LiveFloorSnapshot() {
             <Armchair size={20} className="text-gold" />
           </div>
           <div>
-            <h3 className="text-white font-semibold">{t('live_floor')}</h3>
-            <p className="text-white/40 text-xs">{t('real_time_tables')}</p>
+            <h3 className={`font-semibold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('live_floor')}</h3>
+            <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('real_time_tables')}</p>
           </div>
         </div>
         
         {/* Legend */}
-        <div className="hidden sm:flex items-center gap-3 text-[10px] text-white/40">
+        <div className={`hidden sm:flex items-center gap-3 text-[10px] ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             {t('new')}
@@ -151,9 +153,9 @@ export default function LiveFloorSnapshot() {
 
       {/* Compact Stats Row - No Table Grid */}
       <div className="flex gap-3">
-        <div className="flex-1 p-3 rounded-xl bg-white/[0.02]">
-          <p className="text-xl font-bold text-white">{occupiedCount}<span className="text-white/30 text-sm">/{tableCount}</span></p>
-          <p className="text-[9px] text-white/40 uppercase tracking-wider mt-0.5">{t('occupied')}</p>
+        <div className={`flex-1 p-3 rounded-xl ${lightMode ? 'bg-gray-50' : 'bg-white/[0.02]'}`}>
+          <p className={`text-xl font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{occupiedCount}<span className={`text-sm ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>/{tableCount}</span></p>
+          <p className={`text-[9px] uppercase tracking-wider mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('occupied')}</p>
         </div>
         <div className="flex-1 p-3 rounded-xl bg-emerald-500/5">
           <p className="text-xl font-bold text-emerald-400">{newCount}</p>

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import ReceiptPreview from './ReceiptPreview';
 import type { Order, OrderItem } from '../types';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface ReceiptModalProps {
   order: Order;
@@ -41,6 +42,7 @@ function formatTime(iso: string) {
 
 export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptModalProps) {
   const [mounted, setMounted] = useState(false);
+  const { lightMode } = useTheme();
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
   const [tipAmount, setTipAmount] = useState(0);
@@ -175,22 +177,22 @@ export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptM
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 32 }}
           transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-          className="relative z-10 w-full md:w-auto flex flex-col items-center gap-3 bg-[#0a0a0a] md:bg-transparent rounded-t-3xl md:rounded-none p-4 md:p-0"
+          className={`relative z-10 w-full md:w-auto flex flex-col items-center gap-3 md:bg-transparent rounded-t-3xl md:rounded-none p-4 md:p-0 ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}
           onClick={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
           style={{ touchAction: 'pan-y' }}
         >
           {/* Action buttons */}
           <div className="w-full md:w-auto flex items-center gap-2">
-            <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all flex-shrink-0">
+            <button onClick={onClose} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${lightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-900' : 'bg-white/10 hover:bg-white/20 text-white'}`}>
               <X size={18} />
             </button>
-            <button onClick={handlePrint} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-black text-white border border-white/20 hover:bg-white hover:text-black text-sm font-bold tracking-widest uppercase transition-all duration-200">
+            <button onClick={handlePrint} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl border hover:bg-white hover:text-black text-sm font-bold tracking-widest uppercase transition-all duration-200 ${lightMode ? 'bg-white text-gray-900 border-gray-300' : 'bg-black text-white border-white/20'}`}>
               <Printer size={15} /> Çap et
             </button>
             {onPay && (
               <button onClick={handlePayAndClose} disabled={paying}
-                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white text-sm font-bold tracking-widest uppercase transition-all duration-200 disabled:opacity-50">
+                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-sm font-bold tracking-widest uppercase transition-all duration-200 disabled:opacity-50 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                 {paying ? <Loader2 size={15} className="animate-spin" /> : <CreditCard size={15} />} Bağla
               </button>
             )}
@@ -198,7 +200,7 @@ export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptM
 
           {/* Payment method toggler */}
           {onPay && (
-            <div className="w-full md:w-auto flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-xl">
+            <div className={`w-full md:w-auto flex items-center gap-1.5 p-1 border rounded-xl ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.08]'}`}>
               <button onClick={() => setPaymentMethod('card')}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold tracking-widest uppercase transition-all duration-200 ${paymentMethod === 'card' ? 'bg-emerald-500/20 text-emerald-400 shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
                 <CreditCard size={14} /> Kart
@@ -212,14 +214,14 @@ export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptM
 
           {/* Tip input */}
           {onPay && (
-            <div className="w-full md:w-auto flex items-center justify-between bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5">
-              <span className="text-xs text-white/40 font-medium">Çaypulu</span>
+            <div className={`w-full md:w-auto flex items-center justify-between border rounded-xl px-4 py-2.5 ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.08]'}`}>
+              <span className={`text-xs font-medium ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Çaypulu</span>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => setTipAmount(Math.max(0, tipAmount - 1))}
-                  className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 text-sm font-bold hover:bg-white/10 transition-all">−</button>
-                <span className="w-14 text-center text-sm font-bold text-white tabular-nums">{tipAmount} ₼</span>
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold transition-all ${lightMode ? 'bg-gray-100 text-gray-400 hover:bg-gray-200' : 'bg-white/[0.06] text-white/40 hover:bg-white/10'}`}>−</button>
+                <span className={`w-14 text-center text-sm font-bold tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{tipAmount} ₼</span>
                 <button onClick={() => setTipAmount(tipAmount + 1)}
-                  className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 text-sm font-bold hover:bg-white/10 transition-all">+</button>
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold transition-all ${lightMode ? 'bg-gray-100 text-gray-400 hover:bg-gray-200' : 'bg-white/[0.06] text-white/40 hover:bg-white/10'}`}>+</button>
               </div>
             </div>
           )}

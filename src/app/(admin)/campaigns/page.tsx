@@ -13,6 +13,7 @@ import { CampaignsSkeleton } from './components/CampaignsSkeleton';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import { motion } from 'framer-motion';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 // Helper to interpolate translation templates with variables
 /* ─── Helpers ─── */
@@ -24,6 +25,7 @@ const CampaignsPage = () => {
 
   /* ─── Context ─── */
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
 
   /* ─── Loading state ─── */
   const [rawLoading, setLoading] = useState(() => {
@@ -448,7 +450,7 @@ const CampaignsPage = () => {
         {/* Mobile layout */}
         <div className="flex flex-col gap-3 md:hidden">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-serif font-bold text-white tracking-tight">{t('campaigns_title')}</h2>
+            <h2 className={`text-2xl font-serif font-bold tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('campaigns_title')}</h2>
             <button
               onClick={handleDeleteAll}
               className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/[0.07] text-red-400/60 border border-red-500/15 transition-all active:scale-95"
@@ -468,8 +470,8 @@ const CampaignsPage = () => {
         {/* Desktop layout */}
         <div className="hidden md:flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-serif font-bold text-white tracking-tight">{t('campaigns_title')}</h2>
-            <p className="text-white/30 text-[10px] uppercase tracking-[0.25em] mt-0.5">{t('campaigns_subtitle')}</p>
+            <h2 className={`text-3xl font-serif font-bold tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('campaigns_title')}</h2>
+            <p className={`text-[10px] uppercase tracking-[0.25em] mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('campaigns_subtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -493,9 +495,9 @@ const CampaignsPage = () => {
 
       {/* ── Campaign list ── */}
       {campaigns.length === 0 ? (
-        <div className="text-center py-32 md:py-40 bg-white/[0.01] border border-dashed border-white/10 rounded-2xl">
-          <Sparkles className="mx-auto text-white/5 mb-6" size={64} />
-          <p className="text-white/20 uppercase tracking-[0.4em] text-xs font-bold">{t('no_active_campaigns_empty')}</p>
+        <div className={`text-center py-32 md:py-40 bg-white/[0.01] border border-dashed rounded-2xl ${lightMode ? 'border-gray-200' : 'border-white/10'}`}>
+          <Sparkles className={`mx-auto mb-6 ${lightMode ? 'text-gray-200' : 'text-white/5'}`} size={64} />
+          <p className={`uppercase tracking-[0.4em] text-xs font-bold ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('no_active_campaigns_empty')}</p>
         </div>
       ) : (
         <>

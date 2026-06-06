@@ -10,6 +10,7 @@ import {
   Search, ShoppingBag, Plus, Minus, Send, CreditCard, X, Loader2, CheckCircle2,
   Printer, ImageOff, Utensils, Banknote, Users, ArrowLeft, Package,
 } from 'lucide-react';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Product { id: string; name: string; name_az?: string; name_en?: string; name_ru?: string; price: number; image_url: string | null; is_ready_product?: boolean; direct_ingredient_id?: string | null; category_id?: string | null; }
 interface RecipeIng { menu_item_id: string; ingredient_id: string; quantity_required: number; quantity_brutto: number | null; }
@@ -25,6 +26,7 @@ function PCard({ p, stock, cart, onAdd, animating }: { p: Product; stock: boolea
   const [imgState, setImgState] = useState<'loading' | 'ok' | 'err'>('loading');
   const [justAdded, setJustAdded] = useState(false);
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const name = language === 'en' ? (p as any).name_en || p.name : language === 'ru' ? (p as any).name_ru || p.name : (p as any).name_az || p.name;
   const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
   const showImg = !!p.image_url && p.image_url.trim().length > 0 && imgState !== 'err';
@@ -46,15 +48,15 @@ function PCard({ p, stock, cart, onAdd, animating }: { p: Product; stock: boolea
       onClick={handleClick}
       className={`relative rounded-xl p-2.5 text-left border transition-shadow duration-150 ${stock ? 'bg-white/[0.04] border-white/[0.08] hover:border-white/[0.15] hover:shadow-[0_4px_20px_rgba(212,175,55,0.08)]' : 'opacity-30 border-white/[0.03]'}`}
     >
-      <div className="aspect-square rounded-lg bg-white/[0.03] mb-2 flex items-center justify-center overflow-hidden">
+      <div className={`aspect-square rounded-lg mb-2 flex items-center justify-center overflow-hidden ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
         {showImg
           ? <img src={p.image_url!} alt={name} className="w-full h-full object-cover" onLoad={() => setImgState('ok')} onError={() => setImgState('err')} />
-          : <span className="text-2xl font-black text-white/20">{initials}</span>
+          : <span className={`text-2xl font-black ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{initials}</span>
         }
       </div>
-      <p className="text-xs font-semibold text-white/85 truncate leading-tight">{name}</p>
+      <p className={`text-xs font-semibold truncate leading-tight ${lightMode ? 'text-gray-800' : 'text-white/85'}`}>{name}</p>
       <p className="text-xs font-black text-gold mt-0.5">₼{fmt(p.price)}</p>
-      {!stock && <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center"><span className="text-[10px] font-bold text-white/70 bg-black/70 px-2 py-1 rounded">{t('out_of_stock')}</span></div>}
+      {!stock && <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center"><span className={`text-[10px] font-bold bg-black/70 px-2 py-1 rounded ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>{t('out_of_stock')}</span></div>}
       {cart > 0 && (
         <motion.span
           initial={{ scale: 0 }}
@@ -80,6 +82,7 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
   order: OrderData; onClose: () => void; onConfirm: (p: { method: string; discountType: string; discountValue: number; splitCount: number; tipAmount: number }) => void; busy: boolean;
 }) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [method, setMethod] = useState<'cash' | 'card'>('card');
   const [discountType, setDiscountType] = useState<'none' | 'percent' | 'amount'>('none');
   const [discountVal, setDiscountVal] = useState(0);
@@ -93,26 +96,26 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 27 }}
-        className="bg-[#111] border border-white/[0.08] rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        className={`bg-[#111] border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto ${lightMode ? 'border-gray-200' : 'border-white/[0.08]'}`}>
         <div className="flex items-center justify-between px-6 pt-6 pb-3">
-          <h2 className="text-lg font-bold text-white">{t('table')} {order.table_number}</h2>
-          <button onClick={onClose} className="text-white/20 hover:text-white/60"><X size={18} /></button>
+          <h2 className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('table')} {order.table_number}</h2>
+          <button onClick={onClose} className={lightMode ? 'text-gray-300 hover:text-gray-600' : 'text-white/20 hover:text-white/60'}><X size={18} /></button>
         </div>
         <div className="px-6 space-y-1.5 mb-4">
           {items.slice(0, 8).map(i => (
             <div key={i.id} className="flex items-center justify-between text-sm">
-              <span className="text-white/60">{i.quantity}x {i.product_name}</span>
-              <span className="text-white/80 font-semibold">₼{fmt(i.total_price || 0)}</span>
+              <span className={lightMode ? 'text-gray-500' : 'text-white/60'}>{i.quantity}x {i.product_name}</span>
+              <span className={`font-semibold ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>₼{fmt(i.total_price || 0)}</span>
             </div>
           ))}
-          {items.length > 8 && <p className="text-xs text-white/20">+{items.length - 8} {t('more')}</p>}
-          <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between text-base font-bold text-white">
+          {items.length > 8 && <p className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>+{items.length - 8} {t('more')}</p>}
+          <div className={`border-t pt-2 flex items-center justify-between text-base font-bold ${lightMode ? 'border-gray-200 text-gray-900' : 'border-white/[0.06] text-white'}`}>
             <span>{t('subtotal_label')}</span>
             <span>₼{fmt(baseTotal)}</span>
           </div>
         </div>
         <div className="px-6 mb-4">
-          <label className="text-xs text-white/30 uppercase tracking-widest mb-2 block">{t('discount_label')}</label>
+          <label className={`text-xs uppercase tracking-widest mb-2 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('discount_label')}</label>
           <div className="flex gap-1.5 mb-2">
             {(['none', 'percent', 'amount'] as const).map(k => (
               <button key={k} onClick={() => { setDiscountType(k); setDiscountVal(0); }}
@@ -122,25 +125,25 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
           </div>
           {discountType !== 'none' && (
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 text-xs">{discountType === 'percent' ? '%' : '₼'}</span>
+              <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{discountType === 'percent' ? '%' : '₼'}</span>
               <input type="number" min={0} max={discountType === 'percent' ? 100 : baseTotal} value={discountVal} onChange={e => setDiscountVal(Number(e.target.value))}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-8 pr-3 py-2 text-sm text-white outline-none" />
+                className={`w-full border rounded-xl pl-8 pr-3 py-2 text-sm outline-none ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900' : 'bg-white/[0.04] border-white/[0.06] text-white'}`} />
             </div>
           )}
           {discountAmount > 0 && <p className="text-xs text-emerald-400 mt-1">- ₼{fmt(discountAmount)}</p>}
         </div>
         <div className="px-6 mb-4">
-          <label className="text-xs text-white/30 uppercase tracking-widest mb-2 block">{t('tip')}</label>
+          <label className={`text-xs uppercase tracking-widest mb-2 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('tip')}</label>
           <div className="flex items-center gap-2">
             <button onClick={() => setTipVal(Math.max(0, tipVal - 1))}
-              className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/40 font-bold hover:bg-white/10">−</button>
-            <span className="flex-1 text-center text-lg font-bold text-white tabular-nums">{tipVal} ₼</span>
+              className={`w-9 h-9 rounded-xl border flex items-center justify-center font-bold ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-400 hover:bg-gray-200' : 'bg-white/[0.04] border-white/[0.06] text-white/40 hover:bg-white/10'}`}>−</button>
+            <span className={`flex-1 text-center text-lg font-bold tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{tipVal} ₼</span>
             <button onClick={() => setTipVal(tipVal + 1)}
-              className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/40 font-bold hover:bg-white/10">+</button>
+              className={`w-9 h-9 rounded-xl border flex items-center justify-center font-bold ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-400 hover:bg-gray-200' : 'bg-white/[0.04] border-white/[0.06] text-white/40 hover:bg-white/10'}`}>+</button>
           </div>
         </div>
         <div className="px-6 mb-4">
-          <label className="text-xs text-white/30 uppercase tracking-widest mb-2 block">{t('split_label')}</label>
+          <label className={`text-xs uppercase tracking-widest mb-2 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('split_label')}</label>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map(n => (
               <button key={n} onClick={() => setSplit(n)}
@@ -150,7 +153,7 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
           </div>
         </div>
         <div className="px-6 mb-4">
-          <label className="text-xs text-white/30 uppercase tracking-widest mb-2 block">{t('payment_method_label')}</label>
+          <label className={`text-xs uppercase tracking-widest mb-2 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('payment_method_label')}</label>
           <div className="flex gap-2">
             <button onClick={() => setMethod('cash')}
               className={`flex-1 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 ${method === 'cash' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
@@ -162,13 +165,13 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
             </button>
           </div>
         </div>
-        <div className="px-6 pb-6 pt-2 border-t border-white/[0.06] space-y-3">
+        <div className={`px-6 pb-6 pt-2 border-t space-y-3 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
           <div className="space-y-1">
-            {split > 1 && <div className="flex items-center justify-between text-sm text-white/40"><span>{t('per_person')}</span><span className="font-bold text-white">₼{fmt(perPerson)}</span></div>}
+            {split > 1 && <div className={`flex items-center justify-between text-sm ${lightMode ? 'text-gray-400' : 'text-white/40'}`}><span>{t('per_person')}</span><span className={`font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼{fmt(perPerson)}</span></div>}
             <div className="flex items-center justify-between">
-              <span className="text-xs text-white/30 uppercase tracking-widest">{t('final_total')}</span>
-              {discountAmount > 0 && <span className="text-xs text-white/30 line-through mr-2">₼{fmt(baseTotal)}</span>}
-              <span className="text-2xl font-black text-white">{tipVal > 0 || discountAmount > 0 || split > 1 ? `₼${fmt(finalTotal)}` : `₼${fmt(baseTotal)}`}</span>
+              <span className={`text-xs uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('final_total')}</span>
+              {discountAmount > 0 && <span className={`text-xs line-through mr-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>₼{fmt(baseTotal)}</span>}
+              <span className={`text-2xl font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>{tipVal > 0 || discountAmount > 0 || split > 1 ? `₼${fmt(finalTotal)}` : `₼${fmt(baseTotal)}`}</span>
             </div>
           </div>
           <button onClick={() => onConfirm({ method, discountType, discountValue: discountVal, splitCount: split, tipAmount: tipVal })}
@@ -183,41 +186,42 @@ function CheckoutPanel({ order, onClose, onConfirm, busy }: {
 
 function ReceiptScreen({ paid, onNew }: { paid: OrderData & { payment_method?: string; discount_type?: string; discount_value?: number; paid_amount?: number; split_count?: number }; onNew: () => void }) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const items = paid.order_items || [];
   return (
-    <div className="h-dvh flex items-center justify-center bg-[#0a0a0a] p-6">
+    <div className={`h-dvh flex items-center justify-center p-6 ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}>
       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="bg-[#111] border border-white/[0.06] rounded-3xl p-8 max-w-sm w-full text-center">
+        className={`bg-[#111] border rounded-3xl p-8 max-w-sm w-full text-center ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.15 }}
           className="w-20 h-20 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-5">
           <CheckCircle2 size={40} className="text-emerald-400" />
         </motion.div>
-        <h2 className="text-2xl font-bold text-white mb-1">{t('paid')}</h2>
-        <p className="text-white/40 text-sm mb-1">{t('table')} {paid.table_number}</p>
-        <p className="text-white/40 text-sm mb-6 flex items-center justify-center gap-1">
+        <h2 className={`text-2xl font-bold mb-1 ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('paid')}</h2>
+        <p className={`text-sm mb-1 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('table')} {paid.table_number}</p>
+        <p className={`text-sm mb-6 flex items-center justify-center gap-1 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
           {paid.payment_method === 'cash' ? <Banknote size={14} /> : <CreditCard size={14} />}
           {paid.payment_method === 'cash' ? t('cash') : t('card')}
           {paid.split_count && paid.split_count > 1 && <span className="flex items-center gap-1 ml-2"><Users size={14} />{paid.split_count} {t('person')}</span>}
         </p>
-        <div className="text-left bg-white/[0.02] rounded-2xl p-4 mb-6 space-y-1">
+        <div className={`text-left rounded-2xl p-4 mb-6 space-y-1 ${lightMode ? 'bg-gray-50' : 'bg-white/[0.02]'}`}>
           {items.slice(0, 5).map(i => (
             <div key={i.id} className="flex items-center justify-between text-sm">
-              <span className="text-white/50">{i.quantity}x {i.product_name}</span>
-              <span className="text-white/70 font-semibold">₼{fmt(i.total_price || 0)}</span>
+              <span className={lightMode ? 'text-gray-500' : 'text-white/50'}>{i.quantity}x {i.product_name}</span>
+              <span className={`font-semibold ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>₼{fmt(i.total_price || 0)}</span>
             </div>
           ))}
-          {items.length > 5 && <p className="text-[10px] text-white/20">+{items.length - 5}</p>}
-          <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between text-base font-bold text-white">
+          {items.length > 5 && <p className={`text-[10px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>+{items.length - 5}</p>}
+          <div className={`border-t pt-2 flex items-center justify-between text-base font-bold ${lightMode ? 'border-gray-200 text-gray-900' : 'border-white/[0.06] text-white'}`}>
             <span>{t('total')}</span>
             <span>₼{fmt(paid.total_amount || 0)}</span>
           </div>
         </div>
         <button onClick={() => window.print()}
-          className="w-full py-4 rounded-2xl bg-white/10 text-white text-base font-bold hover:bg-white/20 mb-3 flex items-center justify-center gap-2">
+          className={`w-full py-4 rounded-2xl text-base font-bold mb-3 flex items-center justify-center gap-2 ${lightMode ? 'bg-gray-200 text-gray-900 hover:bg-gray-300' : 'bg-white/10 text-white hover:bg-white/20'}`}>
           <Printer size={18} /> {t('print')}
         </button>
         <button onClick={onNew}
-          className="w-full py-4 rounded-2xl bg-white/[0.04] text-white/50 text-base hover:text-white">{t('new_order')}</button>
+          className={`w-full py-4 rounded-2xl text-base ${lightMode ? 'bg-gray-50/80 text-gray-500 hover:text-gray-900' : 'bg-white/[0.04] text-white/50 hover:text-white'}`}>{t('new_order')}</button>
       </motion.div>
     </div>
   );
@@ -225,6 +229,7 @@ function ReceiptScreen({ paid, onNew }: { paid: OrderData & { payment_method?: s
 
 export default function WaiterMode({ onClose }: { onClose: () => void }) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<RecipeIng[]>([]);
@@ -359,29 +364,29 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
   }, [products, cat, search, getPName]);
 
   if (loading) return (
-    <div className="fixed inset-0 z-[200] bg-[#0a0a0a] flex items-center justify-center">
-      <Loader2 size={24} className="animate-spin text-white/20" />
+    <div className={`fixed inset-0 z-[200] flex items-center justify-center ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}>
+      <Loader2 size={24} className={`animate-spin ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
     </div>
   );
 
   if (paid) return (
-    <div className="fixed inset-0 z-[200] bg-[#0a0a0a]">
+    <div className={`fixed inset-0 z-[200] ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}>
       <ReceiptScreen paid={paid} onNew={() => { setPaid(null); setSelTable(null); setCart([]); }} />
     </div>
   );
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-hidden select-none">
+    <div className={`fixed inset-0 z-[200] flex flex-col overflow-hidden select-none ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}>
 
       {/* ─── HEADER ─── */}
-      <div className="flex-shrink-0 border-b border-white/[0.06] bg-[#0c0c0c]">
+      <div className={`flex-shrink-0 border-b ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0c0c0c]'}`}>
         <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-          <button onClick={onClose} className="flex items-center gap-1.5 text-white/40 hover:text-white/80 text-sm font-semibold">
+          <button onClick={onClose} className={`flex items-center gap-1.5 text-sm font-semibold ${lightMode ? 'text-gray-400 hover:text-gray-800' : 'text-white/40 hover:text-white/80'}`}>
             <ArrowLeft size={15} /> {t('orders')}
           </button>
           <div className="flex-1" />
           <button onClick={() => setShowCart(!showCart)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/[0.06] text-sm font-semibold text-white/70">
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold ${lightMode ? 'bg-gray-100 text-gray-600' : 'bg-white/[0.06] text-white/70'}`}>
             <ShoppingBag size={15} /> ₼{fmt(total)}
             {cart.length > 0 && <span className="w-5 h-5 rounded-full bg-gold text-black text-[10px] font-black flex items-center justify-center">{cart.reduce((s, i) => s + i.qty, 0)}</span>}
           </button>
@@ -403,9 +408,9 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
           })}
         </div>
         <div className="flex items-center gap-2 px-3 pb-2">
-          <span className="text-sm text-white/30 font-semibold">{products.length} {t('items')}</span>
+          <span className={`text-sm font-semibold ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{products.length} {t('items')}</span>
           <span className="text-white/[0.06]">|</span>
-          <span className="text-sm text-white/30 font-semibold">{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
+          <span className={`text-sm font-semibold ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{orders.filter(o => o.status !== 'paid').length} {t('active_count')}</span>
           {activeOrder && <><span className="text-white/[0.06]">|</span><span className="text-sm text-amber-400 font-semibold">{t('table')} {selTable} • ₼{fmt(activeOrder.total_amount || 0)}</span></>}
         </div>
       </div>
@@ -413,9 +418,9 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       {/* ─── SEARCH + CATEGORIES ─── */}
       <div className="flex-shrink-0 px-3 pt-3 pb-2 space-y-2">
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-10 pr-3 py-3 text-sm text-white placeholder:text-white/20 outline-none" />
-          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20"><X size={16} /></button>}
+          <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('search_placeholder')} className={`w-full border rounded-xl pl-10 pr-3 py-3 text-sm outline-none ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/20'}`} />
+          {search && <button onClick={() => setSearch('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}><X size={16} /></button>}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           {categories.map(c => (
@@ -430,12 +435,12 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       <div className="flex-1 flex min-h-0">
         <div className={`flex-1 overflow-y-auto px-3 pb-4 ${showCart ? 'hidden lg:block' : ''}`}>
           {!selTable ? (
-            <div className="flex flex-col items-center justify-center h-full text-white/15">
+            <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>
               <Utensils size={48} className="mb-3 opacity-30" />
               <p className="text-base font-medium tracking-wide">{t('select_table')}</p>
             </div>
           ) : list.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-white/15">
+            <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>
               <Search size={48} className="mb-3 opacity-30" />
               <p className="text-base font-medium tracking-wide">{t('not_found')}</p>
             </div>
@@ -450,33 +455,33 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
         <AnimatePresence>
         {showCart && (
           <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 320, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
-            className="hidden lg:flex flex-col border-l border-white/[0.06] bg-[#0c0c0c] flex-shrink-0 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-              <span className="text-base font-bold text-white">{selTable ? `${t('table')} ${selTable}` : t('cart')}</span>
+            className={`hidden lg:flex flex-col border-l flex-shrink-0 overflow-hidden ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0c0c0c]'}`}>
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+              <span className={`text-base font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{selTable ? `${t('table')} ${selTable}` : t('cart')}</span>
               <div className="flex items-center gap-3">
-                <button onClick={() => setCart([])} className="text-xs text-white/20 hover:text-white/50">{t('clear')}</button>
-                <button onClick={() => setShowCart(false)} className="text-white/20 hover:text-white/60"><X size={16} /></button>
+                <button onClick={() => setCart([])} className={`text-xs hover:text-white/50 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('clear')}</button>
+                <button onClick={() => setShowCart(false)} className={lightMode ? 'text-gray-300 hover:text-gray-600' : 'text-white/20 hover:text-white/60'}><X size={16} /></button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-white/15 text-sm">{t('cart_empty')}</div>
+                <div className={`flex flex-col items-center justify-center h-full text-sm ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>{t('cart_empty')}</div>
               ) : cart.map(i => (
-                <div key={i.product.id} className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-4 py-3">
+                <div key={i.product.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white/80 truncate">{getPName(i.product)}</p>
+                    <p className={`text-sm font-semibold truncate ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>{getPName(i.product)}</p>
                     <p className="text-xs text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => chgQty(i.product.id, -1)} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Minus size={13} /></button>
-                    <span className="w-6 text-center text-base font-bold text-white">{i.qty}</span>
-                    <button onClick={() => chgQty(i.product.id, 1)} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Plus size={13} /></button>
+                    <button onClick={() => chgQty(i.product.id, -1)} className={`w-8 h-8 rounded-full flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-400' : 'bg-white/[0.06] text-white/40'}`}><Minus size={13} /></button>
+                    <span className={`w-6 text-center text-base font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{i.qty}</span>
+                    <button onClick={() => chgQty(i.product.id, 1)} className={`w-8 h-8 rounded-full flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-400' : 'bg-white/[0.06] text-white/40'}`}><Plus size={13} /></button>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="px-5 py-4 border-t border-white/[0.06] space-y-2">
-              <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-xl">
+            <div className={`px-5 py-4 border-t space-y-2 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+              <div className={`flex items-center gap-1.5 p-1 border rounded-xl ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.08]'}`}>
                 <button onClick={() => setOrderType('dine_in')}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'dine_in' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
                   <Utensils size={13} /> {t('dine_in')}
@@ -490,7 +495,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
                   <Package size={13} /> {t('delivery')}
                 </button>
               </div>
-              <div className="flex items-center justify-between"><span className="text-xs text-white/30 uppercase tracking-widest">{t('total')}</span><span className="text-xl font-black text-white">₼{fmt(total)}</span></div>
+              <div className="flex items-center justify-between"><span className={`text-xs uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('total')}</span><span className={`text-xl font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼{fmt(total)}</span></div>
               <button onClick={sendOrder} disabled={!selTable || cart.length === 0 || busy}
                 className="w-full py-4 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-2"
               >{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} {t('send_to_kitchen')}</button>
@@ -504,16 +509,16 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       <AnimatePresence>
       {showCart && cart.length > 0 && (
         <motion.div initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="lg:hidden flex-shrink-0 border-t border-white/[0.06] bg-[#0c0c0c] px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
+          className={`lg:hidden flex-shrink-0 border-t px-4 py-3 space-y-2 max-h-60 overflow-y-auto ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0c0c0c]'}`}>
           {cart.map(i => (
-            <div key={i.product.id} className="flex items-center gap-3 bg-white/[0.03] rounded-xl px-3 py-2.5">
-              <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-white/80 truncate">{getPName(i.product)}</p><p className="text-xs text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p></div>
-              <button onClick={() => chgQty(i.product.id, -1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Minus size={11} /></button>
-              <span className="w-5 text-center text-sm font-bold text-white">{i.qty}</span>
-              <button onClick={() => chgQty(i.product.id, 1)} className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40"><Plus size={11} /></button>
+            <div key={i.product.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
+              <div className="flex-1 min-w-0"><p className={`text-sm font-semibold truncate ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>{getPName(i.product)}</p><p className="text-xs text-gold font-bold">₼{fmt(i.product.price * i.qty)}</p></div>
+              <button onClick={() => chgQty(i.product.id, -1)} className={`w-7 h-7 rounded-full flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-400' : 'bg-white/[0.06] text-white/40'}`}><Minus size={11} /></button>
+              <span className={`w-5 text-center text-sm font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{i.qty}</span>
+              <button onClick={() => chgQty(i.product.id, 1)} className={`w-7 h-7 rounded-full flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-400' : 'bg-white/[0.06] text-white/40'}`}><Plus size={11} /></button>
             </div>
           ))}
-          <div className="flex items-center gap-1.5 p-1 bg-white/[0.04] border border-white/[0.08] rounded-xl">
+          <div className={`flex items-center gap-1.5 p-1 border rounded-xl ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.08]'}`}>
             <button onClick={() => setOrderType('dine_in')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold tracking-widest uppercase transition-all duration-200 ${orderType === 'dine_in' ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/50'}`}>
               <Utensils size={13} /> {t('dine_in')}
@@ -528,7 +533,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           <div className="flex items-center gap-3 pt-1">
-            <div className="flex-1"><span className="text-xs text-white/30">{t('total')}</span><p className="text-xl font-black text-white">₼{fmt(total)}</p></div>
+            <div className="flex-1"><span className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('total')}</span><p className={`text-xl font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼{fmt(total)}</p></div>
             <button onClick={sendOrder} disabled={busy} className="flex-1 py-3.5 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-[0.97] disabled:opacity-30 flex items-center justify-center gap-2"
             >{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} {t('send')}</button>
           </div>
@@ -539,7 +544,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       {/* ─── TABLE ORDERS ─── */}
       {selTable && (
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-          className="flex-shrink-0 border-t border-white/[0.06] bg-[#0c0c0c]">
+          className={`flex-shrink-0 border-t ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0c0c0c]'}`}>
           <div className="flex gap-2 overflow-x-auto px-3 py-2">
             {orders.filter(o => o.table_number === selTable && o.status !== 'paid').map(o => {
               const items = o.order_items || [];
@@ -548,11 +553,11 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
                 <div key={o.id} className={`flex-shrink-0 w-80 rounded-xl border p-4 ${ready ? 'border-emerald-500/30 bg-emerald-500/[0.04]' : 'border-white/[0.06] bg-white/[0.02]'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-xs font-bold ${ready ? 'text-emerald-400' : 'text-amber-400'}`}>{ready ? t('ready') : t('waiting')}</span>
-                    <span className="text-sm font-black text-white/70">₼{fmt(o.total_amount || 0)}</span>
+                    <span className={`text-sm font-black ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>₼{fmt(o.total_amount || 0)}</span>
                   </div>
                   <div className="space-y-1 mb-3 max-h-24 overflow-y-auto">
-                    {items.slice(0, 5).map((i: any) => <div key={i.id} className="text-xs text-white/60">{i.quantity}x {i.product_name}</div>)}
-                    {items.length > 5 && <p className="text-[10px] text-white/20">+{items.length - 5}</p>}
+                    {items.slice(0, 5).map((i: any) => <div key={i.id} className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{i.quantity}x {i.product_name}</div>)}
+                    {items.length > 5 && <p className={`text-[10px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>+{items.length - 5}</p>}
                   </div>
                   {ready && <button onClick={() => setCheckoutOrder(o)}
                     className="w-full py-3 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 active:scale-[0.97] flex items-center justify-center gap-1"

@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
 import GoldSelect from '@/components/GoldSelect';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface ProductPerf {
   name: string;
@@ -269,6 +270,7 @@ export default function StatsSenseiPanel({
   restaurantCity = 'Baku,AZ',
 }: StatsSenseiPanelProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [chatInput, setChatInput] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [fabHovered, setFabHovered] = useState(false);
@@ -539,10 +541,10 @@ export default function StatsSenseiPanel({
     return parts.map((part, idx) => {
       if (/^<<.+>>$/.test(part)) {
         const word = part.slice(2, -2);
-        return <span key={idx} className="text-white/90 font-semibold">{word}</span>;
+        return <span key={idx} className={`font-semibold ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>{word}</span>;
       }
       if (/₼[\d,.]+|\b\d+[.,]?\d*\s*%?\b/.test(part)) {
-        return <strong key={idx} className="text-white/85 font-semibold">{part}</strong>;
+        return <strong key={idx} className={`font-semibold ${lightMode ? 'text-gray-800' : 'text-white/85'}`}>{part}</strong>;
       }
       return <span key={idx}>{part}</span>;
     });
@@ -625,9 +627,9 @@ export default function StatsSenseiPanel({
                   <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${m.color}`}>
                     {todayWeather.dayName} · {todayWeather.tempMax}°/{todayWeather.tempMin}°
                   </span>
-                  <span className="text-[9px] font-medium text-white/40 px-1.5 py-0.5 rounded-full border border-white/10 bg-white/[0.03]">{todayWeather.impact.revenueExpectation}</span>
+                  <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full border ${lightMode ? 'text-gray-400 border-gray-200 bg-gray-50' : 'text-white/40 border-white/10 bg-white/[0.03]'}`}>{todayWeather.impact.revenueExpectation}</span>
                 </div>
-                <p className="text-[11px] text-white/65 leading-snug">{todayWeather.impact.recommendation}</p>
+                <p className={`text-[11px] leading-snug ${lightMode ? 'text-gray-600' : 'text-white/65'}`}>{todayWeather.impact.recommendation}</p>
               </div>
             </motion.div>
           );
@@ -656,23 +658,23 @@ export default function StatsSenseiPanel({
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.05 + i * 0.06 }}
-                  className="relative overflow-hidden rounded-2xl border border-white/[0.07] p-3.5 flex items-center gap-3 hover:border-gold/[0.18] transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
+                  className={`relative overflow-hidden rounded-2xl border p-3.5 flex items-center gap-3 hover:border-gold/[0.18] transition-colors ${lightMode ? 'border-gray-200' : 'border-white/[0.07]'}`}
+                  style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.02)' }}
                 >
                   {/* Countdown badge — top right */}
-                  <div className="absolute top-2.5 right-3 text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded-full border border-white/10 bg-white/[0.04] text-white/50">
+                  <div className={`absolute top-2.5 right-3 text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded-full border ${lightMode ? 'border-gray-200 bg-gray-50/80 text-gray-500' : 'border-white/10 bg-white/[0.04] text-white/50'}`}>
                     {countdownLabel}
                   </div>
 
                   {/* Icon */}
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-white/50 bg-white/[0.04]">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${lightMode ? 'text-gray-500 bg-gray-50/80' : 'text-white/50 bg-white/[0.04]'}`}>
                     {isHigh ? <Star size={15} /> : isMed ? <Flag size={15} /> : <CalendarDays size={15} />}
                   </div>
 
                   {/* Info */}
                   <div className="flex-1 min-w-0 pr-10">
-                    <p className="text-[12px] font-bold leading-tight mb-0.5 truncate text-white/70">{ev.name}</p>
-                    <span className="text-[10px] font-medium tracking-wide text-white/35">
+                    <p className={`text-[12px] font-bold leading-tight mb-0.5 truncate ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>{ev.name}</p>
+                    <span className={`text-[10px] font-medium tracking-wide ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                       {ev.dayOfWeek} · {ev.date.slice(5).replace('-', '/')}
                     </span>
                   </div>
@@ -694,17 +696,17 @@ export default function StatsSenseiPanel({
       { value: behavioralData.soloProducts.length, label: t('deep_scan_solo_products'), color: 'text-white/70' },
     ];
     return (
-      <div className="flex items-stretch gap-px rounded-2xl overflow-hidden border border-white/[0.06]">
+      <div className={`flex items-stretch gap-px rounded-2xl overflow-hidden border ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
         {kpis.map((k, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center justify-center gap-1 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+          <div key={i} className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-colors ${lightMode ? 'bg-gray-50 hover:bg-gray-50' : 'bg-white/[0.02] hover:bg-white/[0.04]'}`}>
             <span className={`text-xl font-black font-serif ${k.color}`}>{k.value}</span>
-            <span className="text-[9px] uppercase tracking-[0.25em] text-white/30 text-center px-2">{k.label}</span>
+            <span className={`text-[9px] uppercase tracking-[0.25em] text-center px-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{k.label}</span>
           </div>
         ))}
         {behavioralData.insights[0] && (
-          <div className="flex-[2] flex items-center gap-3 px-4 py-3 bg-white/[0.015] hover:bg-white/[0.03] transition-colors">
+          <div className={`flex-[2] flex items-center gap-3 px-4 py-3 bg-white/[0.015] transition-colors ${lightMode ? 'hover:bg-gray-50' : 'hover:bg-white/[0.03]'}`}>
             <Lightbulb size={13} className="text-gold/50 flex-shrink-0" />
-            <p className="text-[11px] text-white/55 leading-snug line-clamp-2">{behavioralData.insights[0].text}</p>
+            <p className={`text-[11px] leading-snug line-clamp-2 ${lightMode ? 'text-gray-500' : 'text-white/55'}`}>{behavioralData.insights[0].text}</p>
           </div>
         )}
       </div>
@@ -716,14 +718,14 @@ export default function StatsSenseiPanel({
     return (
       <div>
         <button type="button" onClick={() => setSimExpanded(v => !v)}
-          className="w-full flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/[0.08] px-4 py-3 hover:bg-white/[0.06] hover:border-white/[0.14] transition-all">
+          className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 hover:bg-white/[0.06] hover:border-white/[0.14] transition-all ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.08]'}`}>
           <div className="flex items-center gap-2">
             <Sliders size={13} className="text-gold/70" />
-            <span className="text-[11px] font-bold uppercase tracking-widest text-white/65">
+            <span className={`text-[11px] font-bold uppercase tracking-widest ${lightMode ? 'text-gray-600' : 'text-white/65'}`}>
               {t('deep_scan_simulator')}
             </span>
           </div>
-          <ChevronDown size={14} className={`text-white/40 transition-transform duration-200 ${simExpanded ? 'rotate-180' : ''}`} />
+          <ChevronDown size={14} className={`transition-transform duration-200 ${lightMode ? 'text-gray-400' : 'text-white/40'}${simExpanded ? 'rotate-180' : ''}`} />
         </button>
         <AnimatePresence initial={false}>
           {simExpanded && (
@@ -826,11 +828,11 @@ export default function StatsSenseiPanel({
         {/* ── Overview — always open ── */}
         {parsed.overview.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-white/[0.07] overflow-hidden"
+            className={`rounded-2xl border overflow-hidden ${lightMode ? 'border-gray-200' : 'border-white/[0.07]'}`}
             style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))' }}>
-            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/[0.04]">
+            <div className={`flex items-center gap-3 px-5 py-3.5 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.04]'}`}>
               <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-              <span className="text-[10px] font-black tracking-[0.3em] uppercase text-white/35">
+              <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                 {t('sensei_overview')}
               </span>
             </div>
@@ -853,7 +855,7 @@ export default function StatsSenseiPanel({
                   {t('sensei_risk')}
                 </span>
                 <div className="space-y-1.5">
-                  {parsed.risk.map((ln, i) => <p key={i} className="text-[14px] text-white/70 leading-snug">{hl(ln)}</p>)}
+                  {parsed.risk.map((ln, i) => <p key={i} className={`text-[14px] leading-snug ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>{hl(ln)}</p>)}
                 </div>
               </div>
             </div>
@@ -863,11 +865,11 @@ export default function StatsSenseiPanel({
         {/* ── Weather + Event Contextual Tips — unified card ── */}
         {weatherEventTips.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }}
-            className="rounded-2xl border border-white/[0.06] overflow-hidden"
+            className={`rounded-2xl border overflow-hidden ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}
             style={{ background: 'rgba(255,255,255,0.015)' }}>
-            <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-white/[0.04]">
-              <CalendarDays size={11} className="text-white/25" />
-              <span className="text-[10px] font-black tracking-[0.3em] uppercase text-white/25">
+            <div className={`flex items-center gap-2 px-5 pt-4 pb-3 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.04]'}`}>
+              <CalendarDays size={11} className={lightMode ? 'text-gray-300' : 'text-white/25'} />
+              <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>
                 {t('sensei_tips_header')}
               </span>
             </div>
@@ -878,8 +880,8 @@ export default function StatsSenseiPanel({
                   {tip.icon === '🌧️' ? <CloudRain size={14} style={{ color: tip.accent }} /> : tip.icon === '⛈️' ? <CloudRain size={14} style={{ color: tip.accent }} /> : tip.icon === '❄️' ? <Thermometer size={14} style={{ color: tip.accent }} /> : tip.icon === '☀️' ? <Sun size={14} style={{ color: tip.accent }} /> : tip.icon === '�' ? <Wind size={14} style={{ color: tip.accent }} /> : tip.icon === '🎉' ? <Star size={14} style={{ color: tip.accent }} /> : <CalendarDays size={14} style={{ color: tip.accent }} />}
                 </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-white/40 mb-0.5 truncate">{tip.title}</p>
-                    <p className="text-[13px] text-white/65 leading-snug">{tip.tip}</p>
+                    <p className={`text-[11px] font-semibold mb-0.5 truncate ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{tip.title}</p>
+                    <p className={`text-[13px] leading-snug ${lightMode ? 'text-gray-600' : 'text-white/65'}`}>{tip.tip}</p>
                   </div>
                 </div>
               ))}
@@ -902,8 +904,8 @@ export default function StatsSenseiPanel({
                 const topProd = stats.productPerformance[i] ?? stats.productPerformance[0];
                 return (
                   <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12 + i * 0.06 }}
-                    className="relative flex items-center gap-4 rounded-xl px-4 py-3 border border-white/[0.06] bg-white/[0.015]">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center border border-white/10 bg-white/[0.04] text-white/45">{i + 1}</span>
+                    className={`relative flex items-center gap-4 rounded-xl px-4 py-3 border bg-white/[0.015] ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+                    <span className={`flex-shrink-0 w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center border ${lightMode ? 'border-gray-200 bg-gray-50/80 text-gray-400' : 'border-white/10 bg-white/[0.04] text-white/45'}`}>{i + 1}</span>
                     <p className="flex-1 text-[14px] text-white/75 leading-snug">{hl(text)}</p>
                     {topProd && (
                       <button type="button" onClick={() => {
@@ -914,7 +916,7 @@ export default function StatsSenseiPanel({
                         });
                         window.location.href = `/campaigns?${params.toString()}`;
                       }}
-                        className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-semibold border border-white/10 bg-white/[0.04] text-white/40 hover:text-white/65 hover:bg-white/[0.07] transition-all">
+                        className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-semibold border hover:text-white/65 transition-all ${lightMode ? 'border-gray-200 bg-gray-50/80 text-gray-400 hover:bg-gray-100' : 'border-white/10 bg-white/[0.04] text-white/40 hover:bg-white/[0.07]'}`}>
                         <Zap size={9} />
                         {t('sensei_apply')}
                       </button>
@@ -987,7 +989,7 @@ export default function StatsSenseiPanel({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setChatOpen(false)}
-                className="fixed inset-0 z-[198] bg-black/40 backdrop-blur-sm"
+                className={`fixed inset-0 z-[198] backdrop-blur-sm ${lightMode ? 'bg-black/8' : 'bg-black/40'}`}
               />
               <motion.div
                 key="chat-panel"
@@ -997,10 +999,10 @@ export default function StatsSenseiPanel({
                 transition={{ type: 'spring', stiffness: 320, damping: 32 }}
                 className="fixed right-0 top-0 bottom-0 z-[199] w-full sm:w-[420px] max-w-[95vw] sm:max-w-none flex flex-col"
                 style={{ background: 'rgba(8,8,8,0.97)', backdropFilter: 'blur(24px)', borderLeft: '1px solid rgba(212,175,55,0.15)' }}>
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
+                <div className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
                   <div className="flex items-center gap-3">
                     {/* Robot avatar */}
-                    <div className="relative w-10 h-10 rounded-full bg-black border border-gold/30 flex items-center justify-center flex-shrink-0"
+                    <div className={`relative w-10 h-10 rounded-full border border-gold/30 flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-white' : 'bg-black'}`}
                       style={{ boxShadow: '0 0 14px rgba(212,175,55,0.22)' }}>
                       <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
                         <line x1="18" y1="3" x2="18" y2="7" stroke="rgba(212,175,55,0.7)" strokeWidth="1.5" strokeLinecap="round"/>
@@ -1017,14 +1019,14 @@ export default function StatsSenseiPanel({
                       </span>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-white/90">Saito AI</p>
+                      <p className={`text-sm font-semibold ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>Saito AI</p>
                       <p className="text-[10px] text-gold/50 mt-0.5">
                         {language === 'az' ? 'onlayn • hazıram' : language === 'ru' ? 'онлайн • готов' : 'online • ready'}
                       </p>
                     </div>
                   </div>
                   <button onClick={() => setChatOpen(false)}
-                    className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 hover:text-white/70 transition-all">
+                    className={`p-2 rounded-xl hover:bg-white/[0.08] border hover:text-white/70 transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-400' : 'bg-white/[0.04] border-white/[0.08] text-white/40'}`}>
                     <XCircle size={15} />
                   </button>
                 </div>
@@ -1043,7 +1045,7 @@ export default function StatsSenseiPanel({
                           transition={{ delay: i * 0.35, duration: 0.3 }}>
                           <div className="flex items-end gap-2 max-w-[85%]">
                             {i === 0 && (
-                              <div className="w-6 h-6 rounded-full bg-black border border-gold/25 flex items-center justify-center flex-shrink-0 mb-1"
+                              <div className={`w-6 h-6 rounded-full border border-gold/25 flex items-center justify-center flex-shrink-0 mb-1 ${lightMode ? 'bg-white' : 'bg-black'}`}
                                 style={{ boxShadow: '0 0 8px rgba(212,175,55,0.15)' }}>
                                 <svg width="13" height="13" viewBox="0 0 36 36" fill="none">
                                   <rect x="9" y="7" width="18" height="14" rx="4" fill="rgba(212,175,55,0.1)" stroke="rgba(212,175,55,0.6)" strokeWidth="1.8"/>
@@ -1055,7 +1057,7 @@ export default function StatsSenseiPanel({
                             )}
                             {i !== 0 && <div className="w-6 flex-shrink-0" />}
                             <div className="px-4 py-2.5 rounded-2xl rounded-bl-sm text-[13px] text-white/75 leading-relaxed"
-                              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.10)' }}>
+                              style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.10)' }}>
                               {msg}
                             </div>
                           </div>
@@ -1080,7 +1082,7 @@ export default function StatsSenseiPanel({
                   ))}
                   {chatLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-black border border-gold/[0.15] px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1.5 items-center">
+                      <div className={`border border-gold/[0.15] px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1.5 items-center ${lightMode ? 'bg-white' : 'bg-black'}`}>
                         <span className="w-1.5 h-1.5 bg-gold/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                         <span className="w-1.5 h-1.5 bg-gold/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                         <span className="w-1.5 h-1.5 bg-gold/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -1088,12 +1090,12 @@ export default function StatsSenseiPanel({
                     </div>
                   )}
                 </div>
-                <div className="px-5 py-4 border-t border-white/[0.06] shrink-0">
+                <div className={`px-5 py-4 border-t shrink-0 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
                   <div className="flex gap-2">
                     <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleSend()}
                       placeholder={t('sensei_ask_placeholder')} autoFocus
-                      className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-all" />
+                      className={`flex-1 border rounded-xl px-4 py-3 text-sm outline-none focus:border-white/20 transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white placeholder:text-white/20'}`} />
                     <button type="button" onClick={handleSend} disabled={!chatInput.trim() || chatLoading}
                       className="px-4 py-3 rounded-xl bg-gold/10 border border-gold/25 text-gold hover:bg-gold/15 disabled:opacity-30 transition-all">
                       <Send size={15} />
@@ -1110,7 +1112,7 @@ export default function StatsSenseiPanel({
   };
 
   const renderStaticAdvice = () => {
-    if (!senseiStatsAdvice) return <p className="text-white/20 italic text-sm">{t('stats_analyzing')}</p>;
+    if (!senseiStatsAdvice) return <p className={`italic text-sm ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('stats_analyzing')}</p>;
     const isCritical = senseiStatsAdvice.type === 'critical';
     const isGrowth   = senseiStatsAdvice.type === 'growth';
     const metric = isCritical
@@ -1122,15 +1124,15 @@ export default function StatsSenseiPanel({
     const dimColor  = isCritical ? 'text-white/35' : isGrowth ? 'text-gold/50' : 'text-white/35';
     return (
       <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] px-6 py-4">
+        className={`flex items-center gap-6 rounded-2xl border px-6 py-4 ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/[0.07] bg-white/[0.02]'}`}>
         <div className="flex-shrink-0 text-center min-w-[64px]">
           <div className={`text-2xl font-bold font-serif ${textColor} leading-none`}>{metric.value}</div>
           <div className={`text-[9px] uppercase tracking-widest mt-1 ${dimColor}`}>{metric.label}</div>
         </div>
-        <div className="w-px self-stretch border-l border-white/[0.07]" />
+        <div className={`w-px self-stretch border-l ${lightMode ? 'border-gray-200' : 'border-white/[0.07]'}`} />
         <div className="flex-1 min-w-0">
           <p className={`text-[9px] font-bold uppercase tracking-[0.2em] mb-1.5 ${dimColor}`}>{senseiStatsAdvice.title}</p>
-          <p className="text-sm text-white/60 leading-snug line-clamp-2">{senseiStatsAdvice.text}</p>
+          <p className={`text-sm leading-snug line-clamp-2 ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{senseiStatsAdvice.text}</p>
         </div>
       </motion.div>
     );
@@ -1138,7 +1140,7 @@ export default function StatsSenseiPanel({
 
   return (
     <>
-    <div className="bg-card border border-white/[0.06] p-6 relative rounded-2xl">
+    <div className={`bg-card border p-6 relative rounded-2xl ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
       <HologramGrid />
       <div className="relative z-10 flex flex-col gap-6">
         {/* Header */}
@@ -1265,7 +1267,7 @@ export default function StatsSenseiPanel({
     return (
       <div className="flex items-center justify-center gap-2 py-10">
         <Loader2 size={14} className="animate-spin text-gold/40" />
-        <span className="text-[10px] text-white/30 uppercase tracking-widest">{t('deep_scan_loading')}</span>
+        <span className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('deep_scan_loading')}</span>
       </div>
     );
   }
@@ -1273,8 +1275,8 @@ export default function StatsSenseiPanel({
   function renderDeepEmpty() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-12">
-        <BarChart3 size={24} className="text-white/15" />
-        <p className="text-xs text-white/25">{t('deep_scan_no_data')}</p>
+        <BarChart3 size={24} className={lightMode ? 'text-gray-200' : 'text-white/15'} />
+        <p className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('deep_scan_no_data')}</p>
       </div>
     );
   }
@@ -1284,10 +1286,10 @@ export default function StatsSenseiPanel({
     return (
       <div className="flex flex-col gap-5">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl bg-white/[0.02] border border-white/[0.06] p-5">
+          className={`rounded-2xl border p-5 ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.02] border-white/[0.06]'}`}>
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[160px]">
-              <label className="text-[10px] text-white/30 uppercase tracking-widest mb-1.5 block">
+              <label className={`text-[10px] uppercase tracking-widest mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                 {t('stats_col_product')}
               </label>
               <GoldSelect
@@ -1298,7 +1300,7 @@ export default function StatsSenseiPanel({
               />
             </div>
             <div className="flex-1 min-w-[140px]">
-              <label className="text-[10px] text-white/30 uppercase tracking-widest mb-1.5 block">
+              <label className={`text-[10px] uppercase tracking-widest mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                 {interpolateTemplate(t('sensei_cross_sell_price'), { price: `${simPriceChange > 0 ? '+' : ''}${simPriceChange}%` })}
               </label>
               <input type="range" min={-30} max={30} step={5} value={simPriceChange}
@@ -1328,7 +1330,7 @@ export default function StatsSenseiPanel({
                     {t('deep_scan_run_simulation')}
                   </span>
                 </div>
-                <p className="text-sm text-white/80 leading-relaxed font-mono">
+                <p className={`text-sm leading-relaxed font-mono ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>
                   {simResultTyped}
                   <motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.5, repeat: Infinity }} className="text-gold">▊</motion.span>
                 </p>
@@ -1338,18 +1340,18 @@ export default function StatsSenseiPanel({
                       <TrendingDown size={12} className="text-red-400" />
                       <span className="text-[9px] font-bold uppercase tracking-widest text-red-300/70">{t('deep_scan_retention_risk')}</span>
                     </div>
-                    <p className="text-[11px] text-white/55">
+                    <p className={`text-[11px] ${lightMode ? 'text-gray-500' : 'text-white/55'}`}>
                       {simPriceChange > 0
                         ? interpolateTemplate(language === 'az' ? `Qiymət {pct}% artırıldıqda, müştərilərin ~{risk}%-i rəqibə keçə bilər.` : language === 'ru' ? `При повышении на {pct}%, ~{risk}% клиентов могут уйти к конкурентам.` : `A {pct}% increase may cause ~{risk}% of customers to switch to competitors.`, { pct: String(simPriceChange), risk: String(Math.round(simPriceChange * 1.5)) })
                         : interpolateTemplate(language === 'az' ? `Qiymət {pct}% azaldıldıqda, müştəri sadiqliyi artacaq, amma marja azalacaq.` : language === 'ru' ? `Снижение на {pct}% повысит лояльность, но снизит маржу.` : `A {pct}% decrease may boost loyalty but reduce margins.`, { pct: String(Math.abs(simPriceChange)) })}
                     </p>
                   </div>
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.07] p-3">
+                  <div className={`rounded-xl border p-3 ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <Users size={12} className="text-white/40" />
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-white/40">{t('deep_scan_competitor_note')}</span>
+                      <Users size={12} className={lightMode ? 'text-gray-400' : 'text-white/40'} />
+                      <span className={`text-[9px] font-bold uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('deep_scan_competitor_note')}</span>
                     </div>
-                    <p className="text-[11px] text-white/45 italic">
+                    <p className={`text-[11px] italic ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
                       {language === 'az' ? 'Rəqib datası mövcud deyil — daxili dataya əsasən elastiklik hesablanıb.' : language === 'ru' ? 'Данные конкурентов недоступны — эластичность рассчитана по внутренним данным.' : 'Competitor data unavailable — elasticity calculated from internal data.'}
                     </p>
                   </div>
@@ -1360,7 +1362,7 @@ export default function StatsSenseiPanel({
         </AnimatePresence>
 
         {/* ─── Cross-sell Simulator ─── */}
-        <div className="border-t border-white/[0.06] pt-5">
+        <div className={`border-t pt-5 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
           <div className="flex items-center gap-2 mb-4">
             <ShoppingBag size={13} className="text-emerald-400" />
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/70">
@@ -1368,10 +1370,10 @@ export default function StatsSenseiPanel({
             </span>
           </div>
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl bg-white/[0.02] border border-white/[0.06] p-5">
+            className={`rounded-2xl border p-5 ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.02] border-white/[0.06]'}`}>
             <div className="flex flex-wrap gap-4 items-end">
               <div className="flex-1 min-w-[160px]">
-                <label className="text-[10px] text-white/30 uppercase tracking-widest mb-1.5 block">
+                <label className={`text-[10px] uppercase tracking-widest mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                   {t('sensei_cross_sell_base')}
                 </label>
                 <GoldSelect
@@ -1382,15 +1384,15 @@ export default function StatsSenseiPanel({
                 />
               </div>
               <div className="flex-1 min-w-[120px]">
-                <label className="text-[10px] text-white/30 uppercase tracking-widest mb-1.5 block">
+                <label className={`text-[10px] uppercase tracking-widest mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                   {t('sensei_cross_sell_addon')}
                 </label>
                 <input type="text" value={crossAddon} onChange={e => { setCrossAddon(e.target.value); setCrossResult(null); }}
                   placeholder={t('sensei_cross_sell_addon_ph')}
-                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/20 transition-all" />
+                  className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-white/20 transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white placeholder:text-white/20'}`} />
               </div>
               <div className="flex-1 min-w-[100px]">
-                <label className="text-[10px] text-white/30 uppercase tracking-widest mb-1.5 block">
+                <label className={`text-[10px] uppercase tracking-widest mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                   {interpolateTemplate(t('sensei_cross_sell_price'), { price: String(crossPrice) })}
                 </label>
                 <input type="range" min={0.5} max={10} step={0.5} value={crossPrice}
@@ -1398,7 +1400,7 @@ export default function StatsSenseiPanel({
                   className="w-full accent-emerald-400" />
               </div>
               <div className="flex-1 min-w-[100px]">
-                <label className="text-[10px] text-white/30 uppercase tracking-widest mb-1.5 block">
+                <label className={`text-[10px] uppercase tracking-widest mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                   {interpolateTemplate(t('sensei_cross_sell_rate'), { rate: String(crossRate) })}
                 </label>
                 <input type="range" min={5} max={80} step={5} value={crossRate}
@@ -1436,7 +1438,7 @@ export default function StatsSenseiPanel({
                     {t('sensei_cross_sell_result_title')}
                   </span>
                 </div>
-                <p className="text-sm text-white/80 leading-relaxed">{crossResult}</p>
+                <p className={`text-sm leading-relaxed ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>{crossResult}</p>
               </motion.div>
             )}
           </AnimatePresence>

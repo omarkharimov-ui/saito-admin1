@@ -4,6 +4,7 @@ import React from 'react';
 import { DollarSign, TrendingUp, TrendingDown, XCircle, Percent } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Props {
   totalRevenue: number;
@@ -19,6 +20,7 @@ const fmt = (n: number) =>
 
 const StatsTopCards = ({ totalRevenue, totalOrders, aov, missedRevenue, netProfit = 0, foodCostPct = 0 }: Props) => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const isProfit = netProfit >= 0;
 
   const fcHealth =
@@ -35,14 +37,14 @@ const StatsTopCards = ({ totalRevenue, totalOrders, aov, missedRevenue, netProfi
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0, duration: 0.4, ease: 'easeOut' }}
-        className="relative overflow-hidden rounded-2xl p-4 md:p-5 bg-card border border-white/5"
+        className={`relative overflow-hidden rounded-2xl p-4 md:p-5 bg-card border ${lightMode ? 'border-gray-100' : 'border-white/5'}`}
       >
         <div className="absolute top-0 left-0 w-32 h-32 rounded-full pointer-events-none"
           style={{ background: 'radial-gradient(circle at top left,rgba(212,175,55,0.07),transparent 70%)' }} />
         <div className="mb-3 text-[#D4AF37]/70"><DollarSign size={16} /></div>
-        <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-white/35 mb-1">{t('stats_total_revenue')}</p>
-        <h3 className="font-serif font-bold text-white text-xl md:text-2xl leading-tight">₼ {fmt(totalRevenue)}</h3>
-        <p className="text-[10px] text-white/20 mt-1">{totalOrders} sifariş</p>
+        <p className={`text-[9px] md:text-[10px] uppercase tracking-widest mb-1 ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{t('stats_total_revenue')}</p>
+        <h3 className={`font-serif font-bold text-xl md:text-2xl leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼ {fmt(totalRevenue)}</h3>
+        <p className={`text-[10px] mt-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{totalOrders} sifariş</p>
       </motion.div>
 
       {/* 2 — Təmiz Qazanc (qabarıq) */}
@@ -60,7 +62,7 @@ const StatsTopCards = ({ totalRevenue, totalOrders, aov, missedRevenue, netProfi
         <div className={`mb-3 ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
           {isProfit ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
         </div>
-        <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-white/35 mb-1">Təmiz Qazanc</p>
+        <p className={`text-[9px] md:text-[10px] uppercase tracking-widest mb-1 ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>Təmiz Qazanc</p>
         <h3 className={`font-serif font-bold text-xl md:text-2xl leading-tight ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
           {isProfit ? '' : '−'}₼ {fmt(Math.abs(netProfit))}
         </h3>
@@ -73,24 +75,24 @@ const StatsTopCards = ({ totalRevenue, totalOrders, aov, missedRevenue, netProfi
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.12, duration: 0.4, ease: 'easeOut' }}
-        className="relative overflow-hidden rounded-2xl p-4 md:p-5 bg-card border border-white/5"
+        className={`relative overflow-hidden rounded-2xl p-4 md:p-5 bg-card border ${lightMode ? 'border-gray-100' : 'border-white/5'}`}
       >
         <div className="mb-3 text-blue-400/70"><Percent size={16} /></div>
-        <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-white/35 mb-1">{t('stats_aov_label')}</p>
-        <h3 className="font-serif font-bold text-white text-xl md:text-2xl leading-tight">₼ {fmt(aov)}</h3>
-        <p className="text-[10px] text-white/20 mt-1">hər sifariş üzrə</p>
+        <p className={`text-[9px] md:text-[10px] uppercase tracking-widest mb-1 ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{t('stats_aov_label')}</p>
+        <h3 className={`font-serif font-bold text-xl md:text-2xl leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼ {fmt(aov)}</h3>
+        <p className={`text-[10px] mt-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>hər sifariş üzrə</p>
       </motion.div>
 
       {/* 4 — İtki / Ləğv edilən */}
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.18, duration: 0.4, ease: 'easeOut' }}
-        className="relative overflow-hidden rounded-2xl p-4 md:p-5 bg-card border border-white/5"
+        className={`relative overflow-hidden rounded-2xl p-4 md:p-5 bg-card border ${lightMode ? 'border-gray-100' : 'border-white/5'}`}
       >
         <div className="mb-3 text-rose-400/70"><XCircle size={16} /></div>
-        <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-white/35 mb-1">{t('stats_cancelled_loss')}</p>
-        <h3 className="font-serif font-bold text-white text-xl md:text-2xl leading-tight">₼ {fmt(missedRevenue)}</h3>
-        <p className="text-[10px] text-white/20 mt-1">ləğv edilən sifarişlər</p>
+        <p className={`text-[9px] md:text-[10px] uppercase tracking-widest mb-1 ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{t('stats_cancelled_loss')}</p>
+        <h3 className={`font-serif font-bold text-xl md:text-2xl leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼ {fmt(missedRevenue)}</h3>
+        <p className={`text-[10px] mt-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>ləğv edilən sifarişlər</p>
       </motion.div>
 
     </div>

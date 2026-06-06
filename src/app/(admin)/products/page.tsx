@@ -13,6 +13,7 @@ import { ProductBulkModals } from './components/ProductBulkModals';
 import { ProductCategoryModal } from './components/ProductCategoryModal';
 import { DeleteAllModal, DeleteProductModal, DeleteCategoryModal } from './components/ProductDeleteModals';
 import { ProductsLoader } from './components/ProductsLoader';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 /* ─── Helpers ─── */
 const normalizeProductName = (s: string) => s.trim();
@@ -48,6 +49,7 @@ const emptyCategoryForm = (): CategoryForm => ({ id: '', name: '', slug: '', ima
 
 const ProductsPage = () => {
   const { t, language, getProductTranslation, getCategoryTranslation } = useLanguage();
+  const { lightMode } = useTheme();
 
   /* ─── Data state ─── */
   const [products, setProducts] = useState<Product[]>(() => {
@@ -678,8 +680,8 @@ const ProductsPage = () => {
     <div className="space-y-6 pb-24">
       {/* Header - daha çox boşluq */}
       <div className="px-4 sm:px-0">
-        <h2 className="text-3xl font-serif font-bold text-white tracking-tight mb-2">{t('products_title')}</h2>
-        <p className="text-white/40 text-xs uppercase tracking-[0.2em]">{t('products_subtitle')}</p>
+        <h2 className={`text-3xl font-serif font-bold tracking-tight mb-2 ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('products_title')}</h2>
+        <p className={`text-xs uppercase tracking-[0.2em] ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('products_subtitle')}</p>
       </div>
 
       <ProductTable

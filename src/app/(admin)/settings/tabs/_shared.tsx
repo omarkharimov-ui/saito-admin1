@@ -2,8 +2,10 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 export function GsLoader() {
+  const { lightMode } = useTheme();
   const sz = 72, R = 36, r1 = R * 0.80, r2 = R * 0.52;
   const c1 = 2 * Math.PI * r1, c2 = 2 * Math.PI * r2;
   return (

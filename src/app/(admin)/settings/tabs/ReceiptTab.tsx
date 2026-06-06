@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { inputCls, labelCls } from './_shared';
 import ReceiptPreview from '../../orders/components/ReceiptPreview';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface ReceiptCfg {
   receipt_title: string;
@@ -27,6 +28,7 @@ const DEFAULTS: ReceiptCfg = {
 
 const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null }) => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [loading, setLoading] = useState(false); // Instant load
   const [saving, setSaving] = useState(false);
   const [cfg, setCfg] = useState<ReceiptCfg>(DEFAULTS);
@@ -82,7 +84,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
       {/* ── Görünüş ── */}
       <div className="space-y-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t('receipt_section_display')}</p>
+        <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('receipt_section_display')}</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Çek başlığı */}
@@ -95,7 +97,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
               onChange={e => setCfg({ ...cfg, receipt_title: e.target.value })}
             />
             {titleEmpty && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1"><span>⚠</span> Bu sahə boş qala bilməz</p>}
-            {!titleEmpty && <p className="text-[10px] text-white/40 mt-1.5">{t('receipt_title_hint')}</p>}
+            {!titleEmpty && <p className={`text-[10px] mt-1.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('receipt_title_hint')}</p>}
           </div>
 
           {/* Valyuta */}
@@ -110,17 +112,17 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
               style={{ fontFamily: 'inherit' }}
             />
             {currencyEmpty && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1"><span>⚠</span> Bu sahə boş qala bilməz</p>}
-            {!currencyEmpty && <p className="text-[10px] text-white/40 mt-1.5">{t('receipt_currency_hint')}</p>}
+            {!currencyEmpty && <p className={`text-[10px] mt-1.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('receipt_currency_hint')}</p>}
           </div>
         </div>
 
         {/* Servis haqqı */}
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+        <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}`}>
           <div className="flex items-center gap-3">
             <Percent size={15} className="text-gold/70" />
             <div>
-              <p className="text-sm font-semibold text-white">{t('receipt_show_service_fee')}</p>
-              <p className="text-[11px] text-white/45 mt-0.5">{t('receipt_service_fee_hint')}</p>
+              <p className={`text-sm font-semibold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('receipt_show_service_fee')}</p>
+              <p className={`text-[11px] mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>{t('receipt_service_fee_hint')}</p>
             </div>
           </div>
           <button
@@ -140,7 +142,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
                 type="range" min={0} max={30} step={0.5}
                 value={cfg.receipt_service_fee_pct}
                 onChange={e => setCfg({ ...cfg, receipt_service_fee_pct: Number(e.target.value) })}
-                className="flex-1 accent-gold h-1.5 rounded-full bg-white/10 cursor-pointer"
+                className={`flex-1 accent-gold h-1.5 rounded-full cursor-pointer ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`}
               />
               <span className="text-gold font-bold text-sm w-14 text-right">{cfg.receipt_service_fee_pct}%</span>
             </div>
@@ -150,7 +152,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
       {/* ── Məzmun ── */}
       <div className="space-y-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t('receipt_section_content')}</p>
+        <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('receipt_section_content')}</p>
 
         <div>
           <label className={labelCls}><AlignLeft size={11} /> {t('receipt_footer_label')}</label>
@@ -160,14 +162,14 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
             placeholder="Təşəkkür edirik!"
             onChange={e => setCfg({ ...cfg, receipt_footer_text: e.target.value })}
           />
-          <p className="text-[10px] text-white/40 mt-1.5">{t('receipt_footer_hint')}</p>
+          <p className={`text-[10px] mt-1.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('receipt_footer_hint')}</p>
         </div>
 
       </div>
 
       {/* ── Önizləmə ── */}
       <div className="space-y-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30 flex items-center gap-2"><Eye size={11} /> Preview</p>
+        <p className={`text-[10px] font-bold uppercase tracking-[0.18em] flex items-center gap-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}><Eye size={11} /> Preview</p>
         <div className="mx-auto">
           <ReceiptPreview
             title={cfg.receipt_title}

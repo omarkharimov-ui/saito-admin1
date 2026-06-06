@@ -509,7 +509,7 @@ export const OrderModal = ({
     <>  {/* START MODAL CONTENT */}
         {/* drag handle — mobile only */}
         <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-white/15" />
+          <div className={`w-10 h-1 rounded-full ${lightMode ? 'bg-gray-200' : 'bg-white/15'}`} />
         </div>
 
         {/* Ambient glow */}
@@ -521,12 +521,12 @@ export const OrderModal = ({
           <div className="flex items-center gap-3 min-w-0">
             {isMergedOrder ? (
               <div className="flex items-center gap-2">
-                <Layers size={16} className="text-white/40 flex-shrink-0" strokeWidth={1.5} />
+                <Layers size={16} className={`flex-shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/40'}`} strokeWidth={1.5} />
                 <p className="font-black text-2xl tracking-widest leading-none whitespace-nowrap"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   {t('group_label')} {groupNumber}
                 </p>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 bg-white/5 text-white/40 border border-white/10">
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 border ${lightMode ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white/5 text-white/40 border-white/10'}`}>
                   <GitMerge size={9} />{[order.table_number, ...mergedFromTables].filter(Boolean).join('+')}
                 </span>
               </div>
@@ -536,7 +536,7 @@ export const OrderModal = ({
                 {order.table_number ? `${t('table_label')} ${order.table_number}` : '—'}
               </p>
             )}
-            <span className="text-white/20 text-[11px] flex items-center gap-1">
+            <span className={`text-[11px] flex items-center gap-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
               <Clock size={9} />
               {order.status === 'paid'
                 ? new Date(order.created_at).toLocaleDateString(language === 'az' ? 'az-AZ' : language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' })
@@ -556,13 +556,13 @@ export const OrderModal = ({
               </button>
             )}
             {order.status !== 'paid' && (
-              <div className="flex items-center gap-1 text-white/30">
+              <div className={`flex items-center gap-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                 <Users size={9} />
                 <button onClick={async () => { const n = Math.max(1, (guestCount || 1) - 1); setGuestCount(n); await supabase.from('orders').update({ guest_count: n }).eq('id', order.id); }}
-                  className="w-4 h-4 rounded flex items-center justify-center hover:bg-white/10 text-[10px] font-bold">−</button>
-                <span className="text-[11px] font-semibold text-white/50 w-4 text-center tabular-nums">{guestCount}</span>
+                  className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold ${lightMode ? 'hover:bg-gray-200' : 'hover:bg-white/10'}`}>−</button>
+                <span className={`text-[11px] font-semibold w-4 text-center tabular-nums ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{guestCount}</span>
                 <button onClick={async () => { const n = (guestCount || 1) + 1; setGuestCount(n); await supabase.from('orders').update({ guest_count: n }).eq('id', order.id); }}
-                  className="w-4 h-4 rounded flex items-center justify-center hover:bg-white/10 text-[10px] font-bold">+</button>
+                  className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold ${lightMode ? 'hover:bg-gray-200' : 'hover:bg-white/10'}`}>+</button>
               </div>
             )}
           </div>
@@ -573,13 +573,13 @@ export const OrderModal = ({
               const status = order.status;
               if (status === 'paid') return null;
               const isEmptyGroup = isMergedOrder && (!order.order_items || order.order_items.length === 0);
-              if (isEmptyGroup) return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-white/[0.06] text-white/30 border border-white/10">{t('draft')}</span>;
+              if (isEmptyGroup) return <span className={`text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase border ${lightMode ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white/[0.06] text-white/30 border-white/10'}`}>{t('draft')}</span>;
               if (ks === 'ready') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">{t('badge_ready')}</span>;
               if (ks === 'preparing' || ks === 'cooking') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-blue-500/15 text-blue-400 border border-blue-500/30">{t('badge_preparing')}</span>;
               if (status === 'new') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('new')}</span>;
-              return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-white/5 text-white/40 border border-white/10">{t('badge_waiting')}</span>;
+              return <span className={`text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase border ${lightMode ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white/5 text-white/40 border-white/10'}`}>{t('badge_waiting')}</span>;
             })()}
-            <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
+            <button onClick={onClose} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-900' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
               <X size={18} />
             </button>
           </div>
@@ -587,7 +587,7 @@ export const OrderModal = ({
 
         {/* Mobile Tab Switcher */}
         <div className="md:hidden px-5 pt-3 pb-0 flex-shrink-0">
-            <div className="flex bg-white/[0.04] rounded-2xl p-1 gap-1">
+            <div className={`flex rounded-2xl p-1 gap-1 ${lightMode ? 'bg-gray-50/80' : 'bg-white/[0.04]'}`}>
               {(['order', 'summary'] as const).map(tab => (
                 <button key={tab} onClick={() => setMobileTab(tab)}
                   className={`flex-1 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-200 relative ${mobileTab === tab ? 'text-black' : 'text-white/40'}`}>
@@ -622,14 +622,14 @@ export const OrderModal = ({
             {/* Search */}
             <div className="flex-shrink-0 mb-3">
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                <Search size={13} className={`absolute left-3 top-1/2 -translate-y-1/2 ${lightMode ? 'text-gray-300' : 'text-white/25'}`} />
                 <input ref={addSearchRef}
                   value={addSearch}
                   onChange={e => setAddSearch(e.target.value)}
                   onFocus={() => setAddSearchFocused(true)}
                   placeholder={t('add_items')}
                   onKeyDown={e => { if (e.key === 'Escape') { addSearchRef.current?.blur(); } }}
-                  className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-white/25 transition-all"
+                  className={`w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white placeholder:text-white/25 focus:border-white/25'}`}
                 />
               </div>
             </div>
@@ -649,11 +649,11 @@ export const OrderModal = ({
 
                 {loadingProducts ? (
                   <div className="flex items-center justify-center py-16">
-                    <Loader2 size={22} className="animate-spin text-white/20" />
+                    <Loader2 size={22} className={`animate-spin ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
                   </div>
                 ) : filteredProducts.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 select-none">
-                    <p className="text-white/20 text-sm">{t('search')}...</p>
+                    <p className={`text-sm ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('search')}...</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
@@ -677,15 +677,15 @@ export const OrderModal = ({
                               ? 'bg-white/[0.04] border-white/[0.15]'
                               : 'bg-[#141414] border-white/[0.07] hover:bg-white/[0.05]'
                           }`}>
-                          <div className="flex-1 min-h-0 w-full overflow-hidden flex items-center justify-center bg-white/[0.03]">
+                          <div className={`flex-1 min-h-0 w-full overflow-hidden flex items-center justify-center ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
                             {showImg ? (
                               <img src={product.image_url!} alt={pName} className="w-full h-full object-cover" onError={() => setImgErrors(prev => new Set(prev).add(product.id))} />
                             ) : (
-                              <span className="text-xl font-black text-white/20">{initials}</span>
+                              <span className={`text-xl font-black ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{initials}</span>
                             )}
                           </div>
                           <div className="px-3 pb-3 pt-2.5 flex flex-col gap-0.5">
-                            <p className="text-sm font-semibold text-white/85 truncate leading-tight">{pName}</p>
+                            <p className={`text-sm font-semibold truncate leading-tight ${lightMode ? 'text-gray-800' : 'text-white/85'}`}>{pName}</p>
                             <p className="text-sm font-black text-gold">{product.price.toFixed(2)} ₼</p>
                           </div>
                           {isSoldOut && (
@@ -703,11 +703,11 @@ export const OrderModal = ({
 
                 {/* Variant picker */}
                 {addVariantPicker && !loadingAddVariants && (
-                  <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+                  <div className={`mt-3 rounded-xl border overflow-hidden ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/[0.08] bg-white/[0.03]'}`}>
                     {addVariantPicker.variants.map(v => (
                       <button key={v.id} onClick={() => addToCartWithVariant(addVariantPicker.product, v)}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.06] transition-colors text-left border-b border-white/[0.05] last:border-0">
-                        <div><p className="text-white text-sm font-medium">{v.name}</p>{v.is_default && <span className="text-[9px] text-white/20 uppercase tracking-wider">{t('combo_default_variant')}</span>}</div>
+                        className={`w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.06] transition-colors text-left border-b last:border-0 ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
+                        <div><p className={`text-sm font-medium ${lightMode ? 'text-gray-900' : 'text-white'}`}>{v.name}</p>{v.is_default && <span className={`text-[9px] uppercase tracking-wider ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('combo_default_variant')}</span>}</div>
                         <span className="text-gold text-xs font-bold">{v.price.toFixed(2)} ₼</span>
                       </button>
                     ))}
@@ -717,9 +717,9 @@ export const OrderModal = ({
 
               {/* Add items confirm bar */}
               {addItems.length > 0 && (
-                <div className="px-5 py-4 border-t border-white/[0.05] flex items-center justify-between flex-shrink-0">
+                <div className={`px-5 py-4 border-t flex items-center justify-between flex-shrink-0 ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-white/25 text-[10px] uppercase tracking-widest">{t('addition')}</span>
+                    <span className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('addition')}</span>
                     <span className="text-gold font-bold text-sm">+{addTotal.toFixed(2)} ₼</span>
                   </div>
                   <button onClick={handleAddItems}
@@ -732,11 +732,11 @@ export const OrderModal = ({
             </section>
 
           {/* ═══ RIGHT: Summary + Actions ═══ */}
-          <section className="w-[380px] h-full border-l border-white/[0.06] bg-neutral-950/50 flex flex-col flex-shrink-0">
+          <section className={`w-[380px] h-full border-l bg-neutral-950/50 flex flex-col flex-shrink-0 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
             {/* Three-dot menu bar */}
-            <div className="px-5 pt-4 pb-3 flex-shrink-0 border-b border-white/[0.05] flex items-center justify-between">
+            <div className={`px-5 pt-4 pb-3 flex-shrink-0 border-b flex items-center justify-between ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
               <div>
-                <p className="text-[9px] uppercase tracking-widest text-white/20">{t('total_label')}</p>
+                <p className={`text-[9px] uppercase tracking-widest ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('total_label')}</p>
                 <p className="font-black text-2xl tracking-tight tabular-nums"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   {draftTotal.toFixed(2)} ₼
@@ -780,12 +780,12 @@ export const OrderModal = ({
                     {item.products?.image_url ? (
                       <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
                     ) : (
-                      <div className="w-7 h-7 rounded-lg bg-white/[0.05] flex-shrink-0" />
+                      <div className={`w-7 h-7 rounded-lg flex-shrink-0 ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`} />
                     )}
                     <div className="flex-1 min-w-0 flex items-center gap-1.5">
-                      <p className="text-white/70 text-xs font-medium truncate">{getProductName(item)}</p>
+                      <p className={`text-xs font-medium truncate ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>{getProductName(item)}</p>
                       {item.course && item.course !== 'main' && (
-                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>
+                        <span className={`text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 border ${lightMode ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white/[0.06] text-white/30 border-white/[0.08]'}`}>{item.course}</span>
                       )}
                     </div>
                     {cancelStep === 'select' ? (
@@ -797,62 +797,62 @@ export const OrderModal = ({
                         }
                       }}
                         className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${isSelected ? 'bg-red-500 border-red-500' : 'border-white/40'}`}>
-                        {isSelected && <CheckCircle size={11} className="text-white" />}
+                        {isSelected && <CheckCircle size={11} className={lightMode ? 'text-gray-900' : 'text-white'} />}
                       </button>
                     ) : order.status !== 'paid' && itemQty > 0 ? (
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden">
+                        <div className={`flex items-center border rounded-lg overflow-hidden ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.07]'}`}>
                           <button onClick={e => handleChangeItemQty(e, item, -1)}
-                            className="w-12 h-12 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                            className={`w-12 h-12 flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}>
                             <Minus size={16} />
                           </button>
-                          <span className="text-white text-[13px] w-7 text-center font-black tabular-nums">{itemQty}</span>
+                          <span className={`text-[13px] w-7 text-center font-black tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{itemQty}</span>
                           <button onClick={e => handleChangeItemQty(e, item, 1)}
                             className="w-12 h-12 flex items-center justify-center text-gold active:scale-90 transition-all">
                             <Plus size={16} />
                           </button>
                         </div>
                         <button onClick={() => handleRemoveItem(item)}
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
+                          className={`w-12 h-12 rounded-full flex items-center justify-center hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                           <Trash2 size={18} />
                         </button>
                       </div>
                     ) : (
-                      <span className="text-white/25 text-[11px] tabular-nums flex-shrink-0">×{itemQty}</span>
+                      <span className={`text-[11px] tabular-nums flex-shrink-0 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>×{itemQty}</span>
                     )}
-                    <span className="text-white/50 text-xs font-semibold tabular-nums w-14 text-right">{(unitPrice * itemQty).toFixed(2)} ₼</span>
+                    <span className={`text-xs font-semibold tabular-nums w-14 text-right ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{(unitPrice * itemQty).toFixed(2)} ₼</span>
                   </div>
                   </motion.div>
                 );
               })}
               </AnimatePresence>
               {loadingCancelled ? (
-                <div className="flex items-center gap-2 text-white/20 text-xs py-2"><Loader2 size={11} className="animate-spin" /> {t('loading')}</div>
+                <div className={`flex items-center gap-2 text-xs py-2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}><Loader2 size={11} className="animate-spin" /> {t('loading')}</div>
               ) : cancelledItemsHistory.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-white/[0.06]">
-                  <p className="text-white/25 text-[9px] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                <div className={`mt-2 pt-2 border-t ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
+                  <p className={`text-[9px] uppercase tracking-widest mb-1.5 flex items-center gap-1.5 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>
                     <XCircle size={9} className="text-red-400/50" /> {t('cancelled_items_label')}
                   </p>
                   <div className="space-y-1">
                     {cancelledItemsHistory.map((record: any, idx: number) => (
                       <div key={idx} className="border-l-2 border-red-400/20 pl-2 py-1">
-                        <div className="text-white/25 text-[10px]">{new Date(record.created_at).toLocaleTimeString(language === 'az' ? 'az-AZ' : language === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                        <div className={`text-[10px] ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{new Date(record.created_at).toLocaleTimeString(language === 'az' ? 'az-AZ' : language === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                         {(record.items || []).slice(0, 1).map((item: any, i: number) => (
-                          <div key={i} className="text-white/40 text-[11px]">{item.name} <span className="text-white/20">×{item.quantity}</span></div>
+                          <div key={i} className={`text-[11px] ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{item.name} <span className={lightMode ? 'text-gray-300' : 'text-white/20'}>×{item.quantity}</span></div>
                         ))}
-                        {(record.items || []).length > 1 && <span className="text-white/15 text-[10px]">+{(record.items || []).length - 1} {t('modal_more_items')}</span>}
+                        {(record.items || []).length > 1 && <span className={`text-[10px] ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>+{(record.items || []).length - 1} {t('modal_more_items')}</span>}
                       </div>
                     ))}
                   </div>
                 </div>
               )}
               {order.customer_note && (
-                <p className="text-white/25 text-xs italic px-1 pt-1">{t('note_label')}: "{order.customer_note}"</p>
+                <p className={`text-xs italic px-1 pt-1 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('note_label')}: "{order.customer_note}"</p>
               )}
             </div>
 
             {/* Actions */}
-            <div className="px-5 pb-5 pt-3 flex-shrink-0 border-t border-white/[0.05] space-y-2.5">
+            <div className={`px-5 pb-5 pt-3 flex-shrink-0 border-t space-y-2.5 ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
               {/* Primary action: Save changes (only when there are actual changes) */}
               {((order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
                 <button disabled={acting} onClick={handleSaveAll}
@@ -867,7 +867,7 @@ export const OrderModal = ({
               {/* Dismiss table (empty order) */}
               {order.status !== 'paid' && !!order.table_number && displayItems.length === 0 && !hasDraft && addItems.length === 0 && cancelStep !== 'select' && (
                 <button disabled={acting} onClick={() => { onClose(); onClearTable(order.table_number!); }}
-                  className="w-full min-h-[48px] flex items-center justify-center gap-2 bg-white/[0.03] border border-white/15 text-white/40 font-bold rounded-2xl hover:bg-white/[0.06] hover:text-white/60 active:scale-[0.97] transition-all disabled:opacity-40 text-sm">
+                  className={`w-full min-h-[48px] flex items-center justify-center gap-2 border font-bold rounded-2xl hover:bg-white/[0.06] active:scale-[0.97] transition-all disabled:opacity-40 text-sm ${lightMode ? 'bg-gray-50 border-gray-300 text-gray-400 hover:text-gray-600' : 'bg-white/[0.03] border-white/15 text-white/40 hover:text-white/60'}`}>
                   <X size={15} /> {t('dismiss_table')}
                 </button>
               )}
@@ -875,7 +875,7 @@ export const OrderModal = ({
               {/* Ready to pay */}
               {order.status === 'confirmed' && order.kitchen_status === 'ready' && !hasDraft && addItems.length === 0 && !confirmPay && cancelStep !== 'select' && displayItems.length > 0 && (
                 <div className="flex gap-2">
-                  <button onClick={() => setShowReceipt(true)} className="min-h-[48px] px-4 flex items-center justify-center bg-white/[0.04] border border-white/12 text-white/35 font-bold rounded-2xl hover:bg-white/[0.08] hover:text-white hover:border-white/25 active:scale-[0.97] transition-all">
+                  <button onClick={() => setShowReceipt(true)} className={`min-h-[48px] px-4 flex items-center justify-center border border-white/12 font-bold rounded-2xl hover:bg-white/[0.08] hover:border-white/25 active:scale-[0.97] transition-all ${lightMode ? 'bg-gray-50/80 text-gray-400 hover:text-gray-900' : 'bg-white/[0.04] text-white/35 hover:text-white'}`}>
                     <Printer size={15} />
                   </button>
                   <button disabled={acting} onClick={() => setConfirmPay(true)}
@@ -887,18 +887,18 @@ export const OrderModal = ({
 
               {/* Pay confirmation */}
               {order.status === 'confirmed' && order.kitchen_status === 'ready' && confirmPay && (
-                <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 space-y-2">
-                  <p className="text-white text-sm font-semibold text-center">{t('confirm_close_bill')}</p>
-                  <p className="text-white/35 text-xs text-center">{t('pay_choose_receipt')}</p>
+                <div className={`border rounded-2xl p-4 space-y-2 ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.08]'}`}>
+                  <p className={`text-sm font-semibold text-center ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('confirm_close_bill')}</p>
+                  <p className={`text-xs text-center ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{t('pay_choose_receipt')}</p>
                   {/* Tip input */}
-                  <div className="flex items-center justify-between bg-white/[0.04] rounded-xl px-3 py-2">
-                    <span className="text-xs text-white/40">{t('tip')}</span>
+                  <div className={`flex items-center justify-between rounded-xl px-3 py-2 ${lightMode ? 'bg-gray-50/80' : 'bg-white/[0.04]'}`}>
+                    <span className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('tip')}</span>
                     <div className="flex items-center gap-1">
                       <button onClick={() => { const n = Math.max(0, (tipAmount || 0) - 1); setTipAmount(n); }}
-                        className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 text-sm font-bold hover:bg-white/10">−</button>
-                      <span className="w-12 text-center text-sm font-bold text-white tabular-nums">{tipAmount} ₼</span>
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold ${lightMode ? 'bg-gray-100 text-gray-400 hover:bg-gray-200' : 'bg-white/[0.06] text-white/40 hover:bg-white/10'}`}>−</button>
+                      <span className={`w-12 text-center text-sm font-bold tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{tipAmount} ₼</span>
                       <button onClick={() => { setTipAmount((tipAmount || 0) + 1); }}
-                        className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 text-sm font-bold hover:bg-white/10">+</button>
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold ${lightMode ? 'bg-gray-100 text-gray-400 hover:bg-gray-200' : 'bg-white/[0.06] text-white/40 hover:bg-white/10'}`}>+</button>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 mt-1">
@@ -910,7 +910,7 @@ export const OrderModal = ({
                       className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-500/[0.08] border border-emerald-500/30 text-emerald-400 text-sm font-bold rounded-xl hover:bg-emerald-500/[0.15] active:scale-[0.98] transition-all disabled:opacity-40">
                       {acting ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />} {t('pay_without_receipt')}
                     </button>
-                    <button onClick={() => setConfirmPay(false)} className="w-full py-2 rounded-xl border border-white/[0.07] text-white/30 text-xs hover:text-white/50 hover:border-white/15 transition-all">{t('cancel')}</button>
+                    <button onClick={() => setConfirmPay(false)} className={`w-full py-2 rounded-xl border text-xs hover:text-white/50 transition-all ${lightMode ? 'border-gray-200 text-gray-400 hover:border-gray-300' : 'border-white/[0.07] text-white/30 hover:border-white/15'}`}>{t('cancel')}</button>
                   </div>
                 </div>
               )}
@@ -918,9 +918,9 @@ export const OrderModal = ({
               {/* Paid state */}
               {order.status === 'paid' && (
                 <div className="flex items-center justify-between py-2">
-                  <div className="flex items-center gap-2 text-white/20 text-sm"><CheckCircle size={13} /> {t('completed')}</div>
+                  <div className={`flex items-center gap-2 text-sm ${lightMode ? 'text-gray-300' : 'text-white/20'}`}><CheckCircle size={13} /> {t('completed')}</div>
                   <button onClick={() => setShowReceipt(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-white/40 text-[11px] font-bold tracking-widest uppercase hover:bg-white/[0.08] hover:text-white transition-all">
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-[11px] font-bold tracking-widest uppercase hover:bg-white/[0.08] transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-400 hover:text-gray-900' : 'bg-white/[0.04] border-white/10 text-white/40 hover:text-white'}`}>
                     <Printer size={12} /> {t('receipt_reprint')}
                   </button>
                 </div>
@@ -930,12 +930,12 @@ export const OrderModal = ({
               {order.status !== 'paid' && cancelStep === 'select' && (
                 <div className="border border-red-500/20 rounded-2xl p-3 space-y-2 bg-red-500/[0.03]">
                   <div className="flex items-center justify-between">
-                    <p className="text-white/50 text-[11px] font-medium">{t('confirm_cancel_items')}</p>
+                    <p className={`text-[11px] font-medium ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{t('confirm_cancel_items')}</p>
                     <button onClick={() => { const all: Record<string, number> = {}; displayItems.forEach((item: any) => { all[item.id] = item.quantity; }); setSelectedCancelItems(all); setCancelStep('reason'); }}
                       className="text-[10px] text-red-400/60 hover:text-red-400 transition-all underline underline-offset-2">{t('select_all_items')}</button>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => { setCancelStep('none'); setSelectedCancelItems({}); }} className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/40 text-sm transition-all">{t('imtina_et')}</button>
+                    <button onClick={() => { setCancelStep('none'); setSelectedCancelItems({}); }} className={`flex-1 py-2.5 rounded-xl border text-sm transition-all ${lightMode ? 'border-gray-200 text-gray-400' : 'border-white/10 text-white/40'}`}>{t('imtina_et')}</button>
                     <button disabled={Object.keys(selectedCancelItems).length === 0} onClick={() => setCancelStep('reason')}
                       className="flex-1 py-2.5 border border-red-500/35 text-red-400 text-sm font-semibold rounded-xl hover:bg-red-500/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed">{t('davam_et')}</button>
                   </div>
@@ -950,11 +950,11 @@ export const OrderModal = ({
           <div className="md:hidden absolute inset-0 z-30 flex flex-col rounded-t-[28px] overflow-hidden"
             style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}>
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-              <div className="w-10 h-1 rounded-full bg-white/15" />
+              <div className={`w-10 h-1 rounded-full ${lightMode ? 'bg-gray-200' : 'bg-white/15'}`} />
             </div>
             <div className="px-4 py-2 flex-shrink-0 flex items-center gap-2">
               <button onClick={() => setMobileTab('order')}
-                className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-white/50 active:scale-90 transition-all flex-shrink-0">
+                className={`w-10 h-10 rounded-xl border flex items-center justify-center active:scale-90 transition-all flex-shrink-0 ${lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.05] border-white/[0.08] text-white/50'}`}>
                 <ChevronLeft size={20} />
               </button>
               <div className="flex-1">
@@ -969,7 +969,7 @@ export const OrderModal = ({
                     setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
                     setShowMenu(!showMenu);
                   }}
-                    className="w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'hover:bg-gray-200 text-gray-400 hover:text-gray-900' : 'hover:bg-white/10 text-white/40 hover:text-white'}`}>
                     <MoreVertical size={18} />
                   </button>
               </div>
@@ -983,43 +983,43 @@ export const OrderModal = ({
                     initial={{ opacity: 0, scale: 0.95, height: 0 }} animate={{ opacity: 1, scale: 1, height: 'auto' }}
                     exit={{ opacity: 0, scale: 0.95, height: 0 }} transition={{ duration: 0.15 }}
                     className="overflow-hidden">
-                  <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                    {item.products?.image_url ? <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex-shrink-0" />}
+                  <div className={`flex items-center gap-3 px-3 py-3 rounded-xl border ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+                    {item.products?.image_url ? <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" /> : <div className={`w-9 h-9 rounded-xl flex-shrink-0 ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`} />}
                     <div className="flex-1 min-w-0 flex items-center gap-1.5">
-                      <p className="text-white text-sm font-medium truncate">{getProductName(item)}</p>
+                      <p className={`text-sm font-medium truncate ${lightMode ? 'text-gray-900' : 'text-white'}`}>{getProductName(item)}</p>
                       {item.course && item.course !== 'main' && (
-                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>
+                        <span className={`text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 border ${lightMode ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white/[0.06] text-white/30 border-white/[0.08]'}`}>{item.course}</span>
                       )}
                     </div>
                     {order.status !== 'paid' ? (
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg overflow-hidden flex-shrink-0">
+                        <div className={`flex items-center border rounded-lg overflow-hidden flex-shrink-0 ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.07]'}`}>
                           <button onClick={e => handleChangeItemQty(e, item, -1)}
-                            className="w-12 h-12 flex items-center justify-center text-white/40 hover:text-white active:scale-90 transition-all">
+                            className={`w-12 h-12 flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-400 hover:text-gray-900' : 'text-white/40 hover:text-white'}`}>
                             <Minus size={16} />
                           </button>
-                          <span className="text-white text-[13px] w-7 text-center font-black tabular-nums">{mqty}</span>
+                          <span className={`text-[13px] w-7 text-center font-black tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{mqty}</span>
                           <button onClick={e => handleChangeItemQty(e, item, 1)}
                             className="w-12 h-12 flex items-center justify-center text-gold active:scale-90 transition-all">
                             <Plus size={16} />
                           </button>
                         </div>
                         <button onClick={() => handleRemoveItem(item)}
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0">
+                          className={`w-12 h-12 rounded-full flex items-center justify-center hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all flex-shrink-0 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                           <Trash2 size={18} />
                         </button>
                       </div>
                     ) : (
-                      <p className="text-white/25 text-xs">×{mqty}</p>
+                      <p className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>×{mqty}</p>
                     )}
-                    <span className="text-white/40 text-sm font-semibold tabular-nums">{((item.unit_price || item.total_price / item.quantity) * mqty).toFixed(2)} ₼</span>
+                    <span className={`text-sm font-semibold tabular-nums ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{((item.unit_price || item.total_price / item.quantity) * mqty).toFixed(2)} ₼</span>
                   </div>
                   </motion.div>
                 );
               })}
               </AnimatePresence>
             </div>
-            <div className="px-4 pb-6 pt-3 border-t border-white/[0.05] flex-shrink-0 space-y-2">
+            <div className={`px-4 pb-6 pt-3 border-t flex-shrink-0 space-y-2 ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
               {(order.status === 'new' || (order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
                 <button disabled={acting} onClick={handleSaveAll}
                   style={{ background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
@@ -1038,9 +1038,9 @@ export const OrderModal = ({
               )}
               {cancelStep === 'select' && (
                 <div className="border border-red-500/20 rounded-2xl p-3 space-y-2 bg-red-500/[0.03]">
-                  <p className="text-white/50 text-xs font-medium">{t('confirm_cancel_items')}</p>
+                  <p className={`text-xs font-medium ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{t('confirm_cancel_items')}</p>
                   <div className="flex gap-2">
-                    <button onClick={() => { setCancelStep('none'); setSelectedCancelItems({}); }} className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/40 text-sm">{t('imtina_et')}</button>
+                    <button onClick={() => { setCancelStep('none'); setSelectedCancelItems({}); }} className={`flex-1 py-2.5 rounded-xl border text-sm ${lightMode ? 'border-gray-200 text-gray-400' : 'border-white/10 text-white/40'}`}>{t('imtina_et')}</button>
                     <button disabled={Object.keys(selectedCancelItems).length === 0} onClick={() => setCancelStep('reason')}
                       className="flex-1 py-2.5 border border-red-500/35 text-red-400 text-sm font-semibold rounded-xl disabled:opacity-30">{t('davam_et')}</button>
                   </div>
@@ -1060,8 +1060,8 @@ export const OrderModal = ({
                 <div className="w-12 h-12 rounded-2xl bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto mb-3">
                   <GitMerge size={22} className="text-gold" />
                 </div>
-                <h3 className="text-base font-bold text-white">{t('separate_table')}</h3>
-                <p className="text-white/40 text-xs mt-1">{t('select_tables_to_split')}</p>
+                <h3 className={`text-base font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('separate_table')}</h3>
+                <p className={`text-xs mt-1 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('select_tables_to_split')}</p>
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {mergedFromTables.map((tableNum, idx) => {
@@ -1103,7 +1103,7 @@ export const OrderModal = ({
               <div className="flex gap-2 mt-4">
                 <button 
                   onClick={() => { setShowMerge(false); setSelectedTablesToSplit(new Set()); }} 
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/50 text-sm hover:text-white hover:border-white/20 transition-all">
+                  className={`flex-1 py-2.5 rounded-xl border text-sm transition-all ${lightMode ? 'border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300' : 'border-white/10 text-white/50 hover:text-white hover:border-white/20'}`}>
                   {t('cancel')}
                 </button>
                 <button
@@ -1170,7 +1170,7 @@ export const OrderModal = ({
                     return allSelected ? t('cancel_all_confirm') : t('cancel_items_confirm').replace('{count}', String(totalQty));
                   })()}
                 </h3>
-                <p className="text-white/40 text-sm">{t('cancel_reason_hint')}</p>
+                <p className={`text-sm ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('cancel_reason_hint')}</p>
                 <p className="text-red-400/60 text-xs mt-2">
                   {Object.entries(selectedCancelItems).reduce((sum, [id, qty]) => {
                     const item = order.order_items?.find(i => i.id === id);
@@ -1187,16 +1187,16 @@ export const OrderModal = ({
                     </div>
                     <div>
                       <p className={`text-sm font-medium ${cancelReason === reason.key ? 'text-white' : 'text-white/70'}`}>{reason.label}</p>
-                      <p className="text-xs text-white/40">{reason.desc}</p>
+                      <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{reason.desc}</p>
                     </div>
                   </button>
                 ))}
               </div>
               <div className="flex gap-3">
                 <button onClick={() => { setCancelStep('select'); setCancelReason(''); }}
-                  className="flex-1 py-3 rounded-xl border border-white/10 text-white/50 hover:text-white hover:border-white/20 transition-all text-sm">{t('go_back')}</button>
+                  className={`flex-1 py-3 rounded-xl border transition-all text-sm ${lightMode ? 'border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300' : 'border-white/10 text-white/50 hover:text-white hover:border-white/20'}`}>{t('go_back')}</button>
                 <button disabled={!cancelReason || acting} onClick={() => cancelReason && handlePartialCancel(cancelReason)}
-                  className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm hover:bg-red-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                  className={`flex-1 py-3 rounded-xl bg-red-500 font-bold text-sm hover:bg-red-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                   {acting ? t('cancelling') : `${Object.values(selectedCancelItems).reduce((sum, qty) => sum + qty, 0)} ${t('cancel_item_count')}`}
                 </button>
               </div>
@@ -1206,38 +1206,38 @@ export const OrderModal = ({
 
         {/* Portal menu — never clipped by overflow-hidden */}
         {typeof document !== 'undefined' && (showMenu || confirmClear || confirmCancel) && menuAnchor && createPortal(
-          <div onClick={e => e.stopPropagation()} className="fixed z-[100] w-52 bg-[#1c1c1c] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden"
+          <div onClick={e => e.stopPropagation()} className={`fixed z-[100] w-52 bg-[#1c1c1c] border rounded-2xl shadow-2xl overflow-hidden ${lightMode ? 'border-gray-200' : 'border-white/[0.08]'}`}
             style={{ top: menuAnchor.top, right: menuAnchor.right }}>
             {!confirmClear && !confirmCancel && isMergedOrder && (
               <button onClick={() => { setShowMenu(false); setShowMerge(true); setSelectedTablesToSplit(new Set()); setMenuAnchor(null); }}
-                className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
+                className={`w-full px-5 py-3.5 flex items-center gap-3 transition-colors text-left ${lightMode ? 'hover:bg-gray-100' : 'hover:bg-white/5'}`}>
                 <GitMerge size={15} className="text-gold/70" />
                 <div>
                   <p className="text-sm font-semibold text-gold/90">{t('unmerge_tables')}</p>
-                  <p className="text-[10px] text-white/30">{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
+                  <p className={`text-[10px] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
                 </div>
               </button>
             )}
             {!confirmClear && !confirmCancel && (
               <button onClick={() => { setShowMenu(false); setSelectedCancelItems({}); setCancelStep('select'); setMenuAnchor(null); }}
-                className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-red-500/5 transition-colors text-left border-t border-white/5">
+                className={`w-full px-5 py-3.5 flex items-center gap-3 hover:bg-red-500/5 transition-colors text-left border-t ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
                 <Trash2 size={15} className="text-red-400/70" />
                 <span className="text-red-400 text-sm">{t('cancel_order')}</span>
               </button>
             )}
             {order.table_number && (
               confirmClear ? (
-                <div className="px-4 py-3 border-t border-white/5">
-                  <p className="text-white/60 text-sm mb-3 font-medium">{t('are_you_sure')}</p>
+                <div className={`px-4 py-3 border-t ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
+                  <p className={`text-sm mb-3 font-medium ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{t('are_you_sure')}</p>
                   <div className="flex gap-2">
-                    <button onClick={() => { setShowMenu(false); setConfirmClear(false); setMenuAnchor(null); }} className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/50 text-sm transition-all">{t('no')}</button>
+                    <button onClick={() => { setShowMenu(false); setConfirmClear(false); setMenuAnchor(null); }} className={`flex-1 py-2.5 rounded-lg border text-sm transition-all ${lightMode ? 'border-gray-200 text-gray-500' : 'border-white/10 text-white/50'}`}>{t('no')}</button>
                     <button onClick={() => { setShowMenu(false); setConfirmClear(false); setMenuAnchor(null); act(() => onClearTable(order.table_number!)); }} disabled={acting}
                       className="flex-1 py-2.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-semibold border border-red-500/40 transition-all disabled:opacity-40">{t('yes_delete')}</button>
                   </div>
                 </div>
               ) : (
                 <button onClick={() => { setConfirmClear(true); if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); } setMenuAnchor(null); }}
-                  className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-orange-500/5 transition-colors text-left border-t border-white/5">
+                  className={`w-full px-5 py-3.5 flex items-center gap-3 hover:bg-orange-500/5 transition-colors text-left border-t ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
                   <X size={15} className="text-orange-400/70" />
                   <span className="text-orange-300 text-sm">{t('dismiss_table')}</span>
                 </button>
@@ -1254,7 +1254,7 @@ export const OrderModal = ({
       <>
       <div
         style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
-        className="rounded-2xl border border-white/[0.07] shadow-lg flex flex-col overflow-hidden h-full"
+        className={`rounded-2xl border shadow-lg flex flex-col overflow-hidden h-full ${lightMode ? 'border-gray-200' : 'border-white/[0.07]'}`}
       >
         {modalContent}
         {showReceipt && (

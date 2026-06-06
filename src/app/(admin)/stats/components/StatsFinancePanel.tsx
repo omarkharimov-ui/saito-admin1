@@ -58,25 +58,26 @@ function FinCard({
   label: string; value: string; sub?: string; icon: React.ReactNode;
   accent: string; big?: boolean; delay?: number;
 }) {
+  const { lightMode } = useTheme();
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4 }}
       className="relative overflow-hidden rounded-2xl p-5 flex flex-col gap-3"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+      style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.025)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.07)' }}
     >
       {big && (
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{ background: 'radial-gradient(ellipse at 80% 20%,#D4AF37,transparent 60%)' }} />
       )}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/30">{label}</span>
+        <span className={`text-[10px] font-bold tracking-[0.18em] uppercase ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{label}</span>
         <span className={accent}>{icon}</span>
       </div>
       <div>
         <p className={`${big ? 'text-4xl' : 'text-2xl'} font-black tabular-nums leading-none`}>{value}</p>
-        {sub && <p className="text-[11px] text-white/35 mt-1.5">{sub}</p>}
+        {sub && <p className={`text-[11px] mt-1.5 ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{sub}</p>}
       </div>
     </motion.div>
   );
@@ -85,11 +86,12 @@ function FinCard({
 // ─── Custom Tooltip ───────────────────────────────────────────────────────────
 
 function ChartTooltip({ active, payload, label }: any) {
+  const { lightMode } = useTheme();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl px-3 py-2.5 text-xs shadow-xl"
-      style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}>
-      <p className="text-white/40 mb-1.5 font-semibold">{label}</p>
+      style={{ background: lightMode ? '#ffffff' : '#111', border: lightMode ? '1px solid #d1d5db' : '1px solid rgba(255,255,255,0.1)' }}>
+      <p className={`mb-1.5 font-semibold ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{label}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} style={{ color: p.color }} className="font-bold">
           {p.name}: ₼{az(p.value)}
@@ -123,11 +125,11 @@ export default function StatsFinancePanel({
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-6 w-48 rounded-xl bg-white/5" />
+        <div className={`h-6 w-48 rounded-xl ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
         <div className="grid grid-cols-4 gap-3">
-          {[0,1,2,3].map(i => <div key={i} className="h-32 rounded-2xl bg-white/[0.03]" />)}
+          {[0,1,2,3].map(i => <div key={i} className={`h-32 rounded-2xl ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`} />)}
         </div>
-        <div className="h-64 rounded-2xl bg-white/[0.03]" />
+        <div className={`h-64 rounded-2xl ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`} />
       </div>
     );
   }
@@ -138,12 +140,12 @@ export default function StatsFinancePanel({
       {/* ── Section header ── */}
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg,#1e1600,#140f00)', border: '1px solid rgba(212,175,55,0.2)' }}>
+          style={{ background: lightMode ? 'linear-gradient(135deg,#fffbeb,#fef3c7)' : 'linear-gradient(135deg,#1e1600,#140f00)', border: '1px solid rgba(212,175,55,0.2)' }}>
           <DollarSign size={17} className="text-[#D4AF37]" />
         </div>
         <div>
-          <h3 className="text-lg font-serif font-bold text-white leading-none">Maliyyə Analitikası</h3>
-          <p className="text-[10px] text-white/25 uppercase tracking-[0.2em] mt-0.5">Revenue · Food Cost · Net Profit</p>
+          <h3 className={`text-lg font-serif font-bold leading-none ${lightMode ? 'text-gray-900' : 'text-white'}`}>Maliyyə Analitikası</h3>
+          <p className={`text-[10px] uppercase tracking-[0.2em] mt-0.5 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>Revenue · Food Cost · Net Profit</p>
         </div>
       </div>
 
@@ -189,13 +191,13 @@ export default function StatsFinancePanel({
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.22 }}
           className="rounded-2xl px-5 py-4"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.02)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}
         >
           <div className="flex items-center justify-between mb-2.5">
-            <span className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Food Cost %</span>
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Food Cost %</span>
             <span className={`text-[11px] font-bold ${health.color}`}>{health.label} — ideal: 25–35%</span>
           </div>
-          <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden">
+          <div className={`relative h-2 rounded-full overflow-hidden ${lightMode ? 'bg-gray-100' : 'bg-white/[0.06]'}`}>
             {/* Reference zones */}
             <div className="absolute inset-y-0 left-0 w-[25%] bg-emerald-500/20 rounded-full" />
             <div className="absolute inset-y-0 left-[25%] w-[10%] bg-amber-400/20" />
@@ -211,7 +213,7 @@ export default function StatsFinancePanel({
               transition={{ duration: 0.8, ease: 'easeOut' }}
             />
           </div>
-          <div className="flex items-center justify-between mt-1.5 text-[9px] text-white/20 font-medium">
+          <div className={`flex items-center justify-between mt-1.5 text-[9px] font-medium ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
             <span>0%</span><span>25%</span><span>35%</span><span>50%</span><span>100%</span>
           </div>
         </motion.div>
@@ -222,9 +224,9 @@ export default function StatsFinancePanel({
         <motion.div
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
           className="rounded-2xl p-5"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.02)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}
         >
-          <p className="text-[11px] font-bold text-white/30 uppercase tracking-widest mb-5">
+          <p className={`text-[11px] font-bold uppercase tracking-widest mb-5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
             Dövriyyə vs Təmiz Qazanc
           </p>
           <ResponsiveContainer width="100%" height={220}>
@@ -244,7 +246,7 @@ export default function StatsFinancePanel({
               <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `₼${v}`} />
               <Tooltip content={<ChartTooltip />} />
               <Legend
-                formatter={(val) => <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{val}</span>}
+                formatter={(val) => <span style={{ color: lightMode ? '#6b7280' : 'rgba(255,255,255,0.4)', fontSize: 11 }}>{val}</span>}
                 wrapperStyle={{ paddingTop: 12 }}
               />
               <Area
@@ -265,20 +267,20 @@ export default function StatsFinancePanel({
         <motion.div
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
           className="rounded-2xl overflow-hidden"
-          style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}
         >
           {/* Header */}
           <div className="flex items-center gap-2.5 px-5 py-4"
-            style={{ background: 'rgba(255,255,255,0.018)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            style={{ background: lightMode ? '#fafafa' : 'rgba(255,255,255,0.018)', borderBottom: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.05)' }}>
             <Award size={15} className="text-[#D4AF37]/70" />
-            <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">
+            <p className={`text-[11px] font-bold uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
               Ən Çox Qazandıran Yeməklər
             </p>
           </div>
 
           {/* Table head */}
           <div
-            className="grid gap-3 px-5 py-2.5 text-[10px] font-bold tracking-[0.14em] uppercase text-white/20"
+            className={`grid gap-3 px-5 py-2.5 text-[10px] font-bold tracking-[0.14em] uppercase ${lightMode ? 'text-gray-300' : 'text-white/20'}`}
             style={{ gridTemplateColumns: '1fr 70px 90px 90px 80px 90px' }}
           >
             <span>Məhsul</span>
@@ -316,14 +318,14 @@ export default function StatsFinancePanel({
                 </div>
 
                 {/* Sold */}
-                <span className="text-center text-sm text-white/50 tabular-nums font-semibold">{item.sold}</span>
+                <span className={`text-center text-sm tabular-nums font-semibold ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>{item.sold}</span>
 
                 {/* Revenue */}
-                <span className="text-right text-sm text-white/70 tabular-nums">₼{az(item.revenue)}</span>
+                <span className={`text-right text-sm tabular-nums ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>₼{az(item.revenue)}</span>
 
                 {/* Food Cost */}
                 <span className="text-right text-sm text-amber-400/70 tabular-nums">
-                  {item.food_cost > 0 ? `₼${az(item.food_cost)}` : <span className="text-white/20">—</span>}
+                  {item.food_cost > 0 ? `₼${az(item.food_cost)}` : <span className={lightMode ? 'text-gray-300' : 'text-white/20'}>—</span>}
                 </span>
 
                 {/* Markup */}
@@ -346,11 +348,11 @@ export default function StatsFinancePanel({
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="rounded-2xl px-6 py-8 text-center"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.02)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}
         >
-          <Award size={32} className="mx-auto mb-3 text-white/10" />
-          <p className="text-sm font-semibold text-white/30">Resept məlumatı tapılmadı</p>
-          <p className="text-xs text-white/20 mt-1">
+          <Award size={32} className={`mx-auto mb-3 ${lightMode ? 'text-gray-200' : 'text-white/10'}`} />
+          <p className={`text-sm font-semibold ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Resept məlumatı tapılmadı</p>
+          <p className={`text-xs mt-1 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
             Məhsullar üçün <code className="text-[#D4AF37]/60">recipes</code> cədvəlinə inqredientlər əlavə edin
           </p>
         </motion.div>

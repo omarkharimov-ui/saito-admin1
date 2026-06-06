@@ -37,11 +37,11 @@ export default function AdminAuthScreen(props: AuthProps) {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gold/[0.08] border border-gold/20 mb-5">
             <Zap size={24} className="text-gold" />
           </div>
-          <h1 className="text-[28px] font-serif font-bold text-white tracking-tight">Saito Admin</h1>
+          <h1 className={`text-[28px] font-serif font-bold tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>Saito Admin</h1>
           {needsSetup ? (
             <p className="text-gold/60 text-[11px] tracking-[0.2em] uppercase mt-1.5">İlk Qurulum</p>
           ) : (
-            <p className="text-white/20 text-[11px] tracking-[0.28em] uppercase mt-1.5">Elegance in Management</p>
+            <p className={`text-[11px] tracking-[0.28em] uppercase mt-1.5 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>Elegance in Management</p>
           )}
         </div>
 
@@ -53,7 +53,7 @@ export default function AdminAuthScreen(props: AuthProps) {
 
         {needsSetup ? (
           <form noValidate onSubmit={handleSetup} className="space-y-3">
-            <p className="text-white/40 text-xs text-center mb-4">
+            <p className={`text-xs text-center mb-4 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
               Sistemdə heç bir hesab yoxdur. İlk superadmin hesabını yaradın.
             </p>
             <input
@@ -63,7 +63,7 @@ export default function AdminAuthScreen(props: AuthProps) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Superadmin e-poçtu"
               autoComplete="email"
-              className="w-full bg-white/[0.03] border border-white/10 focus:border-gold/40 rounded-2xl px-5 py-4 text-white placeholder:text-white/25 outline-none text-sm"
+              className={`w-full border focus:border-gold/40 rounded-2xl px-5 py-4 outline-none text-sm ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.03] border-white/10 text-white placeholder:text-white/25'}`}
             />
             <input
               type="password"
@@ -71,7 +71,7 @@ export default function AdminAuthScreen(props: AuthProps) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Şifrə (min. 6 simvol)"
               autoComplete="new-password"
-              className="w-full bg-white/[0.03] border border-white/10 focus:border-gold/40 rounded-2xl px-5 py-4 text-white placeholder:text-white/25 outline-none text-sm"
+              className={`w-full border focus:border-gold/40 rounded-2xl px-5 py-4 outline-none text-sm ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.03] border-white/10 text-white placeholder:text-white/25'}`}
             />
             {errorMsg && (
               <p className="text-[11px] text-red-400 text-center uppercase tracking-widest pt-1">{errorMsg}</p>
@@ -98,7 +98,7 @@ export default function AdminAuthScreen(props: AuthProps) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="E-poçt"
               autoComplete="email"
-              className="w-full bg-white/[0.03] border border-white/10 focus:border-gold/40 rounded-2xl px-5 py-4 text-white placeholder:text-white/25 outline-none text-sm"
+              className={`w-full border focus:border-gold/40 rounded-2xl px-5 py-4 outline-none text-sm ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.03] border-white/10 text-white placeholder:text-white/25'}`}
             />
             <input
               type="password"
@@ -106,7 +106,7 @@ export default function AdminAuthScreen(props: AuthProps) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Şifrə"
               autoComplete="current-password"
-              className="w-full bg-white/[0.03] border border-white/10 focus:border-gold/40 rounded-2xl px-5 py-4 text-white placeholder:text-white/25 outline-none text-sm"
+              className={`w-full border focus:border-gold/40 rounded-2xl px-5 py-4 outline-none text-sm ${lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.03] border-white/10 text-white placeholder:text-white/25'}`}
             />
             {errorMsg && (
               <p className="text-[11px] text-red-400 text-center uppercase tracking-widest pt-1">{errorMsg}</p>

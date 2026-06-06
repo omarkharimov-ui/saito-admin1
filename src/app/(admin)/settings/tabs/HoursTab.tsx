@@ -12,6 +12,7 @@ import { GsLoader } from './_shared';
 import QRCodeLib from 'qrcode';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 type Tab = 'general' | 'staff' | 'qr' | 'account' | 'analytics' | 'kitchen';
 
@@ -40,6 +41,7 @@ const timeCls = 'bg-transparent border-b border-white/15 focus:border-gold px-2 
 
 const HoursTab = () => {
   const [config, setConfig] = useState<HoursConfig>(defaultHours());
+  const { lightMode } = useTheme();
   const [saving, setSaving] = useState(false);
   const todayIdx = JS_DAY_TO_IDX[new Date().getDay()];
 
@@ -72,7 +74,7 @@ const HoursTab = () => {
           return (
             <div
               key={day}
-              className={`flex flex-wrap items-center px-4 py-3 gap-x-3 gap-y-2 border-b border-white/5 last:border-0 transition-colors ${
+              className={`flex flex-wrap items-center px-4 py-3 gap-x-3 gap-y-2 border-b last:border-0 transition-colors ${lightMode ? 'border-gray-100' : 'border-white/5'}${
                 isToday ? 'bg-gold/[0.06]' : 'hover:bg-white/[0.02]'
               }`}
             >
@@ -90,11 +92,11 @@ const HoursTab = () => {
               </div>
 
               {d.closed ? (
-                <span className="text-xs text-white/20 italic">Bağlı</span>
+                <span className={`text-xs italic ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>Bağlı</span>
               ) : (
                 <div className="flex items-center gap-2">
                   <input type="time" value={d.open} onChange={e => updateDay(i, 'open', e.target.value)} className={timeCls} />
-                  <span className="text-white/20 text-xs select-none">–</span>
+                  <span className={`text-xs select-none ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>–</span>
                   <input type="time" value={d.close} onChange={e => updateDay(i, 'close', e.target.value)} className={timeCls} />
                 </div>
               )}
@@ -105,14 +107,14 @@ const HoursTab = () => {
 
       {/* Peak hours */}
       <div className="rounded-2xl border border-white/8 overflow-hidden">
-        <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
+        <div className={`px-5 py-3 border-b flex items-center gap-2 ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
           <Moon size={14} className="text-orange-400" />
-          <span className="text-xs font-bold text-white/70 uppercase tracking-widest">Pik Saat Aralığı</span>
-          <span className="text-[10px] text-white/25 ml-1">— statistikada istifadə olunur</span>
+          <span className={`text-xs font-bold uppercase tracking-widest ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>Pik Saat Aralığı</span>
+          <span className={`text-[10px] ml-1 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>— statistikada istifadə olunur</span>
         </div>
         <div className="px-5 py-4 flex items-center gap-3">
           <input type="time" value={config.peakStart} onChange={e => setConfig(c => ({ ...c, peakStart: e.target.value }))} className={timeCls} />
-          <span className="text-white/20 text-xs">–</span>
+          <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>–</span>
           <input type="time" value={config.peakEnd} onChange={e => setConfig(c => ({ ...c, peakEnd: e.target.value }))} className={timeCls} />
         </div>
       </div>

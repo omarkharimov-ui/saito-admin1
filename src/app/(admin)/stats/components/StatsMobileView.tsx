@@ -102,9 +102,9 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
     <div className="flex flex-col pb-24">
 
       {/* ── STICKY HEADER ── */}
-      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-white/[0.06] px-4 pt-4 pb-3" style={{ background: lightMode ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,10,0.95)' }}>
+      <div className={`sticky top-0 z-20 backdrop-blur-xl border-b px-4 pt-4 pb-3 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`} style={{ background: lightMode ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,10,0.95)' }}>
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-2xl font-serif font-bold text-white">{t('statistics_title')}</h1>
+          <h1 className={`text-2xl font-serif font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('statistics_title')}</h1>
         </div>
         {/* Filter pills */}
         <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5">
@@ -139,7 +139,7 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
 
       {/* ── HERO REVENUE ── */}
       <div className="px-4 pt-6 pb-2">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-1">{t('stats_total_revenue')}</p>
+        <p className={`text-[10px] uppercase tracking-[0.3em] mb-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('stats_total_revenue')}</p>
         <div className="flex items-end gap-3">
           <motion.span
             key={stats.totalRevenue}
@@ -172,9 +172,9 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
               </defs>
               <XAxis dataKey="date" hide />
               <Tooltip
-                contentStyle={{ background: '#0f0f0f', border: '1px solid rgba(212,175,55,0.25)', borderRadius: 10, fontSize: 12, padding: '7px 12px' }}
+                contentStyle={{ background: lightMode ? '#ffffff' : '#0f0f0f', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(212,175,55,0.25)', borderRadius: 10, fontSize: 12, padding: '7px 12px' }}
                 itemStyle={{ color: '#D4AF37', fontWeight: 700 }}
-                labelStyle={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 3, fontWeight: 600 }}
+                labelStyle={{ color: lightMode ? '#374151' : 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 3, fontWeight: 600 }}
                 formatter={(v: any) => [`₼${Number(v).toFixed(2)}`, '']}
                 labelFormatter={(label: any) => String(label)}
               />
@@ -192,8 +192,8 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
           { label: t('stats_cancelled_loss'), value: `₼${(stats.missedRevenue || 0).toFixed(0)}`, color: 'text-red-400' },
         ].map((k, i) => (
           <motion.div key={k.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-            className="bg-white/[0.04] border border-white/[0.06] rounded-2xl px-3 py-3">
-            <p className="text-[9px] uppercase tracking-widest text-white/30 mb-1 leading-tight">{k.label}</p>
+            className={`border rounded-2xl px-3 py-3 ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.06]'}`}>
+            <p className={`text-[9px] uppercase tracking-widest mb-1 leading-tight ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{k.label}</p>
             <p className={`text-lg font-black tabular-nums leading-none ${k.color}`}>{k.value}</p>
           </motion.div>
         ))}
@@ -207,7 +207,7 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
             className={`mx-4 mt-3 flex items-start gap-2.5 px-4 py-3 rounded-2xl border
               ${a.severity === 'critical' ? 'bg-red-500/[0.08] border-red-500/20' : 'bg-orange-500/[0.08] border-orange-500/20'}`}>
             <AlertTriangle size={14} className={a.severity === 'critical' ? 'text-red-400 flex-shrink-0 mt-0.5' : 'text-orange-400 flex-shrink-0 mt-0.5'} />
-            <p className="text-[11px] text-white/70 leading-snug">{a.message}</p>
+            <p className={`text-[11px] leading-snug ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>{a.message}</p>
           </motion.div>
         ))}
       </AnimatePresence>
@@ -255,13 +255,13 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
 
             {/* Forecast card */}
             {forecast && (
-              <div className="bg-white/[0.03] border border-gold/15 rounded-2xl px-4 py-4 relative overflow-hidden">
+              <div className={`border border-gold/15 rounded-2xl px-4 py-4 relative overflow-hidden ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
                 <div className="absolute inset-0 bg-gradient-to-br from-gold/[0.06] via-transparent to-transparent pointer-events-none rounded-2xl" />
                 <div className="flex items-center justify-between relative">
                   <div>
                     <p className="text-[9px] uppercase tracking-widest text-gold/60 mb-1">{t('stats_forecast_title')}</p>
-                    <p className="text-2xl font-serif font-black text-white">₼{forecast.predictedRevenue.toLocaleString()}</p>
-                    <p className="text-[10px] text-white/30 mt-0.5">{t('stats_forecast_subtitle')}</p>
+                    <p className={`text-2xl font-serif font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼{forecast.predictedRevenue.toLocaleString()}</p>
+                    <p className={`text-[10px] mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('stats_forecast_subtitle')}</p>
                   </div>
                   <div className={`flex flex-col items-center gap-1 ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
                     {isUp ? <TrendingUp size={22} /> : <TrendingDown size={22} />}
@@ -273,32 +273,32 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
 
             {/* Top product + peak hour */}
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl px-3 py-3">
+              <div className={`border rounded-2xl px-3 py-3 ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.06]'}`}>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Award size={11} className="text-gold" />
-                  <p className="text-[9px] uppercase tracking-widest text-white/30">{t('stats_top_product') || 'Top'}</p>
+                  <p className={`text-[9px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('stats_top_product') || 'Top'}</p>
                 </div>
-                <p className="text-white text-[13px] font-bold leading-snug line-clamp-2">{stats.topProduct}</p>
+                <p className={`text-[13px] font-bold leading-snug line-clamp-2 ${lightMode ? 'text-gray-900' : 'text-white'}`}>{stats.topProduct}</p>
               </div>
-              <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl px-3 py-3">
+              <div className={`border rounded-2xl px-3 py-3 ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.06]'}`}>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Clock size={11} className="text-orange-400" />
-                  <p className="text-[9px] uppercase tracking-widest text-white/30">{t('stats_peak_hour') || 'Peak'}</p>
+                  <p className={`text-[9px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('stats_peak_hour') || 'Peak'}</p>
                 </div>
-                <p className="text-white text-[13px] font-bold leading-snug">{peakHourLabel}</p>
+                <p className={`text-[13px] font-bold leading-snug ${lightMode ? 'text-gray-900' : 'text-white'}`}>{peakHourLabel}</p>
               </div>
             </div>
 
             {/* Top 3 products quick view */}
             {topProducts.slice(0, 3).map((p, i) => (
               <div key={p.id} className="flex items-center gap-3">
-                <span className="text-white/15 text-xs font-mono w-4">{i + 1}</span>
-                <div className="w-7 h-7 rounded-lg bg-black border border-white/5 overflow-hidden flex items-center justify-center flex-shrink-0">
-                  {p.image ? <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <ShoppingBag size={10} className="text-white/20" />}
+                <span className={`text-xs font-mono w-4 ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>{i + 1}</span>
+                <div className={`w-7 h-7 rounded-lg border overflow-hidden flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-white border-gray-100' : 'bg-black border-white/5'}`}>
+                  {p.image ? <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <ShoppingBag size={10} className={lightMode ? 'text-gray-300' : 'text-white/20'} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white/80 text-[12px] font-medium truncate">{p.name}</p>
-                  <div className="mt-0.5 h-[2px] w-full bg-white/[0.05] rounded-full overflow-hidden">
+                  <p className={`text-[12px] font-medium truncate ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>{p.name}</p>
+                  <div className={`mt-0.5 h-[2px] w-full rounded-full overflow-hidden ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`}>
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min((Number(p.revenue) / (Number(topProducts[0]?.revenue) || 1)) * 100, 100)}%` }}
@@ -307,12 +307,12 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
                     />
                   </div>
                 </div>
-                <span className="text-white/60 text-[11px] font-bold tabular-nums flex-shrink-0">₼{Number(p.revenue).toFixed(0)}</span>
+                <span className={`text-[11px] font-bold tabular-nums flex-shrink-0 ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>₼{Number(p.revenue).toFixed(0)}</span>
               </div>
             ))}
             {topProducts.length > 3 && (
               <button onClick={() => setActiveSection('products')}
-                className="flex items-center gap-1 text-white/20 text-[10px] uppercase tracking-widest hover:text-white/50 transition-colors">
+                className={`flex items-center gap-1 text-[10px] uppercase tracking-widest hover:text-white/50 transition-colors ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                 {t('stats_see_all') || 'Hamısını gör'} <ChevronRight size={11} />
               </button>
             )}
@@ -329,8 +329,8 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
             className="mt-2 divide-y divide-white/[0.04]">
             {topProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <BarChart2 size={28} className="text-white/10" />
-                <p className="text-white/20 text-xs uppercase tracking-widest">{t('stats_no_sales')}</p>
+                <BarChart2 size={28} className={lightMode ? 'text-gray-200' : 'text-white/10'} />
+                <p className={`text-xs uppercase tracking-widest ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('stats_no_sales')}</p>
               </div>
             ) : topProducts.map((p, i) => {
               const convNum = Number(p.conversion);
@@ -340,22 +340,22 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
               return (
                 <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
                   className="flex items-center gap-3 px-4 py-3.5">
-                  <span className="text-white/15 text-[11px] font-mono w-5 flex-shrink-0 text-right">{i + 1}</span>
-                  <div className="w-9 h-9 rounded-xl bg-black border border-white/[0.07] overflow-hidden flex items-center justify-center flex-shrink-0">
-                    {p.image ? <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <ShoppingBag size={12} className="text-white/20" />}
+                  <span className={`text-[11px] font-mono w-5 flex-shrink-0 text-right ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>{i + 1}</span>
+                  <div className={`w-9 h-9 rounded-xl border overflow-hidden flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-white border-gray-200' : 'bg-black border-white/[0.07]'}`}>
+                    {p.image ? <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <ShoppingBag size={12} className={lightMode ? 'text-gray-300' : 'text-white/20'} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-[13px] font-semibold truncate leading-tight">{p.name}</p>
+                    <p className={`text-[13px] font-semibold truncate leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{p.name}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-white/25 text-[10px]">{p.sold}×</span>
-                      <div className="flex-1 h-[2px] bg-white/[0.05] rounded-full overflow-hidden">
+                      <span className={`text-[10px] ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{p.sold}×</span>
+                      <div className={`flex-1 h-[2px] rounded-full overflow-hidden ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`}>
                         <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.5, delay: i * 0.05 }}
                           className={`h-full rounded-full ${i === 0 ? 'bg-gold' : 'bg-gold/40'}`} />
                       </div>
                       <span className={`text-[10px] font-bold ${isGood ? 'text-gold/80' : 'text-white/20'}`}>{p.conversion}%</span>
                     </div>
                   </div>
-                  <span className="text-white font-black text-sm tabular-nums flex-shrink-0">₼{Number(p.revenue).toFixed(0)}</span>
+                  <span className={`font-black text-sm tabular-nums flex-shrink-0 ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼{Number(p.revenue).toFixed(0)}</span>
                 </motion.div>
               );
             })}
@@ -373,19 +373,19 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
 
             {stats.peakHours.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <Clock size={28} className="text-white/10" />
-                <p className="text-white/20 text-xs uppercase tracking-widest">{t('no_data_for_period')}</p>
+                <Clock size={28} className={lightMode ? 'text-gray-200' : 'text-white/10'} />
+                <p className={`text-xs uppercase tracking-widest ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('no_data_for_period')}</p>
               </div>
             ) : (
               <>
                 {/* Header explanation */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-white text-[13px] font-bold">Sifariş aktivliyi</p>
-                    <p className="text-white/30 text-[10px] mt-0.5">Hər saat neçə sifariş daxil olub</p>
+                    <p className={`text-[13px] font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Sifariş aktivliyi</p>
+                    <p className={`text-[10px] mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Hər saat neçə sifariş daxil olub</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[9px] uppercase tracking-widest text-white/25 mb-0.5">Pik saat</p>
+                    <p className={`text-[9px] uppercase tracking-widest mb-0.5 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>Pik saat</p>
                     <p className="text-gold text-[13px] font-black tabular-nums">
                       {String(stats.peakHours[0].hour).padStart(2,'0')}:00–{String(stats.peakHours[0].hour + 1).padStart(2,'00')}:00
                     </p>
@@ -405,7 +405,7 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
                         </span>
 
                         {/* Slim bar track */}
-                        <div className="flex-1 h-[8px] bg-white/[0.06] rounded-full overflow-hidden">
+                        <div className={`flex-1 h-[8px] rounded-full overflow-hidden ${lightMode ? 'bg-gray-100' : 'bg-white/[0.06]'}`}>
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${pct}%` }}

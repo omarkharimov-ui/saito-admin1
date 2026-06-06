@@ -46,7 +46,7 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
       animate={{ opacity: 1 }}
       key={res.id}
       onClick={selectionMode ? () => onToggleSelection?.(res.id) : undefined}
-      className={`hover:bg-white/[0.02] transition-all duration-300 ${selectionMode ? 'cursor-pointer' : ''} ${selected ? 'bg-white/[0.05] ring-1 ring-gold/30' : ''}`}
+      className={`transition-all duration-300 ${lightMode ? 'hover:bg-gray-50' : 'hover:bg-white/[0.02]'}${selectionMode ? 'cursor-pointer' : ''} ${selected ? 'bg-white/[0.05] ring-1 ring-gold/30' : ''}`}
     >
       <td className="px-6 py-5">
         <div className="flex items-start gap-3">
@@ -67,14 +67,14 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
           )}
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className="text-white font-medium">{res.name}</span>
+              <span className={`font-medium ${lightMode ? 'text-gray-900' : 'text-white'}`}>{res.name}</span>
               {isTomorrow && (
                 <span className="relative inline-flex items-center text-[9px] font-bold text-gold bg-gold/10 px-1.5 py-0.5 rounded ml-1 ring-1 ring-gold/40">
                   {t('tomorrow').toUpperCase()}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-white/40 text-xs mt-1">
+            <div className={`flex items-center gap-2 text-xs mt-1 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
               <Phone size={12} /> {res.phone}
             </div>
           </div>
@@ -82,17 +82,17 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
       </td>
       <td className="px-6 py-5">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-white/70 text-xs">
-            <Calendar size={12} className="text-white/30" />
+          <div className={`flex items-center gap-2 text-xs ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>
+            <Calendar size={12} className={lightMode ? 'text-gray-400' : 'text-white/30'} />
             {new Date(res.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
           </div>
-          <div className="flex items-center gap-2 text-white/40 text-xs">
+          <div className={`flex items-center gap-2 text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
             <Clock size={12} /> {res.time}
           </div>
         </div>
       </td>
       <td className="px-6 py-5 text-center">
-        <div className="inline-flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg text-white text-sm">
+        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-sm ${lightMode ? 'bg-gray-100 text-gray-900' : 'bg-white/5 text-white'}`}>
           <Users size={14} /> {res.guests}
         </div>
       </td>
@@ -101,13 +101,13 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
         {res.note ? (
           <div className="flex items-start gap-2 max-w-[200px]">
             {NoteIcon && <NoteIcon size={14} className="text-gold/60 shrink-0 mt-1" />}
-            <span className="text-white/40 text-xs italic truncate" title={res.note}>{res.note}</span>
+            <span className={`text-xs italic truncate ${lightMode ? 'text-gray-400' : 'text-white/40'}`} title={res.note}>{res.note}</span>
           </div>
-        ) : <span className="text-white/10 text-xs">-</span>}
+        ) : <span className={`text-xs ${lightMode ? 'text-gray-200' : 'text-white/10'}`}>-</span>}
       </td>
       {timeFilter !== 'archive' && <td className="px-6 py-5 text-right">
         {selectionMode ? (
-          <div className="inline-flex items-center justify-end gap-2 text-xs text-white/50">
+          <div className={`inline-flex items-center justify-end gap-2 text-xs ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
             <span className={selected ? 'text-white' : 'text-white/40'}>
               {selected ? t('selected_items') : t('tap_to_select')}
             </span>
@@ -129,13 +129,13 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
                 <button onClick={() => onUpdateStatus(res.id, 'cancelled')} className="p-2.5 inline-flex items-center justify-center text-red-400/70 bg-red-500/[0.07] hover:bg-red-500/[0.12] hover:text-red-300 border border-red-500/[0.12] hover:border-red-500/25 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('cancel')}>
                   <XCircle size={17} />
                 </button>
-                <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 inline-flex items-center justify-center text-white/25 hover:text-red-400 bg-white/[0.04] hover:bg-red-500/[0.08] border border-white/[0.07] hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('delete')}>
+                <button onClick={() => onDelete(res.id, res.name)} className={`p-2.5 inline-flex items-center justify-center hover:text-red-400 hover:bg-red-500/[0.08] border hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${lightMode ? 'text-gray-300 bg-gray-50/80 border-gray-200' : 'text-white/25 bg-white/[0.04] border-white/[0.07]'}`} title={t('delete')}>
                   <Trash2 size={16} />
                 </button>
               </>
             )}
             {res.status === 'cancelled' && (
-              <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 inline-flex items-center justify-center text-white/25 hover:text-red-400 bg-white/[0.04] hover:bg-red-500/[0.08] border border-white/[0.07] hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('delete')}>
+              <button onClick={() => onDelete(res.id, res.name)} className={`p-2.5 inline-flex items-center justify-center hover:text-red-400 hover:bg-red-500/[0.08] border hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 ${lightMode ? 'text-gray-300 bg-gray-50/80 border-gray-200' : 'text-white/25 bg-white/[0.04] border-white/[0.07]'}`} title={t('delete')}>
                 <Trash2 size={16} />
               </button>
             )}
@@ -159,7 +159,7 @@ export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, 
       initial={false}
       animate={{ opacity: 1 }}
       onClick={selectionMode ? () => onToggleSelection?.(res.id) : undefined}
-      className={`border-b border-white/[0.05] px-4 py-4 transition-colors ${selectionMode ? 'cursor-pointer hover:bg-white/[0.03]' : ''} ${selected ? 'bg-white/[0.04]' : ''}`}
+      className={`border-b px-4 py-4 transition-colors ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}${selectionMode ? 'cursor-pointer hover:bg-white/[0.03]' : ''} ${selected ? 'bg-white/[0.04]' : ''}`}
     >
       {/* Top row: name + status badge */}
       <div className="flex items-start justify-between mb-2.5">
@@ -179,7 +179,7 @@ export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, 
               )}
             </button>
           )}
-          <span className="text-white font-medium text-[15px] tracking-tight">{res.name}</span>
+          <span className={`font-medium text-[15px] tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{res.name}</span>
           {isTomorrow && (
             <span className="text-[8px] font-bold text-gold bg-gold/10 px-1.5 py-0.5 rounded tracking-widest uppercase ring-1 ring-gold/30">
               {t('tomorrow')}
@@ -190,19 +190,19 @@ export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, 
       </div>
 
       {/* Meta row */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/45 mb-2">
-        <span className="flex items-center gap-1"><Phone size={10} className="text-white/25" />{res.phone}</span>
-        <span className="text-white/15">·</span>
-        <span className="flex items-center gap-1"><Calendar size={10} className="text-white/25" />{dateStr}</span>
-        <span className="text-white/15">·</span>
-        <span className="flex items-center gap-1"><Clock size={10} className="text-white/25" />{res.time}</span>
-        <span className="text-white/15">·</span>
-        <span className="flex items-center gap-1"><Users size={10} className="text-white/25" />{res.guests} {t('guests')}</span>
+      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] mb-2 ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
+        <span className="flex items-center gap-1"><Phone size={10} className={lightMode ? 'text-gray-300' : 'text-white/25'} />{res.phone}</span>
+        <span className={lightMode ? 'text-gray-200' : 'text-white/15'}>·</span>
+        <span className="flex items-center gap-1"><Calendar size={10} className={lightMode ? 'text-gray-300' : 'text-white/25'} />{dateStr}</span>
+        <span className={lightMode ? 'text-gray-200' : 'text-white/15'}>·</span>
+        <span className="flex items-center gap-1"><Clock size={10} className={lightMode ? 'text-gray-300' : 'text-white/25'} />{res.time}</span>
+        <span className={lightMode ? 'text-gray-200' : 'text-white/15'}>·</span>
+        <span className="flex items-center gap-1"><Users size={10} className={lightMode ? 'text-gray-300' : 'text-white/25'} />{res.guests} {t('guests')}</span>
       </div>
 
       {/* Note */}
       {res.note && (
-        <p className="text-[11px] text-white/50 italic flex items-center gap-1.5 mb-2">
+        <p className={`text-[11px] italic flex items-center gap-1.5 mb-2 ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
           {NoteIcon && <NoteIcon size={11} className="text-gold/50 shrink-0" />}
           {res.note}
         </p>
@@ -211,7 +211,7 @@ export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-2">
         {selectionMode ? (
-          <div className="inline-flex items-center gap-2 text-[11px] text-white/50">
+          <div className={`inline-flex items-center gap-2 text-[11px] ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
             <span className={selected ? 'text-white' : 'text-white/40'}>
               {selected ? t('selected_items') : t('tap_to_select')}
             </span>
@@ -238,7 +238,7 @@ export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, 
             )}
             {(res.status === 'cancelled' || res.status === 'confirmed') && timeFilter !== 'archive' && (
               <button onClick={() => onDelete(res.id, res.name)}
-                className="w-7 h-7 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/[0.08]">
+                className={`w-7 h-7 flex items-center justify-center hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/[0.08] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                 <XCircle size={13} />
               </button>
             )}

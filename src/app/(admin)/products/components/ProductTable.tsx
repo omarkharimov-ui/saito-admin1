@@ -7,6 +7,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-mo
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Product, Category } from '@/types';
 import { toast } from 'react-hot-toast';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 /* ── Drag-to-dismiss Bottom Sheet ── */
 function BottomSheet({ product, onClose, onEdit, onToggleStock, onDelete, getProductName, language, t }: {
@@ -19,6 +20,7 @@ function BottomSheet({ product, onClose, onEdit, onToggleStock, onDelete, getPro
   language: string;
   t: (k: any) => string;
 }) {
+  const { lightMode } = useTheme();
   const dragY = useMotionValue(0);
   const backdropOpacity = useTransform(dragY, [0, 300], [1, 0]);
 
@@ -67,35 +69,35 @@ function BottomSheet({ product, onClose, onEdit, onToggleStock, onDelete, getPro
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="absolute bottom-0 left-0 right-0 bg-[#0a0a0a]/90 backdrop-blur-2xl border-t border-white/[0.08] rounded-t-3xl overflow-hidden touch-none overscroll-none"
+        className={`absolute bottom-0 left-0 right-0 bg-[#0a0a0a]/90 backdrop-blur-2xl border-t rounded-t-3xl overflow-hidden touch-none overscroll-none ${lightMode ? 'border-gray-200' : 'border-white/[0.08]'}`}
       >
         {/* Header */}
         <div className="px-5 pt-5 pb-5">
           <div className="flex justify-center mb-4 cursor-grab active:cursor-grabbing">
-            <div className="w-10 h-1 rounded-full bg-white/20" />
+            <div className={`w-10 h-1 rounded-full ${lightMode ? 'bg-gray-300' : 'bg-white/20'}`} />
           </div>
-          <p className="text-[9px] text-white/30 uppercase tracking-[0.3em] mb-1 text-center">{t('product_name_label') || 'MƏHSUL'}</p>
-          <h2 className="text-[19px] font-serif text-white text-center leading-snug">{getProductName(product)}</h2>
+          <p className={`text-[9px] uppercase tracking-[0.3em] mb-1 text-center ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('product_name_label') || 'MƏHSUL'}</p>
+          <h2 className={`text-[19px] font-serif text-center leading-snug ${lightMode ? 'text-gray-900' : 'text-white'}`}>{getProductName(product)}</h2>
         </div>
 
         {/* Actions */}
         <div className="px-5 pb-4 space-y-2 touch-auto">
           <motion.button whileTap={{ scale: 0.98 }} onClick={onEdit}
-            className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-left">
-            <div className="w-10 h-10 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center shrink-0">
-              <Edit3 size={17} className="text-white/50" />
+            className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl border active:bg-white/[0.08] transition-all text-left ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.06]'}`}>
+            <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${lightMode ? 'bg-gray-100 border-gray-200' : 'bg-white/[0.06] border-white/[0.08]'}`}>
+              <Edit3 size={17} className={lightMode ? 'text-gray-500' : 'text-white/50'} />
             </div>
-            <span className="text-[15px] font-medium text-white/80">
+            <span className={`text-[15px] font-medium ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>
               {language === 'ru' ? 'Редактировать' : language === 'en' ? 'Edit' : 'Redaktə et'}
             </span>
           </motion.button>
 
           <motion.button whileTap={{ scale: 0.98 }} onClick={onToggleStock}
-            className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-left">
+            className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl border active:bg-white/[0.08] transition-all text-left ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.06]'}`}>
             <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${product.is_in_stock ? 'bg-emerald-500/[0.08] border-emerald-500/20' : 'bg-white/[0.06] border-white/[0.08]'}`}>
               <span className={`w-3 h-3 rounded-full ${product.is_in_stock ? 'bg-emerald-400' : 'bg-white/30'}`} />
             </div>
-            <span className="text-[15px] font-medium text-white/80">
+            <span className={`text-[15px] font-medium ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>
               {product.is_in_stock
                 ? (language === 'ru' ? 'Убрать из наличия' : language === 'en' ? 'Mark out of stock' : 'Məhsulu stokdan çıxar')
                 : (language === 'ru' ? 'Добавить в наличие' : language === 'en' ? 'Mark in stock' : 'Məhsulu stoka əlavə et')}
@@ -116,7 +118,7 @@ function BottomSheet({ product, onClose, onEdit, onToggleStock, onDelete, getPro
         {/* Cancel */}
         <div className="px-5 pb-10 pt-1 touch-auto">
           <motion.button whileTap={{ scale: 0.98 }} onClick={onClose}
-            className="w-full py-4 rounded-2xl bg-white/[0.05] border border-white/[0.07] text-white/50 text-[14px] font-semibold tracking-wide transition-all active:bg-white/[0.08]">
+            className={`w-full py-4 rounded-2xl border text-[14px] font-semibold tracking-wide transition-all active:bg-white/[0.08] ${lightMode ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-white/[0.05] border-white/[0.07] text-white/50'}`}>
             {language === 'ru' ? 'Отмена' : language === 'en' ? 'Cancel' : 'Ləğv et'}
           </motion.button>
         </div>
@@ -166,6 +168,7 @@ export function ProductTable({
   getCategoryName, getProductName,
 }: ProductTableProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [toastShown, setToastShown] = useState(false);
   const [sheetProduct, setSheetProduct] = useState<Product | null>(null);
 
@@ -189,18 +192,18 @@ export function ProductTable({
   return (
     <>
       {/* Sticky toolbar - mobil 2 sətir, desktop 1 sətir */}
-      <div className="sticky top-0 z-30 px-4 py-4 bg-[#0a0a0a]/90 backdrop-blur-2xl border-b border-white/[0.05] mb-8">
+      <div className={`sticky top-0 z-30 px-4 py-4 bg-[#0a0a0a]/90 backdrop-blur-2xl border-b mb-8 ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
         <div className="flex flex-col sm:flex-row gap-3">
 
           {/* Search - bütün en */}
           <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20" size={15} />
+            <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} size={15} />
             <input
               type="text"
               placeholder={`${t('search')}...`}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-white/20 focus:border-white/20 outline-none transition-all"
+              className={`w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:border-white/20 outline-none transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white placeholder:text-white/20'}`}
             />
           </div>
 
@@ -208,7 +211,7 @@ export function ProductTable({
           <div className="flex items-center gap-2 flex-shrink-0">
             {isBulkMode ? (
               <>
-                <span className="hidden lg:flex px-3 py-2 rounded-xl bg-white/[0.03] text-white/30 border border-white/[0.06] text-xs whitespace-nowrap">
+                <span className={`hidden lg:flex px-3 py-2 rounded-xl border text-xs whitespace-nowrap ${lightMode ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-white/[0.03] text-white/30 border-white/[0.06]'}`}>
                   {selectedProducts.size} {t('products_selected')}
                 </span>
                 <button onClick={() => { if (showToast()) return; onSetBulkAction('stock'); }}
@@ -220,18 +223,18 @@ export function ProductTable({
                   {t('product_category')}
                 </button>
                 <button onClick={() => { onSetBulkMode(false); onSetBulkAction(null); }}
-                  className="w-10 h-10 rounded-xl bg-white/[0.04] text-white/30 border border-white/[0.07] hover:text-white hover:bg-white/[0.08] flex items-center justify-center transition-all">
+                  className={`w-10 h-10 rounded-xl border hover:bg-white/[0.08] flex items-center justify-center transition-all ${lightMode ? 'bg-gray-50/80 text-gray-400 border-gray-200 hover:text-gray-900' : 'bg-white/[0.04] text-white/30 border-white/[0.07] hover:text-white'}`}>
                   <X size={13} />
                 </button>
               </>
             ) : (
               <>
                 <button onClick={() => onSetBulkMode(true)}
-                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-xl bg-white/[0.03] text-white/40 border border-white/[0.07] hover:bg-white/[0.07] hover:text-white/70 hover:border-white/15 transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap">
+                  className={`flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-xl border hover:text-white/70 transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap ${lightMode ? 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100 hover:border-gray-300' : 'bg-white/[0.03] text-white/40 border-white/[0.07] hover:bg-white/[0.07] hover:border-white/15'}`}>
                   <Filter size={13} /> <span className="hidden sm:inline">{t('bulk_operation')}</span>
                 </button>
                 <button onClick={onOpenCategoryModal}
-                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-xl bg-white/[0.03] text-white/40 border border-white/[0.07] hover:bg-white/[0.07] hover:text-white/70 hover:border-white/15 transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap">
+                  className={`flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-xl border hover:text-white/70 transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap ${lightMode ? 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100 hover:border-gray-300' : 'bg-white/[0.03] text-white/40 border-white/[0.07] hover:bg-white/[0.07] hover:border-white/15'}`}>
                   <FolderPlus size={13} /> <span className="hidden sm:inline">{t('add_category')}</span>
                 </button>
                 <button onClick={onConfirmDeleteAll} disabled={products.length === 0 || updating}
@@ -241,7 +244,7 @@ export function ProductTable({
               </>
             )}
 
-            {!isBulkMode && <div className="w-px h-5 bg-white/[0.08] hidden sm:block" />}
+            {!isBulkMode && <div className={`w-px h-5 hidden sm:block ${lightMode ? 'bg-gray-200' : 'bg-white/[0.08]'}`} />}
 
             {!isBulkMode && (
               <button onClick={onOpenAddModal}
@@ -257,40 +260,40 @@ export function ProductTable({
       {/* Product table — DESKTOP (lg+) */}
       <div className="space-y-6 hidden lg:block">
         {products.length === 0 ? (
-          <div className="text-center py-32 bg-card border border-dashed border-white/10 rounded-lg">
-            <AlertCircle className="mx-auto text-white/5 mb-4" size={48} />
-            <p className="text-white/20 uppercase tracking-[0.3em] text-xs">{t('product_not_found')}</p>
+          <div className={`text-center py-32 bg-card border border-dashed rounded-lg ${lightMode ? 'border-gray-200' : 'border-white/10'}`}>
+            <AlertCircle className={`mx-auto mb-4 ${lightMode ? 'text-gray-200' : 'text-white/5'}`} size={48} />
+            <p className={`uppercase tracking-[0.3em] text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('product_not_found')}</p>
           </div>
         ) : Object.entries(groupedProducts).map(([catId, { name, products: catProducts }]) => (
-          <div key={catId} className="bg-white/[0.04] border border-white/[0.10] rounded-2xl overflow-hidden backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
-            <div className="w-full px-8 py-5 flex items-center justify-between bg-white/[0.05] hover:bg-white/[0.07] transition-colors border-b border-white/[0.08]">
+          <div key={catId} className={`border rounded-2xl overflow-hidden backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)] ${lightMode ? 'bg-gray-50/80 border-gray-300' : 'bg-white/[0.04] border-white/[0.10]'}`}>
+            <div className={`w-full px-8 py-5 flex items-center justify-between transition-colors border-b ${lightMode ? 'bg-gray-100 hover:bg-gray-100 border-gray-200' : 'bg-white/[0.05] hover:bg-white/[0.07] border-white/[0.08]'}`}>
               <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => onToggleCategory(catId)}>
-                <div className="w-10 h-10 rounded-xl bg-white/5 text-white/70 flex items-center justify-center shrink-0">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${lightMode ? 'bg-gray-100 text-gray-600' : 'bg-white/5 text-white/70'}`}>
                   <Tag size={17} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-serif font-bold text-white cursor-help"
+                  <h3 className={`text-lg font-serif font-bold cursor-help ${lightMode ? 'text-gray-900' : 'text-white'}`}
                     title={(() => { const cat = categories.find(c => c.id === catId); return cat && cat.name !== name ? cat.name : undefined; })()}>
                     {name}
                   </h3>
-                  <p className="text-[10px] text-white/40 uppercase tracking-widest">{catProducts.length} {t('products_count')}</p>
+                  <p className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{catProducts.length} {t('products_count')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 {catId !== 'unassigned' && (
                   <>
                     <button onClick={(e) => { e.stopPropagation(); const cat = categories.find(c => c.id === catId); if (cat) onEditCategory(cat); }}
-                      className="p-2 rounded-lg hover:bg-white/5 text-white/20 hover:text-white/60 transition-transform duration-200" title={t('edit_category')}>
+                      className={`p-2 rounded-lg transition-transform duration-200 ${lightMode ? 'hover:bg-gray-100 text-gray-300 hover:text-gray-600' : 'hover:bg-white/5 text-white/20 hover:text-white/60'}`} title={t('edit_category')}>
                       <Edit3 size={15} />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); onDeleteCategory(catId, name); }}
-                      className="p-2 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-transform duration-200" title={t('delete_category')}>
+                      className={`p-2 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-transform duration-200 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} title={t('delete_category')}>
                       <Trash2 size={15} />
                     </button>
                   </>
                 )}
                 <div onClick={() => onToggleCategory(catId)} className="cursor-pointer p-2">
-                  {expandedCategories.includes(catId) ? <ChevronDown size={20} className="text-white/20" /> : <ChevronRight size={20} className="text-white/20" />}
+                  {expandedCategories.includes(catId) ? <ChevronDown size={20} className={lightMode ? 'text-gray-300' : 'text-white/20'} /> : <ChevronRight size={20} className={lightMode ? 'text-gray-300' : 'text-white/20'} />}
                 </div>
               </div>
             </div>
@@ -301,7 +304,7 @@ export function ProductTable({
                   <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[800px]">
                       <thead>
-                        <tr className="border-b border-white/[0.06]">
+                        <tr className={`border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
                           <th className="px-4 py-3 w-8">
                             {isBulkMode && (
                               <button
@@ -319,11 +322,11 @@ export function ProductTable({
                               </button>
                             )}
                           </th>
-                          <th className="px-6 py-3 min-w-[280px] text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold">{t('product_name_label')}</th>
-                          <th className="px-6 py-3 min-w-[110px] text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold">{t('price_label')}</th>
-                          <th className="px-6 py-3 min-w-[90px] text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold">{t('views_label')}</th>
-                          <th className="px-6 py-3 min-w-[150px] text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold">{t('stock_label')}</th>
-                          <th className="px-6 py-3 text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold text-right">{t('operations_label')}</th>
+                          <th className={`px-6 py-3 min-w-[280px] text-[9px] uppercase tracking-[0.3em] font-semibold ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('product_name_label')}</th>
+                          <th className={`px-6 py-3 min-w-[110px] text-[9px] uppercase tracking-[0.3em] font-semibold ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('price_label')}</th>
+                          <th className={`px-6 py-3 min-w-[90px] text-[9px] uppercase tracking-[0.3em] font-semibold ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('views_label')}</th>
+                          <th className={`px-6 py-3 min-w-[150px] text-[9px] uppercase tracking-[0.3em] font-semibold ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('stock_label')}</th>
+                          <th className={`px-6 py-3 text-[9px] uppercase tracking-[0.3em] font-semibold text-right ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>{t('operations_label')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -333,7 +336,7 @@ export function ProductTable({
                           return (
                             <React.Fragment key={product.id}>
                               {/* Main Product Row */}
-                              <tr className={`group transition-transform duration-200 border-b border-white/[0.06] hover:bg-white/[0.05] ${selectedProducts.has(product.id) ? 'bg-white/[0.03]' : ''}`}>
+                              <tr className={`group transition-transform duration-200 border-b ${lightMode ? 'border-gray-200 hover:bg-gray-100' : 'border-white/[0.06] hover:bg-white/[0.05]'}${selectedProducts.has(product.id) ? 'bg-white/[0.03]' : ''}`}>
                                 <td className="px-4 py-4 w-8">
                                   {isBulkMode && (
                                     <button
@@ -353,25 +356,25 @@ export function ProductTable({
                                 </td>
                                 <td className="px-6 py-3.5 min-w-[280px] max-w-[340px]">
                                   <div className="flex items-center gap-3.5">
-                                    <div className="w-11 h-11 bg-white/[0.03] border border-white/[0.08] overflow-hidden relative rounded-xl group-hover:border-white/25 transition-transform duration-300 shrink-0 flex items-center justify-center">
+                                    <div className={`w-11 h-11 border overflow-hidden relative rounded-xl group-hover:border-white/25 transition-transform duration-300 shrink-0 flex items-center justify-center ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.08]'}`}>
                                       {product.image_url
                                         ? <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                        : <ImageOff size={16} className="text-white/15" />
+                                        : <ImageOff size={16} className={lightMode ? 'text-gray-200' : 'text-white/15'} />
                                       }
                                     </div>
                                     <div className="flex min-w-0 flex-col">
-                                      <span className="max-w-[220px] truncate font-semibold text-[14px] text-white group-hover:text-white transition-colors"
+                                      <span className={`max-w-[220px] truncate font-semibold text-[14px] group-hover:text-white transition-colors ${lightMode ? 'text-gray-900' : 'text-white'}`}
                                         title={language !== 'az' ? product.name : undefined}>
                                         {getProductName(product)}
                                       </span>
                                       <div className="flex items-center gap-1.5 mt-0.5 min-h-3 flex-wrap">
-                                        {product.is_special && <span className="flex items-center gap-1 text-[11px] text-white/60 uppercase tracking-[0.12em] font-bold"><Sparkles size={10} /> {t('chef_special')}</span>}
+                                        {product.is_special && <span className={`flex items-center gap-1 text-[11px] uppercase tracking-[0.12em] font-bold ${lightMode ? 'text-gray-500' : 'text-white/60'}`}><Sparkles size={10} /> {t('chef_special')}</span>}
                                         {product.is_spicy && <span className="flex items-center gap-1 text-[11px] text-red-400/80 uppercase tracking-[0.12em] font-bold"><Zap size={10} /> {t('spicy_label')}</span>}
                                         {(() => {
                                           if (!variants?.length) return null;
                                           const sizes = variants.filter(v => !v.parent_variant_id).length;
                                           if (!sizes) return null;
-                                          return <span className="text-[13px] text-white/45 tracking-wide font-medium">{sizes} {t('variant_type_tab').toLowerCase()}</span>;
+                                          return <span className={`text-[13px] tracking-wide font-medium ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>{sizes} {t('variant_type_tab').toLowerCase()}</span>;
                                         })()}
                                       </div>
                                     </div>
@@ -381,11 +384,11 @@ export function ProductTable({
                                   <div className="flex flex-col">
                                     {product.discount_price ? (
                                       <>
-                                        <span className="font-black text-[15px] tracking-wide text-white/70">₼{product.discount_price}</span>
-                                        <span className="text-[10px] text-white/20 line-through">₼{product.price}</span>
+                                        <span className={`font-black text-[15px] tracking-wide ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>₼{product.discount_price}</span>
+                                        <span className={`text-[10px] line-through ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>₼{product.price}</span>
                                       </>
                                     ) : (
-                                      <span className="font-black text-[15px] tracking-wide text-white/70">₼{product.price}</span>
+                                      <span className={`font-black text-[15px] tracking-wide ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>₼{product.price}</span>
                                     )}
                                     {(product.cost_price ?? 0) > 0 && (
                                       <span className={`text-[10px] font-medium mt-0.5 tabular-nums ${
@@ -400,7 +403,7 @@ export function ProductTable({
                                   </div>
                                 </td>
                                 <td className="px-6 py-3.5 min-w-[90px]">
-                                  <span className="text-white/60 text-sm font-semibold tabular-nums group-hover:text-white/80 transition-colors">{product.views_count || 0}</span>
+                                  <span className={`text-sm font-semibold tabular-nums group-hover:text-white/80 transition-colors ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{product.views_count || 0}</span>
                                 </td>
                                 <td className="px-6 py-3.5 min-w-[150px]">
                                   <button onClick={() => onToggleStock(product)} title={product.is_in_stock ? t('not_in_stock') : t('in_stock')}
@@ -411,10 +414,10 @@ export function ProductTable({
                                 </td>
                                 <td className="px-6 py-3.5 text-right">
                                   <div className="flex items-center justify-end gap-1.5">
-                                    <button onClick={() => onEditProduct(product)} className="p-2 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/30 text-white/50 hover:text-white/80 transition-transform duration-200 hover:scale-105 active:scale-95">
+                                    <button onClick={() => onEditProduct(product)} className={`p-2 rounded-xl hover:bg-white/[0.12] border hover:border-white/30 transition-transform duration-200 hover:scale-105 active:scale-95 ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-500 hover:text-gray-800' : 'bg-white/[0.07] border-white/[0.12] text-white/50 hover:text-white/80'}`}>
                                       <Edit3 size={14} />
                                     </button>
-                                    <button onClick={() => onDeleteProduct(product.id, product.name)} className="p-2 rounded-xl bg-white/[0.07] hover:bg-red-500/10 border border-white/[0.12] hover:border-red-500/25 text-white/50 hover:text-red-400 transition-transform duration-200 hover:scale-105 active:scale-95">
+                                    <button onClick={() => onDeleteProduct(product.id, product.name)} className={`p-2 rounded-xl hover:bg-red-500/10 border hover:border-red-500/25 hover:text-red-400 transition-transform duration-200 hover:scale-105 active:scale-95 ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-500' : 'bg-white/[0.07] border-white/[0.12] text-white/50'}`}>
                                       <Trash2 size={14} />
                                     </button>
                                   </div>
@@ -438,18 +441,18 @@ export function ProductTable({
       <div className="lg:hidden pb-24 px-4">
         {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
-              <AlertCircle size={28} className="text-white/10" />
+            <div className={`w-16 h-16 rounded-2xl border flex items-center justify-center ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+              <AlertCircle size={28} className={lightMode ? 'text-gray-200' : 'text-white/10'} />
             </div>
-            <p className="text-white/20 uppercase tracking-[0.3em] text-xs">{t('product_not_found')}</p>
+            <p className={`uppercase tracking-[0.3em] text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('product_not_found')}</p>
           </div>
         ) : (
           <div className="space-y-5">
             {Object.entries(groupedProducts).map(([catId, { name, products: catProducts }]) => {
               const isExpanded = expandedCategories.includes(catId);
               return (
-                <motion.div key={catId} layout className="rounded-2xl overflow-hidden border border-white/[0.07] shadow-sm"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}>
+                <motion.div key={catId} layout className={`rounded-2xl overflow-hidden border shadow-sm ${lightMode ? 'border-gray-200' : 'border-white/[0.07]'}`}
+                  style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.02)' }}>
 
                   {/* Category Header */}
                   <div
@@ -462,19 +465,19 @@ export function ProductTable({
                       <Tag size={14} className="text-gold/70" />
                     </div>
                     <div className="flex-1 min-w-0 text-left">
-                      <p className="text-[13px] font-serif font-bold text-white leading-tight truncate">{name}</p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-widest mt-0.5">{catProducts.length} {t('products_count')}</p>
+                      <p className={`text-[13px] font-serif font-bold leading-tight truncate ${lightMode ? 'text-gray-900' : 'text-white'}`}>{name}</p>
+                      <p className={`text-[9px] uppercase tracking-widest mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{catProducts.length} {t('products_count')}</p>
                     </div>
                     {catId !== 'unassigned' && (
                       <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => { const cat = categories.find(c => c.id === catId); if (cat) onEditCategory(cat); }}
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white/25 hover:text-white/60 hover:bg-white/[0.06] transition-all">
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/[0.06] transition-all ${lightMode ? 'text-gray-300 hover:text-gray-600' : 'text-white/25 hover:text-white/60'}`}>
                           <Edit3 size={15} />
                         </button>
                         <button
                           onClick={() => onDeleteCategory(catId, name)}
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white/25 hover:text-red-400 hover:bg-red-500/[0.08] transition-all">
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center hover:text-red-400 hover:bg-red-500/[0.08] transition-all ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -483,7 +486,7 @@ export function ProductTable({
                       animate={{ rotate: isExpanded ? 180 : 0 }}
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       className="shrink-0 w-10 h-10 flex items-center justify-center">
-                      <ChevronDown size={17} className="text-white/25" />
+                      <ChevronDown size={17} className={lightMode ? 'text-gray-300' : 'text-white/25'} />
                     </motion.div>
                   </div>
 
@@ -497,7 +500,7 @@ export function ProductTable({
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 340, damping: 32 }}
                         className="overflow-hidden">
-                        <div className="border-t border-white/[0.05] divide-y divide-white/[0.04]">
+                        <div className={`border-t divide-y divide-white/[0.04] ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
                           {catProducts.map((product, idx) => {
                             const variants = (product as any).variants as Array<{ variant_type: string | null; parent_variant_id: string | null }> | undefined;
                             const sizeCount = variants?.filter(v => !v.parent_variant_id).length ?? 0;
@@ -530,11 +533,11 @@ export function ProductTable({
                                   )}
 
                                   {/* Image */}
-                                  <div className="w-[72px] h-[72px] rounded-2xl bg-white/[0.04] border border-white/[0.07] overflow-hidden shrink-0">
+                                  <div className={`w-[72px] h-[72px] rounded-2xl border overflow-hidden shrink-0 ${lightMode ? 'bg-gray-50/80 border-gray-200' : 'bg-white/[0.04] border-white/[0.07]'}`}>
                                     {product.image_url
                                       ? <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover" />
                                       : <div className="w-full h-full flex items-center justify-center">
-                                          <Tag size={20} className="text-white/10" />
+                                          <Tag size={20} className={lightMode ? 'text-gray-200' : 'text-white/10'} />
                                         </div>
                                     }
                                   </div>
@@ -543,7 +546,7 @@ export function ProductTable({
                                   <div className="flex-1 min-w-0">
                                     {/* Name row */}
                                     <div className="flex items-start justify-between gap-1.5">
-                                      <p className="text-[14px] font-semibold text-white leading-snug line-clamp-2 flex-1">
+                                      <p className={`text-[14px] font-semibold leading-snug line-clamp-2 flex-1 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                                         {getProductName(product)}
                                       </p>
                                       {/* Price */}
@@ -551,7 +554,7 @@ export function ProductTable({
                                         {product.discount_price ? (
                                           <>
                                             <p className="text-[15px] font-black text-gold leading-none">₼{product.discount_price}</p>
-                                            <p className="text-[10px] text-white/20 line-through">₼{product.price}</p>
+                                            <p className={`text-[10px] line-through ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>₼{product.price}</p>
                                           </>
                                         ) : (
                                           <p className="text-[15px] font-black text-gold leading-none">₼{product.price}</p>
@@ -583,7 +586,7 @@ export function ProductTable({
                                         </span>
                                       )}
                                       {sizeCount > 0 && (
-                                        <span className="text-[9px] text-white/30 uppercase tracking-wider">{sizeCount} {t('variant_type_tab').toLowerCase()}</span>
+                                        <span className={`text-[9px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{sizeCount} {t('variant_type_tab').toLowerCase()}</span>
                                       )}
                                     </div>
 
@@ -601,11 +604,11 @@ export function ProductTable({
                                       </button>
 
                                       <div className="flex items-center gap-1.5">
-                                        <span className="text-[9px] text-white/20 tabular-nums">{product.views_count || 0} {t('views_label')}</span>
-                                        <div className="w-px h-3 bg-white/[0.08]" />
+                                        <span className={`text-[9px] tabular-nums ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{product.views_count || 0} {t('views_label')}</span>
+                                        <div className={`w-px h-3 ${lightMode ? 'bg-gray-200' : 'bg-white/[0.08]'}`} />
                                         <button
                                           onClick={(e) => { e.stopPropagation(); setSheetProduct(product); }}
-                                          className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/[0.06] border border-white/[0.10] text-white/40 hover:text-white/80 hover:bg-white/[0.10] active:scale-95 transition-all">
+                                          className={`w-10 h-10 rounded-xl flex items-center justify-center border active:scale-95 transition-all ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-400 hover:text-gray-800 hover:bg-gray-200' : 'bg-white/[0.06] border-white/[0.10] text-white/40 hover:text-white/80 hover:bg-white/[0.10]'}`}>
                                           <MoreVertical size={15} />
                                         </button>
                                       </div>

@@ -13,6 +13,7 @@ import ReservationFilters from './components/ReservationFilters';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { ReservationTableRow, ReservationCard } from './components/ReservationRow';
 import { DeleteReservationModal, ClearArchiveModal } from './components/ReservationModals';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 const ReservationsPage = () => {
 
@@ -34,6 +35,7 @@ const ReservationsPage = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'future' | 'archive'>('today');
   const { refreshPendingCount, clearNotifications } = useNotifications();
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
 
   /* ─── Confirmation modals state ─── */
   const [clearingArchive, setClearingArchive] = useState(false);
@@ -289,7 +291,7 @@ const ReservationsPage = () => {
   /* ─── UI helpers ─── */
   const getStatusBadge = (status: string) => {
     if (timeFilter === 'archive' && status === 'pending') {
-      return <span className="px-3 py-1 bg-white/[0.04] text-white/30 text-[11px] rounded-full border border-white/[0.08]">{t('res_auto_cancelled')}</span>;
+      return <span className={`px-3 py-1 text-[11px] rounded-full border ${lightMode ? 'bg-gray-50/80 text-gray-400 border-gray-200' : 'bg-white/[0.04] text-white/30 border-white/[0.08]'}`}>{t('res_auto_cancelled')}</span>;
     }
     switch (status) {
       case 'confirmed':
@@ -308,8 +310,8 @@ const ReservationsPage = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 mb-0 md:mb-8">
         <div className="shrink-0 px-4 pt-5 pb-3 md:px-0 md:pt-0 md:pb-0 flex items-center justify-between md:block">
-          <h1 className="hidden md:block text-2xl md:text-3xl font-serif font-bold text-white mb-0 md:mb-1">{t('reservations')}</h1>
-          <p className="hidden md:block text-white/40 text-sm">{t('reservations_subtitle')}</p>
+          <h1 className={`hidden md:block text-2xl md:text-3xl font-serif font-bold mb-0 md:mb-1 ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('reservations')}</h1>
+          <p className={`hidden md:block text-sm ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('reservations_subtitle')}</p>
           {/* Search toggle — mobile only, lives in header */}
           <button
             onClick={() => setSearchOpen(v => !v)}
@@ -344,13 +346,13 @@ const ReservationsPage = () => {
       ) : isMdUp ? (
         <div>
           {/* Desktop table */}
-          <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
+          <div className={`backdrop-blur-md border rounded-2xl overflow-hidden shadow-2xl ${lightMode ? 'bg-gray-50 border-gray-200 shadow-black/5' : 'bg-white/[0.03] border-white/10 shadow-black/40'}`}>
             <div className="overflow-auto max-h-[70vh] scrollbar-hide scroll-smooth">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-white/5 text-white/40 text-sm uppercase tracking-wider">
+                  <tr className={`text-sm uppercase tracking-wider ${lightMode ? 'bg-gray-100 text-gray-400' : 'bg-white/5 text-white/40'}`}>
                     <th className="px-6 py-4 font-medium">{t('guest')}</th>
-                    <th className="px-6 py-4 font-medium"><span className="inline-flex items-center gap-2"><Calendar size={14} className="text-white/20" />{t('date_time')}</span></th>
+                    <th className="px-6 py-4 font-medium"><span className="inline-flex items-center gap-2"><Calendar size={14} className={lightMode ? 'text-gray-300' : 'text-white/20'} />{t('date_time')}</span></th>
                     <th className="px-6 py-4 font-medium text-center">{t('guests')}</th>
                     <th className="px-6 py-4 font-medium">{t('status')}</th>
                     <th className="px-6 py-4 font-medium">{t('note')}</th>
@@ -412,7 +414,7 @@ const ReservationsPage = () => {
                   <Calendar size={80} strokeWidth={0.5} className="text-white/[0.06]" />
                 </div>
                 <div className="empty-state-text">
-                  <p className="text-white/20 text-sm text-center">
+                  <p className={`text-sm text-center ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                     {timeFilter === 'today' ? t('no_reservations_today') : 
                      timeFilter === 'future' ? t('no_reservations_future') : 
                      t('no_reservations_archive')}

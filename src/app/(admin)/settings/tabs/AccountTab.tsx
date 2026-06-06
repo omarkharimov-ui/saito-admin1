@@ -5,6 +5,7 @@ import { Lock, User, ChevronDown, Save, Loader2, Shield, ChefHat, Eye, EyeOff } 
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'react-hot-toast';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface AccountItem {
   key: 'superadmin' | 'admin' | 'kitchen';
@@ -16,6 +17,7 @@ interface AccountItem {
 
 const AccountTab = () => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [role, setRole] = useState<'admin' | 'superadmin'>('admin');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -186,14 +188,14 @@ const AccountTab = () => {
     return (
       <div className="max-w-md space-y-4">
         {[1, 2, 3].map(i => (
-          <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 animate-pulse">
+          <div key={i} className={`rounded-2xl border p-4 animate-pulse ${lightMode ? 'border-gray-200 bg-gray-50' : 'border-white/10 bg-white/[0.02]'}`}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.06]" />
+              <div className={`w-10 h-10 rounded-xl ${lightMode ? 'bg-gray-100' : 'bg-white/[0.06]'}`} />
               <div className="space-y-2 flex-1">
-                <div className="h-3.5 w-24 rounded-full bg-white/[0.07]" />
-                <div className="h-2.5 w-36 rounded-full bg-white/[0.04]" />
+                <div className={`h-3.5 w-24 rounded-full ${lightMode ? 'bg-gray-100' : 'bg-white/[0.07]'}`} />
+                <div className={`h-2.5 w-36 rounded-full ${lightMode ? 'bg-gray-50/80' : 'bg-white/[0.04]'}`} />
               </div>
-              <div className="w-6 h-6 rounded-full bg-white/[0.05]" />
+              <div className={`w-6 h-6 rounded-full ${lightMode ? 'bg-gray-100' : 'bg-white/[0.05]'}`} />
             </div>
           </div>
         ))}
@@ -230,18 +232,18 @@ const AccountTab = () => {
                 </div>
                 <div>
                   <p className={`text-sm font-bold ${isOpen ? 'text-gold' : 'text-white'}`}>{account.label}</p>
-                  <p className="text-[10px] text-white/40">{t('click_to_change_password')}</p>
+                  <p className={`text-[10px] ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('click_to_change_password')}</p>
                 </div>
               </div>
               <ChevronDown 
                 size={18} 
-                className={`text-white/40 transition-transform duration-200 ${isOpen ? 'rotate-180 text-gold' : ''}`} 
+                className={`transition-transform duration-200 ${lightMode ? 'text-gray-400' : 'text-white/40'}${isOpen ? 'rotate-180 text-gold' : ''}`} 
               />
             </button>
 
             {isOpen && (
               <div className="px-4 pb-4 space-y-3">
-                <div className="h-px bg-white/10" />
+                <div className={`h-px ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />
                 
                 {role === 'superadmin' && (
                   <div className="space-y-2">
@@ -254,12 +256,12 @@ const AccountTab = () => {
                         value={account.currentPassword}
                         onChange={(e) => updateAccountField(account.key, 'currentPassword', e.target.value)}
                         placeholder={t('current_password')}
-                        className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder:text-white/30 focus:border-gold/40 focus:outline-none transition-all"
+                        className={`w-full border rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-gold/40 focus:outline-none transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/10 text-white placeholder:text-white/30'}`}
                       />
                       <button
                         type="button"
                         onClick={() => togglePasswordVisibility(account.key, 'current')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors"
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${lightMode ? 'text-gray-400' : 'text-white/40'}`}
                       >
                         {showPassword[`${account.key}_current`] ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -268,7 +270,7 @@ const AccountTab = () => {
                 )}
 
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-wider text-white/50 font-semibold flex items-center gap-1.5">
+                  <label className={`text-[10px] uppercase tracking-wider font-semibold flex items-center gap-1.5 ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
                     <Lock size={10} /> {t('new_password')}
                   </label>
                   <div className="relative">
@@ -277,12 +279,12 @@ const AccountTab = () => {
                       value={account.newPassword}
                       onChange={(e) => updateAccountField(account.key, 'newPassword', e.target.value)}
                       placeholder={t('new_password')}
-                      className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder:text-white/30 focus:border-gold/40 focus:outline-none transition-all"
+                      className={`w-full border rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-gold/40 focus:outline-none transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/10 text-white placeholder:text-white/30'}`}
                     />
                     <button
                       type="button"
                       onClick={() => togglePasswordVisibility(account.key, 'new')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors"
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${lightMode ? 'text-gray-400' : 'text-white/40'}`}
                     >
                       {showPassword[`${account.key}_new`] ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>

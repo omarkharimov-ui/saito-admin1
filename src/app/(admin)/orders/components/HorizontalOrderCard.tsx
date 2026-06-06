@@ -6,17 +6,19 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Order, BadgeType } from '../types';
 import { timeAgo, getOrderAgeMinutes, getProgressProps } from '../utils';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 /* ─── KitchenBadge (mini) ─── */
 const MiniBadge = React.memo(function MiniBadge({ badgeType }: { badgeType: BadgeType }) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   if (!badgeType) return null;
   const base = 'text-[9px] font-black px-1.5 py-0.5 rounded-full';
   const badge =
     badgeType === 'ready'     ? <span className={`${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/30`}>{t('badge_ready')}</span> :
     badgeType === 'preparing' ? <span className={`${base} bg-blue-500/15 text-blue-400 border border-blue-500/30`}>{t('badge_preparing')}</span> :
-    badgeType === 'confirmed' ? <span className={`${base} bg-white/5 text-white/70 border border-white/20`}>{t('badge_confirmed')}</span> :
-    <span className={`${base} bg-white/5 text-white/50 border border-white/10`}>{t('badge_waiting')}</span>;
+    badgeType === 'confirmed' ? <span className={`${base}border ${lightMode ? 'bg-gray-100 text-gray-600 border-gray-300' : 'bg-white/5 text-white/70 border-white/20'}`}>{t('badge_confirmed')}</span> :
+    <span className={`${base}border ${lightMode ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-white/5 text-white/50 border-white/10'}`}>{t('badge_waiting')}</span>;
   return badge;
 });
 
@@ -33,6 +35,7 @@ export const HorizontalOrderCard = React.memo(function HorizontalOrderCard({
   order, allOrders, confirmedIds, delayThreshold, onClick,
 }: HCardProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
 
   const mergedChildOrders = allOrders.filter(o => o.merged_into === order.id && o.table_number !== null);
   const mergedFromTables = mergedChildOrders.map(o => o.table_number as number);
@@ -71,7 +74,7 @@ export const HorizontalOrderCard = React.memo(function HorizontalOrderCard({
       onClick={onClick}
       whileHover={{ scale: 1.03, y: -2 }}
       whileTap={{ scale: 0.98 }}
-      className="relative h-full w-[200px] flex-shrink-0 bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden cursor-pointer transition-colors hover:bg-white/[0.07] hover:border-white/15 flex flex-col"
+      className={`relative h-full w-[200px] flex-shrink-0 border rounded-xl overflow-hidden cursor-pointer transition-colors flex flex-col ${lightMode ? 'bg-gray-50/80 border-gray-200 hover:bg-gray-100 hover:border-gray-300' : 'bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.07] hover:border-white/15'}`}
     >
       {/* Top status line */}
       {badgeType === 'ready' && (
@@ -94,20 +97,20 @@ export const HorizontalOrderCard = React.memo(function HorizontalOrderCard({
         </div>
 
         {/* Row 2: items summary */}
-        <div className="flex items-center gap-2 text-[10px] text-white/50">
+        <div className={`flex items-center gap-2 text-[10px] ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
           <span className="font-medium">{totalItems} {t('products')}</span>
           {order.guest_count && order.guest_count > 1 && (
-            <span className="flex items-center gap-0.5 text-white/30"><Users size={8} />{order.guest_count}</span>
+            <span className={`flex items-center gap-0.5 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}><Users size={8} />{order.guest_count}</span>
           )}
-          <span className="text-white/20">•</span>
-          <span className="font-black text-xs tabular-nums text-white/80">{total.toFixed(2)} ₼</span>
+          <span className={lightMode ? 'text-gray-300' : 'text-white/20'}>•</span>
+          <span className={`font-black text-xs tabular-nums ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>{total.toFixed(2)} ₼</span>
         </div>
 
         {/* Row 3: time + order type */}
-        <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-white/30">
+        <div className={`flex items-center gap-1.5 mt-0.5 text-[9px] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
           <Clock size={9} />
           <span>{timeAgo(order.created_at, t)}</span>
-          <span className="text-white/15">|</span>
+          <span className={lightMode ? 'text-gray-200' : 'text-white/15'}>|</span>
           {order.order_type === 'takeaway' ? <ShoppingBag size={9} className="text-amber-400/60" />
             : order.order_type === 'delivery' ? <Package size={9} className="text-blue-400/60" />
             : <Utensils size={9} className="text-emerald-400/60" />}

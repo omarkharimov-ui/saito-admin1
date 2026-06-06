@@ -9,9 +9,11 @@ import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { labelCls } from './_shared';
 import { useAiFlags } from '@/hooks/useAiFlags';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | null }) => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const { flags: aiFlags, setFlag: setAiFlag } = useAiFlags();
   const [loading, setLoading] = useState(false); // Instant load
   const [saving, setSaving] = useState(false);
@@ -364,14 +366,14 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
       {/* ── UI Köməkçiləri ── */}
       <div className="space-y-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">UI Köməkçiləri</p>
+        <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>UI Köməkçiləri</p>
 
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+        <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}`}>
           <div className="flex items-center gap-3">
             <Sunrise size={15} className="text-gold/70" />
             <div>
-              <p className="text-sm font-semibold text-white">{t('gen_morning_greeting')}</p>
-              <p className="text-[11px] text-white/45 mt-0.5">
+              <p className={`text-sm font-semibold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('gen_morning_greeting')}</p>
+              <p className={`text-[11px] mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
                 {greetingEnabled ? t('gen_greeting_active') : t('gen_greeting_inactive')}
               </p>
             </div>
@@ -385,14 +387,14 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
       {/* ── AI Funksiyaları ── */}
       <div className="space-y-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t('ai_features_section')}</p>
+        <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('ai_features_section')}</p>
 
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+        <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}`}>
           <div className="flex items-center gap-3">
             <Eye size={15} className="text-gold/70" />
             <div>
-              <p className="text-sm font-semibold text-white">{t('ai_vision_label')}</p>
-              <p className="text-[11px] text-white/45 mt-0.5">
+              <p className={`text-sm font-semibold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('ai_vision_label')}</p>
+              <p className={`text-[11px] mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
                 {aiFlags.visionEnabled ? t('ai_vision_desc_on') : t('ai_vision_desc_off')}
               </p>
             </div>
@@ -403,12 +405,12 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
           </button>
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+        <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}`}>
           <div className="flex items-center gap-3">
             <Wand2 size={15} className="text-gold/70" />
             <div>
-              <p className="text-sm font-semibold text-white">{t('ai_autocorrect_label')}</p>
-              <p className="text-[11px] text-white/45 mt-0.5">
+              <p className={`text-sm font-semibold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('ai_autocorrect_label')}</p>
+              <p className={`text-[11px] mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/45'}`}>
                 {aiFlags.autoCorrectEnabled ? t('ai_autocorrect_desc_on') : t('ai_autocorrect_desc_off')}
               </p>
             </div>
@@ -422,7 +424,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
       {/* ── Analitika Konfiqurasiyası ── */}
       <div className="space-y-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t('tab_analytics')}</p>
+        <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('tab_analytics')}</p>
 
         <div>
           <label className={labelCls}><Cloud size={11} /> {t('analytics_city_label')}</label>
@@ -444,7 +446,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               onChange={v => setCfg({ ...cfg, city: v })}
               placeholder={t('analytics_city_placeholder')}
             />
-            <p className="text-[10px] text-white/40 mt-1.5">{t('analytics_city_hint')}</p>
+            <p className={`text-[10px] mt-1.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('analytics_city_hint')}</p>
           </div>
         </div>
 
@@ -456,10 +458,10 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               type="number" min={0} step={100}
               value={cfg.revenue_limit}
               onChange={e => setCfg({ ...cfg, revenue_limit: Number(e.target.value) })}
-              className="w-full bg-white/[0.04] border border-white/10 focus:border-gold/40 rounded-xl pl-8 pr-4 py-3 text-white text-sm outline-none transition-all"
+              className={`w-full border focus:border-gold/40 rounded-xl pl-8 pr-4 py-3 text-sm outline-none transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900' : 'bg-white/[0.04] border-white/10 text-white'}`}
             />
           </div>
-          <p className="text-[10px] text-white/40 mt-1.5">{t('analytics_revenue_limit_hint')}</p>
+          <p className={`text-[10px] mt-1.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('analytics_revenue_limit_hint')}</p>
         </div>
       </div>
 
@@ -471,26 +473,26 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
       </div>
 
       {/* ── Translation section ── */}
-      <div className="border-t border-white/[0.06] pt-8 space-y-5">
+      <div className={`border-t pt-8 space-y-5 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
             <Store size={14} className="text-gold" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">{t('analytics_translations_title')}</p>
-            <p className="text-[11px] text-white/55 mt-0.5">{t('analytics_translations_desc')}</p>
+            <p className={`text-sm font-semibold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('analytics_translations_title')}</p>
+            <p className={`text-[11px] mt-0.5 ${lightMode ? 'text-gray-500' : 'text-white/55'}`}>{t('analytics_translations_desc')}</p>
           </div>
         </div>
         {translateResult && (
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-4 px-4 py-3 rounded-xl bg-gold/[0.06] border border-gold/15 text-[12px]">
-              <span className="text-white/55 font-bold uppercase tracking-wider text-[10px]">{t('analytics_col_products')}</span>
-              <span className="text-white/70">{t('analytics_col_total')} <span className="text-white font-bold">{translateResult.total}</span></span>
+              <span className={`font-bold uppercase tracking-wider text-[10px] ${lightMode ? 'text-gray-500' : 'text-white/55'}`}>{t('analytics_col_products')}</span>
+              <span className={lightMode ? 'text-gray-600' : 'text-white/70'}>{t('analytics_col_total')} <span className={`font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{translateResult.total}</span></span>
               <span className="text-emerald-400/80">{t('analytics_col_translated')} <span className="text-emerald-400 font-bold">{translateResult.translated}</span></span>
             </div>
-            <div className="flex flex-wrap items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07] text-[12px]">
-              <span className="text-white/55 font-bold uppercase tracking-wider text-[10px]">{t('analytics_col_categories')}</span>
-              <span className="text-white/70">{t('analytics_col_total')} <span className="text-white font-bold">{translateResult.categoriesTotal}</span></span>
+            <div className={`flex flex-wrap items-center gap-4 px-4 py-3 rounded-xl border text-[12px] ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}`}>
+              <span className={`font-bold uppercase tracking-wider text-[10px] ${lightMode ? 'text-gray-500' : 'text-white/55'}`}>{t('analytics_col_categories')}</span>
+              <span className={lightMode ? 'text-gray-600' : 'text-white/70'}>{t('analytics_col_total')} <span className={`font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{translateResult.categoriesTotal}</span></span>
               <span className="text-emerald-400/80">{t('analytics_col_translated')} <span className="text-emerald-400 font-bold">{translateResult.categoriesTranslated}</span></span>
             </div>
           </div>

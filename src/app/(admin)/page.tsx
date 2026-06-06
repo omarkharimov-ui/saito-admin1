@@ -45,7 +45,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
   const openTime = openMatch?.[1];
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-[#0a0a0a]">
+    <div className={`relative overflow-hidden rounded-xl ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}>
       <div className="relative z-10 flex items-center gap-5 p-6">
         {/* Brain icon */}
         <div className="relative shrink-0 sensei-icon-calm">
@@ -81,7 +81,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
               SENSEI AI
             </span>
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: lightMode ? '#d1d5db' : 'rgba(255,255,255,0.25)' }} />
-            <span className="text-[10px] font-bold tracking-[0.25em] uppercase text-white/40">
+            <span className={`text-[10px] font-bold tracking-[0.25em] uppercase ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
               Yuxu rejimi
             </span>
           </div>
@@ -89,32 +89,32 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
           {/* Countdown */}
           {countdown ? (
             <div>
-              <p className="text-white/80 text-base leading-snug mb-2.5">
-                <span className="font-serif italic text-white/50">Sensei </span>
+              <p className={`text-base leading-snug mb-2.5 ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>
+                <span className={`font-serif italic ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>Sensei </span>
                 {countdown.h > 0 && (
                   <span className="font-mono font-black text-lg" style={{ color: lightMode ? '#111827' : 'rgba(255,255,255,0.85)' }}>
-                    {countdown.h}<span className="text-sm font-bold text-white/40 ml-0.5">saat </span>
+                    {countdown.h}<span className={`text-sm font-bold ml-0.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>saat </span>
                   </span>
                 )}
                 <span className="font-mono font-black text-lg" style={{ color: lightMode ? '#111827' : 'rgba(255,255,255,0.85)' }}>
-                  {String(countdown.m).padStart(2,'0')}<span className="text-sm font-bold text-white/40 ml-0.5">dəq </span>
+                  {String(countdown.m).padStart(2,'0')}<span className={`text-sm font-bold ml-0.5 ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>dəq </span>
                 </span>
-                <span className="font-mono font-bold text-base text-white/50">
+                <span className={`font-mono font-bold text-base ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>
                   {String(countdown.s).padStart(2,'0')}<span className="text-sm ml-0.5">san</span>
                 </span>
-                <span className="font-serif italic text-white/50"> sonra oyanacaq</span>
+                <span className={`font-serif italic ${lightMode ? 'text-gray-500' : 'text-white/50'}`}> sonra oyanacaq</span>
               </p>
               {openTime && (
                 <div className="flex items-center gap-1.5">
                   <div className="w-1 h-1 rounded-full" style={{ background: lightMode ? '#d1d5db' : 'rgba(255,255,255,0.25)' }} />
-                  <span className="text-[11px] text-white/30">
-                    Açılış: <span className="font-mono font-bold text-white/60">{openTime}</span>
+                  <span className={`text-[11px] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
+                    Açılış: <span className={`font-mono font-bold ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>{openTime}</span>
                   </span>
                 </div>
               )}
             </div>
           ) : (
-            <p className="text-white/60 text-base font-serif italic">
+            <p className={`text-base font-serif italic ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>
               İş saatları başlayana qədər istirahət edirəm...
             </p>
           )}
@@ -700,7 +700,7 @@ const AdminDashboard = () => {
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                       <span className="text-[10px] font-bold tracking-[0.2em] uppercase mb-1 block text-gold/60">{yojiAdvice.title}</span>
-                      <p className="text-xl font-serif italic leading-relaxed text-white/90">
+                      <p className={`text-xl font-serif italic leading-relaxed ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>
                         &ldquo;{yojiAdvice.text}&rdquo;
                       </p>
                     </div>
@@ -723,7 +723,7 @@ const AdminDashboard = () => {
                     )}
                   </div>
                 ) : (
-                  <p className="text-xl font-serif italic leading-relaxed text-white/60">
+                  <p className={`text-xl font-serif italic leading-relaxed ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>
                     {t('ai_analyzing')}
                   </p>
                 )}
@@ -736,13 +736,13 @@ const AdminDashboard = () => {
             className="lg:hidden relative"
           >
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-gold/30 via-white/[0.06] to-transparent p-[1px]">
-              <div className="w-full h-full rounded-2xl bg-[#080808]" />
+              <div className={`w-full h-full rounded-2xl ${lightMode ? 'bg-white' : 'bg-[#080808]'}`} />
             </div>
             <div className="absolute -top-6 -left-6 w-32 h-32 bg-gold/[0.07] rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-gold/[0.04] rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative p-6 backdrop-blur-md rounded-2xl overflow-hidden">
-              <div className="flex items-center gap-3 border-b border-white/[0.06] pb-4 mb-5">
+              <div className={`flex items-center gap-3 border-b pb-4 mb-5 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
                 <div className="relative w-14 h-14 shrink-0 sensei-icon-calm">
                   <span
                     className="sensei-pulse-glow absolute inset-[4px] rounded-xl blur-sm pointer-events-none z-0"
@@ -785,7 +785,7 @@ const AdminDashboard = () => {
 
               {yojiAdvice ? (
                 <>
-                  <p className="text-white/70 text-[15px] italic font-serif leading-[1.7] mb-8">
+                  <p className={`text-[15px] italic font-serif leading-[1.7] mb-8 ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>
                     &ldquo;{yojiAdvice.text}&rdquo;
                   </p>
                   {yojiAdvice.productId && (
@@ -805,10 +805,10 @@ const AdminDashboard = () => {
                 </>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl border border-white/[0.08] flex items-center justify-center">
-                    <BrainCircuit size={18} className="text-white/30" />
+                  <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${lightMode ? 'border-gray-200' : 'border-white/[0.08]'}`}>
+                    <BrainCircuit size={18} className={lightMode ? 'text-gray-400' : 'text-white/30'} />
                   </div>
-                  <p className="text-white/30 text-[15px] italic font-serif leading-relaxed">
+                  <p className={`text-[15px] italic font-serif leading-relaxed ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                     {t('ai_analyzing')}
                   </p>
                 </div>

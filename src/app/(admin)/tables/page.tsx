@@ -8,9 +8,11 @@ import { QrCode, Download, Printer, Plus, Minus, X, ExternalLink, Loader2, Save 
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from 'react-hot-toast';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 const TablesPage = () => {
   const [tableCount, setTableCount] = useState(12);
+  const { lightMode } = useTheme();
   const [siteUrl, setSiteUrl] = useState('');
   const [qrDataUrls, setQrDataUrls] = useState<Record<number, string>>({});
   const [previewTable, setPreviewTable] = useState<number | null>(null);
@@ -172,30 +174,30 @@ const TablesPage = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-white mb-1">QR Kodlar</h1>
-          <p className="text-white/40 text-sm">Masalar üçün QR kodları idarə edin.</p>
+          <h1 className={`text-3xl font-serif font-bold mb-1 ${lightMode ? 'text-gray-900' : 'text-white'}`}>QR Kodlar</h1>
+          <p className={`text-sm ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Masalar üçün QR kodları idarə edin.</p>
           <p className="text-gold/60 text-xs mt-1">
             ℹ️ Masa sayı dəyişəndə Orders səhifəsindəki masa şəbəkəsi də avtomatik yenilənir
           </p>
         </div>
         <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
           {/* Table count */}
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-            <span className="text-white/40 text-xs">Masa sayı:</span>
+          <div className={`flex items-center gap-2 border rounded-lg px-3 py-2 ${lightMode ? 'bg-gray-100 border-gray-200' : 'bg-white/5 border-white/10'}`}>
+            <span className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Masa sayı:</span>
             {loading ? (
               <Loader2 size={14} className="animate-spin text-gold" />
             ) : (
               <>
                 <button
                   onClick={() => updateTableCount(tableCount - 1)}
-                  className="w-6 h-6 flex items-center justify-center rounded bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-all"
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-all ${lightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-500 hover:text-gray-900' : 'bg-white/10 hover:bg-white/20 text-white/60 hover:text-white'}`}
                 >
                   <Minus size={12} />
                 </button>
-                <span className="text-white font-medium w-6 text-center text-sm">{tableCount}</span>
+                <span className={`font-medium w-6 text-center text-sm ${lightMode ? 'text-gray-900' : 'text-white'}`}>{tableCount}</span>
                 <button
                   onClick={() => updateTableCount(tableCount + 1)}
-                  className="w-6 h-6 flex items-center justify-center rounded bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-all"
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-all ${lightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-500 hover:text-gray-900' : 'bg-white/10 hover:bg-white/20 text-white/60 hover:text-white'}`}
                 >
                   <Plus size={12} />
                 </button>
@@ -204,7 +206,7 @@ const TablesPage = () => {
           </div>
           <button
             onClick={printAll}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-all ${lightMode ? 'bg-gray-100 border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-200' : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'}`}
           >
             <Printer size={15} />
             Hamısını çap et
@@ -212,7 +214,7 @@ const TablesPage = () => {
           <button
             onClick={handleSave}
             disabled={loading || saving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white font-bold text-sm rounded-lg hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-500/20"
+            className={`flex items-center gap-2 px-5 py-2.5 bg-green-500 font-bold text-sm rounded-lg hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-500/20 ${lightMode ? 'text-gray-900' : 'text-white'}`}
           >
             {saving ? (
               <>
@@ -230,13 +232,13 @@ const TablesPage = () => {
       </div>
 
       {/* List */}
-      <div className="bg-card border border-white/5 rounded-2xl overflow-hidden overflow-x-auto scrollbar-none">
-        <div className="grid grid-cols-[auto_1fr_auto] gap-0 divide-y divide-white/5 min-w-[380px]">
+      <div className={`bg-card border rounded-2xl overflow-hidden overflow-x-auto scrollbar-none ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
+        <div className={`grid grid-cols-[auto_1fr_auto] gap-0 divide-y min-w-[380px] ${lightMode ? 'divide-gray-100' : 'divide-white/5'}`}>
           {/* Header row */}
-          <div className="col-span-3 grid grid-cols-[64px_1fr_auto] px-5 py-3 bg-white/[0.02]">
-            <span className="text-[10px] uppercase tracking-widest text-white/30">Masa</span>
-            <span className="text-[10px] uppercase tracking-widest text-white/30">Link</span>
-            <span className="text-[10px] uppercase tracking-widest text-white/30 text-right">Əməliyyat</span>
+          <div className={`col-span-3 grid grid-cols-[64px_1fr_auto] px-5 py-3 ${lightMode ? 'bg-gray-50' : 'bg-white/[0.02]'}`}>
+            <span className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Masa</span>
+            <span className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Link</span>
+            <span className={`text-[10px] uppercase tracking-widest text-right ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Əməliyyat</span>
           </div>
 
           {Array.from({ length: tableCount }, (_, i) => i + 1).map(tableNum => (
@@ -245,7 +247,7 @@ const TablesPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: tableNum * 0.02 }}
-              className="col-span-3 grid grid-cols-[64px_1fr_auto] items-center px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
+              className={`col-span-3 grid grid-cols-[64px_1fr_auto] items-center px-5 py-3.5 transition-colors ${lightMode ? 'hover:bg-gray-50' : 'hover:bg-white/[0.02]'}`}
             >
               {/* Table number */}
               <button
@@ -255,11 +257,11 @@ const TablesPage = () => {
                 <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center transition-colors">
                   <QrCode size={14} className="text-gold" />
                 </div>
-                <span className="text-white font-bold text-sm">{tableNum}</span>
+                <span className={`font-bold text-sm ${lightMode ? 'text-gray-900' : 'text-white'}`}>{tableNum}</span>
               </button>
 
               {/* Link */}
-              <span className="text-white/30 text-xs font-mono truncate px-4">
+              <span className={`text-xs font-mono truncate px-4 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                 {siteUrl}/menu?table={tableNum}
               </span>
 
@@ -267,7 +269,7 @@ const TablesPage = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setPreviewTable(tableNum)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/50 hover:text-white border border-white/10 hover:border-white/30 rounded-lg transition-all"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border hover:border-white/30 rounded-lg transition-all ${lightMode ? 'text-gray-500 hover:text-gray-900 border-gray-200' : 'text-white/50 hover:text-white border-white/10'}`}
                 >
                   <QrCode size={12} /> Önizlə
                 </button>
@@ -321,7 +323,7 @@ const TablesPage = () => {
               <div className="flex gap-2 w-full">
                 <button
                   onClick={() => downloadQR(previewTable)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-black text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors"
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors ${lightMode ? 'bg-white text-gray-900' : 'bg-black text-white'}`}
                 >
                   <Download size={13} /> Yüklə
                 </button>

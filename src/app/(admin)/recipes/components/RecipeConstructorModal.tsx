@@ -56,7 +56,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
+  const toastStyle = { background: lightMode ? '#ffffff' : '#0f0f0f', color: lightMode ? '#111827' : '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -263,7 +263,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
             onClick={e => e.stopPropagation()}
           >
             <div className="sm:hidden flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-white/15" />
+              <div className={`w-10 h-1 rounded-full ${lightMode ? 'bg-gray-200' : 'bg-white/15'}`} />
             </div>
 
             <div className="overflow-y-auto p-6 space-y-5">
@@ -275,25 +275,25 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                   </span>
                   <h2 className="text-xl font-bold">{selectedProduct ? (selectedProduct as any).name_az || selectedProduct.name : 'Yeni Resept'}</h2>
                 </div>
-                <button onClick={() => { reset(); onClose(); }} className="text-white/25 hover:text-white transition-colors mt-1">
+                <button onClick={() => { reset(); onClose(); }} className={`transition-colors mt-1 ${lightMode ? 'text-gray-300 hover:text-gray-900' : 'text-white/25 hover:text-white'}`}>
                   <X size={18} />
                 </button>
               </div>
 
               {loading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 size={24} className="animate-spin text-white/20" />
+                  <Loader2 size={24} className={`animate-spin ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
                 </div>
               ) : (
                 <>
                   <div>
-                    <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                    <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                       Məhsul <span className="text-red-400">*</span>
                     </label>
                     <select
                       value={selectedProductId}
                       onChange={e => setSelectedProductId(e.target.value)}
-                      className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                      className={`w-full px-4 py-3.5 rounded-xl border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                     >
                       <option value="" className="bg-[#111]">Menyudan məhsul seç...</option>
                       {products.map(p => (
@@ -304,8 +304,8 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider">
-                        Tərkibi <span className="text-white/20">({rows.length} inqrediyent)</span>
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
+                        Tərkibi <span className={lightMode ? 'text-gray-300' : 'text-white/20'}>({rows.length} inqrediyent)</span>
                       </label>
                       <div className="flex items-center gap-2">
                         <button onClick={aiSuggest} disabled={aiSuggesting || !selectedProduct}
@@ -322,7 +322,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                   </div>
 
                     {rows.length === 0 && (
-                      <div className="text-center py-8 text-white/20 text-xs">
+                      <div className={`text-center py-8 text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                         <FlaskConical size={24} className="mx-auto mb-2 opacity-40" />
                         Hələ inqrediyent əlavə edilməyib
                       </div>
@@ -340,14 +340,14 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                             exit={{ opacity: 0, x: 20, height: 0 }}
                             transition={{ duration: 0.2 }}
                             className="flex items-start gap-2 px-3 py-2 rounded-xl"
-                            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                            style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.03)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}
                           >
-                            <span className="text-[10px] text-white/20 font-mono w-5 mt-3">{idx + 1}.</span>
+                            <span className={`text-[10px] font-mono w-5 mt-3 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{idx + 1}.</span>
                             <div className="flex-1 space-y-1.5">
                               <select
                                 value={row.ingredient_id}
                                 onChange={e => updateRowIngredient(idx, e.target.value)}
-                                className="w-full bg-white/[0.04] border border-white/[0.07] rounded-lg px-2.5 py-2 text-sm text-white outline-none focus:border-gold/30"
+                                className={`w-full border rounded-lg px-2.5 py-2 text-sm outline-none focus:border-gold/30 ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900' : 'bg-white/[0.04] border-white/[0.07] text-white'}`}
                               >
                                 <option value="" className="bg-[#111]">Xammal seç...</option>
                                 {ingredients.map(ing => (
@@ -364,27 +364,27 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                                   value={row.quantity || ''}
                                   onChange={e => updateRowQuantity(idx, parseFloat(e.target.value) || 0)}
                                   placeholder="Netto"
-                                  className="w-20 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 text-right tabular-nums"
+                                  className={`w-20 border rounded-lg px-2 py-1.5 text-sm outline-none focus:border-gold/30 text-right tabular-nums ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white placeholder:text-white/20'}`}
                                 />
-                                <span className="text-[9px] text-white/25 w-10">netto</span>
+                                <span className={`text-[9px] w-10 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>netto</span>
                                 <input
                                   type="number" min="0" step="0.01"
                                   value={row.quantity_brutto || ''}
                                   placeholder="Brutto"
-                                  className="w-20 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white/60 placeholder:text-white/20 outline-none focus:border-amber-400/30 text-right tabular-nums"
+                                  className={`w-20 border rounded-lg px-2 py-1.5 text-sm outline-none focus:border-amber-400/30 text-right tabular-nums ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-500 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white/60 placeholder:text-white/20'}`}
                                   readOnly
                                 />
-                                <span className="text-[9px] text-white/25 w-10">brutto</span>
+                                <span className={`text-[9px] w-10 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>brutto</span>
                                 <input
                                   type="number" min="0" max="99" step="1"
                                   value={row.hot_waste_percentage || ''}
                                   onChange={e => updateRowHotWaste(idx, parseFloat(e.target.value) || 0)}
                                   placeholder="İsti%"
-                                  className="w-16 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-xs text-white/60 placeholder:text-white/20 outline-none focus:border-rose-400/30 text-right tabular-nums"
+                                  className={`w-16 border rounded-lg px-2 py-1.5 text-xs outline-none focus:border-rose-400/30 text-right tabular-nums ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-500 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white/60 placeholder:text-white/20'}`}
                                 />
-                                <span className="text-[9px] text-white/25 w-12">isti%</span>
+                                <span className={`text-[9px] w-12 ${lightMode ? 'text-gray-300' : 'text-white/25'}`}>isti%</span>
                                 <button onClick={() => removeRow(idx)}
-                                  className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all flex items-center justify-center flex-shrink-0">
+                                  className={`w-7 h-7 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-all flex items-center justify-center flex-shrink-0 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                                   <Trash2 size={12} />
                                 </button>
                               </div>
@@ -410,13 +410,13 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                       <p className="text-[10px] font-bold uppercase tracking-wider text-gold/60">Maya Dəyəri Hesabatı</p>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-white/40">Brutto Maya Dəyəri (cold waste daxil)</span>
+                        <span className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>Brutto Maya Dəyəri (cold waste daxil)</span>
                         <motion.span
                           key={totalCost}
                           initial={{ scale: 1.3, color: '#D4AF37' }}
-                          animate={{ scale: 1, color: '#ffffff' }}
+                          animate={{ scale: 1, color: lightMode ? '#111827' : '#ffffff' }}
                           transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                          className="text-2xl font-black text-white tabular-nums"
+                          className={`text-2xl font-black tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}
                         >
                           ₼{totalCost.toFixed(2)}
                         </motion.span>
@@ -424,12 +424,12 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
                       {selectedProduct && salePrice > 0 && (
                         <div className="grid grid-cols-2 gap-3 pt-2">
-                          <div className="px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                            <p className="text-[9px] text-white/30 uppercase tracking-wider">Satış Qiyməti</p>
-                            <p className="text-sm font-bold text-white/80 tabular-nums">₼{salePrice.toFixed(2)}</p>
+                          <div className="px-3 py-2 rounded-lg" style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.03)' }}>
+                            <p className={`text-[9px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Satış Qiyməti</p>
+                            <p className={`text-sm font-bold tabular-nums ${lightMode ? 'text-gray-700' : 'text-white/80'}`}>₼{salePrice.toFixed(2)}</p>
                           </div>
                           <div className="px-3 py-2 rounded-lg" style={{ background: profit >= 0 ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)' }}>
-                            <p className="text-[9px] text-white/30 uppercase tracking-wider">Xalis Qazanc</p>
+                            <p className={`text-[9px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Xalis Qazanc</p>
                             <p className={`text-sm font-bold tabular-nums ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                               {profit >= 0 ? '+' : ''}₼{profit.toFixed(2)}
                               <span className="ml-1 text-[10px]">({marginPct >= 0 ? '+' : ''}{marginPct.toFixed(1)}%)</span>
@@ -440,11 +440,11 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
                       {selectedProduct && salePrice > 0 && (
                         <div className="pt-2 space-y-1.5">
-                          <div className="flex items-center justify-between text-[9px] text-white/30 uppercase tracking-wider">
+                          <div className={`flex items-center justify-between text-[9px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                             <span>Mənfəət Marjı</span>
                             <span className="tabular-nums font-bold">{marginPct >= 0 ? '+' : ''}{marginPct.toFixed(1)}%</span>
                           </div>
-                          <div className="w-full h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                          <div className="w-full h-2 rounded-full" style={{ background: lightMode ? '#e5e7eb' : 'rgba(255,255,255,0.06)' }}>
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${Math.min(Math.max(marginPct, 0), 100)}%` }}
@@ -466,7 +466,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                               }}
                             />
                           </div>
-                          <div className="flex justify-between text-[8px] text-white/20">
+                          <div className={`flex justify-between text-[8px] ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                             <span>0%</span>
                             <span>15%</span>
                             <span>30%</span>
@@ -479,12 +479,12 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                         {rows.filter(r => r.ingredient_id && r.cost > 0).map((r, idx) => {
                           const diff = Math.round(r.quantity_brutto - r.quantity);
                           return (
-                            <div key={idx} className="text-[10px] text-white/30">
+                            <div key={idx} className={`text-[10px] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                               <div className="flex items-center justify-between">
                                 <span>{r.ingredient_name}</span>
                                 <span className="tabular-nums">₼{r.cost.toFixed(2)}</span>
                               </div>
-                              <p className="text-[8px] text-white/15">
+                              <p className={`text-[8px] ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>
                                 netto {r.quantity} {r.unit}
                                 {diff > 0 && ` → brutto ${r.quantity_brutto} ${r.unit} (+${diff} itki)`}
                                 {r.hot_waste_percentage > 0 && ` · bişmə itkisi ${r.hot_waste_percentage}%`}
@@ -499,9 +499,9 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
               )}
             </div>
 
-            <div className="flex-shrink-0 p-4 border-t border-white/[0.06] flex items-center gap-3">
+            <div className={`flex-shrink-0 p-4 border-t flex items-center gap-3 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
               <button onClick={() => { reset(); onClose(); }}
-                className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98] text-white/40 hover:text-white/60 border border-white/10">
+                className={`flex-1 py-3 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98] border ${lightMode ? 'text-gray-400 hover:text-gray-600 border-gray-200' : 'text-white/40 hover:text-white/60 border-white/10'}`}>
                 Ləğv et
               </button>
               <button onClick={handleSave} disabled={saving || !selectedProductId || rows.filter(r => r.ingredient_id && r.quantity > 0).length === 0}

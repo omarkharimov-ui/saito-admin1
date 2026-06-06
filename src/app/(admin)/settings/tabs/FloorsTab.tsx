@@ -6,12 +6,14 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Save, Loader2, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { inputCls } from './_shared';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 type FloorRow = { id: string; table_number: number; floor_name: string; sort_order: number };
 type FloorGroup = { name: string; sort_order: number; tables: number[]; ids: Record<number, string> };
 
 const FloorsTab = () => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [saving, setSaving] = useState(false);
   const [floors, setFloors] = useState<FloorGroup[]>([]);
   const [maxTable, setMaxTable] = useState(12);
@@ -118,11 +120,11 @@ const FloorsTab = () => {
     <div className="max-w-3xl space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
+          <h3 className={`text-lg font-semibold flex items-center gap-2 ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>
             <MapPin size={18} className="text-gold" />
             {t('floor_plan_settings')}
           </h3>
-          <p className="text-xs text-white/30 mt-1">Mərtəbələri, zal adlarını və masaların aidiyyətini tənzimləyin</p>
+          <p className={`text-xs mt-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Mərtəbələri, zal adlarını və masaların aidiyyətini tənzimləyin</p>
         </div>
         {dirty && (
           <button onClick={saveAll} disabled={saving}
@@ -135,19 +137,19 @@ const FloorsTab = () => {
 
       <div className="space-y-4">
         {floors.map((floor, idx) => (
-          <div key={floor.name} className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.05]">
-              <GripVertical size={18} className="text-white/20 flex-shrink-0" />
+          <div key={floor.name} className={`border rounded-2xl overflow-hidden ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.07]'}`}>
+            <div className={`flex items-center gap-3 px-5 py-4 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.05]'}`}>
+              <GripVertical size={18} className={`flex-shrink-0 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
               <input value={floor.name} onChange={e => updateFloorName(idx, e.target.value)}
-                className="flex-1 bg-transparent text-base font-medium text-white outline-none" />
-              <span className="text-xs text-white/40 bg-white/[0.06] px-3 py-1 rounded-full">{floor.tables.length} masa</span>
+                className={`flex-1 bg-transparent text-base font-medium outline-none ${lightMode ? 'text-gray-900' : 'text-white'}`} />
+              <span className={`text-xs px-3 py-1 rounded-full ${lightMode ? 'text-gray-400 bg-gray-100' : 'text-white/40 bg-white/[0.06]'}`}>{floor.tables.length} masa</span>
               <div className="flex items-center gap-1">
                 <button onClick={() => moveFloor(idx, -1)} disabled={idx === 0}
-                  className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20">
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-20 ${lightMode ? 'bg-gray-100 text-gray-400 hover:text-gray-900' : 'bg-white/[0.06] text-white/40 hover:text-white'}`}>
                   <ChevronUp size={15} />
                 </button>
                 <button onClick={() => moveFloor(idx, 1)} disabled={idx === floors.length - 1}
-                  className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20">
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-20 ${lightMode ? 'bg-gray-100 text-gray-400 hover:text-gray-900' : 'bg-white/[0.06] text-white/40 hover:text-white'}`}>
                   <ChevronDown size={15} />
                 </button>
               </div>

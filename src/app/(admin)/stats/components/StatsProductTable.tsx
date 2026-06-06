@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ShoppingBag, TrendingUp, TrendingDown, Search, Download, Filter } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import GoldSelect from '@/components/GoldSelect';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface ProductPerf {
   id: string;
@@ -28,6 +29,7 @@ interface Props {
 
 const StatsProductTable = ({ productPerformance, categories, getCategoryTranslation }: Props) => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [prodSearch, setProdSearch] = useState('');
   const [prodCategory, setProdCategory] = useState('all');
 
@@ -59,15 +61,15 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
   };
 
   return (
-    <div className="bg-card border border-white/5 rounded-2xl">
+    <div className={`bg-card border rounded-2xl ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
       {/* Header */}
-      <div className="p-4 md:p-8 border-b border-white/5">
+      <div className={`p-4 md:p-8 border-b ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
         <div className="flex items-center justify-between gap-3 mb-3 md:mb-4">
-          <h3 className="text-base md:text-xl font-serif font-bold text-white flex items-center gap-2 md:gap-3">
+          <h3 className={`text-base md:text-xl font-serif font-bold flex items-center gap-2 md:gap-3 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
             <ShoppingBag size={16} className="text-gold md:w-5 md:h-5" />
             {t('stats_product_performance')}
           </h3>
-          <button onClick={handleExport} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/40 text-xs transition-all" title="Export CSV">
+          <button onClick={handleExport} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-all ${lightMode ? 'border-gray-200 bg-gray-50 text-gray-400' : 'border-white/[0.08] bg-white/[0.03] text-white/40'}`} title="Export CSV">
             <Download size={12} />
           </button>
         </div>
@@ -78,7 +80,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
               value={prodSearch}
               onChange={e => setProdSearch(e.target.value)}
               placeholder={t('stats_search_product')}
-              className="w-full pl-8 pr-3 py-2 bg-white/[0.04] border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-white/20 focus:border-white/20 outline-none transition-all"
+              className={`w-full pl-8 pr-3 py-2 border rounded-xl text-sm focus:border-white/20 outline-none transition-all ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white placeholder:text-white/20'}`}
             />
           </div>
           <GoldSelect
@@ -96,27 +98,27 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
       {/* Mobile: card list */}
       <div className="md:hidden divide-y divide-white/[0.04]">
         {filtered.length === 0 ? (
-          <p className="p-8 text-center text-white/20 text-xs uppercase tracking-widest">{t('stats_no_sales')}</p>
+          <p className={`p-8 text-center text-xs uppercase tracking-widest ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('stats_no_sales')}</p>
         ) : filtered.map((p, i) => {
           const convNum = Number(p.conversion);
           const isGood = convNum >= 20;
           return (
             <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-              <span className="text-white/15 text-xs font-mono w-4 flex-shrink-0">{i + 1}</span>
-              <div className="w-8 h-8 bg-black border border-white/5 overflow-hidden rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className={`text-xs font-mono w-4 flex-shrink-0 ${lightMode ? 'text-gray-200' : 'text-white/15'}`}>{i + 1}</span>
+              <div className={`w-8 h-8 border overflow-hidden rounded-lg flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-white border-gray-100' : 'bg-black border-white/5'}`}>
                 {p.image ? <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <span className="text-[10px]">🍣</span>}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white text-[13px] font-semibold truncate">{p.name}</p>
+                <p className={`text-[13px] font-semibold truncate ${lightMode ? 'text-gray-900' : 'text-white'}`}>{p.name}</p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-white/30 text-[10px]">{p.sold}x</span>
-                  <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                  <span className={`text-[10px] ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{p.sold}x</span>
+                  <div className={`flex-1 h-1 rounded-full overflow-hidden ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`}>
                     <div className={`h-full rounded-full ${convNum >= 80 ? 'bg-gold' : isGood ? 'bg-gold/60' : 'bg-white/20'}`} style={{ width: `${Math.min(convNum * 2, 100)}%` }} />
                   </div>
                   <span className={`text-[10px] font-bold ${isGood ? 'text-gold' : 'text-white/30'}`}>{p.conversion}%</span>
                 </div>
               </div>
-              <span className="text-white font-bold text-sm tabular-nums flex-shrink-0">₼{Number(p.revenue).toFixed(0)}</span>
+              <span className={`font-bold text-sm tabular-nums flex-shrink-0 ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼{Number(p.revenue).toFixed(0)}</span>
             </div>
           );
         })}
@@ -126,31 +128,31 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-white/[0.02] border-b border-white/5">
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium">{t('stats_col_product')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-center">{t('stats_col_views')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-center">{t('stats_col_sales')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-center">{t('stats_col_conversion')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-right">{t('stats_col_revenue')}</th>
+            <tr className={`border-b ${lightMode ? 'bg-gray-50 border-gray-100' : 'bg-white/[0.02] border-white/5'}`}>
+              <th className={`px-8 py-5 text-[10px] uppercase tracking-[0.3em] font-medium ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('stats_col_product')}</th>
+              <th className={`px-8 py-5 text-[10px] uppercase tracking-[0.3em] font-medium text-center ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('stats_col_views')}</th>
+              <th className={`px-8 py-5 text-[10px] uppercase tracking-[0.3em] font-medium text-center ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('stats_col_sales')}</th>
+              <th className={`px-8 py-5 text-[10px] uppercase tracking-[0.3em] font-medium text-center ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('stats_col_conversion')}</th>
+              <th className={`px-8 py-5 text-[10px] uppercase tracking-[0.3em] font-medium text-right ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{t('stats_col_revenue')}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={5} className="p-20 text-center text-white/20 uppercase tracking-widest text-xs">{t('stats_no_sales')}</td></tr>
+              <tr><td colSpan={5} className={`p-20 text-center uppercase tracking-widest text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>{t('stats_no_sales')}</td></tr>
             ) : (
               filtered.map((p) => {
                 const convNum = Number(p.conversion);
                 const isGood = convNum >= 20;
                 return (
-                  <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.01] transition-colors group">
+                  <tr key={p.id} className={`border-b hover:bg-white/[0.01] transition-colors group ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-black border border-white/5 overflow-hidden rounded-lg flex items-center justify-center flex-shrink-0">
+                        <div className={`w-10 h-10 border overflow-hidden rounded-lg flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-white border-gray-100' : 'bg-black border-white/5'}`}>
                           {p.image ? (
                             <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-white/5 to-white/10 flex items-center justify-center">
-                              <span className="text-xs text-white/30">🍣</span>
+                              <span className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>🍣</span>
                             </div>
                           )}
                         </div>
@@ -158,26 +160,26 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
                       </div>
                     </td>
                     <td className="px-8 py-5 text-center">
-                      <div className="flex items-center justify-center gap-1 text-white/60 font-medium">
+                      <div className={`flex items-center justify-center gap-1 font-medium ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>
                         {p.views}
                         {p.views > 30 ? <TrendingUp size={12} className="text-green-400" /> : p.views < 5 ? <TrendingDown size={12} className="text-red-400" /> : null}
                       </div>
                     </td>
                     <td className="px-8 py-5 text-center">
-                      <div className="flex items-center justify-center gap-1 text-white/60 font-medium">
+                      <div className={`flex items-center justify-center gap-1 font-medium ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>
                         {p.sold}
                         {p.sold > 10 ? <TrendingUp size={12} className="text-green-400" /> : null}
                       </div>
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex flex-col items-center gap-1">
-                        <div className="w-24 h-2 bg-white/5 rounded-full overflow-hidden relative">
+                        <div className={`w-24 h-2 rounded-full overflow-hidden relative ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`}>
                           <div className={`h-full rounded-full transition-all ${convNum >= 80 ? 'bg-gold shadow-[0_0_10px_rgba(212,175,55,0.7)]' : isGood ? 'bg-gold shadow-[0_0_6px_rgba(212,175,55,0.4)]' : 'bg-white/25'}`} style={{ width: `${Math.min(convNum * 2, 100)}%` }} />
                         </div>
                         <span className={`text-xs font-bold ${convNum >= 80 ? 'text-gold drop-shadow-[0_0_6px_rgba(212,175,55,0.8)]' : isGood ? 'text-gold' : 'text-white/40'}`}>{p.conversion}%</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-right font-bold text-white">₼ {Number(p.revenue).toFixed(2)}</td>
+                    <td className={`px-8 py-5 text-right font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼ {Number(p.revenue).toFixed(2)}</td>
                   </tr>
                 );
               })

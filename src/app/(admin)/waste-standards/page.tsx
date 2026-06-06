@@ -22,7 +22,7 @@ interface ModalState {
   data: WasteStandard | null;
 }
 
-const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
+const getToastStyle = (lm: boolean) => ({ background: lm ? '#ffffff' : '#0f0f0f', color: lm ? '#111827' : '#fff', border: lm ? '1px solid #e5e7eb' : '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' });
 
 const modalV = {
   hidden: { opacity: 0, scale: 0.96, y: 14 },
@@ -52,7 +52,7 @@ export default function WasteStandardsPage() {
       const json = await res.json();
       if (Array.isArray(json)) setData(json);
     } catch {
-      toast.error('Məlumat yüklənə bilmədi', { style: toastStyle });
+      toast.error('Məlumat yüklənə bilmədi', { style: getToastStyle(lightMode) });
     } finally {
       setLoading(false);
     }
@@ -80,11 +80,11 @@ export default function WasteStandardsPage() {
         const err = await res.json();
         throw new Error(err.error || 'Xəta');
       }
-      toast.success('Standart əlavə edildi', { style: toastStyle });
+      toast.success('Standart əlavə edildi', { style: getToastStyle(lightMode) });
       setModal({ mode: null, data: null });
       fetchData();
     } catch (e: any) {
-      toast.error(e.message, { style: toastStyle });
+      toast.error(e.message, { style: getToastStyle(lightMode) });
     } finally {
       setSaving(false);
     }
@@ -112,11 +112,11 @@ export default function WasteStandardsPage() {
         const err = await res.json();
         throw new Error(err.error || 'Xəta');
       }
-      toast.success('Standart yeniləndi', { style: toastStyle });
+      toast.success('Standart yeniləndi', { style: getToastStyle(lightMode) });
       setModal({ mode: null, data: null });
       fetchData();
     } catch (e: any) {
-      toast.error(e.message, { style: toastStyle });
+      toast.error(e.message, { style: getToastStyle(lightMode) });
     } finally {
       setSaving(false);
     }
@@ -127,10 +127,10 @@ export default function WasteStandardsPage() {
     try {
       const res = await fetch(`/api/inventory/waste-standards?id=${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Xəta');
-      toast.success('Standart silindi', { style: toastStyle });
+      toast.success('Standart silindi', { style: getToastStyle(lightMode) });
       fetchData();
     } catch {
-      toast.error('Silinmə xətası', { style: toastStyle });
+      toast.error('Silinmə xətası', { style: getToastStyle(lightMode) });
     }
   };
 
@@ -142,7 +142,7 @@ export default function WasteStandardsPage() {
   const saveInlineEdit = async (s: WasteStandard) => {
     const val = parseFloat(editValue);
     if (isNaN(val) || val < 0 || val >= 100) {
-      toast.error('0-99 arası dəyər daxil edin', { style: toastStyle });
+      toast.error('0-99 arası dəyər daxil edin', { style: getToastStyle(lightMode) });
       return;
     }
     try {
@@ -155,12 +155,12 @@ export default function WasteStandardsPage() {
       setEditingId(null);
       fetchData();
     } catch {
-      toast.error('Yenilənmə xətası', { style: toastStyle });
+      toast.error('Yenilənmə xətası', { style: getToastStyle(lightMode) });
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white pb-20 relative">
+    <div className={`min-h-screen pb-20 relative ${lightMode ? 'bg-white text-gray-900' : 'bg-[#080808] text-white'}`}>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-15%] right-[-10%] w-[50%] h-[50%] rounded-full opacity-[0.015]"
           style={{ background: 'radial-gradient(circle, #D4AF37, transparent)' }} />
@@ -177,7 +177,7 @@ export default function WasteStandardsPage() {
               <Percent size={10} /> İtki Standartları
             </span>
             <h1 className="text-xl sm:text-2xl font-bold">İtki Standartları</h1>
-            <p className="text-[11px] text-white/30 mt-1">İnqrediyentlər üçün standart soyuq itki faizləri</p>
+            <p className={`text-[11px] mt-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>İnqrediyentlər üçün standart soyuq itki faizləri</p>
           </div>
           <button onClick={() => setModal({ mode: 'add', data: null })}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
@@ -188,33 +188,33 @@ export default function WasteStandardsPage() {
 
         {/* ── Search ── */}
         <div className="relative max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
+          <Search size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Axtar..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl text-sm bg-white/[0.04] border border-white/[0.07] text-white placeholder:text-white/20 outline-none focus:border-gold/30 transition-colors"
+            className={`w-full pl-9 pr-3 py-2 rounded-xl text-sm border outline-none focus:border-gold/30 transition-colors ${lightMode ? 'bg-gray-50/80 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-white/[0.04] border-white/[0.07] text-white placeholder:text-white/20'}`}
           />
         </div>
 
         {/* ── Table ── */}
         {loading ? (
           <div className="flex items-center justify-center h-48">
-            <Loader2 size={28} className="animate-spin text-white/15" />
+            <Loader2 size={28} className={`animate-spin ${lightMode ? 'text-gray-200' : 'text-white/15'}`} />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-24 text-white/20">
+          <div className={`text-center py-24 ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
             <Percent size={44} className="mx-auto mb-4 opacity-20" />
             <p className="text-sm font-medium">Standart tapılmadı</p>
           </div>
         ) : (
-          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}>
             {/* Table head */}
             <div
-              className="hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-white/20"
+              className={`hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase ${lightMode ? 'text-gray-300' : 'text-white/20'}`}
               style={{
                 gridTemplateColumns: '1fr 1fr 100px 1fr 120px 80px',
-                background: 'rgba(255,255,255,0.018)',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                background: lightMode ? '#fafafa' : 'rgba(255,255,255,0.018)',
+                borderBottom: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.05)',
               }}
             >
               <span>Keyword (AZ)</span>
@@ -231,14 +231,14 @@ export default function WasteStandardsPage() {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: i * 0.02 }}
-                className="hidden lg:grid gap-4 px-6 py-3 items-center text-sm hover:bg-white/[0.02] transition-colors"
+                className={`hidden lg:grid gap-4 px-6 py-3 items-center text-sm transition-colors ${lightMode ? 'hover:bg-gray-50' : 'hover:bg-white/[0.02]'}`}
                 style={{
                   gridTemplateColumns: '1fr 1fr 100px 1fr 120px 80px',
                   borderBottom: '1px solid rgba(255,255,255,0.03)',
                 }}
               >
-                <span className="text-white/90 truncate">{s.keyword}</span>
-                <span className="text-white/40 truncate">{s.keyword_en || '—'}</span>
+                <span className={`truncate ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>{s.keyword}</span>
+                <span className={`truncate ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{s.keyword_en || '—'}</span>
                 <div className="text-right">
                   {editingId === s.id ? (
                     <input
@@ -250,7 +250,7 @@ export default function WasteStandardsPage() {
                         if (e.key === 'Enter') saveInlineEdit(s);
                         if (e.key === 'Escape') setEditingId(null);
                       }}
-                      className="w-20 text-right bg-white/[0.06] border border-white/[0.1] rounded-lg px-2 py-1 text-sm text-white outline-none focus:border-gold/30 tabular-nums"
+                      className={`w-20 text-right border border-white/[0.1] rounded-lg px-2 py-1 text-sm outline-none focus:border-gold/30 tabular-nums ${lightMode ? 'bg-gray-100 text-gray-900' : 'bg-white/[0.06] text-white'}`}
                       autoFocus
                     />
                   ) : (
@@ -263,15 +263,15 @@ export default function WasteStandardsPage() {
                     </span>
                   )}
                 </div>
-                <span className="text-white/40 truncate">{s.note || '—'}</span>
-                <span className="text-white/30 truncate text-xs">{s.category || '—'}</span>
+                <span className={`truncate ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{s.note || '—'}</span>
+                <span className={`truncate text-xs ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{s.category || '—'}</span>
                 <div className="flex items-center justify-end gap-1">
                   <button onClick={() => setModal({ mode: 'edit', data: s })}
-                    className="w-7 h-7 rounded-lg hover:bg-white/5 text-white/20 hover:text-white/60 transition-all flex items-center justify-center">
+                    className={`w-7 h-7 rounded-lg transition-all flex items-center justify-center ${lightMode ? 'hover:bg-gray-100 text-gray-300 hover:text-gray-600' : 'hover:bg-white/5 text-white/20 hover:text-white/60'}`}>
                     <Edit3 size={12} />
                   </button>
                   <button onClick={() => handleDelete(s.id)}
-                    className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all flex items-center justify-center">
+                    className={`w-7 h-7 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-all flex items-center justify-center ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -283,36 +283,36 @@ export default function WasteStandardsPage() {
               {filtered.map((s) => (
                 <div key={s.id}
                   className="rounded-xl p-3 space-y-2"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.03)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-sm">{s.keyword}</span>
                     <div className="flex items-center gap-1">
                       <button onClick={() => setModal({ mode: 'edit', data: s })}
-                        className="w-7 h-7 rounded-lg hover:bg-white/5 text-white/20 hover:text-white/60 transition-all flex items-center justify-center">
+                        className={`w-7 h-7 rounded-lg transition-all flex items-center justify-center ${lightMode ? 'hover:bg-gray-100 text-gray-300 hover:text-gray-600' : 'hover:bg-white/5 text-white/20 hover:text-white/60'}`}>
                         <Edit3 size={12} />
                       </button>
                       <button onClick={() => handleDelete(s.id)}
-                        className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all flex items-center justify-center">
+                        className={`w-7 h-7 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-all flex items-center justify-center ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>
                         <Trash2 size={12} />
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-white/40">
+                  <div className={`grid grid-cols-2 gap-2 text-[11px] ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>
                     <div>
-                      <span className="block text-[9px] uppercase tracking-wider text-white/20">İtki</span>
-                      <strong className="tabular-nums text-white/90">{s.waste_percentage}%</strong>
+                      <span className={`block text-[9px] uppercase tracking-wider ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>İtki</span>
+                      <strong className={`tabular-nums ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>{s.waste_percentage}%</strong>
                     </div>
                     <div>
-                      <span className="block text-[9px] uppercase tracking-wider text-white/20">EN</span>
+                      <span className={`block text-[9px] uppercase tracking-wider ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>EN</span>
                       <span>{s.keyword_en || '—'}</span>
                     </div>
                     <div>
-                      <span className="block text-[9px] uppercase tracking-wider text-white/20">Qeyd</span>
+                      <span className={`block text-[9px] uppercase tracking-wider ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>Qeyd</span>
                       <span>{s.note || '—'}</span>
                     </div>
                     <div>
-                      <span className="block text-[9px] uppercase tracking-wider text-white/20">Kateqoriya</span>
+                      <span className={`block text-[9px] uppercase tracking-wider ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>Kateqoriya</span>
                       <span>{s.category || '—'}</span>
                     </div>
                   </div>
@@ -340,7 +340,7 @@ export default function WasteStandardsPage() {
                 onClick={e => e.stopPropagation()}
               >
                 <div className="sm:hidden flex justify-center pt-3 pb-1">
-                  <div className="w-10 h-1 rounded-full bg-white/15" />
+                  <div className={`w-10 h-1 rounded-full ${lightMode ? 'bg-gray-200' : 'bg-white/15'}`} />
                 </div>
 
                 <form onSubmit={modal.mode === 'add' ? handleCreate : handleUpdate}>
@@ -350,66 +350,66 @@ export default function WasteStandardsPage() {
                         <h2 className="text-lg font-bold">{modal.mode === 'add' ? 'Yeni Standart' : 'Standartı Redaktə Et'}</h2>
                       </div>
                       <button type="button" onClick={() => setModal({ mode: null, data: null })}
-                        className="text-white/25 hover:text-white transition-colors mt-1">
+                        className={`transition-colors mt-1 ${lightMode ? 'text-gray-300 hover:text-gray-900' : 'text-white/25 hover:text-white'}`}>
                         <X size={18} />
                       </button>
                     </div>
 
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         Keyword (AZ) <span className="text-red-400">*</span>
                       </label>
                       <input name="keyword" required
                         defaultValue={modal.data?.keyword || ''}
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         Keyword (EN)
                       </label>
                       <input name="keyword_en"
                         defaultValue={modal.data?.keyword_en || ''}
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         İtki Faizi (%) <span className="text-red-400">*</span>
                       </label>
                       <input name="waste_percentage" type="number" min="0" max="99" step="0.1" required
                         defaultValue={modal.data?.waste_percentage ?? ''}
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         Qeyd
                       </label>
                       <input name="note"
                         defaultValue={modal.data?.note || ''}
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
+                      <label className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 block ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
                         Kateqoriya
                       </label>
                       <input name="category"
                         defaultValue={modal.data?.category || ''}
                         placeholder="məs: tərəvəz, meyvə, ət..."
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
+                        className={`w-full px-4 py-3 rounded-xl border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm ${lightMode ? 'text-gray-900 bg-gray-50/80' : 'text-white bg-white/[0.04]'}`}
                       />
                     </div>
                   </div>
 
-                  <div className="flex-shrink-0 p-4 border-t border-white/[0.06] flex items-center gap-3">
+                  <div className={`flex-shrink-0 p-4 border-t flex items-center gap-3 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
                     <button type="button" onClick={() => setModal({ mode: null, data: null })}
-                      className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98] text-white/40 hover:text-white/60 border border-white/10">
+                      className={`flex-1 py-3 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98] border ${lightMode ? 'text-gray-400 hover:text-gray-600 border-gray-200' : 'text-white/40 hover:text-white/60 border-white/10'}`}>
                       Ləğv et
                     </button>
                     <button type="submit" disabled={saving}

@@ -6,6 +6,7 @@ import { Loader2, X, Tag, CheckSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Category } from '@/types';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface ProductBulkModalsProps {
   bulkAction: 'stock' | 'category' | null;
@@ -23,6 +24,7 @@ export function ProductBulkModals({
   onClose, onStockUpdate, onCategoryUpdate, getCategoryName,
 }: ProductBulkModalsProps) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
 
   if (typeof document === 'undefined') return null;
   return (
@@ -36,12 +38,12 @@ export function ProductBulkModals({
             <motion.div
               initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 20 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-              className="relative w-full max-w-full sm:max-w-sm bg-card/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
+              className={`relative w-full max-w-full sm:max-w-sm bg-card/95 backdrop-blur-xl border rounded-2xl shadow-2xl overflow-hidden ${lightMode ? 'border-gray-200 shadow-black/5' : 'border-white/10 shadow-black/40'}`}
             >
               <div className="px-7 pt-7 pb-6">
-                <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/40 hover:text-white flex items-center justify-center transition-all transition-premium"><X size={16} /></button>
-                <h3 className="text-lg font-serif font-bold text-white mb-1">{t('stock_status')}</h3>
-                <p className="text-[10px] text-white/30 uppercase tracking-widest mb-6">{selectedCount} {t('select_stock_status')}</p>
+                <button onClick={onClose} className={`absolute top-4 right-4 w-8 h-8 rounded-xl flex items-center justify-center transition-all transition-premium ${lightMode ? 'bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-900' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}><X size={16} /></button>
+                <h3 className={`text-lg font-serif font-bold mb-1 ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('stock_status')}</h3>
+                <p className={`text-[10px] uppercase tracking-widest mb-6 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{selectedCount} {t('select_stock_status')}</p>
                 <div className="flex gap-3">
                   <button onClick={() => onStockUpdate(true)} disabled={bulkUpdating}
                     className="flex-1 py-3 rounded-xl bg-green-500/10 text-green-400 border border-green-500/25 text-[10px] font-bold tracking-widest uppercase hover:bg-green-500/20 hover:border-green-500/50 hover:text-green-300 transition-all transition-premium disabled:opacity-40 flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0">
@@ -70,27 +72,27 @@ export function ProductBulkModals({
             <motion.div
               initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 20 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-              className="relative w-full max-w-full sm:max-w-sm bg-card/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
+              className={`relative w-full max-w-full sm:max-w-sm bg-card/95 backdrop-blur-xl border rounded-2xl shadow-2xl overflow-hidden ${lightMode ? 'border-gray-200 shadow-black/5' : 'border-white/10 shadow-black/40'}`}
             >
               <div className="px-7 pt-7 pb-2 flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-serif font-bold text-white mb-1">{t('category_selection')}</h3>
-                  <p className="text-[10px] text-white/30 uppercase tracking-widest">{selectedCount} {t('choose_new_category')}</p>
+                  <h3 className={`text-lg font-serif font-bold mb-1 ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('category_selection')}</h3>
+                  <p className={`text-[10px] uppercase tracking-widest ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{selectedCount} {t('choose_new_category')}</p>
                 </div>
-                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/40 hover:text-white flex items-center justify-center transition-all transition-premium shrink-0"><X size={16} /></button>
+                <button onClick={onClose} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all transition-premium shrink-0 ${lightMode ? 'bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-900' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}><X size={16} /></button>
               </div>
               <div className="px-4 py-4 space-y-1.5 max-h-[280px] overflow-y-auto">
                 {categories.map((cat) => (
                   <button key={cat.id} onClick={() => onCategoryUpdate(cat.id)} disabled={bulkUpdating}
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/8 text-left transition-all transition-premium disabled:opacity-40 flex items-center gap-3 group">
-                    <Tag size={14} className="text-white/20 transition-colors shrink-0" />
-                    <span className="text-sm font-semibold text-white/70 group-hover:text-white transition-colors">{getCategoryName(cat)}</span>
+                    className={`w-full px-4 py-3 rounded-xl border border-white/8 text-left transition-all transition-premium disabled:opacity-40 flex items-center gap-3 group ${lightMode ? 'bg-gray-50' : 'bg-white/[0.03]'}`}>
+                    <Tag size={14} className={`transition-colors shrink-0 ${lightMode ? 'text-gray-300' : 'text-white/20'}`} />
+                    <span className={`text-sm font-semibold group-hover:text-white transition-colors ${lightMode ? 'text-gray-600' : 'text-white/70'}`}>{getCategoryName(cat)}</span>
                     {bulkUpdating && <Loader2 className="animate-spin ml-auto" size={14} />}
                   </button>
                 ))}
               </div>
               <div className="px-4 pb-5 pt-1">
-                <button onClick={onClose} disabled={bulkUpdating} className="w-full py-2.5 rounded-xl bg-white/5 text-white/30 border border-white/8 text-[10px] font-bold tracking-widest uppercase hover:bg-white/10 hover:text-white transition-all transition-premium">
+                <button onClick={onClose} disabled={bulkUpdating} className={`w-full py-2.5 rounded-xl border border-white/8 text-[10px] font-bold tracking-widest uppercase transition-all transition-premium ${lightMode ? 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-900' : 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white'}`}>
                   {t('cancel')}
                 </button>
               </div>

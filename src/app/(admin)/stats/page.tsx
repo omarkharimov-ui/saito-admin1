@@ -18,12 +18,14 @@ import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import { StatSkeleton } from '@/components/SkeletonLoader';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 const interpolateTemplate = (template: string, variables: Record<string, string | number>): string =>
   template.replace(/\{(\w+)\}/g, (match, key) => String(variables[key] ?? match));
 
 const StatsPage = () => {
   const { t, language, getCategoryTranslation } = useLanguage();
+  const { lightMode } = useTheme();
 
   /* ─── Filter state ─── */
   const [rawLoading, setLoading] = useState(true);
@@ -354,9 +356,9 @@ const StatsPage = () => {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="p-2 bg-gold/10 text-gold rounded-xl flex-shrink-0"><BarChart3 size={18} className="md:w-6 md:h-6" /></div>
-          <h2 className="text-xl md:text-3xl font-serif font-bold text-white truncate">{t('statistics_title')}</h2>
+          <h2 className={`text-xl md:text-3xl font-serif font-bold truncate ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('statistics_title')}</h2>
         </div>
-        <div className="flex items-center gap-1 bg-card border border-white/5 p-1 rounded-xl overflow-x-auto scrollbar-none flex-shrink-0 max-w-[60vw] md:max-w-none">
+        <div className={`flex items-center gap-1 bg-card border p-1 rounded-xl overflow-x-auto scrollbar-none flex-shrink-0 max-w-[60vw] md:max-w-none ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
           {[{ id: 'today', label: t('filter_today') }, { id: 'week', label: t('filter_week') }, { id: 'month', label: t('filter_month') }, { id: '3months', label: t('filter_3months') }, { id: 'year', label: t('filter_year') }].map(f => (
             <button key={f.id} onClick={() => { setSelectedCancellationReason(null); setTimeFilter(f.id); }}
               className={`relative px-3 py-1.5 md:px-4 md:py-2 text-[9px] md:text-[10px] uppercase tracking-widest font-bold rounded-lg transition-all whitespace-nowrap ${timeFilter === f.id ? 'text-gold bg-gold/10 border border-gold/25' : 'text-white/35 hover:text-white/70 border border-transparent'}`}>

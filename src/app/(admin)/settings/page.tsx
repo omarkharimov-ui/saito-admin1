@@ -14,6 +14,7 @@ import KitchenTab from './tabs/KitchenTab';
 import UsersTab from './tabs/UsersTab';
 import ReceiptTab from './tabs/ReceiptTab';
 import FloorsTab from './tabs/FloorsTab';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 type Tab = 'general' | 'staff' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'users' | 'floors';
 
@@ -53,6 +54,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
 
 const SettingsPage = () => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [tab, setTab] = useState<Tab>('general');
   const [mobileTab, setMobileTab] = useState<Tab | null>(null);
   const isSuperadmin = typeof window !== 'undefined' && getCookieRole() === 'superadmin';
@@ -87,8 +89,8 @@ const SettingsPage = () => {
             <Settings2 size={18} />
           </div>
           <div>
-            <h1 className="text-xl font-serif font-bold text-white">{t('settings')}</h1>
-            <p className="text-[10px] text-white/30 uppercase tracking-wider">{t('settings_subtitle')}</p>
+            <h1 className={`text-xl font-serif font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('settings')}</h1>
+            <p className={`text-[10px] uppercase tracking-wider ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('settings_subtitle')}</p>
           </div>
         </div>
 
@@ -99,16 +101,16 @@ const SettingsPage = () => {
               key={tb.key}
               type="button"
               onClick={() => setMobileTab(tb.key)}
-              className="mobile-tap-lift flex flex-col items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] active:bg-white/[0.06] active:border-white/[0.10] text-left"
+              className={`mobile-tap-lift flex flex-col items-start gap-3 p-4 rounded-2xl border active:bg-white/[0.06] active:border-white/[0.10] text-left ${lightMode ? 'bg-gray-50 border-gray-200' : 'bg-white/[0.03] border-white/[0.06]'}`}
             >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/[0.05] text-white/50">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-500' : 'bg-white/[0.05] text-white/50'}`}>
                 {tb.icon}
               </div>
               <div className="min-w-0">
-                <p className="text-[13px] font-medium text-white/90 leading-tight">
+                <p className={`text-[13px] font-medium leading-tight ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>
                   {t(tb.labelKey as any)}
                 </p>
-                {tb.desc && <p className="text-[10px] text-white/30 mt-1 line-clamp-1">{tb.desc}</p>}
+                {tb.desc && <p className={`text-[10px] mt-1 line-clamp-1 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{tb.desc}</p>}
               </div>
             </button>
           ))}
@@ -116,17 +118,17 @@ const SettingsPage = () => {
 
         {/* Mobile slide-in detail panel - ani açılma, hamburgerden yuksek z-index */}
         {mobileTab && (
-          <div className="fixed inset-0 z-[9999] flex flex-col bg-[#0a0a0a]">
+          <div className={`fixed inset-0 z-[9999] flex flex-col ${lightMode ? 'bg-white' : 'bg-[#0a0a0a]'}`}>
             {/* Panel header - hamburgeri örtmək üçün extra top padding */}
-            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 pt-16 pb-4 border-b border-white/[0.06] bg-[#0a0a0a]">
+            <div className={`sticky top-0 z-10 flex items-center gap-3 px-4 pt-16 pb-4 border-b ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0a0a0a]'}`}>
               <button
                 onClick={() => setMobileTab(null)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/[0.05] text-white/50 hover:text-white transition-all"
+                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${lightMode ? 'bg-gray-100 text-gray-500 hover:text-gray-900' : 'bg-white/[0.05] text-white/50 hover:text-white'}`}
               >
                 <ChevronLeft size={22} />
               </button>
               <div className="flex-1 text-center">
-                <h2 className="text-[17px] font-serif font-bold text-white">
+                <h2 className={`text-[17px] font-serif font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                   {activeTabDef ? t(activeTabDef.labelKey as any) : ''}
                 </h2>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-gold/60 mt-0.5">SETTINGS</p>
@@ -149,12 +151,12 @@ const SettingsPage = () => {
             <Settings2 size={26} />
           </div>
           <div>
-            <h1 className="text-3xl font-serif font-bold text-white">{t('settings')}</h1>
-            <p className="text-sm text-white/35 uppercase tracking-[0.2em] mt-0.5">{t('settings_subtitle')}</p>
+            <h1 className={`text-3xl font-serif font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('settings')}</h1>
+            <p className={`text-sm uppercase tracking-[0.2em] mt-0.5 ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{t('settings_subtitle')}</p>
           </div>
         </div>
 
-        <div className="flex items-end gap-0 border-b border-white/[0.07] overflow-x-auto scrollbar-none">
+        <div className={`flex items-end gap-0 border-b overflow-x-auto scrollbar-none ${lightMode ? 'border-gray-200' : 'border-white/[0.07]'}`}>
           {visibleTabs.map(tb => {
             const isActive = tab === tb.key;
             return (

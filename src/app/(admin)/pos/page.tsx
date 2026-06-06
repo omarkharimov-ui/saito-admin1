@@ -46,7 +46,7 @@ export default function POSPage() {
   const [payMethod, setPayMethod] = useState<'cash' | 'card'>('card');
   const [payTip, setPayTip] = useState(0);
 
-  const selectedFloorName = selectedFloor || pos.floors[0]?.name || 'Main';
+  const selectedFloorName = selectedFloor || pos.floors[0]?.name || '';
 
   // Auto-select first floor
   useEffect(() => {
@@ -162,7 +162,7 @@ export default function POSPage() {
   }, [actionSheetTable, openPayment]);
 
   return (
-    <div className={`h-screen w-screen overflow-hidden flex flex-col ${lightMode ? 'bg-gray-50 text-gray-900' : 'bg-[#080808] text-white'}`}>
+    <div className={`h-full w-full overflow-hidden flex flex-col ${lightMode ? 'bg-gray-50 text-gray-900' : 'bg-[#080808] text-white'}`}>
       {/* ── View container ── */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
@@ -179,30 +179,32 @@ export default function POSPage() {
                   <div className="flex items-center gap-3">
                     <h1 className="text-xl sm:text-2xl font-bold tracking-tight">POS</h1>
                     {/* Floor dropdown */}
-                    <div className="relative">
-                      <button onClick={() => setFloorDropdownOpen(!floorDropdownOpen)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${lightMode ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-white/[0.06] text-white/60 hover:text-white/80'}`}>
-                        {selectedFloorName} <ChevronDown size={14} className={`transition-transform ${floorDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {floorDropdownOpen && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setFloorDropdownOpen(false)} />
-                          <div className={`absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 shadow-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-[#141414] border-white/[0.08]'}`}>
-                            {pos.floors.map(f => (
-                              <button key={f.name}
-                                onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
-                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                                  f.name === selectedFloorName
-                                    ? lightMode ? 'bg-gray-100 text-black' : 'bg-white/10 text-white'
-                                    : lightMode ? 'text-gray-600 hover:bg-gray-50' : 'text-white/50 hover:text-white'
-                                }`}>
-                                {f.name}
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
+                    {pos.floors.length > 0 && (
+                      <div className="relative">
+                        <button onClick={() => setFloorDropdownOpen(!floorDropdownOpen)}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${lightMode ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-white/[0.06] text-white/60 hover:text-white/80'}`}>
+                          {selectedFloorName} <ChevronDown size={14} className={`transition-transform ${floorDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {floorDropdownOpen && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setFloorDropdownOpen(false)} />
+                            <div className={`absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 shadow-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-[#141414] border-white/[0.08]'}`}>
+                              {pos.floors.map(f => (
+                                <button key={f.name}
+                                  onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
+                                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                    f.name === selectedFloorName
+                                      ? lightMode ? 'bg-gray-100 text-black' : 'bg-white/10 text-white'
+                                      : lightMode ? 'text-gray-600 hover:bg-gray-50' : 'text-white/50 hover:text-white'
+                                  }`}>
+                                  {f.name}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setLightMode(!lightMode)}

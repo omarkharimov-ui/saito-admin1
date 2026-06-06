@@ -30,23 +30,14 @@ const actions = [
   { id: 'save_draft', icon: Save, label: 'Saxla', color: 'text-white/60', bg: 'bg-white/5', border: 'border-white/10' },
 ];
 
-const handlerMap: Record<string, (() => void) | undefined> = {};
-
 export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft }: ActionSheetProps) {
-  handlerMap.add_order = onAddOrder;
-  handlerMap.merge = onMerge;
-  handlerMap.transfer = onTransfer;
-  handlerMap.split = onSplitBill;
-  handlerMap.close_bill = onCloseBill;
-  handlerMap.print = onPrint;
-  handlerMap.save_draft = onSaveDraft;
-
   if (!table) return null;
 
   const isOccupied = table.status !== 'empty';
-  const visible = isOccupied
-    ? actions
-    : actions.filter(a => a.id === 'add_order' || a.id === 'save_draft');
+  const visible = actions.filter(a => {
+    if (a.id === 'close_bill') return isOccupied && table.total_amount > 0;
+    return true;
+  });
 
   return (
     <AnimatePresence>
@@ -65,12 +56,10 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
             className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8"
           >
             <div className="max-w-lg mx-auto">
-              {/* Handle */}
               <div className="flex justify-center mb-3">
                 <div className="w-10 h-1 rounded-full bg-white/20" />
               </div>
 
-              {/* Table info */}
               <div className="text-center mb-4">
                 <p className="text-2xl font-black text-white">Masa {table.table_number}</p>
                 <p className="text-sm text-white/40 mt-0.5">
@@ -78,7 +67,6 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                 </p>
               </div>
 
-              {/* Action grid */}
               <div className="rounded-3xl border border-white/[0.08] bg-[#0c0c0c]/95 backdrop-blur-xl p-4 shadow-2xl">
                 <div className="grid grid-cols-4 gap-2">
                   {visible.map((action) => {
@@ -89,7 +77,15 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.92 }}
                         onClick={() => {
-                          const fn = handlerMap[action.id];
+                          const fn = {
+                            add_order: onAddOrder,
+                            merge: onMerge,
+                            transfer: onTransfer,
+                            split: onSplitBill,
+                            close_bill: onCloseBill,
+                            print: onPrint,
+                            save_draft: onSaveDraft,
+                          }[action.id];
                           if (fn) fn();
                           onClose();
                         }}

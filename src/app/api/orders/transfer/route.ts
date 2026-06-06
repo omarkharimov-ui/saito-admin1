@@ -16,18 +16,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'from_table and to_table required' }, { status: 400 });
     }
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?table_number=eq.${from_table}&status=neq.paid`, {
-      headers: { ...headers, 'Prefer': 'return=minimal' },
-      method: 'PATCH',
-      body: JSON.stringify({ table_number: to_table }),
-    });
+    // Get all non-paid orders from source table
+    const ordersRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${from_table}&status=neq.paid`,
+      { headers }
+    );
+    const orders = await ordersRes.json();
 
-    if (!res.ok) {
-      const err = await res.text();
-      return NextResponse.json({ error: `Transfer failed: ${err}` }, { status: 500 });
+    if (!orders || orders.length === 0) {
+      return NextResponse.json({ error: 'No active orders on source table' }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true });
+    // Move each order to target table
+    const orderIds = orders.map((o: any) => o.id);
+    for (const id of orderIds) {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,
+        {
+          headers: { ...headers, 'Prefer': 'return=minimal' },
+          method: 'PATCH',
+          body: JSON.stringify({ table_number: to_table }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.text();
+        return NextResponse.json({ error: `Transfer failed for order ${id}: ${err}` }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ success: true, moved_orders: orderIds.length });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

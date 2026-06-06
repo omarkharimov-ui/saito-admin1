@@ -33,6 +33,10 @@
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 1rem;
   }
+  html[data-light-mode="true"] .card-premium {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    border-color: #e5e7eb;
+  }
 
   /* ── Panels ── */
   .panel-base {
@@ -41,6 +45,10 @@
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border-default);
     border-radius: 1rem;
+  }
+  html[data-light-mode="true"] .panel-base {
+    background: rgba(255,255,255,0.95);
+    border-color: #e5e7eb;
   }
 
   /* ── Shadows ── */
@@ -85,6 +93,12 @@
   .bg-gold\/10     { background-color: rgba(212,175,55,0.10); }
   .bg-gold\/15     { background-color: rgba(212,175,55,0.15); }
 }
+
+/* Light mode gold adjustments */
+html[data-light-mode="true"] .border-gold { border-color: rgba(184,134,11,0.25) !important; }
+html[data-light-mode="true"] .bg-gold\/10 { background-color: rgba(184,134,11,0.08) !important; }
+html[data-light-mode="true"] .bg-gold\/15 { background-color: rgba(184,134,11,0.12) !important; }
+html[data-light-mode="true"] .bg-gold\/5 { background-color: rgba(184,134,11,0.05) !important; }
 
 
 /* ════════════════════════════════════════════

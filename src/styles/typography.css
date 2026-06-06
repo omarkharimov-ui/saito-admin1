@@ -9,6 +9,10 @@ html {
   background: #0D0D0D !important;
   background-color: #0D0D0D !important;
 }
+html[data-light-mode="true"] {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+}
 
 body {
   background: #0D0D0D !important;
@@ -64,3 +68,10 @@ table, td, th   { font-weight: 500; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.12); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(212,175,55,0.35); }
+
+html[data-light-mode="true"] * {
+  scrollbar-color: #d1d5db #f3f4f6;
+}
+html[data-light-mode="true"] ::-webkit-scrollbar-track  { background: #f3f4f6; }
+html[data-light-mode="true"] ::-webkit-scrollbar-thumb  { background: #d1d5db; }
+html[data-light-mode="true"] ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }

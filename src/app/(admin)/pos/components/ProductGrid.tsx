@@ -110,7 +110,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
                   </div>
                   <div className="px-2.5 pb-2.5 pt-2">
                     <p className={`text-xs font-semibold truncate leading-tight ${lightMode ? 'text-gray-800' : 'text-white/80'}`}>{name}</p>
-                    <p className="text-xs font-black text-gold mt-0.5">{product.price.toFixed(2)} ₼</p>
+                    <p className={`text-xs font-black mt-0.5 ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{product.price.toFixed(2)} ₼</p>
                   </div>
                   {count > 0 && (
                     <motion.span

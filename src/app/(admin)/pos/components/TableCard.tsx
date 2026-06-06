@@ -117,7 +117,7 @@ export function TableCard({
               <span className="text-[11px] font-medium tabular-nums">{table.order_count}</span>
             </div>
           </div>
-          <div className="text-sm font-black tabular-nums text-gold">{table.total_amount.toFixed(2)} ₼</div>
+          <div className={`text-sm font-black tabular-nums ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{table.total_amount.toFixed(2)} ₼</div>
         </div>
       )}
 

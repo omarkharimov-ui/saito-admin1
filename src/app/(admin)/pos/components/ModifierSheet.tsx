@@ -80,7 +80,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{productName}</p>
-                  <p className="text-sm font-black text-gold">{productPrice.toFixed(2)} ₼</p>
+                  <p className={`text-sm font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{productPrice.toFixed(2)} ₼</p>
                 </div>
                 <button onClick={onClose} className={`w-9 h-9 rounded-xl flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-400 hover:text-gray-600' : 'bg-white/5 text-white/40 hover:text-white'}`}>
                   <X size={18} />
@@ -161,10 +161,10 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
               <div className={`flex items-center gap-3 pt-3 border-t ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
                 <div className="flex-1">
                   <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Cəmi</p>
-                  <p className="text-lg font-black text-gold">{(productPrice + totalExtras).toFixed(2)} ₼</p>
+                  <p className={`text-lg font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{(productPrice + totalExtras).toFixed(2)} ₼</p>
                 </div>
                 <button onClick={handleConfirm}
-                  className="px-6 py-3 rounded-xl font-bold text-sm bg-gold text-black shadow-lg shadow-gold/25 active:scale-95 transition-all">
+                  className={`px-6 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all ${lightMode ? 'bg-gray-900 text-white shadow-lg shadow-black/15' : 'bg-gold text-black shadow-lg shadow-gold/25'}`}>
                   <Plus size={16} className="inline mr-1" /> Əlavə et
                 </button>
               </div>

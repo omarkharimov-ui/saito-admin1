@@ -86,7 +86,7 @@ export function CartPanel({
                       {item.modifiers.map(m => m.label).join(', ')}
                     </p>
                   )}
-                  <p className="text-xs font-bold text-gold mt-0.5">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
+                  <p className={`text-xs font-bold mt-0.5 ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <div className={`flex items-center rounded-xl overflow-hidden ${lightMode ? 'bg-gray-50 border border-gray-200' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
@@ -94,7 +94,7 @@ export function CartPanel({
                       <Minus size={16} />
                     </button>
                     <span className={`text-sm min-w-[24px] text-center font-black tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{item.quantity}</span>
-                    <button onClick={() => onUpdateQty(idx, 1)} className="w-11 h-11 flex items-center justify-center text-gold active:scale-90 transition-all">
+                    <button onClick={() => onUpdateQty(idx, 1)} className={`w-11 h-11 flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-amber-700' : 'text-gold'}`}>
                       <Plus size={16} />
                     </button>
                   </div>

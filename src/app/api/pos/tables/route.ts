@@ -16,14 +16,13 @@ interface Order {
   created_at: string;
   kitchen_status: string | null;
   merged_into?: string | null;
-  is_served?: boolean;
 }
 
 export async function GET() {
   try {
     const [floorsRes, ordersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into,is_served&status=neq.paid&order=created_at.desc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into&status=neq.paid&order=created_at.desc`, { headers }),
     ]);
 
     if (!floorsRes.ok || !ordersRes.ok) {

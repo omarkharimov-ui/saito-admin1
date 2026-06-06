@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const [productsRes, categoriesRes] = await Promise.all([
       fetch(
-        `${SUPABASE_URL}/rest/v1/products?select=*,category:category_id(name,name_az,name_en,name_ru,translations)&order=created_at.desc`,
+        `${SUPABASE_URL}/rest/v1/products?select=*,category:category_id(name,name_az,name_en,name_ru)&order=created_at.desc`,
         { headers }
       ),
       fetch(`${SUPABASE_URL}/rest/v1/categories?select=*&order=name.asc`, { headers }),

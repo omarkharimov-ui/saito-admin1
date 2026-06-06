@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, Trash2, ShoppingBag, Send, Save } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingBag, Send, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosCart } from '../types';
@@ -11,14 +11,13 @@ interface CartPanelProps {
   onUpdateQty: (index: number, delta: number) => void;
   onRemove: (index: number) => void;
   onPlaceOrder: () => void;
-  onSaveDraft: () => void;
   onClear: () => void;
   onBack: () => void;
   submitting: boolean;
 }
 
 export function CartPanel({
-  cart, onUpdateQty, onRemove, onPlaceOrder, onSaveDraft,
+  cart, onUpdateQty, onRemove, onPlaceOrder,
   onClear, onBack, submitting,
 }: CartPanelProps) {
   const { t } = useLanguage();
@@ -40,12 +39,19 @@ export function CartPanel({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className={`flex items-center justify-between flex-shrink-0 pb-3 border-b ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
-        <div>
-          <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {cart.table_number}</p>
-          <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{cart.items.length} məhsul · {cart.guest_count} nəfər</p>
+        <div className="flex items-center gap-2">
+          <button onClick={onBack}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100' : 'text-white/30 hover:text-white/70 hover:bg-white/5'}`}>
+            <ArrowLeft size={18} />
+          </button>
+          <div>
+            <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {cart.table_number}</p>
+            <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/40'}`}>{cart.items.length} məhsul · {cart.guest_count} nəfər</p>
+          </div>
         </div>
         {!isEmpty && (
-          <button onClick={onClear} className={`text-[10px] uppercase tracking-wider font-semibold transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600' : 'text-white/20 hover:text-white/50'}`}>
+          <button onClick={onClear}
+            className={`h-9 px-3 rounded-xl text-xs font-semibold transition-all ${lightMode ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-white/20 hover:text-red-400 hover:bg-red-500/10'}`}>
             Təmizlə
           </button>
         )}
@@ -82,18 +88,18 @@ export function CartPanel({
                   )}
                   <p className="text-xs font-bold text-gold mt-0.5">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <div className={`flex items-center rounded-lg overflow-hidden ${lightMode ? 'bg-gray-100 border border-gray-200' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
-                    <button onClick={() => onUpdateQty(idx, -1)} className={`w-8 h-8 flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600' : 'text-white/40 hover:text-white'}`}>
-                      <Minus size={13} />
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className={`flex items-center rounded-xl overflow-hidden ${lightMode ? 'bg-gray-100 border border-gray-200' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
+                    <button onClick={() => onUpdateQty(idx, -1)} className={`w-11 h-11 flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600' : 'text-white/40 hover:text-white'}`}>
+                      <Minus size={16} />
                     </button>
-                    <span className={`text-xs w-5 text-center font-black tabular-nums ${lightMode ? 'text-gray-800' : 'text-white'}`}>{item.quantity}</span>
-                    <button onClick={() => onUpdateQty(idx, 1)} className="w-8 h-8 flex items-center justify-center text-gold active:scale-90 transition-all">
-                      <Plus size={13} />
+                    <span className={`text-sm min-w-[24px] text-center font-black tabular-nums ${lightMode ? 'text-gray-800' : 'text-white'}`}>{item.quantity}</span>
+                    <button onClick={() => onUpdateQty(idx, 1)} className="w-11 h-11 flex items-center justify-center text-gold active:scale-90 transition-all">
+                      <Plus size={16} />
                     </button>
                   </div>
-                  <button onClick={() => onRemove(idx)} className={`w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-300 hover:text-red-500 hover:bg-red-50' : 'text-white/20 hover:text-red-400 hover:bg-red-500/10'}`}>
-                    <Trash2 size={14} />
+                  <button onClick={() => onRemove(idx)} className={`w-11 h-11 rounded-xl flex items-center justify-center active:scale-90 transition-all ${lightMode ? 'text-gray-300 hover:text-red-500 hover:bg-red-50' : 'text-white/20 hover:text-red-400 hover:bg-red-500/10'}`}>
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </motion.div>
@@ -108,22 +114,14 @@ export function CartPanel({
           <span className={`text-xs uppercase tracking-widest font-semibold ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('total_label')}</span>
           <span className="text-xl font-black tracking-tight tabular-nums text-gold">{total.toFixed(2)} ₼</span>
         </div>
-        <div className="flex gap-2">
-          <button onClick={onBack} className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${lightMode ? 'border border-gray-200 text-gray-500 hover:bg-gray-100' : 'border border-white/10 text-white/40 hover:bg-white/5'}`}>
-            Geri
-          </button>
-          <button onClick={onSaveDraft} disabled={isEmpty} className={`py-3 px-4 rounded-xl border disabled:opacity-30 transition-all ${lightMode ? 'border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300' : 'border-white/10 text-white/30 hover:text-white/60 hover:border-white/20'}`}>
-            <Save size={16} />
-          </button>
-          <button
-            onClick={onPlaceOrder}
-            disabled={isEmpty || submitting}
-            className="flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-25"
-            style={!isEmpty && !submitting ? { background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', color: '#000', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' } : lightMode ? { background: '#f3f4f6', color: '#9ca3af' } : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.4)' }}
-          >
-            {submitting ? 'Göndərilir...' : <><Send size={15} /> Sifariş</>}
-          </button>
-        </div>
+        <button
+          onClick={onPlaceOrder}
+          disabled={isEmpty || submitting}
+          className="w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-25"
+          style={!isEmpty && !submitting ? { background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', color: '#000', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' } : lightMode ? { background: '#f3f4f6', color: '#9ca3af' } : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.4)' }}
+        >
+          {submitting ? 'Göndərilir...' : <><Send size={16} /> Sifariş</>}
+        </button>
       </div>
     </div>
   );

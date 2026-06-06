@@ -53,10 +53,10 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
       </div>
 
       {/* Categories */}
-      <div className="flex gap-1.5 overflow-x-auto flex-shrink-0 pb-2 mb-2">
+      <div className="flex gap-2 overflow-x-auto flex-shrink-0 pb-2 mb-3 scrollbar-none">
         <button
           onClick={() => setCategoryFilter(null)}
-          className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold tracking-wider transition-all ${
+          className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold tracking-wider transition-all ${
             !categoryFilter
               ? lightMode ? 'bg-gray-800 text-white' : 'bg-white text-black'
               : lightMode ? 'bg-gray-100 text-gray-500 hover:text-gray-700' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
@@ -68,7 +68,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
           <button
             key={c.id}
             onClick={() => setCategoryFilter(c.id === categoryFilter ? null : c.id)}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold tracking-wider whitespace-nowrap transition-all ${
+            className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
               categoryFilter === c.id
                 ? lightMode ? 'bg-gray-800 text-white' : 'bg-white text-black'
                 : lightMode ? 'bg-gray-100 text-gray-500 hover:text-gray-700' : 'bg-white/[0.06] text-white/50 hover:text-white/80'

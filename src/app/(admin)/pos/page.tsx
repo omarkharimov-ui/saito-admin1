@@ -273,7 +273,17 @@ export default function POSPage() {
 
               {/* Tables */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 pt-3">
-                {activeFloor ? (
+                {pos.loading && pos.tables.length === 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <div key={i} className={`rounded-2xl border p-4 ${lightMode ? 'bg-white border-gray-200' : 'bg-[#141414] border-white/[0.06]'}`}>
+                        <div className={`h-4 w-12 rounded-full animate-pulse mb-3 ${lightMode ? 'bg-gray-200' : 'bg-white/10'}`} />
+                        <div className={`h-3 w-20 rounded-full animate-pulse mb-2 ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
+                        <div className={`h-3 w-16 rounded-full animate-pulse ${lightMode ? 'bg-gray-100' : 'bg-white/5'}`} />
+                      </div>
+                    ))}
+                  </div>
+                ) : activeFloor ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
                     {activeFloor.tables.map(table => (
                       <TableCard
@@ -316,7 +326,6 @@ export default function POSPage() {
                   onUpdateQty={pos.updateCartItemQty}
                   onRemove={pos.removeCartItem}
                   onPlaceOrder={handlePlaceOrder}
-                  onSaveDraft={pos.saveCart}
                   onClear={pos.clearCart}
                   onBack={pos.backToFloor}
                   submitting={submitting}

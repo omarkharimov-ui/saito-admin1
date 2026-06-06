@@ -8,6 +8,9 @@ import { toast } from 'react-hot-toast';
 import { inputCls } from './_shared';
 import MobileModal from '@/components/ui/MobileModal';
 
+const SUPABASE_URL = 'https://jbxmlnsicbfkbsatnoej.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpieG1sbnNpY2Jma2JzYXRub2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MDk5NzMsImV4cCI6MjA5MjA4NTk3M30.5voWlyQ40JPH8QHDCLjEuCwWPyPUSHyvChkKsp6Kaps';
+
 type FloorRow = { id: string; table_number: number; floor_name: string; sort_order: number };
 
 type FloorGroup = {
@@ -30,17 +33,29 @@ const FloorsTab = () => {
     loadAll();
   }, []);
 
+  const supabaseFetch = (path: string, options?: RequestInit) =>
+    fetch(`${SUPABASE_URL}${path}`, {
+      ...options,
+      headers: {
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${ANON_KEY}`,
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+
   const loadAll = async () => {
     try {
-      const [{ data: floorData, error }, { data: settings }] = await Promise.all([
-        supabase.from('table_floors').select('*').order('sort_order'),
+      const [floorsRes, settingsRes] = await Promise.all([
+        supabaseFetch('/rest/v1/table_floors?select=*&order=sort_order.asc'),
         supabase.from('settings').select('qr_table_count').maybeSingle(),
       ]);
-      if (error) { console.error(error); return; }
+      const floorData = floorsRes.ok ? await floorsRes.json() : [];
+      const settings = settingsRes.data;
       if (settings?.qr_table_count) setMaxTable(settings.qr_table_count);
 
       const groups = new Map<string, FloorGroup>();
-      if (floorData) {
+      if (Array.isArray(floorData)) {
         for (const row of floorData as FloorRow[]) {
           if (!groups.has(row.floor_name)) {
             groups.set(row.floor_name, { name: row.floor_name, sort_order: row.sort_order, tables: [], ids: {} });
@@ -73,9 +88,10 @@ const FloorsTab = () => {
     if (!deleteTarget) return;
     const { idx } = deleteTarget;
     const floor = floors[idx];
-    const ids = Object.values(floor.ids).filter(Boolean);
+    const ids = Object.values(floor.ids).filter(Boolean) as string[];
     if (ids.length > 0) {
-      await supabase.from('table_floors').delete().in('id', ids);
+      const idsParam = ids.map(id => `"${id}"`).join(',');
+      await supabaseFetch(`/rest/v1/table_floors?id=in.(${idsParam})`, { method: 'DELETE' });
     }
     const next = floors.filter((_, i) => i !== idx);
     setFloors(next.map((f, i) => ({ ...f, sort_order: i })));
@@ -113,7 +129,7 @@ const FloorsTab = () => {
     const floor = floors[idx];
     const rowId = floor.ids[tableNum];
     if (rowId) {
-      await supabase.from('table_floors').delete().eq('id', rowId);
+      await supabaseFetch(`/rest/v1/table_floors?id=eq.${rowId}`, { method: 'DELETE' });
     }
     const next = [...floors];
     next[idx] = {
@@ -130,10 +146,13 @@ const FloorsTab = () => {
     setSaving(true);
     try {
       // Step 1: delete ALL existing rows
-      const { error: delAllErr } = await supabase.from('table_floors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (delAllErr) throw new Error(delAllErr.message);
+      const delRes = await supabaseFetch(
+        '/rest/v1/table_floors?id=not.eq.00000000-0000-0000-0000-000000000000',
+        { method: 'DELETE' }
+      );
+      if (!delRes.ok) throw new Error('DELETE failed: ' + (await delRes.text()));
 
-      // Step 2: insert current state
+      // Step 2: insert current state (bulk)
       const rows: { table_number: number; floor_name: string; sort_order: number }[] = [];
       for (const floor of floors) {
         if (floor.tables.length === 0) {
@@ -146,8 +165,11 @@ const FloorsTab = () => {
       }
 
       if (rows.length > 0) {
-        const { error: insErr } = await supabase.from('table_floors').insert(rows);
-        if (insErr) throw new Error(insErr.message);
+        const insRes = await supabaseFetch('/rest/v1/table_floors', {
+          method: 'POST',
+          body: JSON.stringify(rows),
+        });
+        if (!insRes.ok) throw new Error('INSERT failed: ' + (await insRes.text()));
       }
 
       setDirty(false);

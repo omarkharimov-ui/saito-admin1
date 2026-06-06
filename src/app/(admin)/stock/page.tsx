@@ -10,6 +10,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import type {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,
@@ -109,6 +110,7 @@ type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | 'audit' | 'history' |
 interface ActiveModal { mode: ModalMode; row?: InventoryStatusRow }
 
 export default function StockPage() {
+  const { lightMode } = useTheme();
   const [data, setData]       = useState<InventoryDashboardData & { alerts: LowStockAlert[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal]     = useState<ActiveModal>({ mode: null });
@@ -733,7 +735,7 @@ export default function StockPage() {
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setOpenActionsId(null)} />
                           <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-xl overflow-hidden"
-                            style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}>
+                            style={{ background: lightMode ? '#ffffff' : '#141414', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 12px 40px rgba(0,0,0,0.08)' : '0 12px 40px rgba(0,0,0,0.6)' }}>
                             <button onClick={() => { setModal({ mode: 'stock_in', row }); setOpenActionsId(null); }}
                               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
                               <TrendingUp size={13} className="text-emerald-400" /> Mal Girişi
@@ -796,7 +798,7 @@ export default function StockPage() {
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setOpenActionsId(null)} />
                             <div className="absolute right-0 -top-1 z-50 min-w-[140px] rounded-xl overflow-hidden translate-y-[-100%]"
-                              style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}>
+                              style={{ background: lightMode ? '#ffffff' : '#141414', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 12px 40px rgba(0,0,0,0.08)' : '0 12px 40px rgba(0,0,0,0.6)' }}>
                               <button onClick={() => { setModal({ mode: 'stock_in', row }); setOpenActionsId(null); }}
                                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
                                 <TrendingUp size={13} className="text-emerald-400" /> Mal Girişi
@@ -1164,7 +1166,7 @@ export default function StockPage() {
             <motion.div
               variants={modalV} initial="hidden" animate="show" exit="exit"
               className="relative z-10 w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden"
-              style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
+              style={{ background: lightMode ? '#ffffff' : '#0e0e0e', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 32px 80px rgba(0,0,0,0.12)' : '0 32px 80px rgba(0,0,0,0.7)' }}
               onClick={e => e.stopPropagation()}
             >
               {/* Drag handle (mobile) */}

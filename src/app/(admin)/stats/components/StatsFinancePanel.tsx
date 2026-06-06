@@ -9,6 +9,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,6 +106,7 @@ export default function StatsFinancePanel({
   grossProfit, netProfit, foodCostPct,
   topProfitableItems, financeChartData, loading,
 }: Props) {
+  const { lightMode } = useTheme();
   const health = foodCostHealth(foodCostPct);
   const markupOverall = totalFoodCost > 0
     ? Math.round(((totalRevenue - totalFoodCost) / totalFoodCost) * 100)

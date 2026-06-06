@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import type { Order, OrderItem, Product, ManualItem } from '../types';
 import { ReceiptModal } from './ReceiptModal';
 import { CustomerSelect } from './CustomerSelect';
@@ -35,6 +36,7 @@ export const OrderModal = ({
   allOrders = [], onOrdersUpdate, inline = false,
 }: OrderModalProps) => {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
 
   // Get localized product name from flat columns
   const getProductName = (item: OrderItem): string => {
@@ -946,7 +948,7 @@ export const OrderModal = ({
         {/* ── MOBILE SUMMARY OVERLAY ── */}
         {order.status !== 'paid' && mobileTab === 'summary' && (
           <div className="md:hidden absolute inset-0 z-30 flex flex-col rounded-t-[28px] overflow-hidden"
-            style={{ background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}>
+            style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}>
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
               <div className="w-10 h-1 rounded-full bg-white/15" />
             </div>
@@ -1251,7 +1253,7 @@ export const OrderModal = ({
     return (
       <>
       <div
-        style={{ background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
+        style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
         className="rounded-2xl border border-white/[0.07] shadow-lg flex flex-col overflow-hidden h-full"
       >
         {modalContent}

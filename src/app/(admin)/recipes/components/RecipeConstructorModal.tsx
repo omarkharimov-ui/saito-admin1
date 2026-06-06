@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Product {
   id: string;
@@ -46,6 +47,7 @@ interface RecipeConstructorModalProps {
 }
 
 export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId }: RecipeConstructorModalProps) {
+  const { lightMode } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [selectedProductId, setSelectedProductId] = useState(editProductId || '');
@@ -257,7 +259,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
           <motion.div
             variants={modalV} initial="hidden" animate="show" exit="exit"
             className="relative z-10 w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden max-h-[90vh]"
-            style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
+            style={{ background: lightMode ? '#ffffff' : '#0e0e0e', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 32px 80px rgba(0,0,0,0.12)' : '0 32px 80px rgba(0,0,0,0.7)' }}
             onClick={e => e.stopPropagation()}
           >
             <div className="sm:hidden flex justify-center pt-3 pb-1">

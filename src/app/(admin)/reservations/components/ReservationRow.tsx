@@ -4,6 +4,7 @@ import React from 'react';
 import { CheckCircle, XCircle, Calendar, Users, Phone, Clock, Gift, CakeSlice, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import { Reservation } from '@/types';
 
 interface Props {
@@ -34,6 +35,7 @@ const isTomorrowDate = (date: string) => {
 
 export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete, selectionMode, selected, onToggleSelection }: Props) => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const isTomorrow = isTomorrowDate(res.date);
   const NoteIcon = res.note ? getNoteIcon(res.note) : null;
 
@@ -53,7 +55,7 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleSelection?.(res.id); }}
               className="flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-all mt-1"
-              style={{ background: selected ? '#007AFF' : 'rgba(255,255,255,0.06)', border: selected ? '2px solid #007AFF' : '2px solid rgba(255,255,255,0.2)' }}
+              style={{ background: selected ? '#007AFF' : (lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.06)'), border: selected ? '2px solid #007AFF' : (lightMode ? '2px solid #d1d5db' : '2px solid rgba(255,255,255,0.2)') }}
               aria-pressed={selected}
             >
               {selected && (
@@ -146,6 +148,7 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
 
 export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete, selectionMode, selected, onToggleSelection }: Props) => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const isTomorrow = isTomorrowDate(res.date);
   const NoteIcon = res.note ? getNoteIcon(res.note) : null;
   const dateStr = new Date(res.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -166,7 +169,7 @@ export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, 
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleSelection?.(res.id); }}
               className="flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-all"
-              style={{ background: selected ? '#007AFF' : 'rgba(255,255,255,0.06)', border: selected ? '2px solid #007AFF' : '2px solid rgba(255,255,255,0.2)' }}
+              style={{ background: selected ? '#007AFF' : (lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.06)'), border: selected ? '2px solid #007AFF' : (lightMode ? '2px solid #d1d5db' : '2px solid rgba(255,255,255,0.2)') }}
               aria-pressed={selected}
             >
               {selected && (

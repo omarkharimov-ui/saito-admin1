@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Trash2, Edit3, X, Loader2, Percent } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface WasteStandard {
   id: string;
@@ -30,6 +31,7 @@ const modalV = {
 };
 
 export default function WasteStandardsPage() {
+  const { lightMode } = useTheme();
   const [data, setData] = useState<WasteStandard[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -334,7 +336,7 @@ export default function WasteStandardsPage() {
               <motion.div
                 variants={modalV} initial="hidden" animate="show" exit="exit"
                 className="relative z-10 w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden"
-                style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
+                style={{ background: lightMode ? '#ffffff' : '#0e0e0e', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 32px 80px rgba(0,0,0,0.12)' : '0 32px 80px rgba(0,0,0,0.7)' }}
                 onClick={e => e.stopPropagation()}
               >
                 <div className="sm:hidden flex justify-center pt-3 pb-1">

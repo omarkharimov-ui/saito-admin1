@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Plus, Edit3, Trash2, Loader2, Tag, X, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import { useModalFormDirty } from '@/hooks/useFormDirty';
 import { Category } from '@/types';
 
@@ -41,6 +42,7 @@ export function ProductCategoryModal({
   onEditCategory, onDeleteCategory, getCategoryName,
 }: ProductCategoryModalProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [slugManuallyEdited, setSlugManuallyEdited] = React.useState(false);
 
   // Use global hook for dirty checking
@@ -62,7 +64,7 @@ export function ProductCategoryModal({
             initial={{ opacity: 0, scale: 0.92, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 30 }} transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
             className="relative w-full max-w-full sm:max-w-3xl backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden max-h-[90vh] flex flex-col"
-            style={{ background: 'linear-gradient(#141414,#111111) padding-box, linear-gradient(135deg,rgba(255,255,255,0.07) 0%,rgba(255,255,255,0.02) 100%) border-box', border: '1px solid transparent' }}
+            style={{ background: lightMode ? '#ffffff' : 'linear-gradient(#141414,#111111) padding-box, linear-gradient(135deg,rgba(255,255,255,0.07) 0%,rgba(255,255,255,0.02) 100%) border-box', border: lightMode ? '1px solid #e5e7eb' : '1px solid transparent' }}
           >
             <div className="px-8 md:px-12 pt-7 pb-5 border-b border-white/[0.06] flex items-center justify-between shrink-0 bg-white/[0.02]">
               <div>

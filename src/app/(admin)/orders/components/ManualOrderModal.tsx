@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import type { Product, ManualItem, ProductVariant } from '../types';
 
 const fmt = (n: number) => n.toFixed(2);
@@ -57,6 +58,7 @@ function PCard({ p, cart, onAdd, language }: { p: Product; cart: number; onAdd: 
 
 export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCreated }: ManualOrderModalProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const searchRef = useRef<HTMLInputElement>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -206,7 +208,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
 
   return (
     <>
-      <div style={{ background: 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
+      <div style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
         className="rounded-2xl border border-white/[0.06] select-none">
 
         {/* ─── HEADER ─── */}

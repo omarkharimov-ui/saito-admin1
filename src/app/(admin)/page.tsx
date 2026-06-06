@@ -14,8 +14,10 @@ import DashboardProductModal from './widgets/DashboardProductModal';
 import { HappyHourModal, DeleteProductModal } from './widgets/DashboardModals';
 import { toast } from 'react-hot-toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 function SenseiSleepCard({ openingHours }: { openingHours: string }) {
+  const { lightMode } = useTheme();
   const [countdown, setCountdown] = useState<{ h: number; m: number; s: number } | null>(null);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
         <div className="relative shrink-0 sensei-icon-calm">
           <div
             className="relative w-20 h-20 md:w-16 md:h-16 rounded-2xl flex items-center justify-center"
-            style={{ background: 'rgba(255,255,255,0.04)' }}
+            style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.04)' }}
           >
             {/* Animated Brain Circuit */}
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'relative', zIndex: 1 }}>
@@ -75,10 +77,10 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
         <div className="flex-1 min-w-0">
           {/* Header row */}
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-black tracking-[0.4em] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            <span className="text-[10px] font-black tracking-[0.4em] uppercase" style={{ color: lightMode ? '#9ca3af' : 'rgba(255,255,255,0.3)' }}>
               SENSEI AI
             </span>
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.25)' }} />
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: lightMode ? '#d1d5db' : 'rgba(255,255,255,0.25)' }} />
             <span className="text-[10px] font-bold tracking-[0.25em] uppercase text-white/40">
               Yuxu rejimi
             </span>
@@ -90,11 +92,11 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
               <p className="text-white/80 text-base leading-snug mb-2.5">
                 <span className="font-serif italic text-white/50">Sensei </span>
                 {countdown.h > 0 && (
-                  <span className="font-mono font-black text-lg" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                  <span className="font-mono font-black text-lg" style={{ color: lightMode ? '#111827' : 'rgba(255,255,255,0.85)' }}>
                     {countdown.h}<span className="text-sm font-bold text-white/40 ml-0.5">saat </span>
                   </span>
                 )}
-                <span className="font-mono font-black text-lg" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                <span className="font-mono font-black text-lg" style={{ color: lightMode ? '#111827' : 'rgba(255,255,255,0.85)' }}>
                   {String(countdown.m).padStart(2,'0')}<span className="text-sm font-bold text-white/40 ml-0.5">dəq </span>
                 </span>
                 <span className="font-mono font-bold text-base text-white/50">
@@ -104,7 +106,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
               </p>
               {openTime && (
                 <div className="flex items-center gap-1.5">
-                  <div className="w-1 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.25)' }} />
+                  <div className="w-1 h-1 rounded-full" style={{ background: lightMode ? '#d1d5db' : 'rgba(255,255,255,0.25)' }} />
                   <span className="text-[11px] text-white/30">
                     Açılış: <span className="font-mono font-bold text-white/60">{openTime}</span>
                   </span>
@@ -124,6 +126,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
 
 const AdminDashboard = () => {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const r = localStorage.getItem('saito_products_cache');
@@ -651,13 +654,13 @@ const AdminDashboard = () => {
 
       {/* AI Suggestion Section - Yoji Məsləhəti (HeroBanner və Canlı Masa Planı arasında) */}
       {!settingsLoaded ? (
-        <div className="rounded-2xl h-[96px]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }} />
+        <div className="rounded-2xl h-[96px]" style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.03)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }} />
       ) : isWithinBusinessHours() ? (
         <>
           {/* DESKTOP — Yoji AI Advice Card */}
           <div
             className="hidden lg:block p-8 relative z-10 group rounded-2xl overflow-hidden flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+            style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.02)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}
           >
             <div className="flex items-start gap-6 relative z-0">
               <div className="relative shrink-0" style={{ width: 96, height: 96 }}>

@@ -4,6 +4,7 @@ import React from 'react';
 import { TrendingUp, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Forecast {
   predictedRevenue: number;
@@ -24,6 +25,7 @@ interface Props {
 
 const StatsAIForecast = ({ forecast, anomalies }: Props) => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
 
   if (!forecast && anomalies.length === 0) return null;
 
@@ -34,7 +36,7 @@ const StatsAIForecast = ({ forecast, anomalies }: Props) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="border border-gold/20 p-6 rounded-2xl relative overflow-hidden"
-          style={{ background: 'radial-gradient(ellipse at 20% 20%, rgba(212,175,55,0.12) 0%, rgba(212,175,55,0.04) 40%, transparent 70%), radial-gradient(ellipse at 80% 80%, rgba(212,175,55,0.06) 0%, transparent 50%), #0d0d0d' }}
+          style={{ background: lightMode ? 'radial-gradient(ellipse at 20% 20%, rgba(184,134,11,0.06) 0%, rgba(184,134,11,0.02) 40%, transparent 70%), #f9fafb' : 'radial-gradient(ellipse at 20% 20%, rgba(212,175,55,0.12) 0%, rgba(212,175,55,0.04) 40%, transparent 70%), radial-gradient(ellipse at 80% 80%, rgba(212,175,55,0.06) 0%, transparent 50%), #0d0d0d' }}
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-gold/20 rounded-lg">

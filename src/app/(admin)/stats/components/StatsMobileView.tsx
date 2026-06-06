@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import StatsSenseiPanel from './StatsSenseiPanel';
 
 interface ChartPoint { date: string; value: number; }
@@ -44,6 +45,7 @@ const FILTERS = ['today', 'week', 'month', '3months', 'year'] as const;
 
 export default function StatsMobileView({ stats, forecast, anomalies, timeFilter, loading, onTimeFilterChange, aiAnalysis, aiDisplayed, aiLoading, aiClosing, logoFlash, onFetchAiAnalysis, onCloseAiAnalysis }: Props) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [activeSection, setActiveSection] = useState<'overview' | 'products' | 'hours' | 'sensei'>('overview');
   
   // Add missing state for mobile deep scan functionality
@@ -100,7 +102,7 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
     <div className="flex flex-col pb-24">
 
       {/* ── STICKY HEADER ── */}
-      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-white/[0.06] px-4 pt-4 pb-3" style={{ background: 'rgba(10,10,10,0.95)' }}>
+      <div className="sticky top-0 z-20 backdrop-blur-xl border-b border-white/[0.06] px-4 pt-4 pb-3" style={{ background: lightMode ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,10,0.95)' }}>
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-serif font-bold text-white">{t('statistics_title')}</h1>
         </div>

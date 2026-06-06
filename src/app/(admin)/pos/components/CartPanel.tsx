@@ -112,13 +112,13 @@ export function CartPanel({
       <div className={`flex-shrink-0 pt-3 border-t space-y-2.5 ${lightMode ? 'border-gray-200/80' : 'border-white/[0.06]'}`}>
         <div className="flex items-center justify-between px-1">
           <span className={`text-xs uppercase tracking-widest font-semibold ${lightMode ? 'text-gray-500' : 'text-white/30'}`}>{t('total_label')}</span>
-          <span className="text-xl font-black tracking-tight tabular-nums text-gold">{total.toFixed(2)} ₼</span>
+          <span className={`text-xl font-black tracking-tight tabular-nums ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{total.toFixed(2)} ₼</span>
         </div>
         <button
           onClick={onPlaceOrder}
           disabled={isEmpty || submitting}
           className="w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-25"
-          style={!isEmpty && !submitting ? { background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', color: '#000', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' } : lightMode ? { background: '#f3f4f6', color: '#9ca3af' } : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.4)' }}
+          style={!isEmpty && !submitting ? (lightMode ? { background: '#111827', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' } : { background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', color: '#000', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }) : lightMode ? { background: '#f3f4f6', color: '#9ca3af' } : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.4)' }}
         >
           {submitting ? 'Göndərilir...' : <><Send size={16} /> Sifariş</>}
         </button>

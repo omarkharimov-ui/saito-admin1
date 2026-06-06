@@ -38,6 +38,12 @@
   --z-top:     9999;
 }
 
+/* ── Light mode: darker gold for readability on white ── */
+[data-light-mode="true"] {
+  --gold:           #B8860B;
+  --gold-hover:     #996F0A;
+}
+
 /* ── Background — ALL layers nailed to #0a0a0a ── */
 html,
 body {

@@ -237,7 +237,7 @@ export default function POSPage() {
                     {mergeMode && (
                       <button onClick={() => { pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
                         disabled={selectedForMerge.length < 2}
-                        className="px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold disabled:opacity-30 transition-all">
+                        className={`px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-30 transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
                         {selectedForMerge.length} masanı birləşdir
                       </button>
                     )}
@@ -362,9 +362,9 @@ export default function POSPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-lg font-black text-gold">{table.total_amount.toFixed(2)} ₼</span>
+                        <span className={`text-lg font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{table.total_amount.toFixed(2)} ₼</span>
                         <button onClick={() => openPayment(table.table_number, table.total_amount, table.order_ids)}
-                          className="px-4 py-2.5 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 active:scale-95 transition-all">
+                          className={`px-4 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700 hover:bg-amber-700 shadow-sm' : 'bg-gold/10 border border-gold/20 text-gold hover:bg-gold/20'}`}>
                           Ödə
                         </button>
                       </div>
@@ -463,7 +463,7 @@ export default function POSPage() {
                 </div>
 
                 <div className="text-center mb-4">
-                  <p className="text-3xl font-black tracking-tight text-gold">{payAmount.toFixed(2)} ₼</p>
+                  <p className={`text-3xl font-black tracking-tight ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{payAmount.toFixed(2)} ₼</p>
                 </div>
 
                 <div className="flex gap-2 mb-4">
@@ -505,7 +505,7 @@ export default function POSPage() {
 
                 <button onClick={handleCloseBill} disabled={submitting}
                   className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-30"
-                  style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', color: '#000', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}>
+                  style={lightMode ? { background: '#111827', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' } : { background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', color: '#000', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}>
                   {submitting ? 'Gözləyin...' : <><CheckCircle size={18} /> Hesabı Bağla</>}
                 </button>
               </div>

@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Save, Loader2, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { GsLoader, inputCls } from './_shared';
+import { inputCls } from './_shared';
+import MobileModal from '@/components/ui/MobileModal';
 
 type FloorRow = { id: string; table_number: number; floor_name: string; sort_order: number };
 
@@ -13,24 +14,23 @@ type FloorGroup = {
   name: string;
   sort_order: number;
   tables: number[];
-  ids: Record<number, string>; // table_number -> row id
+  ids: Record<number, string>;
 };
 
 const FloorsTab = () => {
   const { t } = useLanguage();
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [floors, setFloors] = useState<FloorGroup[]>([]);
   const [maxTable, setMaxTable] = useState(12);
   const [newFloorName, setNewFloorName] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ idx: number; name: string } | null>(null);
 
   useEffect(() => {
     loadAll();
   }, []);
 
   const loadAll = async () => {
-    setLoading(true);
     try {
       const [floorsRes, settingsRes] = await Promise.all([
         fetch('/api/pos/floors'),
@@ -55,12 +55,10 @@ const FloorsTab = () => {
       setFloors(Array.from(groups.values()).sort((a, b) => a.sort_order - b.sort_order));
     } catch (e) {
       console.error('loadAll error:', e);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const addFloor = async () => {
+  const addFloor = () => {
     const name = newFloorName.trim();
     if (!name) return;
     if (floors.some(f => f.name === name)) {
@@ -73,7 +71,9 @@ const FloorsTab = () => {
     setDirty(true);
   };
 
-  const removeFloor = async (idx: number) => {
+  const confirmRemoveFloor = async () => {
+    if (!deleteTarget) return;
+    const { idx } = deleteTarget;
     const floor = floors[idx];
     const ids = Object.values(floor.ids).filter(Boolean);
     if (ids.length > 0) {
@@ -82,6 +82,7 @@ const FloorsTab = () => {
     const next = floors.filter((_, i) => i !== idx);
     setFloors(next.map((f, i) => ({ ...f, sort_order: i })));
     setDirty(true);
+    setDeleteTarget(null);
   };
 
   const moveFloor = (idx: number, dir: -1 | 1) => {
@@ -157,10 +158,10 @@ const FloorsTab = () => {
     }
   };
 
-  if (loading) return <GsLoader />;
+  const totalAssigned = floors.reduce((s, f) => s + f.tables.length, 0);
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-3xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -172,51 +173,54 @@ const FloorsTab = () => {
         </div>
         {dirty && (
           <button onClick={saveAll} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-gold/20 border border-gold/30 rounded-xl text-gold text-xs font-bold tracking-wider hover:bg-gold/30 transition-all">
+            className="flex items-center gap-2 px-4 py-2 bg-gold/20 border border-gold/30 rounded-xl text-gold text-xs font-bold tracking-wider hover:bg-gold/30 transition-all disabled:opacity-40">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             {t('save_settings')}
           </button>
         )}
       </div>
 
+      {/* Stats bar */}
+      <div className="flex items-center gap-4 text-[11px]">
+        <span className="text-white/40">Cəmi <strong className="text-white/70">{maxTable}</strong> masa</span>
+        <span className="text-white/20">·</span>
+        <span className="text-yellow-400/70"><strong className="text-yellow-400">{totalAssigned}</strong> təyin edilib</span>
+        <span className="text-white/20">·</span>
+        <span className="text-white/30">{maxTable - totalAssigned} boş</span>
+      </div>
+
       {/* Floor cards */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {floors.map((floor, idx) => (
-          <div key={floor.name} className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 space-y-4">
+          <div key={floor.name} className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
             {/* Floor header */}
-            <div className="flex items-center gap-3">
-              <GripVertical size={16} className="text-white/20 flex-shrink-0" />
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.05]">
+              <GripVertical size={14} className="text-white/20 flex-shrink-0" />
               <input value={floor.name} onChange={e => updateFloorName(idx, e.target.value)}
-                className="flex-1 bg-black/50 border border-white/20 px-3 py-2 rounded-xl text-sm text-white outline-none focus:border-gold/40 transition-all" />
-              <div className="flex items-center gap-1">
+                className="flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-white/20" />
+              <span className="text-[10px] text-white/30 bg-white/[0.06] px-2 py-0.5 rounded-md">{floor.tables.length} masa</span>
+              <div className="flex items-center gap-0.5">
                 <button onClick={() => moveFloor(idx, -1)} disabled={idx === 0}
-                  className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20 transition-all">
-                  <ChevronUp size={14} />
+                  className="w-6 h-6 rounded-md bg-white/[0.06] flex items-center justify-center text-white/30 hover:text-white disabled:opacity-20 transition-all">
+                  <ChevronUp size={12} />
                 </button>
                 <button onClick={() => moveFloor(idx, 1)} disabled={idx === floors.length - 1}
-                  className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20 transition-all">
-                  <ChevronDown size={14} />
+                  className="w-6 h-6 rounded-md bg-white/[0.06] flex items-center justify-center text-white/30 hover:text-white disabled:opacity-20 transition-all">
+                  <ChevronDown size={12} />
                 </button>
               </div>
-              <button onClick={() => removeFloor(idx)}
-                className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400/60 hover:bg-red-500/20 hover:text-red-400 transition-all">
-                <Trash2 size={13} />
+              <button onClick={() => setDeleteTarget({ idx, name: floor.name })}
+                className="w-6 h-6 rounded-md bg-red-500/10 flex items-center justify-center text-red-400/50 hover:bg-red-500/20 hover:text-red-400 transition-all">
+                <Trash2 size={12} />
               </button>
             </div>
 
-            {/* Assigned tables */}
-            <div className="flex flex-wrap gap-1.5">
-              {floor.tables.map(tn => (
-                <span key={tn} className="px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-[11px] font-semibold text-white/60">
-                  #{tn}
-                </span>
-              ))}
+            {/* Grid */}
+            <div className="px-4 py-3">
+              <TablePicker maxTable={maxTable} floorTables={floor.tables}
+                onSelect={n => addTableToFloor(idx, n)}
+                onDeselect={n => removeTableFromFloor(idx, n)} />
             </div>
-
-            {/* Quick-select table grid */}
-            <TablePicker maxTable={maxTable} floorTables={floor.tables}
-              onSelect={n => addTableToFloor(idx, n)}
-              onDeselect={n => removeTableFromFloor(idx, n)} />
           </div>
         ))}
       </div>
@@ -225,14 +229,33 @@ const FloorsTab = () => {
       <div className="flex items-center gap-3">
         <input value={newFloorName} onChange={e => setNewFloorName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && addFloor()}
-          placeholder="Yeni zal/mərtəbə adı..."
+          placeholder="Yeni zal / mərtəbə adı..."
           className={`${inputCls} flex-1`} />
         <button onClick={addFloor} disabled={!newFloorName.trim()}
-          className="flex items-center gap-2 px-5 py-3 bg-gold/20 border border-gold/30 rounded-xl text-gold text-xs font-bold tracking-wider hover:bg-gold/30 transition-all disabled:opacity-30">
+          className="flex items-center gap-2 px-5 py-3 bg-gold/15 border border-gold/25 rounded-xl text-gold text-xs font-bold tracking-wider hover:bg-gold/25 transition-all disabled:opacity-30">
           <Plus size={15} />
           Əlavə et
         </button>
       </div>
+
+      {/* Delete confirmation */}
+      <MobileModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+        <div className="flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+            <Trash2 size={32} className="text-red-500" />
+          </div>
+          <h3 className="text-xl font-serif font-bold text-white mb-2">{t('delete')}</h3>
+          <p className="text-white/60 text-sm mb-6">"{deleteTarget?.name}" - {t('confirm_delete')}</p>
+          <div className="flex gap-3 w-full">
+            <button onClick={() => setDeleteTarget(null)} className="flex-1 py-3 rounded-xl border border-white/10 text-white/60 text-sm font-medium">
+              {t('no')}
+            </button>
+            <button onClick={confirmRemoveFloor} className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-semibold flex items-center justify-center gap-2">
+              <Trash2 size={16} />{t('yes_delete')}
+            </button>
+          </div>
+        </div>
+      </MobileModal>
     </div>
   );
 };

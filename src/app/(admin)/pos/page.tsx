@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -37,6 +37,7 @@ export default function POSPage() {
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [floorDropdownOpen, setFloorDropdownOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const posRef = useRef<HTMLDivElement>(null);
 
   /* ── Payment modal ── */
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -68,7 +69,7 @@ export default function POSPage() {
   /* ── Fullscreen ── */
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+      posRef.current?.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
     } else {
       document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
     }
@@ -162,7 +163,7 @@ export default function POSPage() {
   }, [actionSheetTable, openPayment]);
 
   return (
-    <div className={`h-full w-full overflow-hidden flex flex-col ${lightMode ? 'bg-gray-50 text-gray-900' : 'bg-[#080808] text-white'}`}>
+    <div ref={posRef} className={`h-full w-full overflow-hidden flex flex-col ${lightMode ? 'bg-gray-50 text-gray-900' : 'bg-[#080808] text-white'}`}>
       {/* ── View container ── */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">

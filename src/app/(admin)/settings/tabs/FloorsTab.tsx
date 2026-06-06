@@ -120,24 +120,34 @@ const FloorsTab = () => {
   const saveAll = async () => {
     setSaving(true);
     try {
-      // Delete all existing rows and re-insert current state
-      const { data: existing } = await supabase.from('table_floors').select('id');
-      if (existing && existing.length > 0) {
-        await supabase.from('table_floors').delete().in('id', existing.map(r => r.id));
-      }
+      const currentNames = floors.map(f => f.name);
 
-      const rows: { table_number: number; floor_name: string; sort_order: number }[] = [];
-      for (const floor of floors) {
-        if (floor.tables.length === 0) {
-          rows.push({ table_number: 0, floor_name: floor.name, sort_order: floor.sort_order });
-        } else {
-          for (const tableNum of floor.tables) {
-            rows.push({ table_number: tableNum, floor_name: floor.name, sort_order: floor.sort_order });
-          }
+      // Delete ALL rows whose floor_name is not in the current list
+      // (handles removed floors + old data)
+      const { data: allRows } = await supabase.from('table_floors').select('id, floor_name');
+      if (allRows) {
+        const toDelete = allRows.filter(r => !currentNames.includes(r.floor_name)).map(r => r.id);
+        if (toDelete.length > 0) {
+          await supabase.from('table_floors').delete().in('id', toDelete);
         }
       }
-      if (rows.length > 0) {
-        await supabase.from('table_floors').insert(rows);
+
+      // Per-floor: delete old rows, then insert current state
+      for (const floor of floors) {
+        // Remove existing rows for this floor
+        await supabase.from('table_floors').delete().eq('floor_name', floor.name);
+        // Insert current state
+        if (floor.tables.length === 0) {
+          await supabase.from('table_floors').insert({
+            table_number: 0, floor_name: floor.name, sort_order: floor.sort_order,
+          });
+        } else {
+          for (const tableNum of floor.tables) {
+            await supabase.from('table_floors').insert({
+              table_number: tableNum, floor_name: floor.name, sort_order: floor.sort_order,
+            });
+          }
+        }
       }
 
       setDirty(false);

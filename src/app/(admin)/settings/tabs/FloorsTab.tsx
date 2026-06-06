@@ -31,25 +31,33 @@ const FloorsTab = () => {
 
   const loadAll = async () => {
     setLoading(true);
-    const [{ data: floorData }, { data: settings }] = await Promise.all([
-      supabase.from('table_floors').select('*').order('sort_order'),
-      supabase.from('settings').select('qr_table_count').maybeSingle(),
-    ]);
-    if (settings?.qr_table_count) setMaxTable(settings.qr_table_count);
+    try {
+      const [floorsRes, settingsRes] = await Promise.all([
+        fetch('/api/pos/floors'),
+        supabase.from('settings').select('qr_table_count').maybeSingle(),
+      ]);
+      const floorData = floorsRes.ok ? (await floorsRes.json()).floors : [];
+      const settings = settingsRes.data;
 
-    const groups = new Map<string, FloorGroup>();
-    if (floorData) {
-      for (const row of floorData as FloorRow[]) {
-        if (!groups.has(row.floor_name)) {
-          groups.set(row.floor_name, { name: row.floor_name, sort_order: row.sort_order, tables: [], ids: {} });
+      if (settings?.qr_table_count) setMaxTable(settings.qr_table_count);
+
+      const groups = new Map<string, FloorGroup>();
+      if (floorData) {
+        for (const row of floorData as FloorRow[]) {
+          if (!groups.has(row.floor_name)) {
+            groups.set(row.floor_name, { name: row.floor_name, sort_order: row.sort_order, tables: [], ids: {} });
+          }
+          const g = groups.get(row.floor_name)!;
+          g.tables.push(row.table_number);
+          g.ids[row.table_number] = row.id;
         }
-        const g = groups.get(row.floor_name)!;
-        g.tables.push(row.table_number);
-        g.ids[row.table_number] = row.id;
       }
+      setFloors(Array.from(groups.values()).sort((a, b) => a.sort_order - b.sort_order));
+    } catch (e) {
+      console.error('loadAll error:', e);
+    } finally {
+      setLoading(false);
     }
-    setFloors(Array.from(groups.values()).sort((a, b) => a.sort_order - b.sort_order));
-    setLoading(false);
   };
 
   const addFloor = async () => {

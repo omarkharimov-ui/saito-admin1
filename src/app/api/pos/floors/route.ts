@@ -8,6 +8,21 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+export async function GET() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`,
+      { headers }
+    );
+    const data = await res.json();
+    return NextResponse.json({ floors: Array.isArray(data) ? data : [] }, {
+      headers: { 'Cache-Control': 'no-store, must-revalidate' },
+    });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { floors } = await request.json();

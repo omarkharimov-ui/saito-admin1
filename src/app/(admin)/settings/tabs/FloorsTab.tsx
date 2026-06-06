@@ -65,15 +65,7 @@ const FloorsTab = () => {
     setDirty(true);
   };
 
-  const removeFloor = async (idx: number) => {
-    const floor = floors[idx];
-    const ids = Object.values(floor.ids);
-    if (ids.length > 0) {
-      await supabase.from('table_floors').delete().in('id', ids);
-    } else {
-      // Remove placeholder row (table_number = 0)
-      await supabase.from('table_floors').delete().eq('floor_name', floor.name);
-    }
+  const removeFloor = (idx: number) => {
     const next = floors.filter((_, i) => i !== idx);
     setFloors(next.map((f, i) => ({ ...f, sort_order: i })));
     setDirty(true);
@@ -120,34 +112,21 @@ const FloorsTab = () => {
   const saveAll = async () => {
     setSaving(true);
     try {
-      const currentNames = floors.map(f => f.name);
+      const payload = floors.map(f => ({
+        name: f.name,
+        sort_order: f.sort_order,
+        tables: f.tables,
+      }));
 
-      // Delete ALL rows whose floor_name is not in the current list
-      // (handles removed floors + old data)
-      const { data: allRows } = await supabase.from('table_floors').select('id, floor_name');
-      if (allRows) {
-        const toDelete = allRows.filter(r => !currentNames.includes(r.floor_name)).map(r => r.id);
-        if (toDelete.length > 0) {
-          await supabase.from('table_floors').delete().in('id', toDelete);
-        }
-      }
+      const res = await fetch('/api/pos/floors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ floors: payload }),
+      });
 
-      // Per-floor: delete old rows, then insert current state
-      for (const floor of floors) {
-        // Remove existing rows for this floor
-        await supabase.from('table_floors').delete().eq('floor_name', floor.name);
-        // Insert current state
-        if (floor.tables.length === 0) {
-          await supabase.from('table_floors').insert({
-            table_number: 0, floor_name: floor.name, sort_order: floor.sort_order,
-          });
-        } else {
-          for (const tableNum of floor.tables) {
-            await supabase.from('table_floors').insert({
-              table_number: tableNum, floor_name: floor.name, sort_order: floor.sort_order,
-            });
-          }
-        }
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Save failed');
       }
 
       setDirty(false);

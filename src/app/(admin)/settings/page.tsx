@@ -77,7 +77,7 @@ const SettingsPage = () => {
   }, [mobileTab]);
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto pb-4 lg:pb-20">
+    <div className="pb-4 lg:pb-20">
 
       {/* ── MOBILE layout ── */}
       <div className="lg:hidden px-4">

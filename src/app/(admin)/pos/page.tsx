@@ -191,11 +191,7 @@ export default function POSPage() {
         <AnimatePresence mode="wait">
           {/* ═══ FLOOR VIEW ═══ */}
           {pos.activeView === 'floor' && (
-            <motion.div
-              key="floor"
-              animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="h-full overflow-hidden flex flex-col"
-            >
+            <div className="h-full overflow-hidden flex flex-col">
               {/* Top bar */}
               <div className="flex-shrink-0 p-4 sm:p-5 pb-0">
                 <div className="flex items-center justify-between mb-4">
@@ -302,7 +298,7 @@ export default function POSPage() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* ═══ ORDER VIEW ═══ */}

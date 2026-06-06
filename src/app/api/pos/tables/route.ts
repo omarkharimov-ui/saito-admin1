@@ -80,7 +80,9 @@ export async function GET() {
 
     const allTables = floorsArr.flatMap(f => f.tables);
 
-    return NextResponse.json({ tables: allTables, floors: floorsArr });
+    return NextResponse.json({ tables: allTables, floors: floorsArr }, {
+      headers: { 'Cache-Control': 'no-store, must-revalidate' },
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

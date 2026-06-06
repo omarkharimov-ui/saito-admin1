@@ -24,7 +24,9 @@ export async function GET() {
     const products = await productsRes.json();
     const categories = await categoriesRes.json();
 
-    return NextResponse.json({ products, categories });
+    return NextResponse.json({ products, categories }, {
+      headers: { 'Cache-Control': 'no-store, must-revalidate' },
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

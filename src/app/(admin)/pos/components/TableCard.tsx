@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Clock, Users, DollarSign, Utensils } from 'lucide-react';
+import { Clock, Users, Utensils, MoreVertical } from 'lucide-react';
 import type { PosTable } from '../types';
 
 const statusConfig: Record<string, { label: string; dot: string; bg: string; border: string; text: string; glow: string }> = {
@@ -37,10 +37,11 @@ function timeSince(dateStr: string | null): string {
 }
 
 export function TableCard({
-  table, onTap, isSelected,
+  table, onTap, onAction, isSelected,
 }: {
   table: PosTable;
   onTap: () => void;
+  onAction?: () => void;
   isSelected: boolean;
 }) {
   const cfg = statusConfig[table.status] || statusConfig.empty;
@@ -51,10 +52,10 @@ export function TableCard({
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ y: -3, transition: { duration: 0.15 } }}
+      whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative flex flex-col rounded-2xl border p-4 text-left transition-all ${cfg.bg} ${cfg.border} ${isSelected ? 'ring-2 ring-white/30 shadow-xl' : ''} ${cfg.glow}`}
+      className={`relative flex flex-col rounded-2xl border p-3.5 text-left transition-all ${cfg.bg} ${cfg.border} ${isSelected ? 'ring-2 ring-white/30 shadow-xl' : ''} ${cfg.glow}`}
     >
       {/* Pulse for waiting */}
       {table.status === 'waiting_bill' && (
@@ -65,10 +66,10 @@ export function TableCard({
         />
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2.5">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black ${isSelected ? 'bg-white/20 text-white' : 'bg-white/[0.06] text-white/70'}`}>
+      {/* Header row: number + status + 3-dot */}
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-2">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base font-black ${isSelected ? 'bg-white/20 text-white' : 'bg-white/[0.06] text-white/70'}`}>
             {table.table_number}
           </div>
           <span className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${cfg.dot.replace('bg-', 'text-').replace('400', '300')} ${cfg.bg}`}>
@@ -76,12 +77,20 @@ export function TableCard({
             {cfg.label}
           </span>
         </div>
+        {onAction && (
+          <button
+            onClick={e => { e.stopPropagation(); onAction(); }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/20 hover:text-white/60 hover:bg-white/5 transition-all"
+          >
+            <MoreVertical size={14} />
+          </button>
+        )}
       </div>
 
       {/* Info */}
       {isOccupied && (
-        <div className="space-y-2 mt-1">
-          <div className="flex items-center gap-3 text-white/40">
+        <div className="space-y-1.5 mt-0.5">
+          <div className="flex items-center gap-2.5 text-white/40">
             <div className="flex items-center gap-1.5">
               <Users size={11} />
               <span className="text-[11px] font-medium tabular-nums">{table.guest_count}</span>
@@ -95,16 +104,13 @@ export function TableCard({
               <span className="text-[11px] font-medium tabular-nums">{table.order_count}</span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <DollarSign size={12} className="text-gold/60" />
-            <span className="text-sm font-black tabular-nums text-gold">{table.total_amount.toFixed(2)} ₼</span>
-          </div>
+          <div className="text-sm font-black tabular-nums text-gold">{table.total_amount.toFixed(2)} ₼</div>
         </div>
       )}
 
       {/* Empty state */}
       {!isOccupied && (
-        <div className="py-3 flex items-center justify-center">
+        <div className="py-2.5 flex items-center justify-center">
           <span className="text-[10px] uppercase tracking-[0.15em] text-white/15 font-semibold">Boş</span>
         </div>
       )}

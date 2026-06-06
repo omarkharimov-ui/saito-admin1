@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon } from 'lucide-react';
+import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
@@ -26,7 +26,6 @@ export default function POSPage() {
   const pos = usePos();
 
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
-  // For ActionSheet: store which table it was opened for
   const [actionSheetTable, setActionSheetTable] = useState<any>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
   const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
@@ -35,6 +34,9 @@ export default function POSPage() {
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
   const [transferMode, setTransferMode] = useState(false);
   const [transferTarget, setTransferTarget] = useState<number | null>(null);
+  const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
+  const [floorDropdownOpen, setFloorDropdownOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   /* ── Payment modal ── */
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -44,6 +46,17 @@ export default function POSPage() {
   const [payMethod, setPayMethod] = useState<'cash' | 'card'>('card');
   const [payTip, setPayTip] = useState(0);
 
+  const selectedFloorName = selectedFloor || pos.floors[0]?.name || 'Main';
+
+  // Auto-select first floor
+  useEffect(() => {
+    if (!selectedFloor && pos.floors.length > 0) {
+      setSelectedFloor(pos.floors[0].name);
+    }
+  }, [pos.floors, selectedFloor]);
+
+  const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
+
   /* ── Cart counts by product for badges ── */
   const cartCounts: Record<string, number> = {};
   if (pos.cart) {
@@ -51,6 +64,21 @@ export default function POSPage() {
       cartCounts[item.product_id] = (cartCounts[item.product_id] || 0) + item.quantity;
     }
   }
+
+  /* ── Fullscreen ── */
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
 
   /* ── Add product with optional modifier sheet ── */
   const handleAddProduct = useCallback((product: Product) => {
@@ -110,13 +138,14 @@ export default function POSPage() {
       }
       return;
     }
-    if (table.status === 'empty') {
-      pos.selectTable(table);
-    } else {
-      setActionSheetTable(table);
-      setActionSheetOpen(true);
-    }
+    // Direct: tap table → go to order view
+    pos.selectTable(table);
   }, [mergeMode, selectedForMerge, transferMode, transferTarget, pos]);
+
+  const handleTableAction = useCallback((table: any) => {
+    setActionSheetTable(table);
+    setActionSheetOpen(true);
+  }, []);
 
   const handleActionAddOrder = useCallback(() => {
     if (actionSheetTable) {
@@ -134,14 +163,6 @@ export default function POSPage() {
 
   return (
     <div className={`h-screen w-screen overflow-hidden flex flex-col ${lightMode ? 'bg-gray-50 text-gray-900' : 'bg-[#080808] text-white'}`}>
-      {/* ── Ambient glow ── */}
-      {!lightMode && (
-        <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
-          <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full opacity-[0.03]"
-            style={{ background: 'radial-gradient(ellipse,#D4AF37,transparent 70%)' }} />
-        </div>
-      )}
-
       {/* ── View container ── */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
@@ -150,53 +171,89 @@ export default function POSPage() {
             <motion.div
               key="floor"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="h-full overflow-y-auto p-4 sm:p-6"
+              className="h-full overflow-hidden flex flex-col"
             >
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight">POS</h1>
-                  <p className="text-xs text-white/30 mt-0.5">{pos.tables.filter(t => t.status !== 'empty').length} masa dolu · {pos.tables.length} masa</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setLightMode(!lightMode)}
-                    className={`p-2.5 rounded-xl transition-all ${lightMode ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-white/[0.06] text-white/40 hover:text-white/70'}`}>
-                    {lightMode ? <Moon size={18} /> : <Sun size={18} />}
-                  </button>
-                  {mergeMode && (
-                    <button onClick={() => { pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
-                      disabled={selectedForMerge.length < 2}
-                      className="px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold disabled:opacity-30 transition-all">
-                      {selectedForMerge.length} masanı birləşdir
+              {/* Top bar */}
+              <div className="flex-shrink-0 p-4 sm:p-5 pb-0">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">POS</h1>
+                    {/* Floor dropdown */}
+                    <div className="relative">
+                      <button onClick={() => setFloorDropdownOpen(!floorDropdownOpen)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${lightMode ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-white/[0.06] text-white/60 hover:text-white/80'}`}>
+                        {selectedFloorName} <ChevronDown size={14} className={`transition-transform ${floorDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {floorDropdownOpen && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setFloorDropdownOpen(false)} />
+                          <div className={`absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 shadow-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-[#141414] border-white/[0.08]'}`}>
+                            {pos.floors.map(f => (
+                              <button key={f.name}
+                                onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                  f.name === selectedFloorName
+                                    ? lightMode ? 'bg-gray-100 text-black' : 'bg-white/10 text-white'
+                                    : lightMode ? 'text-gray-600 hover:bg-gray-50' : 'text-white/50 hover:text-white'
+                                }`}>
+                                {f.name}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setLightMode(!lightMode)}
+                      className={`p-2.5 rounded-xl transition-all ${lightMode ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-white/[0.06] text-white/40 hover:text-white/70'}`}>
+                      {lightMode ? <Moon size={18} /> : <Sun size={18} />}
                     </button>
-                  )}
-                  <button onClick={() => setMergeMode(!mergeMode)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      mergeMode ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300' : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
-                    }`}>Birləşdir</button>
-                  <button onClick={() => setTransferMode(!transferMode)}
-              className={`py-3 px-5 rounded-xl text-xs font-bold tracking-wider transition-all ${
-                transferMode ? 'bg-violet-500/10 border border-violet-500/20 text-violet-300' : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
-              }`}>
-                {transferMode ? (transferTarget ? 'Hədəf masanı seç' : 'Mənbə masanı seç') : 'Köçür'}
-              </button>
-            </div>
-          </div>
+                    <button onClick={toggleFullscreen}
+                      className={`p-2.5 rounded-xl transition-all ${lightMode ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-white/[0.06] text-white/40 hover:text-white/70'}`}>
+                      {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+                    </button>
+                    {mergeMode && (
+                      <button onClick={() => { pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
+                        disabled={selectedForMerge.length < 2}
+                        className="px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold disabled:opacity-30 transition-all">
+                        {selectedForMerge.length} masanı birləşdir
+                      </button>
+                    )}
+                    <button onClick={() => setMergeMode(!mergeMode)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                        mergeMode ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300' : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
+                      }`}>Birləşdir</button>
+                    <button onClick={() => setTransferMode(!transferMode)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                        transferMode ? 'bg-violet-500/10 border border-violet-500/20 text-violet-300' : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
+                      }`}>
+                      {transferMode ? (transferTarget ? 'Hədəf masanı seç' : 'Mənbə masanı seç') : 'Köçür'}
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-              {pos.floors.map(floor => (
-                <div key={floor.name} className="mb-6">
-                  <h2 className="text-sm font-semibold text-white/40 uppercase tracking-widest mb-3">{floor.name}</h2>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-                    {floor.tables.map(table => (
+              {/* Tables */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 pt-3">
+                {activeFloor ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
+                    {activeFloor.tables.map(table => (
                       <TableCard
                         key={table.table_number}
                         table={table}
                         onTap={() => handleTableTap(table)}
+                        onAction={() => handleTableAction(table)}
                         isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
                       />
                     ))}
                   </div>
-                </div>
-              ))}
+                ) : (
+                  <div className="flex items-center justify-center h-full text-white/20">
+                    <p className="text-sm">Mərtəbə tapılmadı</p>
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -215,7 +272,7 @@ export default function POSPage() {
                   cartCounts={cartCounts}
                 />
               </div>
-              <div className="w-full md:w-[380px] h-full md:max-h-full border-t md:border-t-0 md:border-l border-white/[0.06] bg-neutral-950/50 p-4 flex flex-col flex-shrink-0 overflow-hidden">
+              <div className="w-full md:w-[360px] xl:w-[400px] h-full md:max-h-full border-t md:border-t-0 md:border-l border-white/[0.06] bg-neutral-950/50 p-4 flex flex-col flex-shrink-0 overflow-hidden">
                 <CartPanel
                   cart={pos.cart}
                   onUpdateQty={pos.updateCartItemQty}
@@ -302,11 +359,6 @@ export default function POSPage() {
               </button>
             );
           })}
-          <button onClick={() => setLightMode(!lightMode)}
-            className={`flex flex-col items-center gap-0.5 px-6 py-2 rounded-xl transition-all ${lightMode ? 'text-gray-400 hover:text-black' : 'text-white/30 hover:text-white/60'}`}>
-            {lightMode ? <Moon size={20} /> : <Sun size={20} />}
-            <span className="text-[9px] font-bold tracking-wider uppercase">{lightMode ? 'Qaranlıq' : 'İşıqlı'}</span>
-          </button>
         </div>
       </div>
 
@@ -367,12 +419,10 @@ export default function POSPage() {
                   </button>
                 </div>
 
-                {/* Amount */}
                 <div className="text-center mb-4">
                   <p className="text-3xl font-black tracking-tight text-gold">{payAmount.toFixed(2)} ₼</p>
                 </div>
 
-                {/* Payment method */}
                 <div className="flex gap-2 mb-4">
                   <button onClick={() => setPayMethod('card')}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border ${
@@ -388,7 +438,6 @@ export default function POSPage() {
                   </button>
                 </div>
 
-                {/* Tip */}
                 <div className="mb-4">
                   <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold mb-2">Çay pulu</p>
                   <div className="flex gap-1.5">
@@ -404,7 +453,6 @@ export default function POSPage() {
                   </div>
                 </div>
 
-                {/* Total with tip */}
                 <div className="flex items-center justify-between py-3 border-t border-white/[0.06] mb-3">
                   <span className="text-sm text-white/40">Cəmi</span>
                   <span className="text-xl font-black text-white">{(payAmount + payTip).toFixed(2)} ₼</span>

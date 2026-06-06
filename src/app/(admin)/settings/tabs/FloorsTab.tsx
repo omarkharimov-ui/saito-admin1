@@ -32,13 +32,11 @@ const FloorsTab = () => {
 
   const loadAll = async () => {
     try {
-      const [floorsRes, settingsRes] = await Promise.all([
-        fetch('/api/pos/floors'),
+      const [{ data: floorData, error }, { data: settings }] = await Promise.all([
+        supabase.from('table_floors').select('*').order('sort_order'),
         supabase.from('settings').select('qr_table_count').maybeSingle(),
       ]);
-      const floorData = floorsRes.ok ? (await floorsRes.json()).floors : [];
-      const settings = settingsRes.data;
-
+      if (error) { console.error(error); return; }
       if (settings?.qr_table_count) setMaxTable(settings.qr_table_count);
 
       const groups = new Map<string, FloorGroup>();
@@ -131,21 +129,37 @@ const FloorsTab = () => {
   const saveAll = async () => {
     setSaving(true);
     try {
-      const payload = floors.map(f => ({
-        name: f.name,
-        sort_order: f.sort_order,
-        tables: f.tables,
-      }));
+      // Get all existing floor names in DB
+      const { data: existing } = await supabase.from('table_floors').select('floor_name');
+      const dbNames = new Set((existing || []).map((r: any) => r.floor_name));
+      const currentNames = new Set(floors.map(f => f.name));
 
-      const res = await fetch('/api/pos/floors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ floors: payload }),
-      });
+      // Delete floors no longer in the list
+      for (const name of dbNames) {
+        if (!currentNames.has(name)) {
+          await supabase.from('table_floors').delete().eq('floor_name', name);
+        }
+      }
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Save failed');
+      // Per-floor: delete + re-insert
+      for (const floor of floors) {
+        await supabase.from('table_floors').delete().eq('floor_name', floor.name);
+
+        if (floor.tables.length === 0) {
+          await supabase.from('table_floors').insert({
+            table_number: 0,
+            floor_name: floor.name,
+            sort_order: floor.sort_order,
+          });
+        } else {
+          for (const tableNum of floor.tables) {
+            await supabase.from('table_floors').insert({
+              table_number: tableNum,
+              floor_name: floor.name,
+              sort_order: floor.sort_order,
+            });
+          }
+        }
       }
 
       setDirty(false);

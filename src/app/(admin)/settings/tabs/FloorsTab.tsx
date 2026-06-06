@@ -73,7 +73,12 @@ const FloorsTab = () => {
     setDirty(true);
   };
 
-  const removeFloor = (idx: number) => {
+  const removeFloor = async (idx: number) => {
+    const floor = floors[idx];
+    const ids = Object.values(floor.ids).filter(Boolean);
+    if (ids.length > 0) {
+      await supabase.from('table_floors').delete().in('id', ids);
+    }
     const next = floors.filter((_, i) => i !== idx);
     setFloors(next.map((f, i) => ({ ...f, sort_order: i })));
     setDirty(true);
@@ -106,6 +111,11 @@ const FloorsTab = () => {
   };
 
   const removeTableFromFloor = async (idx: number, tableNum: number) => {
+    const floor = floors[idx];
+    const rowId = floor.ids[tableNum];
+    if (rowId) {
+      await supabase.from('table_floors').delete().eq('id', rowId);
+    }
     const next = [...floors];
     next[idx] = {
       ...next[idx],

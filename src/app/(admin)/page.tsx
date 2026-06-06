@@ -11,6 +11,7 @@ import {
 import HeroBanner from './widgets/HeroBanner';
 import LiveFloorSnapshot from './widgets/LiveFloorSnapshot';
 import DashboardProductModal from './widgets/DashboardProductModal';
+import { AIPremiumCard } from './pos/components/AIPremiumCard';
 import { HappyHourModal, DeleteProductModal } from './widgets/DashboardModals';
 import { toast } from 'react-hot-toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
@@ -649,6 +650,9 @@ const AdminDashboard = () => {
     <div className="flex flex-col gap-y-4 pb-4 lg:pb-20 overflow-visible">
       {/* Hero Banner - Greeting + Live Badge */}
       <HeroBanner />
+
+      {/* AI Premium Card - Light Mode Styled */}
+      <AIPremiumCard />
 
       <>
 

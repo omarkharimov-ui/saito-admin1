@@ -6,9 +6,11 @@ import { motion } from 'framer-motion';
 import { Bell, ChevronDown } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | null }) {
   const { t, language, setLanguage } = useLanguage();
+  const { lightMode } = useTheme();
   const { notifications, markAsRead, markAllAsRead, clearNotifications } = useNotifications();
   const mobileNotifications = notifications.filter((n) => n.type !== 'order');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -36,7 +38,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
   const langMenu = (
     <div
       ref={langRef}
-      className="absolute right-0 top-full mt-2 z-50 flex w-[min(16rem,calc(100vw-3rem))] flex-col gap-2 rounded-3xl border border-white/10 bg-[#0c0c0c] p-3 shadow-[0_18px_70px_rgba(0,0,0,0.55)]"
+      className={`absolute right-0 top-full mt-2 z-50 flex w-[min(16rem,calc(100vw-3rem))] flex-col gap-2 rounded-3xl border p-3 ${lightMode ? 'border-gray-200 bg-white shadow-[0_18px_70px_rgba(0,0,0,0.1)]' : 'border-white/10 bg-[#0c0c0c] shadow-[0_18px_70px_rgba(0,0,0,0.55)]'}`}
       style={{
         opacity: langOpen ? 1 : 0,
         transform: langOpen ? 'translateY(0) scale(1)' : 'translateY(-6px) scale(0.98)',
@@ -50,7 +52,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
           key={lang.code}
           type="button"
           onClick={() => { setLanguage(lang.code); setLangOpen(false); }}
-          className="w-full rounded-2xl bg-white/[0.04] px-3.5 py-3 text-left text-[11px] font-bold uppercase tracking-[0.24em] text-white/70"
+          className={`w-full rounded-2xl px-3.5 py-3 text-left text-[11px] font-bold uppercase tracking-[0.24em] ${lightMode ? 'bg-gray-50 text-gray-700' : 'bg-white/[0.04] text-white/70'}`}
         >
           {lang.label}
         </button>
@@ -59,15 +61,15 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
   );
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-white/[0.06] bg-[#0a0a0a] px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden isolate">
+    <header className={`sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden isolate ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0a0a0a]'}`}>
       <div className="min-w-0 flex-1 pl-0.5">
-        <p className="text-[9px] uppercase tracking-[0.22em] text-white/35 truncate max-w-[min(100%,14rem)]">
+        <p className={`text-[9px] uppercase tracking-[0.22em] truncate max-w-[min(100%,14rem)] ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
           {t('welcome')},{' '}
-          <span className={role === 'superadmin' ? 'text-gold' : 'text-white/55'}>
+          <span className={role === 'superadmin' ? 'text-gold' : (lightMode ? 'text-gray-600' : 'text-white/55')}>
             {role === 'superadmin' ? t('superadmin') : t('admin')}
           </span>
         </p>
-        <Link href="/" className="text-base font-serif font-bold text-white truncate block">
+        <Link href="/" className={`text-base font-serif font-bold truncate block ${lightMode ? 'text-gray-900' : 'text-white'}`}>
           Saito Admin
         </Link>
       </div>
@@ -78,7 +80,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
             ref={langBtnRef}
             type="button"
             onClick={() => setLangOpen((v) => !v)}
-            className="h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold tracking-widest text-white/60 flex items-center gap-1"
+            className={`h-9 px-3 rounded-lg text-[10px] font-bold tracking-widest flex items-center gap-1 ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-600' : 'bg-white/5 border border-white/10 text-white/60'}`}
             aria-expanded={langOpen}
             whileTap={{ scale: 0.96 }}
           >
@@ -96,25 +98,25 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
               setShowDropdown(opening);
               if (opening) markAllAsRead();
             }}
-            className="relative p-2.5 rounded-lg bg-white/5 border border-white/10"
+            className={`relative p-2.5 rounded-lg ${lightMode ? 'bg-gray-100 border border-gray-200' : 'bg-white/5 border border-white/10'}`}
             aria-label={t('notifications')}
             whileTap={{ scale: 0.96 }}
           >
-            <Bell size={18} className="text-white/60" />
+            <Bell size={18} className={lightMode ? 'text-gray-500' : 'text-white/60'} />
             {mobileNotifications.some((n) => !n.isRead) && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-black" />
+              <span className={`absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border ${lightMode ? 'border-white' : 'border-black'}`} />
             )}
           </motion.button>
 
           <>
             {/* Notification backdrop — CSS only */}
             <div
-              className="fixed inset-0 z-40 bg-black/40"
+              className={`fixed inset-0 z-40 ${lightMode ? 'bg-black/20' : 'bg-black/40'}`}
               onClick={() => setShowDropdown(false)}
               style={{ opacity: showDropdown ? 1 : 0, pointerEvents: showDropdown ? 'auto' : 'none', transition: 'opacity 0.18s ease' }}
             />
             <div
-              className="absolute right-0 mt-2 w-[min(18rem,calc(100vw-1.5rem))] max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#0a0a0a] shadow-2xl z-50"
+              className={`absolute right-0 mt-2 w-[min(18rem,calc(100vw-1.5rem))] max-h-80 overflow-y-auto rounded-xl border shadow-2xl z-50 ${lightMode ? 'border-gray-200 bg-white' : 'border-white/10 bg-[#0a0a0a]'}`}
               style={{
                 opacity: showDropdown ? 1 : 0,
                 transform: showDropdown ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.98)',
@@ -123,33 +125,33 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
                 willChange: 'transform, opacity',
               }}
             >
-                  <div className="p-3 border-b border-white/5 flex justify-between items-center">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/45">
+                  <div className={`p-3 border-b flex justify-between items-center ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${lightMode ? 'text-gray-500' : 'text-white/45'}`}>
                       {t('notifications')}
                     </span>
                     {mobileNotifications.length > 0 && (
                       <button
                         type="button"
                         onClick={clearNotifications}
-                        className="text-[10px] text-white/40 uppercase"
+                        className={`text-[10px] uppercase ${lightMode ? 'text-gray-400' : 'text-white/40'}`}
                       >
                         {t('clear_all')}
                       </button>
                     )}
                   </div>
                   {mobileNotifications.length === 0 ? (
-                    <p className="p-6 text-center text-sm text-white/35 italic">{t('no_notifications')}</p>
+                    <p className={`p-6 text-center text-sm italic ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{t('no_notifications')}</p>
                   ) : (
                     mobileNotifications.map((n) => (
                       <motion.button
                         key={n.id}
                         type="button"
                         onClick={() => markAsRead(n.id)}
-                        className={`w-full text-left p-3 border-b border-white/5 ${!n.isRead ? 'bg-gold/5' : ''}`}
+                        className={`w-full text-left p-3 border-b ${lightMode ? 'border-gray-100' : 'border-white/5'} ${!n.isRead ? (lightMode ? 'bg-amber-50/50' : 'bg-gold/5') : ''}`}
                         whileTap={{ scale: 0.98 }}
                       >
-                        <p className="text-xs text-white font-medium">{n.title}</p>
-                        <p className="text-[11px] text-white/40 line-clamp-2">{n.body}</p>
+                        <p className={`text-xs font-medium ${lightMode ? 'text-gray-900' : 'text-white'}`}>{n.title}</p>
+                        <p className={`text-[11px] line-clamp-2 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{n.body}</p>
                       </motion.button>
                     ))
                   )}

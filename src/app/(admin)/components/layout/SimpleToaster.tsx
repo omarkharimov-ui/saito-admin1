@@ -2,6 +2,7 @@
 
 import { useToaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 const variants = {
   init: { opacity: 0, y: -12, scale: 0.92 },
@@ -12,6 +13,7 @@ const variants = {
 export default function SimpleToaster() {
   const { toasts, handlers } = useToaster();
   const { startPause, endPause } = handlers;
+  const { lightMode } = useTheme();
 
   const toShow = toasts.slice(-2);
 
@@ -35,17 +37,21 @@ export default function SimpleToaster() {
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               className="pointer-events-auto select-none"
               style={{
-                background: t.type === 'error' ? '#1a0808' : '#0d0b00',
-                color: t.type === 'error' ? '#fca5a5' : '#D4AF37',
+                background: t.type === 'error'
+                  ? (lightMode ? '#fef2f2' : '#1a0808')
+                  : (lightMode ? '#fffbeb' : '#0d0b00'),
+                color: t.type === 'error'
+                  ? (lightMode ? '#dc2626' : '#fca5a5')
+                  : (lightMode ? '#92400e' : '#D4AF37'),
                 border: t.type === 'error'
-                  ? '1px solid rgba(248,113,113,0.25)'
-                  : '1px solid rgba(212,175,55,0.28)',
+                  ? (lightMode ? '1px solid #fecaca' : '1px solid rgba(248,113,113,0.25)')
+                  : (lightMode ? '1px solid #fde68a' : '1px solid rgba(212,175,55,0.28)'),
                 borderRadius: '14px',
                 padding: '10px 14px',
                 fontWeight: 600,
                 fontSize: 13,
                 maxWidth: 'min(360px, calc(100vw - 24px))',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                boxShadow: lightMode ? '0 8px 32px rgba(0,0,0,0.1)' : '0 8px 32px rgba(0,0,0,0.4)',
               }}
             >
               <div className="flex items-center gap-2">

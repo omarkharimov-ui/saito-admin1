@@ -38,10 +38,26 @@
   --z-top:     9999;
 }
 
-/* ── Light mode: darker gold for readability on white ── */
+/* ── Light mode overrides ── */
 [data-light-mode="true"] {
+  --background:     #FFFFFF;
+  --foreground:     #111827;
+  --card:           #F9FAFB;
   --gold:           #B8860B;
   --gold-hover:     #996F0A;
+
+  --text-secondary: #4B5563;
+  --text-muted:     #9CA3AF;
+
+  --surface-0:  #FFFFFF;
+  --surface-1:  #F3F4F6;
+  --surface-2:  #E5E7EB;
+  --surface-3:  #D1D5DB;
+
+  --border-subtle:  #E5E7EB;
+  --border-default: #D1D5DB;
+  --border-strong:  #9CA3AF;
+  --border-focus:   rgba(184,134,11,0.55);
 }
 
 /* ── Background — ALL layers nailed to #0a0a0a ── */
@@ -50,6 +66,13 @@ body {
   background:       #0D0D0D !important;
   background-color: #0D0D0D !important;
   min-height: 100%;
+}
+
+[data-light-mode="true"],
+[data-light-mode="true"] body {
+  background:       #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  color:            #111827 !important;
 }
 
 /* ── Weather: Sunny override ── */

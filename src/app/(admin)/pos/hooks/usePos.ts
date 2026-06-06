@@ -13,6 +13,7 @@ import type {
 
 const POS_CACHE_KEY = 'saito_pos_cache';
 const POS_CART_KEY = 'saito_pos_cart';
+const POS_DATA_KEY = 'saito_pos_data';
 
 function loadCache<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -31,11 +32,12 @@ export function usePos() {
   languageRef.current = language;
 
   /* ── State ── */
-  const [tables, setTables] = useState<PosTable[]>([]);
-  const [floors, setFloors] = useState<FloorConfig[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = typeof window !== 'undefined' ? loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: Product[]; categories: { id: string; name: string }[] } | null>(POS_DATA_KEY, null) : null;
+  const [tables, setTables] = useState<PosTable[]>(cached?.tables || []);
+  const [floors, setFloors] = useState<FloorConfig[]>(cached?.floors || []);
+  const [products, setProducts] = useState<Product[]>(cached?.products || []);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>(cached?.categories || []);
+  const [loading, setLoading] = useState(!cached);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [cart, setCart] = useState<PosCart | null>(null);
   const cartRef = useRef<PosCart | null>(null);
@@ -53,16 +55,27 @@ export function usePos() {
         fetch('/api/pos/products'),
       ]);
 
+      let newTables: PosTable[] = [];
+      let newFloors: FloorConfig[] = [];
+      let newProducts: Product[] = [];
+      let newCategories: { id: string; name: string }[] = [];
+
       if (tablesRes.ok) {
         const data = await tablesRes.json();
-        setTables(data.tables || []);
-        setFloors(data.floors || []);
+        newTables = data.tables || [];
+        newFloors = data.floors || [];
+        setTables(newTables);
+        setFloors(newFloors);
       }
       if (productsRes.ok) {
         const data = await productsRes.json();
-        setProducts(data.products || []);
-        setCategories(data.categories || []);
+        newProducts = data.products || [];
+        newCategories = data.categories || [];
+        setProducts(newProducts);
+        setCategories(newCategories);
       }
+
+      saveCache(POS_DATA_KEY, { tables: newTables, floors: newFloors, products: newProducts, categories: newCategories });
     } catch (e) {
       console.error('POS fetch error:', e);
     } finally {

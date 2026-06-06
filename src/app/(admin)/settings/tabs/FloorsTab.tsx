@@ -129,37 +129,25 @@ const FloorsTab = () => {
   const saveAll = async () => {
     setSaving(true);
     try {
-      // Get all existing floor names in DB
-      const { data: existing } = await supabase.from('table_floors').select('floor_name');
-      const dbNames = new Set((existing || []).map((r: any) => r.floor_name));
-      const currentNames = new Set(floors.map(f => f.name));
+      // Step 1: delete ALL existing rows
+      const { error: delAllErr } = await supabase.from('table_floors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (delAllErr) throw new Error(delAllErr.message);
 
-      // Delete floors no longer in the list
-      for (const name of dbNames) {
-        if (!currentNames.has(name)) {
-          await supabase.from('table_floors').delete().eq('floor_name', name);
+      // Step 2: insert current state
+      const rows: { table_number: number; floor_name: string; sort_order: number }[] = [];
+      for (const floor of floors) {
+        if (floor.tables.length === 0) {
+          rows.push({ table_number: 0, floor_name: floor.name, sort_order: floor.sort_order });
+        } else {
+          for (const tableNum of floor.tables) {
+            rows.push({ table_number: tableNum, floor_name: floor.name, sort_order: floor.sort_order });
+          }
         }
       }
 
-      // Per-floor: delete + re-insert
-      for (const floor of floors) {
-        await supabase.from('table_floors').delete().eq('floor_name', floor.name);
-
-        if (floor.tables.length === 0) {
-          await supabase.from('table_floors').insert({
-            table_number: 0,
-            floor_name: floor.name,
-            sort_order: floor.sort_order,
-          });
-        } else {
-          for (const tableNum of floor.tables) {
-            await supabase.from('table_floors').insert({
-              table_number: tableNum,
-              floor_name: floor.name,
-              sort_order: floor.sort_order,
-            });
-          }
-        }
+      if (rows.length > 0) {
+        const { error: insErr } = await supabase.from('table_floors').insert(rows);
+        if (insErr) throw new Error(insErr.message);
       }
 
       setDirty(false);

@@ -504,8 +504,11 @@ export default function POSPage() {
                 </div>
 
                 <button onClick={handleCloseBill} disabled={submitting}
-                  className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-30"
-                  style={lightMode ? { background: '#111827', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' } : { background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', color: '#000', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}>
+                  className={`w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-30 ${
+                    lightMode
+                      ? 'bg-amber-600 text-white shadow-md hover:bg-amber-700 hover:shadow-lg'
+                      : 'bg-gradient-to-br from-gold to-amber-400 text-black shadow-lg shadow-gold/30 hover:shadow-gold/40'
+                  }`}>
                   {submitting ? 'Gözləyin...' : <><CheckCircle size={18} /> Hesabı Bağla</>}
                 </button>
               </div>

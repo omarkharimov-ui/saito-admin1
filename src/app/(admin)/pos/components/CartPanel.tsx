@@ -117,8 +117,15 @@ export function CartPanel({
         <button
           onClick={onPlaceOrder}
           disabled={isEmpty || submitting}
-          className="w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-25"
-          style={!isEmpty && !submitting ? (lightMode ? { background: '#111827', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' } : { background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', color: '#000', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }) : lightMode ? { background: '#f3f4f6', color: '#9ca3af' } : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.4)' }}
+          className={`w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-25 ${
+            !isEmpty && !submitting
+              ? lightMode
+                ? 'bg-amber-600 text-white shadow-md hover:bg-amber-700 hover:shadow-lg'
+                : 'bg-gradient-to-br from-gold to-amber-400 text-black shadow-lg shadow-gold/30 hover:shadow-gold/40'
+              : lightMode
+              ? 'bg-gray-100 text-gray-400'
+              : 'bg-white/5 text-white/40'
+          }`}
         >
           {submitting ? 'Göndərilir...' : <><Send size={16} /> Sifariş</>}
         </button>

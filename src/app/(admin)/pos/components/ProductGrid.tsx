@@ -117,7 +117,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
                       key={count}
                       initial={{ scale: 1.4 }}
                       animate={{ scale: 1 }}
-                      className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-gold text-black text-[9px] font-black flex items-center justify-center shadow-lg"
+                      className={`absolute top-1.5 right-1.5 w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center shadow-lg ${lightMode ? 'bg-amber-600 text-white' : 'bg-gold text-black'}`}
                     >
                       {count}
                     </motion.span>

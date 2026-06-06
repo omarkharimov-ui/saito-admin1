@@ -164,7 +164,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                   <p className={`text-lg font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{(productPrice + totalExtras).toFixed(2)} ₼</p>
                 </div>
                 <button onClick={handleConfirm}
-                  className={`px-6 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all ${lightMode ? 'bg-gray-900 text-white shadow-lg shadow-black/15' : 'bg-gold text-black shadow-lg shadow-gold/25'}`}>
+                  className={`px-6 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all ${lightMode ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/25 hover:bg-amber-700' : 'bg-gold text-black shadow-lg shadow-gold/25 hover:bg-yellow-400'}`}>
                   <Plus size={16} className="inline mr-1" /> Əlavə et
                 </button>
               </div>

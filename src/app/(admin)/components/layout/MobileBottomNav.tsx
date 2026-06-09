@@ -166,7 +166,7 @@ export default function MobileBottomNav({
                         {link.badge > 9 ? '9+' : link.badge}
                       </span>
                     ) : null}
-                  </span>
+                  </motion.span>
                 ) : (
                   /* Inactive — icon only */
                   <span className="relative flex items-center justify-center w-11 h-11">

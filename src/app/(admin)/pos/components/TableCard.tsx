@@ -43,7 +43,7 @@ const statusConfig: Record<string, { label: string; dot: string; bg: string; bor
   },
 };
 
-function timeSince(dateStr: string | null): string {
+function timeSince(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);

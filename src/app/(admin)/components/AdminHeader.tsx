@@ -88,7 +88,7 @@ const AdminHeaderInner = ({
             ref={langBtnRef}
             type="button"
             onClick={() => setLangOpen((v) => !v)}
-            className={`h-10 px-4 rounded-[10px] flex items-center gap-2 transition-colors select-none active:scale-[0.98] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] ${lightMode ? 'bg-[#F5F5F5] border border-[#E5E5E7]' : 'bg-white/5 border border-white/10'}`}
+            className="h-10 px-4 rounded-[10px] flex items-center gap-2 transition-colors select-none active:scale-[0.98] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
           >
             <span className="text-[11px] font-black tracking-[0.18em] text-[var(--theme-text-secondary)]">{activeLang.label}</span>
             <ChevronDown size={11} className={`transition-transform duration-150 ${langOpen ? 'rotate-180' : ''} text-[var(--theme-text-muted)]`} />
@@ -98,7 +98,7 @@ const AdminHeaderInner = ({
             ? createPortal(
                 <div
                   ref={langMenuRef}
-                  className={`fixed z-[200] flex flex-col gap-1.5 min-w-[90px] rounded-[10px] border p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.10)] ${lightMode ? 'border-[#E5E5E7] bg-white' : 'border-white/10 bg-[#0c0c0c]'}`}
+                  className="fixed z-[200] flex flex-col gap-1.5 min-w-[90px] rounded-[10px] border p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.10)] border-[var(--theme-border)] bg-[var(--theme-panel)]"
                   style={{ top: langMenuPos.top, right: langMenuPos.right, minWidth: 90 }}
                 >
                   {otherLangs.map((lang) => (
@@ -106,7 +106,7 @@ const AdminHeaderInner = ({
                       key={lang.code}
                       type="button"
                       onClick={() => handleLangChange(lang.code)}
-                      className={`h-8 px-5 rounded-[10px] flex items-center justify-center w-full text-[10px] font-bold tracking-[0.18em] transition-colors ${lightMode ? 'bg-[#F7F7F8] border border-[#E5E5E7] text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F1F1F2]' : 'bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-gold hover:bg-white/[0.07]'}`}
+                      className="h-8 px-5 rounded-[10px] flex items-center justify-center w-full text-[10px] font-bold tracking-[0.18em] transition-colors bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-panel)]"
                     >
                       {lang.label}
                     </button>
@@ -121,7 +121,7 @@ const AdminHeaderInner = ({
         <div className="relative">
           <button
             onClick={() => { const opening = !showDropdown; setShowDropdown(opening); if (opening) markAllAsRead(); }}
-            className={`relative group cursor-pointer p-3 rounded-[10px] transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] ${lightMode ? 'hover:bg-[#F1F1F2]' : 'hover:bg-white/5'}`}
+            className="relative group cursor-pointer p-3 rounded-[10px] transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] hover:bg-[var(--theme-surface-soft)]"
           >
             <Bell size={20} className={`transition-colors ${showDropdown ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)]'}`} />
             {notifications.length > 0 && notifications.some(n => !n.isRead) && (
@@ -138,7 +138,7 @@ const AdminHeaderInner = ({
                     {notifications.length > 0 && (
                       <button
                         onClick={clearNotifications}
-                        className={`text-[10px] uppercase tracking-tighter transition-colors ${lightMode ? 'text-[#8E8E93] hover:text-red-500' : 'text-white/40 hover:text-red-500'}`}
+                        className="text-[10px] uppercase tracking-tighter transition-colors text-[var(--theme-text-secondary)] hover:text-red-500"
                       >
                         {t('clear_all')}
                       </button>
@@ -157,11 +157,11 @@ const AdminHeaderInner = ({
                           <div
                             key={n.id}
                             onClick={() => markAsRead(n.id)}
-                            className={`p-4 transition-colors cursor-pointer relative ${lightMode ? 'hover:bg-[#F7F7F8]' : 'hover:bg-white/5'} ${!n.isRead ? (lightMode ? 'bg-[#FFF8E7]' : 'bg-gold/5') : ''}`}
+                            className={`p-4 transition-colors cursor-pointer relative hover:bg-[var(--theme-surface-soft)] ${!n.isRead ? 'bg-[var(--theme-accent-soft)]' : ''}`}
                           >
                             {!n.isRead && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--theme-accent)]" />}
                             <div className="flex justify-between items-start mb-1">
-                              <span className={`text-[10px] font-bold uppercase tracking-tighter ${n.type === 'reservation' ? 'text-blue-500' : 'text-emerald-600'}`}>
+                              <span className="text-[10px] font-bold uppercase tracking-tighter text-[var(--theme-text-secondary)]">
                                 {n.type === 'reservation' ? t('reservations') : t('orders')}
                               </span>
                               <span className="text-[10px] text-[var(--theme-text-muted)]">
@@ -180,7 +180,7 @@ const AdminHeaderInner = ({
                     <Link
                       href="/reservations"
                       onClick={() => setShowDropdown(false)}
-                      className={`block p-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${lightMode ? 'bg-[#FCFCFD] text-[#6E6E73] hover:text-[#1D1D1F]' : 'bg-white/5 text-white/50 hover:text-white'}`}
+                      className="block p-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] transition-colors bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]"
                     >
                       {t('view_all')} {t('reservations').toLowerCase()}
                     </Link>

@@ -160,7 +160,7 @@ export default function POSPage() {
 
   const handleActionCloseBill = useCallback(() => {
     if (actionSheetTable && actionSheetTable.total_amount > 0) {
-      openPayment(actionSheetTable.table_number, actionSheetTable.total_amount, actionSheetTable.order_ids);
+      openPayment(actionSheetTable.table_number, actionSheetTable.total_amount, actionSheetTable.order_ids ?? []);
       setActionSheetTable(null);
     }
   }, [actionSheetTable, openPayment]);
@@ -363,7 +363,7 @@ export default function POSPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`text-lg font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{table.total_amount.toFixed(2)} ₼</span>
-                        <button onClick={() => openPayment(table.table_number, table.total_amount, table.order_ids)}
+                        <button onClick={() => openPayment(table.table_number, table.total_amount, table.order_ids ?? [])}
                           className={`px-4 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700 hover:bg-amber-700 shadow-sm' : 'bg-gold/10 border border-gold/20 text-gold hover:bg-gold/20'}`}>
                           Ödə
                         </button>

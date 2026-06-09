@@ -70,6 +70,7 @@ export type FloorConfig = {
   id: string;
   name: string;
   table_count?: number;
+  tables?: PosTable[];
 };
 
 export type TableStatus = PosTable['status'];

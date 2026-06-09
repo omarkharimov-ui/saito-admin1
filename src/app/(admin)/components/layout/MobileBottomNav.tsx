@@ -47,7 +47,6 @@ export default function MobileBottomNav({
 
   return (
     <>
-      {/* Backdrop */}
       <AnimatePresence>
         {moreOpen ? (
           <motion.div
@@ -63,8 +62,7 @@ export default function MobileBottomNav({
         ) : null}
       </AnimatePresence>
 
-      {/* More popup — grid of app icons */}
-      {hasMore && (
+      {hasMore ? (
         <motion.div
           key="mobile-dock-more"
           className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-[28px] border p-4 shadow-[0_12px_48px_rgba(0,0,0,0.08)] lg:hidden border-[var(--theme-border)] bg-[var(--theme-panel)]"
@@ -73,7 +71,6 @@ export default function MobileBottomNav({
           transition={{ type: 'spring', stiffness: 360, damping: 34 }}
           style={{ backdropFilter: 'blur(24px)', pointerEvents: moreOpen ? 'auto' : 'none', willChange: 'transform, opacity' }}
         >
-          {/* Grid of icon links */}
           <div className="grid grid-cols-4 gap-2 mb-3">
             {overflow.map((link) => {
               const Icon = link.icon;
@@ -109,21 +106,22 @@ export default function MobileBottomNav({
             })}
           </div>
 
-          {/* Divider + Logout */}
           <div className="border-t pt-2 border-[var(--theme-border)]">
             <button
               type="button"
-              onClick={() => { setMoreOpen(false); onLogout(); }}
+              onClick={() => {
+                setMoreOpen(false);
+                onLogout();
+              }}
               className="flex w-full items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-colors active:scale-[0.98] text-red-500 hover:bg-red-500/10"
             >
               <LogOut size={18} />
               {t('logout')}
             </button>
           </div>
-        </div>
-      )}
+        </motion.div>
+      ) : null}
 
-      {/* Bottom Nav Bar */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden pb-[env(safe-area-inset-bottom)]"
         aria-label="Əsas naviqasiya"
@@ -180,8 +178,7 @@ export default function MobileBottomNav({
             );
           })}
 
-          {/* More button */}
-          {hasMore && (
+          {hasMore ? (
             <button
               type="button"
               onClick={() => setMoreOpen((v) => !v)}
@@ -196,12 +193,12 @@ export default function MobileBottomNav({
                   style={{ background: 'var(--theme-surface-soft)', border: '1px solid var(--theme-border)' }}
                 >
                   <Grid2x2 size={20} className="text-[var(--theme-text-secondary)]" />
-                </span>
+                </motion.span>
               ) : (
                 <MoreHorizontal size={22} strokeWidth={1.6} className="text-[var(--theme-text-muted)]" />
               )}
             </button>
-          )}
+          ) : null}
         </div>
       </nav>
     </>

@@ -174,7 +174,7 @@ export default function HeroBanner() {
               <svg className="opacity-[0.15] absolute right-0 bottom-0" width="140" height="50" viewBox="0 0 140 50" fill="none">
                 <path 
                   d="M0 45 C 25 42, 35 30, 60 32 C 85 34, 95 15, 120 18 C 130 19, 135 8, 140 5" 
-                  stroke="white" 
+                  stroke="var(--theme-text)" 
                   strokeWidth="2" 
                   fill="none" 
                   strokeLinecap="round" 
@@ -186,8 +186,8 @@ export default function HeroBanner() {
                 />
                 <defs>
                   <linearGradient id="sparkGradHero" x1="0" y1="0" x2="0" y2="1">
-                    <stop stopColor="white" stopOpacity="0.5"/>
-                    <stop offset="1" stopColor="white" stopOpacity="0"/>
+                    <stop stopColor="var(--theme-text)" stopOpacity="0.35"/>
+                    <stop offset="1" stopColor="var(--theme-text)" stopOpacity="0"/>
                   </linearGradient>
                 </defs>
               </svg>

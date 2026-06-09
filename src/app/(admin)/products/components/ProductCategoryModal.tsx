@@ -90,7 +90,7 @@ export function ProductCategoryModal({
                 <form noValidate onSubmit={onSubmit} className="space-y-4 relative">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-[10px] uppercase tracking-widest text-white/40">{t('category_name_label')}</label>
+                      <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)]">{t('category_name_label')}</label>
                       <span className={`text-[9px] font-mono transition-colors duration-300 ${categoryForm.name.length > 25 ? 'text-white/70' : 'text-white/15'}`}>{categoryForm.name.length}/30</span>
                     </div>
                     <input
@@ -126,7 +126,7 @@ export function ProductCategoryModal({
                     {catNameError && <p className="text-[10px] text-red-400 mt-1">{t('category_name_label')} {t('required')}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-widest text-white/40">Slug {t('optional')}</label>
+                    <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)]">Slug {t('optional')}</label>
                     <input type="text" value={categoryForm.slug} onChange={(e) => { setSlugManuallyEdited(true); onFormChange({ ...categoryForm, slug: e.target.value }); }}
                       className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] focus:border-[var(--theme-border-strong)] outline-none transition-all"
                       placeholder={t('slug_example')} />

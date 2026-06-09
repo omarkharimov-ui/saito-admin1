@@ -374,7 +374,7 @@ export const DeleteProductModal = ({ open, product, updating, onClose, onConfirm
         </div>
       </div>
       <div className="flex gap-3">
-        <button onClick={onClose} className="flex-1 py-3 px-4 rounded-xl bg-white/5 text-white/60">{t('cancel')}</button>
+        <button onClick={onClose} className="flex-1 py-3 px-4 rounded-xl bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]">{t('cancel')}</button>
         <button onClick={onConfirm} disabled={updating} className="flex-1 py-3 px-4 rounded-xl bg-red-500 text-white disabled:opacity-50 flex items-center justify-center gap-2">
           {updating ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
           {t('delete')}

@@ -77,7 +77,7 @@ export function CartPanel({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20, height: 0 }}
                 transition={{ duration: 0.15 }}
-                className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 border ${lightMode ? 'bg-white border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)]' : 'bg-[#141414] border-white/[0.06]'}`}
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 border bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-[0_1px_3px_rgba(255,255,255,0.04)]"}
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
@@ -123,8 +123,8 @@ export function CartPanel({
                 ? 'bg-amber-600 text-white shadow-md hover:bg-amber-700 hover:shadow-lg'
                 : 'bg-black text-white border border-white/15 shadow-lg shadow-black/35 hover:bg-black/90'
               : lightMode
-              ? 'bg-gray-100 text-gray-400'
-              : 'bg-white/5 text-white/40'
+              ? 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)]'
+              : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)]'
           }`}
         >
           {submitting ? 'Göndərilir...' : <><Send size={16} /> Sifariş</>}

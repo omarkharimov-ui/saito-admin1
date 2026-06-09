@@ -121,7 +121,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                       <span className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold tracking-wider ${
                         elapsed.urgent
                           ? (lightMode ? 'bg-red-100 text-red-700' : 'bg-red-500/10 text-red-300')
-                          : (lightMode ? 'bg-gray-100 text-gray-500' : 'bg-white/5 text-white/40')
+                          : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)]'
                       }`}>
                         <Clock size={10} />
                         {elapsed.text}

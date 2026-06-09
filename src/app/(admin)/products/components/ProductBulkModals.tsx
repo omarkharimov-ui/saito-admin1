@@ -39,9 +39,9 @@ export function ProductBulkModals({
               className="relative w-full max-w-full sm:max-w-sm bg-card/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
             >
               <div className="px-7 pt-7 pb-6">
-                <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/40 hover:text-white flex items-center justify-center transition-all transition-premium"><X size={16} /></button>
-                <h3 className="text-lg font-serif font-bold text-white mb-1">{t('stock_status')}</h3>
-                <p className="text-[10px] text-white/30 uppercase tracking-widest mb-6">{selectedCount} {t('select_stock_status')}</p>
+                <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-surface)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] flex items-center justify-center transition-all transition-premium"><X size={16} /></button>
+                <h3 className="text-lg font-serif font-bold text-[var(--theme-text)] mb-1">{t('stock_status')}</h3>
+                <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-widest mb-6">{selectedCount} {t('select_stock_status')}</p>
                 <div className="flex gap-3">
                   <button onClick={() => onStockUpdate(true)} disabled={bulkUpdating}
                     className="flex-1 py-3 rounded-xl bg-green-500/10 text-green-400 border border-green-500/25 text-[10px] font-bold tracking-widest uppercase hover:bg-green-500/20 hover:border-green-500/50 hover:text-green-300 transition-all transition-premium disabled:opacity-40 flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0">
@@ -77,20 +77,20 @@ export function ProductBulkModals({
                   <h3 className="text-lg font-serif font-bold text-white mb-1">{t('category_selection')}</h3>
                   <p className="text-[10px] text-white/30 uppercase tracking-widest">{selectedCount} {t('choose_new_category')}</p>
                 </div>
-                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-white/40 hover:text-white flex items-center justify-center transition-all transition-premium shrink-0"><X size={16} /></button>
+                <button onClick={onClose} className="w-8 h-8 rounded-xl bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-surface)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] flex items-center justify-center transition-all transition-premium shrink-0"><X size={16} /></button>
               </div>
               <div className="px-4 py-4 space-y-1.5 max-h-[280px] overflow-y-auto">
                 {categories.map((cat) => (
                   <button key={cat.id} onClick={() => onCategoryUpdate(cat.id)} disabled={bulkUpdating}
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/8 text-left transition-all transition-premium disabled:opacity-40 flex items-center gap-3 group">
-                    <Tag size={14} className="text-white/20 transition-colors shrink-0" />
-                    <span className="text-sm font-semibold text-white/70 group-hover:text-white transition-colors">{getCategoryName(cat)}</span>
+                    className="w-full px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-left transition-all transition-premium disabled:opacity-40 flex items-center gap-3 group">
+                    <Tag size={14} className="text-[var(--theme-text-muted)] transition-colors shrink-0" />
+                    <span className="text-sm font-semibold text-[var(--theme-text-secondary)] group-hover:text-[var(--theme-text)] transition-colors">{getCategoryName(cat)}</span>
                     {bulkUpdating && <Loader2 className="animate-spin ml-auto" size={14} />}
                   </button>
                 ))}
               </div>
               <div className="px-4 pb-5 pt-1">
-                <button onClick={onClose} disabled={bulkUpdating} className="w-full py-2.5 rounded-xl bg-white/5 text-white/30 border border-white/8 text-[10px] font-bold tracking-widest uppercase hover:bg-white/10 hover:text-white transition-all transition-premium">
+                <button onClick={onClose} disabled={bulkUpdating} className="w-full py-2.5 rounded-xl bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] text-[10px] font-bold tracking-widest uppercase hover:bg-[var(--theme-surface)] hover:text-[var(--theme-text)] transition-all transition-premium">
                   {t('cancel')}
                 </button>
               </div>

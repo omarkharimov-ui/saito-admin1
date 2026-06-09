@@ -27,8 +27,8 @@ const actions = [
   { id: 'transfer', icon: Move, label: 'Köçür', color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', lightColor: 'text-violet-600', lightBg: 'bg-violet-50', lightBorder: 'border-violet-200' },
   { id: 'split', icon: Split, label: 'Böl', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', lightColor: 'text-amber-600', lightBg: 'bg-amber-50', lightBorder: 'border-amber-200' },
   { id: 'close_bill', icon: CreditCard, label: 'Hesab', color: 'text-gold', bg: 'bg-amber-500/10', border: 'border-amber-500/20', lightColor: 'text-amber-700', lightBg: 'bg-amber-50', lightBorder: 'border-amber-200' },
-  { id: 'print', icon: Printer, label: 'Çap', color: 'text-white/60', bg: 'bg-white/5', border: 'border-white/10', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' },
-  { id: 'save_draft', icon: Save, label: 'Saxla', color: 'text-white/60', bg: 'bg-white/5', border: 'border-white/10', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' },
+  { id: 'print', icon: Printer, label: 'Çap', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' },
+  { id: 'save_draft', icon: Save, label: 'Saxla', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' }
 ];
 
 export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft }: ActionSheetProps) {

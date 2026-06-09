@@ -75,14 +75,14 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             className="fixed bottom-0 left-0 right-0 z-50 max-h-[85vh] overflow-y-auto p-4 pb-8"
           >
-            <div className={`max-w-lg mx-auto rounded-3xl border p-5 ${lightMode ? 'bg-white border-gray-200 shadow-2xl shadow-black/10' : 'bg-[#0c0c0c]/95 backdrop-blur-xl border-white/[0.08] shadow-2xl'}`}>
+            <div className="max-w-lg mx-auto rounded-3xl border p-5 bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-2xl backdrop-blur-xl">
               {/* Header */}
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{productName}</p>
                   <p className={`text-sm font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{productPrice.toFixed(2)} ₼</p>
                 </div>
-                <button onClick={onClose} className={`w-9 h-9 rounded-xl flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-400 hover:text-gray-600' : 'bg-white/5 text-white/40 hover:text-white'}`}>
+                <button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
                   <X size={18} />
                 </button>
               </div>

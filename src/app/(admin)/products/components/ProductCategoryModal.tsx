@@ -64,9 +64,9 @@ export function ProductCategoryModal({
             initial={{ opacity: 0, scale: 0.92, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 30 }} transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
             className="relative w-full max-w-full sm:max-w-3xl backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden max-h-[90vh] flex flex-col"
-            style={{ background: lightMode ? '#ffffff' : 'linear-gradient(#141414,#111111) padding-box, linear-gradient(135deg,rgba(255,255,255,0.07) 0%,rgba(255,255,255,0.02) 100%) border-box', border: lightMode ? '1px solid #e5e7eb' : '1px solid transparent' }}
+            style={{ background: 'var(--theme-surface-muted)', border: '1px solid var(--theme-border)' }}
           >
-            <div className="px-8 md:px-12 pt-7 pb-5 border-b border-white/[0.06] flex items-center justify-between shrink-0 bg-white/[0.02]">
+            <div className="px-8 md:px-12 pt-7 pb-5 border-b border-[var(--theme-border)] flex items-center justify-between shrink-0 bg-[var(--theme-surface-soft)]">
               <div>
                 <h2 className="text-2xl font-serif font-bold tracking-tight text-white">{t('category_management')}</h2>
                 <p className="text-[10px] text-white/50 uppercase tracking-[0.4em] mt-0.5">{t('saito_menu_architecture')}</p>
@@ -76,7 +76,7 @@ export function ProductCategoryModal({
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/[0.06] text-gold/70 border border-gold/20 text-[10px] font-bold tracking-widest uppercase transition-transform duration-200 hover:bg-gold/[0.12] hover:text-gold hover:border-gold/40">
                   <Plus size={13} /> {t('new_category_btn')}
                 </button>
-                <button onClick={onClose} className="w-9 h-9 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 hover:text-white flex items-center justify-center transition-transform duration-200">
+                <button onClick={onClose} className="w-9 h-9 rounded-xl bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] flex items-center justify-center transition-transform duration-200">
                   <X size={16} />
                 </button>
               </div>
@@ -84,8 +84,8 @@ export function ProductCategoryModal({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-0 flex-1 overflow-hidden">
               {/* Left: Form */}
-              <div className="relative px-8 md:px-12 py-7 border-r border-white/[0.06] overflow-y-auto">
-                <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/[0.03] rounded-full blur-3xl pointer-events-none" />
+              <div className="relative px-8 md:px-12 py-7 border-r border-[var(--theme-border)] overflow-y-auto">
+                <div className="absolute bottom-0 left-0 w-40 h-40 bg-[var(--theme-surface-soft)] rounded-full blur-3xl pointer-events-none" />
                 <h3 className="text-[9px] uppercase tracking-[0.3em] text-white/25 font-bold mb-5 relative">{categoryForm.id ? t('edit_category') : t('new_category_create')}</h3>
                 <form noValidate onSubmit={onSubmit} className="space-y-4 relative">
                   <div className="space-y-1.5">
@@ -128,7 +128,7 @@ export function ProductCategoryModal({
                   <div className="space-y-1.5">
                     <label className="text-[10px] uppercase tracking-widest text-white/40">Slug {t('optional')}</label>
                     <input type="text" value={categoryForm.slug} onChange={(e) => { setSlugManuallyEdited(true); onFormChange({ ...categoryForm, slug: e.target.value }); }}
-                      className="w-full bg-white/[0.07] border border-white/[0.12] rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-white/35 outline-none transition-all"
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] focus:border-[var(--theme-border-strong)] outline-none transition-all"
                       placeholder={t('slug_example')} />
                   </div>
                   <div className="flex gap-2 pt-1">
@@ -152,9 +152,9 @@ export function ProductCategoryModal({
                 <h3 className="text-[9px] uppercase tracking-[0.3em] text-white/25 font-bold mb-4 shrink-0">{t('existing_categories')}</h3>
                 <div className="space-y-1.5 overflow-y-auto flex-1 pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
                   {categories.map((cat) => (
-                    <div key={cat.id} className={`group flex items-center justify-between px-4 py-3 rounded-xl border transition-transform duration-200 ${categoryForm.id === cat.id ? 'bg-white/10 border-white/30' : 'bg-white/[0.05] border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.15]'}`}>
+                    <div key={cat.id} className={`group flex items-center justify-between px-4 py-3 rounded-xl border transition-transform duration-200 ${categoryForm.id === cat.id ? 'bg-[var(--theme-surface-soft)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] hover:border-[var(--theme-border-strong)]'}`}>
                       <div className="flex items-center gap-3">
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 ${categoryForm.id === cat.id ? 'bg-white/10' : 'bg-white/[0.04] group-hover:bg-white/[0.07]'}`}>
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 ${categoryForm.id === cat.id ? 'bg-[var(--theme-surface)]' : 'bg-[var(--theme-surface-soft)] group-hover:bg-[var(--theme-surface)]'}`}>
                           <Tag size={12} className={categoryForm.id === cat.id ? 'text-white' : 'text-white/30'} />
                         </div>
                         <span className={`text-sm font-semibold transition-colors ${categoryForm.id === cat.id ? 'text-white' : 'text-white/70 group-hover:text-white/90'}`}>

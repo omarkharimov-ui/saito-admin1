@@ -13,7 +13,7 @@ export function AIPremiumCard() {
   const [customPrompt, setCustomPrompt] = useState('');
 
   const modules = [
-    { id: 'active', label: 'Aktiv', icon: Zap, bgLight: 'bg-gray-100', bgDark: 'bg-white/5', isActive: true },
+    { id: 'active', label: 'Aktiv', icon: Zap, bgLight: 'bg-gray-100', bgDark: 'bg-[var(--theme-surface-soft)]', isActive: true },
     { id: 'pos', label: 'POS', icon: ShoppingBag, bgLight: 'bg-amber-50', bgDark: 'bg-amber-500/10' },
     { id: 'inventory', label: 'Stok', icon: BarChart3, bgLight: 'bg-red-50', bgDark: 'bg-red-500/10' },
     { id: 'campaigns', label: 'Kampaniyalar', icon: Flame, bgLight: 'bg-cyan-50', bgDark: 'bg-cyan-500/10' },
@@ -27,7 +27,7 @@ export function AIPremiumCard() {
         animate={{ opacity: 1, y: 0 }}
         className={`rounded-[2.5rem] p-8 border transition-all ${
           lightMode
-            ? 'bg-white border-gray-200 shadow-lg shadow-black/5'
+            ? 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-lg shadow-black/5'
             : 'bg-[#0f0f0f] border-white/[0.08] shadow-2xl'
         }`}
       >
@@ -95,7 +95,7 @@ export function AIPremiumCard() {
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
                   module.isActive
                     ? lightMode ? 'bg-gray-900 text-white' : 'bg-white/10 text-white'
-                    : lightMode ? 'bg-white text-gray-600' : 'bg-white/5 text-white/60'
+                    : lightMode ? 'bg-[var(--theme-surface)] text-[var(--theme-text-secondary)]' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]'
                 }`}>
                   {module.isActive ? (
                     <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
@@ -122,7 +122,7 @@ export function AIPremiumCard() {
             className={`flex-1 py-3 rounded-full border-2 font-bold text-sm transition-all flex items-center justify-center gap-2 ${
               lightMode
                 ? 'border-gray-900 text-gray-900 hover:bg-gray-50'
-                : 'border-white/20 text-white/70 hover:bg-white/5'
+                : 'border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)]'
             }`}
           >
             <Heart size={18} />
@@ -163,7 +163,7 @@ export function AIPremiumCard() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className={`fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 max-w-md mx-auto rounded-[2.5rem] border p-8 ${
                 lightMode
-                  ? 'bg-white border-gray-200 shadow-2xl shadow-black/15'
+                  ? 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-2xl shadow-black/15'
                   : 'bg-[#0f0f0f] border-white/[0.08] shadow-2xl'
               }`}
             >
@@ -177,7 +177,7 @@ export function AIPremiumCard() {
                   className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                     lightMode
                       ? 'bg-gray-100 text-gray-400 hover:text-gray-600'
-                      : 'bg-white/5 text-white/40 hover:text-white'
+                      : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'
                   }`}
                 >
                   <X size={20} />
@@ -198,7 +198,7 @@ export function AIPremiumCard() {
                   className={`w-full h-24 rounded-xl p-3.5 text-sm outline-none resize-none transition-all ${
                     lightMode
                       ? 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20'
-                      : 'bg-white/5 border border-white/[0.07] text-white placeholder:text-white/30 focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/10'
+                      : 'bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/10'
                   }`}
                 />
               </div>
@@ -239,7 +239,7 @@ export function AIPremiumCard() {
                   className={`flex-1 py-3.5 rounded-full font-bold text-sm transition-all border ${
                     lightMode
                       ? 'border-gray-300 text-gray-600 hover:bg-gray-100'
-                      : 'border-white/10 text-white/60 hover:bg-white/5'
+                      : 'border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)]'
                   }`}
                 >
                   Ləğv et

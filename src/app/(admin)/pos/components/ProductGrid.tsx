@@ -58,8 +58,8 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
           onClick={() => setCategoryFilter(null)}
           className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold tracking-wider transition-all ${
             !categoryFilter
-              ? lightMode ? 'bg-gray-900 text-white shadow-sm' : 'bg-gold text-black'
-              : lightMode ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
+              ? 'bg-gold text-black shadow-sm'
+              : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface)] border border-[var(--theme-border)]'
           }`}
         >
           Hamısı
@@ -99,9 +99,9 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => onAddProduct(product)}
-                  className={`relative rounded-xl border flex flex-col overflow-hidden transition-all ${lightMode ? 'bg-white border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md' : 'bg-[#141414] border-white/[0.07] hover:bg-white/[0.05]'}`}
+                  className="relative rounded-xl border flex flex-col overflow-hidden transition-all bg-[var(--theme-surface-muted)] border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] shadow-sm hover:shadow-md"}
                 >
-                  <div className={`aspect-square w-full overflow-hidden flex items-center justify-center ${lightMode ? 'bg-gray-100/50' : 'bg-white/[0.03]'}`}>
+                  <div className="aspect-square w-full overflow-hidden flex items-center justify-center bg-[var(--theme-surface-soft)]"}>
                     {product.image_url ? (
                       <img src={product.image_url} alt={name} className="w-full h-full object-cover" loading="lazy" />
                     ) : (

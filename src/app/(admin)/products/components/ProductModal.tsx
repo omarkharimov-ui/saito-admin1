@@ -112,7 +112,7 @@ function VariantSelector({
         ))}
       </AnimatePresence>
       <button type="button" onClick={addOlcu}
-        className="flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.12] text-white/40 hover:text-white/70 text-[11px] font-bold uppercase tracking-widest transition-all">
+        className="flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.12] text-[var(--theme-text-muted)] hover:text-white/70 text-[11px] font-bold uppercase tracking-widest transition-all">
         <Plus size={13} /> {t('variant_add_olcu')}
       </button>
     </div>
@@ -178,7 +178,7 @@ function ModifierSelector({
       <button
         type="button"
         onClick={addModifier}
-        className="flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.12] text-white/40 hover:text-white/70 text-[11px] font-bold uppercase tracking-widest transition-all"
+        className="flex items-center gap-2 mt-2 px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.12] text-[var(--theme-text-muted)] hover:text-white/70 text-[11px] font-bold uppercase tracking-widest transition-all"
       >
         <Plus size={13} /> {t('modifier_add')}
       </button>
@@ -374,9 +374,9 @@ export function ProductModal({
               {/* Group 1: Əsas Məlumatlar */}
               <div>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />
+                  <span className="w-4 h-px bg-[var(--theme-border)]" />
                   {t('basic_info_section')}
-                  <span className="flex-1 h-px bg-white/5" />
+                  <span className="flex-1 h-px bg-[var(--theme-border)]" />
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div className="col-span-2 space-y-1.5">
@@ -440,14 +440,14 @@ export function ProductModal({
               {/* Group 2: Kateqoriya */}
               <div>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />
+                  <span className="w-4 h-px bg-[var(--theme-border)]" />
                   {t('product_category')}
-                  <span className="flex-1 h-px bg-white/5" />
+                  <span className="flex-1 h-px bg-[var(--theme-border)]" />
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
                   {categories.map(cat => (
                     <button key={cat.id} type="button" onClick={() => onFormChange({ ...productForm, category_id: cat.id })}
-                      className={`shrink-0 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0 ${productForm.category_id === cat.id ? 'bg-white/10 text-white border-white/30' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-white/[0.08] hover:text-white/70 hover:border-white/25'}`}>
+                      className={`shrink-0 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0 ${productForm.category_id === cat.id ? 'bg-[var(--theme-surface-soft)] text-[var(--theme-text)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface-muted)] text-[var(--theme-text-secondary)] border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] hover:text-[var(--theme-text)] hover:border-[var(--theme-border-strong)]'}`}>
                       <Tag size={11} className="inline mr-1.5 -mt-0.5" />
                       {getCategoryName(cat)}
                     </button>
@@ -458,9 +458,9 @@ export function ProductModal({
               {/* Group 3: Şəkil + Mətn */}
               <div>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />
+                  <span className="w-4 h-px bg-[var(--theme-divider)]" />
                   {t('sales_params_section')}
-                  <span className="flex-1 h-px bg-white/5" />
+                  <span className="flex-1 h-px bg-[var(--theme-divider-soft)]" />
                 </p>
                 {/* ── AI hint card (loading + result) — above grid ── */}
                 <AnimatePresence>
@@ -661,9 +661,9 @@ export function ProductModal({
               {/* Group 5: Variants — Multi-Layered Selector */}
               <div>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
-                  <span className="w-4 h-px bg-white/10" />
+                  <span className="w-4 h-px bg-[var(--theme-divider)]" />
                   {t('variants_section')}
-                  <span className="flex-1 h-px bg-white/5" />
+                  <span className="flex-1 h-px bg-[var(--theme-divider-soft)]" />
                 </p>
                 <VariantSelector
                   variants={productForm.variants}
@@ -692,7 +692,7 @@ export function ProductModal({
                 </form>
                 <div className="px-8 lg:px-12 py-4 bg-card/80 backdrop-blur-xl border-t border-white/5 rounded-b-2xl flex items-center gap-4 shrink-0">
 
-                  <button type="button" onClick={closeWithReset} className="px-8 py-3.5 rounded-xl bg-white/[0.05] text-white/40 border border-white/[0.12] hover:bg-white/10 hover:text-white text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all">
+                  <button type="button" onClick={closeWithReset} className="px-8 py-3.5 rounded-xl bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface)] hover:text-[var(--theme-text)] text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all">
                     {t('cancel') || 'LƏĞV ET'}
                   </button>
                   <SaveSuccessButton

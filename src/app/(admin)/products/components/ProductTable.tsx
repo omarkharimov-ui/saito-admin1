@@ -189,7 +189,7 @@ export function ProductTable({
   return (
     <div className="products-theme-bridge">
       {/* Sticky toolbar - mobil 2 sətir, desktop 1 sətir */}
-      <div className="sticky top-0 z-30 px-4 py-4 bg-white/92 backdrop-blur-xl border-b border-[#E5E5E7] mb-8">
+      <div className="sticky top-0 z-30 px-4 py-4 bg-[var(--theme-surface-muted)]/92 backdrop-blur-xl border-b border-[var(--theme-border)] mb-8">
         <div className="flex flex-col sm:flex-row gap-3">
 
           {/* Search - bütün en */}
@@ -200,7 +200,7 @@ export function ProductTable({
               placeholder={`${t('search')}...`}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 min-h-[44px] bg-white border border-[#E5E5E7] rounded-[10px] text-sm text-[#1D1D1F] placeholder:text-[#8E8E93] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] transition-all"
+              className="w-full pl-9 pr-4 py-2.5 min-h-[44px] bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[10px] text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(255,255,255,0.06)] transition-all"
             />
           </div>
 
@@ -220,14 +220,14 @@ export function ProductTable({
                   {t('product_category')}
                 </button>
                 <button onClick={() => { onSetBulkMode(false); onSetBulkAction(null); }}
-                  className="w-10 h-10 rounded-[10px] bg-white text-[#8E8E93] border border-[#E5E5E7] hover:text-[#1D1D1F] hover:bg-[#F7F7F8] flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]">
+                  className="w-10 h-10 rounded-[10px] bg-[var(--theme-surface)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(255,255,255,0.06)]">
                   <X size={13} />
                 </button>
               </>
             ) : (
               <>
                 <button onClick={() => onSetBulkMode(true)}
-                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-[10px] bg-white text-[#6E6E73] border border-[#E5E5E7] hover:bg-[#F7F7F8] hover:text-[#1D1D1F] transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]">
+                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-[10px] bg-[var(--theme-surface)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] hover:text-[var(--theme-text)] transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(255,255,255,0.06)]">
                   <Filter size={13} /> <span className="hidden sm:inline">{t('bulk_operation')}</span>
                 </button>
                 <button onClick={onOpenCategoryModal}
@@ -256,7 +256,7 @@ export function ProductTable({
       {/* Product table — DESKTOP (lg+) */}
       <div className="space-y-6 hidden lg:block">
         {products.length === 0 ? (
-          <div className="text-center py-24 bg-white border border-[#E5E5E7] rounded-[16px]">
+          <div className="text-center py-24 bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-[16px]">
             <AlertCircle className="mx-auto text-[#D2D2D7] mb-4" size={42} />
             <p className="text-[#1D1D1F] text-sm font-semibold">{t('product_not_found')}</p>
             <p className="text-[#8E8E93] text-sm mt-1">
@@ -271,7 +271,7 @@ export function ProductTable({
             </button>
           </div>
         ) : Object.entries(groupedProducts).map(([catId, { name, products: catProducts }]) => (
-          <div key={catId} className="bg-white border border-[#E5E5E7] rounded-[16px] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.04)]">
+          <div key={catId} className="bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-[16px] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.08)]">
             <div className="w-full px-6 py-4 flex items-center justify-between bg-[#FCFCFD] hover:bg-[#F7F7F8] transition-colors border-b border-[#E5E5E7]">
               <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => onToggleCategory(catId)}>
                 <div className="w-9 h-9 rounded-[10px] bg-[#F5F5F5] text-[#6E6E73] flex items-center justify-center shrink-0 border border-[#E5E5E7]">

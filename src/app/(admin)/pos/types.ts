@@ -57,6 +57,7 @@ export type PosTable = {
   last_activity_at?: string | null;
   opened_at?: string | null;
   order_count?: number | null;
+  order_ids?: string[];
 };
 
 export type PaymentInfo = {

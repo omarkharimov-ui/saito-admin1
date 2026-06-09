@@ -11,6 +11,8 @@ type PosTable = {
   total_amount: number;
   merged_orders?: unknown[] | null;
   last_activity_at?: string | null;
+  opened_at?: string | null;
+  order_count?: number | null;
 };
 
 const statusConfig: Record<string, { label: string; dot: string; bg: string; border: string; text: string; glow: string; lightBg: string; lightBorder: string; lightText: string }> = {

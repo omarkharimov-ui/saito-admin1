@@ -24,6 +24,7 @@ export default function MobileBottomNav({
   const [moreOpen, setMoreOpen] = useState(false);
   const [activeDockKey, setActiveDockKey] = useState('');
   const [dockDragging, setDockDragging] = useState(false);
+  const [dockX, setDockX] = useState(0);
 
   useEffect(() => {
     if (moreOpen) setMoreOpen(false);
@@ -51,6 +52,11 @@ export default function MobileBottomNav({
     const current = primary.find((link) => isActive(link.href)) ?? primary[0];
     if (current && !dockDragging) setActiveDockKey(current.id);
   }, [pathname, primary, dockDragging]);
+
+  useEffect(() => {
+    const currentIndex = Math.max(0, primary.findIndex((link) => link.id === activeDockKey));
+    setDockX(currentIndex * (100 / Math.max(1, primary.length)));
+  }, [activeDockKey, primary]);
 
   return (
     <>
@@ -140,17 +146,18 @@ export default function MobileBottomNav({
         }}
       >
         <div
-          className="mx-2 my-2 flex items-center justify-around h-[4.25rem] px-2 gap-1 rounded-[26px] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+          className="mx-2 my-2 flex items-center justify-around h-[4.25rem] px-2 gap-1 rounded-[26px] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[0_8px_30px_rgba(0,0,0,0.08)] touch-none select-none"
           onPointerDown={(event) => {
             setDockDragging(true);
             const target = event.currentTarget;
+            target.setPointerCapture(event.pointerId);
             const rect = target.getBoundingClientRect();
-
             const x = event.clientX - rect.left;
             const itemWidth = rect.width / Math.max(1, primary.length);
             const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
             const next = primary[index];
             if (next) setActiveDockKey(next.id);
+            setDockX((index / Math.max(1, primary.length - 1)) * 100);
           }}
           onPointerMove={(event) => {
             if (!dockDragging) return;
@@ -161,8 +168,12 @@ export default function MobileBottomNav({
             const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
             const next = primary[index];
             if (next) setActiveDockKey(next.id);
+            setDockX((index / Math.max(1, primary.length - 1)) * 100);
           }}
-          onPointerUp={() => setDockDragging(false)}
+          onPointerUp={(event) => {
+            setDockDragging(false);
+            try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+          }}
           onPointerCancel={() => setDockDragging(false)}
           onPointerLeave={() => setDockDragging(false)}
         >
@@ -181,13 +192,14 @@ export default function MobileBottomNav({
                 {activeDockKey === link.id ? (
                   <motion.span
                     layoutId="mobile-dock-active-pill"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full shadow-[0_12px_24px_rgba(0,0,0,0.08)]"
                     style={{
                       background: 'var(--theme-accent-soft)',
                       border: '1px solid var(--theme-accent-border)',
                       boxSizing: 'border-box',
+                      transform: `translateX(${dockX}%) ${dockDragging ? 'scale(1.02) translateY(-1px)' : 'scale(1)'}`,
                     }}
-                    transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                    transition={{ type: 'spring', stiffness: 520, damping: 38 }}
                   >
                     <Icon size={17} strokeWidth={2} className="text-[var(--theme-accent)] shrink-0" />
                     <span className="text-[11px] font-bold text-[var(--theme-accent)] truncate tracking-wide">

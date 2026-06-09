@@ -7,7 +7,7 @@ import { Save, Loader2, BrainCircuit, Store, Cloud, Bot, Sunrise, TrendingUp, Ey
 import { toast } from 'react-hot-toast';
 import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { labelCls } from './_shared';
+import { labelCls, saveButtonCls } from './_shared';
 import { useAiFlags } from '@/hooks/useAiFlags';
 
 const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | null }) => {
@@ -465,7 +465,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
       <div className="flex justify-end">
         <button type="submit" disabled={saving || !isDirty}
-          className={`flex items-center gap-2 btn-gradient px-8 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-40 shadow-premium ${!isDirty && !saving ? 'opacity-40 pointer-events-none' : ''}`}>
+          className={`${saveButtonCls} ${!isDirty && !saving ? 'opacity-40 pointer-events-none' : ''}`} style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(17,17,17,0.9)' }}>
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {t('analytics_save')}
         </button>
       </div>
@@ -496,7 +496,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
           </div>
         )}
         <button type="button" onClick={() => handleTranslateAll(true)} disabled={translating}
-          className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-gold/[0.08] border border-gold/20 text-gold text-[12px] font-bold tracking-wider uppercase transition-all disabled:opacity-40">
+          className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-white border border-[#e5e7eb] text-[#111111] text-[12px] font-bold tracking-wider uppercase transition-all disabled:opacity-40 shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
           {translating ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
           {translating ? t('analytics_translating') : t('analytics_translate_btn')}
         </button>

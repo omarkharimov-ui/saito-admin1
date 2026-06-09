@@ -18,6 +18,18 @@ html { background-color: #0a0a0a; }
 html.dark { background-color: #0a0a0a; }
 body { background-color: #0a0a0a; color: #ffffff; }
 
+:root {
+  --light-surface: #f8f8fa;
+  --light-surface-elevated: #ffffff;
+  --light-surface-soft: #f3f4f6;
+  --light-border: #e5e7eb;
+  --light-text: #111111;
+  --light-text-secondary: #4b5563;
+  --saito-blue: #007aff;
+  --saito-green: #00d084;
+  --apple-shadow: 0 8px 40px rgba(0, 0, 0, 0.04);
+}
+
 @import "tailwindcss";
 @import "../styles/foundation.css";
 @import "../styles/surfaces.css";
@@ -211,6 +223,8 @@ html[data-light-mode="true"] .bg-\[\#111111\] { background-color: #f9fafb; }
 html[data-light-mode="true"] .bg-\[\#141414\] { background-color: #f3f4f6; }
 html[data-light-mode="true"] .bg-\[\#1a1a1a\] { background-color: #f3f4f6; }
 html[data-light-mode="true"] .bg-black { background-color: #ffffff; }
+html[data-light-mode="true"] .bg-\[\#0a0a0a\] { background-color: #f8f8fa; }
+html[data-light-mode="true"] .bg-\[\#080808\] { background-color: #f8f8fa; }
 html[data-light-mode="true"] .bg-black\/55 { background-color: rgba(0,0,0,0.1); }
 html[data-light-mode="true"] .bg-black\/40 { background-color: rgba(0,0,0,0.08); }
 

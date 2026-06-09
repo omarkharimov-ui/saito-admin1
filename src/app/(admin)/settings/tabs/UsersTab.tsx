@@ -270,7 +270,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                 {t('users_cancel')}
               </button>
               <button type="submit" disabled={sendingCode}
-                className="flex items-center gap-2 bg-gold/90 text-black px-6 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-40 shadow-lg shadow-gold/10">
+                className="flex items-center gap-2 bg-[#111111] text-white px-6 py-2.5 rounded-2xl font-bold text-sm transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-black">
                 {sendingCode ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                 {t('users_send_code')}
               </button>
@@ -309,7 +309,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                 {t('users_back')}
               </button>
               <button type="submit" disabled={verifying || verifyCode.length !== 6}
-                className="flex items-center gap-2 bg-gold/90 text-black px-6 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-40 shadow-lg shadow-gold/10">
+                className="flex items-center gap-2 bg-[#111111] text-white px-6 py-2.5 rounded-2xl font-bold text-sm transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-black">
                 {verifying ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
                 {t('users_create')}
               </button>

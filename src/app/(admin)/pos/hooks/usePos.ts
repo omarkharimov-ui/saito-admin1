@@ -272,6 +272,14 @@ export function usePos() {
 
       await deductStockForOrder(orderId);
 
+      const recipeRes = await fetch(`/api/orders/${orderId}/recipes`);
+      if (recipeRes.ok) {
+        const recipeData = await recipeRes.json();
+        if (recipeData.message) {
+          console.info(recipeData.message);
+        }
+      }
+
       toast.success('Hesap bağlandı');
       backToFloor();
       fetchData();

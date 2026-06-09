@@ -26,7 +26,7 @@ const MOBILE_ALLOWED_TYPES = ['reservation', 'stock'];
 // Check if currently on orders page
 const isOnOrdersPage = () => {
   if (typeof window === 'undefined') return false;
-  return window.location.pathname.includes('/orders') || window.location.pathname.includes('/admin/orders');
+  return window.location.pathname.includes('/pos');
 };
 
 const iconMap = {

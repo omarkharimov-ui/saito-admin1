@@ -18,7 +18,7 @@ const Sidebar = ({
   onClose: () => void;
 }) => {
   const pathname = usePathname();
-  const { pendingCount, newOrdersCount, readyOrdersCount } = useNotifications();
+  const { pendingCount, readyOrdersCount } = useNotifications();
   const { t } = useLanguage();
   const { lightMode } = useTheme();
 
@@ -27,12 +27,11 @@ const Sidebar = ({
       filterNavByRole(
         getAdminNavItems(t, {
           pending: pendingCount,
-          orders: newOrdersCount,
           ready: readyOrdersCount,
         }),
         role
       ),
-    [t, role, pendingCount, newOrdersCount, readyOrdersCount]
+    [t, role, pendingCount, readyOrdersCount]
   );
 
   const handleLogout = async () => {

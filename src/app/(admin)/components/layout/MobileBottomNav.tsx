@@ -30,7 +30,7 @@ export default function MobileBottomNav({
   const allLinks = useMemo(
     () =>
       filterNavByRole(
-        getAdminNavItems(t, { pending: pendingCount, orders: 0, ready: 0 }),
+        getAdminNavItems(t, { pending: pendingCount, ready: 0 }),
         role
       ),
     [t, role, pendingCount]
@@ -38,7 +38,7 @@ export default function MobileBottomNav({
 
   const primaryIds = getMobilePrimaryNavIds(role);
   const primary = allLinks.filter((l) => primaryIds.has(l.id));
-  const overflow = allLinks.filter((l) => !primaryIds.has(l.id) && l.id !== 'orders');
+  const overflow = allLinks.filter((l) => !primaryIds.has(l.id) && l.id !== 'pos-orders');
   const hasMore = overflow.length > 0;
 
   const isActive = (href: string) =>
@@ -62,9 +62,9 @@ export default function MobileBottomNav({
       {/* More popup — grid of app icons */}
       {hasMore && (
         <div
-          className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-3xl border p-4 shadow-2xl lg:hidden ${lightMode ? 'border-gray-200' : 'border-white/[0.1]'}`}
+          className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-[28px] border p-4 shadow-[0_12px_48px_rgba(0,0,0,0.08)] lg:hidden ${lightMode ? 'border-gray-200' : 'border-white/[0.1]'}`}
           style={{
-            background: lightMode ? 'rgba(255,255,255,0.97)' : 'rgba(12,12,12,0.97)',
+            background: lightMode ? 'rgba(255,255,255,0.94)' : 'rgba(12,12,12,0.97)',
             backdropFilter: 'blur(24px)',
             opacity: moreOpen ? 1 : 0,
             transform: moreOpen ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.96)',
@@ -86,10 +86,10 @@ export default function MobileBottomNav({
                   className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl transition-colors active:scale-95"
                   style={{
                     background: active
-                      ? (lightMode ? 'rgba(184,134,11,0.08)' : 'rgba(212,175,55,0.12)')
+                      ? (lightMode ? 'rgba(0,122,255,0.08)' : 'rgba(212,175,55,0.12)')
                       : (lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.04)'),
                     border: active
-                      ? (lightMode ? '1px solid rgba(184,134,11,0.25)' : '1px solid rgba(212,175,55,0.3)')
+                      ? (lightMode ? '1px solid rgba(0,122,255,0.18)' : '1px solid rgba(212,175,55,0.3)')
                       : (lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.07)'),
                   }}
                 >
@@ -97,15 +97,15 @@ export default function MobileBottomNav({
                     <Icon
                       size={22}
                       strokeWidth={1.6}
-                      className={active ? 'text-gold' : (lightMode ? 'text-gray-400' : 'text-white/50')}
+                      className={active ? 'text-[#007aff]' : (lightMode ? 'text-gray-400' : 'text-white/50')}
                     />
                     {link.badge && link.badge > 0 ? (
-                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-[9px] font-bold text-black flex items-center justify-center">
+                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-[#007aff] text-[9px] font-bold text-white flex items-center justify-center shadow-[0_4px_14px_rgba(0,122,255,0.24)]">
                         {link.badge > 9 ? '9+' : link.badge}
                       </span>
                     ) : null}
                   </div>
-                  <span className={`text-[10px] font-semibold text-center leading-tight tracking-wide ${active ? 'text-gold' : (lightMode ? 'text-gray-400' : 'text-white/40')}`}>
+                  <span className={`text-[10px] font-semibold text-center leading-tight tracking-wide ${active ? 'text-[#007aff]' : (lightMode ? 'text-gray-400' : 'text-white/40')}`}>
                     {link.name}
                   </span>
                 </Link>
@@ -135,6 +135,7 @@ export default function MobileBottomNav({
           background: lightMode ? 'rgba(255,255,255,0.97)' : 'rgba(10,10,10,0.97)',
           backdropFilter: 'blur(20px)',
           borderTop: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.07)',
+          boxShadow: lightMode ? '0 -8px 30px rgba(0,0,0,0.05)' : '0 -8px 30px rgba(0,0,0,0.28)',
         }}
       >
         <div className="flex items-center justify-around h-[4.25rem] px-3 gap-1">
@@ -153,17 +154,17 @@ export default function MobileBottomNav({
                   <span
                     className="flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full"
                     style={{
-                      background: lightMode ? 'rgba(184,134,11,0.08)' : 'rgba(212,175,55,0.13)',
-                      border: lightMode ? '1px solid rgba(184,134,11,0.25)' : '1px solid rgba(212,175,55,0.28)',
+                      background: lightMode ? 'rgba(0,122,255,0.08)' : 'rgba(212,175,55,0.13)',
+                      border: lightMode ? '1px solid rgba(0,122,255,0.18)' : '1px solid rgba(212,175,55,0.28)',
                       boxSizing: 'border-box',
                     }}
                   >
-                    <Icon size={17} strokeWidth={2} className="text-gold shrink-0" />
-                    <span className="text-[11px] font-bold text-gold truncate tracking-wide">
+                    <Icon size={17} strokeWidth={2} className="text-[#007aff] shrink-0" />
+                    <span className="text-[11px] font-bold text-[#007aff] truncate tracking-wide">
                       {link.name}
                     </span>
                     {link.badge && link.badge > 0 ? (
-                      <span className="min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-[9px] font-bold text-black flex items-center justify-center shrink-0">
+                      <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#007aff] text-[9px] font-bold text-white flex items-center justify-center shrink-0 shadow-[0_4px_14px_rgba(0,122,255,0.24)]">
                         {link.badge > 9 ? '9+' : link.badge}
                       </span>
                     ) : null}

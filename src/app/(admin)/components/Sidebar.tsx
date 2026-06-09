@@ -76,11 +76,7 @@ const Sidebar = ({
                 key={link.id}
                 href={link.href}
                 onClick={onClose}
-                className={`group relative flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-[10px] border ${
-                  isActive
-                    ? 'text-[var(--theme-text)] bg-[var(--theme-panel)] border-[var(--theme-border-strong)] shadow-[0_1px_2px_rgba(0,0,0,0.03)]' : 'text-[var(--theme-text)] bg-[var(--theme-panel)] border-[var(--theme-border)]'
-                    : (lightMode ? 'text-[#6E6E73] border-transparent hover:text-[#1D1D1F] hover:bg-[#F7F7F8]' : 'text-white/40 border-transparent hover:text-white/85 hover:bg-white/[0.05]')
-                }`}
+                className={`group relative flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-[10px] border ${isActive ? 'text-[var(--theme-text)] bg-[var(--theme-panel)] border-[var(--theme-border-strong)] shadow-[0_1px_2px_rgba(0,0,0,0.03)]' : 'text-[var(--theme-text-secondary)] bg-transparent border-transparent hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]'}`}
               >
                 {/* Active indicator — left bar */}
                 {isActive && (
@@ -106,11 +102,7 @@ const Sidebar = ({
                     </span>
                   )}
                   {link.badge && link.badge > 0 ? (
-                    <span className={`tabular-nums text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 ${
-                      link.blink
-                        ? 'bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border border-[var(--theme-accent-border)]'
-                        : (lightMode ? 'bg-[#F5F5F5] text-[#6E6E73] border border-[#E5E5E7]' : 'bg-white/[0.06] text-white/50 border border-white/[0.10]')
-                    }`}>
+                    <span className={`tabular-nums text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 ${link.blink ? 'bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border border-[var(--theme-accent-border)]' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)]'}`}>
                       {link.badge}
                     </span>
                   ) : null}
@@ -130,14 +122,14 @@ const Sidebar = ({
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <span className={`block text-[9px] font-black uppercase tracking-widest ${role === 'superadmin' ? 'text-gold' : 'text-[var(--theme-text-muted)]'}`}>
+              <span className="block text-[9px] font-black uppercase tracking-widest text-[var(--theme-text-secondary)]">
                 {role === 'superadmin' ? t('superadmin') : t('admin')}
               </span>
             </div>
             <button
               onClick={handleLogout}
               title={t('logout')}
-              className={`w-9 h-9 rounded-[10px] flex items-center justify-center border border-transparent transition-all ${lightMode ? 'text-[#8E8E93] hover:text-red-500 hover:bg-red-50 hover:border-red-200' : 'text-white/40 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20'}`}
+              className="w-9 h-9 rounded-[10px] flex items-center justify-center border border-transparent transition-all text-[var(--theme-text-secondary)] hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20"
             >
               <LogOut size={17} />
             </button>

@@ -5,7 +5,7 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deductStockForOrder } from '@/lib/stockAutomation';
-import type { Product } from '@/app/(admin)/products/types';
+import type { Product } from '../../orders/types';
 import type {
   PosTable, PosCart, PosCartItem, Modifier, ModifierSelection,
   PaymentInfo, FloorConfig, TableStatus,

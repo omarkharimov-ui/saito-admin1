@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import type { Product } from '@/app/(admin)/products/types';
+import type { Product } from '../../orders/types';
 import type { ModifierSelection } from '../types';
 
 interface ProductGridProps {

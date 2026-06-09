@@ -4,8 +4,30 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast, type Toast } from 'react-hot-toast';
+import { CheckCircle2, X } from 'lucide-react';
 
 const dismissToast = (t: Toast) => toast.dismiss(t.id);
+
+const toastBaseStyle = {
+  background: '#111111',
+  color: '#f5f5f7',
+  border: '1px solid rgba(255,255,255,0.08)',
+  boxShadow: '0 12px 30px rgba(0,0,0,0.28)',
+} as const;
+
+export const toastSuccess = (message: string, options: Parameters<typeof toast.success>[1] = {}) =>
+  toast.success(message, {
+    icon: <CheckCircle2 size={16} strokeWidth={2.2} />,
+    style: toastBaseStyle,
+    ...options,
+  });
+
+export const toastError = (message: string, options: Parameters<typeof toast.error>[1] = {}) =>
+  toast.error(message, {
+    icon: <X size={16} strokeWidth={2.2} />,
+    style: { ...toastBaseStyle, background: '#1a1111', color: '#fecaca', border: '1px solid rgba(248,113,113,0.28)' },
+    ...options,
+  });
 
 interface NotificationItem {
   id: string;

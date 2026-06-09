@@ -22,6 +22,8 @@ export default function MobileBottomNav({
   const { lightMode } = useTheme();
   const { pendingCount } = useNotifications();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [activeDockKey, setActiveDockKey] = useState('');
+  const [dockDragging, setDockDragging] = useState(false);
 
   useEffect(() => {
     if (moreOpen) setMoreOpen(false);
@@ -44,6 +46,11 @@ export default function MobileBottomNav({
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname === href || pathname?.startsWith(`${href}/`);
+
+  useEffect(() => {
+    const current = primary.find((link) => isActive(link.href)) ?? primary[0];
+    if (current && !dockDragging) setActiveDockKey(current.id);
+  }, [pathname, primary, dockDragging]);
 
   return (
     <>
@@ -132,7 +139,33 @@ export default function MobileBottomNav({
           boxShadow: '0 -12px 36px rgba(0,0,0,0.12)',
         }}
       >
-        <div className="mx-2 my-2 flex items-center justify-around h-[4.25rem] px-2 gap-1 rounded-[26px] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+        <div
+          className="mx-2 my-2 flex items-center justify-around h-[4.25rem] px-2 gap-1 rounded-[26px] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+          onPointerDown={(event) => {
+            setDockDragging(true);
+            const target = event.currentTarget;
+            const rect = target.getBoundingClientRect();
+
+            const x = event.clientX - rect.left;
+            const itemWidth = rect.width / Math.max(1, primary.length);
+            const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
+            const next = primary[index];
+            if (next) setActiveDockKey(next.id);
+          }}
+          onPointerMove={(event) => {
+            if (!dockDragging) return;
+            const target = event.currentTarget;
+            const rect = target.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const itemWidth = rect.width / Math.max(1, primary.length);
+            const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
+            const next = primary[index];
+            if (next) setActiveDockKey(next.id);
+          }}
+          onPointerUp={() => setDockDragging(false)}
+          onPointerCancel={() => setDockDragging(false)}
+          onPointerLeave={() => setDockDragging(false)}
+        >
           {primary.map((link) => {
             const Icon = link.icon;
             const active = isActive(link.href);
@@ -140,10 +173,12 @@ export default function MobileBottomNav({
               <Link
                 key={link.id}
                 href={link.href}
+                data-dock-item="true"
                 className="relative flex flex-1 items-center justify-center min-w-0 overflow-hidden active:scale-95 transition-transform duration-100"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
+                onClick={() => setActiveDockKey(link.id)}
               >
-                {active ? (
+                {activeDockKey === link.id ? (
                   <motion.span
                     layoutId="mobile-dock-active-pill"
                     className="flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full"

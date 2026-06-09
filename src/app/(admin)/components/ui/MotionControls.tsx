@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
 import type { ReactNode } from 'react';
 
 export type MotionTabItem = {
@@ -92,20 +92,47 @@ type DockItem = {
 interface FloatingDockProps {
   items: DockItem[];
   className?: string;
+  activeKey?: string;
+  onActiveKeyChange?: (key: string) => void;
 }
 
-export function FloatingDock({ items, className = '' }: FloatingDockProps) {
+export function FloatingDock({ items, className = '', activeKey, onActiveKeyChange }: FloatingDockProps) {
+  const firstActive = items.find((item) => item.active) ?? items[0];
+  const currentKey = activeKey ?? firstActive?.key ?? '';
+  const activeIndex = Math.max(0, items.findIndex((item) => item.key === currentKey));
+  const dragX = useMotionValue(0);
+  const springX = useSpring(dragX, { stiffness: 380, damping: 34 });
+  const tabWidth = 76;
+
+  const setIndex = (index: number) => {
+    const clamped = Math.max(0, Math.min(index, items.length - 1));
+    const next = items[clamped];
+    if (!next) return;
+    onActiveKeyChange?.(next.key);
+    dragX.set(clamped * tabWidth);
+  };
+
   return (
     <div className={`fixed inset-x-0 bottom-0 z-50 lg:hidden pb-[env(safe-area-inset-bottom)] ${className}`.trim()}>
       <div className="mx-3 mb-3 rounded-[28px] border border-[var(--theme-border)] bg-[var(--theme-panel)] shadow-[0_-12px_36px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
-        <div className="flex items-center justify-around gap-1 px-3 py-2.5">
-          {items.map((item) => {
+        <div
+          className="relative flex items-center justify-around gap-1 px-3 py-2.5 touch-none select-none"
+          onPointerUp={() => setIndex(Math.round(dragX.get() / tabWidth))}
+          onPointerCancel={() => setIndex(Math.round(dragX.get() / tabWidth))}
+          onTouchEnd={() => setIndex(Math.round(dragX.get() / tabWidth))}
+        >
+          <motion.div
+            className="absolute top-2 bottom-2 rounded-[22px] bg-[var(--theme-surface-hover)] border border-[var(--theme-border-strong)] shadow-[0_8px_24px_rgba(0,0,0,0.08)]"
+            style={{ width: tabWidth, x: springX }}
+          />
+          {items.map((item, index) => {
+            const active = index === activeIndex;
             const content = (
               <>
-                <span className={`flex h-11 w-11 items-center justify-center rounded-full transition-all ${item.active ? 'bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border border-[var(--theme-accent-border)]' : 'text-[var(--theme-text-secondary)]'}`}>
+                <span className={`flex h-11 w-11 items-center justify-center rounded-full transition-all ${active ? 'bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border border-[var(--theme-accent-border)]' : 'text-[var(--theme-text-secondary)]'}`}>
                   {item.icon}
                 </span>
-                <span className={`text-[10px] font-semibold tracking-wide ${item.active ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
+                <span className={`text-[10px] font-semibold tracking-wide ${active ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
                   {item.label}
                 </span>
                 {typeof item.badge === 'number' && item.badge > 0 ? (
@@ -116,18 +143,27 @@ export function FloatingDock({ items, className = '' }: FloatingDockProps) {
               </>
             );
 
-            const className = `relative flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition-transform active:scale-95 ${item.active ? 'text-[var(--theme-text)]' : ''}`;
+            const className = `relative flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition-transform active:scale-95 ${active ? 'text-[var(--theme-text)]' : ''}`;
+            const sharedProps = {
+              className,
+              onClick: () => {
+                onActiveKeyChange?.(item.key);
+                dragX.set(index * tabWidth);
+                item.onClick?.();
+              },
+              onPointerDown: () => setIndex(index),
+            } as const;
 
             if (item.href) {
               return (
-                <a key={item.key} href={item.href} className={className}>
+                <a key={item.key} href={item.href} {...sharedProps}>
                   {content}
                 </a>
               );
             }
 
             return (
-              <button key={item.key} type="button" onClick={item.onClick} className={className}>
+              <button key={item.key} type="button" {...sharedProps}>
                 {content}
               </button>
             );

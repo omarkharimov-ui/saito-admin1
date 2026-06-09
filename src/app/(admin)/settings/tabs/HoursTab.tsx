@@ -86,7 +86,7 @@ const HoursTab = () => {
                   <span className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-[var(--theme-surface)] shadow transition-all ${ d.closed ? 'left-[3px]' : 'left-[19px]'}`} />
                 </button>
                 <span className={`text-sm font-medium ${ isToday ? 'text-gold' : d.closed ? 'text-[var(--theme-text-muted)]' : 'text-[var(--theme-text-secondary)]'}`}>{day}</span>
-                {isToday && <span className="text-[9px] font-black uppercase tracking-widest text-gold/60 bg-gold/10 px-1.5 py-0.5 rounded">Bu gün</span>
+                {isToday && <span className="text-[9px] font-black uppercase tracking-widest text-gold/60 bg-gold/10 px-1.5 py-0.5 rounded">Bu gün</span>}
               </div>
 
               {d.closed ? (

@@ -241,7 +241,7 @@ export default function POSPage() {
                         {selectedForMerge.length} masanı birləşdir
                       </button>
                     )}
-                    {activeFloor?.tables.some(t => t.status !== 'empty') && (
+                    {(activeFloor?.tables ?? []).some(t => t.status !== 'empty') && (
                       <>
                         <button onClick={() => { setMergeMode(!mergeMode); setSelectedForMerge([]); }}
                           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${

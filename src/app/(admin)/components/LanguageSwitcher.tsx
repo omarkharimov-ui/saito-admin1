@@ -223,7 +223,6 @@ export function LanguageSwitcher() {
                     transition={{ duration: 0.14, delay: i * 0.04 }}
                     onClick={() => handleSwitch(lang.code)}
                     whileTap={{ scale: 0.95 }}
-                    className="h-8 px-3 rounded-lg flex items-center justify-center cursor-pointer select-none min-w-[70px] hover:translate-x-[-2px] transition-transform"
                     className="h-8 px-3 rounded-lg flex items-center justify-center cursor-pointer select-none min-w-[70px] hover:translate-x-[-2px] transition-transform bg-[var(--theme-surface)] border border-[var(--theme-border)] backdrop-blur-md"
                   >
                     <span className="text-[11px] font-bold tracking-[0.18em] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors">{lang.label}</span>

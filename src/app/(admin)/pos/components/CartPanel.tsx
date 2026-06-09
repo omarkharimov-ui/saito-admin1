@@ -77,7 +77,7 @@ export function CartPanel({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20, height: 0 }}
                 transition={{ duration: 0.15 }}
-                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 border bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-[0_1px_3px_rgba(255,255,255,0.04)]"}
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 border bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-[0_1px_3px_rgba(255,255,255,0.04)]"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>

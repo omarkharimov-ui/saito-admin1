@@ -99,9 +99,9 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => onAddProduct(product)}
-                  className="relative rounded-xl border flex flex-col overflow-hidden transition-all bg-[var(--theme-surface-muted)] border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] shadow-sm hover:shadow-md"}
+                  className="relative rounded-xl border flex flex-col overflow-hidden transition-all bg-[var(--theme-surface-muted)] border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] shadow-sm hover:shadow-md"
                 >
-                  <div className="aspect-square w-full overflow-hidden flex items-center justify-center bg-[var(--theme-surface-soft)]"}>
+                  <div className="aspect-square w-full overflow-hidden flex items-center justify-center bg-[var(--theme-surface-soft)]">
                     {product.image_url ? (
                       <img src={product.image_url} alt={name} className="w-full h-full object-cover" loading="lazy" />
                     ) : (

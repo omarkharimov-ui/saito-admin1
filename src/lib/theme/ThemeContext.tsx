@@ -52,8 +52,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       html.setAttribute('data-theme', lightMode ? 'light' : 'dark');
-      html.classList.toggle('dark', !lightMode);
-      html.classList.toggle('light', lightMode);
+      html.classList.remove('dark');
+      html.classList.remove('light');
       html.style.colorScheme = lightMode ? 'light' : 'dark';
     } catch {
       // ignore

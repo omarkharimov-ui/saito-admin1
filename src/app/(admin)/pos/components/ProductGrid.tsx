@@ -5,7 +5,15 @@ import { motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import type { Product } from '../../orders/types';
+export type Product = {
+  id: string;
+  name: string;
+  price: number;
+  category_id?: string | null;
+  image_url?: string | null;
+  is_active?: boolean | null;
+  [key: string]: any;
+};
 import type { ModifierSelection } from '../types';
 
 interface ProductGridProps {

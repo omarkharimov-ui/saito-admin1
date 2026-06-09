@@ -320,7 +320,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                         else setForm(prev => ({ ...prev, name_en: val }));
                       }}
                       placeholder={language === 'az' ? 'Məs: Ailə Paketi' : language === 'ru' ? 'Название...' : 'Name...'}
-                      className="w-full bg-white/[0.05] border border-white/[0.10] rounded-xl px-4 py-3.5 text-base text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-all"
+                      className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-3.5 text-base text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-border-strong)] transition-all"
                     />
                   </div>
                   <div>

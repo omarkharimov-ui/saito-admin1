@@ -149,7 +149,7 @@ export default function HistoryPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Hadisə və ya məhsul axtar..."
-              className="w-full pl-10 pr-9 py-3 rounded-xl text-sm bg-white/[0.03] border border-white/[0.07] text-white placeholder:text-white/15 outline-none focus:border-indigo-400/25 transition-all duration-300"
+              className="w-full pl-10 pr-9 py-3 rounded-xl text-sm bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-border-strong)] transition-all duration-300"
             />
             {search && (
               <button onClick={() => setSearch('')}
@@ -217,14 +217,14 @@ export default function HistoryPage() {
                   <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/[0.07]">
                     {dateLabel(day.date)}
                   </span>
-                  <div className="flex-1 h-px bg-white/[0.03]" />
+                  <div className="flex-1 h-px bg-[var(--theme-border)]" />
                   <span className="text-[8px] text-white/[0.06] tabular-nums">{day.items.length}</span>
                 </div>
 
                 {/* Events */}
                 <div className="relative">
                   {/* Timeline line */}
-                  <div className="absolute left-[17px] top-3 bottom-3 w-px bg-white/[0.04]" />
+                  <div className="absolute left-[17px] top-3 bottom-3 w-px bg-[var(--theme-border)]" />
 
                   <div className="space-y-2.5">
                     {day.items.map((ev, i) => {
@@ -253,7 +253,7 @@ export default function HistoryPage() {
                           </div>
 
                           {/* Card */}
-                          <div className="rounded-xl px-4 py-3 transition-all duration-200 group-hover:bg-white/[0.015]"
+                          <div className="rounded-xl px-4 py-3 transition-all duration-200 group-hover:bg-[var(--theme-surface-soft)]"
                             style={{
                               background: 'rgba(255,255,255,0.025)',
                               border: '1px solid rgba(255,255,255,0.05)',

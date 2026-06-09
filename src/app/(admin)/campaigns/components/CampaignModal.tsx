@@ -143,7 +143,7 @@ const CampaignModal = ({
                       ? 'bg-[var(--theme-accent-soft)] border-[var(--theme-accent-border)]'
                       : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] hover:bg-[var(--theme-panel)]'
                   }`}>
-                  <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-white/[0.06] border border-white/[0.06]">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                     {p.image_url
                       ? <img src={p.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center text-[var(--theme-text-muted)] text-[10px] font-black">{p.name.slice(0,2).toUpperCase()}</div>
@@ -161,7 +161,7 @@ const CampaignModal = ({
         </div>
 
         {form.type === 'PERCENTAGE' && form.target_type === 'product' && form.target_id && (
-          <div className="p-3.5 bg-white/[0.05] border border-white/20 rounded-xl flex justify-between items-center">
+          <div className="p-3.5 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl flex justify-between items-center">
             <span className="text-[10px] uppercase text-[var(--theme-text-muted)] font-bold tracking-widest">{t('new_price')}</span>
             <span className="text-xl font-bold text-white">₼{(() => {
               const p = products.find(prod => prod.id === form.target_id);

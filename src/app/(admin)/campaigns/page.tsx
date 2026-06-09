@@ -493,7 +493,7 @@ const CampaignsPage = () => {
 
       {/* ── Campaign list ── */}
       {campaigns.length === 0 ? (
-        <div className="text-center py-32 md:py-40 bg-white/[0.01] border border-dashed border-white/10 rounded-2xl">
+        <div className="text-center py-32 md:py-40 bg-[var(--theme-surface)] border border-dashed border-[var(--theme-border)] rounded-2xl">
           <Sparkles className="mx-auto text-[var(--theme-border)] mb-6" size={64} />
           <p className="text-[var(--theme-text-muted)] uppercase tracking-[0.4em] text-xs font-bold">{t('no_active_campaigns_empty')}</p>
         </div>

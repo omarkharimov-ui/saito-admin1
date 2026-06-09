@@ -180,7 +180,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
 
           {/* progress bar (cooking) */}
           {order.status !== 'paid' && !isKitchenReady && !!order.kitchen_accepted_at && (
-            <div className="mt-2 h-[1px] w-full bg-white/[0.05] overflow-hidden">
+            <div className="mt-2 h-[1px] w-full bg-[var(--theme-border)] overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${prog.pct}%` }}

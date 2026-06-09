@@ -211,7 +211,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                 <div className="relative">
                   <input type={showPw ? 'text' : 'password'} autoComplete="new-password" placeholder="min. 6 simvol"
                     value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-gold/60 px-4 py-2.5 pr-10 text-sm text-white placeholder:text-white/20 outline-none rounded-xl transition-all" />
+                    className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-4 py-2.5 pr-10 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all" />
                   <button type="button" onClick={() => setShowPw(v => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
                     {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -219,7 +219,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-semibold block">{t('users_role')}</label>
+                <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold block">{t('users_role')}</label>
                 <div className="flex gap-2">
                   {(['admin', 'kitchen'] as AdminRole[]).map(r => (
                     <button key={r} type="button" onClick={() => setForm({ ...form, role: r })}
@@ -264,7 +264,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                 <p className="text-[11px] text-emerald-400/70">{t('users_kitchen_hint')}</p>
               </div>
             )}
-            <div className="flex justify-end gap-3 pt-1 border-t border-white/[0.05]">
+            <div className="flex justify-end gap-3 pt-1 border-t border-[var(--theme-border)]">
               <button type="button" onClick={() => { setShowForm(false); setCreateStep('form'); }}
                 className="px-5 py-2.5 text-sm text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]">
                 {t('users_cancel')}
@@ -303,7 +303,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
               autoFocus
               className="w-full bg-[var(--theme-surface)] border border-gold/30 focus:border-gold/70 px-4 py-3 text-2xl font-mono font-bold text-gold text-center tracking-[0.5em] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
             />
-            <div className="flex justify-between gap-3 pt-1 border-t border-white/[0.05]">
+            <div className="flex justify-between gap-3 pt-1 border-t border-[var(--theme-border)]">
               <button type="button" onClick={() => setCreateStep('form')}
                 className="px-5 py-2.5 text-sm text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]">
                 {t('users_back')}
@@ -370,10 +370,10 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                               placeholder={t('users_current_password_placeholder')}
                               value={currentPw}
                               onChange={e => setCurrentPw(e.target.value)}
-                              className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-white/30 px-3 py-2.5 pr-9 text-sm text-white placeholder:text-white/20 outline-none rounded-xl transition-all"
+                              className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-3 py-2.5 pr-9 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
                             />
                             <button type="button" onClick={() => setShowCurrentPw(v => !v)}
-                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70">
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]">
                               {showCurrentPw ? <EyeOff size={14} /> : <Eye size={14} />}
                             </button>
                           </div>
@@ -384,10 +384,10 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                               placeholder={t('users_new_password_placeholder')}
                               value={newPw}
                               onChange={e => setNewPw(e.target.value)}
-                              className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-gold/50 px-3 py-2.5 pr-9 text-sm text-white placeholder:text-white/20 outline-none rounded-xl transition-all"
+                              className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-3 py-2.5 pr-9 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
                             />
                             <button type="button" onClick={() => setShowNewPw(v => !v)}
-                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70">
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]">
                               {showNewPw ? <EyeOff size={14} /> : <Eye size={14} />}
                             </button>
                           </div>

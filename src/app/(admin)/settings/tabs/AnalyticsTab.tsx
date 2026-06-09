@@ -364,14 +364,14 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
       {/* ── UI Köməkçiləri ── */}
       <div className="space-y-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">UI Köməkçiləri</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">UI Köməkçiləri</p>
 
         <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
           <div className="flex items-center gap-3">
             <Sunrise size={15} className="text-gold/70" />
             <div>
               <p className="text-sm font-semibold text-white">{t('gen_morning_greeting')}</p>
-              <p className="text-[11px] text-white/45 mt-0.5">
+              <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">
                 {greetingEnabled ? t('gen_greeting_active') : t('gen_greeting_inactive')}
               </p>
             </div>
@@ -385,14 +385,14 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
       {/* ── AI Funksiyaları ── */}
       <div className="space-y-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t('ai_features_section')}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">{t('ai_features_section')}</p>
 
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
           <div className="flex items-center gap-3">
             <Eye size={15} className="text-gold/70" />
             <div>
               <p className="text-sm font-semibold text-white">{t('ai_vision_label')}</p>
-              <p className="text-[11px] text-white/45 mt-0.5">
+              <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">
                 {aiFlags.visionEnabled ? t('ai_vision_desc_on') : t('ai_vision_desc_off')}
               </p>
             </div>
@@ -403,7 +403,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
           </button>
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
           <div className="flex items-center gap-3">
             <Wand2 size={15} className="text-gold/70" />
             <div>
@@ -422,7 +422,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
       {/* ── Analitika Konfiqurasiyası ── */}
       <div className="space-y-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t('tab_analytics')}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">{t('tab_analytics')}</p>
 
         <div>
           <label className={labelCls}><Cloud size={11} /> {t('analytics_city_label')}</label>
@@ -444,7 +444,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               onChange={v => setCfg({ ...cfg, city: v })}
               placeholder={t('analytics_city_placeholder')}
             />
-            <p className="text-[10px] text-white/40 mt-1.5">{t('analytics_city_hint')}</p>
+            <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('analytics_city_hint')}</p>
           </div>
         </div>
 
@@ -459,44 +459,44 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] rounded-xl pl-8 pr-4 py-3 text-[var(--theme-text)] text-sm outline-none transition-all"
             />
           </div>
-          <p className="text-[10px] text-white/40 mt-1.5">{t('analytics_revenue_limit_hint')}</p>
+          <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('analytics_revenue_limit_hint')}</p>
         </div>
       </div>
 
       <div className="flex justify-end">
         <button type="submit" disabled={saving || !isDirty}
-          className={`${saveButtonCls} ${!isDirty && !saving ? 'opacity-40 pointer-events-none' : ''}`} style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(17,17,17,0.9)' }}>
+          className={`${saveButtonCls} ${!isDirty && !saving ? 'opacity-40 pointer-events-none' : ''}`} style={{ background: 'var(--theme-surface)', color: 'var(--theme-text)', border: '1px solid var(--theme-border)' }}>
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {t('analytics_save')}
         </button>
       </div>
 
       {/* ── Translation section ── */}
-      <div className="border-t border-white/[0.06] pt-8 space-y-5">
+      <div className="border-t border-[var(--theme-border)] pt-8 space-y-5">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
             <Store size={14} className="text-gold" />
           </div>
           <div>
             <p className="text-sm font-semibold text-white">{t('analytics_translations_title')}</p>
-            <p className="text-[11px] text-white/55 mt-0.5">{t('analytics_translations_desc')}</p>
+            <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">{t('analytics_translations_desc')}</p>
           </div>
         </div>
         {translateResult && (
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-4 px-4 py-3 rounded-xl bg-gold/[0.06] border border-gold/15 text-[12px]">
-              <span className="text-white/55 font-bold uppercase tracking-wider text-[10px]">{t('analytics_col_products')}</span>
-              <span className="text-white/70">{t('analytics_col_total')} <span className="text-white font-bold">{translateResult.total}</span></span>
+              <span className="text-[var(--theme-text-muted)] font-bold uppercase tracking-wider text-[10px]">{t('analytics_col_products')}</span>
+              <span className="text-[var(--theme-text-secondary)]">{t('analytics_col_total')} <span className="text-[var(--theme-text)] font-bold">{translateResult.total}</span></span>
               <span className="text-emerald-400/80">{t('analytics_col_translated')} <span className="text-emerald-400 font-bold">{translateResult.translated}</span></span>
             </div>
             <div className="flex flex-wrap items-center gap-4 px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[12px]">
-              <span className="text-white/55 font-bold uppercase tracking-wider text-[10px]">{t('analytics_col_categories')}</span>
-              <span className="text-white/70">{t('analytics_col_total')} <span className="text-white font-bold">{translateResult.categoriesTotal}</span></span>
+              <span className="text-[var(--theme-text-muted)] font-bold uppercase tracking-wider text-[10px]">{t('analytics_col_categories')}</span>
+              <span className="text-[var(--theme-text-secondary)]">{t('analytics_col_total')} <span className="text-[var(--theme-text)] font-bold">{translateResult.categoriesTotal}</span></span>
               <span className="text-emerald-400/80">{t('analytics_col_translated')} <span className="text-emerald-400 font-bold">{translateResult.categoriesTranslated}</span></span>
             </div>
           </div>
         )}
         <button type="button" onClick={() => handleTranslateAll(true)} disabled={translating}
-          className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-white border border-[#e5e7eb] text-[#111111] text-[12px] font-bold tracking-wider uppercase transition-all disabled:opacity-40 shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
+          className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] text-[12px] font-bold tracking-wider uppercase transition-all disabled:opacity-40 shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
           {translating ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
           {translating ? t('analytics_translating') : t('analytics_translate_btn')}
         </button>

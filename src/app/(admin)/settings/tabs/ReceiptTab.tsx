@@ -82,7 +82,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
       {/* ── Görünüş ── */}
       <div className="space-y-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t('receipt_section_display')}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">{t('receipt_section_display')}</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Çek başlığı */}
@@ -95,7 +95,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
               onChange={e => setCfg({ ...cfg, receipt_title: e.target.value })}
             />
             {titleEmpty && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1"><span>⚠</span> Bu sahə boş qala bilməz</p>}
-            {!titleEmpty && <p className="text-[10px] text-white/40 mt-1.5">{t('receipt_title_hint')}</p>}
+            {!titleEmpty && <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('receipt_title_hint')}</p>}
           </div>
 
           {/* Valyuta */}
@@ -110,23 +110,23 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
               style={{ fontFamily: 'inherit' }}
             />
             {currencyEmpty && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1"><span>⚠</span> Bu sahə boş qala bilməz</p>}
-            {!currencyEmpty && <p className="text-[10px] text-white/40 mt-1.5">{t('receipt_currency_hint')}</p>}
+            {!currencyEmpty && <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('receipt_currency_hint')}</p>}
           </div>
         </div>
 
         {/* Servis haqqı */}
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
           <div className="flex items-center gap-3">
             <Percent size={15} className="text-gold/70" />
             <div>
-              <p className="text-sm font-semibold text-white">{t('receipt_show_service_fee')}</p>
-              <p className="text-[11px] text-white/45 mt-0.5">{t('receipt_service_fee_hint')}</p>
+              <p className="text-sm font-semibold text-[var(--theme-text)]">{t('receipt_show_service_fee')}</p>
+              <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">{t('receipt_service_fee_hint')}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setCfg({ ...cfg, receipt_show_service_fee: !cfg.receipt_show_service_fee })}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${cfg.receipt_show_service_fee ? 'bg-gold/80' : 'bg-white/10'}`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${cfg.receipt_show_service_fee ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}
           >
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${cfg.receipt_show_service_fee ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
@@ -140,7 +140,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
                 type="range" min={0} max={30} step={0.5}
                 value={cfg.receipt_service_fee_pct}
                 onChange={e => setCfg({ ...cfg, receipt_service_fee_pct: Number(e.target.value) })}
-                className="flex-1 accent-gold h-1.5 rounded-full bg-white/10 cursor-pointer"
+                className="flex-1 accent-gold h-1.5 rounded-full bg-[var(--theme-border)] cursor-pointer"
               />
               <span className="text-gold font-bold text-sm w-14 text-right">{cfg.receipt_service_fee_pct}%</span>
             </div>
@@ -150,7 +150,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
       {/* ── Məzmun ── */}
       <div className="space-y-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t('receipt_section_content')}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">{t('receipt_section_content')}</p>
 
         <div>
           <label className={labelCls}><AlignLeft size={11} /> {t('receipt_footer_label')}</label>
@@ -160,14 +160,14 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
             placeholder="Təşəkkür edirik!"
             onChange={e => setCfg({ ...cfg, receipt_footer_text: e.target.value })}
           />
-          <p className="text-[10px] text-white/40 mt-1.5">{t('receipt_footer_hint')}</p>
+          <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('receipt_footer_hint')}</p>
         </div>
 
       </div>
 
       {/* ── Önizləmə ── */}
       <div className="space-y-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30 flex items-center gap-2"><Eye size={11} /> Preview</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--theme-text-muted)] flex items-center gap-2"><Eye size={11} /> Preview</p>
         <div className="mx-auto">
           <ReceiptPreview
             title={cfg.receipt_title}
@@ -190,7 +190,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
           type="submit"
           disabled={saving || !isDirty || hasError}
           className={`${saveButtonCls} ${!isDirty && !saving ? 'opacity-40 pointer-events-none' : ''}`}
-          style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(17,17,17,0.9)' }}
+          style={{ background: 'var(--theme-surface)', color: 'var(--theme-text)', border: '1px solid var(--theme-border)' }}
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {t('gen_save')}
         </button>

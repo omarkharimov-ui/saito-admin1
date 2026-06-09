@@ -118,11 +118,11 @@ const FloorsTab = () => {
     <div className="max-w-3xl space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-[var(--theme-text)] flex items-center gap-2">
             <MapPin size={18} className="text-gold" />
             {t('floor_plan_settings')}
           </h3>
-          <p className="text-xs text-white/30 mt-1">Mərtəbələri, zal adlarını və masaların aidiyyətini tənzimləyin</p>
+          <p className="text-xs text-[var(--theme-text-muted)] mt-1">Mərtəbələri, zal adlarını və masaların aidiyyətini tənzimləyin</p>
         </div>
         {dirty && (
           <button onClick={saveAll} disabled={saving}
@@ -136,8 +136,8 @@ const FloorsTab = () => {
       <div className="space-y-4">
         {floors.map((floor, idx) => (
           <div key={floor.name} className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.05]">
-              <GripVertical size={18} className="text-white/20 flex-shrink-0" />
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--theme-border)]">
+              <GripVertical size={18} className="text-[var(--theme-text-muted)] flex-shrink-0" />
               <input value={floor.name} onChange={e => updateFloorName(idx, e.target.value)}
                 className="flex-1 bg-transparent text-base font-medium text-white outline-none" />
               <span className="text-xs text-[var(--theme-text-muted)] bg-[var(--theme-panel)] px-3 py-1 rounded-full">{floor.tables.length} masa</span>
@@ -193,7 +193,7 @@ function TablePicker({ maxTable, assigned, onSelect, onDeselect }:
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all min-w-[44px] ${
               isAssigned
                 ? 'bg-gold/20 text-gold font-semibold'
-                : 'bg-white/[0.06] text-white/50 hover:text-white hover:bg-white/10'
+                : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface)]'
             }`}>
             {n}
           </button>

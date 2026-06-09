@@ -64,7 +64,7 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <form noValidate onSubmit={save} className="space-y-6 rounded-3xl border border-[#e5e7eb] bg-[linear-gradient(180deg,#ffffff_0%,#f8f8fa_100%)] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.04)]">
+      <form noValidate onSubmit={save} className="space-y-6 rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface-muted)] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.04)]">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div><label className={labelCls}><Store size={11} /> {t('gen_restaurant_name')}</label><input className={inputCls} value={settings.restaurant_name} onChange={e => setSettings({ ...settings, restaurant_name: e.target.value })} /></div>
           <div><label className={labelCls}><MapPin size={11} /> {t('gen_address')}</label><input className={inputCls} value={settings.address} onChange={e => setSettings({ ...settings, address: e.target.value })} /></div>
@@ -100,7 +100,7 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
         <div className="flex justify-end">
           <button type="submit" disabled={updating || !isDirty}
-            className={`${saveButtonCls} ${!isDirty && !updating ? 'opacity-40 pointer-events-none' : ''}`} style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(17,17,17,0.9)' }}>
+            className={`${saveButtonCls} ${!isDirty && !updating ? 'opacity-40 pointer-events-none' : ''}`} style={{ background: 'var(--theme-surface)', color: 'var(--theme-text)', border: '1px solid var(--theme-border)' }}>
             {updating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {t('gen_save')}
           </button>
         </div>

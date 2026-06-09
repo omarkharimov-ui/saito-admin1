@@ -24,7 +24,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'kitchen',   label: 'Mətbəx',       icon: <Timer size={13} /> },
 ];
 
-const inputCls = 'w-full bg-black/60 border border-white/10 focus:border-gold px-4 py-3 text-sm outline-none rounded-xl transition-all text-white placeholder:text-white/20 appearance-none shadow-premium';
+const inputCls = 'w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-4 py-3 text-sm outline-none rounded-xl transition-all text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] appearance-none shadow-premium';
 const labelCls = 'text-[10px] uppercase tracking-[0.2em] text-gold/60 flex items-center gap-2 mb-2 font-bold';
 
 const DAYS = ['Bazar ertəsi', 'Çərşənbə axşamı', 'Çərşənbə', 'Cümə axşamı', 'Cümə', 'Şənbə', 'Bazar'];
@@ -36,7 +36,7 @@ const defaultHours = (): HoursConfig => ({
   peakStart: '18:00',
   peakEnd: '21:00',
 });
-const timeCls = 'bg-transparent border-b border-white/15 focus:border-gold px-2 py-1.5 text-sm text-white outline-none transition-all w-[90px] tabular-nums';
+const timeCls = 'bg-transparent border-b border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-2 py-1.5 text-sm text-[var(--theme-text)] outline-none transition-all w-[90px] tabular-nums';
 
 const HoursTab = () => {
   const [config, setConfig] = useState<HoursConfig>(defaultHours());
@@ -65,15 +65,15 @@ const HoursTab = () => {
   return (
     <div className="max-w-xl space-y-6">
       {/* Daily hours */}
-      <div className="rounded-2xl border border-white/8 overflow-hidden">
+      <div className="rounded-2xl border border-[var(--theme-border)] overflow-hidden bg-[var(--theme-surface-muted)]">
         {DAYS.map((day, i) => {
           const isToday = i === todayIdx;
           const d = config.days[i];
           return (
             <div
               key={day}
-              className={`flex flex-wrap items-center px-4 py-3 gap-x-3 gap-y-2 border-b border-white/5 last:border-0 transition-colors ${
-                isToday ? 'bg-gold/[0.06]' : 'hover:bg-white/[0.02]'
+              className={`flex flex-wrap items-center px-4 py-3 gap-x-3 gap-y-2 border-b border-[var(--theme-border)] last:border-0 transition-colors ${
+                isToday ? 'bg-gold/[0.06]' : 'hover:bg-[var(--theme-surface)]'
               }`}
             >
               {/* Day label + toggle */}
@@ -83,18 +83,18 @@ const HoursTab = () => {
                   onClick={() => updateDay(i, 'closed', !d.closed)}
                   className={`relative w-9 h-[20px] rounded-full transition-all flex-shrink-0 ${ d.closed ? 'bg-white/[0.08]' : 'bg-gold'}`}
                 >
-                  <span className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-white shadow transition-all ${ d.closed ? 'left-[3px]' : 'left-[19px]'}`} />
+                  <span className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-[var(--theme-surface)] shadow transition-all ${ d.closed ? 'left-[3px]' : 'left-[19px]'}`} />
                 </button>
-                <span className={`text-sm font-medium ${ isToday ? 'text-gold' : d.closed ? 'text-white/25' : 'text-white/65'}`}>{day}</span>
-                {isToday && <span className="text-[9px] font-black uppercase tracking-widest text-gold/60 bg-gold/10 px-1.5 py-0.5 rounded">Bu gün</span>}
+                <span className={`text-sm font-medium ${ isToday ? 'text-gold' : d.closed ? 'text-[var(--theme-text-muted)]' : 'text-[var(--theme-text-secondary)]'}`}>{day}</span>
+                {isToday && <span className="text-[9px] font-black uppercase tracking-widest text-gold/60 bg-gold/10 px-1.5 py-0.5 rounded">Bu gün</span>
               </div>
 
               {d.closed ? (
-                <span className="text-xs text-white/20 italic">Bağlı</span>
+                <span className="text-xs text-[var(--theme-text-muted)] italic">Bağlı</span>
               ) : (
                 <div className="flex items-center gap-2">
                   <input type="time" value={d.open} onChange={e => updateDay(i, 'open', e.target.value)} className={timeCls} />
-                  <span className="text-white/20 text-xs select-none">–</span>
+                  <span className="text-[var(--theme-text-muted)] text-xs select-none">–</span>
                   <input type="time" value={d.close} onChange={e => updateDay(i, 'close', e.target.value)} className={timeCls} />
                 </div>
               )}
@@ -104,21 +104,21 @@ const HoursTab = () => {
       </div>
 
       {/* Peak hours */}
-      <div className="rounded-2xl border border-white/8 overflow-hidden">
-        <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
+      <div className="rounded-2xl border border-[var(--theme-border)] overflow-hidden bg-[var(--theme-surface-muted)]">
+        <div className="px-5 py-3 border-b border-[var(--theme-border)] flex items-center gap-2">
           <Moon size={14} className="text-orange-400" />
-          <span className="text-xs font-bold text-white/70 uppercase tracking-widest">Pik Saat Aralığı</span>
-          <span className="text-[10px] text-white/25 ml-1">— statistikada istifadə olunur</span>
+          <span className="text-xs font-bold text-[var(--theme-text-secondary)] uppercase tracking-widest">Pik Saat Aralığı</span>
+          <span className="text-[10px] text-[var(--theme-text-muted)] ml-1">— statistikada istifadə olunur</span>
         </div>
         <div className="px-5 py-4 flex items-center gap-3">
           <input type="time" value={config.peakStart} onChange={e => setConfig(c => ({ ...c, peakStart: e.target.value }))} className={timeCls} />
-          <span className="text-white/20 text-xs">–</span>
+          <span className="text-[var(--theme-text-muted)] text-xs">–</span>
           <input type="time" value={config.peakEnd} onChange={e => setConfig(c => ({ ...c, peakEnd: e.target.value }))} className={timeCls} />
         </div>
       </div>
 
       <div className="flex justify-end">
-        <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-gold text-black px-7 py-2.5 rounded-xl font-bold text-sm hover:bg-white transition-all disabled:opacity-40 shadow-lg shadow-gold/10">
+        <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-gold text-black px-7 py-2.5 rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-40 shadow-lg shadow-gold/10">
           {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Yadda Saxla
         </button>
       </div>

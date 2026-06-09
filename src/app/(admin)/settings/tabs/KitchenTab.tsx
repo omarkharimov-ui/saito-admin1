@@ -42,7 +42,7 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
           <div className="p-2 bg-red-500/10 text-red-400 rounded-xl"><AlertTriangle size={18} /></div>
           <div>
             <p className="text-sm font-bold text-white">{t('kitchen_delay_title')}</p>
-            <p className="text-[11px] text-white/55 mt-0.5">{t('kitchen_delay_desc')}</p>
+            <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">{t('kitchen_delay_desc')}</p>
           </div>
         </div>
 
@@ -52,13 +52,13 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
             <button onClick={() => setDelayMin(v => Math.max(5, v - 5))} className="w-10 h-10 rounded-xl bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface-hover)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] flex items-center justify-center transition-all font-bold text-lg">−</button>
             <div className="flex-1 text-center">
               <span className="text-4xl font-black text-white">{delayMin}</span>
-              <span className="text-white/55 text-sm ml-2">{t('kitchen_min')}</span>
+              <span className="text-[var(--theme-text-secondary)] text-sm ml-2">{t('kitchen_min')}</span>
             </div>
             <button onClick={() => setDelayMin(v => Math.min(120, v + 5))} className="w-10 h-10 rounded-xl bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface-hover)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] flex items-center justify-center transition-all font-bold text-lg">+</button>
           </div>
           <input type="range" min={5} max={120} step={5} value={delayMin} onChange={e => setDelayMin(Number(e.target.value))}
             className="w-full mt-4 accent-red-500" />
-          <div className="flex justify-between text-[10px] text-white/45 mt-1">
+          <div className="flex justify-between text-[10px] text-[var(--theme-text-muted)] mt-1">
             <span>5 {t('kitchen_min')}</span><span>60 {t('kitchen_min')}</span><span>120 {t('kitchen_min')}</span>
           </div>
         </div>

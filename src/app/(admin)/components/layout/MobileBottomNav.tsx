@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LogOut, MoreHorizontal, Grid2x2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Grid2x2, LogOut, MoreHorizontal } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useTheme } from '@/lib/theme/ThemeContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { filterNavByRole, getAdminNavItems, getMobilePrimaryNavIds } from './adminNavLinks';
+
+const dockSpring = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
 export default function MobileBottomNav({
   role,
@@ -19,7 +20,6 @@ export default function MobileBottomNav({
 }) {
   const pathname = usePathname();
   const { t } = useLanguage();
-  const { lightMode } = useTheme();
   const { pendingCount } = useNotifications();
   const [moreOpen, setMoreOpen] = useState(false);
   const [activeDockKey, setActiveDockKey] = useState('');
@@ -81,7 +81,7 @@ export default function MobileBottomNav({
           className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-[28px] border p-4 shadow-[0_12px_48px_rgba(0,0,0,0.08)] lg:hidden border-[var(--theme-border)] bg-[var(--theme-panel)]"
           initial={{ opacity: 0, y: 20, scale: 0.96 }}
           animate={{ opacity: moreOpen ? 1 : 0, y: moreOpen ? 0 : 20, scale: moreOpen ? 1 : 0.96 }}
-          transition={{ type: 'spring', stiffness: 360, damping: 34 }}
+          transition={dockSpring}
           style={{ backdropFilter: 'blur(24px)', pointerEvents: moreOpen ? 'auto' : 'none', willChange: 'transform, opacity' }}
         >
           <div className="grid grid-cols-4 gap-2 mb-3">
@@ -146,29 +146,27 @@ export default function MobileBottomNav({
         }}
       >
         <div
-          className="mx-2 my-2 flex items-center justify-around h-[4.25rem] px-2 gap-1 rounded-[26px] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[0_8px_30px_rgba(0,0,0,0.08)] touch-none select-none"
+          className="mx-2 my-2 flex items-center justify-around h-[4.5rem] px-2 gap-1 rounded-[28px] border border-[var(--theme-border)] bg-[rgba(18,18,18,0.72)] backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.18)] touch-none select-none"
           onPointerDown={(event) => {
             setDockDragging(true);
-            const target = event.currentTarget;
-            target.setPointerCapture(event.pointerId);
-            const rect = target.getBoundingClientRect();
+            try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
+            const rect = event.currentTarget.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const itemWidth = rect.width / Math.max(1, primary.length);
             const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
             const next = primary[index];
             if (next) setActiveDockKey(next.id);
-            setDockX((index / Math.max(1, primary.length - 1)) * 100);
+            setDockX(index * (100 / Math.max(1, primary.length)));
           }}
           onPointerMove={(event) => {
             if (!dockDragging) return;
-            const target = event.currentTarget;
-            const rect = target.getBoundingClientRect();
+            const rect = event.currentTarget.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const itemWidth = rect.width / Math.max(1, primary.length);
             const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
             const next = primary[index];
             if (next) setActiveDockKey(next.id);
-            setDockX((index / Math.max(1, primary.length - 1)) * 100);
+            setDockX(index * (100 / Math.max(1, primary.length)));
           }}
           onPointerUp={(event) => {
             setDockDragging(false);
@@ -179,7 +177,7 @@ export default function MobileBottomNav({
         >
           {primary.map((link) => {
             const Icon = link.icon;
-            const active = isActive(link.href);
+            const active = isActive(link.href) || activeDockKey === link.id;
             return (
               <Link
                 key={link.id}
@@ -192,34 +190,58 @@ export default function MobileBottomNav({
                 {activeDockKey === link.id ? (
                   <motion.span
                     layoutId="mobile-dock-active-pill"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full shadow-[0_12px_24px_rgba(0,0,0,0.08)]"
+                    className="relative flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full overflow-hidden"
                     style={{
-                      background: 'var(--theme-accent-soft)',
-                      border: '1px solid var(--theme-accent-border)',
+                      background: 'rgba(24,24,27,0.82)',
+                      border: '1px solid rgba(255,255,255,0.38)',
                       boxSizing: 'border-box',
-                      transform: `translateX(${dockX}%) ${dockDragging ? 'scale(1.02) translateY(-1px)' : 'scale(1)'}`,
                     }}
-                    transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                    animate={{ scale: dockDragging ? 1.03 : 1, y: dockDragging ? -1 : 0 }}
+                    transition={dockSpring}
                   >
-                    <Icon size={17} strokeWidth={2} className="text-[var(--theme-accent)] shrink-0" />
-                    <span className="text-[11px] font-bold text-[var(--theme-accent)] truncate tracking-wide">
+                    <motion.span
+                      className="absolute inset-0 rounded-full opacity-80"
+                      style={{
+                        background:
+                          'radial-gradient(circle at 30% 30%, rgba(34,211,238,0.20), transparent 35%), radial-gradient(circle at 70% 25%, rgba(217,70,239,0.16), transparent 36%), radial-gradient(circle at 50% 75%, rgba(250,204,21,0.14), transparent 28%)',
+                        filter: 'blur(10px)',
+                      }}
+                      animate={{ opacity: dockDragging ? 1 : 0.72, scale: dockDragging ? 1.05 : 1 }}
+                      transition={dockSpring}
+                    />
+                    <motion.span
+                      className="absolute -bottom-0.5 left-1/2 h-[2px] w-6 -translate-x-1/2 rounded-full"
+                      style={{
+                        background:
+                          'linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,0.9), rgba(168,85,247,0.9), rgba(250,204,21,0.9), rgba(34,211,238,0))',
+                        filter: 'blur(1.5px)',
+                      }}
+                      animate={{ opacity: dockDragging ? 1 : 0.7 }}
+                      transition={dockSpring}
+                    />
+                    <Icon size={17} strokeWidth={2} className="relative z-10 text-sky-400 shrink-0" />
+                    <span className="relative z-10 text-[11px] font-bold text-sky-400 truncate tracking-wide">
                       {link.name}
                     </span>
                     {link.badge && link.badge > 0 ? (
-                      <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#007aff] text-[9px] font-bold text-white flex items-center justify-center shrink-0 shadow-[0_4px_14px_rgba(0,122,255,0.24)]">
+                      <span className="relative z-10 min-w-[16px] h-4 px-1 rounded-full bg-[#007aff] text-[9px] font-bold text-white flex items-center justify-center shrink-0 shadow-[0_4px_14px_rgba(0,122,255,0.24)]">
                         {link.badge > 9 ? '9+' : link.badge}
                       </span>
                     ) : null}
                   </motion.span>
                 ) : (
-                  <span className="relative flex items-center justify-center w-11 h-11">
-                    <Icon size={22} strokeWidth={1.6} className="text-[var(--theme-text-secondary)]" />
+                  <motion.span
+                    className="relative flex items-center justify-center w-11 h-11 rounded-full"
+                    animate={{ scale: dockDragging ? 0.98 : 1, opacity: 1 }}
+                    transition={dockSpring}
+                  >
+                    <Icon size={22} strokeWidth={1.6} className="text-white/60" />
                     {link.badge && link.badge > 0 ? (
                       <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-[9px] font-bold text-black flex items-center justify-center">
                         {link.badge > 9 ? '9+' : link.badge}
                       </span>
                     ) : null}
-                  </span>
+                  </motion.span>
                 )}
               </Link>
             );
@@ -235,14 +257,14 @@ export default function MobileBottomNav({
               {moreOpen ? (
                 <motion.span
                   animate={{ rotate: 90, scale: 1.02 }}
-                  transition={{ type: 'spring', stiffness: 420, damping: 26 }}
+                  transition={dockSpring}
                   className="flex items-center justify-center w-10 h-10 rounded-full"
                   style={{ background: 'var(--theme-surface-soft)', border: '1px solid var(--theme-border)' }}
                 >
                   <Grid2x2 size={20} className="text-[var(--theme-text-secondary)]" />
                 </motion.span>
               ) : (
-                <MoreHorizontal size={22} strokeWidth={1.6} className="text-[var(--theme-text-muted)]" />
+                <MoreHorizontal size={22} strokeWidth={1.6} className="text-white/60" />
               )}
             </button>
           ) : null}

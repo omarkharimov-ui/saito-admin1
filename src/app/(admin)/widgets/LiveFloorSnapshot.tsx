@@ -118,32 +118,32 @@ export default function LiveFloorSnapshot() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl bg-[#0a0a0a] p-6"
+      className="relative overflow-hidden rounded-3xl bg-[linear-gradient(180deg,#ffffff_0%,#f8f8fa_100%)] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.04)] border border-[#e5e7eb]"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-2xl bg-gold/10 flex items-center justify-center shadow-[0_8px_24px_rgba(0,122,255,0.10)]">
             <Armchair size={20} className="text-gold" />
           </div>
           <div>
-            <h3 className="text-white font-semibold">{t('live_floor')}</h3>
-            <p className="text-white/40 text-xs">{t('real_time_tables')}</p>
+            <h3 className="text-[#111111] font-semibold">{t('live_floor')}</h3>
+            <p className="text-[#4b5563] text-xs">{t('real_time_tables')}</p>
           </div>
         </div>
         
         {/* Legend */}
-        <div className="hidden sm:flex items-center gap-3 text-[10px] text-white/40">
+        <div className="hidden sm:flex items-center gap-3 text-[10px] text-[#4b5563]">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(0,208,132,0.12)] animate-pulse" />
             {t('new')}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.12)]" />
             {t('cooking')}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_0_4px_rgba(0,122,255,0.12)]" />
             DOLU
           </span>
         </div>
@@ -151,17 +151,17 @@ export default function LiveFloorSnapshot() {
 
       {/* Compact Stats Row - No Table Grid */}
       <div className="flex gap-3">
-        <div className="flex-1 p-3 rounded-xl bg-white/[0.02]">
-          <p className="text-xl font-bold text-white">{occupiedCount}<span className="text-white/30 text-sm">/{tableCount}</span></p>
-          <p className="text-[9px] text-white/40 uppercase tracking-wider mt-0.5">{t('occupied')}</p>
+        <div className="flex-1 p-3 rounded-2xl bg-white border border-[#e5e7eb] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
+          <p className="text-xl font-bold text-[#111111]">{occupiedCount}<span className="text-[#9ca3af] text-sm">/{tableCount}</span></p>
+          <p className="text-[9px] text-[#6b7280] uppercase tracking-wider mt-0.5">{t('occupied')}</p>
         </div>
-        <div className="flex-1 p-3 rounded-xl bg-white/[0.02] border-l-4 border-emerald-500">
-          <p className="text-xl font-bold text-emerald-400">{newCount}</p>
-          <p className="text-[9px] text-emerald-400/70 uppercase tracking-wider mt-0.5">{t('new_arrivals')}</p>
+        <div className="flex-1 p-3 rounded-2xl bg-white border border-[#e5e7eb] border-l-4 border-l-emerald-500 shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
+          <p className="text-xl font-bold text-emerald-500">{newCount}</p>
+          <p className="text-[9px] text-emerald-500 uppercase tracking-wider mt-0.5">{t('new_arrivals')}</p>
         </div>
-        <div className="flex-1 p-3 rounded-xl bg-white/[0.02] border-l-4 border-amber-500">
-          <p className="text-xl font-bold text-amber-400">{cookingCount}</p>
-          <p className="text-[9px] text-amber-400/70 uppercase tracking-wider mt-0.5">{t('in_kitchen')}</p>
+        <div className="flex-1 p-3 rounded-2xl bg-white border border-[#e5e7eb] border-l-4 border-l-amber-500 shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
+          <p className="text-xl font-bold text-amber-500">{cookingCount}</p>
+          <p className="text-[9px] text-amber-500 uppercase tracking-wider mt-0.5">{t('in_kitchen')}</p>
         </div>
       </div>
     </motion.div>

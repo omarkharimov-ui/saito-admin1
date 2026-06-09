@@ -84,19 +84,19 @@ export default function HeroBanner() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl bg-[#0a0a0a] p-4 sm:p-6 lg:p-8"
+      className="relative overflow-hidden rounded-3xl bg-[linear-gradient(180deg,#ffffff_0%,#f8f8fa_100%)] p-4 sm:p-6 lg:p-8 shadow-[0_8px_40px_rgba(0,0,0,0.04)] border border-[#e5e7eb]"
     >
       {/* Animated gradient backgrounds */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
           animate={{ x: [0, 30, 0], y: [0, -20, 0], opacity: [0.3, 0.5, 0.3] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-20 -right-20 w-96 h-96 bg-gold/5 rounded-full blur-[100px]"
+          className="absolute -top-20 -right-20 w-96 h-96 bg-gold/10 rounded-full blur-[100px]"
         />
         <motion.div
           animate={{ x: [0, -20, 0], y: [0, 30, 0], opacity: [0.2, 0.4, 0.2] }}
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute -bottom-20 -left-20 w-80 h-80 bg-white/[0.02] rounded-full blur-[80px]"
+          className="absolute -bottom-20 -left-20 w-80 h-80 bg-sky-100/60 rounded-full blur-[80px]"
         />
       </div>
 

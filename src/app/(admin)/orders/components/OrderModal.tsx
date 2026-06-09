@@ -947,8 +947,7 @@ export const OrderModal = ({
 
         {/* ── MOBILE SUMMARY OVERLAY ── */}
         {order.status !== 'paid' && mobileTab === 'summary' && (
-          <div className="md:hidden absolute inset-0 z-30 flex flex-col rounded-t-[28px] overflow-hidden"
-            className="bg-[var(--theme-surface)]">
+          <div className="md:hidden absolute inset-0 z-30 flex flex-col rounded-t-[28px] overflow-hidden bg-[var(--theme-surface)]">
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
               <div className="w-10 h-1 rounded-full bg-white/15" />
             </div>

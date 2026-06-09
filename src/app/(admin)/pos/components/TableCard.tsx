@@ -3,7 +3,15 @@
 import { motion } from 'framer-motion';
 import { Clock, Users, Utensils, MoreVertical, GitMerge } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import type { PosTable } from '../types';
+type PosTable = {
+  id: string;
+  table_number: number;
+  guest_count?: number | null;
+  status: 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | string;
+  total_amount: number;
+  merged_orders?: unknown[] | null;
+  last_activity_at?: string | null;
+};
 
 const statusConfig: Record<string, { label: string; dot: string; bg: string; border: string; text: string; glow: string; lightBg: string; lightBorder: string; lightText: string }> = {
   empty: {

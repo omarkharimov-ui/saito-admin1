@@ -34,14 +34,14 @@ export function AIPremiumCard() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${lightMode ? 'bg-amber-100' : 'bg-amber-500/20'}`}>
-              <Zap size={18} className={lightMode ? 'text-amber-600' : 'text-amber-400'} />
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[var(--theme-accent-soft)]">
+              <Zap size={18} className="text-[var(--theme-accent)]" />
             </div>
-            <span className={`text-xs font-bold tracking-widest uppercase ${lightMode ? 'text-amber-700' : 'text-amber-400'}`}>
+            <span className="text-xs font-bold tracking-widest uppercase text-[var(--theme-accent)]">
               AI Təklifi
             </span>
           </div>
-          <h2 className={`text-3xl sm:text-4xl font-black tracking-tight mb-2 ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2 text-[var(--theme-text)]">
             Gündəlik Qazanc
           </h2>
           <p className={`text-lg font-semibold ${lightMode ? 'text-amber-700' : 'text-amber-400'}`}>

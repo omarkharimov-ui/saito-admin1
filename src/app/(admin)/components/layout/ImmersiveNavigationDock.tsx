@@ -78,7 +78,7 @@ export default function ImmersiveNavigationDock({
       {hasMore ? (
         <motion.div
           key="immersive-dock-more"
-          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-[28px] border p-4 shadow-[0_12px_48px_rgba(0,0,0,0.08)] lg:hidden border-[var(--theme-border)] bg-[var(--theme-panel)]"
+          className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-[28px] border p-4 shadow-[0_12px_48px_rgba(0,0,0,0.08)] lg:hidden border-[var(--theme-border)] bg-[var(--theme-panel)]"
           initial={{ opacity: 0, y: 20, scale: 0.96 }}
           animate={{ opacity: moreOpen ? 1 : 0, y: moreOpen ? 0 : 20, scale: moreOpen ? 1 : 0.96 }}
           transition={dockSpring}
@@ -139,8 +139,20 @@ export default function ImmersiveNavigationDock({
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden pb-[env(safe-area-inset-bottom)]"
         aria-label="Əsas naviqasiya"
       >
+        <div className="pointer-events-none mx-auto mb-1 flex w-full max-w-[430px] justify-center px-4">
+          <button
+            type="button"
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-neutral-900/70 px-4 py-2 text-[12px] font-semibold text-white/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] active:scale-95"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10">
+              <Grid2x2 size={12} strokeWidth={2} className="text-white/80" />
+            </span>
+            Capture
+          </button>
+        </div>
         <div
-          className="mx-2 my-2 flex items-center justify-around h-[4.5rem] px-2 gap-1 rounded-[28px] border border-white/10 bg-neutral-900/60 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.18)] touch-none select-none"
+          className="mx-2 my-1 flex items-center justify-around h-[4.5rem] px-2 gap-1 rounded-[28px] border border-white/10 bg-neutral-900/60 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.18)] touch-none select-none"
           onPointerDown={(event) => {
             setDockDragging(true);
             try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}

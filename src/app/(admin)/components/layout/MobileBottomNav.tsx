@@ -146,7 +146,6 @@ export default function MobileBottomNav({
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 {active ? (
-                  /* Pill-shaped active tab */
                   <motion.span
                     layoutId="mobile-dock-active-pill"
                     className="flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full"
@@ -168,7 +167,6 @@ export default function MobileBottomNav({
                     ) : null}
                   </motion.span>
                 ) : (
-                  /* Inactive — icon only */
                   <span className="relative flex items-center justify-center w-11 h-11">
                     <Icon size={22} strokeWidth={1.6} className="text-[var(--theme-text-secondary)]" />
                     {link.badge && link.badge > 0 ? (

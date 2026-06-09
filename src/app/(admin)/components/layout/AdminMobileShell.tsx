@@ -1,7 +1,7 @@
 'use client';
 
 import MobileTopBar from './MobileTopBar';
-import MobileBottomNav from './MobileBottomNav';
+import ImmersiveNavigationDock from './ImmersiveNavigationDock';
 import MobilePageContent from './MobilePageContent';
 import SimpleToaster from './SimpleToaster';
 
@@ -24,7 +24,7 @@ export default function AdminMobileShell({
       >
         <MobilePageContent>{children}</MobilePageContent>
       </main>
-      <MobileBottomNav role={role} onLogout={onLogout} />
+      <ImmersiveNavigationDock role={role} onLogout={onLogout} />
     </div>
   );
 }

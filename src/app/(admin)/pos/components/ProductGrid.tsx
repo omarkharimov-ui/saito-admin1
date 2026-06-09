@@ -8,7 +8,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosProduct } from '../types';
 
 export type Product = PosProduct;
-import type { ModifierSelection } from '../types';
+
 
 interface ProductGridProps {
   products: PosProduct[];

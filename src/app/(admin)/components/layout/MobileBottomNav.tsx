@@ -30,7 +30,7 @@ export default function MobileBottomNav({
   const allLinks = useMemo(
     () =>
       filterNavByRole(
-        getAdminNavItems(t, { pending: pendingCount, orders: 0, ready: 0 }),
+        getAdminNavItems(t, { pending: pendingCount, ready: 0 }),
         role
       ),
     [t, role, pendingCount]
@@ -38,7 +38,7 @@ export default function MobileBottomNav({
 
   const primaryIds = getMobilePrimaryNavIds(role);
   const primary = allLinks.filter((l) => primaryIds.has(l.id));
-  const overflow = allLinks.filter((l) => !primaryIds.has(l.id) && l.id !== 'orders');
+  const overflow = allLinks.filter((l) => !primaryIds.has(l.id) && l.id !== 'pos-orders');
   const hasMore = overflow.length > 0;
 
   const isActive = (href: string) =>

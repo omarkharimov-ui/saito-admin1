@@ -5,7 +5,6 @@ import {
   BarChart3,
   Percent,
   Calendar,
-  ClipboardList,
   PackagePlus,
   Warehouse,
   ScrollText,
@@ -28,7 +27,7 @@ import type { TranslationKey } from '@/lib/i18n/translations';
 
 export function getAdminNavItems(
   t: (key: TranslationKey) => string,
-  counts: { pending: number; orders: number; ready: number }
+  counts: { pending: number; ready: number }
 ): AdminNavItem[] {
   return [
     { id: 'dashboard', name: t('dashboard'), href: '/', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
@@ -42,14 +41,14 @@ export function getAdminNavItems(
       badge: counts.pending,
     },
     {
-      id: 'orders',
-      name: t('orders'),
-      href: '/orders',
-      icon: ClipboardList,
+      id: 'pos-orders',
+      name: `${t('orders')} / POS`,
+      href: '/pos',
+      icon: Monitor,
       roles: ['admin', 'superadmin'],
-      badge: counts.orders,
-      blink: counts.orders > 0,
-      readyBadge: counts.ready,
+      badge: counts.ready,
+      blink: counts.ready > 0,
+      readyBadge: counts.pending,
     },
     { id: 'products', name: t('products'), href: '/products', icon: ShoppingBag, roles: ['superadmin'] },
     { id: 'combos', name: t('combos'), href: '/combos', icon: PackagePlus, roles: ['superadmin'] },

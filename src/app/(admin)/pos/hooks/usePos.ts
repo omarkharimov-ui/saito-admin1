@@ -5,7 +5,7 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deductStockForOrder } from '@/lib/stockAutomation';
-import type { Product } from '../../orders/types';
+import type { Product } from '@/app/(admin)/products/types';
 import type {
   PosTable, PosCart, PosCartItem, Modifier, ModifierSelection,
   PaymentInfo, FloorConfig, TableStatus,
@@ -271,6 +271,14 @@ export function usePos() {
       if (!res.ok) throw new Error((await res.json()).error || 'Payment failed');
 
       await deductStockForOrder(orderId);
+
+      const recipeRes = await fetch(`/api/orders/${orderId}/recipes`);
+      if (recipeRes.ok) {
+        const recipeData = await recipeRes.json();
+        if (recipeData.message) {
+          console.info(recipeData.message);
+        }
+      }
 
       toast.success('Hesap bağlandı');
       backToFloor();

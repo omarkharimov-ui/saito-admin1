@@ -118,12 +118,12 @@ export default function LiveFloorSnapshot() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl bg-[var(--theme-panel)] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.04)] border border-[var(--theme-border)]"
+      className="relative overflow-hidden rounded-3xl bg-[var(--theme-surface)] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)] border border-[var(--theme-border)]"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[var(--theme-surface-soft)] flex items-center justify-center shadow-[0_8px_24px_rgba(0,122,255,0.10)]">
+          <div className="w-10 h-10 rounded-2xl bg-[var(--theme-nested)] flex items-center justify-center shadow-[0_8px_24px_rgba(0,122,255,0.10)]">
             <Armchair size={20} className="text-gold" />
           </div>
           <div>
@@ -151,11 +151,11 @@ export default function LiveFloorSnapshot() {
 
       {/* Compact Stats Row - No Table Grid */}
       <div className="flex gap-3">
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
-          <p className="text-xl font-bold text-[#111111]">{occupiedCount}<span className="text-[#9ca3af] text-sm">/{tableCount}</span></p>
-          <p className="text-[9px] text-[#6b7280] uppercase tracking-wider mt-0.5">{t('occupied')}</p>
+        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
+          <p className="text-xl font-bold text-[var(--theme-text)]">{occupiedCount}<span className="text-[var(--theme-text-muted)] text-sm">/{tableCount}</span></p>
+          <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5">{t('occupied')}</p>
         </div>
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
+        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
           <p className="text-xl font-bold text-emerald-500">{newCount}</p>
           <p className="text-[9px] text-emerald-500 uppercase tracking-wider mt-0.5">{t('new_arrivals')}</p>
         </div>

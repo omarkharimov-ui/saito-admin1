@@ -88,7 +88,7 @@ const AdminHeaderInner = ({
             ref={langBtnRef}
             type="button"
             onClick={() => setLangOpen((v) => !v)}
-            className="h-10 px-4 rounded-[10px] flex items-center gap-2 transition-colors select-none active:scale-[0.98] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
+            className="h-10 px-4 rounded-[12px] flex items-center gap-2 transition-all select-none active:scale-[0.98] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_6px_18px_rgba(0,0,0,0.04)]"
           >
             <span className="text-[11px] font-black tracking-[0.18em] text-[var(--theme-text-secondary)]">{activeLang.label}</span>
             <ChevronDown size={11} className={`transition-transform duration-150 ${langOpen ? 'rotate-180' : ''} text-[var(--theme-text-muted)]`} />
@@ -98,7 +98,7 @@ const AdminHeaderInner = ({
             ? createPortal(
                 <div
                   ref={langMenuRef}
-                  className="fixed z-[200] flex flex-col gap-1.5 min-w-[90px] rounded-[10px] border p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.10)] border-[var(--theme-border)] bg-[var(--theme-panel)]"
+                  className="fixed z-[200] flex flex-col gap-1.5 min-w-[90px] rounded-[14px] border p-2 shadow-[0_18px_44px_rgba(0,0,0,0.12)] border-[var(--theme-border)] bg-[var(--theme-panel)] backdrop-blur-2xl"
                   style={{ top: langMenuPos.top, right: langMenuPos.right, minWidth: 90 }}
                 >
                   {otherLangs.map((lang) => (
@@ -106,7 +106,7 @@ const AdminHeaderInner = ({
                       key={lang.code}
                       type="button"
                       onClick={() => handleLangChange(lang.code)}
-                      className="h-8 px-5 rounded-[10px] flex items-center justify-center w-full text-[10px] font-bold tracking-[0.18em] transition-colors bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-panel)]"
+                      className="h-8 px-5 rounded-[12px] flex items-center justify-center w-full text-[10px] font-bold tracking-[0.18em] transition-colors bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]"
                     >
                       {lang.label}
                     </button>
@@ -121,7 +121,7 @@ const AdminHeaderInner = ({
         <div className="relative">
           <button
             onClick={() => { const opening = !showDropdown; setShowDropdown(opening); if (opening) markAllAsRead(); }}
-            className="relative group cursor-pointer p-3 rounded-[10px] transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] hover:bg-[var(--theme-surface-soft)]"
+            className="relative group cursor-pointer p-3 rounded-[12px] transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] hover:bg-[var(--theme-surface-soft)] border border-transparent hover:border-[var(--theme-border)]"
           >
             <Bell size={20} className={`transition-colors ${showDropdown ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)]'}`} />
             {notifications.length > 0 && notifications.some(n => !n.isRead) && (
@@ -132,8 +132,8 @@ const AdminHeaderInner = ({
           {showDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
-                <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 rounded-[16px] shadow-[0_8px_30px_rgba(0,0,0,0.10)] z-50 overflow-hidden bg-[var(--theme-panel)] border border-[var(--theme-border)]">
-                  <div className="p-4 border-b flex items-center justify-between border-[var(--theme-border)] bg-[var(--theme-panel-strong)]">
+                <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 rounded-[20px] shadow-[0_20px_50px_rgba(0,0,0,0.14)] z-50 overflow-hidden bg-[var(--theme-panel)] border border-[var(--theme-border)] backdrop-blur-2xl">
+                  <div className="p-4 border-b flex items-center justify-between border-[var(--theme-border)] bg-[var(--theme-surface)]">
                     <span className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-secondary)]">{t('notifications')}</span>
                     {notifications.length > 0 && (
                       <button

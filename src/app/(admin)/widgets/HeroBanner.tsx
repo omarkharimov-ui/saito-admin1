@@ -84,19 +84,19 @@ export default function HeroBanner() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl bg-[var(--theme-panel)] p-4 sm:p-6 lg:p-8 shadow-[0_8px_40px_rgba(0,0,0,0.04)] border border-[var(--theme-border)]"
+      className="relative overflow-hidden rounded-3xl bg-[var(--theme-surface)] p-4 sm:p-6 lg:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.08)] border border-[var(--theme-border)]"
     >
       {/* Animated gradient backgrounds */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
           animate={{ x: [0, 30, 0], y: [0, -20, 0], opacity: [0.3, 0.5, 0.3] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-20 -right-20 w-96 h-96 bg-gold/10 rounded-full blur-[100px]"
+          className="absolute -top-20 -right-20 w-96 h-96 bg-gold/8 rounded-full blur-[110px]"
         />
         <motion.div
           animate={{ x: [0, -20, 0], y: [0, 30, 0], opacity: [0.2, 0.4, 0.2] }}
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute -bottom-20 -left-20 w-80 h-80 bg-sky-100/60 rounded-full blur-[80px]"
+          className="absolute -bottom-20 -left-20 w-80 h-80 bg-sky-400/10 rounded-full blur-[90px]"
         />
       </div>
 
@@ -154,7 +154,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="block h-14 w-48 rounded-xl bg-[var(--theme-surface-soft)] animate-pulse"
+                      className="block h-14 w-48 rounded-xl bg-[var(--theme-nested)] animate-pulse"
                     />
                   ) : (
                     <motion.span
@@ -224,10 +224,10 @@ export default function HeroBanner() {
           {/* Bottom: 3-col Stats */}
           <div className="grid grid-cols-3">
             <div className="p-4">
-              <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-white/30 block mb-2 leading-relaxed">
+              <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-[var(--theme-text-muted)] block mb-2 leading-relaxed">
                 {t('today_orders')}
               </span>
-              <div className="flex items-end gap-2">
+              <div className="flex items-end gap-2 flex-wrap">
                 <AnimatePresence mode="wait">
                   {loading ? (
                     <motion.span
@@ -235,7 +235,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="block h-8 w-10 rounded-md bg-white/[0.05] animate-pulse"
+                      className="block h-8 w-10 rounded-md bg-[var(--theme-nested)] animate-pulse"
                     />
                   ) : (
                     <motion.span

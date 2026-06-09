@@ -49,7 +49,7 @@ const Sidebar = ({
       style={{ width: 272 }}
     >
       {/* Glass panel */}
-      <div className="mx-3 mt-3 flex-1 flex flex-col overflow-hidden rounded-[16px] border border-[var(--theme-border)] bg-[var(--theme-panel)] shadow-[var(--theme-shadow)] backdrop-blur-md">
+      <div className="mx-3 mt-3 flex-1 flex flex-col overflow-hidden rounded-[22px] border border-[var(--theme-border)] bg-[var(--theme-panel)] shadow-[0_20px_60px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
 
         {/* Brand */}
         <div className="px-6 pt-6 pb-5">
@@ -76,7 +76,7 @@ const Sidebar = ({
                 key={link.id}
                 href={link.href}
                 onClick={onClose}
-                className={`group relative flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-[10px] border ${isActive ? 'text-[var(--theme-text)] bg-[var(--theme-panel)] border-[var(--theme-border-strong)] shadow-[0_1px_2px_rgba(0,0,0,0.03)]' : 'text-[var(--theme-text-secondary)] bg-transparent border-transparent hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]'}`}
+                className={`group relative flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-[14px] border ${isActive ? 'text-[var(--theme-text)] bg-[var(--theme-surface)] border-[var(--theme-border-strong)] shadow-[0_8px_24px_rgba(0,0,0,0.05)]' : 'text-[var(--theme-text-secondary)] bg-transparent border-transparent hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]'}`}
               >
                 {/* Active indicator — left bar */}
                 {isActive && (
@@ -116,7 +116,7 @@ const Sidebar = ({
         <div className="mx-3 mt-3 mb-3">
           <div className="h-px mb-3 bg-[var(--theme-border)]" />
           <div className="flex items-center gap-3 px-2 py-2 rounded-[10px]">
-            <div className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0 bg-[var(--theme-panel)] border border-[var(--theme-border)]">
+            <div className="w-8 h-8 rounded-[12px] flex items-center justify-center flex-shrink-0 bg-[var(--theme-surface)] border border-[var(--theme-border)]">
               <span className="text-[10px] font-black text-[var(--theme-text-muted)]">
                 {role === 'superadmin' ? 'SA' : 'A'}
               </span>
@@ -129,7 +129,7 @@ const Sidebar = ({
             <button
               onClick={handleLogout}
               title={t('logout')}
-              className="w-9 h-9 rounded-[10px] flex items-center justify-center border border-transparent transition-all text-[var(--theme-text-secondary)] hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20"
+              className="w-9 h-9 rounded-[12px] flex items-center justify-center border border-transparent transition-all text-[var(--theme-text-secondary)] hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20"
             >
               <LogOut size={17} />
             </button>

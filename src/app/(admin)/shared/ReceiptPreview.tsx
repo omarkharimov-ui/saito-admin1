@@ -51,13 +51,11 @@ export default function ReceiptPreview({
         lineHeight: 1.5,
       }}
     >
-      {/* Header */}
       <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, marginBottom: 2 }}>
         {title || 'SİFARİŞ ÇEKİ'}
       </div>
       <div style={{ borderTop: '1px dashed #000', margin: '4px 0' }} />
 
-      {/* Masa + tarix/saat */}
       <div style={{ fontSize: 10, marginBottom: 2 }}>
         <span>Masa: </span><span style={{ fontWeight: 700 }}>{tableNumber}</span>
       </div>
@@ -67,7 +65,6 @@ export default function ReceiptPreview({
 
       <div style={{ borderTop: '1px dashed #000', margin: '4px 0' }} />
 
-      {/* Column header */}
       <div style={{ display: 'flex', fontSize: 10, fontWeight: 700, marginBottom: 3 }}>
         <span style={{ flex: 1 }}>Məhsul</span>
         <span style={{ width: 38, textAlign: 'center' }}>Miqdar</span>
@@ -75,7 +72,6 @@ export default function ReceiptPreview({
       </div>
       <div style={{ borderTop: '1px dashed #000', margin: '3px 0 5px' }} />
 
-      {/* Items */}
       {items.map((item, idx) => (
         <div key={idx} style={{ display: 'flex', fontSize: 10, marginBottom: 2 }}>
           <span style={{ flex: 1 }}>{item.product_name}</span>
@@ -86,7 +82,6 @@ export default function ReceiptPreview({
 
       <div style={{ borderTop: '1px dashed #000', margin: '6px 0' }} />
 
-      {/* Service fee */}
       {showServiceFee && (
         <div style={{ display: 'flex', fontSize: 10, marginBottom: 3 }}>
           <span style={{ flex: 1 }}>Servis haqqı ({serviceFeePct}%)</span>
@@ -94,13 +89,11 @@ export default function ReceiptPreview({
         </div>
       )}
 
-      {/* YEKUN */}
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18 }}>
         <b>YEKUN:</b>
         <b>{total.toFixed(2)}&nbsp;{currency}</b>
       </div>
 
-      {/* Footer */}
       {footerText && (
         <div style={{ textAlign: 'center', fontSize: 9, color: '#555', lineHeight: 1.5 }}>{footerText}</div>
       )}

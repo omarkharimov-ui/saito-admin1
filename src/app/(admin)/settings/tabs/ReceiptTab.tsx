@@ -7,7 +7,7 @@ import { Save, Loader2, Receipt, Percent, DollarSign, AlignLeft, Eye } from 'luc
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { inputCls, labelCls, saveButtonCls } from './_shared';
-import ReceiptPreview from '../../orders/components/ReceiptPreview';
+import ReceiptPreview from '../../shared/ReceiptPreview';
 
 interface ReceiptCfg {
   receipt_title: string;

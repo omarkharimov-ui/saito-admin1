@@ -5,21 +5,15 @@ import { motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
-export type Product = {
-  id: string;
-  name: string;
-  price: number;
-  category_id?: string | null;
-  image_url?: string | null;
-  is_active?: boolean | null;
-  [key: string]: any;
-};
+import type { PosProduct } from '../types';
+
+export type Product = PosProduct;
 import type { ModifierSelection } from '../types';
 
 interface ProductGridProps {
-  products: Product[];
+  products: PosProduct[];
   categories: { id: string; name: string }[];
-  onAddProduct: (product: Product) => void;
+  onAddProduct: (product: PosProduct) => void;
   cartCounts: Record<string, number>;
 }
 

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Printer, CreditCard, Banknote, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
-import ReceiptPreview from './ReceiptPreview';
+import ReceiptPreview from '../../shared/ReceiptPreview';
 import type { Order, OrderItem } from '../types';
 
 interface ReceiptModalProps {

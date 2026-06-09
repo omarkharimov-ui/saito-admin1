@@ -13,15 +13,7 @@ import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { toast } from 'react-hot-toast';
 import type { ModifierSelection, PaymentInfo } from './types';
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  category_id?: string | null;
-  image_url?: string | null;
-  is_active?: boolean | null;
-  [key: string]: any;
-};
+import type { PosProduct } from './types';
 
 const tabs = [
   { id: 'floor' as const, icon: LayoutGrid, label: 'Masalar' },
@@ -37,7 +29,7 @@ export default function POSPage() {
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
   const [actionSheetTable, setActionSheetTable] = useState<any>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
-  const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
+  const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
@@ -91,7 +83,7 @@ export default function POSPage() {
   }, []);
 
   /* ── Add product with optional modifier sheet ── */
-  const handleAddProduct = useCallback((product: Product) => {
+  const handleAddProduct = useCallback((product: PosProduct) => {
     pos.addToCart(product);
   }, [pos]);
 

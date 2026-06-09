@@ -5,7 +5,7 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deductStockForOrder } from '@/lib/stockAutomation';
-import type { Product } from '../../orders/types';
+import type { PosProduct } from '../types';
 import type {
   PosTable, PosCart, PosCartItem, Modifier, ModifierSelection,
   PaymentInfo, FloorConfig, TableStatus,
@@ -32,10 +32,10 @@ export function usePos() {
   languageRef.current = language;
 
   /* ── State ── */
-  const cached = typeof window !== 'undefined' ? loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: Product[]; categories: { id: string; name: string }[] } | null>(POS_DATA_KEY, null) : null;
+  const cached = typeof window !== 'undefined' ? loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[] } | null>(POS_DATA_KEY, null) : null;
   const [tables, setTables] = useState<PosTable[]>(cached?.tables || []);
   const [floors, setFloors] = useState<FloorConfig[]>(cached?.floors || []);
-  const [products, setProducts] = useState<Product[]>(cached?.products || []);
+  const [products, setProducts] = useState<PosProduct[]>(cached?.products || []);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>(cached?.categories || []);
   const [loading, setLoading] = useState(!cached);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
@@ -57,7 +57,7 @@ export function usePos() {
 
       let newTables: PosTable[] = [];
       let newFloors: FloorConfig[] = [];
-      let newProducts: Product[] = [];
+      let newProducts: PosProduct[] = [];
       let newCategories: { id: string; name: string }[] = [];
 
       if (tablesRes.ok) {
@@ -138,7 +138,7 @@ export function usePos() {
   }, []);
 
   /* ── Cart Operations ── */
-  const addToCart = useCallback((product: Product, modifiers?: ModifierSelection[], notes?: string, variantId?: string) => {
+  const addToCart = useCallback((product: PosProduct, modifiers?: ModifierSelection[], notes?: string, variantId?: string) => {
     const currentCart = cartRef.current;
     if (!currentCart) return;
     const langs = languageRef.current;
@@ -160,7 +160,7 @@ export function usePos() {
       const newItem: PosCartItem = {
         product_id: product.id,
         product_name: (product as any)[`name_${langs}`] || product.name,
-        product_image: product.image_url,
+        product_image: product.image_url ?? null,
         unit_price: unitPrice,
         quantity: 1,
         modifiers: modifiers || [],

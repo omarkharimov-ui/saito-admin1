@@ -35,7 +35,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const applyBrightness = () => {
       const h = new Date().getHours();
-      const b = h >= 9 && h < 18 ? 1.0 : h >= 6 && h < 9 ? 0.88 : h >= 18 && h < 21 ? 0.9 : 0.78;
+      const b = 1;
       document.documentElement.style.setProperty('--app-brightness', String(b));
     };
     applyBrightness();

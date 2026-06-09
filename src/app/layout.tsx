@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { UIProvider } from "@/context/UIContext";
-import { LanguageProvider } from "@/context/LanguageContext";
+import { LanguageProvider as LegacyLanguageProvider } from "@/context/LanguageContext";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { CartProvider } from "@/context/CartContext";
 import ClientLayout from "@/components/layout/ClientLayout";
 import { CustomNotificationProvider } from "@/components/CustomNotification";
@@ -67,18 +68,20 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <PWAInstallPrompt />
         <LanguageProvider>
-          <LanguageTransitionWrapper>
-            <UIProvider>
-              <CartProvider>
-                  <CustomNotificationProvider />
-                  <ClientLayout>
-                    <main className="flex-1 overflow-y-auto scrollbar-none">
-                      {children}
-                    </main>
-                  </ClientLayout>
-              </CartProvider>
-            </UIProvider>
-          </LanguageTransitionWrapper>
+          <LegacyLanguageProvider>
+            <LanguageTransitionWrapper>
+              <UIProvider>
+                <CartProvider>
+                    <CustomNotificationProvider />
+                    <ClientLayout>
+                      <main className="flex-1 overflow-y-auto scrollbar-none">
+                        {children}
+                      </main>
+                    </ClientLayout>
+                </CartProvider>
+              </UIProvider>
+            </LanguageTransitionWrapper>
+          </LegacyLanguageProvider>
         </LanguageProvider>
       </body>
     </html>

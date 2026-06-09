@@ -154,26 +154,26 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        <div className="flex items-end gap-0 border-b border-white/[0.07] overflow-x-auto scrollbar-none">
+<div className="flex items-center gap-1 p-1 border border-white/[0.08] bg-white/[0.03] rounded-xl overflow-x-auto scrollbar-none">
           {visibleTabs.map(tb => {
             const isActive = tab === tb.key;
             return (
               <button
                 key={tb.key}
                 onClick={() => setTab(tb.key)}
-                className={`relative flex items-center gap-2 px-5 py-3 text-[11px] font-bold uppercase tracking-widest transition-all ${
-                  isActive ? 'text-gold' : 'text-white/30 hover:text-white/60'
+                className={`relative flex items-center gap-2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest rounded-lg transition-colors whitespace-nowrap ${
+                  isActive ? 'text-white' : 'text-white/35 hover:text-white/70'
                 }`}
               >
-                <span className={isActive ? 'text-gold' : 'text-white/25'}>{tb.icon}</span>
-                {t(tb.labelKey as any)}
                 {isActive && (
                   <motion.span
-                    layoutId="tab-underline"
-                    className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-gold/60 via-gold to-gold/60 rounded-full"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    layoutId="settings-active-tab-indicator"
+                    className="absolute inset-0 rounded-lg bg-white/[0.12] border border-white/[0.16]"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                   />
                 )}
+                <span className={`relative z-10 ${isActive ? 'text-gold' : 'text-white/35'}`}>{tb.icon}</span>
+                <span className="relative z-10">{t(tb.labelKey as any)}</span>
               </button>
             );
           })}

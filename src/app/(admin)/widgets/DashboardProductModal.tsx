@@ -417,7 +417,7 @@ export default function DashboardProductModal({
                           <p className="text-[9px] text-white/60 uppercase tracking-[0.22em] font-bold leading-tight">{t('ai_hint_ready_title')}</p>
                           <p className="text-[11px] text-white/55 mt-0.5 leading-tight">{t('ai_hint_ready_desc')}</p>
                         </div>
-                        <motion.button type="button" whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={applyGhost} className="shrink-0 relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/20 text-white/70 text-[9px] font-bold uppercase tracking-wider transition-opacity duration-200">
+                        <motion.button type="button" whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={applyGhost} className="shrink-0 relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/20 text-[var(--foreground)] text-[9px] font-bold uppercase tracking-wider transition-opacity duration-200">
                           <motion.span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 pointer-events-none" animate={{ x: ['-130%', '230%'] }} transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.2, ease: 'easeInOut' }} />
                           <Wand2 size={9} /> {t('ai_hint_apply')}
                         </motion.button>

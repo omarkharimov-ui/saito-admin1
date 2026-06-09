@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Tag, X, Save, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft } from 'lucide-react';
+import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -11,6 +11,7 @@ import { Product, Category } from '@/types';
 import type { ProductVariantForm, ProductModifierForm } from '../page';
 import { useModalFormDirty } from '@/hooks/useFormDirty';
 import { useAiFlags } from '@/hooks/useAiFlags';
+import { SaveSuccessButton } from '@/components/premium/PremiumComponents';
 
 function VariantSelector({
   variants,
@@ -293,7 +294,7 @@ export function ProductModal({
       ]);
       if (uploadResult.error) throw uploadResult.error;
       const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path);
-      onFormChange({ ...productForm, image_url: publicUrl });
+      onFormChange({ ...productFormRef.current, image_url: publicUrl });
       if (aiFlags.visionEnabled) {
         setUploadingImage(false);
         setVisionLoadingMain(true);
@@ -343,6 +344,12 @@ export function ProductModal({
   };
 
   const closeWithReset = () => { onClose(); onNameErrorChange(false); onPriceErrorChange(false); setGhostMain(null); setVisionLoadingMain(false); };
+
+  const triggerSave = (formId: string) => {
+    if (updating || uploadingImage || !isDirty) return;
+    const form = document.getElementById(formId) as HTMLFormElement | null;
+    form?.requestSubmit();
+  };
 
   if (typeof document === 'undefined') return null;
   return createPortal(
@@ -688,11 +695,13 @@ export function ProductModal({
                   <button type="button" onClick={closeWithReset} className="px-8 py-3.5 rounded-xl bg-white/[0.05] text-white/40 border border-white/[0.12] hover:bg-white/10 hover:text-white text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all">
                     {t('cancel') || 'LƏĞV ET'}
                   </button>
-                  <button type="submit" form="product-modal-form" disabled={updating || uploadingImage || !isDirty}
-                    className={`flex-1 py-3 rounded-xl bg-gradient-to-r from-gold via-[#E7C85A] to-gold text-black font-bold tracking-[0.25em] text-[11px] uppercase hover:brightness-110 hover:scale-[1.02] active:scale-100 transition-all shadow-lg shadow-gold/10 flex items-center justify-center gap-3 disabled:opacity-50 ${!isDirty && !updating ? 'opacity-35 pointer-events-none' : ''}`}>
-                    {updating ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                  <SaveSuccessButton
+                    disabled={updating || uploadingImage || !isDirty}
+                    onClick={() => triggerSave('product-modal-form')}
+                    className={`flex-1 py-3 rounded-xl !bg-gradient-to-r !from-gold !via-[#E7C85A] !to-gold !text-black font-bold tracking-[0.25em] text-[11px] uppercase hover:brightness-110 transition-all shadow-lg shadow-gold/10 ${!isDirty && !updating ? 'opacity-35 pointer-events-none' : ''}`}
+                  >
                     {editingProduct ? t('save_changes') : t('add_product_btn')}
-                  </button>
+                  </SaveSuccessButton>
                 </div>
               </div>
             </motion.div>
@@ -761,7 +770,7 @@ export function ProductModal({
 
               {/* Category */}
               <div className="space-y-2">
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold flex items-center gap-2">
+                <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold flex items-center gap-2">
                   <span className="w-4 h-px bg-white/10" />{t('product_category')}<span className="flex-1 h-px bg-white/5" />
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
@@ -777,7 +786,7 @@ export function ProductModal({
 
               {/* Sales Params */}
               <div className="space-y-3">
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold flex items-center gap-2">
+                <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold flex items-center gap-2">
                   <span className="w-4 h-px bg-white/10" />{t('sales_params_section')}<span className="flex-1 h-px bg-white/5" />
                 </p>
                 {/* AI hint */}
@@ -909,7 +918,7 @@ export function ProductModal({
 
               {/* Variants */}
               <div className="space-y-2">
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold flex items-center gap-2">
+                <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold flex items-center gap-2">
                   <span className="w-4 h-px bg-white/10" />{t('variants_section')}<span className="flex-1 h-px bg-white/5" />
                 </p>
                 <VariantSelector
@@ -924,7 +933,7 @@ export function ProductModal({
 
               {/* Modifiers */}
               <div className="space-y-2">
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold flex items-center gap-2">
+                <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold flex items-center gap-2">
                   <span className="w-4 h-px bg-white/10" />{t('modifiers_section')}<span className="flex-1 h-px bg-white/5" />
                 </p>
                 <ModifierSelector
@@ -935,14 +944,16 @@ export function ProductModal({
 
               {/* Mobile Footer - scrolls naturally with form, z-index above hamburger */}
               <div className="z-[70] px-0 py-6 flex items-center gap-3">
-                <button type="button" onClick={closeWithReset} className="px-6 py-3.5 rounded-xl bg-white/[0.05] text-white/40 border border-white/[0.10] text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all">
+                <button type="button" onClick={closeWithReset} className="px-6 py-3.5 rounded-xl bg-white/[0.07] text-white/75 border border-white/[0.16] hover:bg-white/[0.10] text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all">
                   {t('cancel') || 'LƏĞV ET'}
                 </button>
-                <button type="submit" disabled={updating || uploadingImage || !isDirty}
-                  className={`flex-1 py-3.5 rounded-xl bg-gradient-to-r from-gold via-[#E7C85A] to-gold text-black font-bold tracking-[0.25em] text-[11px] uppercase hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-gold/20 flex items-center justify-center gap-3 disabled:opacity-50 ${!isDirty && !updating ? 'opacity-35 pointer-events-none' : ''}`}>
-                  {updating ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                <SaveSuccessButton
+                  disabled={updating || uploadingImage || !isDirty}
+                  onClick={() => triggerSave('product-modal-form-mobile')}
+                  className={`flex-1 py-3.5 rounded-xl !bg-gradient-to-r !from-gold !via-[#E7C85A] !to-gold !text-black font-bold tracking-[0.25em] text-[11px] uppercase hover:brightness-110 transition-all shadow-lg shadow-gold/20 ${!isDirty && !updating ? 'opacity-35 pointer-events-none' : ''}`}
+                >
                   {editingProduct ? t('save_changes') : t('add_product_btn')}
-                </button>
+                </SaveSuccessButton>
               </div>
             </form>
           </motion.div>

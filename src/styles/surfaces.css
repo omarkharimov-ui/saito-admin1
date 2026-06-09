@@ -73,32 +73,34 @@
   .bg-card { background-color: var(--card); }
 }
 
-/* ── Gradient button ── */
+/* ── Primary button utility (neutral premium) ── */
 @layer utilities {
   .btn-gradient {
-    background: linear-gradient(135deg, #D4AF37 0%, #B8860B 100%);
-    color: #000000;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    background: #111111;
+    color: #ffffff;
+    border: 1px solid #111111;
+    box-shadow: 0 1px 2px rgba(0,0,0,.03), 0 8px 24px rgba(0,0,0,.04);
   }
   .btn-gradient:hover {
-    background: linear-gradient(135deg, #E5C048 0%, #C9971C 100%);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    background: #1f1f1f;
+    box-shadow: 0 2px 6px rgba(0,0,0,.04), 0 12px 28px rgba(0,0,0,.06);
   }
 }
 
-/* ── Gold color utilities ── */
+/* ── Legacy gold utilities mapped to neutral (light mode calm) ── */
 @layer utilities {
-  .text-gold       { color: var(--gold); }
-  .border-gold     { border-color: rgba(212,175,55,0.18); }
-  .bg-gold\/10     { background-color: rgba(212,175,55,0.10); }
-  .bg-gold\/15     { background-color: rgba(212,175,55,0.15); }
+  .text-gold       { color: var(--text-primary); }
+  .border-gold     { border-color: var(--border-soft); }
+  .bg-gold\/10     { background-color: var(--surface-2); }
+  .bg-gold\/15     { background-color: var(--surface-2); }
 }
 
-/* Light mode gold adjustments */
-html[data-light-mode="true"] .border-gold { border-color: rgba(184,134,11,0.25) !important; }
-html[data-light-mode="true"] .bg-gold\/10 { background-color: rgba(184,134,11,0.08) !important; }
-html[data-light-mode="true"] .bg-gold\/15 { background-color: rgba(184,134,11,0.12) !important; }
-html[data-light-mode="true"] .bg-gold\/5 { background-color: rgba(184,134,11,0.05) !important; }
+/* Light mode legacy utility normalization */
+html[data-light-mode="true"] .text-gold { color: #1D1D1F !important; }
+html[data-light-mode="true"] .border-gold { border-color: #E5E5E7 !important; }
+html[data-light-mode="true"] .bg-gold\/10 { background-color: #FCFCFD !important; }
+html[data-light-mode="true"] .bg-gold\/15 { background-color: #FCFCFD !important; }
+html[data-light-mode="true"] .bg-gold\/5 { background-color: #F7F7F8 !important; }
 
 
 /* ════════════════════════════════════════════
@@ -161,10 +163,9 @@ button, [role="button"] {
   transition-timing-function: var(--ease-premium);
 }
 
-/* Focus ring — gold accent instead of blue browser default */
-/* Excludes inputs/textareas — they handle focus via border-color */
+/* Focus ring — neutral premium */
 :focus-visible:not(input):not(textarea):not(select) {
-  outline: 2px solid rgba(212,175,55,0.55);
+  outline: 2px solid rgba(17,17,17,0.24);
   outline-offset: 2px;
   border-radius: 6px;
 }

@@ -113,7 +113,7 @@ export default function CombosPage() {
 
   if (fetching && combos.length === 0) {
     return (
-      <div className="min-h-screen bg-[#080808] px-6 py-8">
+      <div className="min-h-screen bg-background text-foreground px-6 py-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="space-y-2">
             <div className="h-7 w-32 bg-white/[0.05] rounded-xl animate-pulse" />
@@ -123,7 +123,7 @@ export default function CombosPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-[#0e0e0e] border border-white/[0.07] rounded-2xl overflow-hidden animate-pulse">
+            <div key={i} className="bg-card border border-white/[0.10] rounded-2xl overflow-hidden animate-pulse">
               <div className="h-36 bg-white/[0.04]" />
               <div className="p-4 space-y-3">
                 <div className="flex justify-between">
@@ -147,7 +147,7 @@ export default function CombosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080808] px-6 py-8 pb-28 md:pb-8">
+    <div className="min-h-screen bg-background text-foreground px-6 py-8 pb-28 md:pb-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -157,7 +157,7 @@ export default function CombosPage() {
           </p>
         </div>
         <button onClick={openNew}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-gold via-[#E7C85A] to-gold text-black font-bold text-[11px] uppercase tracking-widest hover:brightness-110 transition-all shadow-lg shadow-gold/10">
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-black text-white border border-white/15 font-bold text-[11px] uppercase tracking-widest hover:bg-black/90 transition-all shadow-lg shadow-black/25">
           <Plus size={15} />
           {t('combo_new')}
         </button>
@@ -189,7 +189,7 @@ export default function CombosPage() {
             return (
               <div key={combo.id}
                 onClick={() => openEdit(combo)}
-                className="bg-[#0e0e0e] border border-white/[0.07] rounded-2xl overflow-hidden hover:border-white/[0.12] transition-all group cursor-pointer active:scale-[0.98]"
+                className="bg-card border border-white/[0.10] rounded-2xl overflow-hidden hover:border-white/[0.16] transition-all group cursor-pointer active:scale-[0.98]"
               >
                   {/* Şəkil */}
                   <div className="relative h-36 bg-white/[0.03]">

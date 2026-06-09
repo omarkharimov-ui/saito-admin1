@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ShoppingBag, TrendingUp, TrendingDown, Search, Download, Filter } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import GoldSelect from '@/components/GoldSelect';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface ProductPerf {
   id: string;
@@ -28,6 +29,7 @@ interface Props {
 
 const StatsProductTable = ({ productPerformance, categories, getCategoryTranslation }: Props) => {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [prodSearch, setProdSearch] = useState('');
   const [prodCategory, setProdCategory] = useState('all');
 
@@ -113,7 +115,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
                   <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
                     <div className={`h-full rounded-full ${convNum >= 80 ? 'bg-gold' : isGood ? 'bg-gold/60' : 'bg-white/20'}`} style={{ width: `${Math.min(convNum * 2, 100)}%` }} />
                   </div>
-                  <span className={`text-[10px] font-bold ${isGood ? 'text-gold' : 'text-white/30'}`}>{p.conversion}%</span>
+                  <span className={`text-[10px] font-bold ${isGood ? 'text-gold' : (lightMode ? 'text-gray-600' : 'text-white/30')}`}>{p.conversion}%</span>
                 </div>
               </div>
               <span className="text-white font-bold text-sm tabular-nums flex-shrink-0">₼{Number(p.revenue).toFixed(0)}</span>
@@ -174,7 +176,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
                         <div className="w-24 h-2 bg-white/5 rounded-full overflow-hidden relative">
                           <div className={`h-full rounded-full transition-all ${convNum >= 80 ? 'bg-gold shadow-[0_0_10px_rgba(212,175,55,0.7)]' : isGood ? 'bg-gold shadow-[0_0_6px_rgba(212,175,55,0.4)]' : 'bg-white/25'}`} style={{ width: `${Math.min(convNum * 2, 100)}%` }} />
                         </div>
-                        <span className={`text-xs font-bold ${convNum >= 80 ? 'text-gold drop-shadow-[0_0_6px_rgba(212,175,55,0.8)]' : isGood ? 'text-gold' : 'text-white/40'}`}>{p.conversion}%</span>
+                        <span className={`text-xs font-bold ${convNum >= 80 ? 'text-gold drop-shadow-[0_0_6px_rgba(212,175,55,0.8)]' : isGood ? 'text-gold' : (lightMode ? 'text-gray-600' : 'text-white/40')}`}>{p.conversion}%</span>
                       </div>
                     </td>
                     <td className="px-8 py-5 text-right font-bold text-white">₼ {Number(p.revenue).toFixed(2)}</td>

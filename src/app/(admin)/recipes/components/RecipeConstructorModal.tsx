@@ -506,7 +506,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
               </button>
               <button onClick={handleSave} disabled={saving || !selectedProductId || rows.filter(r => r.ingredient_id && r.quantity > 0).length === 0}
                 className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
-                style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}>
+                style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}>
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={15} />}
                 {editProductId ? 'Yadda saxla' : 'Resept yarat'}
               </button>

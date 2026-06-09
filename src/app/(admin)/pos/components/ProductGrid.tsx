@@ -58,7 +58,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
           onClick={() => setCategoryFilter(null)}
           className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold tracking-wider transition-all ${
             !categoryFilter
-              ? lightMode ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-black'
+              ? lightMode ? 'bg-gray-900 text-white shadow-sm' : 'bg-gold text-black'
               : lightMode ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
           }`}
         >
@@ -70,7 +70,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
             onClick={() => setCategoryFilter(c.id === categoryFilter ? null : c.id)}
             className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
               categoryFilter === c.id
-                ? lightMode ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-black'
+                ? lightMode ? 'bg-gray-900 text-white shadow-sm' : 'bg-gold text-black'
                 : lightMode ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200' : 'bg-white/[0.06] text-white/50 hover:text-white/80'
             }`}
           >

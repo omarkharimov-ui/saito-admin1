@@ -144,7 +144,7 @@ export default function LiveFloorSnapshot() {
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-blue-500" />
-            {t('payment')}
+            DOLU
           </span>
         </div>
       </div>
@@ -155,13 +155,13 @@ export default function LiveFloorSnapshot() {
           <p className="text-xl font-bold text-white">{occupiedCount}<span className="text-white/30 text-sm">/{tableCount}</span></p>
           <p className="text-[9px] text-white/40 uppercase tracking-wider mt-0.5">{t('occupied')}</p>
         </div>
-        <div className="flex-1 p-3 rounded-xl bg-emerald-500/5">
+        <div className="flex-1 p-3 rounded-xl bg-white/[0.02] border-l-4 border-emerald-500">
           <p className="text-xl font-bold text-emerald-400">{newCount}</p>
-          <p className="text-[9px] text-emerald-400/60 uppercase tracking-wider mt-0.5">{t('new_arrivals')}</p>
+          <p className="text-[9px] text-emerald-400/70 uppercase tracking-wider mt-0.5">{t('new_arrivals')}</p>
         </div>
-        <div className="flex-1 p-3 rounded-xl bg-amber-500/5">
+        <div className="flex-1 p-3 rounded-xl bg-white/[0.02] border-l-4 border-amber-500">
           <p className="text-xl font-bold text-amber-400">{cookingCount}</p>
-          <p className="text-[9px] text-amber-400/60 uppercase tracking-wider mt-0.5">{t('in_kitchen')}</p>
+          <p className="text-[9px] text-amber-400/70 uppercase tracking-wider mt-0.5">{t('in_kitchen')}</p>
         </div>
       </div>
     </motion.div>

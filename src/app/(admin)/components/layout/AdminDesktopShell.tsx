@@ -26,7 +26,7 @@ export default function AdminDesktopShell({
   }, [sidebarOpen]);
 
   return (
-    <div className="hidden lg:flex h-screen min-h-0 bg-background text-foreground font-sans selection:bg-gold selection:text-black">
+    <div className="hidden lg:flex h-screen min-h-0 bg-[var(--surface-0)] text-[var(--text-primary)] font-sans selection:bg-[#111111] selection:text-white">
       <SimpleToaster />
       <Sidebar role={role} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -39,7 +39,7 @@ export default function AdminDesktopShell({
         />
       )}
 
-      <main className="flex-1 ml-[272px] px-8 min-h-0 relative bg-background flex flex-col">
+      <main className="flex-1 ml-[272px] px-8 min-h-0 relative bg-[var(--surface-0)] flex flex-col">
         <LayoutProvider>
           <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />
           <div className="flex-1 min-h-0 overflow-y-auto">

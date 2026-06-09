@@ -547,7 +547,7 @@ export default function StockPage() {
             <button
               onClick={() => setModal({ mode: 'new_ingredient' })}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
-              style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
+              style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
             >
               <Plus size={15} /> Yeni Xammal
             </button>
@@ -1334,7 +1334,7 @@ export default function StockPage() {
 
                   <button onClick={handleAudit} disabled={saving || !auditQty.trim()}
                     className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
-                    style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
+                    style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <><RefreshCw size={15} /> Təsdiq Et</>}
                   </button>
@@ -1598,9 +1598,9 @@ export default function StockPage() {
 
                   <button onClick={handleNewIngredient} disabled={saving}
                     className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
-                    style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
+                    style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
                   >
-                    {saving ? <Loader2 size={16} className="animate-spin text-black" /> : <><Plus size={15} /> Əlavə Et</>}
+                    {saving ? <Loader2 size={16} className="animate-spin text-white" /> : <><Plus size={15} /> Əlavə Et</>}
                   </button>
                 </div>
               )}

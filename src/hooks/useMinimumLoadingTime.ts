@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * Hook to enforce minimum loading time
@@ -14,32 +14,39 @@ export function useMinimumLoadingTime(
   minDuration: number = 600
 ): boolean {
   const [displayLoading, setDisplayLoading] = useState(isLoading);
-  const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
+  const loadingStartTimeRef = useRef<number | null>(isLoading ? Date.now() : null);
 
   useEffect(() => {
     if (isLoading) {
       // Start loading - record the time
-      setLoadingStartTime(Date.now());
+      loadingStartTimeRef.current = Date.now();
       setDisplayLoading(true);
-    } else if (displayLoading && loadingStartTime !== null) {
-      // Stop loading - but respect minimum duration
-      const elapsed = Date.now() - loadingStartTime;
-      const remaining = minDuration - elapsed;
-
-      if (remaining > 0) {
-        // Need to wait longer
-        const timer = setTimeout(() => {
-          setDisplayLoading(false);
-          setLoadingStartTime(null);
-        }, remaining);
-        return () => clearTimeout(timer);
-      } else {
-        // Already waited long enough
-        setDisplayLoading(false);
-        setLoadingStartTime(null);
-      }
+      return;
     }
-  }, [isLoading, displayLoading, loadingStartTime, minDuration]);
+
+    const loadingStartTime = loadingStartTimeRef.current;
+    if (loadingStartTime === null) {
+      setDisplayLoading(false);
+      return;
+    }
+
+    // Stop loading - but respect minimum duration
+    const elapsed = Date.now() - loadingStartTime;
+    const remaining = minDuration - elapsed;
+
+    if (remaining > 0) {
+      // Need to wait longer
+      const timer = setTimeout(() => {
+        setDisplayLoading(false);
+        loadingStartTimeRef.current = null;
+      }, remaining);
+      return () => clearTimeout(timer);
+    }
+
+    // Already waited long enough
+    setDisplayLoading(false);
+    loadingStartTimeRef.current = null;
+  }, [isLoading, minDuration]);
 
   return displayLoading;
 }

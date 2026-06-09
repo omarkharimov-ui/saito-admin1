@@ -265,7 +265,7 @@ const ReservationFilters = ({
                     <Trash2 size={14} />
                     {t('select_archive')}
                   </button>
-                  <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max -translate-x-1/2 rounded-xl bg-black/80 px-3 py-2 text-[11px] text-gold/90 border border-gold/20 shadow-[0_18px_60px_rgba(0,0,0,0.55)] opacity-0 translate-y-1 transition-all group-hover:opacity-100 group-hover:translate-y-0">
+                  <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max -translate-x-1/2 rounded-xl bg-gray-900/95 px-3 py-2 text-[11px] text-white border border-white/15 shadow-[0_18px_60px_rgba(0,0,0,0.35)] opacity-0 translate-y-1 transition-all group-hover:opacity-100 group-hover:translate-y-0">
                     {t('clear_archive_help')}
                   </div>
                 </div>

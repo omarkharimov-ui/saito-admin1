@@ -13,21 +13,44 @@
   --ease-premium:   cubic-bezier(0.4, 0, 0.2, 1);
   --app-brightness: 1;
 
-  /* Secondary text — Zinc-400 for visual hierarchy */
+  /* Typography */
+  --text-primary:   #FFFFFF;
   --text-secondary: #A1A1AA;
   --text-muted:     #71717A;
 
-  /* Surface levels — layered depth */
-  --surface-0:  #0D0D0D;
-  --surface-1:  rgba(255,255,255,0.05);
-  --surface-2:  rgba(255,255,255,0.08);
-  --surface-3:  rgba(255,255,255,0.12);
+  /* Layer system */
+  --layer-0:        #0D0D0D;
+  --layer-1:        #141414;
+  --layer-2:        #1A1A1A;
+  --layer-3:        rgba(20,20,20,0.88);
 
-  /* Border levels — ultra-thin Obsidian style */
-  --border-subtle:  rgba(255,255,255,0.06);
-  --border-default: rgba(255,255,255,0.10);
-  --border-strong:  rgba(255,255,255,0.18);
-  --border-focus:   rgba(212,175,55,0.55);
+  /* Surface levels — layered depth */
+  --surface-0:      var(--layer-0);
+  --surface-1:      var(--layer-1);
+  --surface-2:      var(--layer-2);
+  --surface-3:      var(--layer-3);
+
+  /* Border economy */
+  --border-soft:    rgba(255,255,255,0.10);
+  --border-strong:  rgba(255,255,255,0.20);
+  --border-subtle:  var(--border-soft);
+  --border-default: var(--border-soft);
+  --border-focus:   rgba(255,255,255,0.26);
+
+  /* Radius system */
+  --radius-input:   10px;
+  --radius-button:  10px;
+  --radius-card:    16px;
+  --radius-modal:   20px;
+  --radius-drawer:  24px;
+
+  /* Shadow system */
+  --shadow-card:    0 1px 2px rgba(0,0,0,.22), 0 8px 24px rgba(0,0,0,.24);
+  --shadow-elevated:0 2px 8px rgba(0,0,0,.28), 0 16px 40px rgba(0,0,0,.28);
+  --shadow-overlay: 0 8px 30px rgba(0,0,0,.30);
+
+  /* Focus states */
+  --focus-ring:     0 0 0 4px rgba(255,255,255,.18);
 
   /* Z-index scale */
   --z-base:    0;
@@ -40,24 +63,37 @@
 
 /* ── Light mode overrides ── */
 [data-light-mode="true"] {
-  --background:     #FFFFFF;
-  --foreground:     #111827;
-  --card:           #F9FAFB;
-  --gold:           #B8860B;
-  --gold-hover:     #996F0A;
+  --background:     #F7F7F8;
+  --foreground:     #1D1D1F;
+  --card:           #FFFFFF;
+  --gold:           #8C7A4A;
+  --gold-hover:     #75663D;
 
-  --text-secondary: #4B5563;
-  --text-muted:     #9CA3AF;
+  --text-primary:   #1D1D1F;
+  --text-secondary: #6E6E73;
+  --text-muted:     #8E8E93;
 
-  --surface-0:  #FFFFFF;
-  --surface-1:  #F3F4F6;
-  --surface-2:  #E5E7EB;
-  --surface-3:  #D1D5DB;
+  --layer-0:        #F7F7F8;
+  --layer-1:        #FFFFFF;
+  --layer-2:        #FCFCFD;
+  --layer-3:        rgba(255,255,255,.82);
 
-  --border-subtle:  #E5E7EB;
-  --border-default: #D1D5DB;
-  --border-strong:  #9CA3AF;
-  --border-focus:   rgba(184,134,11,0.55);
+  --surface-0:      var(--layer-0);
+  --surface-1:      var(--layer-1);
+  --surface-2:      var(--layer-2);
+  --surface-3:      var(--layer-3);
+
+  --border-soft:    #E5E5E7;
+  --border-strong:  #D2D2D7;
+  --border-subtle:  var(--border-soft);
+  --border-default: var(--border-soft);
+  --border-focus:   rgba(17,17,17,.18);
+
+  --shadow-card:    0 1px 2px rgba(0,0,0,.03), 0 8px 24px rgba(0,0,0,.04);
+  --shadow-elevated:0 2px 6px rgba(0,0,0,.04), 0 12px 28px rgba(0,0,0,.06);
+  --shadow-overlay: 0 8px 30px rgba(0,0,0,.10);
+
+  --focus-ring:     0 0 0 4px rgba(0,0,0,.08);
 }
 
 /* ── Background — ALL layers nailed to #0a0a0a ── */
@@ -70,19 +106,19 @@ body {
 
 [data-light-mode="true"],
 [data-light-mode="true"] body {
-  background:       #FFFFFF !important;
-  background-color: #FFFFFF !important;
-  color:            #111827 !important;
+  background:       #F7F7F8 !important;
+  background-color: #F7F7F8 !important;
+  color:            #1D1D1F !important;
 }
 
-/* ── Weather: Sunny override ── */
+/* ── Weather: Sunny override (neutralized for light-mode calm UI) ── */
 [data-weather='sunny'] {
-  --gold:      #F5C842;
-  --gold-hover:#E6B830;
+  --gold:      #8C7A4A;
+  --gold-hover:#75663D;
   --foreground:#ffffff;
 }
 [data-weather='sunny'] .app-brightness {
-  filter: brightness(1.0) contrast(1.18);
+  filter: brightness(1.0) contrast(1.08);
 }
 [data-weather='sunny'] body,
 [data-weather='sunny'] main {
@@ -93,11 +129,11 @@ body {
   --tw-border-opacity: 0.18 !important;
 }
 [data-weather='sunny'] [class*="text-gold"] {
-  text-shadow: 0 0 12px rgba(245,200,66,0.35);
+  text-shadow: none;
 }
 [data-weather='sunny'] [class*="btn-gradient"],
 [data-weather='sunny'] [class*="border-gold"] {
-  box-shadow: 0 0 0 1px rgba(245,200,66,0.25), 0 4px 16px rgba(245,200,66,0.12) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,.03), 0 8px 24px rgba(0,0,0,.04) !important;
 }
 
 /* ── Contrast override ── */

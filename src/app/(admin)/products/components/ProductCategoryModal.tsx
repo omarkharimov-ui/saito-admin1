@@ -139,7 +139,7 @@ export function ProductCategoryModal({
                       </button>
                     )}
                     <button type="submit" disabled={updating || !isDirty}
-                      className={`shrink-0 px-5 py-2.5 rounded-xl bg-gradient-to-r from-gold via-[#E7C85A] to-gold text-black font-bold tracking-wide text-[11px] uppercase whitespace-nowrap hover:brightness-110 hover:scale-[1.02] active:scale-100 transition-transform duration-200 shadow-lg shadow-gold/10 flex items-center justify-center gap-2 disabled:opacity-50 ${!isDirty && !updating ? 'opacity-40 pointer-events-none' : ''}`}>
+                      className={`shrink-0 px-5 py-2.5 rounded-xl bg-gradient-to-r from-gold via-[#E7C85A] to-gold text-white font-bold tracking-wide text-[11px] uppercase whitespace-nowrap hover:brightness-110 hover:scale-[1.02] active:scale-100 transition-transform duration-200 shadow-lg shadow-gold/10 flex items-center justify-center gap-2 disabled:opacity-50 ${!isDirty && !updating ? 'opacity-40 pointer-events-none' : ''}`}>
                       {updating ? <Loader2 className="animate-spin" size={16} /> : <Save size={14} />}
                       {categoryForm.id ? t('save_changes') : t('create')}
                     </button>

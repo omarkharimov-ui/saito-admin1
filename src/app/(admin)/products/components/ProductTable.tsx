@@ -187,20 +187,20 @@ export function ProductTable({
   };
 
   return (
-    <>
+    <div className="products-theme-bridge">
       {/* Sticky toolbar - mobil 2 sətir, desktop 1 sətir */}
-      <div className="sticky top-0 z-30 px-4 py-4 bg-[#0a0a0a]/90 backdrop-blur-2xl border-b border-white/[0.05] mb-8">
+      <div className="sticky top-0 z-30 px-4 py-4 bg-white/92 backdrop-blur-xl border-b border-[#E5E5E7] mb-8">
         <div className="flex flex-col sm:flex-row gap-3">
 
           {/* Search - bütün en */}
           <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20" size={15} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8E8E93]" size={15} />
             <input
               type="text"
               placeholder={`${t('search')}...`}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-white/[0.04] border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-white/20 focus:border-white/20 outline-none transition-all"
+              className="w-full pl-9 pr-4 py-2.5 min-h-[44px] bg-white border border-[#E5E5E7] rounded-[10px] text-sm text-[#1D1D1F] placeholder:text-[#8E8E93] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] transition-all"
             />
           </div>
 
@@ -208,45 +208,44 @@ export function ProductTable({
           <div className="flex items-center gap-2 flex-shrink-0">
             {isBulkMode ? (
               <>
-                <span className="hidden lg:flex px-3 py-2 rounded-xl bg-white/[0.03] text-white/30 border border-white/[0.06] text-xs whitespace-nowrap">
+                <span className="hidden lg:flex px-3 py-2 rounded-[10px] bg-[#F7F7F8] text-[#6E6E73] border border-[#E5E5E7] text-xs whitespace-nowrap">
                   {selectedProducts.size} {t('products_selected')}
                 </span>
                 <button onClick={() => { if (showToast()) return; onSetBulkAction('stock'); }}
-                  className={`flex-1 sm:flex-none px-3 py-2.5 rounded-xl border text-xs font-semibold whitespace-nowrap transition-all ${selectedProducts.size === 0 ? 'bg-white/[0.02] text-white/20 border-white/[0.05] cursor-not-allowed' : 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/15'}`}>
+                  className={`flex-1 sm:flex-none px-3 py-2.5 rounded-[10px] border text-xs font-semibold whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] ${selectedProducts.size === 0 ? 'bg-[#F7F7F8] text-[#8E8E93] border-[#E5E5E7] cursor-not-allowed' : 'bg-[#ECFDF3] text-[#166534] border-[#BBF7D0] hover:bg-[#DCFCE7]'}`}>
                   {t('change_stock')}
                 </button>
                 <button onClick={() => { if (showToast()) return; onSetBulkAction('category'); }}
-                  className={`flex-1 sm:flex-none px-3 py-2.5 rounded-xl border text-xs font-semibold whitespace-nowrap transition-all ${selectedProducts.size === 0 ? 'bg-white/[0.02] text-white/20 border-white/[0.05] cursor-not-allowed' : 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/15'}`}>
+                  className={`flex-1 sm:flex-none px-3 py-2.5 rounded-[10px] border text-xs font-semibold whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] ${selectedProducts.size === 0 ? 'bg-[#F7F7F8] text-[#8E8E93] border-[#E5E5E7] cursor-not-allowed' : 'bg-[#F5F7FF] text-[#1D4ED8] border-[#C7DAFF] hover:bg-[#EAF0FF]'}`}>
                   {t('product_category')}
                 </button>
                 <button onClick={() => { onSetBulkMode(false); onSetBulkAction(null); }}
-                  className="w-10 h-10 rounded-xl bg-white/[0.04] text-white/30 border border-white/[0.07] hover:text-white hover:bg-white/[0.08] flex items-center justify-center transition-all">
+                  className="w-10 h-10 rounded-[10px] bg-white text-[#8E8E93] border border-[#E5E5E7] hover:text-[#1D1D1F] hover:bg-[#F7F7F8] flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]">
                   <X size={13} />
                 </button>
               </>
             ) : (
               <>
                 <button onClick={() => onSetBulkMode(true)}
-                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-xl bg-white/[0.03] text-white/40 border border-white/[0.07] hover:bg-white/[0.07] hover:text-white/70 hover:border-white/15 transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap">
+                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-[10px] bg-white text-[#6E6E73] border border-[#E5E5E7] hover:bg-[#F7F7F8] hover:text-[#1D1D1F] transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]">
                   <Filter size={13} /> <span className="hidden sm:inline">{t('bulk_operation')}</span>
                 </button>
                 <button onClick={onOpenCategoryModal}
-                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-xl bg-white/[0.03] text-white/40 border border-white/[0.07] hover:bg-white/[0.07] hover:text-white/70 hover:border-white/15 transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap">
+                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-[10px] bg-white text-[#6E6E73] border border-[#E5E5E7] hover:bg-[#F7F7F8] hover:text-[#1D1D1F] transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]">
                   <FolderPlus size={13} /> <span className="hidden sm:inline">{t('add_category')}</span>
                 </button>
                 <button onClick={onConfirmDeleteAll} disabled={products.length === 0 || updating}
-                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-xl border border-red-500/15 bg-red-500/[0.04] text-red-400/60 text-xs font-semibold tracking-wide uppercase whitespace-nowrap hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all disabled:opacity-25">
+                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-[10px] border border-red-200 bg-red-50 text-red-600 text-xs font-semibold tracking-wide uppercase whitespace-nowrap hover:bg-red-100 transition-all disabled:opacity-30 focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]">
                   <Trash2 size={13} /> <span className="hidden sm:inline">{t('delete_all')}</span>
                 </button>
               </>
             )}
 
-            {!isBulkMode && <div className="w-px h-5 bg-white/[0.08] hidden sm:block" />}
+            {!isBulkMode && <div className="w-px h-5 bg-[#E5E5E7] hidden sm:block" />}
 
             {!isBulkMode && (
               <button onClick={onOpenAddModal}
-                className="flex-1 sm:flex-none flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-black text-xs font-bold tracking-wide uppercase whitespace-nowrap transition-all hover:brightness-110 active:scale-95 shadow-lg shadow-[#D4AF37]/10"
-                style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)' }}>
+                className="flex-1 sm:flex-none flex items-center gap-1.5 px-4 py-2.5 rounded-[10px] text-black text-xs font-bold tracking-wide uppercase whitespace-nowrap transition-all hover:brightness-110 active:scale-95 bg-gold border border-gold/70 focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]">
                 <Plus size={14} /> <span className="hidden sm:inline">{t('new_product')}</span><span className="sm:hidden">{t('new_product')}</span>
               </button>
             )}
@@ -257,40 +256,50 @@ export function ProductTable({
       {/* Product table — DESKTOP (lg+) */}
       <div className="space-y-6 hidden lg:block">
         {products.length === 0 ? (
-          <div className="text-center py-32 bg-card border border-dashed border-white/10 rounded-lg">
-            <AlertCircle className="mx-auto text-white/5 mb-4" size={48} />
-            <p className="text-white/20 uppercase tracking-[0.3em] text-xs">{t('product_not_found')}</p>
+          <div className="text-center py-24 bg-white border border-[#E5E5E7] rounded-[16px]">
+            <AlertCircle className="mx-auto text-[#D2D2D7] mb-4" size={42} />
+            <p className="text-[#1D1D1F] text-sm font-semibold">{t('product_not_found')}</p>
+            <p className="text-[#8E8E93] text-sm mt-1">
+              Your inventory is empty. Add your first product to start tracking stock.
+            </p>
+            <button
+              onClick={onOpenAddModal}
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-gold text-black text-xs font-bold tracking-wide uppercase hover:brightness-110 transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]"
+            >
+              <Plus size={14} />
+              {t('new_product')}
+            </button>
           </div>
         ) : Object.entries(groupedProducts).map(([catId, { name, products: catProducts }]) => (
-          <div key={catId} className="bg-white/[0.04] border border-white/[0.10] rounded-2xl overflow-hidden backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
-            <div className="w-full px-8 py-5 flex items-center justify-between bg-white/[0.05] hover:bg-white/[0.07] transition-colors border-b border-white/[0.08]">
-              <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => onToggleCategory(catId)}>
-                <div className="w-10 h-10 rounded-xl bg-white/5 text-white/70 flex items-center justify-center shrink-0">
-                  <Tag size={17} />
+          <div key={catId} className="bg-white border border-[#E5E5E7] rounded-[16px] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.04)]">
+            <div className="w-full px-6 py-4 flex items-center justify-between bg-[#FCFCFD] hover:bg-[#F7F7F8] transition-colors border-b border-[#E5E5E7]">
+              <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => onToggleCategory(catId)}>
+                <div className="w-9 h-9 rounded-[10px] bg-[#F5F5F5] text-[#6E6E73] flex items-center justify-center shrink-0 border border-[#E5E5E7]">
+                  <Tag size={16} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-serif font-bold text-white cursor-help"
+                  <h3 className="text-base font-semibold text-[#1D1D1F] cursor-help"
                     title={(() => { const cat = categories.find(c => c.id === catId); return cat && cat.name !== name ? cat.name : undefined; })()}>
                     {name}
                   </h3>
-                  <p className="text-[10px] text-white/40 uppercase tracking-widest">{catProducts.length} {t('products_count')}</p>
+                  <p className="text-[10px] text-[#8E8E93] uppercase tracking-widest">{catProducts.length} {t('products_count')}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
                 {catId !== 'unassigned' && (
                   <>
                     <button onClick={(e) => { e.stopPropagation(); const cat = categories.find(c => c.id === catId); if (cat) onEditCategory(cat); }}
-                      className="p-2 rounded-lg hover:bg-white/5 text-white/20 hover:text-white/60 transition-transform duration-200" title={t('edit_category')}>
+                      className="p-2 rounded-[10px] hover:bg-[#F1F1F2] text-[#8E8E93] hover:text-[#1D1D1F] transition-colors" title={t('edit_category')}>
                       <Edit3 size={15} />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); onDeleteCategory(catId, name); }}
-                      className="p-2 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-transform duration-200" title={t('delete_category')}>
+                      className="p-2 rounded-[10px] hover:bg-red-50 text-[#8E8E93] hover:text-red-600 transition-colors" title={t('delete_category')}>
                       <Trash2 size={15} />
                     </button>
                   </>
                 )}
                 <div onClick={() => onToggleCategory(catId)} className="cursor-pointer p-2">
-                  {expandedCategories.includes(catId) ? <ChevronDown size={20} className="text-white/20" /> : <ChevronRight size={20} className="text-white/20" />}
+                  {expandedCategories.includes(catId) ? <ChevronDown size={18} className="text-[#8E8E93]" /> : <ChevronRight size={18} className="text-[#8E8E93]" />}
                 </div>
               </div>
             </div>
@@ -301,7 +310,7 @@ export function ProductTable({
                   <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[800px]">
                       <thead>
-                        <tr className="border-b border-white/[0.06]">
+                        <tr className="border-b border-[#E5E5E7]">
                           <th className="px-4 py-3 w-8">
                             {isBulkMode && (
                               <button
@@ -309,8 +318,8 @@ export function ProductTable({
                                 onClick={() => onSelectAllProducts(catId)}
                                 className="w-[20px] h-[20px] rounded-full flex items-center justify-center transition-all"
                                 style={{
-                                  background: products.filter(p => p.category_id === catId).every(p => selectedProducts.has(p.id)) ? '#007AFF' : 'rgba(255,255,255,0.06)',
-                                  border: products.filter(p => p.category_id === catId).every(p => selectedProducts.has(p.id)) ? '2px solid #007AFF' : '2px solid rgba(255,255,255,0.2)',
+                                  background: products.filter(p => p.category_id === catId).every(p => selectedProducts.has(p.id)) ? '#111111' : '#FFFFFF',
+                                  border: products.filter(p => p.category_id === catId).every(p => selectedProducts.has(p.id)) ? '2px solid #111111' : '2px solid #D2D2D7',
                                 }}
                               >
                                 {products.filter(p => p.category_id === catId).every(p => selectedProducts.has(p.id)) && (
@@ -319,11 +328,11 @@ export function ProductTable({
                               </button>
                             )}
                           </th>
-                          <th className="px-6 py-3 min-w-[280px] text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold">{t('product_name_label')}</th>
-                          <th className="px-6 py-3 min-w-[110px] text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold">{t('price_label')}</th>
-                          <th className="px-6 py-3 min-w-[90px] text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold">{t('views_label')}</th>
-                          <th className="px-6 py-3 min-w-[150px] text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold">{t('stock_label')}</th>
-                          <th className="px-6 py-3 text-[9px] uppercase tracking-[0.3em] text-white/25 font-semibold text-right">{t('operations_label')}</th>
+                          <th className="px-6 py-2.5 min-w-[280px] text-[9px] uppercase tracking-[0.22em] text-[#8E8E93] font-semibold">{t('product_name_label')}</th>
+                          <th className="px-6 py-2.5 min-w-[110px] text-[9px] uppercase tracking-[0.22em] text-[#8E8E93] font-semibold">{t('price_label')}</th>
+                          <th className="px-6 py-2.5 min-w-[90px] text-[9px] uppercase tracking-[0.22em] text-[#8E8E93] font-semibold">{t('views_label')}</th>
+                          <th className="px-6 py-2.5 min-w-[150px] text-[9px] uppercase tracking-[0.22em] text-[#8E8E93] font-semibold">{t('stock_label')}</th>
+                          <th className="px-6 py-2.5 text-[9px] uppercase tracking-[0.22em] text-[#8E8E93] font-semibold text-right">{t('operations_label')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -333,16 +342,16 @@ export function ProductTable({
                           return (
                             <React.Fragment key={product.id}>
                               {/* Main Product Row */}
-                              <tr className={`group transition-transform duration-200 border-b border-white/[0.06] hover:bg-white/[0.05] ${selectedProducts.has(product.id) ? 'bg-white/[0.03]' : ''}`}>
-                                <td className="px-4 py-4 w-8">
+                              <tr className={`group h-[44px] border-b border-[#F0F0F2] hover:bg-black/[0.025] ${selectedProducts.has(product.id) ? 'bg-[#F7F7F8]' : ''}`}>
+                                <td className="px-4 py-2.5 w-8">
                                   {isBulkMode && (
                                     <button
                                       type="button"
                                       onClick={() => onToggleProductSelection(product.id)}
                                       className="w-[20px] h-[20px] rounded-full flex items-center justify-center transition-all"
                                       style={{
-                                        background: selectedProducts.has(product.id) ? '#007AFF' : 'rgba(255,255,255,0.06)',
-                                        border: selectedProducts.has(product.id) ? '2px solid #007AFF' : '2px solid rgba(255,255,255,0.2)',
+                                        background: selectedProducts.has(product.id) ? '#111111' : '#FFFFFF',
+                                        border: selectedProducts.has(product.id) ? '2px solid #111111' : '2px solid #D2D2D7',
                                       }}
                                     >
                                       {selectedProducts.has(product.id) && (
@@ -351,70 +360,74 @@ export function ProductTable({
                                     </button>
                                   )}
                                 </td>
-                                <td className="px-6 py-3.5 min-w-[280px] max-w-[340px]">
-                                  <div className="flex items-center gap-3.5">
-                                    <div className="w-11 h-11 bg-white/[0.03] border border-white/[0.08] overflow-hidden relative rounded-xl group-hover:border-white/25 transition-transform duration-300 shrink-0 flex items-center justify-center">
+                                <td className="px-6 py-2.5 min-w-[280px] max-w-[340px]">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-[#F7F7F8] border border-[#E5E5E7] overflow-hidden relative rounded-[10px] shrink-0 flex items-center justify-center">
                                       {product.image_url
-                                        ? <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                        : <ImageOff size={16} className="text-white/15" />
+                                        ? <img src={product.image_url} alt={getProductName(product)} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                        : <ImageOff size={16} className="text-[#D2D2D7]" />
                                       }
                                     </div>
                                     <div className="flex min-w-0 flex-col">
-                                      <span className="max-w-[220px] truncate font-semibold text-[14px] text-white group-hover:text-white transition-colors"
+                                      <span className="max-w-[220px] truncate font-semibold text-[14px] text-[#1D1D1F]"
                                         title={language !== 'az' ? product.name : undefined}>
                                         {getProductName(product)}
                                       </span>
                                       <div className="flex items-center gap-1.5 mt-0.5 min-h-3 flex-wrap">
-                                        {product.is_special && <span className="flex items-center gap-1 text-[11px] text-white/60 uppercase tracking-[0.12em] font-bold"><Sparkles size={10} /> {t('chef_special')}</span>}
-                                        {product.is_spicy && <span className="flex items-center gap-1 text-[11px] text-red-400/80 uppercase tracking-[0.12em] font-bold"><Zap size={10} /> {t('spicy_label')}</span>}
+                                        {product.is_special && <span className="flex items-center gap-1 text-[10px] text-[#6E6E73] uppercase tracking-[0.12em] font-bold"><Sparkles size={9} /> {t('chef_special')}</span>}
+                                        {product.is_spicy && <span className="flex items-center gap-1 text-[10px] text-[#BE123C] uppercase tracking-[0.12em] font-bold"><Zap size={9} /> {t('spicy_label')}</span>}
                                         {(() => {
                                           if (!variants?.length) return null;
                                           const sizes = variants.filter(v => !v.parent_variant_id).length;
                                           if (!sizes) return null;
-                                          return <span className="text-[13px] text-white/45 tracking-wide font-medium">{sizes} {t('variant_type_tab').toLowerCase()}</span>;
+                                          return <span className="text-[12px] text-[#8E8E93] tracking-wide font-medium">{sizes} {t('variant_type_tab').toLowerCase()}</span>;
                                         })()}
                                       </div>
                                     </div>
                                   </div>
                                 </td>
-                                <td className="px-6 py-3.5">
+                                <td className="px-6 py-2.5">
                                   <div className="flex flex-col">
                                     {product.discount_price ? (
                                       <>
-                                        <span className="font-black text-[15px] tracking-wide text-white/70">₼{product.discount_price}</span>
-                                        <span className="text-[10px] text-white/20 line-through">₼{product.price}</span>
+                                        <span className="font-black text-[15px] tracking-wide text-[#1D1D1F]">₼{product.discount_price}</span>
+                                        <span className="text-[10px] text-[#8E8E93] line-through">₼{product.price}</span>
                                       </>
                                     ) : (
-                                      <span className="font-black text-[15px] tracking-wide text-white/70">₼{product.price}</span>
+                                      <span className="font-black text-[15px] tracking-wide text-[#1D1D1F]">₼{product.price}</span>
                                     )}
                                     {(product.cost_price ?? 0) > 0 && (
                                       <span className={`text-[10px] font-medium mt-0.5 tabular-nums ${
-                                        (product.profit_margin ?? 0) > 40 ? 'text-emerald-400/60' :
-                                        (product.profit_margin ?? 0) > 20 ? 'text-gold/50' :
-                                        (product.profit_margin ?? 0) > 0 ? 'text-amber-400/50' :
-                                        'text-red-400/50'
+                                        (product.profit_margin ?? 0) > 40 ? 'text-[#166534]' :
+                                        (product.profit_margin ?? 0) > 20 ? 'text-[#9A6700]' :
+                                        (product.profit_margin ?? 0) > 0 ? 'text-[#D97706]' :
+                                        'text-[#BE123C]'
                                       }`}>
                                         maya: ₼{Number(product.cost_price).toFixed(2)} · {(product.profit_margin ?? 0) >= 0 ? '+' : ''}{(product.profit_margin ?? 0).toFixed(1)}%
                                       </span>
                                     )}
                                   </div>
                                 </td>
-                                <td className="px-6 py-3.5 min-w-[90px]">
-                                  <span className="text-white/60 text-sm font-semibold tabular-nums group-hover:text-white/80 transition-colors">{product.views_count || 0}</span>
+                                <td className="px-6 py-2.5 min-w-[90px]">
+                                  <span className="text-[#6E6E73] text-sm font-semibold tabular-nums">{product.views_count || 0}</span>
                                 </td>
-                                <td className="px-6 py-3.5 min-w-[150px]">
+                                <td className="px-6 py-2.5 min-w-[150px]">
                                   <button onClick={() => onToggleStock(product)} title={product.is_in_stock ? t('not_in_stock') : t('in_stock')}
-                                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] uppercase font-bold tracking-wider whitespace-nowrap transition-transform duration-200 border ${product.is_in_stock ? 'bg-white/[0.04] text-white/60 border-white/[0.10] hover:border-red-500/25 hover:text-red-400/70' : 'bg-white/[0.03] text-white/30 border-white/[0.07] hover:border-green-500/20 hover:text-white/50'}`}>
-                                    <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${product.is_in_stock ? 'bg-green-400' : 'bg-white/20'}`} />
+                                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] uppercase font-bold tracking-wider whitespace-nowrap transition-colors border ${
+                                      product.is_in_stock
+                                        ? 'bg-[#ECFDF3] text-[#166534] border-[#BBF7D0] hover:bg-[#DCFCE7]'
+                                        : 'bg-[#F7F7F8] text-[#8E8E93] border-[#E5E5E7] hover:bg-[#F1F1F2]'
+                                    }`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${product.is_in_stock ? 'bg-[#16A34A]' : 'bg-[#D2D2D7]'}`} />
                                     {product.is_in_stock ? t('in_stock') : t('not_in_stock')}
                                   </button>
                                 </td>
-                                <td className="px-6 py-3.5 text-right">
+                                <td className="px-6 py-2.5 text-right">
                                   <div className="flex items-center justify-end gap-1.5">
-                                    <button onClick={() => onEditProduct(product)} className="p-2 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/30 text-white/50 hover:text-white/80 transition-transform duration-200 hover:scale-105 active:scale-95">
+                                    <button onClick={() => onEditProduct(product)} className="p-2 rounded-[10px] bg-[#F7F7F8] hover:bg-[#F1F1F2] border border-[#E5E5E7] text-[#6E6E73] hover:text-[#1D1D1F] transition-colors">
                                       <Edit3 size={14} />
                                     </button>
-                                    <button onClick={() => onDeleteProduct(product.id, product.name)} className="p-2 rounded-xl bg-white/[0.07] hover:bg-red-500/10 border border-white/[0.12] hover:border-red-500/25 text-white/50 hover:text-red-400 transition-transform duration-200 hover:scale-105 active:scale-95">
+                                    <button onClick={() => onDeleteProduct(product.id, product.name)} className="p-2 rounded-[10px] bg-[#F7F7F8] hover:bg-red-50 border border-[#E5E5E7] text-[#6E6E73] hover:text-red-600 transition-colors">
                                       <Trash2 size={14} />
                                     </button>
                                   </div>
@@ -644,6 +657,6 @@ export function ProductTable({
         </AnimatePresence>,
         document.body
       )}
-    </>
+    </div>
   );
 }

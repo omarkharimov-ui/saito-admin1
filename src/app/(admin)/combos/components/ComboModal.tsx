@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Loader2, Upload, Trash2, ChevronDown, ChevronLeft } from 'lucide-react';
+import { X, Loader2, Upload, Trash2, ChevronDown, ChevronLeft } from 'lucide-react';
+import { SaveSuccessButton, ElasticSwitch } from '@/components/premium/PremiumComponents';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -165,15 +166,20 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
   const comboPrice = parseFloat(form.price) || 0;
   const saving_amount = separateTotal - comboPrice;
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<boolean> => {
     // Cari dil üzrə name və description yoxlama
     const currentName = language === 'az' ? form.name_az : language === 'ru' ? form.name_ru : form.name_en;
     const currentDesc = language === 'az' ? form.description_az : language === 'ru' ? form.description_ru : form.description_en;
     
-    if (!currentName.trim()) { toast.error(t('combo_name') + ' ' + t('required'), { id: 'action-toast' }); return; }
-    if (!form.price || isNaN(parseFloat(form.price)) || parseFloat(form.price) <= 0) {
-      toast.error(t('combo_price') + ' ' + t('required'), { id: 'action-toast' }); return;
+    if (!currentName.trim()) {
+      toast.error(t('combo_name') + ' ' + t('required'), { id: 'action-toast' });
+      return false;
     }
+    if (!form.price || isNaN(parseFloat(form.price)) || parseFloat(form.price) <= 0) {
+      toast.error(t('combo_price') + ' ' + t('required'), { id: 'action-toast' });
+      return false;
+    }
+
     setSaving(true);
     try {
       const flat: Record<string, any> = {
@@ -260,9 +266,18 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
       toast.success(editingCombo ? t('combo_updated') : t('combo_created'), { id: 'action-toast' });
       onSaved();
       onClose();
+      return true;
     } catch (err: any) {
       toast.error(t('error_saving') + ': ' + (err?.message || ''), { id: 'action-toast' });
-    } finally { setSaving(false); }
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveFromButton = async () => {
+    const ok = await handleSave();
+    if (!ok) throw new Error('save_failed');
   };
 
   const filteredProducts = products.filter(p =>
@@ -338,17 +353,27 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
               </div>
 
               {/* Stok + Aktiv toggle */}
-              <div className="flex gap-3">
-                <button onClick={() => setForm(prev => ({ ...prev, is_in_stock: !prev.is_in_stock }))}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider border transition-all ${form.is_in_stock ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-white/[0.04] border-white/[0.08] text-white/30'}`}>
-                  <span className={`w-2 h-2 rounded-full ${form.is_in_stock ? 'bg-green-400' : 'bg-white/20'}`} />
-                  {form.is_in_stock ? t('combo_in_stock') : t('combo_out_of_stock')}
-                </button>
-                <button onClick={() => setForm(prev => ({ ...prev, is_active: !prev.is_active }))}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider border transition-all ${form.is_active ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-white/[0.04] border-white/[0.08] text-white/30'}`}>
-                  <span className={`w-2 h-2 rounded-full ${form.is_active ? 'bg-gold' : 'bg-white/20'}`} />
-                  {form.is_active ? t('combo_active') : t('combo_inactive')}
-                </button>
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/70">
+                    {form.is_in_stock ? t('combo_in_stock') : t('combo_out_of_stock')}
+                  </span>
+                  <ElasticSwitch
+                    checked={form.is_in_stock}
+                    onChange={(v) => setForm(prev => ({ ...prev, is_in_stock: v }))}
+                    disabled={saving}
+                  />
+                </div>
+                <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/70">
+                    {form.is_active ? t('combo_active') : t('combo_inactive')}
+                  </span>
+                  <ElasticSwitch
+                    checked={form.is_active}
+                    onChange={(v) => setForm(prev => ({ ...prev, is_active: v }))}
+                    disabled={saving}
+                  />
+                </div>
               </div>
 
               {/* Məhsullar */}
@@ -414,7 +439,7 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                     {showProductPicker && (
                       <motion.div
                         initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                        className="absolute bottom-full mb-2 left-0 right-0 bg-[#141414] border border-white/[0.10] rounded-xl shadow-2xl z-20 overflow-hidden"
+                        className="absolute bottom-full mb-2 left-0 right-0 bg-card border border-white/[0.12] rounded-xl shadow-2xl z-20 overflow-hidden"
                         onClick={e => e.stopPropagation()}
                       >
                         {!variantPicker ? (
@@ -516,11 +541,11 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-            className="fixed inset-0 z-[120] flex flex-col bg-[#0a0a0a] md:hidden"
+            className="fixed inset-0 z-[120] flex flex-col bg-card md:hidden"
             style={{ overflowY: 'auto' }}
           >
             {/* Mobile Header */}
-            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-4 border-b border-white/[0.06] bg-[#0a0a0a]">
+            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-4 border-b border-white/[0.08] bg-card">
               <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/[0.05] text-white/50 hover:text-white transition-all">
                 <ChevronLeft size={22} />
               </button>
@@ -542,11 +567,13 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
                 <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl bg-white/[0.05] border border-white/[0.08] text-white/50 text-[12px] font-bold uppercase tracking-widest transition-all">
                   {t('cancel')}
                 </button>
-                <button onClick={handleSave} disabled={saving}
-                  className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-gold via-[#E7C85A] to-gold text-black font-bold text-[12px] uppercase tracking-widest hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                <SaveSuccessButton
+                  onClick={handleSaveFromButton}
+                  disabled={saving}
+                  className="flex-1 py-3.5 rounded-2xl bg-black !text-white border border-white/15 font-bold text-[12px] uppercase tracking-widest hover:bg-black/90 transition-all"
+                >
                   {t('combo_save')}
-                </button>
+                </SaveSuccessButton>
               </div>
             </div>
           </motion.div>
@@ -561,10 +588,10 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
             initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="relative w-full max-w-5xl max-h-[92vh] overflow-y-auto bg-[#0e0e0e] border border-white/[0.08] rounded-2xl shadow-2xl"
+            className="relative w-full max-w-5xl max-h-[92vh] overflow-y-auto bg-card border border-white/[0.12] rounded-2xl shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-8 py-6 bg-[#0e0e0e] border-b border-white/[0.06]">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-8 py-6 bg-card border-b border-white/[0.08]">
               <div>
                 <h2 className="text-2xl font-serif font-bold text-white">{editingCombo ? t('combo_edit') : t('combo_new')}</h2>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-gold/70 mt-0.5">COMBO</p>
@@ -574,15 +601,17 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
               </button>
             </div>
             {formContent}
-            <div className="sticky bottom-0 px-8 py-5 bg-[#0e0e0e] border-t border-white/[0.06] flex gap-3">
+            <div className="sticky bottom-0 px-8 py-5 bg-card border-t border-white/[0.08] flex gap-3">
               <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white/50 hover:text-white text-[12px] font-bold uppercase tracking-widest transition-all">
                 {t('cancel')}
               </button>
-              <button onClick={handleSave} disabled={saving}
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-gold via-[#E7C85A] to-gold text-black font-bold text-[12px] uppercase tracking-widest hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              <SaveSuccessButton
+                onClick={handleSaveFromButton}
+                disabled={saving}
+                className="flex-1 py-3 rounded-xl bg-black !text-white border border-white/15 font-bold text-[12px] uppercase tracking-widest hover:bg-black/90 transition-all"
+              >
                 {t('combo_save')}
-              </button>
+              </SaveSuccessButton>
             </div>
           </motion.div>
         </div>

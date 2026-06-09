@@ -91,12 +91,12 @@ export function TableCard({
           </div>
         )}
         {onAction && (
-          <button
+          <span
             onClick={e => { e.stopPropagation(); onAction(); }}
-            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${lightMode ? 'text-gray-400 hover:text-gray-600 hover:bg-white/60' : 'text-white/20 hover:text-white/60 hover:bg-white/5'}`}
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer ${lightMode ? 'text-gray-400 hover:text-gray-600 hover:bg-white/60' : 'text-white/20 hover:text-white/60 hover:bg-white/5'}`}
           >
             <MoreVertical size={14} />
-          </button>
+          </span>
         )}
       </div>
 

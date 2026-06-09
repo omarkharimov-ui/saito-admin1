@@ -700,7 +700,7 @@ const AdminDashboard = () => {
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                       <span className="text-[10px] font-bold tracking-[0.2em] uppercase mb-1 block text-gold/60">{yojiAdvice.title}</span>
-                      <p className="text-xl font-serif italic leading-relaxed text-white/90">
+                      <p className={`text-xl font-serif italic leading-relaxed ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>
                         &ldquo;{yojiAdvice.text}&rdquo;
                       </p>
                     </div>
@@ -715,7 +715,7 @@ const AdminDashboard = () => {
                             if (!product) return;
                             openAiDiscountModal(product.id, product.name, 10, yojiAdvice.type === 'HAPPY_HOUR' ? 'HAPPY_HOUR' : 'PERCENTAGE');
                           }}
-                          className="flex items-center gap-2 px-5 py-3 rounded-xl text-black text-xs font-bold tracking-widest uppercase transition-all transition-premium shadow-lg shadow-gold/10 bg-gradient-to-r from-gold via-[#E7C85A] to-gold border border-gold/30"
+                          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold tracking-widest uppercase transition-all transition-premium shadow-lg ${lightMode ? 'bg-gray-900 text-white shadow-black/10 border border-gray-900' : 'text-black shadow-gold/10 bg-gradient-to-r from-gold via-[#E7C85A] to-gold border border-gold/30'}`}
                         >
                           <Zap size={16} /> {t('apply')}
                         </button>

@@ -125,7 +125,9 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
       </motion.div>
 
       {/* ── DESKTOP card: original rich card ── */}
-      <div
+<motion.div
+        whileHover={{ y: -4, boxShadow: '0 18px 42px rgba(0,0,0,0.35)' }}
+        transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         onClick={() => onEdit(camp)}
         className="hidden md:block bg-gradient-to-br from-white/[0.05] to-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-[20px] p-6 md:p-7 relative group transition-all overflow-hidden cursor-pointer shadow-[0_4px_32px_rgba(0,0,0,0.35)]"
       >
@@ -151,7 +153,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
 
         <div className="mb-5">
           <div className="flex items-center gap-3 p-2.5 bg-white/[0.03] border border-white/[0.06] rounded-xl">
-            <div className="w-9 h-9 rounded-xl bg-black/40 border border-white/[0.08] overflow-hidden flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.10] overflow-hidden flex-shrink-0">
               {camp.target_type === 'product' && (target as Product)?.image_url ? (
                 <img src={(target as Product).image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               ) : (
@@ -160,7 +162,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             </div>
             <div className="min-w-0">
               <p className="text-[8px] uppercase tracking-widest text-white/25 mb-0.5">{camp.target_type === 'product' ? t('product') : t('category')}</p>
-              <p className="text-xs font-semibold text-white/70 truncate">{target?.name || t('error_not_found')}</p>
+              <p className="text-xs font-semibold text-white/85 truncate">{target?.name || t('error_not_found')}</p>
             </div>
           </div>
         </div>
@@ -184,7 +186,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             <span className="text-[9px] text-white/20 uppercase tracking-tight">{new Date(camp.created_at!).toLocaleDateString('az-AZ')}</span>
           </div>
         </div>
-      </div>
+      </motion.div>
     </>
   );
 };

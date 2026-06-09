@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -9,28 +9,31 @@ import { motion } from 'framer-motion';
 
 export const colors = {
   background: {
-    primary: '#F8F9FB',
+    primary: '#F7F7F8',
     secondary: '#FFFFFF',
   },
   text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    muted: '#9CA3AF',
+    primary: '#1D1D1F',
+    secondary: '#6E6E73',
+    muted: '#8E8E93',
   },
-  border: '#E5E7EB',
+  border: {
+    soft: '#E5E5E7',
+    strong: '#D2D2D7',
+  },
   accent: {
-    primary: '#2563EB',
-    light: '#EFF6FF',
-    hover: '#1D4ED8',
-    active: '#1E40AF',
+    primary: '#111111',
+    light: '#F7F7F8',
+    hover: '#1F1F1F',
+    active: '#0A0A0A',
   },
   status: {
-    success: '#22C55E',
-    warning: '#F59E0B',
-    danger: '#EF4444',
-    info: '#3B82F6',
+    success: '#16A34A',
+    warning: '#9A6700',
+    danger: '#BE123C',
+    info: '#1D4ED8',
   },
-  gold: '#C6A969',
+  gold: '#8C7A4A',
 };
 
 export const spacing = {
@@ -44,17 +47,17 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: '8px',
-  md: '12px',
-  lg: '18px',
-  xl: '24px',
+  sm: '10px',
+  md: '10px',
+  lg: '16px',
+  xl: '20px',
 };
 
 export const shadows = {
-  subtle: '0 1px 2px rgba(17, 24, 39, 0.05)',
-  small: '0 1px 3px rgba(17, 24, 39, 0.1), 0 1px 2px rgba(17, 24, 39, 0.06)',
-  medium: '0 4px 6px rgba(17, 24, 39, 0.1), 0 2px 4px rgba(17, 24, 39, 0.06)',
-  large: '0 10px 15px rgba(17, 24, 39, 0.1), 0 4px 6px rgba(17, 24, 39, 0.05)',
+  subtle: '0 1px 2px rgba(0,0,0,.03)',
+  small: '0 1px 2px rgba(0,0,0,.03), 0 8px 24px rgba(0,0,0,.04)',
+  medium: '0 2px 6px rgba(0,0,0,.04), 0 12px 28px rgba(0,0,0,.06)',
+  large: '0 8px 30px rgba(0,0,0,.10)',
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -76,19 +79,19 @@ export function Button({
   loading?: boolean;
   [key: string]: any;
 }) {
-  const baseClasses = 'font-medium transition-all active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2';
+  const baseClasses = 'font-medium transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2';
 
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-    secondary: 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50 focus:ring-blue-500',
-    ghost: 'text-gray-900 hover:bg-gray-100 focus:ring-blue-500',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+    primary: 'bg-[#111111] text-white border border-[#111111] hover:bg-[#1F1F1F] active:bg-[#0A0A0A]',
+    secondary: 'bg-white border border-[#D2D2D7] text-[#1D1D1F] hover:bg-[#F7F7F8]',
+    ghost: 'bg-transparent text-[#1D1D1F] hover:bg-black/[0.03]',
+    danger: 'bg-[#BE123C] text-white border border-[#BE123C] hover:bg-[#9F1239]',
   };
 
   const sizes = {
-    sm: 'px-3 py-2 text-sm rounded-md',
-    md: 'px-4 py-2.5 text-base rounded-md',
-    lg: 'px-6 py-3 text-base rounded-md',
+    sm: 'px-3 py-2 text-sm rounded-[10px]',
+    md: 'px-4 py-2.5 text-base rounded-[10px]',
+    lg: 'px-6 py-3 text-base rounded-[10px]',
   };
 
   return (
@@ -108,6 +111,138 @@ export function Button({
   );
 }
 
+export function SaveSuccessButton({
+  children = 'Save',
+  onClick,
+  disabled = false,
+  className = '',
+}: {
+  children?: React.ReactNode;
+  onClick?: () => void | Promise<void>;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const [phase, setPhase] = useState<'idle' | 'loading' | 'success'>('idle');
+
+  useEffect(() => {
+    if (phase !== 'success') return;
+    const t = setTimeout(() => setPhase('idle'), 1200);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  const handleClick = async () => {
+    if (disabled || phase === 'loading') return;
+    setPhase('loading');
+    try {
+      await onClick?.();
+      setPhase('success');
+    } catch {
+      setPhase('idle');
+    }
+  };
+
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.95 }}
+      onClick={handleClick}
+      disabled={disabled || phase === 'loading'}
+      className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-[12px] bg-[#111111] text-white border border-[#111111] hover:bg-[#1F1F1F] disabled:opacity-50 disabled:cursor-not-allowed transition-all ${className}`}
+    >
+      {phase === 'loading' && (
+        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+          <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.37 0 0 5.37 0 12h4z" />
+        </svg>
+      )}
+      {phase === 'success' && (
+        <motion.svg
+          initial={{ scale: 0.6, rotate: -40, opacity: 0 }}
+          animate={{ scale: 1, rotate: 0, opacity: 1 }}
+          className="w-4 h-4"
+          viewBox="0 0 20 20"
+          fill="none"
+        >
+          <path d="M4 10.5L8 14L16 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </motion.svg>
+      )}
+      <span>{phase === 'success' ? 'Saved' : children}</span>
+    </motion.button>
+  );
+}
+
+export function ElasticSwitch({
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <motion.button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      whileTap={{ scale: 0.97 }}
+      onClick={() => !disabled && onChange(!checked)}
+      className={`relative h-8 w-14 rounded-full border transition-all backdrop-blur-xl ${
+        checked
+          ? 'bg-[#111111]/90 border-[#111111]'
+          : 'bg-white/60 border-[#D2D2D7]'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+      <motion.span
+        layout
+        transition={{ type: 'spring', stiffness: 550, damping: 34 }}
+        className={`absolute top-1 h-6 w-6 rounded-full shadow-sm ${
+          checked ? 'bg-white left-7' : 'bg-[#111111] left-1'
+        }`}
+      />
+    </motion.button>
+  );
+}
+
+export function SlidingTabs({
+  tabs,
+  value,
+  onChange,
+  layoutId = 'active-tab-indicator',
+  className = '',
+}: {
+  tabs: { id: string; label: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  layoutId?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`inline-flex items-center gap-1 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03] ${className}`}>
+      {tabs.map(tab => {
+        const active = value === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={`relative px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors ${active ? 'text-white' : 'text-white/50 hover:text-white/80'}`}
+          >
+            {active && (
+              <motion.span
+                layoutId={layoutId}
+                className="absolute inset-0 rounded-lg bg-white/[0.12] border border-white/[0.15]"
+                transition={{ type: 'spring', stiffness: 460, damping: 34 }}
+              />
+            )}
+            <span className="relative z-10">{tab.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CARD
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -123,7 +258,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`bg-white rounded-lg border border-gray-200 shadow-sm p-6 ${className}`}
+      className={`bg-white rounded-[16px] border border-[#E5E5E7] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.04)] p-6 ${className}`}
       {...props}
     >
       {children}
@@ -149,17 +284,18 @@ export function Input({
   return (
     <div className="flex flex-col gap-2">
       {label && (
-        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <label className="text-sm font-medium text-[#6E6E73]">{label}</label>
       )}
       <input
-        className={`px-4 py-2.5 rounded-md border font-medium text-base transition-all outline-none
-          ${error ? 'border-red-500 focus:ring-2 focus:ring-red-500' : 'border-gray-300 focus:ring-2 focus:ring-blue-500'}
-          bg-white text-gray-900 placeholder-gray-400
-          disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50`}
+        className={`px-4 py-2.5 rounded-[10px] border font-medium text-base transition-all outline-none
+          focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]
+          ${error ? 'border-[#BE123C]' : 'border-[#E5E5E7]'}
+          bg-white text-[#1D1D1F] placeholder-[#8E8E93]
+          disabled:bg-[#F7F7F8] disabled:cursor-not-allowed disabled:opacity-50`}
         {...props}
       />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {helperText && <p className="text-sm text-gray-500">{helperText}</p>}
+      {error && <p className="text-sm text-[#BE123C]">{error}</p>}
+      {helperText && <p className="text-sm text-[#8E8E93]">{helperText}</p>}
     </div>
   );
 }
@@ -192,23 +328,23 @@ export function Modal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-900/40 z-40"
+        className="fixed inset-0 bg-black/30 z-40 backdrop-blur-[2px]"
         onClick={onClose}
       />
 
       {/* Modal */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.15 }}
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-lg z-50 overflow-hidden flex flex-col"
+        initial={{ opacity: 0, scale: 0.98, y: 6 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.98, y: 6 }}
+        transition={{ duration: 0.18 }}
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[90vh] bg-white/82 backdrop-blur-2xl rounded-[20px] shadow-[0_8px_30px_rgba(0,0,0,0.10)] z-50 overflow-hidden flex flex-col border border-[#E5E5E7]"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+        <div className="px-6 py-4 border-b border-[#E5E5E7]">
+          <h2 className="text-xl font-semibold text-[#1D1D1F]">{title}</h2>
           {description && (
-            <p className="text-sm text-gray-600 mt-1">{description}</p>
+            <p className="text-sm text-[#6E6E73] mt-1">{description}</p>
           )}
         </div>
 
@@ -217,7 +353,7 @@ export function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-gray-200 flex gap-3 justify-end">
+          <div className="px-6 py-4 border-t border-[#E5E5E7] flex gap-3 justify-end">
             {footer}
           </div>
         )}
@@ -238,11 +374,11 @@ export function Badge({
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
 }) {
   const variants = {
-    default: 'bg-gray-100 text-gray-700',
-    success: 'bg-green-50 text-green-700',
-    warning: 'bg-amber-50 text-amber-700',
-    danger: 'bg-red-50 text-red-700',
-    info: 'bg-blue-50 text-blue-700',
+    default: 'bg-[#F5F5F5] text-[#1D1D1F]',
+    success: 'bg-[#ECFDF3] text-[#166534]',
+    warning: 'bg-[#FFF8E7] text-[#9A6700]',
+    danger: 'bg-[#FFF1F2] text-[#BE123C]',
+    info: 'bg-[#F5F7FF] text-[#1D4ED8]',
   };
 
   return (
@@ -266,25 +402,25 @@ export function Table({
   renderRow: (row: any, idx: number) => React.ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200">
+    <div className="overflow-x-auto rounded-[16px] border border-[#E5E5E7] bg-white">
       <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200">
+        <thead className="bg-[#FCFCFD] border-b border-[#E5E5E7]">
           <tr>
             {columns.map(col => (
               <th
                 key={col.key}
-                className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                className="px-4 py-3 text-left text-xs font-semibold text-[#6E6E73] uppercase tracking-wider"
               >
                 {col.label}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
+        <tbody>
           {data.map((row, idx) => (
             <motion.tr
               key={idx}
-              className="hover:bg-gray-50 transition-colors"
+              className="border-b border-[#F0F0F2] last:border-b-0 hover:bg-black/[0.025] transition-colors"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
@@ -309,11 +445,11 @@ export function StatusIndicator({
   label: string;
 }) {
   const statusColors = {
-    available: { dot: 'bg-gray-300', text: 'text-gray-600' },
-    occupied: { dot: 'bg-blue-500', text: 'text-blue-600' },
-    reserved: { dot: 'bg-amber-500', text: 'text-amber-600' },
-    bill: { dot: 'bg-green-500', text: 'text-green-600' },
-    alert: { dot: 'bg-red-500', text: 'text-red-600' },
+    available: { dot: 'bg-[#D2D2D7]', text: 'text-[#6E6E73]' },
+    occupied: { dot: 'bg-[#1D4ED8]', text: 'text-[#1D4ED8]' },
+    reserved: { dot: 'bg-[#9A6700]', text: 'text-[#9A6700]' },
+    bill: { dot: 'bg-[#166534]', text: 'text-[#166534]' },
+    alert: { dot: 'bg-[#BE123C]', text: 'text-[#BE123C]' },
   };
 
   const colors = statusColors[status];
@@ -343,16 +479,16 @@ export function MetricCard({
 }) {
   return (
     <Card className="space-y-2">
-      <p className="text-sm font-medium text-gray-600">{label}</p>
+      <p className="text-sm font-medium text-[#6E6E73]">{label}</p>
       <div className="flex items-end justify-between">
-        <p className="text-3xl font-bold text-gray-900">{value}</p>
+        <p className="text-3xl font-bold text-[#1D1D1F]">{value}</p>
         {trend && (
-          <div className={`flex items-center gap-1 text-sm font-medium ${trend.direction === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+          <div className={`flex items-center gap-1 text-sm font-medium ${trend.direction === 'up' ? 'text-[#166534]' : 'text-[#BE123C]'}`}>
             {trend.direction === 'up' ? '↑' : '↓'} {trend.percentage}%
           </div>
         )}
       </div>
-      {context && <p className="text-xs text-gray-500">{context}</p>}
+      {context && <p className="text-xs text-[#8E8E93]">{context}</p>}
     </Card>
   );
 }

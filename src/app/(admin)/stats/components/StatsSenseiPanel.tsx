@@ -277,7 +277,7 @@ export default function StatsSenseiPanel({
   const [scanning, setScanning] = useState(false);
   const [predictiveBubble, setPredictiveBubble] = useState<string | null>(null);
   const [robotJoy, setRobotJoy] = useState(false);
-  const [robotMouse, setRobotMouse] = useState({ x: 0, y: 0 });
+  const robotMouseRef = useRef({ x: 0, y: 0 });
   const fabRef = useRef<HTMLDivElement>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // LERP targets & current values — no state, direct DOM update via RAF
@@ -350,8 +350,8 @@ export default function StatsSenseiPanel({
         const rx = -headCurrentRef.current.y * 11;
         headDivRef.current.style.transform = `rotateY(${ry}deg) rotateX(${rx}deg)`;
       }
-      // Sync React state for pupil SVG cx/cy (throttled via RAF — ~60fps)
-      setRobotMouse({ x: eyeCurrentRef.current.x, y: eyeCurrentRef.current.y });
+      // Keep eye target in ref to avoid RAF-driven React re-render loops
+      robotMouseRef.current = { x: eyeCurrentRef.current.x, y: eyeCurrentRef.current.y };
       rafRef.current = requestAnimationFrame(tick);
     };
 

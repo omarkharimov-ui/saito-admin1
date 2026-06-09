@@ -194,11 +194,11 @@ const CampaignModal = ({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-            className="fixed inset-0 z-[120] flex flex-col bg-[#0a0a0a] md:hidden"
+            className="fixed inset-0 z-[120] flex flex-col bg-card md:hidden"
             style={{ overflowY: 'auto' }}
           >
             {/* Mobile Header */}
-            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-4 border-b border-white/[0.06] bg-[#0a0a0a]">
+            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-4 border-b border-white/[0.08] bg-card">
               <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/[0.05] text-white/50 hover:text-white transition-all">
                 <ChevronLeft size={22} />
               </button>
@@ -219,7 +219,7 @@ const CampaignModal = ({
               <button
                 type="button" onClick={onSubmit as any} disabled={isSubmitting}
                 className="w-full py-4 rounded-2xl font-bold tracking-[0.15em] uppercase transition-all flex items-center justify-center gap-3 disabled:opacity-40"
-                style={{ background: 'transparent', border: '1px solid #D4AF37', color: '#D4AF37' }}
+                style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.16)', color: '#ffffff' }}
               >
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : campaign ? <Save size={20} /> : <Zap size={20} />}
                 {campaign ? t('edit_campaign').toUpperCase() : t('new_campaign').toUpperCase()}
@@ -257,7 +257,7 @@ const CampaignModal = ({
             <div className="sticky bottom-0 px-9 py-5 bg-[#111111] border-t border-white/[0.06]">
               <button type="button" onClick={onSubmit as any} disabled={isSubmitting}
                 className="w-full py-4 rounded-xl font-bold tracking-[0.15em] uppercase transition-all flex items-center justify-center gap-3 disabled:opacity-40"
-                style={{ background: 'transparent', border: '1px solid #D4AF37', color: '#D4AF37' }}>
+                style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.16)', color: '#ffffff' }}>
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : campaign ? <Save size={20} /> : <Zap size={20} />}
                 {campaign ? t('edit_campaign').toUpperCase() : t('new_campaign').toUpperCase()}
               </button>

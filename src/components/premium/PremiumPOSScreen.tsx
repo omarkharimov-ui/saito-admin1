@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Users, Search, Filter, Plus, ChevronRight, MoreVertical, AlertCircle } from 'lucide-react';
-import { Button, Card, Badge, StatusIndicator } from '@/components/premium/PremiumComponents';
+import { Button, StatusIndicator } from '@/components/premium/PremiumComponents';
 
 interface TableStatus {
   id: string;
@@ -16,7 +16,7 @@ interface TableStatus {
 }
 
 export function PremiumPOSScreen() {
-  const [tables, setTables] = useState<TableStatus[]>([
+  const [tables] = useState<TableStatus[]>([
     { id: '1', number: 1, status: 'available' },
     { id: '2', number: 2, status: 'occupied', guestCount: 4, duration: 35, totalAmount: 125.50 },
     { id: '3', number: 3, status: 'occupied', guestCount: 2, duration: 12, totalAmount: 45.00 },
@@ -30,7 +30,12 @@ export function PremiumPOSScreen() {
   const [search, setSearch] = useState('');
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
 
-  // Stats
+  const filteredTables = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return tables;
+    return tables.filter((t) => String(t.number).includes(q));
+  }, [tables, search]);
+
   const stats = {
     total: tables.length,
     occupied: tables.filter(t => t.status === 'occupied').length,
@@ -39,30 +44,27 @@ export function PremiumPOSScreen() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ HEADER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <header className="bg-white border-b border-gray-200 px-8 py-5">
+    <div className="h-screen bg-[#F3F4F6] flex flex-col">
+      <header className="bg-white/90 backdrop-blur-xl border-b border-[#E5E5E7] px-8 py-6">
         <div className="flex items-center justify-between gap-6">
-          {/* Title & Stats */}
           <div className="flex-1">
-            <h1 className="text-2xl font-semibold text-gray-900 mb-3">Floor Management</h1>
+            <h1 className="text-2xl font-semibold text-[#1D1D1F] mb-3">Floor Management</h1>
             <div className="flex items-center gap-8">
               <div>
-                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Tables</p>
-                <p className="text-lg font-semibold text-gray-900">{stats.occupied}/{stats.total}</p>
+                <p className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wide">Tables</p>
+                <p className="text-lg font-semibold text-[#1D1D1F]">{stats.occupied}/{stats.total}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Revenue</p>
-                <p className="text-lg font-semibold text-gray-900">${stats.totalRevenue.toFixed(2)}</p>
+                <p className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wide">Revenue</p>
+                <p className="text-lg font-semibold text-[#1D1D1F]">${stats.totalRevenue.toFixed(2)}</p>
               </div>
               <div>
-                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Available</p>
-                <p className="text-lg font-semibold text-green-600">{stats.available}</p>
+                <p className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wide">Available</p>
+                <p className="text-lg font-semibold text-[#166534]">{stats.available}</p>
               </div>
             </div>
           </div>
 
-          {/* Quick Actions */}
           <div className="flex items-center gap-3">
             <Button variant="secondary" size="md">
               <Filter size={16} />
@@ -76,51 +78,52 @@ export function PremiumPOSScreen() {
         </div>
       </header>
 
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ CONTENT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <main className="flex-1 overflow-y-auto px-8 py-8">
-        {/* Search & Filter Bar */}
         <div className="mb-8 flex items-center gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8E8E93]" size={18} />
             <input
               type="text"
               placeholder="Search table number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-md border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-3 min-h-[44px] rounded-[10px] border border-[#E5E5E7] bg-white text-[#1D1D1F] placeholder-[#8E8E93] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]"
             />
           </div>
         </div>
 
-        {/* Table Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <AnimatePresence>
-            {tables.map((table) => (
-              <motion.div
-                key={table.id}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.2 }}
-              >
-                <TableCard
-                  table={table}
-                  isSelected={selectedTable === table.id}
-                  onSelect={() => setSelectedTable(table.id)}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+        {filteredTables.length === 0 ? (
+          <div className="rounded-[16px] border border-[#E5E5E7] bg-white p-12 text-center">
+            <AlertCircle className="mx-auto text-[#D2D2D7] mb-4" size={40} />
+            <p className="text-[#1D1D1F] text-sm font-medium">No table found for “{search}”.</p>
+            <p className="text-[#8E8E93] text-sm mt-1">Try a different number.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <AnimatePresence>
+              {filteredTables.map((table) => (
+                <motion.div
+                  key={table.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <TableCard
+                    table={table}
+                    isSelected={selectedTable === table.id}
+                    onSelect={() => setSelectedTable(table.id)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
       </main>
     </div>
   );
 }
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TABLE CARD COMPONENT
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface TableCardProps {
   table: TableStatus;
@@ -132,43 +135,38 @@ function TableCard({ table, isSelected, onSelect }: TableCardProps) {
   const statusConfig = {
     available: {
       bg: 'bg-white',
-      border: 'border-gray-200 hover:border-gray-300',
-      accent: 'bg-gray-100',
-      textColor: 'text-gray-600',
-      headerColor: 'text-gray-700',
-      statusColor: 'text-gray-500',
+      border: 'border-[#E5E5E7] hover:border-[#D2D2D7]',
+      accent: 'bg-[#F7F7F8]',
+      textColor: 'text-[#6E6E73]',
+      headerColor: 'text-[#1D1D1F]',
     },
     occupied: {
       bg: 'bg-white',
-      border: 'border-blue-200 hover:border-blue-300',
-      accent: 'bg-blue-50',
-      textColor: 'text-blue-700',
-      headerColor: 'text-blue-900',
-      statusColor: 'text-blue-600',
+      border: 'border-[#DCE7FF] hover:border-[#C7DAFF]',
+      accent: 'bg-[#F5F7FF]',
+      textColor: 'text-[#1D4ED8]',
+      headerColor: 'text-[#1D1D1F]',
     },
     reserved: {
       bg: 'bg-white',
-      border: 'border-amber-200 hover:border-amber-300',
-      accent: 'bg-amber-50',
-      textColor: 'text-amber-700',
-      headerColor: 'text-amber-900',
-      statusColor: 'text-amber-600',
+      border: 'border-[#FDECC8] hover:border-[#F7DFA2]',
+      accent: 'bg-[#FFF8E7]',
+      textColor: 'text-[#9A6700]',
+      headerColor: 'text-[#1D1D1F]',
     },
     bill: {
       bg: 'bg-white',
-      border: 'border-green-200 hover:border-green-300',
-      accent: 'bg-green-50',
-      textColor: 'text-green-700',
-      headerColor: 'text-green-900',
-      statusColor: 'text-green-600',
+      border: 'border-[#DCFCE7] hover:border-[#BBF7D0]',
+      accent: 'bg-[#ECFDF3]',
+      textColor: 'text-[#166534]',
+      headerColor: 'text-[#1D1D1F]',
     },
     alert: {
       bg: 'bg-white',
-      border: 'border-red-200 hover:border-red-300',
-      accent: 'bg-red-50',
-      textColor: 'text-red-700',
-      headerColor: 'text-red-900',
-      statusColor: 'text-red-600',
+      border: 'border-[#FFE4E6] hover:border-[#FECDD3]',
+      accent: 'bg-[#FFF1F2]',
+      textColor: 'text-[#BE123C]',
+      headerColor: 'text-[#1D1D1F]',
     },
   };
 
@@ -177,14 +175,13 @@ function TableCard({ table, isSelected, onSelect }: TableCardProps) {
   return (
     <motion.button
       onClick={onSelect}
-      className={`relative w-full p-4 rounded-lg border-2 transition-all cursor-pointer text-left group
-        ${isSelected ? `border-blue-500 ${config.accent}` : `border-gray-200 ${config.border}`}
+      className={`relative w-full p-5 min-h-[176px] rounded-[16px] border transition-all cursor-pointer text-left group shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.04)]
+        ${isSelected ? `border-[#111111] ${config.accent}` : `${config.border}`}
         ${config.bg}
       `}
       whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.98 }}
+      whileTap={{ scale: 0.985 }}
     >
-      {/* Top Section - Table Number & Status */}
       <div className="flex items-start justify-between mb-3">
         <div>
           <p className={`text-3xl font-bold ${config.headerColor}`}>
@@ -194,52 +191,49 @@ function TableCard({ table, isSelected, onSelect }: TableCardProps) {
         <StatusIndicator status={table.status} label={getStatusLabel(table.status)} />
       </div>
 
-      {/* Middle Section - Details (if occupied/reserved/bill) */}
       {table.guestCount !== undefined && (
-        <div className={`space-y-2 mb-3 pb-3 border-b ${table.status === 'available' ? 'border-gray-200' : 'border-gray-100'}`}>
+        <div className="space-y-2 mb-3 pb-3 border-b border-[#F0F0F2]">
           <div className="flex items-center gap-2 text-sm">
-            <Users size={14} className="text-gray-400" />
-            <span className="text-gray-700 font-medium">{table.guestCount} guests</span>
+            <Users size={14} className="text-[#8E8E93]" />
+            <span className="text-[#1D1D1F] font-medium">{table.guestCount} guests</span>
           </div>
 
           {table.duration !== undefined && (
             <div className="flex items-center gap-2 text-sm">
-              <Clock size={14} className="text-gray-400" />
-              <span className="text-gray-700 font-medium">{table.duration} mins</span>
+              <Clock size={14} className="text-[#8E8E93]" />
+              <span className="text-[#1D1D1F] font-medium">{table.duration} mins</span>
             </div>
           )}
 
           {table.notes && (
             <div className="flex items-start gap-2 text-xs">
-              <AlertCircle size={12} className="text-gray-400 mt-0.5 flex-shrink-0" />
-              <p className="text-gray-600">{table.notes}</p>
+              <AlertCircle size={12} className="text-[#8E8E93] mt-0.5 flex-shrink-0" />
+              <p className="text-[#6E6E73]">{table.notes}</p>
             </div>
           )}
         </div>
       )}
 
-      {/* Bottom Section - Total or Action */}
       <div className="flex items-center justify-between">
         {table.totalAmount !== undefined ? (
           <div>
-            <p className="text-xs text-gray-600 font-medium uppercase tracking-wide">Total</p>
+            <p className="text-xs text-[#6E6E73] font-semibold uppercase tracking-wide">Total</p>
             <p className={`text-lg font-bold ${config.textColor}`}>
               ${table.totalAmount.toFixed(2)}
             </p>
           </div>
         ) : (
-          <p className="text-sm text-gray-500 font-medium">Available</p>
+          <p className="text-sm text-[#6E6E73] font-medium">Available</p>
         )}
 
         <ChevronRight
           size={18}
-          className={`text-gray-400 group-hover:text-gray-600 transition-colors ${isSelected ? 'text-blue-500' : ''}`}
+          className={`text-[#8E8E93] group-hover:text-[#1D1D1F] transition-colors ${isSelected ? 'text-[#111111]' : ''}`}
         />
       </div>
 
-      {/* More Options */}
       <button
-        className="absolute top-3 right-3 p-1.5 rounded-md hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+        className="absolute top-3 right-3 p-2 rounded-[10px] hover:bg-black/[0.03] transition-colors text-[#8E8E93] hover:text-[#1D1D1F]"
         onClick={(e) => {
           e.stopPropagation();
         }}

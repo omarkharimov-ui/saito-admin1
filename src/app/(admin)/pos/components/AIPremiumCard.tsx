@@ -137,7 +137,7 @@ export function AIPremiumCard() {
             className={`flex-1 py-3 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2 ${
               lightMode
                 ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20'
-                : 'bg-gradient-to-r from-amber-600 to-amber-500 text-black hover:shadow-lg hover:shadow-amber-600/40 shadow-lg shadow-amber-600/30'
+                : 'bg-gradient-to-r from-amber-600 to-amber-500 text-white hover:shadow-lg hover:shadow-amber-600/40 shadow-lg shadow-amber-600/30'
             }`}
           >
             <Zap size={18} />
@@ -254,7 +254,7 @@ export function AIPremiumCard() {
                   className={`flex-1 py-3.5 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                     lightMode
                       ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20'
-                      : 'bg-gradient-to-r from-amber-600 to-amber-500 text-black hover:shadow-lg hover:shadow-amber-600/40 shadow-lg shadow-amber-600/30'
+                      : 'bg-gradient-to-r from-amber-600 to-amber-500 text-white hover:shadow-lg hover:shadow-amber-600/40 shadow-lg shadow-amber-600/30'
                   }`}
                 >
                   <Zap size={16} />

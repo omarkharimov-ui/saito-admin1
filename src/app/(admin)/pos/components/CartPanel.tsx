@@ -121,7 +121,7 @@ export function CartPanel({
             !isEmpty && !submitting
               ? lightMode
                 ? 'bg-amber-600 text-white shadow-md hover:bg-amber-700 hover:shadow-lg'
-                : 'bg-gradient-to-br from-gold to-amber-400 text-black shadow-lg shadow-gold/30 hover:shadow-gold/40'
+                : 'bg-black text-white border border-white/15 shadow-lg shadow-black/35 hover:bg-black/90'
               : lightMode
               ? 'bg-gray-100 text-gray-400'
               : 'bg-white/5 text-white/40'

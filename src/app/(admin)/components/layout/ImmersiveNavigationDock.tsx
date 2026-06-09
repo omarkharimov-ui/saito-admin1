@@ -181,16 +181,16 @@ export default function ImmersiveNavigationDock({
             setDockDragging(false);
           }}
         >
-          <div className="absolute inset-y-1.5 rounded-full bg-transparent pointer-events-none">
+          <div className="absolute inset-1 rounded-full bg-transparent pointer-events-none overflow-hidden">
             <motion.div
               layoutId="immersive-dock-active-pill"
-              className="absolute top-1.5 bottom-1.5 rounded-full overflow-hidden backdrop-blur-xl"
+              className="absolute top-1 bottom-1 rounded-full overflow-hidden backdrop-blur-xl"
               style={{
                 left: `${Math.max(0, primary.findIndex((link) => link.id === (dockDragging ? dragActiveKey : activeDockKey))) * (100 / Math.max(1, primary.length))}%`,
                 width: `${100 / Math.max(1, primary.length)}%`,
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))',
-                border: '1px solid rgba(255,255,255,0.22)',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08)',
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))',
+                border: '1px solid rgba(255,255,255,0.28)',
+                boxShadow: '0 10px 26px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
               }}
               animate={{
                 x: 0,
@@ -203,15 +203,15 @@ export default function ImmersiveNavigationDock({
                 className="absolute inset-0 opacity-80"
                 style={{
                   background:
-                    'radial-gradient(circle at 30% 30%, rgba(34,211,238,0.14), transparent 34%), radial-gradient(circle at 70% 25%, rgba(217,70,239,0.10), transparent 34%), radial-gradient(circle at 50% 75%, rgba(250,204,21,0.08), transparent 30%)',
+                    'radial-gradient(circle at 30% 30%, rgba(34,211,238,0.18), transparent 34%), radial-gradient(circle at 70% 25%, rgba(217,70,239,0.12), transparent 34%), radial-gradient(circle at 50% 75%, rgba(250,204,21,0.1), transparent 30%)',
                   filter: 'blur(12px)',
                 }}
               />
               <div
-                className="absolute -bottom-0.5 left-1/2 h-[2px] w-6 -translate-x-1/2 rounded-full"
+                className="absolute -bottom-0.5 left-1/2 h-[1px] w-5 -translate-x-1/2 rounded-full opacity-80"
                 style={{
                   background:
-                    'linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,0.65), rgba(168,85,247,0.72), rgba(250,204,21,0.65), rgba(34,211,238,0))',
+                    'linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,0.75), rgba(168,85,247,0.82), rgba(250,204,21,0.75), rgba(34,211,238,0))',
                   filter: 'blur(2px)',
                 }}
               />

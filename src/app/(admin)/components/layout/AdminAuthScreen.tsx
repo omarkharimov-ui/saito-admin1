@@ -1,7 +1,6 @@
 'use client';
 
 import { Zap } from 'lucide-react';
-import { useTheme } from '@/lib/theme/ThemeContext';
 import type { useAdminAuth } from '../../hooks/useAdminAuth';
 
 type AuthProps = ReturnType<typeof useAdminAuth>;
@@ -20,7 +19,6 @@ export default function AdminAuthScreen(props: AuthProps) {
     handleLogin,
     handleSetup,
   } = props;
-  const { lightMode } = useTheme();
 
   return (
     <div
@@ -63,7 +61,7 @@ export default function AdminAuthScreen(props: AuthProps) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Superadmin e-poçtu"
               autoComplete="email"
-              className="w-full bg-[var(--theme-panel)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] rounded-2xl px-5 py-4 text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none text-sm"
+              className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] rounded-2xl px-5 py-4 text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none text-sm"
             />
             <input
               type="password"
@@ -106,7 +104,7 @@ export default function AdminAuthScreen(props: AuthProps) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Şifrə"
               autoComplete="current-password"
-              className="w-full bg-white/[0.03] border border-white/10 focus:border-gold/40 rounded-2xl px-5 py-4 text-white placeholder:text-white/25 outline-none text-sm"
+              className="w-full bg-[var(--theme-panel)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] rounded-2xl px-5 py-4 text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none text-sm"
             />
             {errorMsg && (
               <p className="text-[11px] text-red-400 text-center uppercase tracking-widest pt-1">{errorMsg}</p>

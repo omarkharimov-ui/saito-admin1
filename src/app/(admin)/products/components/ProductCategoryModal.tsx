@@ -134,7 +134,7 @@ export function ProductCategoryModal({
                   <div className="flex gap-2 pt-1">
                     {categoryForm.id && (
                       <button type="button" onClick={() => onFormChange(emptyForm)}
-                        className="shrink-0 px-4 py-2.5 rounded-xl bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all transition-premium">
+                        className="shrink-0 px-4 py-2.5 rounded-xl bg-[var(--theme-surface-muted)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface-hover)] hover:text-[var(--theme-text-primary)] text-[10px] font-bold tracking-wide uppercase whitespace-nowrap transition-all transition-premium">
                         {t('cancel')}
                       </button>
                     )}

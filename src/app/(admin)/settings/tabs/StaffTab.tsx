@@ -132,7 +132,7 @@ const StaffTab = () => {
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-xs text-white/30 hover:text-white/70 transition-colors rounded-lg hover:bg-white/5"
+            className="px-4 py-2 text-xs text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]"
           >
             {t('staff_cancel')}
           </button>

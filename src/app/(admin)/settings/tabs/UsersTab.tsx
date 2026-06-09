@@ -266,7 +266,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
             )}
             <div className="flex justify-end gap-3 pt-1 border-t border-white/[0.05]">
               <button type="button" onClick={() => { setShowForm(false); setCreateStep('form'); }}
-                className="px-5 py-2.5 text-sm text-white/30 hover:text-white/70 transition-colors rounded-lg hover:bg-white/5">
+                className="px-5 py-2.5 text-sm text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]">
                 {t('users_cancel')}
               </button>
               <button type="submit" disabled={sendingCode}

@@ -216,7 +216,7 @@ const AccountTab = () => {
           <div 
             key={account.key}
             className={`rounded-2xl border transition-all duration-200 ${
-              isOpen ? 'border-gold/30 bg-gold/[0.02]' : 'border-white/10 bg-white/[0.02] hover:border-white/20'
+              isOpen ? 'border-gold/30 bg-gold/[0.02]' : 'border-[var(--theme-border)] bg-[var(--theme-surface-muted)] hover:border-[var(--theme-border-strong)]'
             }`}
           >
             <button
@@ -225,23 +225,23 @@ const AccountTab = () => {
               className={`w-full flex items-center justify-between p-4 text-left ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl transition-colors ${isOpen ? 'bg-gold/20 text-gold' : 'bg-white/5 text-white/60'}`}>
+                <div className={`p-2 rounded-xl transition-colors ${isOpen ? 'bg-gold/20 text-gold' : 'bg-[var(--theme-surface-muted)] text-[var(--theme-text-secondary)]'}`}>
                   {account.icon}
                 </div>
                 <div>
-                  <p className={`text-sm font-bold ${isOpen ? 'text-gold' : 'text-white'}`}>{account.label}</p>
-                  <p className="text-[10px] text-white/40">{t('click_to_change_password')}</p>
+                  <p className={`text-sm font-bold ${isOpen ? 'text-gold' : 'text-[var(--theme-text)]'}`}>{account.label}</p>
+                  <p className="text-[10px] text-[var(--theme-text-secondary)]">{t('click_to_change_password')}</p>
                 </div>
               </div>
               <ChevronDown 
                 size={18} 
-                className={`text-white/40 transition-transform duration-200 ${isOpen ? 'rotate-180 text-gold' : ''}`} 
+                className={`text-[var(--theme-text-secondary)] transition-transform duration-200 ${isOpen ? 'rotate-180 text-gold' : ''}`} 
               />
             </button>
 
             {isOpen && (
               <div className="px-4 pb-4 space-y-3">
-                <div className="h-px bg-white/10" />
+                <div className="h-px bg-[var(--theme-border)]" />
                 
                 {role === 'superadmin' && (
                   <div className="space-y-2">

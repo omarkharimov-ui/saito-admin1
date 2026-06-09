@@ -526,7 +526,7 @@ export const OrderModal = ({
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   {t('group_label')} {groupNumber}
                 </p>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 bg-white/5 text-white/40 border border-white/10">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 bg-[var(--theme-surface-muted)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)]">
                   <GitMerge size={9} />{[order.table_number, ...mergedFromTables].filter(Boolean).join('+')}
                 </span>
               </div>
@@ -577,9 +577,9 @@ export const OrderModal = ({
               if (ks === 'ready') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">{t('badge_ready')}</span>;
               if (ks === 'preparing' || ks === 'cooking') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-blue-500/15 text-blue-400 border border-blue-500/30">{t('badge_preparing')}</span>;
               if (status === 'new') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('new')}</span>;
-              return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-white/5 text-white/40 border border-white/10">{t('badge_waiting')}</span>;
+              return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-[var(--theme-surface-muted)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)]">{t('badge_waiting')}</span>;
             })()}
-            <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
+            <button onClick={onClose} className="w-10 h-10 rounded-xl bg-[var(--theme-surface-muted)] hover:bg-[var(--theme-surface-hover)] flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all">
               <X size={18} />
             </button>
           </div>
@@ -948,7 +948,7 @@ export const OrderModal = ({
         {/* ── MOBILE SUMMARY OVERLAY ── */}
         {order.status !== 'paid' && mobileTab === 'summary' && (
           <div className="md:hidden absolute inset-0 z-30 flex flex-col rounded-t-[28px] overflow-hidden"
-            style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}>
+            className="bg-[var(--theme-surface)]">
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
               <div className="w-10 h-1 rounded-full bg-white/15" />
             </div>
@@ -1253,8 +1253,7 @@ export const OrderModal = ({
     return (
       <>
       <div
-        style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
-        className="rounded-2xl border border-white/[0.07] shadow-lg flex flex-col overflow-hidden h-full"
+        className="rounded-2xl border border-[var(--theme-border)] shadow-lg flex flex-col overflow-hidden h-full bg-[var(--theme-surface)]"
       >
         {modalContent}
         {showReceipt && (

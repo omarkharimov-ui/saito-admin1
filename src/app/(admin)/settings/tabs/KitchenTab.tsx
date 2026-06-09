@@ -49,12 +49,12 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
         <div>
           <label className={labelCls}><Timer size={11} /> {t('kitchen_delay_label')}</label>
           <div className="flex items-center gap-4">
-            <button onClick={() => setDelayMin(v => Math.max(5, v - 5))} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition-all font-bold text-lg">−</button>
+            <button onClick={() => setDelayMin(v => Math.max(5, v - 5))} className="w-10 h-10 rounded-xl bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface-hover)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] flex items-center justify-center transition-all font-bold text-lg">−</button>
             <div className="flex-1 text-center">
               <span className="text-4xl font-black text-white">{delayMin}</span>
               <span className="text-white/55 text-sm ml-2">{t('kitchen_min')}</span>
             </div>
-            <button onClick={() => setDelayMin(v => Math.min(120, v + 5))} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition-all font-bold text-lg">+</button>
+            <button onClick={() => setDelayMin(v => Math.min(120, v + 5))} className="w-10 h-10 rounded-xl bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface-hover)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] flex items-center justify-center transition-all font-bold text-lg">+</button>
           </div>
           <input type="range" min={5} max={120} step={5} value={delayMin} onChange={e => setDelayMin(Number(e.target.value))}
             className="w-full mt-4 accent-red-500" />

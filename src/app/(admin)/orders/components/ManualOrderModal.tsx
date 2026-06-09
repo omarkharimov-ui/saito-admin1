@@ -208,7 +208,7 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
 
   return (
     <>
-      <div style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg,#141414 0%,#0d0d0d 100%)' }}
+      <div style={{ background: 'var(--theme-surface)' }}
         className="rounded-2xl border border-white/[0.06] select-none">
 
         {/* ─── HEADER ─── */}

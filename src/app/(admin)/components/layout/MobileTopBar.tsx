@@ -125,7 +125,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
                 willChange: 'transform, opacity',
               }}
             >
-                  <div className={`p-3 border-b flex justify-between items-center ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
+                  <div className={`p-3 border-b flex justify-between items-center border-[var(--theme-border-strong)]`}>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-secondary)]">
                       {t('notifications')}
                     </span>

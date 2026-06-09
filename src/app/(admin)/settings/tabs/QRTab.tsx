@@ -127,7 +127,7 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
         <p className="text-xs text-white/70">{t('qr_note')}</p>
       </div>
       <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3 bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-xl px-4 py-3">
           <span className="text-white/75 text-sm font-medium">{t('qr_table_label')}</span>
           <button onClick={() => setDraftCount(c => Math.max(1, c - 1))} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"><Minus size={14} /></button>
           <span className="text-white font-bold text-base w-8 text-center">{draftCount}</span>

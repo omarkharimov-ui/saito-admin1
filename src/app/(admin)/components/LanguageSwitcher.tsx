@@ -224,13 +224,9 @@ export function LanguageSwitcher() {
                     onClick={() => handleSwitch(lang.code)}
                     whileTap={{ scale: 0.95 }}
                     className="h-8 px-3 rounded-lg flex items-center justify-center cursor-pointer select-none min-w-[70px] hover:translate-x-[-2px] transition-transform"
-                    style={{
-                      background: 'rgba(8,8,8,0.8)',
-                      border: '1px solid rgba(255,255,255,0.07)',
-                      backdropFilter: 'blur(12px)',
-                    }}
+                    className="h-8 px-3 rounded-lg flex items-center justify-center cursor-pointer select-none min-w-[70px] hover:translate-x-[-2px] transition-transform bg-[var(--theme-surface)] border border-[var(--theme-border)] backdrop-blur-md"
                   >
-                    <span className="text-[11px] font-bold tracking-[0.18em] text-white/45 hover:text-white/75 transition-colors">{lang.label}</span>
+                    <span className="text-[11px] font-bold tracking-[0.18em] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors">{lang.label}</span>
                   </motion.button>
                 ))}
               </motion.div>

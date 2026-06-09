@@ -225,7 +225,9 @@ html[data-light-mode="true"] .bg-\[\#111111\] { background-color: #f9fafb; }
 html[data-light-mode="true"] .bg-\[\#141414\] { background-color: #f3f4f6; }
 html[data-light-mode="true"] .bg-\[\#1a1a1a\] { background-color: #f3f4f6; }
 html[data-light-mode="true"] .bg-black { background-color: #ffffff; }
+html[data-theme="dark"] .bg-black { background-color: #000000; }
 html[data-light-mode="true"] .bg-\[\#0a0a0a\] { background-color: #f8f8fa; }
+html[data-theme="dark"] .bg-\[\#0a0a0a\] { background-color: #0a0a0a; }
 html[data-light-mode="true"] .bg-\[\#080808\] { background-color: #f8f8fa; }
 html[data-light-mode="true"] .bg-black\/55 { background-color: rgba(0,0,0,0.1); }
 html[data-light-mode="true"] .bg-black\/40 { background-color: rgba(0,0,0,0.08); }
@@ -273,6 +275,7 @@ html[data-light-mode="true"] .hover\:text-white:hover { color: #111827; }
 html[data-light-mode="true"] .hover\:text-white\/60:hover { color: #4b5563; }
 html[data-light-mode="true"] .hover\:text-white\/80:hover { color: #1f2937; }
 html[data-light-mode="true"] .hover\:text-white\/85:hover { color: #1f2937; }
+html[data-theme="dark"] .hover\:text-white\/85:hover { color: inherit; }
 
 /* ── Placeholder text ── */
 html[data-light-mode="true"] .placeholder\:text-white\/20::placeholder { color: #9ca3af; }
@@ -283,49 +286,18 @@ html[data-light-mode="true"] .placeholder\:text-white\/30::placeholder { color: 
 html[data-light-mode="true"] .focus\:border-white\/25:focus { border-color: #9ca3af; }
 html[data-light-mode="true"] .focus\:border-gold\/40:focus { border-color: #9ca3af; }
 
-/* ── Light mode: minimize decorative gold accents (keep semantic status colors) ── */
-html[data-light-mode="true"] [class*="text-gold"],
-html[data-light-mode="true"] [class*="text-[#D4AF37"],
-html[data-light-mode="true"] [class*="text-[#B8960C"],
-html[data-light-mode="true"] [class*="text-[#F5C842"],
-html[data-light-mode="true"] [class*="text-[#E6B830"],
-html[data-light-mode="true"] [class*="text-[#B8860B"],
-html[data-light-mode="true"] [class*="text-[#996F0A"] {
+/* ── Light mode: minimize decorative gold accents on specific UI surfaces ── */
+html[data-light-mode="true"] .glass,
+html[data-light-mode="true"] .premium-surface,
+html[data-light-mode="true"] .premium-card {
   color: #1D1D1F;
 }
 
-html[data-light-mode="true"] [class*="border-gold"],
-html[data-light-mode="true"] [class*="border-[#D4AF37"],
-html[data-light-mode="true"] [class*="border-[#B8960C"],
-html[data-light-mode="true"] [class*="border-[#F5C842"],
-html[data-light-mode="true"] [class*="border-[#E6B830"],
-html[data-light-mode="true"] [class*="border-[#B8860B"],
-html[data-light-mode="true"] [class*="border-[#996F0A"] {
+html[data-light-mode="true"] .glass,
+html[data-light-mode="true"] .premium-surface,
+html[data-light-mode="true"] .premium-card {
   border-color: #E5E5E7;
-}
-
-html[data-light-mode="true"] [class*="bg-gold"],
-html[data-light-mode="true"] [class*="bg-[#D4AF37"],
-html[data-light-mode="true"] [class*="bg-[#B8960C"],
-html[data-light-mode="true"] [class*="bg-[#F5C842"],
-html[data-light-mode="true"] [class*="bg-[#E6B830"],
-html[data-light-mode="true"] [class*="bg-[#B8860B"],
-html[data-light-mode="true"] [class*="bg-[#996F0A"] {
-  background-color: #F7F7F8;
-}
-
-/* Light mode: keep blue/orange minimal (non-semantic calm palette) */
-html[data-light-mode="true"] [class*="text-blue-"],
-html[data-light-mode="true"] [class*="text-orange-"] {
-  color: #6E6E73;
-}
-html[data-light-mode="true"] [class*="border-blue-"],
-html[data-light-mode="true"] [class*="border-orange-"] {
-  border-color: #E5E5E7;
-}
-html[data-light-mode="true"] [class*="bg-blue-"],
-html[data-light-mode="true"] [class*="bg-orange-"] {
-  background-color: #F7F7F8;
+  background-color: #FFFFFF;
 }
 
 /* ── Scrollbar for light mode ── */

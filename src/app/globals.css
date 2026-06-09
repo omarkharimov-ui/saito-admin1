@@ -15,8 +15,10 @@
    ═══════════════════════════════════════════ */
 :root { background-color: #0a0a0a; }
 html { background-color: #0a0a0a; }
-html.dark { background-color: #0a0a0a; }
+html[data-light-mode="true"] { background-color: #f8f8fa; }
+html:not([data-light-mode="true"]) { background-color: #0a0a0a; }
 body { background-color: #0a0a0a; color: #ffffff; }
+html[data-light-mode="true"] body { background-color: #f8f8fa; color: #111827; }
 
 :root {
   --light-surface: #f8f8fa;

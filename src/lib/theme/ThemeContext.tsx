@@ -43,16 +43,16 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     try {
+      const html = document.documentElement;
+
       if (isHighContrast) {
-        document.documentElement.setAttribute('data-contrast', 'high');
+        html.setAttribute('data-contrast', 'high');
       } else {
-        document.documentElement.removeAttribute('data-contrast');
+        html.removeAttribute('data-contrast');
       }
-      if (lightMode) {
-        document.documentElement.setAttribute('data-light-mode', 'true');
-      } else {
-        document.documentElement.removeAttribute('data-light-mode');
-      }
+
+      html.setAttribute('data-light-mode', lightMode ? 'true' : 'false');
+      html.style.colorScheme = lightMode ? 'light' : 'dark';
     } catch {
       // ignore
     }

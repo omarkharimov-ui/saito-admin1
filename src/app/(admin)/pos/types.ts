@@ -42,6 +42,8 @@ export type PosCart = {
   table_id?: string;
   table_number: number;
   guest_count: number;
+  notes?: string;
+  order_type?: 'dine_in' | 'takeaway' | 'delivery';
   items: PosCartItem[];
 };
 

@@ -62,9 +62,8 @@ export default function MobileBottomNav({
       {/* More popup — grid of app icons */}
       {hasMore && (
         <div
-          className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-[28px] border p-4 shadow-[0_12px_48px_rgba(0,0,0,0.08)] lg:hidden ${lightMode ? 'border-gray-200' : 'border-white/[0.1]'}`}
+          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-[28px] border p-4 shadow-[0_12px_48px_rgba(0,0,0,0.08)] lg:hidden border-[var(--theme-border)] bg-[var(--theme-panel)]"
           style={{
-            background: lightMode ? 'rgba(255,255,255,0.94)' : 'rgba(12,12,12,0.97)',
             backdropFilter: 'blur(24px)',
             opacity: moreOpen ? 1 : 0,
             transform: moreOpen ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.96)',
@@ -85,27 +84,23 @@ export default function MobileBottomNav({
                   onClick={() => setMoreOpen(false)}
                   className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl transition-colors active:scale-95"
                   style={{
-                    background: active
-                      ? (lightMode ? 'rgba(0,122,255,0.08)' : 'rgba(212,175,55,0.12)')
-                      : (lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.04)'),
-                    border: active
-                      ? (lightMode ? '1px solid rgba(0,122,255,0.18)' : '1px solid rgba(212,175,55,0.3)')
-                      : (lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.07)'),
+                    background: active ? 'var(--theme-accent-soft)' : 'var(--theme-surface-soft)',
+                    border: active ? '1px solid var(--theme-accent-border)' : '1px solid var(--theme-border)',
                   }}
                 >
                   <div className="relative">
                     <Icon
                       size={22}
                       strokeWidth={1.6}
-                      className={active ? 'text-[#007aff]' : (lightMode ? 'text-gray-400' : 'text-white/50')}
+                      className={active ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-secondary)]'}
                     />
                     {link.badge && link.badge > 0 ? (
-                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-[#007aff] text-[9px] font-bold text-white flex items-center justify-center shadow-[0_4px_14px_rgba(0,122,255,0.24)]">
+                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-[var(--theme-accent)] text-[9px] font-bold text-white flex items-center justify-center shadow-[0_4px_14px_rgba(0,122,255,0.24)]">
                         {link.badge > 9 ? '9+' : link.badge}
                       </span>
                     ) : null}
                   </div>
-                  <span className={`text-[10px] font-semibold text-center leading-tight tracking-wide ${active ? 'text-[#007aff]' : (lightMode ? 'text-gray-400' : 'text-white/40')}`}>
+                  <span className={`text-[10px] font-semibold text-center leading-tight tracking-wide ${active ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
                     {link.name}
                   </span>
                 </Link>
@@ -114,11 +109,11 @@ export default function MobileBottomNav({
           </div>
 
           {/* Divider + Logout */}
-          <div className={`border-t pt-2 ${lightMode ? 'border-gray-200' : 'border-white/[0.07]'}`}>
+          <div className="border-t pt-2 border-[var(--theme-border)]">
             <button
               type="button"
               onClick={() => { setMoreOpen(false); onLogout(); }}
-              className={`flex w-full items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-colors active:scale-[0.98] ${lightMode ? 'text-red-500 hover:bg-red-50' : 'text-red-400/80 hover:bg-red-500/10'}`}
+              className="flex w-full items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-colors active:scale-[0.98] text-red-500 hover:bg-red-500/10"
             >
               <LogOut size={18} />
               {t('logout')}
@@ -132,10 +127,10 @@ export default function MobileBottomNav({
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden pb-[env(safe-area-inset-bottom)]"
         aria-label="Əsas naviqasiya"
         style={{
-          background: lightMode ? 'rgba(255,255,255,0.97)' : 'rgba(10,10,10,0.97)',
+          background: 'var(--theme-panel)',
           backdropFilter: 'blur(20px)',
-          borderTop: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.07)',
-          boxShadow: lightMode ? '0 -8px 30px rgba(0,0,0,0.05)' : '0 -8px 30px rgba(0,0,0,0.28)',
+          borderTop: '1px solid var(--theme-border)',
+          boxShadow: '0 -8px 30px rgba(0,0,0,0.10)',
         }}
       >
         <div className="flex items-center justify-around h-[4.25rem] px-3 gap-1">
@@ -154,13 +149,13 @@ export default function MobileBottomNav({
                   <span
                     className="flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full"
                     style={{
-                      background: lightMode ? 'rgba(0,122,255,0.08)' : 'rgba(212,175,55,0.13)',
-                      border: lightMode ? '1px solid rgba(0,122,255,0.18)' : '1px solid rgba(212,175,55,0.28)',
+                      background: 'var(--theme-accent-soft)',
+                      border: '1px solid var(--theme-accent-border)',
                       boxSizing: 'border-box',
                     }}
                   >
-                    <Icon size={17} strokeWidth={2} className="text-[#007aff] shrink-0" />
-                    <span className="text-[11px] font-bold text-[#007aff] truncate tracking-wide">
+                    <Icon size={17} strokeWidth={2} className="text-[var(--theme-accent)] shrink-0" />
+                    <span className="text-[11px] font-bold text-[var(--theme-accent)] truncate tracking-wide">
                       {link.name}
                     </span>
                     {link.badge && link.badge > 0 ? (
@@ -172,7 +167,7 @@ export default function MobileBottomNav({
                 ) : (
                   /* Inactive — icon only */
                   <span className="relative flex items-center justify-center w-11 h-11">
-                    <Icon size={22} strokeWidth={1.6} className={lightMode ? 'text-gray-400' : 'text-white/35'} />
+                    <Icon size={22} strokeWidth={1.6} className="text-[var(--theme-text-secondary)]" />
                     {link.badge && link.badge > 0 ? (
                       <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-[9px] font-bold text-black flex items-center justify-center">
                         {link.badge > 9 ? '9+' : link.badge}
@@ -195,12 +190,12 @@ export default function MobileBottomNav({
               {moreOpen ? (
                 <span
                   className="flex items-center justify-center w-10 h-10 rounded-full"
-                  style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.1)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.15)' }}
+                  style={{ background: 'var(--theme-surface-soft)', border: '1px solid var(--theme-border)' }}
                 >
-                  <Grid2x2 size={20} className={lightMode ? 'text-gray-700' : 'text-white/70'} />
+                  <Grid2x2 size={20} className="text-[var(--theme-text-secondary)]" />
                 </span>
               ) : (
-                <MoreHorizontal size={22} strokeWidth={1.6} className={lightMode ? 'text-gray-400' : 'text-white/35'} />
+                <MoreHorizontal size={22} strokeWidth={1.6} className="text-[var(--theme-text-muted)]" />
               )}
             </button>
           )}

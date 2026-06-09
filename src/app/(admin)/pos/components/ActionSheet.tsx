@@ -67,13 +67,13 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
               </div>
 
               <div className="text-center mb-4">
-                <p className={`text-2xl font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {table.table_number}</p>
-                <p className={`text-sm mt-0.5 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
+                <p className="text-2xl font-black text-[var(--theme-text)]">Masa {table.table_number}</p>
+                <p className="text-sm mt-0.5 text-[var(--theme-text-secondary)]">
                   {isOccupied ? `${table.guest_count} nəfər · ${table.total_amount.toFixed(2)} ₼` : 'Boş masa'}
                 </p>
               </div>
 
-              <div className={`rounded-3xl border p-4 ${lightMode ? 'bg-white border-gray-200 shadow-2xl shadow-black/10' : 'bg-[#0c0c0c]/95 backdrop-blur-xl border-white/[0.08] shadow-2xl'}`}>
+              <div className="rounded-3xl border p-4 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-2xl backdrop-blur-xl">
                 <div className="grid grid-cols-4 gap-2">
                   {visible.map((action) => {
                     const Icon = action.icon;
@@ -97,13 +97,13 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                         }}
                         className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all ${lightMode ? action.lightBg : action.bg} ${lightMode ? action.lightBorder : action.border}`}
                       >
-                        <Icon size={20} className={lightMode ? action.lightColor : action.color} />
-                        <span className={`text-[9px] font-bold tracking-wider uppercase ${lightMode ? 'text-gray-600' : 'text-white/50'}`}>{action.label}</span>
+                        <Icon size={20} className="text-[var(--theme-accent)]" />
+                        <span className="text-[9px] font-bold tracking-wider uppercase text-[var(--theme-text-secondary)]">{action.label}</span>
                       </motion.button>
                     );
                   })}
                 </div>
-                <button onClick={onClose} className={`w-full mt-3 py-3 rounded-2xl text-sm font-semibold transition-all ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10'}`}>
+                <button onClick={onClose} className="w-full mt-3 py-3 rounded-2xl text-sm font-semibold transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-panel)]">
                   Bağla
                 </button>
               </div>

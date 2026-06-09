@@ -38,7 +38,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
   const langMenu = (
     <div
       ref={langRef}
-      className={`absolute right-0 top-full mt-2 z-50 flex w-[min(16rem,calc(100vw-3rem))] flex-col gap-2 rounded-3xl border p-3 ${lightMode ? 'border-gray-200 bg-white shadow-[0_18px_70px_rgba(0,0,0,0.1)]' : 'border-white/10 bg-[#0c0c0c] shadow-[0_18px_70px_rgba(0,0,0,0.55)]'}`}
+      className="absolute right-0 top-full mt-2 z-50 flex w-[min(16rem,calc(100vw-3rem))] flex-col gap-2 rounded-3xl border p-3 border-[var(--theme-border)] bg-[var(--theme-panel)] shadow-[0_18px_70px_rgba(0,0,0,0.1)]"
       style={{
         opacity: langOpen ? 1 : 0,
         transform: langOpen ? 'translateY(0) scale(1)' : 'translateY(-6px) scale(0.98)',
@@ -61,15 +61,15 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
   );
 
   return (
-    <header className={`sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden isolate ${lightMode ? 'border-gray-200 bg-white' : 'border-white/[0.06] bg-[#0a0a0a]'}`}>
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden isolate border-[var(--theme-border)] bg-[var(--theme-panel)]">
       <div className="min-w-0 flex-1 pl-0.5">
-        <p className={`text-[9px] uppercase tracking-[0.22em] truncate max-w-[min(100%,14rem)] ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>
+        <p className="text-[9px] uppercase tracking-[0.22em] truncate max-w-[min(100%,14rem)] text-[var(--theme-text-muted)]">
           {t('welcome')},{' '}
-          <span className={role === 'superadmin' ? 'text-gold' : (lightMode ? 'text-gray-600' : 'text-white/55')}>
+          <span className={role === 'superadmin' ? 'text-gold' : 'text-[var(--theme-text-secondary)]'}>
             {role === 'superadmin' ? t('superadmin') : t('admin')}
           </span>
         </p>
-        <Link href="/" className={`text-base font-serif font-bold truncate block ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+        <Link href="/" className="text-base font-serif font-bold truncate block text-[var(--theme-text)]">
           Saito Admin
         </Link>
       </div>
@@ -102,9 +102,9 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
             aria-label={t('notifications')}
             whileTap={{ scale: 0.96 }}
           >
-            <Bell size={18} className={lightMode ? 'text-gray-500' : 'text-white/60'} />
+            <Bell size={18} className="text-[var(--theme-text-secondary)]" />
             {mobileNotifications.some((n) => !n.isRead) && (
-              <span className={`absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border ${lightMode ? 'border-white' : 'border-black'}`} />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-[var(--theme-panel)]" />
             )}
           </motion.button>
 
@@ -126,7 +126,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
               }}
             >
                   <div className={`p-3 border-b flex justify-between items-center ${lightMode ? 'border-gray-100' : 'border-white/5'}`}>
-                    <span className={`text-[10px] font-bold uppercase tracking-widest ${lightMode ? 'text-gray-500' : 'text-white/45'}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-secondary)]">
                       {t('notifications')}
                     </span>
                     {mobileNotifications.length > 0 && (
@@ -140,7 +140,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
                     )}
                   </div>
                   {mobileNotifications.length === 0 ? (
-                    <p className={`p-6 text-center text-sm italic ${lightMode ? 'text-gray-400' : 'text-white/35'}`}>{t('no_notifications')}</p>
+                    <p className="p-6 text-center text-sm italic text-[var(--theme-text-muted)]">{t('no_notifications')}</p>
                   ) : (
                     mobileNotifications.map((n) => (
                       <motion.button
@@ -150,8 +150,8 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
                         className={`w-full text-left p-3 border-b ${lightMode ? 'border-gray-100' : 'border-white/5'} ${!n.isRead ? (lightMode ? 'bg-amber-50/50' : 'bg-gold/5') : ''}`}
                         whileTap={{ scale: 0.98 }}
                       >
-                        <p className={`text-xs font-medium ${lightMode ? 'text-gray-900' : 'text-white'}`}>{n.title}</p>
-                        <p className={`text-[11px] line-clamp-2 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{n.body}</p>
+                        <p className="text-xs font-medium text-[var(--theme-text)]">{n.title}</p>
+                        <p className="text-[11px] line-clamp-2 text-[var(--theme-text-secondary)]">{n.body}</p>
                       </motion.button>
                     ))
                   )}

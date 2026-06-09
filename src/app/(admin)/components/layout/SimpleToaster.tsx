@@ -35,23 +35,11 @@ export default function SimpleToaster() {
               animate="show"
               exit="exit"
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="pointer-events-auto select-none"
+              className="pointer-events-auto select-none rounded-[14px] px-3.5 py-2.5 font-semibold text-[13px] max-w-[min(360px,calc(100vw-24px))] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border"
               style={{
-                background: t.type === 'error'
-                  ? (lightMode ? '#fef2f2' : '#1a0808')
-                  : (lightMode ? '#fffbeb' : '#0d0b00'),
-                color: t.type === 'error'
-                  ? (lightMode ? '#dc2626' : '#fca5a5')
-                  : (lightMode ? '#92400e' : '#D4AF37'),
-                border: t.type === 'error'
-                  ? (lightMode ? '1px solid #fecaca' : '1px solid rgba(248,113,113,0.25)')
-                  : (lightMode ? '1px solid #fde68a' : '1px solid rgba(212,175,55,0.28)'),
-                borderRadius: '14px',
-                padding: '10px 14px',
-                fontWeight: 600,
-                fontSize: 13,
-                maxWidth: 'min(360px, calc(100vw - 24px))',
-                boxShadow: lightMode ? '0 8px 32px rgba(0,0,0,0.1)' : '0 8px 32px rgba(0,0,0,0.4)',
+                background: t.type === 'error' ? 'var(--theme-panel)' : 'var(--theme-panel-strong)',
+                color: t.type === 'error' ? '#dc2626' : 'var(--theme-accent)',
+                borderColor: t.type === 'error' ? 'rgba(248,113,113,0.25)' : 'var(--theme-accent-border)',
               }}
             >
               <div className="flex items-center gap-2">

@@ -51,7 +51,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
         <div className="relative shrink-0 sensei-icon-calm">
           <div
             className="relative w-20 h-20 md:w-16 md:h-16 rounded-2xl flex items-center justify-center"
-            style={{ background: lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.04)' }}
+            style={{ background: 'var(--theme-surface-soft)' }}
           >
             {/* Animated Brain Circuit */}
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'relative', zIndex: 1 }}>
@@ -77,10 +77,10 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
         <div className="flex-1 min-w-0">
           {/* Header row */}
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-black tracking-[0.4em] uppercase" style={{ color: lightMode ? '#9ca3af' : 'rgba(255,255,255,0.3)' }}>
+            <span className="text-[10px] font-black tracking-[0.4em] uppercase" style={{ color: 'var(--theme-text-secondary)' }}>
               SENSEI AI
             </span>
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: lightMode ? '#d1d5db' : 'rgba(255,255,255,0.25)' }} />
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--theme-border-strong)' }} />
             <span className="text-[10px] font-bold tracking-[0.25em] uppercase text-white/40">
               Yuxu rejimi
             </span>
@@ -92,7 +92,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
               <p className="text-white/80 text-base leading-snug mb-2.5">
                 <span className="font-serif italic text-white/50">Sensei </span>
                 {countdown.h > 0 && (
-                  <span className="font-mono font-black text-lg" style={{ color: lightMode ? '#111827' : 'rgba(255,255,255,0.85)' }}>
+                  <span className="font-mono font-black text-lg" style={{ color: 'var(--theme-text)' }}>
                     {countdown.h}<span className="text-sm font-bold text-white/40 ml-0.5">saat </span>
                   </span>
                 )}
@@ -654,13 +654,13 @@ const AdminDashboard = () => {
 
       {/* AI Suggestion Section - Yoji Məsləhəti (HeroBanner və Canlı Masa Planı arasında) */}
       {!settingsLoaded ? (
-        <div className="rounded-2xl h-[96px]" style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.03)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }} />
+        <div className="rounded-2xl h-[96px]" style={{ background: 'var(--theme-panel)', border: '1px solid var(--theme-border)' }} />
       ) : isWithinBusinessHours() ? (
         <>
           {/* DESKTOP — Yoji AI Advice Card */}
           <div
             className="hidden lg:block p-8 relative z-10 group rounded-2xl overflow-hidden flex-shrink-0"
-            style={{ background: lightMode ? '#f9fafb' : 'rgba(255,255,255,0.02)', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.06)' }}
+            style={{ background: 'var(--theme-panel)', border: '1px solid var(--theme-border)' }}
           >
             <div className="flex items-start gap-6 relative z-0">
               <div className="relative shrink-0" style={{ width: 96, height: 96 }}>
@@ -700,7 +700,7 @@ const AdminDashboard = () => {
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                       <span className="text-[10px] font-bold tracking-[0.2em] uppercase mb-1 block text-gold/60">{yojiAdvice.title}</span>
-                      <p className={`text-xl font-serif italic leading-relaxed ${lightMode ? 'text-gray-800' : 'text-white/90'}`}>
+                      <p className="text-xl font-serif italic leading-relaxed text-[var(--theme-text)]">
                         &ldquo;{yojiAdvice.text}&rdquo;
                       </p>
                     </div>

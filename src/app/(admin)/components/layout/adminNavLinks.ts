@@ -8,6 +8,7 @@ import {
   PackagePlus,
   Warehouse,
   ScrollText,
+  Monitor,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -31,6 +32,13 @@ export function getAdminNavItems(
   return [
     { id: 'dashboard', name: t('dashboard'), href: '/', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
     {
+      id: 'pos',
+      name: 'POS',
+      href: '/pos',
+      icon: Monitor,
+      roles: ['admin', 'superadmin'],
+    },
+    {
       id: 'reservations',
       name: t('reservations'),
       href: '/reservations',
@@ -44,7 +52,7 @@ export function getAdminNavItems(
     { id: 'stock', name: 'Stok', href: '/stock', icon: Warehouse, roles: ['superadmin'] },
     { id: 'recipes', name: 'Reseptlər', href: '/recipes', icon: ScrollText, roles: ['superadmin'] },
     { id: 'stats', name: t('statistics'), href: '/stats', icon: BarChart3, roles: ['superadmin'] },
-    { id: 'settings', name: t('settings'), href: '/settings', icon: Settings, roles: ['superadmin'] },
+    { id: 'settings', name: t('settings'), href: '/settings', icon: Settings, roles: ['superadmin'] }
   ];
 }
 

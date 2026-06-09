@@ -38,7 +38,7 @@ export default function MobileBottomNav({
 
   const primaryIds = getMobilePrimaryNavIds(role);
   const primary = allLinks.filter((l) => primaryIds.has(l.id));
-  const overflow = allLinks.filter((l) => !primaryIds.has(l.id) && l.id !== 'pos-orders');
+  const overflow = allLinks.filter((l) => !primaryIds.has(l.id));
   const hasMore = overflow.length > 0;
 
   const isActive = (href: string) =>

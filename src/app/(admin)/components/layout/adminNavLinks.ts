@@ -8,7 +8,6 @@ import {
   PackagePlus,
   Warehouse,
   ScrollText,
-  Monitor,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -31,7 +30,6 @@ export function getAdminNavItems(
 ): AdminNavItem[] {
   return [
     { id: 'dashboard', name: t('dashboard'), href: '/', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
-    { id: 'pos', name: 'POS', href: '/pos', icon: Monitor, roles: ['admin', 'superadmin'] },
     {
       id: 'reservations',
       name: t('reservations'),
@@ -39,16 +37,6 @@ export function getAdminNavItems(
       icon: Calendar,
       roles: ['admin', 'superadmin'],
       badge: counts.pending,
-    },
-    {
-      id: 'pos-orders',
-      name: `${t('orders')} / POS`,
-      href: '/pos',
-      icon: Monitor,
-      roles: ['admin', 'superadmin'],
-      badge: counts.ready,
-      blink: counts.ready > 0,
-      readyBadge: counts.pending,
     },
     { id: 'products', name: t('products'), href: '/products', icon: ShoppingBag, roles: ['superadmin'] },
     { id: 'combos', name: t('combos'), href: '/combos', icon: PackagePlus, roles: ['superadmin'] },

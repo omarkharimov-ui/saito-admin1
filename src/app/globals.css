@@ -219,7 +219,7 @@ html[data-theme="light"] .text-white\/5 { color: #f3f4f6; }
 /* ── Background colors — dark hex backgrounds → white/gray ── */
 html[data-theme="light"] .bg-\[\#000000\] { background-color: #ffffff; }
 html[data-theme="light"] .bg-\[\#080808\] { background-color: #ffffff; }
-html[data-light-mode="true"] .bg-\[\#0a0a0a\] { background-color: #ffffff; }
+html[data-theme="light"] .bg-\[\#0a0a0a\] { background-color: #f8f8fa; }
 html[data-theme="light"] .bg-\[\#0c0c0c\] { background-color: #ffffff; }
 html[data-theme="light"] .bg-\[\#0d0d0d\] { background-color: #ffffff; }
 html[data-theme="light"] .bg-\[\#111111\] { background-color: #f9fafb; }
@@ -294,25 +294,25 @@ html[data-theme="light"] .premium-card {
   color: #1D1D1F;
 }
 
-html[data-light-mode="true"] .glass,
-html[data-light-mode="true"] .premium-surface,
-html[data-light-mode="true"] .premium-card {
+html[data-theme="light"] .glass,
+html[data-theme="light"] .premium-surface,
+html[data-theme="light"] .premium-card {
   border-color: #E5E5E7;
   background-color: #FFFFFF;
 }
 
 /* ── Scrollbar for light mode ── */
 html[data-theme="light"] ::-webkit-scrollbar-track { background: #f3f4f6; }
-html[data-light-mode="true"] ::-webkit-scrollbar-thumb { background: #d1d5db; }
-html[data-light-mode="true"] ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #d1d5db; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 /* ── Ring / outline ── */
-html[data-light-mode="true"] .ring-white\/10 { --tw-ring-color: rgb(229 231 235); }
-html[data-light-mode="true"] .ring-white\/20 { --tw-ring-color: rgb(209 213 219); }
+html[data-theme="light"] .ring-white\/10 { --tw-ring-color: rgb(229 231 235); }
+html[data-theme="light"] .ring-white\/20 { --tw-ring-color: rgb(209 213 219); }
 
 /* ── Shadow overrides — black heavy shadows → soft ── */
 html[data-theme="light"] .shadow-\[0_8px_32px_rgba\(0\,0\,0\,0\.5\)\] { box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
-html[data-light-mode="true"] .shadow-\[0_8px_32px_rgba\(0\,0\,0\,0\.4\)\] { box-shadow: 0 8px 32px rgba(0,0,0,0.06); }
+html[data-theme="light"] .shadow-\[0_8px_32px_rgba\(0\,0\,0\,0\.4\)\] { box-shadow: 0 8px 32px rgba(0,0,0,0.06); }
 
 /* ── text-black → stays dark (for buttons with white bg in dark mode) ── */
 /* No override needed — text-black is fine in light mode */
@@ -347,7 +347,7 @@ html[data-theme="dark"] .products-theme-bridge [class*="text-[#6E6E73]"] {
 html[data-theme="dark"] .products-theme-bridge [class*="text-[#8E8E93]"] {
   color: rgba(255,255,255,0.46);
 }
-html:not([data-light-mode="true"]) .products-theme-bridge [class*="text-[#D2D2D7]"] {
+html[data-theme="dark"] .products-theme-bridge [class*="text-[#D2D2D7]"] {
   color: rgba(255,255,255,0.28);
 }
 

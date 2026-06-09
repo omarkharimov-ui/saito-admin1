@@ -81,7 +81,7 @@ const HoursTab = () => {
                 <button
                   type="button"
                   onClick={() => updateDay(i, 'closed', !d.closed)}
-                  className={`relative w-9 h-[20px] rounded-full transition-all flex-shrink-0 ${ d.closed ? 'bg-white/[0.08]' : 'bg-gold'}`}
+                  className={`relative w-9 h-[20px] rounded-full transition-all flex-shrink-0 ${ d.closed ? 'bg-[var(--theme-border)]' : 'bg-gold'}`}
                 >
                   <span className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-[var(--theme-surface)] shadow transition-all ${ d.closed ? 'left-[3px]' : 'left-[19px]'}`} />
                 </button>

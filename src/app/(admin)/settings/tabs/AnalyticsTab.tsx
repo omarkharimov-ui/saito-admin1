@@ -378,7 +378,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
           </div>
           <button type="button" onClick={toggleGreeting}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${greetingEnabled ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}>
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${greetingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-[var(--theme-surface)] shadow transition-transform duration-200 ${greetingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
       </div>
@@ -391,7 +391,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
           <div className="flex items-center gap-3">
             <Eye size={15} className="text-gold/70" />
             <div>
-              <p className="text-sm font-semibold text-white">{t('ai_vision_label')}</p>
+              <p className="text-sm font-semibold text-[var(--theme-text)]">{t('ai_vision_label')}</p>
               <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">
                 {aiFlags.visionEnabled ? t('ai_vision_desc_on') : t('ai_vision_desc_off')}
               </p>
@@ -399,7 +399,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
           </div>
           <button type="button" onClick={() => { const next = !aiFlags.visionEnabled; setAiFlag('visionEnabled', next); toast.success(next ? t('ai_vision_label') + ' aktiv edildi' : t('ai_vision_label') + ' deaktiv edildi', { id: 'action-toast' }); }}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.visionEnabled ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}>
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${aiFlags.visionEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-[var(--theme-surface)] shadow transition-transform duration-200 ${aiFlags.visionEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
 
@@ -407,7 +407,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
           <div className="flex items-center gap-3">
             <Wand2 size={15} className="text-gold/70" />
             <div>
-              <p className="text-sm font-semibold text-white">{t('ai_autocorrect_label')}</p>
+              <p className="text-sm font-semibold text-[var(--theme-text)]">{t('ai_autocorrect_label')}</p>
               <p className="text-[11px] text-white/45 mt-0.5">
                 {aiFlags.autoCorrectEnabled ? t('ai_autocorrect_desc_on') : t('ai_autocorrect_desc_off')}
               </p>
@@ -415,7 +415,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
           </div>
           <button type="button" onClick={() => { const next = !aiFlags.autoCorrectEnabled; setAiFlag('autoCorrectEnabled', next); toast.success(next ? t('ai_autocorrect_label') + ' aktiv edildi' : t('ai_autocorrect_label') + ' deaktiv edildi', { id: 'action-toast' }); }}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.autoCorrectEnabled ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}>
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${aiFlags.autoCorrectEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-[var(--theme-surface)] shadow transition-transform duration-200 ${aiFlags.autoCorrectEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
       </div>
@@ -477,7 +477,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
             <Store size={14} className="text-gold" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">{t('analytics_translations_title')}</p>
+            <p className="text-sm font-semibold text-[var(--theme-text)]">{t('analytics_translations_title')}</p>
             <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">{t('analytics_translations_desc')}</p>
           </div>
         </div>

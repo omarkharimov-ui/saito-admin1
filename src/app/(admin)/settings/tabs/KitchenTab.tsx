@@ -71,7 +71,7 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
       </div>
 
       <div className="flex justify-end">
-        <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-gold text-black px-8 py-3 rounded-xl font-bold text-sm hover:bg-white transition-all disabled:opacity-40">
+        <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-gold text-black px-8 py-3 rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-40">
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {t('kitchen_save')}
         </button>
       </div>

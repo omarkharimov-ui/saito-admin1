@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { AnimatedTabs } from '../components/ui/MotionControls';
 import { supabase } from '@/lib/supabase';
 import GeneralTab from './tabs/GeneralTab';
 import QRTab from './tabs/QRTab';
@@ -154,30 +154,16 @@ const SettingsPage = () => {
           </div>
         </div>
 
-<div className="flex items-center gap-1 p-1 border border-[var(--theme-border)] bg-[var(--theme-surface-muted)] rounded-xl overflow-x-auto scrollbar-none">
-          {visibleTabs.map(tb => {
-            const isActive = tab === tb.key;
-            return (
-              <button
-                key={tb.key}
-                onClick={() => setTab(tb.key)}
-                className={`relative flex items-center gap-2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest rounded-lg transition-colors whitespace-nowrap ${
-                  isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'
-                }`}
-              >
-                {isActive && (
-                  <motion.span
-                    layoutId="settings-active-tab-indicator"
-                    className="absolute inset-0 rounded-lg bg-[var(--theme-surface-hover)] border border-[var(--theme-border-strong)]"
-                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                  />
-                )}
-                <span className={`relative z-10 ${isActive ? 'text-gold' : 'text-[var(--theme-text-secondary)]'}`}>{tb.icon}</span>
-                <span className="relative z-10">{t(tb.labelKey as any)}</span>
-              </button>
-            );
-          })}
-        </div>
+<AnimatedTabs
+          className="w-full overflow-x-auto"
+          activeKey={tab}
+          onChange={(key) => setTab(key as Tab)}
+          tabs={visibleTabs.map((tb) => ({
+            key: tb.key,
+            label: t(tb.labelKey as any),
+            icon: tb.icon,
+          }))}
+        />
 
         <div key={tab}>
           <TabContent tab={tab} settingsData={settingsData} isSuperadmin={isSuperadmin} />

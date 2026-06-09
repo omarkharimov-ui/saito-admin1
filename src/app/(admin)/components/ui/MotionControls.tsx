@@ -1,0 +1,139 @@
+'use client';
+
+import { motion } from 'framer-motion';
+import type { ReactNode } from 'react';
+
+export type MotionTabItem = {
+  key: string;
+  label: ReactNode;
+  icon?: ReactNode;
+  badge?: ReactNode;
+  disabled?: boolean;
+};
+
+interface AnimatedTabsProps {
+  tabs: MotionTabItem[];
+  activeKey: string;
+  onChange: (key: string) => void;
+  className?: string;
+}
+
+export function AnimatedTabs({ tabs, activeKey, onChange, className = '' }: AnimatedTabsProps) {
+  return (
+    <div className={`flex items-center gap-1 p-1 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-muted)] ${className}`.trim()}>
+      {tabs.map((tab) => {
+        const active = tab.key === activeKey;
+
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => !tab.disabled && onChange(tab.key)}
+            disabled={tab.disabled}
+            className={`relative overflow-hidden flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-colors whitespace-nowrap ${active ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'} ${tab.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+          >
+            {active && (
+              <motion.span
+                layoutId="motion-tabs-active-pill"
+                className="absolute inset-0 rounded-xl bg-[var(--theme-surface-hover)] border border-[var(--theme-border-strong)] shadow-[0_8px_24px_rgba(0,0,0,0.08)]"
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              />
+            )}
+            {tab.icon ? <span className="relative z-10">{tab.icon}</span> : null}
+            <span className="relative z-10">{tab.label}</span>
+            {tab.badge ? <span className="relative z-10">{tab.badge}</span> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+interface LiquidToggleProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label?: ReactNode;
+  className?: string;
+  disabled?: boolean;
+}
+
+export function LiquidToggle({ checked, onChange, label, className = '', disabled = false }: LiquidToggleProps) {
+  return (
+    <button
+      type="button"
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+      className={`inline-flex items-center gap-3 ${className}`.trim()}
+    >
+      {label ? <span className="text-sm font-medium text-[var(--theme-text)]">{label}</span> : null}
+      <span
+        className={`relative inline-flex h-7 w-12 items-center rounded-full border transition-all duration-300 ${checked ? 'border-[var(--theme-accent-border)] bg-[var(--theme-accent-soft)]' : 'border-[var(--theme-border)] bg-[var(--theme-surface-muted)]'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      >
+        <motion.span
+          className="h-5 w-5 rounded-full bg-[var(--theme-surface)] shadow-[0_6px_16px_rgba(0,0,0,0.16)]"
+          animate={{ x: checked ? 20 : 2, scale: checked ? 1.02 : 1 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+        />
+      </span>
+    </button>
+  );
+}
+
+type DockItem = {
+  key: string;
+  label: string;
+  href?: string;
+  icon: ReactNode;
+  active?: boolean;
+  badge?: number;
+  onClick?: () => void;
+};
+
+interface FloatingDockProps {
+  items: DockItem[];
+  className?: string;
+}
+
+export function FloatingDock({ items, className = '' }: FloatingDockProps) {
+  return (
+    <div className={`fixed inset-x-0 bottom-0 z-50 lg:hidden pb-[env(safe-area-inset-bottom)] ${className}`.trim()}>
+      <div className="mx-3 mb-3 rounded-[28px] border border-[var(--theme-border)] bg-[var(--theme-panel)] shadow-[0_-12px_36px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
+        <div className="flex items-center justify-around gap-1 px-3 py-2.5">
+          {items.map((item) => {
+            const content = (
+              <>
+                <span className={`flex h-11 w-11 items-center justify-center rounded-full transition-all ${item.active ? 'bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border border-[var(--theme-accent-border)]' : 'text-[var(--theme-text-secondary)]'}`}>
+                  {item.icon}
+                </span>
+                <span className={`text-[10px] font-semibold tracking-wide ${item.active ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'}`}>
+                  {item.label}
+                </span>
+                {typeof item.badge === 'number' && item.badge > 0 ? (
+                  <span className="absolute right-1 top-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--theme-accent)] text-[9px] font-bold text-white flex items-center justify-center">
+                    {item.badge > 9 ? '9+' : item.badge}
+                  </span>
+                ) : null}
+              </>
+            );
+
+            const className = `relative flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition-transform active:scale-95 ${item.active ? 'text-[var(--theme-text)]' : ''}`;
+
+            if (item.href) {
+              return (
+                <a key={item.key} href={item.href} className={className}>
+                  {content}
+                </a>
+              );
+            }
+
+            return (
+              <button key={item.key} type="button" onClick={item.onClick} className={className}>
+                {content}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

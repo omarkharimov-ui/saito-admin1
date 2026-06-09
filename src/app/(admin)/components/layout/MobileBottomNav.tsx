@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOut, MoreHorizontal, Grid2x2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useNotifications } from '../../context/NotificationContext';
@@ -47,30 +48,30 @@ export default function MobileBottomNav({
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 lg:hidden"
-        onClick={() => setMoreOpen(false)}
-        style={{
-          opacity: moreOpen ? 1 : 0,
-          pointerEvents: moreOpen ? 'auto' : 'none',
-          background: 'rgba(0,0,0,0.55)',
-          backdropFilter: moreOpen ? 'blur(4px)' : 'none',
-          transition: 'opacity 0.2s ease',
-        }}
-      />
+      <AnimatePresence>
+        {moreOpen ? (
+          <motion.div
+            key="mobile-dock-backdrop"
+            className="fixed inset-0 z-40 lg:hidden"
+            onClick={() => setMoreOpen(false)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(10px)' }}
+          />
+        ) : null}
+      </AnimatePresence>
 
       {/* More popup — grid of app icons */}
       {hasMore && (
-        <div
+        <motion.div
+          key="mobile-dock-more"
           className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-[28px] border p-4 shadow-[0_12px_48px_rgba(0,0,0,0.08)] lg:hidden border-[var(--theme-border)] bg-[var(--theme-panel)]"
-          style={{
-            backdropFilter: 'blur(24px)',
-            opacity: moreOpen ? 1 : 0,
-            transform: moreOpen ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.96)',
-            pointerEvents: moreOpen ? 'auto' : 'none',
-            transition: 'opacity 0.22s ease, transform 0.25s cubic-bezier(0.22,1,0.36,1)',
-            willChange: 'transform, opacity',
-          }}
+          initial={{ opacity: 0, y: 20, scale: 0.96 }}
+          animate={{ opacity: moreOpen ? 1 : 0, y: moreOpen ? 0 : 20, scale: moreOpen ? 1 : 0.96 }}
+          transition={{ type: 'spring', stiffness: 360, damping: 34 }}
+          style={{ backdropFilter: 'blur(24px)', pointerEvents: moreOpen ? 'auto' : 'none', willChange: 'transform, opacity' }}
         >
           {/* Grid of icon links */}
           <div className="grid grid-cols-4 gap-2 mb-3">
@@ -127,13 +128,13 @@ export default function MobileBottomNav({
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden pb-[env(safe-area-inset-bottom)]"
         aria-label="Əsas naviqasiya"
         style={{
-          background: 'var(--theme-panel)',
-          backdropFilter: 'blur(20px)',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04))',
+          backdropFilter: 'blur(24px) saturate(180%)',
           borderTop: '1px solid var(--theme-border)',
-          boxShadow: '0 -8px 30px rgba(0,0,0,0.10)',
+          boxShadow: '0 -12px 36px rgba(0,0,0,0.12)',
         }}
       >
-        <div className="flex items-center justify-around h-[4.25rem] px-3 gap-1">
+        <div className="mx-2 my-2 flex items-center justify-around h-[4.25rem] px-2 gap-1 rounded-[26px] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
           {primary.map((link) => {
             const Icon = link.icon;
             const active = isActive(link.href);
@@ -146,13 +147,15 @@ export default function MobileBottomNav({
               >
                 {active ? (
                   /* Pill-shaped active tab */
-                  <span
+                  <motion.span
+                    layoutId="mobile-dock-active-pill"
                     className="flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full"
                     style={{
                       background: 'var(--theme-accent-soft)',
                       border: '1px solid var(--theme-accent-border)',
                       boxSizing: 'border-box',
                     }}
+                    transition={{ type: 'spring', stiffness: 420, damping: 32 }}
                   >
                     <Icon size={17} strokeWidth={2} className="text-[var(--theme-accent)] shrink-0" />
                     <span className="text-[11px] font-bold text-[var(--theme-accent)] truncate tracking-wide">
@@ -188,7 +191,9 @@ export default function MobileBottomNav({
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               {moreOpen ? (
-                <span
+                <motion.span
+                  animate={{ rotate: 90, scale: 1.02 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 26 }}
                   className="flex items-center justify-center w-10 h-10 rounded-full"
                   style={{ background: 'var(--theme-surface-soft)', border: '1px solid var(--theme-border)' }}
                 >

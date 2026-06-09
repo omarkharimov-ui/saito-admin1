@@ -337,8 +337,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
     }
   };
 
-  const toggleGreeting = async () => {
-    const next = !greetingEnabled;
+  const toggleGreeting = async (next: boolean) => {
     setGreetingEnabled(next);
     await supabase.from('settings').upsert([{ id: '1', morning_greeting_enabled: next }]);
     try { const m = localStorage.getItem('saito_settings_meta'); const p = m ? JSON.parse(m) : {}; localStorage.setItem('saito_settings_meta', JSON.stringify({ ...p, greetingEnabled: next })); } catch {}
@@ -376,10 +375,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               </p>
             </div>
           </div>
-          <button type="button" onClick={toggleGreeting}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${greetingEnabled ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}>
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-[var(--theme-surface)] shadow transition-transform duration-200 ${greetingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-          </button>
+          <LiquidToggle checked={greetingEnabled} onChange={(next) => { void toggleGreeting(next); }} />
         </div>
       </div>
 
@@ -397,10 +393,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               </p>
             </div>
           </div>
-          <button type="button" onClick={() => { const next = !aiFlags.visionEnabled; setAiFlag('visionEnabled', next); toast.success(next ? t('ai_vision_label') + ' aktiv edildi' : t('ai_vision_label') + ' deaktiv edildi', { id: 'action-toast' }); }}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.visionEnabled ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}>
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-[var(--theme-surface)] shadow transition-transform duration-200 ${aiFlags.visionEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-          </button>
+          <LiquidToggle checked={aiFlags.visionEnabled} onChange={(next) => { setAiFlag('visionEnabled', next); toast.success(next ? t('ai_vision_label') + ' aktiv edildi' : t('ai_vision_label') + ' deaktiv edildi', { id: 'action-toast' }); }} />
         </div>
 
         <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
@@ -413,10 +406,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               </p>
             </div>
           </div>
-          <button type="button" onClick={() => { const next = !aiFlags.autoCorrectEnabled; setAiFlag('autoCorrectEnabled', next); toast.success(next ? t('ai_autocorrect_label') + ' aktiv edildi' : t('ai_autocorrect_label') + ' deaktiv edildi', { id: 'action-toast' }); }}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.autoCorrectEnabled ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}>
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-[var(--theme-surface)] shadow transition-transform duration-200 ${aiFlags.autoCorrectEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-          </button>
+          <LiquidToggle checked={aiFlags.autoCorrectEnabled} onChange={(next) => { setAiFlag('autoCorrectEnabled', next); toast.success(next ? t('ai_autocorrect_label') + ' aktiv edildi' : t('ai_autocorrect_label') + ' deaktiv edildi', { id: 'action-toast' }); }} />
         </div>
       </div>
 

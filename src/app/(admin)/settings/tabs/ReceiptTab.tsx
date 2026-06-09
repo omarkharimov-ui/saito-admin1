@@ -123,13 +123,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
               <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">{t('receipt_service_fee_hint')}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setCfg({ ...cfg, receipt_show_service_fee: !cfg.receipt_show_service_fee })}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${cfg.receipt_show_service_fee ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${cfg.receipt_show_service_fee ? 'translate-x-6' : 'translate-x-1'}`} />
-          </button>
+          <LiquidToggle checked={cfg.receipt_show_service_fee} onChange={(next) => setCfg({ ...cfg, receipt_show_service_fee: next })} />
         </div>
 
         {cfg.receipt_show_service_fee && (

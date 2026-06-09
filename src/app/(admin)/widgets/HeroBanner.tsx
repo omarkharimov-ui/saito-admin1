@@ -84,7 +84,7 @@ export default function HeroBanner() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl bg-[linear-gradient(180deg,#ffffff_0%,#f8f8fa_100%)] p-4 sm:p-6 lg:p-8 shadow-[0_8px_40px_rgba(0,0,0,0.04)] border border-[#e5e7eb]"
+      className="relative overflow-hidden rounded-3xl bg-[var(--theme-panel)] p-4 sm:p-6 lg:p-8 shadow-[0_8px_40px_rgba(0,0,0,0.04)] border border-[var(--theme-border)]"
     >
       {/* Animated gradient backgrounds */}
       <div className="absolute inset-0 overflow-hidden">

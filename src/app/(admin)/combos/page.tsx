@@ -151,13 +151,13 @@ export default function CombosPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-serif font-bold text-white">{t('combos')}</h1>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-white/25 mt-1">
+          <h1 className="text-2xl font-serif font-bold text-[var(--theme-text)]">{t('combos')}</h1>
+          <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--theme-text-secondary)] mt-1">
             {combos.length} combo
           </p>
         </div>
         <button onClick={openNew}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-black text-white border border-white/15 font-bold text-[11px] uppercase tracking-widest hover:bg-black/90 transition-all shadow-lg shadow-black/25">
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] font-bold text-[11px] uppercase tracking-widest hover:brightness-95 transition-all shadow-lg shadow-black/25">
           <Plus size={15} />
           {t('combo_new')}
         </button>
@@ -168,12 +168,12 @@ export default function CombosPage() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center justify-center py-24 gap-4">
           <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.07] flex items-center justify-center">
-            <PackagePlus size={28} className="text-white/15" />
+            <PackagePlus size={28} className="text-[var(--theme-border)]" />
           </div>
-          <p className="text-white/40 font-medium">{t('combo_empty')}</p>
-          <p className="text-white/20 text-sm">{t('combo_empty_hint')}</p>
+          <p className="text-[var(--theme-text-secondary)] font-medium">{t('combo_empty')}</p>
+          <p className="text-[var(--theme-text-muted)] text-sm">{t('combo_empty_hint')}</p>
           <button onClick={openNew}
-            className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-white/50 hover:text-white text-[12px] font-semibold transition-all">
+            className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-panel)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] text-[12px] font-semibold transition-all">
             <Plus size={14} />
             {t('combo_new')}
           </button>
@@ -197,13 +197,13 @@ export default function CombosPage() {
                       <img src={combo.image_url} alt={(combo as any)[`name_${language}`] || combo.name} loading="eager" decoding="async" fetchPriority="high" className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <PackagePlus size={32} className="text-white/10" />
+                        <PackagePlus size={32} className="text-[var(--theme-border)]" />
                       </div>
                     )}
                     {/* Badges */}
                     <div className="absolute top-2.5 left-2.5 flex gap-1.5">
                       {!combo.is_active && (
-                        <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/40 text-[10px] font-bold uppercase tracking-wider border border-white/[0.10]">
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] text-[10px] font-bold uppercase tracking-wider border border-[var(--theme-border)]">
                           {t('combo_inactive')}
                         </span>
                       )}
@@ -211,7 +211,7 @@ export default function CombosPage() {
                     {/* Actions — always visible on mobile, hover-only on desktop */}
                     <div className="absolute top-2.5 right-2.5 flex gap-1.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button onClick={(e) => { e.stopPropagation(); openEdit(combo); }}
-                        className="w-8 h-8 rounded-xl bg-black/60 backdrop-blur-sm border border-white/[0.12] flex items-center justify-center text-white/60 hover:text-white transition-colors">
+                        className="w-8 h-8 rounded-xl bg-[var(--theme-panel)]/60 backdrop-blur-sm border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors">
                         <Edit3 size={13} />
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(combo); }}
@@ -224,17 +224,17 @@ export default function CombosPage() {
                   {/* Content */}
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="font-semibold text-white text-[15px] leading-snug">{(combo as any)[`name_${language}`] || combo.name}</h3>
+                      <h3 className="font-semibold text-[var(--theme-text)] text-[15px] leading-snug">{(combo as any)[`name_${language}`] || combo.name}</h3>
                       <div className="text-right flex-shrink-0">
                         <p className="text-gold font-black text-[16px]">₼{combo.price.toFixed(2)}</p>
                         {saving > 0 && separateTotal > 0 && (
-                          <p className="text-[10px] text-white/30 line-through">₼{separateTotal.toFixed(2)}</p>
+                          <p className="text-[10px] text-[var(--theme-text-muted)] line-through">₼{separateTotal.toFixed(2)}</p>
                         )}
                       </div>
                     </div>
 
                     {((combo as any)[`description_${language}`] || combo.description) && (
-                      <p className="text-[12px] text-white/35 mb-3 line-clamp-2">{(combo as any)[`description_${language}`] || combo.description}</p>
+                      <p className="text-[12px] text-[var(--theme-text-secondary)] mb-3 line-clamp-2">{(combo as any)[`description_${language}`] || combo.description}</p>
                     )}
 
                     {/* Items preview */}
@@ -245,7 +245,7 @@ export default function CombosPage() {
                             {item.product?.image_url && (
                               <img src={item.product.image_url} alt="" loading="lazy" decoding="async" className="w-4 h-4 rounded object-cover" />
                             )}
-                            <span className="text-[11px] text-white/50 truncate max-w-[80px]">{item.product?.name}</span>
+                            <span className="text-[11px] text-[var(--theme-text-secondary)] truncate max-w-[80px]">{item.product?.name}</span>
                             {item.quantity > 1 && <span className="text-[10px] text-white/30">×{item.quantity}</span>}
                           </div>
                         ))}

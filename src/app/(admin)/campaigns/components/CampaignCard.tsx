@@ -72,11 +72,11 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             {/* Top row */}
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-bold text-white leading-snug line-clamp-2">{camp.title}</p>
+                <p className="text-[15px] font-bold text-[var(--theme-text)] leading-snug line-clamp-2">{camp.title}</p>
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
-                className="w-10 h-10 flex items-center justify-center rounded-xl text-white/25 active:text-red-400 active:bg-red-500/[0.08] transition-all shrink-0 mt-[-2px]"
+                className="w-10 h-10 flex items-center justify-center rounded-xl text-[var(--theme-text-muted)] active:text-red-400 active:bg-red-500/[0.08] transition-all shrink-0 mt-[-2px]"
               >
                 <Trash2 size={17} />
               </button>
@@ -91,7 +91,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
                 {CAMPAIGN_LABELS[camp.type] ?? camp.type}
               </span>
               {target && camp.target_type !== 'product' && (
-                <span className="text-[11px] text-white/30 truncate">{target.name}</span>
+                <span className="text-[11px] text-[var(--theme-text-secondary)] truncate">{target.name}</span>
               )}
             </div>
 
@@ -134,7 +134,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         <div className="absolute top-4 right-4 z-10">
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
-            className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500/15 hover:border-red-500/40 text-white/40 hover:text-red-500 transition-colors"
+            className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500/15 hover:border-red-500/40 text-[var(--theme-text-secondary)] hover:text-red-500 transition-colors"
             title={t('delete_campaign')}
           >
             <Trash2 size={18} />
@@ -162,7 +162,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             </div>
             <div className="min-w-0">
               <p className="text-[8px] uppercase tracking-widest text-white/25 mb-0.5">{camp.target_type === 'product' ? t('product') : t('category')}</p>
-              <p className="text-xs font-semibold text-white/85 truncate">{target?.name || t('error_not_found')}</p>
+              <p className="text-xs font-semibold text-[var(--theme-text-secondary)] truncate">{target?.name || t('error_not_found')}</p>
             </div>
           </div>
         </div>

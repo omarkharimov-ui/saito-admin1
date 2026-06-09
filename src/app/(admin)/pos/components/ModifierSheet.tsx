@@ -4,7 +4,22 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Minus } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import type { Modifier, ModifierSelection } from '../types';
+type Modifier = {
+  id: string;
+  type: 'doneness' | 'extra' | 'remove';
+  label: string;
+  price_adjust: number;
+  ingredient_id?: string;
+  ingredient_qty?: number;
+};
+
+type ModifierSelection = {
+  modifier_id: string;
+  label: string;
+  price_adjust: number;
+  ingredient_id?: string;
+  ingredient_qty?: number;
+};
 
 interface ModifierSheetProps {
   open: boolean;

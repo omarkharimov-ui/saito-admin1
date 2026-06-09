@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Loader2, Eye, EyeOff, ShieldCheck, ChefHat, UserCog, X, KeyRound, Mail, Server, Send, LayoutDashboard, ShoppingCart, Package, Megaphone, BarChart2, Settings, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Loader2, Eye, EyeOff, ShieldCheck, ChefHat, UserCog, X, KeyRound, Mail, Server, Send, LayoutDashboard, Package, Megaphone, BarChart2, Settings, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -16,7 +16,7 @@ const ROLE_CONFIG: Record<AdminRole, { label: string; icon: React.ReactNode; col
 
 const ALL_TABS = [
   { key: 'dashboard',     label: 'Dashboard',    icon: <LayoutDashboard size={12} /> },
-  { key: 'orders',        label: 'Sifarişlər',   icon: <ShoppingCart size={12} /> },
+
   { key: 'products',      label: 'Məhsullar',    icon: <Package size={12} /> },
   { key: 'campaigns',     label: 'Kampaniyalar', icon: <Megaphone size={12} /> },
   { key: 'stats',         label: 'Statistika',   icon: <BarChart2 size={12} /> },
@@ -25,7 +25,7 @@ const ALL_TABS = [
 
 type TabKey = typeof ALL_TABS[number]['key'];
 
-const emptyForm = () => ({ email: '', password: '', role: 'admin' as AdminRole, permissions: ['dashboard','orders','products','campaigns','stats'] as TabKey[] });
+const emptyForm = () => ({ email: '', password: '', role: 'admin' as AdminRole, permissions: ['dashboard','products','campaigns','stats'] as TabKey[] });
 
 // step: 'form' → 'code' → done
 type CreateStep = 'form' | 'code';
@@ -51,7 +51,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Verification flow
-  const [formPerms, setFormPerms] = useState<TabKey[]>(['dashboard','orders','products','campaigns','stats']);
+  const [formPerms, setFormPerms] = useState<TabKey[]>(['dashboard','products','campaigns','stats']);
   const [createStep, setCreateStep] = useState<CreateStep>('form');
   const [sendingCode, setSendingCode] = useState(false);
   const [verifyCode, setVerifyCode] = useState('');
@@ -138,7 +138,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
     else {
       toast.success(t('users_account_created'), { id: 'action-toast' });
       setForm(emptyForm());
-      setFormPerms(['dashboard','orders','products','campaigns','stats']);
+      setFormPerms(['dashboard','products','campaigns','stats']);
       setShowForm(false);
       setCreateStep('form');
       fetchUsers();

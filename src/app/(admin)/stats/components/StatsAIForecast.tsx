@@ -44,7 +44,7 @@ const StatsAIForecast = ({ forecast, anomalies }: Props) => {
             </div>
             <div>
               <h3 className="text-sm font-bold text-gold">{t('stats_forecast_title')}</h3>
-              <p className="text-[10px] text-white/40 uppercase tracking-wider">{t('stats_forecast_subtitle')}</p>
+              <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider">{t('stats_forecast_subtitle')}</p>
             </div>
           </div>
           <div className="space-y-3">
@@ -60,7 +60,7 @@ const StatsAIForecast = ({ forecast, anomalies }: Props) => {
                 {t('stats_confidence')}: {forecast.confidence === 'high' ? t('stats_confidence_high') : forecast.confidence === 'medium' ? t('stats_confidence_medium') : t('stats_confidence_low')}
               </span>
             </div>
-            <p className="text-xs text-white/40">{t('stats_forecast_desc')}</p>
+            <p className="text-xs text-[var(--theme-text-secondary)]">{t('stats_forecast_desc')}</p>
           </div>
         </motion.div>
       )}

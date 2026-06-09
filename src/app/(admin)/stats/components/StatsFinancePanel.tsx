@@ -89,7 +89,7 @@ function ChartTooltip({ active, payload, label }: any) {
   return (
     <div className="rounded-xl px-3 py-2.5 text-xs shadow-xl"
       style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}>
-      <p className="text-white/40 mb-1.5 font-semibold">{label}</p>
+      <p className="text-[var(--theme-text-secondary)] mb-1.5 font-semibold">{label}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} style={{ color: p.color }} className="font-bold">
           {p.name}: ₼{az(p.value)}
@@ -192,7 +192,7 @@ export default function StatsFinancePanel({
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
         >
           <div className="flex items-center justify-between mb-2.5">
-            <span className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Food Cost %</span>
+            <span className="text-[11px] font-bold text-[var(--theme-text-muted)] uppercase tracking-wider">Food Cost %</span>
             <span className={`text-[11px] font-bold ${health.color}`}>{health.label} — ideal: 25–35%</span>
           </div>
           <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden">
@@ -271,7 +271,7 @@ export default function StatsFinancePanel({
           <div className="flex items-center gap-2.5 px-5 py-4"
             style={{ background: 'rgba(255,255,255,0.018)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <Award size={15} className="text-[#D4AF37]/70" />
-            <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">
+            <p className="text-[11px] font-bold text-[var(--theme-text-muted)] uppercase tracking-widest">
               Ən Çox Qazandıran Yeməklər
             </p>
           </div>

@@ -111,7 +111,7 @@ export default function StatsCancellationChart({
                         <span className="text-white text-sm">{reason.name}</span>
                         <span className="text-white/60 text-sm font-bold">{reason.value}</span>
                       </div>
-                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-2 bg-[var(--theme-surface-soft)] rounded-full overflow-hidden">
                         <motion.div className="h-full rounded-full"
                           initial={{ width: 0 }} animate={{ width: `${(reason.value / totalCount) * 100}%` }}
                           transition={{ duration: 0.35, delay: idx * 0.03 }}
@@ -126,7 +126,7 @@ export default function StatsCancellationChart({
               <motion.div key="reason-detail" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }} className="mt-1 pt-1 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">{t('stats_selected_reason')}</p>
+                    <p className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-bold">{t('stats_selected_reason')}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: selectedReasonMeta.color }} />
                       <span className="text-white font-semibold">{selectedReasonMeta.name}</span>
@@ -147,7 +147,7 @@ export default function StatsCancellationChart({
                         <span className="text-xs text-white/70">{rec.tableNumber ? `${t('table_label')} ${rec.tableNumber}` : `${t('table_label')} —`}</span>
                         <span className="text-[11px] font-bold text-red-400">-₼{rec.totalAmount.toFixed(2)}</span>
                       </div>
-                      <p className="text-[11px] text-white/40 mb-1">
+                      <p className="text-[11px] text-[var(--theme-text-secondary)] mb-1">
                         {new Date(rec.createdAt).toLocaleString(language === 'az' ? 'az-AZ' : language === 'ru' ? 'ru-RU' : 'en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </p>
                       <p className="text-[11px] text-white/65">

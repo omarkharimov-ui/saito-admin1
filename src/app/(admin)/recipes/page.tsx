@@ -507,12 +507,12 @@ export default function RecipesPage() {
                   {cookbookLoading ? (
                     <div className="flex flex-col items-center gap-2">
                       <Loader2 size={24} className="animate-spin text-emerald-400" />
-                      <p className="text-white/40 text-xs">Kokbuk parse edilir, bu bir neçə saniyə çəkə bilər...</p>
+                      <p className="text-[var(--theme-text-secondary)] text-xs">Kokbuk parse edilir, bu bir neçə saniyə çəkə bilər...</p>
                     </div>
                   ) : (
                     <>
                       <Upload size={28} className="mx-auto mb-2 text-white/20" />
-                      <p className="text-white/40 text-sm font-medium">Resept kitabını (PDF) bura sürüklə</p>
+                      <p className="text-[var(--theme-text-secondary)] text-sm font-medium">Resept kitabını (PDF) bura sürüklə</p>
                       <p className="text-white/20 text-xs mt-1">və ya kliklə seç — AI bütün reseptləri parse edəcək</p>
                       <input type="file" accept=".pdf,.txt" onChange={handleCookbookSelect} className="hidden" id="cookbook-file" />
                       <label htmlFor="cookbook-file" className="inline-block mt-3 px-4 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold cursor-pointer hover:bg-emerald-500/20 transition-all">
@@ -655,7 +655,7 @@ export default function RecipesPage() {
                             </button>
                             <button
                               onClick={() => { setUploadTarget(null); setUploadText(''); }}
-                              className="text-white/20 text-[10px] hover:text-white/40"
+                              className="text-[var(--theme-text-muted)] text-[10px] hover:text-[var(--theme-text-secondary)]"
                             >
                               Ləğv
                             </button>
@@ -734,7 +734,7 @@ export default function RecipesPage() {
                         <span className="text-white/10 text-[10px]">|</span>
                         <button
                           onClick={() => setAddingFor(product.id)}
-                          className="flex items-center gap-2 text-white/40 text-xs font-bold hover:text-white/70 transition-all"
+                          className="flex items-center gap-2 text-[var(--theme-text-secondary)] text-xs font-bold hover:text-[var(--theme-text)] transition-all"
                         >
                           <Plus size={13} /> Sətir əlavə et
                         </button>

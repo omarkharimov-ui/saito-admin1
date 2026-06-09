@@ -69,7 +69,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
             <ShoppingBag size={16} className="text-gold md:w-5 md:h-5" />
             {t('stats_product_performance')}
           </h3>
-          <button onClick={handleExport} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/40 text-xs transition-all" title="Export CSV">
+          <button onClick={handleExport} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] text-xs transition-all" title="Export CSV">
             <Download size={12} />
           </button>
         </div>
@@ -129,10 +129,10 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
         <table className="w-full text-left">
           <thead>
             <tr className="bg-white/[0.02] border-b border-white/5">
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium">{t('stats_col_product')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-center">{t('stats_col_views')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-center">{t('stats_col_sales')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-center">{t('stats_col_conversion')}</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium">{t('stats_col_product')}</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">{t('stats_col_views')}</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">{t('stats_col_sales')}</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">{t('stats_col_conversion')}</th>
               <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-right">{t('stats_col_revenue')}</th>
             </tr>
           </thead>

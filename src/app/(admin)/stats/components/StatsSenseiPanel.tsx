@@ -625,7 +625,7 @@ export default function StatsSenseiPanel({
                   <span className={`text-[10px] font-black tracking-[0.3em] uppercase ${m.color}`}>
                     {todayWeather.dayName} · {todayWeather.tempMax}°/{todayWeather.tempMin}°
                   </span>
-                  <span className="text-[9px] font-medium text-white/40 px-1.5 py-0.5 rounded-full border border-white/10 bg-white/[0.03]">{todayWeather.impact.revenueExpectation}</span>
+                  <span className="text-[9px] font-medium text-[var(--theme-text-secondary)] px-1.5 py-0.5 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface-soft)]">{todayWeather.impact.revenueExpectation}</span>
                 </div>
                 <p className="text-[11px] text-white/65 leading-snug">{todayWeather.impact.recommendation}</p>
               </div>
@@ -723,7 +723,7 @@ export default function StatsSenseiPanel({
               {t('deep_scan_simulator')}
             </span>
           </div>
-          <ChevronDown size={14} className={`text-white/40 transition-transform duration-200 ${simExpanded ? 'rotate-180' : ''}`} />
+          <ChevronDown size={14} className={`text-[var(--theme-text-muted)] transition-transform duration-200 ${simExpanded ? 'rotate-180' : ''}`} />
         </button>
         <AnimatePresence initial={false}>
           {simExpanded && (
@@ -878,7 +878,7 @@ export default function StatsSenseiPanel({
                   {tip.icon === '🌧️' ? <CloudRain size={14} style={{ color: tip.accent }} /> : tip.icon === '⛈️' ? <CloudRain size={14} style={{ color: tip.accent }} /> : tip.icon === '❄️' ? <Thermometer size={14} style={{ color: tip.accent }} /> : tip.icon === '☀️' ? <Sun size={14} style={{ color: tip.accent }} /> : tip.icon === '�' ? <Wind size={14} style={{ color: tip.accent }} /> : tip.icon === '🎉' ? <Star size={14} style={{ color: tip.accent }} /> : <CalendarDays size={14} style={{ color: tip.accent }} />}
                 </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-white/40 mb-0.5 truncate">{tip.title}</p>
+                    <p className="text-[11px] font-semibold text-[var(--theme-text-muted)] mb-0.5 truncate">{tip.title}</p>
                     <p className="text-[13px] text-white/65 leading-snug">{tip.tip}</p>
                   </div>
                 </div>
@@ -914,7 +914,7 @@ export default function StatsSenseiPanel({
                         });
                         window.location.href = `/campaigns?${params.toString()}`;
                       }}
-                        className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-semibold border border-white/10 bg-white/[0.04] text-white/40 hover:text-white/65 hover:bg-white/[0.07] transition-all">
+                        className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-semibold border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface)] transition-all">
                         <Zap size={9} />
                         {t('sensei_apply')}
                       </button>
@@ -1024,7 +1024,7 @@ export default function StatsSenseiPanel({
                     </div>
                   </div>
                   <button onClick={() => setChatOpen(false)}
-                    className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 hover:text-white/70 transition-all">
+                    className="p-2 rounded-xl bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all">
                     <XCircle size={15} />
                   </button>
                 </div>
@@ -1346,8 +1346,8 @@ export default function StatsSenseiPanel({
                   </div>
                   <div className="rounded-xl bg-white/[0.03] border border-white/[0.07] p-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <Users size={12} className="text-white/40" />
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-white/40">{t('deep_scan_competitor_note')}</span>
+                      <Users size={12} className="text-[var(--theme-text-muted)]" />
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)]">{t('deep_scan_competitor_note')}</span>
                     </div>
                     <p className="text-[11px] text-white/45 italic">
                       {language === 'az' ? 'Rəqib datası mövcud deyil — daxili dataya əsasən elastiklik hesablanıb.' : language === 'ru' ? 'Данные конкурентов недоступны — эластичность рассчитана по внутренним данным.' : 'Competitor data unavailable — elasticity calculated from internal data.'}

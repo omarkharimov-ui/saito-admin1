@@ -28,7 +28,7 @@ const StatsPeakHours = ({ peakHours, timeFilter }: Props) => {
   return (
     <div className="bg-card border border-white/5 p-4 md:p-8 rounded-2xl">
       <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-        <div className="p-1.5 md:p-2 bg-white/5 text-orange-400 rounded-xl">
+        <div className="p-1.5 md:p-2 bg-[var(--theme-surface-soft)] text-orange-400 rounded-xl">
           <Clock size={15} className="md:w-5 md:h-5" />
         </div>
         <h3 className="text-base md:text-xl font-serif font-bold text-white">{t('peak_hours')}</h3>
@@ -43,8 +43,8 @@ const StatsPeakHours = ({ peakHours, timeFilter }: Props) => {
             const pct = Math.round((h.count / maxVal) * 100);
             return (
               <div key={h.hour} className="flex items-center gap-4">
-                <span className="text-white/40 text-xs w-16 flex-shrink-0 font-mono">{String(h.hour).padStart(2, '0')}:00</span>
-                <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                <span className="text-[var(--theme-text-muted)] text-xs w-16 flex-shrink-0 font-mono">{String(h.hour).padStart(2, '0')}:00</span>
+                <div className="flex-1 h-2 bg-[var(--theme-surface-soft)] rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}

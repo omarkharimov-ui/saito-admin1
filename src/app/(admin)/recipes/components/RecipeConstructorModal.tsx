@@ -410,7 +410,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                       <p className="text-[10px] font-bold uppercase tracking-wider text-gold/60">Maya Dəyəri Hesabatı</p>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-white/40">Brutto Maya Dəyəri (cold waste daxil)</span>
+                        <span className="text-xs text-[var(--theme-text-secondary)]">Brutto Maya Dəyəri (cold waste daxil)</span>
                         <motion.span
                           key={totalCost}
                           initial={{ scale: 1.3, color: '#D4AF37' }}
@@ -501,7 +501,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
             <div className="flex-shrink-0 p-4 border-t border-white/[0.06] flex items-center gap-3">
               <button onClick={() => { reset(); onClose(); }}
-                className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98] text-white/40 hover:text-white/60 border border-white/10">
+                className="flex-1 py-3 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.98] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] border border-[var(--theme-border)]">
                 Ləğv et
               </button>
               <button onClick={handleSave} disabled={saving || !selectedProductId || rows.filter(r => r.ingredient_id && r.quantity > 0).length === 0}

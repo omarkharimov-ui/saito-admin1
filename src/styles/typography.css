@@ -9,7 +9,7 @@ html {
   background: #0D0D0D !important;
   background-color: #0D0D0D !important;
 }
-html[data-light-mode="true"] {
+html[data-theme="light"] {
   background: #F7F7F8 !important;
   background-color: #F7F7F8 !important;
 }
@@ -69,9 +69,9 @@ table, td, th   { font-weight: 500; }
 ::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.12); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
 
-html[data-light-mode="true"] * {
+html[data-theme="light"] * {
   scrollbar-color: #d1d5db #f3f4f6;
 }
-html[data-light-mode="true"] ::-webkit-scrollbar-track  { background: #f3f4f6; }
-html[data-light-mode="true"] ::-webkit-scrollbar-thumb  { background: #d1d5db; }
-html[data-light-mode="true"] ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+html[data-theme="light"] ::-webkit-scrollbar-track  { background: #f3f4f6; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb  { background: #d1d5db; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }

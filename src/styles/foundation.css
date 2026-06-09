@@ -62,7 +62,7 @@
 }
 
 /* ── Light mode overrides ── */
-[data-light-mode="true"] {
+html[data-theme="light"] {
   --background:     #F7F7F8;
   --foreground:     #1D1D1F;
   --card:           #FFFFFF;
@@ -104,8 +104,8 @@ body {
   min-height: 100%;
 }
 
-[data-light-mode="true"],
-[data-light-mode="true"] body {
+html[data-theme="light"],
+html[data-theme="light"] body {
   background:       #F7F7F8 !important;
   background-color: #F7F7F8 !important;
   color:            #1D1D1F !important;

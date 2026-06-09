@@ -81,19 +81,19 @@ function BottomSheet({ product, onClose, onEdit, onToggleStock, onDelete, getPro
         {/* Actions */}
         <div className="px-5 pb-4 space-y-2 touch-auto">
           <motion.button whileTap={{ scale: 0.98 }} onClick={onEdit}
-            className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-left">
+            className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] active:bg-[var(--theme-surface)] transition-all text-left">
             <div className="w-10 h-10 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center shrink-0">
               <Edit3 size={17} className="text-white/50" />
             </div>
-            <span className="text-[15px] font-medium text-white/80">
+            <span className="text-[15px] font-medium text-[var(--theme-text)]">
               {language === 'ru' ? 'Редактировать' : language === 'en' ? 'Edit' : 'Redaktə et'}
             </span>
           </motion.button>
 
           <motion.button whileTap={{ scale: 0.98 }} onClick={onToggleStock}
             className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-white/[0.04] border border-white/[0.06] active:bg-white/[0.08] transition-all text-left">
-            <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${product.is_in_stock ? 'bg-emerald-500/[0.08] border-emerald-500/20' : 'bg-white/[0.06] border-white/[0.08]'}`}>
-              <span className={`w-3 h-3 rounded-full ${product.is_in_stock ? 'bg-emerald-400' : 'bg-white/30'}`} />
+            <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${product.is_in_stock ? 'bg-emerald-500/[0.08] border-emerald-500/20' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
+              <span className={`w-3 h-3 rounded-full ${product.is_in_stock ? 'bg-emerald-400' : 'bg-[var(--theme-text-muted)]'}`} />
             </div>
             <span className="text-[15px] font-medium text-white/80">
               {product.is_in_stock
@@ -116,7 +116,7 @@ function BottomSheet({ product, onClose, onEdit, onToggleStock, onDelete, getPro
         {/* Cancel */}
         <div className="px-5 pb-10 pt-1 touch-auto">
           <motion.button whileTap={{ scale: 0.98 }} onClick={onClose}
-            className="w-full py-4 rounded-2xl bg-white/[0.05] border border-white/[0.07] text-white/50 text-[14px] font-semibold tracking-wide transition-all active:bg-white/[0.08]">
+            className="w-full py-4 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] text-[14px] font-semibold tracking-wide transition-all active:bg-[var(--theme-surface)]">
             {language === 'ru' ? 'Отмена' : language === 'en' ? 'Cancel' : 'Ləğv et'}
           </motion.button>
         </div>

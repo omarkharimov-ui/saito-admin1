@@ -805,10 +805,10 @@ const AdminDashboard = () => {
                 </>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl border border-white/[0.08] flex items-center justify-center">
-                    <BrainCircuit size={18} className="text-white/30" />
+                  <div className="w-10 h-10 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] flex items-center justify-center">
+                    <BrainCircuit size={18} className="text-[var(--theme-text-muted)]" />
                   </div>
-                  <p className="text-white/30 text-[15px] italic font-serif leading-relaxed">
+                  <p className="text-[var(--theme-text-muted)] text-[15px] italic font-serif leading-relaxed">
                     {t('ai_analyzing')}
                   </p>
                 </div>

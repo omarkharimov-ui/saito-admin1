@@ -13,7 +13,15 @@ import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { toast } from 'react-hot-toast';
 import type { ModifierSelection, PaymentInfo } from './types';
-import type { Product } from '../orders/types';
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  category_id?: string | null;
+  image_url?: string | null;
+  is_active?: boolean | null;
+  [key: string]: any;
+};
 
 const tabs = [
   { id: 'floor' as const, icon: LayoutGrid, label: 'Masalar' },

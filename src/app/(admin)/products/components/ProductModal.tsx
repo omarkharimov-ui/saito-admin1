@@ -470,7 +470,7 @@ export function ProductModal({
                         <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/[0.07]">
                           <div className="shrink-0 flex items-end gap-[3px] pb-0.5">
                             {[0, 0.15, 0.3].map((delay, i) => (
-                              <motion.span key={i} animate={{ y: [0, -4, 0], opacity: [0.25, 0.6, 0.25] }} transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut', delay }} className="block rounded-full bg-white/40" style={{ width: i === 1 ? 5 : 4, height: i === 1 ? 5 : 4 }} />
+                              <motion.span key={i} animate={{ y: [0, -4, 0], opacity: [0.25, 0.6, 0.25] }} transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut', delay }} className="block rounded-full bg-[var(--theme-text-muted)]" style={{ width: i === 1 ? 5 : 4, height: i === 1 ? 5 : 4 }} />
                             ))}
                           </div>
                           <div>

@@ -186,14 +186,14 @@ const AccountTab = () => {
     return (
       <div className="max-w-md space-y-4">
         {[1, 2, 3].map(i => (
-          <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 animate-pulse">
+          <div key={i} className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-muted)] p-4 animate-pulse">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.06]" />
+              <div className="w-10 h-10 rounded-xl bg-[var(--theme-surface)]" />
               <div className="space-y-2 flex-1">
-                <div className="h-3.5 w-24 rounded-full bg-white/[0.07]" />
-                <div className="h-2.5 w-36 rounded-full bg-white/[0.04]" />
+                <div className="h-3.5 w-24 rounded-full bg-[var(--theme-surface)]" />
+                <div className="h-2.5 w-36 rounded-full bg-[var(--theme-surface)]" />
               </div>
-              <div className="w-6 h-6 rounded-full bg-white/[0.05]" />
+              <div className="w-6 h-6 rounded-full bg-[var(--theme-surface)]" />
             </div>
           </div>
         ))}
@@ -254,12 +254,12 @@ const AccountTab = () => {
                         value={account.currentPassword}
                         onChange={(e) => updateAccountField(account.key, 'currentPassword', e.target.value)}
                         placeholder={t('current_password')}
-                        className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder:text-white/30 focus:border-gold/40 focus:outline-none transition-all"
+                        className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-4 py-2.5 pr-10 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] focus:border-[var(--theme-accent-border)] focus:outline-none transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => togglePasswordVisibility(account.key, 'current')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-secondary)] transition-colors"
                       >
                         {showPassword[`${account.key}_current`] ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>

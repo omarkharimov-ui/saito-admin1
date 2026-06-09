@@ -40,6 +40,6 @@ export function GsLoader() {
   );
 }
 
-export const inputCls = 'w-full bg-white border border-[#e5e7eb] hover:border-[#d1d5db] focus:border-[#007aff] px-4 py-3 text-sm outline-none rounded-2xl transition-all text-[#111111] placeholder:text-[#9ca3af] shadow-[0_8px_24px_rgba(0,0,0,0.03)]';
+export const inputCls = 'w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-accent-border)] px-4 py-3 text-sm outline-none rounded-2xl transition-all text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]';
 export const saveButtonCls = 'flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-sm transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)]';
-export const labelCls = 'text-[10px] uppercase tracking-[0.2em] text-[#4b5563] flex items-center gap-2 mb-2 font-bold';
+export const labelCls = 'text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] flex items-center gap-2 mb-2 font-bold';

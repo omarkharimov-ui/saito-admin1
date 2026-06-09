@@ -184,10 +184,10 @@ const UsersTab = ({ role }: { role?: string | null }) => {
     <div className="max-w-3xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-white/65 text-sm">{t('users_accounts_count').replace('{n}', String(users.length))}</p>
+        <p className="text-[var(--theme-text-secondary)] text-sm">{t('users_accounts_count').replace('{n}', String(users.length))}</p>
         <button
           onClick={() => { setShowForm(v => !v); setForm(emptyForm()); }}
-          className="flex items-center gap-2 px-6 py-3 bg-gold text-black text-sm font-bold rounded-xl hover:bg-white transition-all shadow-lg shadow-gold/10"
+          className="flex items-center gap-2 px-6 py-3 bg-gold text-black text-sm font-bold rounded-xl hover:brightness-110 transition-all shadow-lg shadow-gold/10"
         >
           <Plus size={15} /> {t('users_new_account')}
         </button>
@@ -197,23 +197,23 @@ const UsersTab = ({ role }: { role?: string | null }) => {
       {showForm && createStep === 'form' && (
           <form
             onSubmit={sendCode}
-            className="rounded-2xl bg-gradient-to-b from-white/[0.05] to-transparent border border-white/[0.1] p-6 space-y-5"
+            className="rounded-2xl bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] p-6 space-y-5"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-semibold block">{t('users_email')}</label>
+                <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold block">{t('users_email')}</label>
                 <input type="email" autoComplete="off" placeholder="admin@saito.az"
                   value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-gold/60 px-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none rounded-xl transition-all" />
+                  className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-semibold block">{t('users_password')}</label>
+                <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold block">{t('users_password')}</label>
                 <div className="relative">
                   <input type={showPw ? 'text' : 'password'} autoComplete="new-password" placeholder="min. 6 simvol"
                     value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
                     className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-gold/60 px-4 py-2.5 pr-10 text-sm text-white placeholder:text-white/20 outline-none rounded-xl transition-all" />
                   <button type="button" onClick={() => setShowPw(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
                     {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
@@ -224,7 +224,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                   {(['admin', 'kitchen'] as AdminRole[]).map(r => (
                     <button key={r} type="button" onClick={() => setForm({ ...form, role: r })}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                        form.role === r ? ROLE_CONFIG[r].color + ' border-current' : 'text-white/30 border-white/10 hover:border-white/20'
+                        form.role === r ? ROLE_CONFIG[r].color + ' border-current' : 'text-[var(--theme-text-secondary)] border-[var(--theme-border)] hover:border-[var(--theme-border-strong)]'
                       }`}>
                       {ROLE_CONFIG[r].icon} {ROLE_CONFIG[r].label}
                     </button>
@@ -236,7 +236,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
             {/* Permissions */}
             {form.role !== 'kitchen' && (
               <div className="space-y-2 pt-1">
-                <label className="text-[10px] uppercase tracking-[0.2em] text-white/55 font-semibold block">{t('users_tab_permissions')}</label>
+                <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold block">{t('users_tab_permissions')}</label>
                 <div className="flex flex-wrap gap-2">
                   {ALL_TABS.map(tab => {
                     const active = formPerms.includes(tab.key);
@@ -248,7 +248,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-semibold transition-all ${
                           active
                             ? 'bg-gold/10 border-gold/30 text-gold'
-                            : 'bg-white/[0.03] border-white/10 text-white/30 hover:border-white/20 hover:text-white/50'
+                            : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:border-[var(--theme-border-strong)] hover:text-[var(--theme-text)]'
                         }`}
                       >
                         {tab.icon} {tab.label}
@@ -256,7 +256,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-white/30 mt-1">{t('users_tab_permissions_hint')}</p>
+                <p className="text-[10px] text-[var(--theme-text-secondary)] mt-1">{t('users_tab_permissions_hint')}</p>
               </div>
             )}
             {form.role === 'kitchen' && (
@@ -270,7 +270,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                 {t('users_cancel')}
               </button>
               <button type="submit" disabled={sendingCode}
-                className="flex items-center gap-2 bg-[#111111] text-white px-6 py-2.5 rounded-2xl font-bold text-sm transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-black">
+                className="flex items-center gap-2 bg-[var(--theme-surface)] text-[var(--theme-text)] px-6 py-2.5 rounded-2xl font-bold text-sm transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-[var(--theme-surface-hover)]">
                 {sendingCode ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                 {t('users_send_code')}
               </button>
@@ -282,15 +282,15 @@ const UsersTab = ({ role }: { role?: string | null }) => {
         {showForm && createStep === 'code' && (
           <form
             onSubmit={verifyAndCreate}
-            className="rounded-2xl bg-gradient-to-b from-white/[0.05] to-transparent border border-gold/20 p-6 space-y-5"
+            className="rounded-2xl bg-[var(--theme-surface-muted)] border border-gold/20 p-6 space-y-5"
           >
             <div className="flex items-center gap-3 mb-1">
               <div className="w-9 h-9 rounded-xl bg-gold/10 border border-gold/25 flex items-center justify-center text-gold">
                 <KeyRound size={15} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">{t('users_verify_title')}</p>
-                <p className="text-[11px] text-white/55">{t('users_verify_hint').replace('{email}', form.email)}</p>
+                <p className="text-sm font-semibold text-[var(--theme-text)]">{t('users_verify_title')}</p>
+                <p className="text-[11px] text-[var(--theme-text-secondary)]">{t('users_verify_hint').replace('{email}', form.email)}</p>
               </div>
             </div>
             <input
@@ -301,15 +301,15 @@ const UsersTab = ({ role }: { role?: string | null }) => {
               value={verifyCode}
               onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               autoFocus
-              className="w-full bg-white/[0.04] border border-gold/30 focus:border-gold/70 px-4 py-3 text-2xl font-mono font-bold text-gold text-center tracking-[0.5em] placeholder:text-white/15 outline-none rounded-xl transition-all"
+              className="w-full bg-[var(--theme-surface)] border border-gold/30 focus:border-gold/70 px-4 py-3 text-2xl font-mono font-bold text-gold text-center tracking-[0.5em] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
             />
             <div className="flex justify-between gap-3 pt-1 border-t border-white/[0.05]">
               <button type="button" onClick={() => setCreateStep('form')}
-                className="px-5 py-2.5 text-sm text-white/30 hover:text-white/70 transition-colors rounded-lg hover:bg-white/5">
+                className="px-5 py-2.5 text-sm text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]">
                 {t('users_back')}
               </button>
               <button type="submit" disabled={verifying || verifyCode.length !== 6}
-                className="flex items-center gap-2 bg-[#111111] text-white px-6 py-2.5 rounded-2xl font-bold text-sm transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-black">
+                className="flex items-center gap-2 bg-[var(--theme-surface)] text-[var(--theme-text)] px-6 py-2.5 rounded-2xl font-bold text-sm transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-[var(--theme-surface-hover)]">
                 {verifying ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
                 {t('users_create')}
               </button>
@@ -319,20 +319,20 @@ const UsersTab = ({ role }: { role?: string | null }) => {
 
       {/* User list */}
       {users.length === 0 ? (
-        <div className="text-center py-16 text-white/20">
+        <div className="text-center py-16 text-[var(--theme-text-secondary)]">
           <UserCog size={40} className="mx-auto mb-3 opacity-20" />
           <p className="text-sm uppercase tracking-widest">{t('users_no_accounts')}</p>
         </div>
       ) : (
-        <div className="bg-card border border-white/5 rounded-2xl divide-y divide-white/5">
+        <div className="bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-2xl divide-y divide-[var(--theme-border)]">
           {users.map(u => {
             const cfg = ROLE_CONFIG[u.role];
             return (
               <React.Fragment key={u.id}>
                 <div className="px-6 py-4 flex items-center gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{u.email}</p>
-                    <p className="text-[10px] text-white/50 mt-0.5">
+                    <p className="text-sm font-semibold text-[var(--theme-text)] truncate">{u.email}</p>
+                    <p className="text-[10px] text-[var(--theme-text-secondary)] mt-0.5">
                       {new Date(u.created_at).toLocaleDateString('az-AZ')}
                     </p>
                   </div>
@@ -343,7 +343,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                     <button
                       title={t('users_password')}
                       onClick={() => { setChangingId(changingId === u.id ? null : u.id); setCurrentPw(''); setNewPw(''); }}
-                      className="w-10 h-10 rounded-xl text-white/25 flex items-center justify-center transition-all"
+                      className="w-10 h-10 rounded-xl text-[var(--theme-text-secondary)] flex items-center justify-center transition-all"
                     >
                       {changingId === u.id ? <X size={15} /> : <KeyRound size={15} />}
                     </button>
@@ -351,7 +351,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                       title={t('users_delete')}
                       onClick={() => deleteUser(u.id)}
                       disabled={deletingId === u.id}
-                      className="w-10 h-10 rounded-xl hover:bg-red-500/10 text-white/20 hover:text-red-400 flex items-center justify-center transition-all disabled:opacity-40"
+                      className="w-10 h-10 rounded-xl hover:bg-red-500/10 text-[var(--theme-text-secondary)] hover:text-red-400 flex items-center justify-center transition-all disabled:opacity-40"
                     >
                       {deletingId === u.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                     </button>
@@ -410,41 +410,41 @@ const UsersTab = ({ role }: { role?: string | null }) => {
       )}
       {/* SMTP Settings — superadmin only */}
       {isSuperadmin && (
-        <div className="rounded-2xl border border-white/[0.07] overflow-hidden">
+        <div className="rounded-2xl border border-[var(--theme-border)] overflow-hidden">
           {/* Collapsed header / toggle */}
           <button
             type="button"
             onClick={() => setSmtpOpen(v => !v)}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors text-left"
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--theme-surface-muted)] transition-colors text-left"
           >
             <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
               <Server size={13} className="text-gold" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white">{t('smtp_section_title')}</p>
-              <p className="text-[11px] text-white/40">{t('smtp_section_desc')}</p>
+              <p className="text-sm font-semibold text-[var(--theme-text)]">{t('smtp_section_title')}</p>
+              <p className="text-[11px] text-[var(--theme-text-secondary)]">{t('smtp_section_desc')}</p>
             </div>
             {smtp.smtp_user && (
               <span className="text-[10px] text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full font-semibold flex-shrink-0">{t('users_configured')}</span>
             )}
-            <ChevronDown size={14} className={`text-white/30 flex-shrink-0 transition-transform duration-200 ${smtpOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={14} className={`text-[var(--theme-text-secondary)] flex-shrink-0 transition-transform duration-200 ${smtpOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {/* Expandable body */}
             {smtpOpen && (
               <div>
-                <div className="px-4 pb-4 pt-2 border-t border-white/[0.06] space-y-4">
+                <div className="px-4 pb-4 pt-2 border-t border-[var(--theme-border)] space-y-4">
                   {smtpLoading ? (
-                    <div className="h-8 flex items-center"><Loader2 size={16} className="animate-spin text-white/30" /></div>
+                    <div className="h-8 flex items-center"><Loader2 size={16} className="animate-spin text-[var(--theme-text-secondary)]" /></div>
                   ) : (
                     <>
                       {!smtp.smtp_user && (
                         <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3 space-y-1.5">
                           <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">{t('smtp_not_configured')}</p>
-                          <p className="text-[11px] font-semibold text-white/60">{t('smtp_hint_title')}</p>
+                          <p className="text-[11px] font-semibold text-[var(--theme-text-secondary)]">{t('smtp_hint_title')}</p>
                           <ul className="space-y-0.5">
                             {(['smtp_hint_step1','smtp_hint_step2','smtp_hint_step3','smtp_hint_step4'] as const).map(k => (
-                              <li key={k} className="text-[11px] text-white/55 leading-relaxed">{t(k)}</li>
+                              <li key={k} className="text-[11px] text-[var(--theme-text-secondary)] leading-relaxed">{t(k)}</li>
                             ))}
                           </ul>
                           <p className="text-[11px] text-amber-400/70 font-medium">↓ {t('smtp_hint_cta')}</p>
@@ -452,35 +452,35 @@ const UsersTab = ({ role }: { role?: string | null }) => {
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-[0.18em] text-white/50 font-semibold block">{t('smtp_user')}</label>
+                          <label className="text-[10px] uppercase tracking-[0.18em] text-[var(--theme-text-secondary)] font-semibold block">{t('smtp_user')}</label>
                           <input type="email" value={smtp.smtp_user} onChange={e => setSmtp(s => ({ ...s, smtp_user: e.target.value }))}
                             placeholder="gmail@gmail.com"
-                            className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-gold/50 px-3 py-2 text-sm text-white placeholder:text-white/20 outline-none rounded-xl transition-all" />
+                            className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] px-3 py-2 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all" />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-[0.18em] text-white/50 font-semibold block">{t('smtp_pass')}</label>
+                          <label className="text-[10px] uppercase tracking-[0.18em] text-[var(--theme-text-secondary)] font-semibold block">{t('smtp_pass')}</label>
                           <div className="relative">
                             <input type={showSmtpPass ? 'text' : 'password'} value={smtp.smtp_pass} onChange={e => setSmtp(s => ({ ...s, smtp_pass: e.target.value }))}
                               placeholder="xxxxxxxxxxxxxxxxxxxx"
-                              className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-gold/50 px-3 py-2 pr-9 text-sm text-white placeholder:text-white/20 outline-none rounded-xl transition-all" />
-                            <button type="button" onClick={() => setShowSmtpPass(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70">
+                              className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] px-3 py-2 pr-9 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all" />
+                            <button type="button" onClick={() => setShowSmtpPass(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
                               {showSmtpPass ? <EyeOff size={13} /> : <Eye size={13} />}
                             </button>
                           </div>
                         </div>
                         <div className="sm:col-span-2 space-y-1">
-                          <label className="text-[10px] uppercase tracking-[0.18em] text-white/50 font-semibold block">{t('smtp_from_name')}</label>
+                          <label className="text-[10px] uppercase tracking-[0.18em] text-[var(--theme-text-secondary)] font-semibold block">{t('smtp_from_name')}</label>
                           <input value={smtp.smtp_from_name} onChange={e => setSmtp(s => ({ ...s, smtp_from_name: e.target.value }))}
-                            className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-gold/50 px-3 py-2 text-sm text-white outline-none rounded-xl transition-all" />
+                            className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] px-3 py-2 text-sm text-[var(--theme-text)] outline-none rounded-xl transition-all" />
                         </div>
                       </div>
                     </>
                   )}
-                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/[0.05]">
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--theme-border)]">
                     <input value={testEmail} onChange={e => setTestEmail(e.target.value)} type="email" placeholder="test@gmail.com"
-                      className="flex-1 min-w-[160px] bg-white/[0.04] border border-white/[0.08] focus:border-white/25 px-3 py-2 text-sm text-white placeholder:text-white/20 outline-none rounded-xl transition-all" />
+                      className="flex-1 min-w-[160px] bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] px-3 py-2 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all" />
                     <button onClick={sendTestEmail} disabled={testSending}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-white/10 text-white/50 hover:text-white hover:border-white/25 text-xs font-semibold transition-all disabled:opacity-40">
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-border-strong)] text-xs font-semibold transition-all disabled:opacity-40">
                       {testSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} {t('smtp_test')}
                     </button>
                     <button onClick={saveSmtp} disabled={smtpSaving}

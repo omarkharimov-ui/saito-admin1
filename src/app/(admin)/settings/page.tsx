@@ -99,16 +99,16 @@ const SettingsPage = () => {
               key={tb.key}
               type="button"
               onClick={() => setMobileTab(tb.key)}
-              className="mobile-tap-lift flex flex-col items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] active:bg-white/[0.06] active:border-white/[0.10] text-left"
+              className="mobile-tap-lift flex flex-col items-start gap-3 p-4 rounded-2xl bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] active:bg-[var(--theme-surface-hover)] active:border-[var(--theme-border-strong)] text-left"
             >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/[0.05] text-white/50">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--theme-surface)] text-[var(--theme-text-secondary)]">
                 {tb.icon}
               </div>
               <div className="min-w-0">
-                <p className="text-[13px] font-medium text-white/90 leading-tight">
+                <p className="text-[13px] font-medium text-[var(--theme-text)] leading-tight">
                   {t(tb.labelKey as any)}
                 </p>
-                {tb.desc && <p className="text-[10px] text-white/30 mt-1 line-clamp-1">{tb.desc}</p>}
+                {tb.desc && <p className="text-[10px] text-[var(--theme-text-secondary)] mt-1 line-clamp-1">{tb.desc}</p>}
               </div>
             </button>
           ))}
@@ -116,20 +116,20 @@ const SettingsPage = () => {
 
         {/* Mobile slide-in detail panel - ani açılma, hamburgerden yuksek z-index */}
         {mobileTab && (
-          <div className="fixed inset-0 z-[9999] flex flex-col bg-[#0a0a0a]">
+          <div className="fixed inset-0 z-[9999] flex flex-col bg-[var(--theme-surface)]">
             {/* Panel header - hamburgeri örtmək üçün extra top padding */}
-            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 pt-16 pb-4 border-b border-white/[0.06] bg-[#0a0a0a]">
+            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 pt-16 pb-4 border-b border-[var(--theme-border)] bg-[var(--theme-surface)]">
               <button
                 onClick={() => setMobileTab(null)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/[0.05] text-white/50 hover:text-white transition-all"
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--theme-surface-muted)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all"
               >
                 <ChevronLeft size={22} />
               </button>
               <div className="flex-1 text-center">
-                <h2 className="text-[17px] font-serif font-bold text-white">
+                <h2 className="text-[17px] font-serif font-bold text-[var(--theme-text)]">
                   {activeTabDef ? t(activeTabDef.labelKey as any) : ''}
                 </h2>
-                <p className="text-[9px] uppercase tracking-[0.3em] text-gold/60 mt-0.5">SETTINGS</p>
+                <p className="text-[9px] uppercase tracking-[0.3em] text-[var(--theme-accent)]/60 mt-0.5">SETTINGS</p>
               </div>
               <div className="w-10" />
             </div>
@@ -154,7 +154,7 @@ const SettingsPage = () => {
           </div>
         </div>
 
-<div className="flex items-center gap-1 p-1 border border-white/[0.08] bg-white/[0.03] rounded-xl overflow-x-auto scrollbar-none">
+<div className="flex items-center gap-1 p-1 border border-[var(--theme-border)] bg-[var(--theme-surface-muted)] rounded-xl overflow-x-auto scrollbar-none">
           {visibleTabs.map(tb => {
             const isActive = tab === tb.key;
             return (
@@ -162,17 +162,17 @@ const SettingsPage = () => {
                 key={tb.key}
                 onClick={() => setTab(tb.key)}
                 className={`relative flex items-center gap-2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest rounded-lg transition-colors whitespace-nowrap ${
-                  isActive ? 'text-white' : 'text-white/35 hover:text-white/70'
+                  isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'
                 }`}
               >
                 {isActive && (
                   <motion.span
                     layoutId="settings-active-tab-indicator"
-                    className="absolute inset-0 rounded-lg bg-white/[0.12] border border-white/[0.16]"
+                    className="absolute inset-0 rounded-lg bg-[var(--theme-surface-hover)] border border-[var(--theme-border-strong)]"
                     transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                   />
                 )}
-                <span className={`relative z-10 ${isActive ? 'text-gold' : 'text-white/35'}`}>{tb.icon}</span>
+                <span className={`relative z-10 ${isActive ? 'text-gold' : 'text-[var(--theme-text-secondary)]'}`}>{tb.icon}</span>
                 <span className="relative z-10">{t(tb.labelKey as any)}</span>
               </button>
             );

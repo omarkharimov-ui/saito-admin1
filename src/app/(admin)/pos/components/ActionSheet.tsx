@@ -6,7 +6,14 @@ import {
   Printer, Save, X,
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import type { PosTable } from '../types';
+type PosTable = {
+  id: string;
+  table_number: number;
+  guest_count?: number | null;
+  status: string;
+  total_amount: number;
+  merged_orders?: unknown[] | null;
+};
 
 interface ActionSheetProps {
   table: PosTable | null;

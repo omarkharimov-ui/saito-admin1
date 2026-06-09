@@ -52,7 +52,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
           key={lang.code}
           type="button"
           onClick={() => { setLanguage(lang.code); setLangOpen(false); }}
-          className={`w-full rounded-2xl px-3.5 py-3 text-left text-[11px] font-bold uppercase tracking-[0.24em] ${lightMode ? 'bg-gray-50 text-gray-700' : 'bg-white/[0.04] text-white/70'}`}
+          className="w-full rounded-2xl px-3.5 py-3 text-left text-[11px] font-bold uppercase tracking-[0.24em] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]"
         >
           {lang.label}
         </button>
@@ -80,7 +80,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
             ref={langBtnRef}
             type="button"
             onClick={() => setLangOpen((v) => !v)}
-            className={`h-9 px-3 rounded-lg text-[10px] font-bold tracking-widest flex items-center gap-1 ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-600' : 'bg-white/5 border border-white/10 text-white/60'}`}
+            className="h-9 px-3 rounded-lg text-[10px] font-bold tracking-widest flex items-center gap-1 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]"
             aria-expanded={langOpen}
             whileTap={{ scale: 0.96 }}
           >
@@ -98,7 +98,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
               setShowDropdown(opening);
               if (opening) markAllAsRead();
             }}
-            className={`relative p-2.5 rounded-lg ${lightMode ? 'bg-gray-100 border border-gray-200' : 'bg-white/5 border border-white/10'}`}
+            className="relative p-2.5 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
             aria-label={t('notifications')}
             whileTap={{ scale: 0.96 }}
           >
@@ -111,12 +111,12 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
           <>
             {/* Notification backdrop — CSS only */}
             <div
-              className={`fixed inset-0 z-40 ${lightMode ? 'bg-black/20' : 'bg-black/40'}`}
+              className="fixed inset-0 z-40 bg-black/30"
               onClick={() => setShowDropdown(false)}
               style={{ opacity: showDropdown ? 1 : 0, pointerEvents: showDropdown ? 'auto' : 'none', transition: 'opacity 0.18s ease' }}
             />
             <div
-              className={`absolute right-0 mt-2 w-[min(18rem,calc(100vw-1.5rem))] max-h-80 overflow-y-auto rounded-xl border shadow-2xl z-50 ${lightMode ? 'border-gray-200 bg-white' : 'border-white/10 bg-[#0a0a0a]'}`}
+              className="absolute right-0 mt-2 w-[min(18rem,calc(100vw-1.5rem))] max-h-80 overflow-y-auto rounded-xl border shadow-2xl z-50 border-[var(--theme-border)] bg-[var(--theme-panel)]"
               style={{
                 opacity: showDropdown ? 1 : 0,
                 transform: showDropdown ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.98)',
@@ -133,7 +133,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
                       <button
                         type="button"
                         onClick={clearNotifications}
-                        className={`text-[10px] uppercase ${lightMode ? 'text-gray-400' : 'text-white/40'}`}
+                        className="text-[10px] uppercase text-[var(--theme-text-secondary)]"
                       >
                         {t('clear_all')}
                       </button>
@@ -147,7 +147,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
                         key={n.id}
                         type="button"
                         onClick={() => markAsRead(n.id)}
-                        className={`w-full text-left p-3 border-b ${lightMode ? 'border-gray-100' : 'border-white/5'} ${!n.isRead ? (lightMode ? 'bg-amber-50/50' : 'bg-gold/5') : ''}`}
+                        className={`w-full text-left p-3 border-b border-[var(--theme-border)] ${!n.isRead ? 'bg-[var(--theme-accent-soft)]' : ''}`}
                         whileTap={{ scale: 0.98 }}
                       >
                         <p className="text-xs font-medium text-[var(--theme-text)]">{n.title}</p>

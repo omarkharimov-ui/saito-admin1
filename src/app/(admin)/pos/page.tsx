@@ -185,7 +185,7 @@ export default function POSPage() {
   }, [actionSheetTable, pos]);
 
   return (
-    <div ref={posRef} className={`h-full w-full overflow-hidden flex flex-col ${lightMode ? 'bg-white text-gray-900' : 'bg-[#080808] text-white'}`}>
+    <div ref={posRef} className="h-full w-full overflow-hidden flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)]">
       {/* ── View container ── */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
@@ -201,20 +201,20 @@ export default function POSPage() {
                     {pos.floors.length > 0 && (
                       <div className="relative">
                         <button onClick={() => setFloorDropdownOpen(!floorDropdownOpen)}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${lightMode ? 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 shadow-sm' : 'bg-white/[0.06] text-white/60 hover:text-white/80'}`}>
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:bg-[var(--theme-panel)] shadow-sm">
                           {selectedFloorName} <ChevronDown size={14} className={`transition-transform ${floorDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {floorDropdownOpen && (
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setFloorDropdownOpen(false)} />
-                            <div className={`absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 ${lightMode ? 'bg-white border-gray-200 shadow-lg shadow-black/8' : 'bg-[#141414] border-white/[0.08] shadow-xl'}`}>
+                            <div className="absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-xl">
                               {pos.floors.map(f => (
                                 <button key={f.name}
                                   onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
                                   className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                                     f.name === selectedFloorName
-                                      ? lightMode ? 'bg-gray-900 text-white' : 'bg-white/10 text-white'
-                                      : lightMode ? 'text-gray-600 hover:bg-gray-100' : 'text-white/50 hover:text-white'
+                                      ? 'bg-[var(--theme-accent)] text-black'
+                                      : 'text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)]'
                                   }`}>
                                   {f.name}
                                 </button>
@@ -227,8 +227,8 @@ export default function POSPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setLightMode(!lightMode)}
-                      className={`p-2.5 rounded-xl transition-all ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-500 hover:bg-gray-200 shadow-sm' : 'bg-white/[0.06] text-white/40 hover:text-white/70'}`}>
-                      {lightMode ? <Moon size={18} /> : <Sun size={18} />}
+                      className="p-2.5 rounded-xl transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-panel)] shadow-sm">
+                      <Moon size={18} />
                     </button>
                     <button onClick={toggleFullscreen}
                       className={`p-2.5 rounded-xl transition-all ${lightMode ? 'bg-gray-100 border border-gray-200 text-gray-500 hover:bg-gray-200 shadow-sm' : 'bg-white/[0.06] text-white/40 hover:text-white/70'}`}>

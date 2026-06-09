@@ -53,7 +53,7 @@ export default function AdminAuthScreen(props: AuthProps) {
 
         {needsSetup ? (
           <form noValidate onSubmit={handleSetup} className="space-y-3">
-            <p className="text-white/40 text-xs text-center mb-4">
+            <p className="text-[var(--theme-text-secondary)] text-xs text-center mb-4">
               Sistemdə heç bir hesab yoxdur. İlk superadmin hesabını yaradın.
             </p>
             <input
@@ -98,7 +98,7 @@ export default function AdminAuthScreen(props: AuthProps) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="E-poçt"
               autoComplete="email"
-              className="w-full bg-white/[0.03] border border-white/10 focus:border-gold/40 rounded-2xl px-5 py-4 text-white placeholder:text-white/25 outline-none text-sm"
+              className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] rounded-2xl px-5 py-4 text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none text-sm"
             />
             <input
               type="password"

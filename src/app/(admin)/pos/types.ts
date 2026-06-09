@@ -39,6 +39,7 @@ export type PosCartItem = {
 };
 
 export type PosCart = {
+  table_id?: string;
   table_number: number;
   guest_count: number;
   items: PosCartItem[];

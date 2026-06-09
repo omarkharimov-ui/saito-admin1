@@ -37,7 +37,7 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
   return (
     <div className="space-y-6">
-      <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 space-y-6">
+      <div className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl p-6 space-y-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-red-500/10 text-red-400 rounded-xl"><AlertTriangle size={18} /></div>
           <div>

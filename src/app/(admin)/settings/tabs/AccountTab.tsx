@@ -277,7 +277,7 @@ const AccountTab = () => {
                       value={account.newPassword}
                       onChange={(e) => updateAccountField(account.key, 'newPassword', e.target.value)}
                       placeholder={t('new_password')}
-                      className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder:text-white/30 focus:border-gold/40 focus:outline-none transition-all"
+                      className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-2.5 pr-10 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] focus:border-[var(--theme-border-strong)] focus:outline-none transition-all"
                     />
                     <button
                       type="button"

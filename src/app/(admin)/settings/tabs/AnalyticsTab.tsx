@@ -366,7 +366,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
       <div className="space-y-3">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">UI Köməkçiləri</p>
 
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
           <div className="flex items-center gap-3">
             <Sunrise size={15} className="text-gold/70" />
             <div>
@@ -377,7 +377,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
             </div>
           </div>
           <button type="button" onClick={toggleGreeting}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${greetingEnabled ? 'bg-gold/80' : 'bg-white/10'}`}>
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${greetingEnabled ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${greetingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
@@ -398,7 +398,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
             </div>
           </div>
           <button type="button" onClick={() => { const next = !aiFlags.visionEnabled; setAiFlag('visionEnabled', next); toast.success(next ? t('ai_vision_label') + ' aktiv edildi' : t('ai_vision_label') + ' deaktiv edildi', { id: 'action-toast' }); }}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.visionEnabled ? 'bg-gold/80' : 'bg-white/10'}`}>
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.visionEnabled ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${aiFlags.visionEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
@@ -414,7 +414,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
             </div>
           </div>
           <button type="button" onClick={() => { const next = !aiFlags.autoCorrectEnabled; setAiFlag('autoCorrectEnabled', next); toast.success(next ? t('ai_autocorrect_label') + ' aktiv edildi' : t('ai_autocorrect_label') + ' deaktiv edildi', { id: 'action-toast' }); }}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.autoCorrectEnabled ? 'bg-gold/80' : 'bg-white/10'}`}>
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${aiFlags.autoCorrectEnabled ? 'bg-gold/80' : 'bg-[var(--theme-border)]'}`}>
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${aiFlags.autoCorrectEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
@@ -456,7 +456,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               type="number" min={0} step={100}
               value={cfg.revenue_limit}
               onChange={e => setCfg({ ...cfg, revenue_limit: Number(e.target.value) })}
-              className="w-full bg-white/[0.04] border border-white/10 focus:border-gold/40 rounded-xl pl-8 pr-4 py-3 text-white text-sm outline-none transition-all"
+              className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] rounded-xl pl-8 pr-4 py-3 text-[var(--theme-text)] text-sm outline-none transition-all"
             />
           </div>
           <p className="text-[10px] text-white/40 mt-1.5">{t('analytics_revenue_limit_hint')}</p>
@@ -488,7 +488,7 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
               <span className="text-white/70">{t('analytics_col_total')} <span className="text-white font-bold">{translateResult.total}</span></span>
               <span className="text-emerald-400/80">{t('analytics_col_translated')} <span className="text-emerald-400 font-bold">{translateResult.translated}</span></span>
             </div>
-            <div className="flex flex-wrap items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07] text-[12px]">
+            <div className="flex flex-wrap items-center gap-4 px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[12px]">
               <span className="text-white/55 font-bold uppercase tracking-wider text-[10px]">{t('analytics_col_categories')}</span>
               <span className="text-white/70">{t('analytics_col_total')} <span className="text-white font-bold">{translateResult.categoriesTotal}</span></span>
               <span className="text-emerald-400/80">{t('analytics_col_translated')} <span className="text-emerald-400 font-bold">{translateResult.categoriesTranslated}</span></span>

@@ -135,19 +135,19 @@ const FloorsTab = () => {
 
       <div className="space-y-4">
         {floors.map((floor, idx) => (
-          <div key={floor.name} className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
+          <div key={floor.name} className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.05]">
               <GripVertical size={18} className="text-white/20 flex-shrink-0" />
               <input value={floor.name} onChange={e => updateFloorName(idx, e.target.value)}
                 className="flex-1 bg-transparent text-base font-medium text-white outline-none" />
-              <span className="text-xs text-white/40 bg-white/[0.06] px-3 py-1 rounded-full">{floor.tables.length} masa</span>
+              <span className="text-xs text-[var(--theme-text-muted)] bg-[var(--theme-panel)] px-3 py-1 rounded-full">{floor.tables.length} masa</span>
               <div className="flex items-center gap-1">
                 <button onClick={() => moveFloor(idx, -1)} disabled={idx === 0}
-                  className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20">
+                  className="w-8 h-8 rounded-lg bg-[var(--theme-panel)] flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] disabled:opacity-20">
                   <ChevronUp size={15} />
                 </button>
                 <button onClick={() => moveFloor(idx, 1)} disabled={idx === floors.length - 1}
-                  className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white disabled:opacity-20">
+                  className="w-8 h-8 rounded-lg bg-[var(--theme-panel)] flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] disabled:opacity-20">
                   <ChevronDown size={15} />
                 </button>
               </div>

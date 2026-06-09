@@ -7,7 +7,7 @@ import { Save, Loader2, BrainCircuit, Store, Cloud, Bot, Sunrise, TrendingUp, Ey
 import { toast } from 'react-hot-toast';
 import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { labelCls } from './_shared';
+import { labelCls, saveButtonCls } from './_shared';
 import { useAiFlags } from '@/hooks/useAiFlags';
 
 const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | null }) => {

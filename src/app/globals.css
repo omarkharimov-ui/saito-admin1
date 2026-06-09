@@ -223,8 +223,8 @@ html[data-light-mode="true"] .bg-\[\#111111\] { background-color: #f9fafb; }
 html[data-light-mode="true"] .bg-\[\#141414\] { background-color: #f3f4f6; }
 html[data-light-mode="true"] .bg-\[\#1a1a1a\] { background-color: #f3f4f6; }
 html[data-light-mode="true"] .bg-black { background-color: #ffffff; }
-html[data-light-mode="true"] .bg-[#0a0a0a] { background-color: #f8f8fa; }
-html[data-light-mode="true"] .bg-[#080808] { background-color: #f8f8fa; }
+html[data-light-mode="true"] .bg-\[\#0a0a0a\] { background-color: #f8f8fa; }
+html[data-light-mode="true"] .bg-\[\#080808\] { background-color: #f8f8fa; }
 html[data-light-mode="true"] .bg-black\/55 { background-color: rgba(0,0,0,0.1); }
 html[data-light-mode="true"] .bg-black\/40 { background-color: rgba(0,0,0,0.08); }
 

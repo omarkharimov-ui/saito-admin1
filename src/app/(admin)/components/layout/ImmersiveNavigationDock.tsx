@@ -23,6 +23,7 @@ export default function ImmersiveNavigationDock({
   const { pendingCount } = useNotifications();
   const [moreOpen, setMoreOpen] = useState(false);
   const [activeDockKey, setActiveDockKey] = useState('');
+  const [dragActiveKey, setDragActiveKey] = useState('');
   const [dockDragging, setDockDragging] = useState(false);
   const [dockX, setDockX] = useState(0);
 
@@ -50,7 +51,10 @@ export default function ImmersiveNavigationDock({
 
   useEffect(() => {
     const current = primary.find((link) => isActive(link.href)) ?? primary[0];
-    if (current && !dockDragging) setActiveDockKey(current.id);
+    if (current && !dockDragging) {
+      setActiveDockKey(current.id);
+      setDragActiveKey(current.id);
+    }
   }, [pathname, primary, dockDragging]);
 
   useEffect(() => {
@@ -161,7 +165,10 @@ export default function ImmersiveNavigationDock({
             const itemWidth = rect.width / Math.max(1, primary.length);
             const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
             const next = primary[index];
-            if (next) setActiveDockKey(next.id);
+            if (next) {
+              setActiveDockKey(next.id);
+              setDragActiveKey(next.id);
+            }
             setDockX(index * (100 / Math.max(1, primary.length)));
           }}
           onPointerMove={(event) => {
@@ -171,11 +178,15 @@ export default function ImmersiveNavigationDock({
             const itemWidth = rect.width / Math.max(1, primary.length);
             const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
             const next = primary[index];
-            if (next) setActiveDockKey(next.id);
+            if (next) {
+              setActiveDockKey(next.id);
+              setDragActiveKey(next.id);
+            }
             setDockX(index * (100 / Math.max(1, primary.length)));
           }}
           onPointerUp={(event) => {
             setDockDragging(false);
+            setDragActiveKey(activeDockKey);
             try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
           }}
           onPointerCancel={() => setDockDragging(false)}
@@ -184,6 +195,7 @@ export default function ImmersiveNavigationDock({
           {primary.map((link) => {
             const Icon = link.icon;
             const active = isActive(link.href) || activeDockKey === link.id;
+            const draggingActive = dockDragging && dragActiveKey === link.id;
             return (
               <Link
                 key={link.id}
@@ -193,7 +205,7 @@ export default function ImmersiveNavigationDock({
                 style={{ WebkitTapHighlightColor: 'transparent' }}
                 onClick={() => setActiveDockKey(link.id)}
               >
-                {activeDockKey === link.id ? (
+                {activeDockKey === link.id || draggingActive ? (
                   <motion.span
                     layoutId="immersive-dock-active-pill"
                     className="relative flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full overflow-hidden"
@@ -202,7 +214,7 @@ export default function ImmersiveNavigationDock({
                       border: '1px solid rgba(255,255,255,0.38)',
                       boxSizing: 'border-box',
                     }}
-                    animate={{ scale: dockDragging ? 1.03 : 1, y: dockDragging ? -1 : 0 }}
+                    animate={{ scale: draggingActive ? 1.07 : dockDragging ? 1.03 : 1, y: dockDragging ? -1 : 0 }}
                     transition={dockSpring}
                   >
                     <motion.span
@@ -212,7 +224,7 @@ export default function ImmersiveNavigationDock({
                           'radial-gradient(circle at 30% 30%, rgba(34,211,238,0.20), transparent 35%), radial-gradient(circle at 70% 25%, rgba(217,70,239,0.16), transparent 36%), radial-gradient(circle at 50% 75%, rgba(250,204,21,0.14), transparent 28%)',
                         filter: 'blur(10px)',
                       }}
-                      animate={{ opacity: dockDragging ? 1 : 0.72, scale: dockDragging ? 1.05 : 1 }}
+                      animate={{ opacity: dockDragging ? 1 : 0.72, scale: draggingActive ? 1.08 : dockDragging ? 1.05 : 1 }}
                       transition={dockSpring}
                     />
                     <motion.span
@@ -222,7 +234,7 @@ export default function ImmersiveNavigationDock({
                           'linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,0.9), rgba(168,85,247,0.9), rgba(250,204,21,0.9), rgba(34,211,238,0))',
                         filter: 'blur(1.5px)',
                       }}
-                      animate={{ opacity: dockDragging ? 1 : 0.7 }}
+                      animate={{ opacity: dockDragging ? 1 : 0.7, scale: draggingActive ? 1.02 : 1 }}
                       transition={dockSpring}
                     />
                     <Icon size={17} strokeWidth={2} className="relative z-10 text-sky-400 shrink-0" />

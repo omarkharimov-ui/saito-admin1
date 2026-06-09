@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Store, MapPin, Phone, Clock, Camera, ChevronRight, Mail } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { inputCls, labelCls } from './_shared';
+import { inputCls, labelCls, saveButtonCls } from './_shared';
 
 function parseHours(raw: string): { open: string; close: string } {
   const match = raw?.match(/^(\d{2}:\d{2})[–\-](\d{2}:\d{2})$/);
@@ -64,7 +64,7 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <form noValidate onSubmit={save} className="space-y-6">
+      <form noValidate onSubmit={save} className="space-y-6 rounded-3xl border border-[#e5e7eb] bg-[linear-gradient(180deg,#ffffff_0%,#f8f8fa_100%)] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.04)]">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div><label className={labelCls}><Store size={11} /> {t('gen_restaurant_name')}</label><input className={inputCls} value={settings.restaurant_name} onChange={e => setSettings({ ...settings, restaurant_name: e.target.value })} /></div>
           <div><label className={labelCls}><MapPin size={11} /> {t('gen_address')}</label><input className={inputCls} value={settings.address} onChange={e => setSettings({ ...settings, address: e.target.value })} /></div>
@@ -74,7 +74,7 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
             <label className={labelCls}><Clock size={11} /> {t('gen_work_hours')}</label>
             <div className="flex items-center gap-2">
               <div className="flex-1">
-                <p className="text-[9px] uppercase tracking-[0.18em] text-white/50 mb-1.5">{t('gen_open_time')}</p>
+                <p className="text-[9px] uppercase tracking-[0.18em] text-[#6b7280] mb-1.5">{t('gen_open_time')}</p>
                 <input
                   type="time"
                   value={openTime}
@@ -82,9 +82,9 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
                   className={inputCls + ' [color-scheme:dark] text-center'}
                 />
               </div>
-              <ChevronRight size={14} className="text-white/20 mt-5 flex-shrink-0" />
+              <ChevronRight size={14} className="text-[#d1d5db] mt-5 flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-[9px] uppercase tracking-[0.18em] text-white/50 mb-1.5">{t('gen_close_time')}</p>
+                <p className="text-[9px] uppercase tracking-[0.18em] text-[#6b7280] mb-1.5">{t('gen_close_time')}</p>
                 <input
                   type="time"
                   value={closeTime}
@@ -93,14 +93,14 @@ const GeneralTab = ({ initialData }: { initialData?: Record<string, any> | null 
                 />
               </div>
             </div>
-            <p className="text-[10px] text-white/45 mt-1.5">{t('gen_work_hours_hint')} <span className="text-gold/80 font-mono">{openTime} – {closeTime}</span></p>
+            <p className="text-[10px] text-[#6b7280] mt-1.5">{t('gen_work_hours_hint')} <span className="text-[#007aff] font-mono">{openTime} – {closeTime}</span></p>
           </div>
           <div><label className={labelCls}><Camera size={11} /> {t('gen_instagram')}</label><input className={inputCls} placeholder="https://instagram.com/…" value={settings.instagram_url} onChange={e => setSettings({ ...settings, instagram_url: e.target.value })} /></div>
         </div>
 
         <div className="flex justify-end">
           <button type="submit" disabled={updating || !isDirty}
-            className={`flex items-center gap-2 btn-gradient px-8 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-40 shadow-premium ${!isDirty && !updating ? 'opacity-40 pointer-events-none' : ''}`}>
+            className={`${saveButtonCls} ${!isDirty && !updating ? 'opacity-40 pointer-events-none' : ''}`} style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(17,17,17,0.9)' }}>
             {updating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {t('gen_save')}
           </button>
         </div>

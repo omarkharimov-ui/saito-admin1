@@ -139,7 +139,7 @@ const StaffTab = () => {
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 bg-gold/90 text-black px-5 py-2.5 rounded-xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-lg shadow-gold/10"
+            className="flex items-center gap-2 bg-[#111111] text-white px-5 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-black"
           >
             {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
             {submitLabel}
@@ -158,7 +158,7 @@ const StaffTab = () => {
         {!editingId && (
           <button
             onClick={() => { setShowForm(v => !v); setEditingId(null); setForm(emptyForm()); }}
-            className="flex items-center gap-2 px-5 py-3 bg-gold text-black text-sm font-bold rounded-xl hover:bg-white transition-all shadow-lg shadow-gold/10"
+            className="flex items-center gap-2 px-5 py-3 bg-[#111111] text-white text-sm font-bold rounded-2xl hover:bg-black transition-all shadow-[0_10px_28px_rgba(0,0,0,0.12)]"
           >
             <Plus size={16} /> {t('staff_new')}
           </button>

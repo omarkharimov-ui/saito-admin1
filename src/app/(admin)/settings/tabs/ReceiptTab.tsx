@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Receipt, Percent, DollarSign, AlignLeft, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { inputCls, labelCls } from './_shared';
+import { inputCls, labelCls, saveButtonCls } from './_shared';
 import ReceiptPreview from '../../orders/components/ReceiptPreview';
 
 interface ReceiptCfg {
@@ -189,7 +189,8 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
         <button
           type="submit"
           disabled={saving || !isDirty || hasError}
-          className={`flex items-center gap-2 btn-gradient px-8 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-40 shadow-premium ${!isDirty && !saving ? 'opacity-40 pointer-events-none' : ''}`}
+          className={`${saveButtonCls} ${!isDirty && !saving ? 'opacity-40 pointer-events-none' : ''}`}
+          style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(17,17,17,0.9)' }}
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {t('gen_save')}
         </button>

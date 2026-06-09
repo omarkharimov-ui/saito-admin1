@@ -86,12 +86,12 @@ export function ProductCategoryModal({
               {/* Left: Form */}
               <div className="relative px-8 md:px-12 py-7 border-r border-[var(--theme-border)] overflow-y-auto">
                 <div className="absolute bottom-0 left-0 w-40 h-40 bg-[var(--theme-surface-soft)] rounded-full blur-3xl pointer-events-none" />
-                <h3 className="text-[9px] uppercase tracking-[0.3em] text-white/25 font-bold mb-5 relative">{categoryForm.id ? t('edit_category') : t('new_category_create')}</h3>
+                <h3 className="text-[9px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-bold mb-5 relative">{categoryForm.id ? t('edit_category') : t('new_category_create')}</h3>
                 <form noValidate onSubmit={onSubmit} className="space-y-4 relative">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)]">{t('category_name_label')}</label>
-                      <span className={`text-[9px] font-mono transition-colors duration-300 ${categoryForm.name.length > 25 ? 'text-white/70' : 'text-white/15'}`}>{categoryForm.name.length}/30</span>
+                      <span className={`text-[9px] font-mono transition-colors duration-300 ${categoryForm.name.length > 25 ? 'text-[var(--theme-text-secondary)]' : 'text-[var(--theme-text-muted)]'}`}>{categoryForm.name.length}/30</span>
                     </div>
                     <input
                       type="text" maxLength={30} value={categoryForm.name}

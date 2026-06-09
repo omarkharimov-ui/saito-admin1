@@ -118,7 +118,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
                   <span className={`text-[10px] font-bold ${isGood ? 'text-gold' : (lightMode ? 'text-gray-600' : 'text-white/30')}`}>{p.conversion}%</span>
                 </div>
               </div>
-              <span className="text-white font-bold text-sm tabular-nums flex-shrink-0">₼{Number(p.revenue).toFixed(0)}</span>
+              <span className="text-[var(--theme-text)] font-bold text-sm tabular-nums flex-shrink-0">₼{Number(p.revenue).toFixed(0)}</span>
             </div>
           );
         })}
@@ -133,7 +133,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
               <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-center">{t('stats_col_views')}</th>
               <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-center">{t('stats_col_sales')}</th>
               <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-center">{t('stats_col_conversion')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium text-right">{t('stats_col_revenue')}</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-right">{t('stats_col_revenue')}</th>
             </tr>
           </thead>
           <tbody>
@@ -179,7 +179,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
                         <span className={`text-xs font-bold ${convNum >= 80 ? 'text-gold drop-shadow-[0_0_6px_rgba(212,175,55,0.8)]' : isGood ? 'text-gold' : (lightMode ? 'text-gray-600' : 'text-white/40')}`}>{p.conversion}%</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-right font-bold text-white">₼ {Number(p.revenue).toFixed(2)}</td>
+                    <td className="px-8 py-5 text-right font-bold text-[var(--theme-text)]">₼ {Number(p.revenue).toFixed(2)}</td>
                   </tr>
                 );
               })

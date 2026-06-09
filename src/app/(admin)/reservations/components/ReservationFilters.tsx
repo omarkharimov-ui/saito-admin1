@@ -124,7 +124,7 @@ const ReservationFilters = ({
                   <button
                     type="button"
                     onClick={onCancelArchiveSelection}
-                    className="flex-1 rounded-xl border border-white/[0.08] bg-white/5 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                    className="flex-1 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] px-4 py-2 text-sm text-[var(--theme-text-secondary)] transition hover:bg-[var(--theme-surface)]"
                   >
                     {t('cancel_selection')}
                   </button>
@@ -144,7 +144,7 @@ const ReservationFilters = ({
                   <button
                     type="button"
                     onClick={onStartArchiveSelection}
-                    className="mobile-tap-lift w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-medium tracking-wide text-red-300 border border-red-500/15 bg-white/5 hover:bg-white/10 transition-all duration-200"
+                    className="mobile-tap-lift w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-medium tracking-wide text-red-300 border border-red-500/15 bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-surface)] transition-all duration-200"
                   >
                     <Trash2 size={16} strokeWidth={2} />
                     {t('select_archive')}

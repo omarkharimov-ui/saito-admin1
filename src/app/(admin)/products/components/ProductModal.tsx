@@ -380,7 +380,7 @@ export function ProductModal({
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-widest text-white/40">{t('product_name_label')}</label>
+                    <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)]">{t('product_name_label')}</label>
                     <div className="relative">
                       <input
                         type="text"
@@ -413,7 +413,7 @@ export function ProductModal({
                     {nameError && <p className="text-[10px] text-red-400 mt-1">{t('product_name_required')}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-widest text-white/40">
+                    <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)]">
                       {t('price_label')}
                       {productForm.variants.length > 0 && (
                         <span className="ml-1.5 text-gold/60 normal-case tracking-normal">{t('price_from_variant')}</span>
@@ -647,7 +647,7 @@ export function ProductModal({
                           onChange={(e) => onFormChange({ ...productForm, direct_ingredient_id: e.target.value })}
                           className="flex-1 max-w-xs bg-white/[0.05] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-white/25"
                         >
-                          <option value="" className="bg-[#1a1a1a] text-white/40">Xəmmal seçin...</option>
+                          <option value="" className="bg-[var(--theme-surface)] text-[var(--theme-text-muted)]">Xəmmal seçin...</option>
                           {ingredients.map(i => (
                             <option key={i.id} value={i.id} className="bg-[#1a1a1a]">{i.name} ({i.unit})</option>
                           ))}
@@ -721,7 +721,7 @@ export function ProductModal({
                 <ChevronLeft size={22} />
               </button>
               <div className="text-center">
-                <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] mb-1">{t('premium_collection')}</p>
+                <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-[0.4em] mb-1">{t('premium_collection')}</p>
                 <h1 className="text-2xl font-serif text-white tracking-tight">{editingProduct ? t('edit_product') : t('new_product')}</h1>
               </div>
             </div>
@@ -770,7 +770,7 @@ export function ProductModal({
 
               {/* Category */}
               <div className="space-y-2">
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold flex items-center gap-2">
+                <p className="text-[9px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-bold flex items-center gap-2">
                   <span className="w-4 h-px bg-white/10" />{t('product_category')}<span className="flex-1 h-px bg-white/5" />
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>

@@ -370,7 +370,7 @@ export const DeleteProductModal = ({ open, product, updating, onClose, onConfirm
         </div>
         <div>
           <h3 className="text-xl font-bold text-white">{t('confirm_delete_title')}</h3>
-          <p className="text-white/60 mt-1">{t('confirm_delete_message')}</p>
+          <p className="text-[var(--theme-text-secondary)] mt-1">{t('confirm_delete_message')}</p>
         </div>
       </div>
       <div className="flex gap-3">

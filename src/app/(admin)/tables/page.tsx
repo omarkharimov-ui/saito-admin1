@@ -180,7 +180,7 @@ const TablesPage = () => {
         </div>
         <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
           {/* Table count */}
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-lg px-3 py-2">
             <span className="text-white/40 text-xs">Masa sayı:</span>
             {loading ? (
               <Loader2 size={14} className="animate-spin text-gold" />
@@ -204,7 +204,7 @@ const TablesPage = () => {
           </div>
           <button
             onClick={printAll}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface)] rounded-lg text-sm transition-all"
           >
             <Printer size={15} />
             Hamısını çap et

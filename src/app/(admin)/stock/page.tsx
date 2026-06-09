@@ -898,7 +898,7 @@ export default function StockPage() {
                       <motion.button
                         whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
                         onClick={() => setPickerYear(p => p - 1)}
-                        className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+                        className="p-1.5 rounded-lg text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)] transition-colors"
                       >
                         <ChevronLeft size={16} />
                       </motion.button>

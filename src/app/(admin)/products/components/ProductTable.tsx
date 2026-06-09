@@ -618,7 +618,7 @@ export function ProductTable({
                                         <div className="w-px h-3 bg-white/[0.08]" />
                                         <button
                                           onClick={(e) => { e.stopPropagation(); setSheetProduct(product); }}
-                                          className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/[0.06] border border-white/[0.10] text-white/40 hover:text-white/80 hover:bg-white/[0.10] active:scale-95 transition-all">
+                                          className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface)] active:scale-95 transition-all">
                                           <MoreVertical size={15} />
                                         </button>
                                       </div>

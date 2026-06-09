@@ -267,7 +267,7 @@ export default function WasteStandardsPage() {
                 <span className="text-white/30 truncate text-xs">{s.category || '—'}</span>
                 <div className="flex items-center justify-end gap-1">
                   <button onClick={() => setModal({ mode: 'edit', data: s })}
-                    className="w-7 h-7 rounded-lg hover:bg-white/5 text-white/20 hover:text-white/60 transition-all flex items-center justify-center">
+                    className="w-7 h-7 rounded-lg hover:bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)] transition-all flex items-center justify-center">
                     <Edit3 size={12} />
                   </button>
                   <button onClick={() => handleDelete(s.id)}

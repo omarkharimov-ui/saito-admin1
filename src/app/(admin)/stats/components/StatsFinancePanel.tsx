@@ -43,7 +43,7 @@ const az = (n: number, dec = 2) =>
   Number(n).toLocaleString('az-AZ', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
 function foodCostHealth(pct: number): { label: string; color: string; bg: string; border: string } {
-  if (pct === 0)    return { label: 'Resept yoxdur', color: 'text-white/30', bg: 'bg-white/5',       border: 'border-white/10' };
+  if (pct === 0)    return { label: 'Resept yoxdur', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]',       border: 'border-[var(--theme-border)]' };
   if (pct <= 25)    return { label: 'Əla',            color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/25' };
   if (pct <= 32)    return { label: 'Normal',          color: 'text-[#D4AF37]',   bg: 'bg-amber-500/10',  border: 'border-amber-500/20' };
   if (pct <= 40)    return { label: 'Diqqət',          color: 'text-orange-400',  bg: 'bg-orange-500/10', border: 'border-orange-500/20' };
@@ -123,7 +123,7 @@ export default function StatsFinancePanel({
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-6 w-48 rounded-xl bg-white/5" />
+        <div className="h-6 w-48 rounded-xl bg-[var(--theme-surface-soft)]" />
         <div className="grid grid-cols-4 gap-3">
           {[0,1,2,3].map(i => <div key={i} className="h-32 rounded-2xl bg-white/[0.03]" />)}
         </div>

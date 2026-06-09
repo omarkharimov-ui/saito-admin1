@@ -281,7 +281,7 @@ export default function POSPage() {
                   </div>
                 ) : activeFloor ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
-                    {activeFloor.tables.map(table => (
+                    {(activeFloor.tables ?? []).map(table => (
                       <TableCard
                         key={table.table_number}
                         table={table}

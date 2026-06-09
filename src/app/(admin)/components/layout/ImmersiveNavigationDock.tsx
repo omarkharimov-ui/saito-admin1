@@ -25,7 +25,6 @@ export default function ImmersiveNavigationDock({
   const [activeDockKey, setActiveDockKey] = useState('');
   const [dragActiveKey, setDragActiveKey] = useState('');
   const [dockDragging, setDockDragging] = useState(false);
-  const [dockX, setDockX] = useState(0);
 
   useEffect(() => {
     if (moreOpen) setMoreOpen(false);
@@ -57,10 +56,10 @@ export default function ImmersiveNavigationDock({
     }
   }, [pathname, primary, dockDragging]);
 
-  useEffect(() => {
-    const currentIndex = Math.max(0, primary.findIndex((link) => link.id === activeDockKey));
-    setDockX(currentIndex * (100 / Math.max(1, primary.length)));
-  }, [activeDockKey, primary]);
+  const getDockIndex = (x: number, width: number) => {
+    const itemWidth = width / Math.max(1, primary.length);
+    return Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
+  };
 
   return (
     <>
@@ -162,27 +161,23 @@ export default function ImmersiveNavigationDock({
             try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
             const rect = event.currentTarget.getBoundingClientRect();
             const x = event.clientX - rect.left;
-            const itemWidth = rect.width / Math.max(1, primary.length);
-            const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
+            const index = getDockIndex(x, rect.width);
             const next = primary[index];
             if (next) {
               setActiveDockKey(next.id);
               setDragActiveKey(next.id);
             }
-            setDockX(index * (100 / Math.max(1, primary.length)));
           }}
           onPointerMove={(event) => {
             if (!dockDragging) return;
             const rect = event.currentTarget.getBoundingClientRect();
             const x = event.clientX - rect.left;
-            const itemWidth = rect.width / Math.max(1, primary.length);
-            const index = Math.max(0, Math.min(primary.length - 1, Math.floor(x / itemWidth)));
+            const index = getDockIndex(x, rect.width);
             const next = primary[index];
             if (next) {
               setActiveDockKey(next.id);
               setDragActiveKey(next.id);
             }
-            setDockX(index * (100 / Math.max(1, primary.length)));
           }}
           onPointerUp={(event) => {
             setDockDragging(false);
@@ -208,10 +203,11 @@ export default function ImmersiveNavigationDock({
                 {activeDockKey === link.id || draggingActive ? (
                   <motion.span
                     layoutId="immersive-dock-active-pill"
-                    className="relative flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full overflow-hidden"
+                    className="relative flex items-center gap-1.5 px-3 py-2 rounded-full max-w-full overflow-hidden backdrop-blur-xl"
                     style={{
-                      background: 'rgba(24,24,27,0.82)',
-                      border: '1px solid rgba(255,255,255,0.38)',
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))',
+                      border: '1px solid rgba(255,255,255,0.22)',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08)',
                       boxSizing: 'border-box',
                     }}
                     animate={{ scale: draggingActive ? 1.07 : dockDragging ? 1.03 : 1, y: dockDragging ? -1 : 0 }}
@@ -221,8 +217,8 @@ export default function ImmersiveNavigationDock({
                       className="absolute inset-0 rounded-full opacity-80"
                       style={{
                         background:
-                          'radial-gradient(circle at 30% 30%, rgba(34,211,238,0.20), transparent 35%), radial-gradient(circle at 70% 25%, rgba(217,70,239,0.16), transparent 36%), radial-gradient(circle at 50% 75%, rgba(250,204,21,0.14), transparent 28%)',
-                        filter: 'blur(10px)',
+                          'radial-gradient(circle at 30% 30%, rgba(34,211,238,0.14), transparent 34%), radial-gradient(circle at 70% 25%, rgba(217,70,239,0.10), transparent 34%), radial-gradient(circle at 50% 75%, rgba(250,204,21,0.08), transparent 30%)',
+                        filter: 'blur(12px)',
                       }}
                       animate={{ opacity: dockDragging ? 1 : 0.72, scale: draggingActive ? 1.08 : dockDragging ? 1.05 : 1 }}
                       transition={dockSpring}
@@ -231,18 +227,18 @@ export default function ImmersiveNavigationDock({
                       className="absolute -bottom-0.5 left-1/2 h-[2px] w-6 -translate-x-1/2 rounded-full"
                       style={{
                         background:
-                          'linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,0.9), rgba(168,85,247,0.9), rgba(250,204,21,0.9), rgba(34,211,238,0))',
-                        filter: 'blur(1.5px)',
+                          'linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,0.65), rgba(168,85,247,0.72), rgba(250,204,21,0.65), rgba(34,211,238,0))',
+                        filter: 'blur(2px)',
                       }}
                       animate={{ opacity: dockDragging ? 1 : 0.7, scale: draggingActive ? 1.02 : 1 }}
                       transition={dockSpring}
                     />
-                    <Icon size={17} strokeWidth={2} className="relative z-10 text-sky-400 shrink-0" />
-                    <span className="relative z-10 text-[11px] font-bold text-sky-400 truncate tracking-wide">
+                    <Icon size={17} strokeWidth={2} className="relative z-10 text-sky-400 shrink-0 opacity-95" />
+                    <span className="relative z-10 text-[11px] font-bold text-sky-400 truncate tracking-wide opacity-95">
                       {link.name}
                     </span>
                     {link.badge && link.badge > 0 ? (
-                      <span className="relative z-10 min-w-[16px] h-4 px-1 rounded-full bg-[#007aff] text-[9px] font-bold text-white flex items-center justify-center shrink-0 shadow-[0_4px_14px_rgba(0,122,255,0.24)]">
+                      <span className="relative z-10 min-w-[16px] h-4 px-1 rounded-full bg-[#007aff] text-[9px] font-bold text-white flex items-center justify-center shrink-0 shadow-[0_4px_14px_rgba(0,122,255,0.18)]">
                         {link.badge > 9 ? '9+' : link.badge}
                       </span>
                     ) : null}

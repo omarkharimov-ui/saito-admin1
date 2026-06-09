@@ -9,6 +9,7 @@ import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { labelCls, saveButtonCls } from './_shared';
 import { useAiFlags } from '@/hooks/useAiFlags';
+import { LiquidToggle } from '../../components/ui/MotionControls';
 
 const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | null }) => {
   const { t } = useLanguage();

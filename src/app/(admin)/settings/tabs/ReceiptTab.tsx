@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { inputCls, labelCls, saveButtonCls } from './_shared';
 import ReceiptPreview from '../../shared/ReceiptPreview';
+import { LiquidToggle } from '../../components/ui/MotionControls';
 
 interface ReceiptCfg {
   receipt_title: string;

@@ -63,7 +63,7 @@ export function ClockButton() {
 
   return (
     <button onClick={handleToggle} disabled={loading || acting}
-      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold tracking-wider transition-all ${clockedIn ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20' : 'bg-white/[0.04] text-white/40 border-white/[0.07] hover:text-white/70 hover:border-white/20'} disabled:opacity-40`}>
+      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold tracking-wider transition-all ${clockedIn ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] border-[var(--theme-border)] hover:text-[var(--theme-text)] hover:border-[var(--theme-border-strong)]'} disabled:opacity-40`}>
       {acting ? <Loader2 size={13} className="animate-spin" /> : <Clock size={13} />}
       {clockedIn ? t('clocked_in') : t('clock_in')}
     </button>

@@ -80,23 +80,23 @@ const CampaignModal = ({
       <div className="space-y-7">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">{t('campaign_name')}</label>
+            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('campaign_name')}</label>
             {translating && (
               <div className="flex items-center gap-1.5">
-                <Loader2 size={10} className="animate-spin text-white/50" />
-                <span className="text-[9px] text-white/30 uppercase tracking-widest">EN · RU</span>
+                <Loader2 size={10} className="animate-spin text-[var(--theme-text-secondary)]" />
+                <span className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-widest">EN · RU</span>
               </div>
             )}
           </div>
           <input type="text" value={titleValue} onChange={(e) => setTitleValue(e.target.value)}
             onBlur={() => { if (form.title.trim()) handleAiTranslate(); }}
-            className="w-full md:max-w-md bg-white/[0.05] border border-white/[0.09] hover:border-white/[0.14] focus:border-white/20 rounded-2xl px-5 py-5 text-[16px] text-white placeholder:text-white/25 outline-none transition-all"
+            className="w-full md:max-w-md bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-2xl px-5 py-5 text-[16px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
             placeholder={language === 'en' ? 'e.g: Roll Week Discount' : language === 'ru' ? 'напр: Скидка Недели Роллов' : 'Məs: Roll Həftəsi Endirimi'} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">{t('campaign_type')}</label>
+            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('campaign_type')}</label>
             <GoldSelect
               value={form.type}
               options={campaignTypes.map((ct: {id: string, label: string, icon: React.ComponentType<{size: number, strokeWidth: number}>}) => ({ value: ct.id, label: ct.label, icon: <ct.icon size={13} strokeWidth={1.5} /> }))}
@@ -105,9 +105,9 @@ const CampaignModal = ({
           </div>
           {(form.type === 'PERCENTAGE' || form.type === 'HAPPY_HOUR') && (
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">{t('discount_percent_label')}</label>
+              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('discount_percent_label')}</label>
               <input type="number" min="1" max="100" value={form.discount_value} onChange={(e) => onFormChange({...form, discount_value: e.target.value})}
-                className="w-full md:max-w-xs bg-white/[0.05] border border-white/[0.09] hover:border-white/[0.14] focus:border-white/20 rounded-2xl px-5 py-5 text-[16px] text-white placeholder:text-white/25 outline-none transition-all"
+                className="w-full md:max-w-xs bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-2xl px-5 py-5 text-[16px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
                 placeholder={language === 'en' ? 'e.g: 20' : language === 'ru' ? 'напр: 20' : 'Məs: 20'} />
             </div>
           )}
@@ -116,23 +116,23 @@ const CampaignModal = ({
         {form.type === 'HAPPY_HOUR' && (
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">{t('start_time_label')}</label>
+              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('start_time_label')}</label>
               <input type="time" value={form.start_time} onChange={(e) => onFormChange({...form, start_time: e.target.value})}
-                className="w-full bg-white/[0.05] border border-white/[0.09] focus:border-white/20 rounded-2xl px-3 py-4 text-[15px] text-white outline-none transition-all" />
+                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] rounded-2xl px-3 py-4 text-[15px] text-[var(--theme-text)] outline-none transition-all" />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">{t('end_time_label')}</label>
+              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('end_time_label')}</label>
               <input type="time" value={form.end_time} onChange={(e) => onFormChange({...form, end_time: e.target.value})}
-                className="w-full bg-white/[0.05] border border-white/[0.09] focus:border-white/20 rounded-2xl px-3 py-4 text-[15px] text-white outline-none transition-all" />
+                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] rounded-2xl px-3 py-4 text-[15px] text-[var(--theme-text)] outline-none transition-all" />
             </div>
           </div>
         )}
 
         <div className="space-y-3">
           <div className="relative">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
             <input type="text" placeholder={t('search_products')} value={productSearch} onChange={(e) => onProductSearch(e.target.value)}
-              className="w-full pl-11 pr-4 py-5 bg-white/[0.05] border border-white/[0.09] hover:border-white/[0.14] focus:border-white/20 rounded-2xl text-[15px] text-white placeholder:text-white/30 outline-none transition-all" />
+              className="w-full pl-11 pr-4 py-5 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-2xl text-[15px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
           </div>
           <div className="max-h-[320px] overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -140,18 +140,18 @@ const CampaignModal = ({
                 <button key={p.id} type="button" onClick={() => onFormChange({...form, target_id: p.id, target_type: 'product'})}
                   className={`flex items-center gap-4 p-4 rounded-2xl border transition-all text-left ${
                     form.target_id === p.id
-                      ? 'bg-white/[0.1] border-white/20'
-                      : 'bg-white/[0.04] border-white/[0.08] hover:border-white/[0.18] hover:bg-white/[0.07]'
+                      ? 'bg-[var(--theme-accent-soft)] border-[var(--theme-accent-border)]'
+                      : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] hover:bg-[var(--theme-panel)]'
                   }`}>
                   <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-white/[0.06] border border-white/[0.06]">
                     {p.image_url
                       ? <img src={p.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center text-white/20 text-[10px] font-black">{p.name.slice(0,2).toUpperCase()}</div>
+                      : <div className="w-full h-full flex items-center justify-center text-[var(--theme-text-muted)] text-[10px] font-black">{p.name.slice(0,2).toUpperCase()}</div>
                     }
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <p className={`text-[13px] font-semibold truncate ${form.target_id === p.id ? 'text-white' : 'text-white/80'}`}>{(language === 'en' && (p as any).translations?.en?.name) || (language === 'ru' && (p as any).translations?.ru?.name) || p.name}</p>
-                    <p className="text-[12px] text-white/40 mt-0.5 font-medium">₼{p.price}</p>
+                    <p className={`text-[13px] font-semibold truncate ${form.target_id === p.id ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)]'}`}>{(language === 'en' && (p as any).translations?.en?.name) || (language === 'ru' && (p as any).translations?.ru?.name) || p.name}</p>
+                    <p className="text-[12px] text-[var(--theme-text-muted)] mt-0.5 font-medium">₼{p.price}</p>
                   </div>
                   {form.target_id === p.id && <CheckCircle2 size={15} className="text-white flex-shrink-0" />}
                 </button>
@@ -162,7 +162,7 @@ const CampaignModal = ({
 
         {form.type === 'PERCENTAGE' && form.target_type === 'product' && form.target_id && (
           <div className="p-3.5 bg-white/[0.05] border border-white/20 rounded-xl flex justify-between items-center">
-            <span className="text-[10px] uppercase text-white/40 font-bold tracking-widest">{t('new_price')}</span>
+            <span className="text-[10px] uppercase text-[var(--theme-text-muted)] font-bold tracking-widest">{t('new_price')}</span>
             <span className="text-xl font-bold text-white">₼{(() => {
               const p = products.find(prod => prod.id === form.target_id);
               const disc = parseFloat(form.discount_value) || 0;
@@ -172,11 +172,11 @@ const CampaignModal = ({
         )}
 
         <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest text-white/50 font-semibold flex items-center gap-2">
+          <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold flex items-center gap-2">
             <CalendarOff size={11} />{t('end_date_optional')}
           </label>
           <GoldCalendar value={form.end_date} min={new Date().toISOString().split('T')[0]} onChange={(val) => onFormChange({...form, end_date: val})} />
-          {form.end_date && <p className="text-[10px] text-white/50">{t('campaign_auto_deactivate')}</p>}
+          {form.end_date && <p className="text-[10px] text-[var(--theme-text-muted)]">{t('campaign_auto_deactivate')}</p>}
         </div>
       </div>
     </form>
@@ -199,7 +199,7 @@ const CampaignModal = ({
           >
             {/* Mobile Header */}
             <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-4 border-b border-white/[0.08] bg-card">
-              <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/[0.05] text-white/50 hover:text-white transition-all">
+              <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all">
                 <ChevronLeft size={22} />
               </button>
               <div className="flex-1 text-center">
@@ -247,9 +247,9 @@ const CampaignModal = ({
             <div className="sticky top-0 z-10 flex items-center justify-between px-9 py-6 bg-[#111111] border-b border-white/[0.06]">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight text-white mb-1">{campaign ? t('edit_campaign') : t('new_campaign')}</h2>
-                <p className="text-[10px] text-white/50 uppercase tracking-[0.35em]">{t('premium_marketing')}</p>
+                <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-[0.35em]">{t('premium_marketing')}</p>
               </div>
-              <button onClick={onClose} className="w-9 h-9 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-white/40 hover:text-white hover:bg-white/[0.1] transition-all">
+              <button onClick={onClose} className="w-9 h-9 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-panel)] transition-all">
                 <X size={18} />
               </button>
             </div>

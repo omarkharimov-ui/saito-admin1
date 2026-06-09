@@ -45,7 +45,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
   const openTime = openMatch?.[1];
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-[#0a0a0a]">
+    <div className="relative overflow-hidden rounded-xl bg-[var(--theme-panel)] border border-[var(--theme-border)]">
       <div className="relative z-10 flex items-center gap-5 p-6">
         {/* Brain icon */}
         <div className="relative shrink-0 sensei-icon-calm">
@@ -54,7 +54,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
             style={{ background: 'var(--theme-surface-soft)' }}
           >
             {/* Animated Brain Circuit */}
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'relative', zIndex: 1 }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--theme-text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'relative', zIndex: 1 }}>
               <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
               <path d="M9 13a4.5 4.5 0 0 0 3-4" /><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
               <path d="M3.477 10.896a4 4 0 0 1 .585-.396" /><path d="M6 18a4 4 0 0 1-1.967-.516" />
@@ -81,7 +81,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
               SENSEI AI
             </span>
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--theme-border-strong)' }} />
-            <span className="text-[10px] font-bold tracking-[0.25em] uppercase text-white/40">
+            <span className="text-[10px] font-bold tracking-[0.25em] uppercase text-[var(--theme-text-secondary)]">
               Yuxu rejimi
             </span>
           </div>
@@ -89,32 +89,32 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
           {/* Countdown */}
           {countdown ? (
             <div>
-              <p className="text-white/80 text-base leading-snug mb-2.5">
-                <span className="font-serif italic text-white/50">Sensei </span>
+              <p className="text-[var(--theme-text)] text-base leading-snug mb-2.5">
+                <span className="font-serif italic text-[var(--theme-text-secondary)]">Sensei </span>
                 {countdown.h > 0 && (
                   <span className="font-mono font-black text-lg" style={{ color: 'var(--theme-text)' }}>
-                    {countdown.h}<span className="text-sm font-bold text-white/40 ml-0.5">saat </span>
+                    {countdown.h}<span className="text-sm font-bold text-[var(--theme-text-secondary)] ml-0.5">saat </span>
                   </span>
                 )}
-                <span className="font-mono font-black text-lg" style={{ color: lightMode ? '#111827' : 'rgba(255,255,255,0.85)' }}>
-                  {String(countdown.m).padStart(2,'0')}<span className="text-sm font-bold text-white/40 ml-0.5">dəq </span>
+                <span className="font-mono font-black text-lg" style={{ color: 'var(--theme-text)' }}>
+                  {String(countdown.m).padStart(2,'0')}<span className="text-sm font-bold text-[var(--theme-text-secondary)] ml-0.5">dəq </span>
                 </span>
-                <span className="font-mono font-bold text-base text-white/50">
-                  {String(countdown.s).padStart(2,'0')}<span className="text-sm ml-0.5">san</span>
+                <span className="font-mono font-bold text-base text-[var(--theme-text-secondary)]">
+                  {String(countdown.s).padStart(2,'0')}<span className="text-sm ml-0.5 text-[var(--theme-text-secondary)]">san</span>
                 </span>
-                <span className="font-serif italic text-white/50"> sonra oyanacaq</span>
+                <span className="font-serif italic text-[var(--theme-text-secondary)]"> sonra oyanacaq</span>
               </p>
               {openTime && (
                 <div className="flex items-center gap-1.5">
-                  <div className="w-1 h-1 rounded-full" style={{ background: lightMode ? '#d1d5db' : 'rgba(255,255,255,0.25)' }} />
-                  <span className="text-[11px] text-white/30">
-                    Açılış: <span className="font-mono font-bold text-white/60">{openTime}</span>
+                  <div className="w-1 h-1 rounded-full" style={{ background: 'var(--theme-border-strong)' }} />
+                  <span className="text-[11px] text-[var(--theme-text-secondary)]">
+                    Açılış: <span className="font-mono font-bold text-[var(--theme-text)]">{openTime}</span>
                   </span>
                 </div>
               )}
             </div>
           ) : (
-            <p className="text-white/60 text-base font-serif italic">
+            <p className="text-[var(--theme-text-secondary)] text-base font-serif italic">
               İş saatları başlayana qədər istirahət edirəm...
             </p>
           )}

@@ -44,8 +44,8 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
       <motion.div
         whileTap={{ scale: 0.978 }}
         onClick={() => onEdit(camp)}
-        className="md:hidden relative overflow-hidden rounded-3xl cursor-pointer"
-        style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${isActive ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.06)'}` }}
+
+        className={`md:hidden relative overflow-hidden rounded-3xl cursor-pointer border ${isActive ? 'bg-[var(--theme-panel)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}
       >
         {isActive && (
           <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
@@ -54,13 +54,13 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
           {/* Left: product image or icon */}
           <div className="shrink-0">
             {camp.target_type === 'product' && (target as Product)?.image_url ? (
-              <div className="w-[72px] h-[72px] rounded-2xl overflow-hidden border border-white/[0.07]">
+              <div className="w-[72px] h-[72px] rounded-2xl overflow-hidden border border-[var(--theme-border)] bg-[var(--theme-surface-soft)]">
                 <img src={(target as Product).image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </div>
             ) : (
               <div
-                className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.04))', border: '1px solid rgba(212,175,55,0.15)' }}
+
+                className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)]"
               >
                 <Icon size={26} strokeWidth={1.3} className="text-gold/70" />
               </div>
@@ -85,8 +85,8 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             {/* Middle */}
             <div className="flex items-center gap-2 mt-1.5">
               <span
-                className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full"
-                style={{ background: 'rgba(212,175,55,0.10)', color: 'rgba(212,175,55,0.70)', border: '1px solid rgba(212,175,55,0.15)' }}
+
+                className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border-[var(--theme-accent-border)]"
               >
                 {CAMPAIGN_LABELS[camp.type] ?? camp.type}
               </span>
@@ -104,16 +104,16 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
                     <span className="relative inline-flex rounded-full w-2 h-2 bg-emerald-400" />
                   </span>
                 ) : (
-                  <span className="w-2 h-2 rounded-full bg-white/15" />
+                  <span className="w-2 h-2 rounded-full bg-[var(--theme-border-strong)]" />
                 )}
-                <span className={`text-[10px] font-semibold uppercase tracking-widest ${isActive ? 'text-emerald-400/70' : 'text-white/20'}`}>
+                <span className={`text-[10px] font-semibold uppercase tracking-widest ${isActive ? 'text-emerald-400/70' : 'text-[var(--theme-text-muted)]'}`}>
                   {isActive ? t('active') : t('passive')}
                 </span>
               </div>
               {(camp as any).end_date && (
                 <>
-                  <span className="w-px h-3 bg-white/[0.08]" />
-                  <div className="flex items-center gap-1 text-[10px] text-white/20">
+                  <span className="w-px h-3 bg-[var(--theme-border)]" />
+                  <div className="flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
                     <CalendarOff size={9} />
                     {new Date((camp as any).end_date).toLocaleDateString('az-AZ')}
                   </div>
@@ -129,12 +129,12 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         whileHover={{ y: -4, boxShadow: '0 18px 42px rgba(0,0,0,0.35)' }}
         transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         onClick={() => onEdit(camp)}
-        className="hidden md:block bg-gradient-to-br from-white/[0.05] to-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-[20px] p-6 md:p-7 relative group transition-all overflow-hidden cursor-pointer shadow-[0_4px_32px_rgba(0,0,0,0.35)]"
+        className="hidden md:block bg-[var(--theme-panel)] backdrop-blur-sm border border-[var(--theme-border)] rounded-[20px] p-6 md:p-7 relative group transition-all overflow-hidden cursor-pointer shadow-[0_4px_32px_rgba(0,0,0,0.35)]"
       >
         <div className="absolute top-4 right-4 z-10">
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
-            className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500/15 hover:border-red-500/40 text-[var(--theme-text-secondary)] hover:text-red-500 transition-colors"
+            className="w-10 h-10 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center hover:bg-red-500/15 hover:border-red-500/40 text-[var(--theme-text-secondary)] hover:text-red-500 transition-colors"
             title={t('delete_campaign')}
           >
             <Trash2 size={18} />
@@ -142,7 +142,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         </div>
 
         <div className="flex items-start gap-4 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-gold flex-shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-gold flex-shrink-0">
             <Icon size={22} strokeWidth={1.5} />
           </div>
           <div className="pr-12 flex-1 min-w-0">
@@ -152,16 +152,16 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         </div>
 
         <div className="mb-5">
-          <div className="flex items-center gap-3 p-2.5 bg-white/[0.03] border border-white/[0.06] rounded-xl">
-            <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/[0.10] overflow-hidden flex-shrink-0">
+          <div className="flex items-center gap-3 p-2.5 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl">
+            <div className="w-9 h-9 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] overflow-hidden flex-shrink-0">
               {camp.target_type === 'product' && (target as Product)?.image_url ? (
                 <img src={(target as Product).image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-white/20"><Tag size={14} /></div>
+                <div className="w-full h-full flex items-center justify-center text-[var(--theme-text-muted)]"><Tag size={14} /></div>
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-[8px] uppercase tracking-widest text-white/25 mb-0.5">{camp.target_type === 'product' ? t('product') : t('category')}</p>
+              <p className="text-[8px] uppercase tracking-widest text-[var(--theme-text-muted)] mb-0.5">{camp.target_type === 'product' ? t('product') : t('category')}</p>
               <p className="text-xs font-semibold text-[var(--theme-text-secondary)] truncate">{target?.name || t('error_not_found')}</p>
             </div>
           </div>
@@ -173,7 +173,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
               {isActive && <span className="absolute inset-0 rounded-full bg-emerald-500/30 animate-ping" />}
               <span className={`relative w-2 h-2 rounded-full ${isActive ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]' : 'bg-white/20'}`} />
             </div>
-            <span className={`text-[10px] font-semibold uppercase tracking-widest ${isActive ? 'text-emerald-400/80' : 'text-white/25'}`}>
+            <span className={`text-[10px] font-semibold uppercase tracking-widest ${isActive ? 'text-emerald-400/80' : 'text-[var(--theme-text-muted)]'}`}>
               {isActive ? t('active') : t('passive')}
             </span>
           </div>
@@ -183,7 +183,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
                 <CalendarOff size={9} />{new Date((camp as any).end_date).toLocaleDateString('az-AZ')}
               </div>
             )}
-            <span className="text-[9px] text-white/20 uppercase tracking-tight">{new Date(camp.created_at!).toLocaleDateString('az-AZ')}</span>
+            <span className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-tight">{new Date(camp.created_at!).toLocaleDateString('az-AZ')}</span>
           </div>
         </div>
       </motion.div>

@@ -119,7 +119,7 @@ export default function HeroBanner() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="text-2xl md:text-3xl font-serif font-bold text-white"
+              className="text-2xl md:text-3xl font-serif font-bold text-[var(--theme-text)]"
             >
               {greeting}{userName ? `, ${userName}` : ''}
             </motion.h1>
@@ -127,7 +127,7 @@ export default function HeroBanner() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.5 }}
-              className="text-white/40 text-sm mt-1"
+              className="text-[var(--theme-text-secondary)] text-sm mt-1"
             >
               {t('restaurant_running_smoothly')}
             </motion.p>
@@ -139,14 +139,14 @@ export default function HeroBanner() {
           {/* Top: Revenue + sparkline */}
           <div className="relative mb-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] uppercase tracking-[0.35em] font-semibold text-white/40">
+              <span className="text-[10px] uppercase tracking-[0.35em] font-semibold text-[var(--theme-text-muted)]">
                 {t('today_revenue')}
               </span>
-              <span className="text-[11px] text-white/20">{t('today')}</span>
+              <span className="text-[11px] text-[var(--theme-text-muted)]">{t('today')}</span>
             </div>
             
             <div className="flex items-end justify-between">
-              <h2 className="font-serif font-bold text-white leading-none tracking-tight relative z-10">
+              <h2 className="font-serif font-bold text-[var(--theme-text)] leading-none tracking-tight relative z-10">
                 <AnimatePresence mode="wait">
                   {loading ? (
                     <motion.span
@@ -154,7 +154,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="block h-14 w-48 rounded-xl bg-white/[0.05] animate-pulse"
+                      className="block h-14 w-48 rounded-xl bg-[var(--theme-surface-soft)] animate-pulse"
                     />
                   ) : (
                     <motion.span
@@ -200,14 +200,14 @@ export default function HeroBanner() {
               <div
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
                 style={{
-                  background: stats.dailyNetProfit >= 0 ? 'rgba(52,211,153,0.08)' : 'rgba(239,68,68,0.08)',
-                  border: stats.dailyNetProfit >= 0 ? '1px solid rgba(52,211,153,0.2)' : '1px solid rgba(239,68,68,0.2)',
-                  color: stats.dailyNetProfit >= 0 ? '#34d399' : '#f87171',
+                  background: stats.dailyNetProfit >= 0 ? 'color-mix(in srgb, var(--theme-success) 8%, transparent)' : 'color-mix(in srgb, var(--theme-danger) 8%, transparent)',
+                  border: stats.dailyNetProfit >= 0 ? '1px solid color-mix(in srgb, var(--theme-success) 20%, transparent)' : '1px solid color-mix(in srgb, var(--theme-danger) 20%, transparent)',
+                  color: stats.dailyNetProfit >= 0 ? 'var(--theme-success)' : 'var(--theme-danger)',
                 }}
               >
                 {stats.dailyNetProfit >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                 Qazanc: ₼{Math.abs(stats.dailyNetProfit).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                {stats.foodCostPct > 0 && <span className="text-white/30 font-normal"> · FC {stats.foodCostPct.toFixed(1)}%</span>}
+                {stats.foodCostPct > 0 && <span className="text-[var(--theme-text-muted)] font-normal"> · FC {stats.foodCostPct.toFixed(1)}%</span>}
               </div>
               {stats.criticalStockCount > 0 && (
                 <div

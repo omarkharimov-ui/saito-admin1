@@ -226,36 +226,30 @@ body {
   }
 }
 
-/* ══════════════════════════════════════════════════
-   GLOBAL THEME OVERRIDES
-   Auto-converts dark Tailwind utilities to light equivalents
-   when [data-theme="light"] is set on <html>
-   ══════════════════════════════════════════════════ */
-
-/* Theme utilities are now token-driven via CSS variables. */
+/* Theme utilities are token-driven via CSS variables. */
 
 /* ── Divide — white opacity variants ── */
-html[data-theme="light"] .divide-white\/5 > * + * { border-color: #f3f4f6; }
-html[data-theme="light"] .divide-white\/\[0\.05\] > * + * { border-color: #f3f4f6; }
-html[data-theme="light"] .divide-white\/10 > * + * { border-color: #e5e7eb; }
+html[data-theme="light"] .divide-white\/5 > * + * { border-color: var(--theme-border); }
+html[data-theme="light"] .divide-white\/\[0\.05\] > * + * { border-color: var(--theme-border); }
+html[data-theme="light"] .divide-white\/10 > * + * { border-color: var(--theme-border); }
 
 /* ── Hover states ── */
-html[data-theme="light"] .hover\:bg-white\/5:hover { background-color: #f3f4f6; }
-html[data-theme="light"] .hover\:bg-white\/\[0\.05\]:hover { background-color: #f3f4f6; }
-html[data-theme="light"] .hover\:bg-white\/\[0\.07\]:hover { background-color: #e5e7eb; }
-html[data-theme="light"] .hover\:bg-white\/10:hover { background-color: #e5e7eb; }
-html[data-theme="light"] .hover\:bg-white\/\[0\.10\]:hover { background-color: #e5e7eb; }
-html[data-theme="light"] .hover\:bg-white\/20:hover { background-color: #d1d5db; }
-html[data-theme="light"] .hover\:text-white:hover { color: #111827; }
-html[data-theme="light"] .hover\:text-white\/60:hover { color: #4b5563; }
-html[data-theme="light"] .hover\:text-white\/80:hover { color: #1f2937; }
-html[data-theme="light"] .hover\:text-white\/85:hover { color: #1f2937; }
+html[data-theme="light"] .hover\:bg-white\/5:hover { background-color: var(--theme-surface-soft); }
+html[data-theme="light"] .hover\:bg-white\/\[0\.05\]:hover { background-color: var(--theme-surface-soft); }
+html[data-theme="light"] .hover\:bg-white\/\[0\.07\]:hover { background-color: var(--theme-surface-soft); }
+html[data-theme="light"] .hover\:bg-white\/10:hover { background-color: var(--theme-surface-soft); }
+html[data-theme="light"] .hover\:bg-white\/\[0\.10\]:hover { background-color: var(--theme-surface-soft); }
+html[data-theme="light"] .hover\:bg-white\/20:hover { background-color: var(--theme-border-strong); }
+html[data-theme="light"] .hover\:text-white:hover { color: var(--theme-text); }
+html[data-theme="light"] .hover\:text-white\/60:hover { color: var(--theme-text-secondary); }
+html[data-theme="light"] .hover\:text-white\/80:hover { color: var(--theme-text); }
+html[data-theme="light"] .hover\:text-white\/85:hover { color: var(--theme-text); }
 html[data-theme="dark"] .hover\:text-white\/85:hover { color: inherit; }
 
 /* ── Placeholder text ── */
-html[data-theme="light"] .placeholder\:text-white\/20::placeholder { color: #9ca3af; }
-html[data-theme="light"] .placeholder\:text-white\/25::placeholder { color: #9ca3af; }
-html[data-theme="light"] .placeholder\:text-white\/30::placeholder { color: #9ca3af; }
+html[data-theme="light"] .placeholder\:text-white\/20::placeholder { color: var(--theme-text-muted); }
+html[data-theme="light"] .placeholder\:text-white\/25::placeholder { color: var(--theme-text-muted); }
+html[data-theme="light"] .placeholder\:text-white\/30::placeholder { color: var(--theme-text-muted); }
 
 /* ── Focus states ── */
 html[data-theme="light"] .focus\:border-white\/25:focus { border-color: #9ca3af; }

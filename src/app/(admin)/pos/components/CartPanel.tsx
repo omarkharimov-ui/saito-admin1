@@ -81,11 +81,11 @@ export function CartPanel({
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
-                  {item.modifiers.length > 0 && (
+                  {item.modifiers?.length ? (
                     <p className="text-[10px] truncate text-[var(--theme-text-secondary)]">
                       {item.modifiers.map(m => m.label).join(', ')}
                     </p>
-                  )}
+                  ) : null}
                   <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">

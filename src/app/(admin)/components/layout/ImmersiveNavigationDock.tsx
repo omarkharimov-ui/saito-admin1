@@ -181,13 +181,14 @@ export default function ImmersiveNavigationDock({
             setDockDragging(false);
           }}
         >
-          <div className="absolute inset-1 rounded-full bg-transparent pointer-events-none overflow-hidden">
+          <div className="absolute inset-1 rounded-full bg-transparent pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
             <motion.div
               layoutId="immersive-dock-active-pill"
-              className="absolute top-1 bottom-1 rounded-full overflow-hidden backdrop-blur-xl"
+              className="absolute top-0.5 bottom-0.5 rounded-full overflow-hidden backdrop-blur-xl"
               style={{
                 left: `${Math.max(0, primary.findIndex((link) => link.id === (dockDragging ? dragActiveKey : activeDockKey))) * (100 / Math.max(1, primary.length))}%`,
                 width: `${100 / Math.max(1, primary.length)}%`,
+                minHeight: 'calc(100% - 4px)',
                 background: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))',
                 border: '1px solid rgba(255,255,255,0.28)',
                 boxShadow: '0 10px 26px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',

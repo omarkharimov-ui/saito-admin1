@@ -19,23 +19,23 @@ interface ModifierSheetProps {
 }
 
 const DONENESS: Modifier[] = [
-  { id: 'doneness_rare', type: 'doneness', label: 'Azbişmiş (Rare)', price_adjust: 0 },
-  { id: 'doneness_medium', type: 'doneness', label: 'Orta (Medium)', price_adjust: 0 },
-  { id: 'doneness_well', type: 'doneness', label: 'Tam bişmiş (Well)', price_adjust: 0 },
+  { id: 'doneness_rare', name: 'Azbişmiş (Rare)', price: 0, quantity: 1 },
+  { id: 'doneness_medium', name: 'Orta (Medium)', price: 0, quantity: 1 },
+  { id: 'doneness_well', name: 'Tam bişmiş (Well)', price: 0, quantity: 1 },
 ];
 
 const EXTRAS: Modifier[] = [
-  { id: 'extra_cheese', type: 'extra', label: 'Əlavə pendir', price_adjust: 1.50, ingredient_id: 'cheese', ingredient_qty: 20 },
-  { id: 'extra_bacon', type: 'extra', label: 'Əlavə bekon', price_adjust: 2.00, ingredient_id: 'bacon', ingredient_qty: 30 },
-  { id: 'extra_avocado', type: 'extra', label: 'Əlavə avokado', price_adjust: 2.50, ingredient_id: 'avocado', ingredient_qty: 40 },
-  { id: 'extra_egg', type: 'extra', label: 'Əlavə yumurta', price_adjust: 1.00, ingredient_id: 'egg', ingredient_qty: 1 },
+  { id: 'extra_cheese', name: 'Əlavə pendir', price: 1.50, quantity: 1 },
+  { id: 'extra_bacon', name: 'Əlavə bekon', price: 2.00, quantity: 1 },
+  { id: 'extra_avocado', name: 'Əlavə avokado', price: 2.50, quantity: 1 },
+  { id: 'extra_egg', name: 'Əlavə yumurta', price: 1.00, quantity: 1 },
 ];
 
 const REMOVALS: Modifier[] = [
-  { id: 'remove_onion', type: 'remove', label: 'Soğansız', price_adjust: 0, ingredient_id: 'onion', ingredient_qty: -10 },
-  { id: 'remove_pickle', type: 'remove', label: 'Turşusuz', price_adjust: 0, ingredient_id: 'pickle', ingredient_qty: -10 },
-  { id: 'remove_tomato', type: 'remove', label: 'Pomidorsuz', price_adjust: 0, ingredient_id: 'tomato', ingredient_qty: -20 },
-  { id: 'remove_lettuce', type: 'remove', label: 'Kahısız', price_adjust: 0, ingredient_id: 'lettuce', ingredient_qty: -10 },
+  { id: 'remove_onion', name: 'Soğansız', price: 0, quantity: 1 },
+  { id: 'remove_pickle', name: 'Turşusuz', price: 0, quantity: 1 },
+  { id: 'remove_tomato', name: 'Pomidorsuz', price: 0, quantity: 1 },
+  { id: 'remove_lettuce', name: 'Kahısız', price: 0, quantity: 1 },
 ];
 
 export function ModifierSheet({ open, productName, productPrice, onClose, onConfirm }: ModifierSheetProps) {
@@ -45,21 +45,21 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
   const [doneness, setDoneness] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
-  const totalExtras = EXTRAS.filter(e => selectedExtras.includes(e.id)).reduce((s, e) => s + e.price_adjust, 0);
+  const totalExtras = EXTRAS.filter(e => selectedExtras.includes(e.id)).reduce((s, e) => s + (e.price ?? 0), 0);
 
   const handleConfirm = () => {
     const modifiers: ModifierSelection[] = [];
     if (doneness) {
       const d = DONENESS.find(m => m.id === doneness);
-      if (d) modifiers.push({ id: d.id, name: d.label, price: 0, quantity: 1 });
+      if (d) modifiers.push({ id: d.id, name: d.name, price: d.price ?? 0, quantity: 1 });
     }
     selectedExtras.forEach(id => {
       const e = EXTRAS.find(m => m.id === id);
-      if (e) modifiers.push({ id: e.id, name: e.label, price: e.price_adjust, quantity: 1 });
+      if (e) modifiers.push({ id: e.id, name: e.name, price: e.price ?? 0, quantity: 1 });
     });
     selectedRemovals.forEach(id => {
       const r = REMOVALS.find(m => m.id === id);
-      if (r) modifiers.push({ id: r.id, name: r.label, price: 0, quantity: 1 });
+      if (r) modifiers.push({ id: r.id, name: r.name, price: r.price ?? 0, quantity: 1 });
     });
     onConfirm(modifiers, notes);
   };
@@ -104,7 +104,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                           ? lightMode ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-black'
                           : lightMode ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-white/[0.06] text-white/50'
                       }`}
-                    >{d.label}</button>
+                    >{d.name}</button>
                   ))}
                 </div>
               </div>
@@ -123,8 +123,8 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                           sel ? (lightMode ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-gold/10 border-gold/25 text-gold') : lightMode ? 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100' : 'bg-white/[0.03] border-white/[0.06] text-white/60'
                         }`}
                       >
-                        <span>{e.label}</span>
-                        <span className="font-bold">+{e.price_adjust.toFixed(2)} ₼</span>
+                        <span>{e.name}</span>
+                        <span className="font-bold">+{(e.price ?? 0).toFixed(2)} ₼</span>
                       </button>
                     );
                   })}
@@ -144,7 +144,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                         className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
                           sel ? (lightMode ? 'bg-red-50 border-red-300 text-red-700' : 'bg-red-500/10 border-red-500/25 text-red-300') : lightMode ? 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200' : 'bg-white/[0.04] border-white/[0.07] text-white/50'
                         }`}
-                      >{r.label}</button>
+                      >{r.name}</button>
                     );
                   })}
                 </div>

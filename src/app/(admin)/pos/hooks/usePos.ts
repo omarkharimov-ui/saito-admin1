@@ -150,7 +150,8 @@ export function usePos() {
     const langs = languageRef.current;
     const key = `${product.id}__${variantId || 'base'}__${modifiers?.map(m => m.id).sort().join(',') || ''}`;
     const existing = currentCart.items.find(i => {
-      const ek = `${i.product_id}__${i.variant_id || 'base'}__${i.modifiers.map(m => m.modifier_id).sort().join(',')}`;
+      const existingModifiers = (i.modifiers ?? []).map(m => m.id).sort().join(',');
+      const ek = `${i.product_id}__${i.variant_id || 'base'}__${existingModifiers}`;
       return ek === key;
     });
 
@@ -162,7 +163,7 @@ export function usePos() {
         ),
       } : null);
     } else {
-      const unitPrice = modifiers?.reduce((s, m) => s + m.price_adjust, product.price) ?? product.price;
+      const unitPrice = modifiers?.reduce((s, m) => s + m.price, product.price) ?? product.price;
       const localizedName = langs === 'az' ? product.name_az : langs === 'en' ? product.name_en : product.name_ru;
       const newItem: PosCartItem = {
         product_id: product.id,

@@ -159,7 +159,7 @@ export function usePos() {
       setCart(prev => prev ? {
         ...prev,
         items: prev.items.map(i =>
-          i === existing ? { ...i, quantity: i.quantity + 1 } : i
+          i === existing ? { ...i, quantity: i.quantity + 1, total_price: i.unit_price * (i.quantity + 1) } : i
         ),
       } : null);
     } else {
@@ -170,6 +170,7 @@ export function usePos() {
         product_name: localizedName || product.name,
         product_image: product.image_url ?? null,
         unit_price: unitPrice,
+        total_price: unitPrice,
         quantity: 1,
         modifiers: modifiers || [],
         special_notes: notes || '',
@@ -188,7 +189,7 @@ export function usePos() {
       if (newQty <= 0) {
         items.splice(index, 1);
       } else {
-        items[index] = { ...items[index], quantity: newQty };
+        items[index] = { ...items[index], quantity: newQty, total_price: items[index].unit_price * newQty };
       }
       return { ...prev, items };
     });

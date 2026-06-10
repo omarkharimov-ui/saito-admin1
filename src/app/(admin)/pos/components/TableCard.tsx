@@ -3,17 +3,7 @@
 import { motion } from 'framer-motion';
 import { Clock, Users, Utensils, MoreVertical, GitMerge } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
-type PosTable = {
-  id: string;
-  table_number: number;
-  guest_count?: number | null;
-  status: 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | string;
-  total_amount: number;
-  merged_orders?: unknown[] | null;
-  last_activity_at?: string | null;
-  opened_at?: string | null;
-  order_count?: number | null;
-};
+import type { PosTable } from '../types/shared';
 
 const statusConfig: Record<string, { label: string; dot: string; bg: string; border: string; text: string; glow: string; lightBg: string; lightBorder: string; lightText: string }> = {
   empty: {
@@ -120,7 +110,7 @@ export function TableCard({
             </div>
             <div className="flex items-center gap-1.5">
               <Clock size={11} />
-              <span className="text-[11px] font-medium tabular-nums">{timeSince(table.opened_at)}</span>
+              <span className="text-[11px] font-medium tabular-nums">{timeSince(table.opened_at ?? null)}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Utensils size={11} />

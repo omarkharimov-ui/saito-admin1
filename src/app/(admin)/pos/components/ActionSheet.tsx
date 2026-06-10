@@ -6,14 +6,7 @@ import {
   Printer, Save, X,
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
-type PosTable = {
-  id: string;
-  table_number: number;
-  guest_count?: number | null;
-  status: string;
-  total_amount: number;
-  merged_orders?: unknown[] | null;
-};
+import type { PosTable } from '../types/shared';
 
 interface ActionSheetProps {
   table: PosTable | null;
@@ -34,8 +27,8 @@ const actions = [
   { id: 'transfer', icon: Move, label: 'Köçür', color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', lightColor: 'text-violet-600', lightBg: 'bg-violet-50', lightBorder: 'border-violet-200' },
   { id: 'split', icon: Split, label: 'Böl', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', lightColor: 'text-amber-600', lightBg: 'bg-amber-50', lightBorder: 'border-amber-200' },
   { id: 'close_bill', icon: CreditCard, label: 'Hesab', color: 'text-gold', bg: 'bg-amber-500/10', border: 'border-amber-500/20', lightColor: 'text-amber-700', lightBg: 'bg-amber-50', lightBorder: 'border-amber-200' },
-  { id: 'print', icon: Printer, label: 'Çap', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' },
-  { id: 'save_draft', icon: Save, label: 'Saxla', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' }
+  { id: 'print', icon: Printer, label: 'Çap · soon', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' },
+  { id: 'save_draft', icon: Save, label: 'Saxla · soon', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' }
 ];
 
 export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft }: ActionSheetProps) {
@@ -81,14 +74,14 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
               </div>
 
               <div className="rounded-3xl border p-4 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-2xl backdrop-blur-xl">
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-2.5">
                   {visible.map((action) => {
                     const Icon = action.icon;
                     return (
                       <motion.button
                         key={action.id}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.92 }}
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
                         onClick={() => {
                           const fn = {
                             add_order: onAddOrder,
@@ -102,15 +95,15 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                           if (fn) fn();
                           onClose();
                         }}
-                        className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all ${lightMode ? action.lightBg : action.bg} ${lightMode ? action.lightBorder : action.border}`}
+                        className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all ${lightMode ? action.lightBg : action.bg} ${lightMode ? action.lightBorder : action.border} shadow-sm`}
                       >
                         <Icon size={20} className="text-[var(--theme-accent)]" />
-                        <span className="text-[9px] font-bold tracking-wider uppercase text-[var(--theme-text-secondary)]">{action.label}</span>
+                        <span className="text-[9px] font-bold tracking-wider uppercase text-[var(--theme-text-secondary)] text-center leading-none">{action.label}</span>
                       </motion.button>
                     );
                   })}
                 </div>
-                <button onClick={onClose} className="w-full mt-3 py-3 rounded-2xl text-sm font-semibold transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-panel)]">
+                <button onClick={onClose} className="w-full mt-3 py-3 rounded-2xl text-sm font-semibold transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-panel)] shadow-sm">
                   Bağla
                 </button>
               </div>

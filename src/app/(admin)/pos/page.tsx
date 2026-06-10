@@ -12,8 +12,7 @@ import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { toast } from 'react-hot-toast';
-import type { ModifierSelection, PaymentInfo } from './types';
-import type { PosProduct } from './types';
+import type { ModifierSelection, PaymentInfo, PosProduct, PosTable } from './types/shared';
 
 const tabs = [
   { id: 'floor' as const, icon: LayoutGrid, label: 'Masalar' },
@@ -27,7 +26,7 @@ export default function POSPage() {
   const pos = usePos();
 
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
-  const [actionSheetTable, setActionSheetTable] = useState<any>(null);
+  const [actionSheetTable, setActionSheetTable] = useState<PosTable | null>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
   const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -121,7 +120,7 @@ export default function POSPage() {
   }, [payOrderId, payMethod, payAmount, payTip, pos]);
 
   /* ── Table actions ── */
-  const handleTableTap = useCallback((table: any) => {
+  const handleTableTap = useCallback((table: PosTable) => {
     if (mergeMode) {
       if (selectedForMerge.includes(table.table_number)) {
         setSelectedForMerge(prev => prev.filter(n => n !== table.table_number));
@@ -146,7 +145,7 @@ export default function POSPage() {
     pos.selectTable(table);
   }, [mergeMode, selectedForMerge, transferMode, transferSource, pos]);
 
-  const handleTableAction = useCallback((table: any) => {
+  const handleTableAction = useCallback((table: PosTable) => {
     setActionSheetTable(table);
     setActionSheetOpen(true);
   }, []);
@@ -423,7 +422,7 @@ export default function POSPage() {
       {modifierProduct && (
         <ModifierSheet
           open={modifierOpen}
-          productName={(modifierProduct as any)[`name_${pos.language}`] || modifierProduct.name}
+          productName={(pos.language === 'az' ? modifierProduct.name_az : pos.language === 'en' ? modifierProduct.name_en : modifierProduct.name_ru) || modifierProduct.name}
           productPrice={modifierProduct.price}
           onClose={() => { setModifierOpen(false); setModifierProduct(null); }}
           onConfirm={(modifiers, notes) => {

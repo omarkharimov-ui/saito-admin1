@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import type { PosProduct } from '../types';
+import type { PosProduct } from '../types/shared';
 
 export type Product = PosProduct;
 
@@ -29,7 +29,8 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(p => {
-        const name = (p as any)[`name_${language}`] || p.name || '';
+        const localizedName = language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru;
+        const name = localizedName || p.name || '';
         return name.toLowerCase().includes(q);
       });
     }
@@ -90,7 +91,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts }: 
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
             {filtered.map(product => {
-              const name = (product as any)[`name_${language}`] || product.name;
+              const name = (language === 'az' ? product.name_az : language === 'en' ? product.name_en : product.name_ru) || product.name;
               const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
               const count = cartCounts[product.id] || 0;
               return (

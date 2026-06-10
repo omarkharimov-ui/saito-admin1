@@ -4,22 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Trash2, ShoppingBag, Send, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
-type PosCartItem = {
-  product_id: string;
-  product_name: string;
-  product_image?: string | null;
-  unit_price: number;
-  quantity: number;
-  modifiers: { modifier_id: string; label: string; price_adjust: number }[];
-  special_notes: string;
-  variant_id?: string;
-};
-
-type PosCart = {
-  table_number: number;
-  guest_count: number;
-  items: PosCartItem[];
-};
+import type { PosCart } from '../types/shared';
 
 interface CartPanelProps {
   cart: PosCart | null;

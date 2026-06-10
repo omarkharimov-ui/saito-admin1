@@ -5,11 +5,17 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { deductStockForOrder } from '@/lib/stockAutomation';
-import type { PosProduct } from '../types';
 import type {
-  PosTable, PosCart, PosCartItem, Modifier, ModifierSelection,
-  PaymentInfo, FloorConfig, TableStatus,
-} from '../types';
+  PosProduct,
+  PosTable,
+  PosCart,
+  PosCartItem,
+  PosModifier,
+  PosModifierSelection,
+  PaymentInfo,
+  FloorConfig,
+  TableStatus,
+} from '../types/shared';
 
 const POS_CACHE_KEY = 'saito_pos_cache';
 const POS_CART_KEY = 'saito_pos_cart';
@@ -138,11 +144,11 @@ export function usePos() {
   }, []);
 
   /* ── Cart Operations ── */
-  const addToCart = useCallback((product: PosProduct, modifiers?: ModifierSelection[], notes?: string, variantId?: string) => {
+  const addToCart = useCallback((product: PosProduct, modifiers?: PosModifierSelection[], notes?: string, variantId?: string) => {
     const currentCart = cartRef.current;
     if (!currentCart) return;
     const langs = languageRef.current;
-    const key = `${product.id}__${variantId || 'base'}__${modifiers?.map(m => m.modifier_id).sort().join(',') || ''}`;
+    const key = `${product.id}__${variantId || 'base'}__${modifiers?.map(m => m.id).sort().join(',') || ''}`;
     const existing = currentCart.items.find(i => {
       const ek = `${i.product_id}__${i.variant_id || 'base'}__${i.modifiers.map(m => m.modifier_id).sort().join(',')}`;
       return ek === key;
@@ -157,9 +163,10 @@ export function usePos() {
       } : null);
     } else {
       const unitPrice = modifiers?.reduce((s, m) => s + m.price_adjust, product.price) ?? product.price;
+      const localizedName = langs === 'az' ? product.name_az : langs === 'en' ? product.name_en : product.name_ru;
       const newItem: PosCartItem = {
         product_id: product.id,
-        product_name: (product as any)[`name_${langs}`] || product.name,
+        product_name: localizedName || product.name,
         product_image: product.image_url ?? null,
         unit_price: unitPrice,
         quantity: 1,

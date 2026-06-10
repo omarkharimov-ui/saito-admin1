@@ -4,22 +4,11 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Minus } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
-type Modifier = {
-  id: string;
-  type: 'doneness' | 'extra' | 'remove';
-  label: string;
-  price_adjust: number;
-  ingredient_id?: string;
-  ingredient_qty?: number;
-};
+import type { PosModifier, PosModifierSelection } from '../types/shared';
 
-type ModifierSelection = {
-  modifier_id: string;
-  label: string;
-  price_adjust: number;
-  ingredient_id?: string;
-  ingredient_qty?: number;
-};
+type Modifier = PosModifier;
+
+type ModifierSelection = PosModifierSelection;
 
 interface ModifierSheetProps {
   open: boolean;
@@ -62,15 +51,15 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
     const modifiers: ModifierSelection[] = [];
     if (doneness) {
       const d = DONENESS.find(m => m.id === doneness);
-      if (d) modifiers.push({ modifier_id: d.id, label: d.label, price_adjust: 0 });
+      if (d) modifiers.push({ id: d.id, name: d.label, price: 0, quantity: 1 });
     }
     selectedExtras.forEach(id => {
       const e = EXTRAS.find(m => m.id === id);
-      if (e) modifiers.push({ modifier_id: e.id, label: e.label, price_adjust: e.price_adjust, ingredient_id: e.ingredient_id, ingredient_qty: e.ingredient_qty });
+      if (e) modifiers.push({ id: e.id, name: e.label, price: e.price_adjust, quantity: 1 });
     });
     selectedRemovals.forEach(id => {
       const r = REMOVALS.find(m => m.id === id);
-      if (r) modifiers.push({ modifier_id: r.id, label: r.label, price_adjust: 0, ingredient_id: r.ingredient_id, ingredient_qty: r.ingredient_qty });
+      if (r) modifiers.push({ id: r.id, name: r.label, price: 0, quantity: 1 });
     });
     onConfirm(modifiers, notes);
   };

@@ -18,11 +18,14 @@ export interface PosCartItem {
   id?: string;
   product_id: string;
   product_name?: string;
+  product_image?: string | null;
+  variant_id?: string | null;
   quantity: number;
   unit_price: number;
   total_price: number;
   modifiers?: PosModifierSelection[];
   notes?: string;
+  special_notes?: string;
 }
 
 export interface PosCart {

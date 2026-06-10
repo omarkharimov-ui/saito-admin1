@@ -49,6 +49,13 @@ export interface PosTable {
   sort_order?: number | null;
 }
 
+export interface FloorConfig {
+  id: string;
+  name: string;
+  tables?: PosTable[];
+  sort_order?: number | null;
+}
+
 export interface PosProduct {
   id: string;
   name: string;

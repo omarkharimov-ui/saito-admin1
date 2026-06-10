@@ -38,10 +38,10 @@ export function CartPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0 pb-3 border-b border-[var(--theme-border)]">
+      <div className="flex items-center justify-between flex-shrink-0 pb-4 border-b border-[var(--theme-border)]">
         <div className="flex items-center gap-2">
           <button onClick={onBack}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
+            className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
             <ArrowLeft size={18} />
           </button>
           <div>
@@ -51,14 +51,14 @@ export function CartPanel({
         </div>
         {!isEmpty && (
           <button onClick={onClear}
-            className="h-9 px-3 rounded-xl text-xs font-semibold transition-all text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10">
+            className="h-10 px-3.5 rounded-2xl text-xs font-semibold transition-all text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10">
             Təmizlə
           </button>
         )}
       </div>
 
       {/* Items */}
-      <div className="flex-1 overflow-y-auto py-3 space-y-1.5">
+      <div className="flex-1 overflow-y-auto py-3 space-y-2">
         <AnimatePresence initial={false}>
           {isEmpty ? (
             <motion.div
@@ -77,7 +77,7 @@ export function CartPanel({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20, height: 0 }}
                 transition={{ duration: 0.15 }}
-                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 border bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-[0_1px_3px_rgba(255,255,255,0.04)]"
+                className="flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-[0_1px_3px_rgba(255,255,255,0.04)]"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
@@ -89,7 +89,7 @@ export function CartPanel({
                   <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <div className="flex items-center rounded-xl overflow-hidden bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                  <div className="flex items-center rounded-2xl overflow-hidden bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                     <button onClick={() => onUpdateQty(idx, -1)} className="w-11 h-11 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
                       <Minus size={16} />
                     </button>
@@ -98,7 +98,7 @@ export function CartPanel({
                       <Plus size={16} />
                     </button>
                   </div>
-                  <button onClick={() => onRemove(idx)} className="w-11 h-11 rounded-xl flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10">
+                  <button onClick={() => onRemove(idx)} className="w-11 h-11 rounded-2xl flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -109,7 +109,7 @@ export function CartPanel({
       </div>
 
       {/* Footer */}
-      <div className="flex-shrink-0 pt-3 border-t space-y-2.5 border-[var(--theme-border)]">
+      <div className="flex-shrink-0 pt-4 border-t space-y-3 border-[var(--theme-border)]">
         <div className="flex items-center justify-between px-1">
           <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
           <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
@@ -117,7 +117,7 @@ export function CartPanel({
         <button
           onClick={onPlaceOrder}
           disabled={isEmpty || submitting}
-          className={`w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-25 ${
+          className={`w-full py-4.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-25 ${
             !isEmpty && !submitting
               ? lightMode
                 ? 'bg-amber-600 text-white shadow-md hover:bg-amber-700 hover:shadow-lg'

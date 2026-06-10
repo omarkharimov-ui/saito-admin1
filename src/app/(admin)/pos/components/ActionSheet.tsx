@@ -73,8 +73,8 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                 </p>
               </div>
 
-              <div className="rounded-3xl border p-4 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-2xl backdrop-blur-xl">
-                <div className="grid grid-cols-4 gap-2.5">
+              <div className="rounded-[2rem] border p-4 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-2xl backdrop-blur-xl">
+                <div className="grid grid-cols-4 gap-3">
                   {visible.map((action) => {
                     const Icon = action.icon;
                     return (
@@ -95,7 +95,7 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                           if (fn) fn();
                           onClose();
                         }}
-                        className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all ${lightMode ? action.lightBg : action.bg} ${lightMode ? action.lightBorder : action.border} shadow-sm`}
+                        className={`flex flex-col items-center gap-1.5 p-3.5 rounded-[1.25rem] border transition-all ${lightMode ? action.lightBg : action.bg} ${lightMode ? action.lightBorder : action.border} shadow-sm`}
                       >
                         <Icon size={20} className="text-[var(--theme-accent)]" />
                         <span className="text-[9px] font-bold tracking-wider uppercase text-[var(--theme-text-secondary)] text-center leading-none">{action.label}</span>
@@ -103,7 +103,7 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                     );
                   })}
                 </div>
-                <button onClick={onClose} className="w-full mt-3 py-3 rounded-2xl text-sm font-semibold transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-panel)] shadow-sm">
+                <button onClick={onClose} className="w-full mt-3 py-3.5 rounded-[1.25rem] text-sm font-semibold transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-panel)] shadow-sm">
                   Bağla
                 </button>
               </div>

@@ -61,7 +61,7 @@ export function TableCard({
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative flex flex-col rounded-2xl border p-3.5 text-left transition-all ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? cfg.lightBorder : cfg.border} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/30 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow}`}
+      className={`relative flex flex-col rounded-3xl border p-4 text-left transition-all duration-200 ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? cfg.lightBorder : cfg.border} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow}`}
     >
       {/* Pulse for waiting */}
       {table.status === 'waiting_bill' && (
@@ -75,10 +75,10 @@ export function TableCard({
       {/* Header row: number + status + 3-dot */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/70'}`}>
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
             {table.table_number}
           </div>
-          <span className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/60' : cfg.bg}`}>
+          <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/70' : cfg.bg}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
             {cfg.label}
           </span>
@@ -103,7 +103,7 @@ export function TableCard({
       {/* Info */}
       {isOccupied && (
         <div className="space-y-1.5 mt-0.5">
-          <div className={`flex items-center gap-2.5 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
+          <div className={`flex items-center gap-2.5 ${lightMode ? 'text-gray-500' : 'text-white/45'}`}>
             <div className="flex items-center gap-1.5">
               <Users size={11} />
               <span className="text-[11px] font-medium tabular-nums">{table.guest_count}</span>
@@ -117,14 +117,14 @@ export function TableCard({
               <span className="text-[11px] font-medium tabular-nums">{table.order_count}</span>
             </div>
           </div>
-          <div className={`text-sm font-black tabular-nums ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{table.total_amount.toFixed(2)} ₼</div>
+          <div className={`text-sm font-black tabular-nums ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{table.total_amount.toFixed(2)} ₼</div>
         </div>
       )}
 
       {/* Empty state */}
       {!isOccupied && (
-        <div className="py-2.5 flex items-center justify-center">
-          <span className={`text-[10px] uppercase tracking-[0.15em] font-semibold ${lightMode ? 'text-gray-400' : 'text-white/15'}`}>Boş</span>
+        <div className="py-3 flex items-center justify-center">
+          <span className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${lightMode ? 'text-gray-400' : 'text-white/20'}`}>Boş</span>
         </div>
       )}
     </motion.button>

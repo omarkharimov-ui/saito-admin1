@@ -25,14 +25,14 @@ export function AIPremiumCard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`rounded-[2.5rem] p-8 border transition-all ${
+        className={`rounded-[2.5rem] p-7 border transition-all ${
           lightMode
             ? 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-lg shadow-black/5'
             : 'bg-[#0f0f0f] border-white/[0.08] shadow-2xl'
         }`}
       >
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-7">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[var(--theme-accent-soft)]">
               <Zap size={18} className="text-[var(--theme-accent)]" />
@@ -50,7 +50,7 @@ export function AIPremiumCard() {
         </div>
 
         {/* Visual Content Area */}
-        <div className={`relative w-full aspect-square rounded-2xl mb-6 flex items-center justify-center overflow-hidden ${
+        <div className={`relative w-full aspect-square rounded-3xl mb-6 flex items-center justify-center overflow-hidden ${
           lightMode ? 'bg-gradient-to-br from-gray-50 to-gray-100' : 'bg-gradient-to-br from-white/5 to-white/[0.02]'
         }`}>
           <div className={`text-center ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
@@ -80,7 +80,7 @@ export function AIPremiumCard() {
         </p>
 
         {/* Module Selection Circles */}
-        <div className="grid grid-cols-4 gap-3 mb-8">
+        <div className="grid grid-cols-4 gap-3 mb-7">
           {modules.map((module) => {
             const Icon = module.icon;
             return (

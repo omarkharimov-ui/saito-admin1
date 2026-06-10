@@ -193,7 +193,7 @@ export default function POSPage() {
             <div className="h-full overflow-hidden flex flex-col">
               {/* Top bar */}
               <div className="flex-shrink-0 p-4 sm:p-5 pb-0">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 gap-3">
                   <div className="flex items-center gap-3">
                     <h1 className="text-xl sm:text-2xl font-bold tracking-tight">POS</h1>
                     {/* Floor dropdown */}
@@ -224,13 +224,13 @@ export default function POSPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
                     <button onClick={() => setLightMode(!lightMode)}
-                      className="p-2.5 rounded-xl transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-panel)] shadow-sm">
+                      className="p-2.5 rounded-2xl transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-panel)] shadow-sm">
                       <Moon size={18} />
                     </button>
                     <button onClick={toggleFullscreen}
-                      className="p-2.5 rounded-xl transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface)] hover:text-[var(--theme-text)] shadow-sm">
+                      className="p-2.5 rounded-2xl transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface)] hover:text-[var(--theme-text)] shadow-sm">
                       {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
                     </button>
                     {mergeMode && (
@@ -243,7 +243,7 @@ export default function POSPage() {
                     {(activeFloor?.tables ?? []).some(t => t.status !== 'empty') && (
                       <>
                         <button onClick={() => { setMergeMode(!mergeMode); setSelectedForMerge([]); }}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
                             mergeMode
                               ? lightMode ? 'bg-blue-50 border border-blue-200 text-blue-700 shadow-sm' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
                               : lightMode
@@ -251,7 +251,7 @@ export default function POSPage() {
                                 : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
                           }`}>Birləşdir</button>
                         <button onClick={() => { setTransferMode(!transferMode); setTransferSource(null); }}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
                             transferMode
                               ? lightMode ? 'bg-violet-50 border border-violet-200 text-violet-700 shadow-sm' : 'bg-violet-500/10 border border-violet-500/20 text-violet-300'
                               : lightMode

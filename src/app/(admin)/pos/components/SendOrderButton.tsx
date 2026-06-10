@@ -24,7 +24,7 @@ export function SendOrderButton({ disabled = false, status, onClick }: SendOrder
     <motion.button
       type="button"
       onClick={handleClick}
-      disabled={disabled || loading}
+      disabled={disabled || status === 'loading'}
       whileTap={{ scale: 0.98 }}
       animate={{ scale: isActive ? 1.01 : 1 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
@@ -33,12 +33,12 @@ export function SendOrderButton({ disabled = false, status, onClick }: SendOrder
       <motion.span
         className="absolute inset-0 bg-white/10"
         initial={false}
-        animate={{ opacity: loading ? 1 : 0 }}
+        animate={{ opacity: status === 'loading' ? 1 : 0 }}
         transition={{ duration: 0.2 }}
       />
 
       <AnimatePresence mode="wait" initial={false}>
-        {loading ? (
+        {status === 'loading' ? (
           <motion.span
             key="loading"
             initial={{ opacity: 0, y: 4 }}
@@ -49,7 +49,7 @@ export function SendOrderButton({ disabled = false, status, onClick }: SendOrder
             <Loader2 size={16} className="animate-spin" />
             Göndərilir...
           </motion.span>
-        ) : sent ? (
+        ) : status === 'success' ? (
           <motion.span
             key="sent"
             initial={{ opacity: 0, scale: 0.96 }}
@@ -60,7 +60,7 @@ export function SendOrderButton({ disabled = false, status, onClick }: SendOrder
             <Check size={16} />
             Mətbəxə göndərildi
           </motion.span>
-        ) : failed ? (
+        ) : status === 'error' ? (
           <motion.span
             key="failed"
             initial={{ opacity: 0, scale: 0.96 }}
@@ -86,7 +86,7 @@ export function SendOrderButton({ disabled = false, status, onClick }: SendOrder
       </AnimatePresence>
 
       <AnimatePresence>
-        {loading && (
+        {status === 'loading' && (
           <motion.span
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}

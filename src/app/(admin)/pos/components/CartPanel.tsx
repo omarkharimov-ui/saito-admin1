@@ -83,7 +83,7 @@ export function CartPanel({
                   <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
                   {item.modifiers?.length ? (
                     <p className="text-[10px] truncate text-[var(--theme-text-secondary)]">
-                      {item.modifiers.map(m => m.name).join(', ')}
+                      {(item.modifiers ?? []).map(m => m.name).join(', ')}
                     </p>
                   ) : null}
                   <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>

@@ -12,7 +12,7 @@ import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { toast } from 'react-hot-toast';
-import type { ModifierSelection, PaymentInfo, PosProduct, PosTable } from './types/shared';
+import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable } from './types/shared';
 
 const tabs = [
   { id: 'floor' as const, icon: LayoutGrid, label: 'Masalar' },

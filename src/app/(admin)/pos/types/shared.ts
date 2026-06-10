@@ -38,7 +38,7 @@ export interface PosTable {
   id: string;
   table_number: number;
   guest_count?: number | null;
-  status: 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | string;
+  status: TableStatus;
   total_amount: number;
   merged_orders?: unknown[] | null;
   last_activity_at?: string | null;
@@ -48,6 +48,8 @@ export interface PosTable {
   floor_name?: string | null;
   sort_order?: number | null;
 }
+
+export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | string;
 
 export interface FloorConfig {
   id: string;

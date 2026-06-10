@@ -30,6 +30,7 @@ export default function POSPage() {
   const [modifierOpen, setModifierOpen] = useState(false);
   const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [orderButtonStatus, setOrderButtonStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
   const [transferMode, setTransferMode] = useState(false);
@@ -89,8 +90,17 @@ export default function POSPage() {
   /* ── Place order ── */
   const handlePlaceOrder = useCallback(async () => {
     setSubmitting(true);
-    await pos.placeOrder();
-    setSubmitting(false);
+    setOrderButtonStatus('loading');
+    try {
+      await pos.placeOrder();
+      setOrderButtonStatus('success');
+      window.setTimeout(() => setOrderButtonStatus('idle'), 1400);
+    } catch {
+      setOrderButtonStatus('error');
+      window.setTimeout(() => setOrderButtonStatus('idle'), 1600);
+    } finally {
+      setSubmitting(false);
+    }
   }, [pos]);
 
   /* ── Open payment for a table ── */
@@ -323,7 +333,7 @@ export default function POSPage() {
                   onPlaceOrder={handlePlaceOrder}
                   onClear={pos.clearCart}
                   onBack={pos.backToFloor}
-                  submitting={submitting}
+                  orderButtonStatus={orderButtonStatus}
                 />
               </div>
             </motion.div>

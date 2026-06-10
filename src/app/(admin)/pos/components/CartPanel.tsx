@@ -1,10 +1,11 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, Trash2, ShoppingBag, Send, ArrowLeft } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosCart } from '../types/shared';
+import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
 
 interface CartPanelProps {
   cart: PosCart | null;
@@ -13,12 +14,12 @@ interface CartPanelProps {
   onPlaceOrder: () => void;
   onClear: () => void;
   onBack: () => void;
-  submitting: boolean;
+  orderButtonStatus: SendOrderButtonStatus;
 }
 
 export function CartPanel({
   cart, onUpdateQty, onRemove, onPlaceOrder,
-  onClear, onBack, submitting,
+  onClear, onBack, orderButtonStatus,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -114,21 +115,11 @@ export function CartPanel({
           <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
           <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
         </div>
-        <button
+        <SendOrderButton
+          disabled={isEmpty}
+          status={orderButtonStatus}
           onClick={onPlaceOrder}
-          disabled={isEmpty || submitting}
-          className={`w-full py-4.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-25 ${
-            !isEmpty && !submitting
-              ? lightMode
-                ? 'bg-amber-600 text-white shadow-md hover:bg-amber-700 hover:shadow-lg'
-                : 'bg-black text-white border border-white/15 shadow-lg shadow-black/35 hover:bg-black/90'
-              : lightMode
-              ? 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)]'
-              : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)]'
-          }`}
-        >
-          {submitting ? 'Göndərilir...' : <><Send size={16} /> Sifariş</>}
-        </button>
+        />
       </div>
     </div>
   );

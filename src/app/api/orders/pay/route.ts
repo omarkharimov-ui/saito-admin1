@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { deductStockForOrder } from '@/lib/stockAutomation';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -61,6 +62,14 @@ export async function POST(request: NextRequest) {
           fetch(`${SUPABASE_URL}/rest/v1/orders?id=in.(${childIds.join(',')})`, { method: 'DELETE', headers }).catch(() => {}),
         ]);
       }
+    }
+
+    // ═══ STOCK DEDUCTION ═══
+    // Sifariş ödənildi — avtomatik stokdan ingredient-ləri azalt
+    try {
+      await deductStockForOrder(order_id);
+    } catch (stockErr) {
+      console.error('[pay] Stock deduction failed (non-fatal):', stockErr);
     }
 
     return NextResponse.json({ success: true });

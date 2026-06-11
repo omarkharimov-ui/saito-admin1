@@ -107,6 +107,8 @@ Important: Extract EVERY recipe you find. Do not skip any. If text is truncated,
             ingredient_id: matched.id,
             ingredient_name: matched.name,
             quantity_required: ing.quantity,
+            name: ing.name,
+            quantity: ing.quantity,
             unit: matched.unit,
           });
         }

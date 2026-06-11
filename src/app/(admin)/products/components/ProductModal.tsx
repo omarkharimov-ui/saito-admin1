@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft } from 'lucide-react';
+import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft, PackagePlus, ScrollText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -584,15 +584,55 @@ export function ProductModal({
                 </div>
               </div>
 
-              {/* Group 4: Flags */}
-              <div className="space-y-2 pb-1">
+              {/* Group 4: Product Type & Flags */}
+              <div className="space-y-3 pb-1">
+                {/* Product type selector - prominent cards */}
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-2.5">MƏHSUL TİPİ</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onFormChange({ ...productForm, is_ready_product: false, direct_ingredient_id: '' })}
+                      className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                        !productForm.is_ready_product
+                          ? 'border-gold/50 bg-gold/[0.06] shadow-[0_0_20px_rgba(212,175,55,0.08)]'
+                          : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${!productForm.is_ready_product ? 'bg-gold/20' : 'bg-white/[0.05]'}`}>
+                        <ScrollText size={20} className={!productForm.is_ready_product ? 'text-gold' : 'text-white/30'} />
+                      </div>
+                      <div className="text-center">
+                        <p className={`text-xs font-bold tracking-wider uppercase ${!productForm.is_ready_product ? 'text-gold' : 'text-white/50'}`}>Reseptli</p>
+                        <p className="text-[9px] text-white/30 mt-0.5">Lahmacun, roll, döner</p>
+                      </div>
+                      {!productForm.is_ready_product && (
+                        <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-gold shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onFormChange({ ...productForm, is_ready_product: true })}
+                      className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                        productForm.is_ready_product
+                          ? 'border-blue-500/50 bg-blue-500/[0.06] shadow-[0_0_20px_rgba(96,165,250,0.08)]'
+                          : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${productForm.is_ready_product ? 'bg-blue-500/20' : 'bg-white/[0.05]'}`}>
+                        <PackagePlus size={20} className={productForm.is_ready_product ? 'text-blue-400' : 'text-white/30'} />
+                      </div>
+                      <div className="text-center">
+                        <p className={`text-xs font-bold tracking-wider uppercase ${productForm.is_ready_product ? 'text-blue-400' : 'text-white/50'}`}>Birbaşa Stok</p>
+                        <p className="text-[9px] text-white/30 mt-0.5">cola, su, qablaşdırılmış</p>
+                      </div>
+                      {productForm.is_ready_product && (
+                        <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]" />
+                      )}
+                    </button>
+                  </div>
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Hazır məhsul toggle */}
-                  <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-transform duration-200 cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0 ${productForm.is_ready_product ? 'bg-blue-500/15 text-blue-400 border-blue-500/40 shadow-[0_0_15px_rgba(96,165,250,0.15)]' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-blue-500/[0.06] hover:text-blue-400/60 hover:border-blue-500/20'}`}>
-                    <input type="checkbox" checked={productForm.is_ready_product} onChange={(e) => onFormChange({ ...productForm, is_ready_product: e.target.checked, direct_ingredient_id: e.target.checked ? productForm.direct_ingredient_id : '' })} className="hidden" />
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-transform duration-200 ${productForm.is_ready_product ? 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]' : 'bg-white/20'}`} />
-                    Hazır məhsul
-                  </label>
                   <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border transition-transform duration-200 cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0 ${productForm.is_in_stock ? 'bg-green-500/15 text-green-400 border-green-500/40 shadow-[0_0_15px_rgba(34,197,94,0.15)]' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-green-500/[0.06] hover:text-green-400/60 hover:border-green-500/20'}`}>
                     <input type="checkbox" checked={productForm.is_in_stock} onChange={(e) => onFormChange({ ...productForm, is_in_stock: e.target.checked })} className="hidden" />
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-transform duration-200 ${productForm.is_in_stock ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]' : 'bg-white/20'}`} />
@@ -869,14 +909,39 @@ export function ProductModal({
                 </div>
               </div>
 
+              {/* Product Type - Mobile */}
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold mb-2">MƏHSUL TİPİ</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onFormChange({ ...productForm, is_ready_product: false, direct_ingredient_id: '' })}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+                      !productForm.is_ready_product
+                        ? 'border-gold/50 bg-gold/[0.06]'
+                        : 'border-white/10 bg-white/[0.02]'
+                    }`}
+                  >
+                    <ScrollText size={18} className={!productForm.is_ready_product ? 'text-gold' : 'text-white/30'} />
+                    <p className={`text-[10px] font-bold tracking-wider uppercase ${!productForm.is_ready_product ? 'text-gold' : 'text-white/50'}`}>Reseptli</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onFormChange({ ...productForm, is_ready_product: true })}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+                      productForm.is_ready_product
+                        ? 'border-blue-500/50 bg-blue-500/[0.06]'
+                        : 'border-white/10 bg-white/[0.02]'
+                    }`}
+                  >
+                    <PackagePlus size={18} className={productForm.is_ready_product ? 'text-blue-400' : 'text-white/30'} />
+                    <p className={`text-[10px] font-bold tracking-wider uppercase ${productForm.is_ready_product ? 'text-blue-400' : 'text-white/50'}`}>Birbaşa Stok</p>
+                  </button>
+                </div>
+              </div>
               {/* Flags */}
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none ${productForm.is_ready_product ? 'bg-blue-500/15 text-blue-400 border-blue-500/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
-                    <input type="checkbox" checked={productForm.is_ready_product} onChange={(e) => onFormChange({ ...productForm, is_ready_product: e.target.checked, direct_ingredient_id: e.target.checked ? productForm.direct_ingredient_id : '' })} className="hidden" />
-                    <span className={`w-1.5 h-1.5 rounded-full ${productForm.is_ready_product ? 'bg-blue-400' : 'bg-white/20'}`} />
-                    Hazır məhsul
-                  </label>
                   <label className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none ${productForm.is_in_stock ? 'bg-green-500/15 text-green-400 border-green-500/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
                     <input type="checkbox" checked={productForm.is_in_stock} onChange={(e) => onFormChange({ ...productForm, is_in_stock: e.target.checked })} className="hidden" />
                     <span className={`w-1.5 h-1.5 rounded-full ${productForm.is_in_stock ? 'bg-green-400' : 'bg-white/20'}`} />

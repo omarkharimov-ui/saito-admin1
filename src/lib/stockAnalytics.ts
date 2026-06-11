@@ -4,7 +4,7 @@ import { normalizeQuantity, type QuantityUnit } from './units';
 export interface StockCalibrationSuggestion {
   ingredientId: string;
   ingredientName: string;
-  unit: QuantityUnit;
+  unit: string;
   theoreticalStock: number;
   actualStock: number;
   variance: number;
@@ -28,7 +28,8 @@ export function buildRecipeConsumptionMap(recipes: RecipeRow[]) {
 
   for (const recipe of recipes) {
     const list = map.get(recipe.menu_item_id) || [];
-    const normalized = normalizeQuantity(recipe.quantity_required || 0, recipe.ingredient?.unit || 'g');
+    const unit = (recipe.ingredient?.unit === 'gram' ? 'g' : recipe.ingredient?.unit === 'ml' ? 'ml' : 'piece') as QuantityUnit;
+    const normalized = normalizeQuantity(recipe.quantity_required || 0, unit);
     list.push({ ingredientId: recipe.ingredient_id, baseQuantity: normalized.value });
     map.set(recipe.menu_item_id, list);
   }

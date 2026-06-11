@@ -65,7 +65,7 @@ export async function POST() {
 
     // Ingredient consumption-u qrupla
     const ingredientConsumption: Record<string, { total: number; name: string; unit: string }> = {};
-    for (const log of (logs || []) as Array<InventoryLog & { ingredient?: { name?: string; unit?: string } | null }>) {
+    for (const log of (logs || []) as any[]) {
       const iid = log.ingredient_id;
       if (!iid) continue;
       const name = log.ingredient?.name || '';

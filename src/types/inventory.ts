@@ -145,5 +145,5 @@ export interface RecipeRow {
 
 export type { NormalizedRecipeSuggestion, NormalizedRecipeIngredient, RecipeSourceType, InventoryImportPayload, InventoryImportLine } from './recipes';
 
-export type AiRecipeSuggestion = NormalizedRecipeSuggestion;
-export type CookbookRecipe = NormalizedRecipeSuggestion;
+export type AiRecipeSuggestion = import('./recipes').NormalizedRecipeSuggestion;
+export type CookbookRecipe = import('./recipes').NormalizedRecipeSuggestion;

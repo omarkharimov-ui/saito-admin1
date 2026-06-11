@@ -140,7 +140,7 @@ export default function StockPage() {
   const [showWasteCalc, setShowWasteCalc] = useState(false);
   const [calcRaw, setCalcRaw] = useState('');
   const [calcClean, setCalcClean] = useState('');
-  const [wasteStandards, setWasteStandards] = useState<InventoryStatusRow[]>([]);
+  const [wasteStandards, setWasteStandards] = useState<any[]>([]);
   const [selectedLogsIngredient, setSelectedLogsIngredient] = useState<string | null>(null);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const [historyLogs, setHistoryLogs] = useState<InventoryLog[]>([]);
@@ -192,9 +192,9 @@ export default function StockPage() {
       order_consumption: 'sifariş sərfiyyatı',
     };
     return source.filter((log) => {
-      const name = (log.ingredient?.name || log.ingredient_id || '').toLowerCase();
+      const name = ((log as any).ingredient?.name || log.ingredient_id || '').toLowerCase();
       const label = (typeLabels[log.type] || log.type || '').toLowerCase();
-      const note = (log.note || '').toLowerCase();
+      const note = ((log as any).note || log.reason || '').toLowerCase();
       return name.includes(q) || label.includes(q) || note.includes(q);
     });
   }, [allLogs, monthlyLogs, search, viewMode]);
@@ -214,7 +214,7 @@ export default function StockPage() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, boolean>>({});
   const calibrationSuggestions = useMemo(() => {
-    return (data?.alerts ?? []).map((alert) => ({
+    return (data?.alerts ?? []).map((alert: any) => ({
       ingredient_id: alert.ingredient_id,
       ingredient_name: alert.ingredient?.name ?? alert.ingredient_name ?? 'Ingredient',
       suggested_adjustment_pct: alert.variance_pct ?? 0,
@@ -287,7 +287,7 @@ export default function StockPage() {
     const lower = name.toLowerCase();
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      const cached = wasteStandards.find(s => s.keyword && lower.includes(s.keyword.toLowerCase()));
+      const cached = wasteStandards.find((s: any) => s.keyword && lower.includes(s.keyword.toLowerCase()));
       if (cached) return;
       try {
         const res = await fetch(`/api/inventory/waste-standards?q=${encodeURIComponent(lower)}`);

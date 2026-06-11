@@ -114,8 +114,8 @@ Yalnız mövcud xəmmallardan istifadə et. Yalnız JSON qaytar, başqa heç nə
     for (const r of matchedRecipe) {
       await supabase.from('recipes').insert({
         menu_item_id: productId,
-        ingredient_id: r.ingredient_id,
-        quantity_required: r.quantity_required,
+        ingredient_id: (r as any).ingredient_id,
+        quantity_required: (r as any).quantity_required,
         is_ai_suggested: true,
       });
     }

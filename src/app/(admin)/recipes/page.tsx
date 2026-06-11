@@ -17,6 +17,7 @@ import type {
   Ingredient,
   ProductCatalogItem,
   RecipeRow,
+  NormalizedRecipeIngredient,
 } from '@/types/inventory';
 
 export default function RecipesPage() {
@@ -161,11 +162,14 @@ export default function RecipesPage() {
 
   const approveAi = async (suggestion: CookbookRecipe) => {
     try {
+      const ingredientIds = (suggestion.ingredients as any[])
+        .filter((r: any) => r.ingredient_id)
+        .map((r: any) => r.ingredient_id);
       const res = await fetch('/api/recipes/approve', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: suggestion.suggestedProductId,
-          ingredientIds: suggestion.ingredients.map(r => r.ingredient_id),
+          ingredientIds,
         }),
       });
       const data = await res.json();
@@ -281,7 +285,7 @@ export default function RecipesPage() {
     setSaving(true);
     try {
       await supabase.from('recipes').delete().eq('menu_item_id', productId).eq('is_ai_suggested', true);
-      for (const ing of recipe.ingredients) {
+      for (const ing of recipe.ingredients as any[]) {
         await supabase.from('recipes').insert({
           menu_item_id: productId, ingredient_id: ing.ingredient_id,
           quantity_required: ing.quantity_required, is_ai_suggested: true,
@@ -304,7 +308,7 @@ export default function RecipesPage() {
         const pid = cookbookMatchMap[recipe.recipeName] || recipe.suggestedProductId;
         if (!pid) continue;
         await supabase.from('recipes').delete().eq('menu_item_id', pid).eq('is_ai_suggested', true);
-        for (const ing of recipe.ingredients) {
+        for (const ing of recipe.ingredients as any[]) {
           await supabase.from('recipes').insert({
             menu_item_id: pid, ingredient_id: ing.ingredient_id,
             quantity_required: ing.quantity_required, is_ai_suggested: true,
@@ -536,7 +540,7 @@ export default function RecipesPage() {
                         </select>
                       </div>
                       <div className="space-y-1">
-                        {recipe.ingredients.map((ing, i) => (
+                        {recipe.ingredients.map((ing: NormalizedRecipeIngredient, i: number) => (
                           <div key={i} className="flex items-center gap-2 text-xs text-white/50">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40" />
                             {ing.name} × {ing.quantity} {ing.unit}

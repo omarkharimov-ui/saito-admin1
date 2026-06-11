@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import type { InventoryImportPayload } from '@/types/recipes';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export async function POST(request: Request) {
   try {
@@ -12,29 +16,83 @@ export async function POST(request: Request) {
       );
     }
 
-    const normalized = {
-      ...payload,
-      supplierName: payload.supplierName?.trim() || null,
-      invoiceNumber: payload.invoiceNumber?.trim() || null,
-      invoiceDate: payload.invoiceDate?.trim() || null,
-      currency: payload.currency?.trim() || null,
-      notes: payload.notes?.trim() || null,
-      totalAmount: typeof payload.totalAmount === 'number' ? payload.totalAmount : null,
-      totalTax: typeof payload.totalTax === 'number' ? payload.totalTax : null,
-      lines: payload.lines.map((line) => ({
-        name: line.name.trim(),
-        quantity: line.quantity,
-        unit: line.unit.trim(),
-        unit_cost: typeof line.unit_cost === 'number' ? line.unit_cost : null,
-        total_cost: typeof line.total_cost === 'number' ? line.total_cost : null,
-        waste_percentage: typeof line.waste_percentage === 'number' ? line.waste_percentage : null,
-      })),
-    } satisfies InventoryImportPayload;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const results: { name: string; status: 'created' | 'updated' | 'skipped'; ingredientId?: string; error?: string }[] = [];
+
+    for (const line of payload.lines) {
+      const name = line.name.trim();
+      const qty = Number(line.quantity) || 0;
+      const unit = mapUnit(line.unit.trim());
+      const unitCost = typeof line.unit_cost === 'number' ? line.unit_cost : null;
+      const wastePct = typeof line.waste_percentage === 'number' ? line.waste_percentage : null;
+
+      // Mövcud ingredient-i adla axtar
+      const { data: existing } = await supabase
+        .from('ingredients')
+        .select('id, current_stock, average_cost_per_unit')
+        .eq('name', name)
+        .maybeSingle();
+
+      if (existing) {
+        // Mövcuddur — stock_in əlavə et (trigger WAC-ı yeniləyəcək)
+        const { error: logErr } = await supabase.from('inventory_logs').insert({
+          ingredient_id: existing.id,
+          type: 'stock_in',
+          quantity: qty,
+          cost_per_unit: unitCost ?? existing.average_cost_per_unit,
+          reason: `OCR import: ${payload.invoiceNumber ? `Faktura #${payload.invoiceNumber}` : 'Invoice import'}`,
+        });
+        results.push({
+          name,
+          status: logErr ? 'skipped' : 'updated',
+          ingredientId: existing.id,
+          error: logErr?.message,
+        });
+      } else {
+        // Yeni ingredient yarat + stock_in
+        const { data: newIng, error: createErr } = await supabase
+          .from('ingredients')
+          .insert({
+            name,
+            unit,
+            current_stock: 0,
+            theoretical_stock: 0,
+            critical_limit: Math.max(qty * 0.1, 1),
+            average_cost_per_unit: unitCost ?? 0,
+            purchase_price: unitCost ?? 0,
+            cold_waste_percentage: wastePct ?? 0,
+          })
+          .select('id')
+          .single();
+
+        if (createErr || !newIng) {
+          results.push({ name, status: 'skipped', error: createErr?.message });
+          continue;
+        }
+
+        const { error: logErr } = await supabase.from('inventory_logs').insert({
+          ingredient_id: newIng.id,
+          type: 'stock_in',
+          quantity: qty,
+          cost_per_unit: unitCost,
+          reason: `OCR import: ${payload.invoiceNumber ? `Faktura #${payload.invoiceNumber}` : 'Yeni ingredient'}`,
+        });
+        results.push({
+          name,
+          status: logErr ? 'skipped' : 'created',
+          ingredientId: newIng.id,
+          error: logErr?.message,
+        });
+      }
+    }
 
     return NextResponse.json({
       ok: true,
       source: 'ocr',
-      payload: normalized,
+      imported: results.filter(r => r.status === 'created' || r.status === 'updated').length,
+      skipped: results.filter(r => r.status === 'skipped').length,
+      results,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -42,4 +100,11 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+function mapUnit(unit: string): 'gram' | 'piece' | 'ml' {
+  const u = unit.toLowerCase();
+  if (['g', 'gram', 'grams', 'kg', 'kq', 'kilo', 'kilogram'].some(x => u === x || u.startsWith(x))) return 'gram';
+  if (['ml', 'milliliter', 'l', 'lt', 'liter', 'litr'].some(x => u === x || u.startsWith(x))) return 'ml';
+  return 'piece';
 }

@@ -9,6 +9,7 @@ import {
   Warehouse,
   ScrollText,
   Monitor,
+  ShoppingCart,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -50,6 +51,7 @@ export function getAdminNavItems(
     { id: 'combos', name: t('combos'), href: '/combos', icon: PackagePlus, roles: ['superadmin'] },
     { id: 'campaigns', name: t('campaigns'), href: '/campaigns', icon: Percent, roles: ['admin', 'superadmin'] },
     { id: 'stock', name: 'Stok', href: '/stock', icon: Warehouse, roles: ['superadmin'] },
+    { id: 'purchase', name: 'Tədarük', href: '/purchase', icon: ShoppingCart, roles: ['superadmin'] },
     { id: 'recipes', name: 'Reseptlər', href: '/recipes', icon: ScrollText, roles: ['superadmin'] },
     { id: 'stats', name: t('statistics'), href: '/stats', icon: BarChart3, roles: ['superadmin'] },
     { id: 'settings', name: t('settings'), href: '/settings', icon: Settings, roles: ['superadmin'] }

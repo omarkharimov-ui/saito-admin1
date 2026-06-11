@@ -16,6 +16,7 @@ import type {
   IngredientUnit, LowStockAlert,
   InventoryLog,
 } from '@/types/inventory';
+import { CalibrationSuggestionsPanel } from './components/CalibrationSuggestionsPanel';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 
@@ -212,6 +213,17 @@ export default function StockPage() {
 
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, boolean>>({});
+  const calibrationSuggestions = useMemo(() => {
+    return (data?.alerts ?? []).map((alert) => ({
+      ingredient_id: alert.ingredient_id,
+      ingredient_name: alert.ingredient?.name ?? alert.ingredient_name ?? 'Ingredient',
+      suggested_adjustment_pct: alert.variance_pct ?? 0,
+      confidence: Math.min(0.95, Math.max(0.35, Math.abs(alert.variance_pct ?? 0) / 100)),
+      reason: alert.reason ?? 'Stock variance detected',
+      actual_stock: Number(alert.current_stock ?? 0),
+      theoretical_stock: Number(alert.theoretical_stock ?? 0),
+    }));
+  }, [data?.alerts]);
 
   const monthPickerRef = useRef<HTMLDivElement>(null);
 

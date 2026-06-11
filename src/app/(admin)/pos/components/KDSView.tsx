@@ -9,7 +9,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 interface KDSOrder {
   id: string;
   table_number: number;
-  items: { name: string; quantity: number; modifiers?: string; special_notes?: string }[];
+  items: { name: string; quantity: number; modifiers?: { id: string; name: string; price: number; quantity: number }[]; special_notes?: string }[];
   created_at: string;
   status: string;
   elapsed: number;

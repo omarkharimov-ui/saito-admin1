@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -40,6 +40,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const [saving, setSaving] = useState(false);
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const didAutoSuggest = useRef(false);
 
   const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
 
@@ -81,6 +82,14 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
       setLoading(false);
     })();
   }, [isOpen, editProductId]);
+
+  // Auto AI suggest: product seçiləndə və sətir yoxdursa, avtomatik təklif gətir
+  useEffect(() => {
+    if (!loading && selectedProductId && rows.length === 0 && !didAutoSuggest.current) {
+      didAutoSuggest.current = true;
+      aiSuggest();
+    }
+  }, [loading, selectedProductId, rows.length]);
 
   const ingredientMap = useMemo(() => new Map(ingredients.map(i => [i.id, i])), [ingredients]);
 
@@ -195,19 +204,23 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
   const aiSuggest = async () => {
     if (!selectedProduct) { toast.error('Əvvəlcə məhsul seçin', { style: toastStyle }); return; }
-    const dishName = selectedProduct.name_az || selectedProduct.name;
     setAiSuggesting(true);
     try {
-      const res = await fetch('/api/recipes/ai-suggest', { method: 'POST' });
+      const res = await fetch('/api/recipes/ai-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: selectedProduct.id }),
+      });
       const data = await res.json();
       if (!data.suggestions || data.suggestions.length === 0) {
         toast.error('AI təklif gətirə bilmədi', { style: toastStyle });
         return;
       }
-      const newRows: RecipeLine[] = data.suggestions.map((s: any) => {
-        const matched = ingredients.find(i => i.name.toLowerCase().includes(s.ingredientName.toLowerCase()) || s.ingredientName.toLowerCase().includes(i.name.toLowerCase()));
+      const suggestion = data.suggestions[0];
+      const newRows: RecipeLine[] = (suggestion.ingredients || []).map((s: any) => {
+        const matched = ingredients.find(i => i.id === s.ingredient_id);
         if (!matched) return null;
-        const qty = s.quantity || 0;
+        const qty = s.quantity_required || s.quantity || 0;
         const qtyBrutto = calcBrutto(matched.id, qty, 0);
         return {
           ingredient_id: matched.id,

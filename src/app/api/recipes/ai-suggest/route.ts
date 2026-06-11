@@ -12,19 +12,128 @@ const supabase = createClient(
 
 /**
  * AI Predictive Recipe Suggestion
- * 
- * Məntiq:
+ *
+ * Məntiq (batch mode):
  * 1. Resepti olmayan məhsulları tap (has_active_recipe = false, is_ready_product = false)
  * 2. Hər məhsul üçün son 7 gündəki satış miqdarını hesabla
  * 3. Son 7 gündəki inventory consumption (waste + order_consumption) topla
- * 4. Groq AI-ya ver: "Bu yeməyin adı Dragon Roll, son 7 gündə 15 ədəd satılıb.
- *    Anbarda bu müddətdə 1.2kg somon, 800g düyü, 15 ədəd nori azalıb.
- *    Bu yeməyin ehtimal reseptini JSON olaraq ver."
+ * 4. Groq AI-ya ver və resept təklifi al
  * 5. AI cavabını recipes cədvəlinə is_ai_suggested = true olaraq yaz
+ *
+ * Per-product mode (body: { productId: string }):
+ * - Yalnız həmin məhsul üçün təklif ver, DB-yə YAZMA
  */
-export async function POST() {
+
+async function suggestForProduct(productId: string, productName: string, totalSold: number, ingredientConsumption: Record<string, { total: number; name: string; unit: string }>) {
+  const ingredientList = Object.values(ingredientConsumption)
+    .filter(i => i.total > 0)
+    .map(i => `- ${i.name}: ${i.total.toFixed(2)} ${i.unit}`)
+    .join('\n');
+
+  const prompt = `Restoran resept təxmini. Məhsul: "${productName}". Son 7 gündə ${totalSold} ədəd satılıb.
+
+Anbarda ümumi azalmalar:\n${ingredientList || '(məlumat yoxdur)'}
+
+Bu məhsulun ehtimal reseptini çıxar. Hər ingredient üçün miqdar ver. Əgər bilirsən yeməyin nə olduğunu, real resept ver. Yalnız JSON qaytar, başqa söz yox:
+{"recipe":[{"ingredientName":"string","quantity":number,"unit":"gram|piece|ml"}]}`;
+
+  const aiResponse = await groqChat(
+    'Sən bir restoran aşbazı və data analitiksisən. Sənə verilən satış məlumatlarına əsasən yeməyin ehtimal reseptini çıxarırsan. Yalnız JSON cavab ver.',
+    prompt,
+    { maxTokens: 800, temperature: 0.3 }
+  );
+
+  let recipeData: { recipe?: Array<{ ingredientName: string; quantity: number; unit: string }> } = {};
   try {
-    // 1. Resepti olmayan məhsulları tap
+    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+    if (jsonMatch) recipeData = JSON.parse(jsonMatch[0]);
+  } catch {
+    console.error('[ai-suggest] JSON parse failed for', productName);
+    return null;
+  }
+
+  if (!recipeData.recipe || recipeData.recipe.length === 0) return null;
+
+  const { data: dbIngredients } = await supabase
+    .from('ingredients')
+    .select('id, name, unit, average_cost_per_unit, cold_waste_percentage');
+
+  const matchedRecipe: Array<NormalizedRecipeIngredient & { ingredient_id: string; ingredient_name: string; quantity_required: number }> = [];
+  for (const r of recipeData.recipe) {
+    const matched = (dbIngredients || []).find(
+      (i: { id: string; name: string; unit: string }) =>
+        i.name.toLowerCase().includes(r.ingredientName.toLowerCase()) ||
+        r.ingredientName.toLowerCase().includes(i.name.toLowerCase())
+    );
+    if (matched) {
+      matchedRecipe.push({
+        ingredient_id: matched.id,
+        ingredient_name: matched.name,
+        quantity_required: r.quantity,
+        name: matched.name,
+        quantity: r.quantity,
+        unit: matched.unit,
+      });
+    }
+  }
+
+  if (matchedRecipe.length === 0) return null;
+
+  return {
+    recipeName: productName,
+    suggestedProductId: productId,
+    suggestedProductName: productName,
+    confidence: 0.7,
+    ingredients: matchedRecipe,
+    unmatchedIngredients: (recipeData.recipe || []).length - matchedRecipe.length,
+    source: 'ai' as const,
+  };
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { productId } = body || {};
+
+    // ── Per-product mode (no DB write) ──
+    if (productId) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('id, name, name_az, price')
+        .eq('id', productId)
+        .single();
+
+      if (!product) {
+        return NextResponse.json({ suggestions: [], count: 0 });
+      }
+
+      const productName = product.name_az || product.name;
+
+      // Son 7 gündəki inventory consumption
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: logs } = await supabase
+        .from('inventory_logs')
+        .select('ingredient_id, quantity, type, ingredient:ingredients(name, unit)')
+        .in('type', ['order_consumption', 'waste'])
+        .gte('created_at', sevenDaysAgo);
+
+      const ingredientConsumption: Record<string, { total: number; name: string; unit: string }> = {};
+      for (const log of (logs || []) as any[]) {
+        const iid = log.ingredient_id;
+        if (!iid) continue;
+        const name = log.ingredient?.name || '';
+        const unit = log.ingredient?.unit || '';
+        if (!ingredientConsumption[iid]) {
+          ingredientConsumption[iid] = { total: 0, name, unit };
+        }
+        ingredientConsumption[iid].total += Number(log.quantity) || 0;
+      }
+
+      const result = await suggestForProduct(productId, productName, 0, ingredientConsumption);
+      return NextResponse.json({ suggestions: result ? [result] : [], count: result ? 1 : 0 });
+    }
+
+    // ── Batch mode (with DB write) ──
     const { data: products } = await supabase
       .from('products')
       .select('id, name, name_az, price')
@@ -36,7 +145,6 @@ export async function POST() {
       return NextResponse.json({ suggestions: [] });
     }
 
-    // 2. Son 7 gündəki satışlar
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: sales } = await supabase
       .from('order_items')
@@ -45,120 +153,45 @@ export async function POST() {
       .gte('orders.created_at', sevenDaysAgo)
       .order('product_id');
 
-    // 3. Son 7 gündəki inventory consumption
     const { data: logs } = await supabase
       .from('inventory_logs')
       .select('ingredient_id, quantity, type, ingredient:ingredients(name, unit)')
       .in('type', ['order_consumption', 'waste'])
       .gte('created_at', sevenDaysAgo);
 
-    // Satışları product_id görə qrupla
     const salesByProduct: Record<string, { totalSold: number; productName: string }> = {};
     for (const s of sales || []) {
       const pid = s.product_id;
       if (!pid) continue;
-      if (!salesByProduct[pid]) {
-        salesByProduct[pid] = { totalSold: 0, productName: s.product_name || '' };
-      }
+      if (!salesByProduct[pid]) salesByProduct[pid] = { totalSold: 0, productName: s.product_name || '' };
       salesByProduct[pid].totalSold += Number(s.quantity) || 0;
     }
 
-    // Ingredient consumption-u qrupla
     const ingredientConsumption: Record<string, { total: number; name: string; unit: string }> = {};
     for (const log of (logs || []) as any[]) {
       const iid = log.ingredient_id;
       if (!iid) continue;
       const name = log.ingredient?.name || '';
       const unit = log.ingredient?.unit || '';
-      if (!ingredientConsumption[iid]) {
-        ingredientConsumption[iid] = { total: 0, name, unit };
-      }
+      if (!ingredientConsumption[iid]) ingredientConsumption[iid] = { total: 0, name, unit };
       ingredientConsumption[iid].total += Number(log.quantity) || 0;
     }
 
-    // 4. Hər məhsul üçün AI-ya sorğu göndər
     const suggestions: NormalizedRecipeSuggestion[] = [];
 
     for (const product of products as ProductCatalogItem[]) {
       const salesInfo = salesByProduct[product.id];
       const totalSold = salesInfo?.totalSold || 0;
-
-      // Əgər heç satılmayıbsa skip
       if (totalSold < 1) continue;
 
-      // Məhsulun adını tap
       const productName = product.name_az || product.name;
+      const result = await suggestForProduct(product.id, productName, totalSold, ingredientConsumption);
+      if (!result) continue;
 
-      // AI prompt
-      const ingredientList = Object.values(ingredientConsumption)
-        .filter(i => i.total > 0)
-        .map(i => `- ${i.name}: ${i.total.toFixed(2)} ${i.unit}`)
-        .join('\n');
-
-      const prompt = `Restoran resept təxmini. Məhsul: "${productName}". Son 7 gündə ${totalSold} ədəd satılıb.
-
-Anbarda ümumi azalmalar:\n${ingredientList || '(məlumat yoxdur)'}
-
-Bu məhsulun ehtimal reseptini çıxar. Hər ingredient üçün miqdar ver. Əgər bilirsən yeməyin nə olduğunu, real resept ver. Yalnız JSON qaytar, başqa söz yox:
-{"recipe":[{"ingredientName":"string","quantity":number,"unit":"gram|piece|ml"}]}`;
-
-      const aiResponse = await groqChat(
-        'Sən bir restoran aşbazı və data analitiksisən. Sənə verilən satış məlumatlarına əsasən yeməyin ehtimal reseptini çıxarırsan. Yalnız JSON cavab ver.',
-        prompt,
-        { maxTokens: 800, temperature: 0.3 }
-      );
-
-      // JSON parse et
-      let recipeData: { recipe?: Array<{ ingredientName: string; quantity: number; unit: string }> } = {};
-      try {
-        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          recipeData = JSON.parse(jsonMatch[0]);
-        }
-      } catch {
-        console.error('[ai-suggest] JSON parse failed for', productName);
-        continue;
-      }
-
-      if (!recipeData.recipe || recipeData.recipe.length === 0) continue;
-
-      // Ingredient-ləri DB-dəki ID-lərlə match et
-      const { data: dbIngredients } = await supabase
-        .from('ingredients')
-        .select('id, name, unit');
-
-      const matchedRecipe: Array<NormalizedRecipeIngredient & { ingredient_id: string; ingredient_name: string; quantity_required: number }> = [];
-      for (const r of recipeData.recipe) {
-        const matched = (dbIngredients || []).find(
-          (i: { id: string; name: string; unit: string }) => i.name.toLowerCase().includes(r.ingredientName.toLowerCase())
-            || r.ingredientName.toLowerCase().includes(i.name.toLowerCase())
-        );
-        if (matched) {
-          matchedRecipe.push({
-            ingredient_id: matched.id,
-            ingredient_name: matched.name,
-            quantity_required: r.quantity,
-            name: matched.name,
-            quantity: r.quantity,
-            unit: matched.unit,
-          });
-        }
-      }
-
-      if (matchedRecipe.length === 0) continue;
-
-      suggestions.push({
-        recipeName: productName,
-        suggestedProductId: product.id,
-        suggestedProductName: productName,
-        confidence: 0.7,
-        ingredients: matchedRecipe,
-        unmatchedIngredients: 0,
-        source: 'ai',
-      });
+      suggestions.push(result);
 
       // AI reseptini recipes cədvəlinə yaz (is_ai_suggested = true)
-      for (const r of matchedRecipe) {
+      for (const r of (result as any).ingredients) {
         await supabase.from('recipes').insert({
           menu_item_id: product.id,
           ingredient_id: r.ingredient_id,
@@ -167,7 +200,6 @@ Bu məhsulun ehtimal reseptini çıxar. Hər ingredient üçün miqdar ver. Əg�
         });
       }
 
-      // products.has_active_recipe = true et (AI resept var, amma təsdiq gözləyir)
       await supabase.from('products').update({ has_active_recipe: true }).eq('id', product.id);
     }
 

@@ -10,17 +10,35 @@ export async function POST(request: Request) {
     const lang = language === 'en' || language === 'ru' ? language : 'az';
     const ingr = typeof ingredients === 'string' ? ingredients.trim() : '';
 
-    const description = await groqChat(
-      `Write a short appetizing menu description (max 150 characters) for a sushi restaurant. Language: ${lang}. Return ONLY the description text.`,
-      `Product: ${name}${ingr ? `\nIngredients: ${ingr}` : ''}`,
-      { maxTokens: 120, temperature: 0.5 }
+    const prompt = `You are a menu creator for a sushi restaurant. Given a product name, generate:
+1. A short appetizing description (max 150 chars)
+2. A comma-separated list of ingredients
+3. A suggested category type (drink/dessert/food)
+
+Return ONLY valid JSON:
+{"description":"...", "ingredients":"...", "category_type":"food|drink|dessert"}`;
+
+    const result = await groqChat(
+      prompt,
+      `Product: ${name}${ingr ? `\nExisting ingredients: ${ingr}` : ''}\nLanguage: ${lang}`,
+      { maxTokens: 250, temperature: 0.5 }
     );
 
-    if (!description) {
+    if (!result) {
       return NextResponse.json({ error: 'Sensei unavailable' }, { status: 503 });
     }
 
-    return NextResponse.json({ description: description.slice(0, 150) });
+    let parsed;
+    try {
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    } catch { parsed = null; }
+
+    return NextResponse.json({
+      description: parsed?.description?.slice(0, 150) || result.slice(0, 150),
+      ingredients: parsed?.ingredients || '',
+      category_type: parsed?.category_type || 'food',
+    });
   } catch {
     return NextResponse.json({ error: 'Sensei failed' }, { status: 500 });
   }

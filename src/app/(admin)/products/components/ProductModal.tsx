@@ -249,10 +249,43 @@ export function ProductModal({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [visionLoadingMain, setVisionLoadingMain] = useState(false);
   const [ghostMain, setGhostMain] = useState<{ name?: string; description?: string; ingredients?: string } | null>(null);
+  const [aiAutoFillLoading, setAiAutoFillLoading] = useState(false);
   const orbMainRef = useRef<HTMLDivElement>(null);
   const productFormRef = useRef<ProductForm>(productForm);
   const { flags: aiFlags } = useAiFlags();
   productFormRef.current = productForm;
+
+  // AI Auto-Fill: name daxil ediləndə description + ingredients + category təklif et
+  const handleAiAutoFill = async () => {
+    const name = productFormRef.current.name.trim();
+    if (!name) return;
+    setAiAutoFillLoading(true);
+    try {
+      const res = await fetch('/api/sensei', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productName: name, language: 'az' }),
+      });
+      if (!res.ok) throw new Error('AI xətası');
+      const data = await res.json();
+      const current = productFormRef.current;
+      const patch: Partial<ProductForm> = {};
+      if (data.description && !current.description) patch.description = data.description;
+      if (data.ingredients && !current.ingredients) patch.ingredients = data.ingredients;
+      if (Object.keys(patch).length > 0) onFormChange({ ...current, ...patch });
+      if (data.description || data.ingredients) {
+        setGhostMain({
+          name: undefined,
+          description: data.description || undefined,
+          ingredients: data.ingredients || undefined,
+        });
+      }
+    } catch (e) {
+      console.error('[ProductModal] AI Auto-Fill error:', e);
+    } finally {
+      setAiAutoFillLoading(false);
+    }
+  };
 
   // Hazır məhsul üçün ingredient dropdown
   const [ingredients, setIngredients] = useState<{ id: string; name: string; unit: string }[]>([]);
@@ -381,34 +414,49 @@ export function ProductModal({
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div className="col-span-2 space-y-1.5">
                     <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)]">{t('product_name_label')}</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={productForm.name}
-                        onChange={(e) => { onFormChange({ ...productForm, name: e.target.value }); if (nameError) onNameErrorChange(false); }}
-                        onBlur={(e) => {
-                          const corrected = normalizeProductName(e.target.value);
-                          if (corrected !== e.target.value) onFormChange({ ...productForm, name: corrected });
-                        }}
-                        placeholder={ghostMain?.name ? '' : t('product_name_label')}
-                        className={`w-full bg-white/[0.07] border rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-transform duration-300 ${nameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
-                      />
-                      <AnimatePresence>
-                        {ghostMain?.name && !productForm.name && (
-                          <motion.div
-                            initial="hidden" animate="visible"
-                            exit={{ opacity: 0, y: 4, transition: { duration: 0.2 } }}
-                            variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
-                            className="absolute inset-0 flex items-center px-4 pointer-events-none overflow-hidden gap-[0.28em]"
-                          >
-                            {ghostMain.name.split(' ').map((word, i) => (
-                              <motion.span key={i} variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.22 }} className="text-sm text-white/30 italic shrink-0">
-                                {word}
-                              </motion.span>
-                            ))}
-                          </motion.div>
+                    <div className="relative flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={productForm.name}
+                          onChange={(e) => { onFormChange({ ...productForm, name: e.target.value }); if (nameError) onNameErrorChange(false); }}
+                          onBlur={(e) => {
+                            const corrected = normalizeProductName(e.target.value);
+                            if (corrected !== e.target.value) onFormChange({ ...productForm, name: corrected });
+                          }}
+                          placeholder={ghostMain?.name ? '' : t('product_name_label')}
+                          className={`w-full bg-white/[0.07] border rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-transform duration-300 ${nameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
+                        />
+                        <AnimatePresence>
+                          {ghostMain?.name && !productForm.name && (
+                            <motion.div
+                              initial="hidden" animate="visible"
+                              exit={{ opacity: 0, y: 4, transition: { duration: 0.2 } }}
+                              variants={{ visible: { transition: { staggerChildren: 0.04 } } }}
+                              className="absolute inset-0 flex items-center px-4 pointer-events-none overflow-hidden gap-[0.28em]"
+                            >
+                              {ghostMain.name.split(' ').map((word, i) => (
+                                <motion.span key={i} variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.22 }} className="text-sm text-white/30 italic shrink-0">
+                                  {word}
+                                </motion.span>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAiAutoFill}
+                        disabled={aiAutoFillLoading || !productForm.name.trim()}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/25 text-purple-300 text-[10px] font-bold tracking-wider uppercase hover:brightness-110 transition-all disabled:opacity-30"
+                      >
+                        {aiAutoFillLoading ? (
+                          <Loader2 size={12} className="animate-spin text-purple-300" />
+                        ) : (
+                          <Sparkles size={12} className="text-purple-300" />
                         )}
-                      </AnimatePresence>
+                        AI Doldur
+                      </button>
                     </div>
                     {nameError && <p className="text-[10px] text-red-400 mt-1">{t('product_name_required')}</p>}
                   </div>
@@ -773,22 +821,37 @@ export function ProductModal({
               {/* Name */}
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase tracking-widest text-white/40">{t('product_name_label')}</label>
-                <div className="relative">
-                  <input type="text" value={productForm.name}
-                    onChange={(e) => { onFormChange({ ...productForm, name: e.target.value }); if (nameError) onNameErrorChange(false); }}
-                    onBlur={(e) => { const c = normalizeProductName(e.target.value); if (c !== e.target.value) onFormChange({ ...productForm, name: c }); }}
-                    placeholder={ghostMain?.name ? `AI: ${ghostMain.name}` : t('product_name_label')}
-                    className={`w-full bg-white/[0.07] border rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition-all ${nameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
-                  />
-                  <AnimatePresence>
-                    {ghostMain?.name && !productForm.name && (
-                      <motion.div initial="hidden" animate="visible" exit={{ opacity: 0 }} variants={{ visible: { transition: { staggerChildren: 0.04 } } }} className="absolute inset-0 flex items-center px-4 pointer-events-none overflow-hidden gap-[0.28em]">
-                        {ghostMain.name.split(' ').map((word, i) => (
-                          <motion.span key={i} variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.22 }} className="text-sm text-white/30 italic shrink-0">{word}</motion.span>
-                        ))}
-                      </motion.div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input type="text" value={productForm.name}
+                      onChange={(e) => { onFormChange({ ...productForm, name: e.target.value }); if (nameError) onNameErrorChange(false); }}
+                      onBlur={(e) => { const c = normalizeProductName(e.target.value); if (c !== e.target.value) onFormChange({ ...productForm, name: c }); }}
+                      placeholder={ghostMain?.name ? `AI: ${ghostMain.name}` : t('product_name_label')}
+                      className={`w-full bg-white/[0.07] border rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition-all ${nameError ? 'border-red-500/70 focus:border-red-400' : 'border-white/[0.12] focus:border-white/35'}`}
+                    />
+                    <AnimatePresence>
+                      {ghostMain?.name && !productForm.name && (
+                        <motion.div initial="hidden" animate="visible" exit={{ opacity: 0 }} variants={{ visible: { transition: { staggerChildren: 0.04 } } }} className="absolute inset-0 flex items-center px-4 pointer-events-none overflow-hidden gap-[0.28em]">
+                          {ghostMain.name.split(' ').map((word, i) => (
+                            <motion.span key={i} variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.22 }} className="text-sm text-white/30 italic shrink-0">{word}</motion.span>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAiAutoFill}
+                    disabled={aiAutoFillLoading || !productForm.name.trim()}
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/25 text-purple-300 text-[10px] font-bold tracking-wider uppercase hover:brightness-110 transition-all disabled:opacity-30"
+                  >
+                    {aiAutoFillLoading ? (
+                      <Loader2 size={12} className="animate-spin text-purple-300" />
+                    ) : (
+                      <Sparkles size={12} className="text-purple-300" />
                     )}
-                  </AnimatePresence>
+                    AI
+                  </button>
                 </div>
                 {nameError && <p className="text-[10px] text-red-400 mt-1">{t('product_name_required')}</p>}
               </div>

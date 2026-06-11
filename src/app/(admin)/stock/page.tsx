@@ -7,7 +7,7 @@ import {
   Trash2, X, Loader2, FlaskConical, RefreshCw,
   DollarSign, ShieldAlert, CheckCircle2, Search,
   Calculator, Lightbulb, ChevronDown, ChevronUp,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, ShoppingCart,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -17,9 +17,11 @@ import {
   InventoryLog, DisplayUnit, normalizeToStorage, formatWithUnit, parseInputQuantity,
 } from '@/types/inventory';
 import { CalibrationSuggestionsPanel } from './components/CalibrationSuggestionsPanel';
+import { PurchaseTab } from './components/PurchaseTab';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-
+import { PageTransition } from '@/components/PageTransition';
+import { GlassCard } from '@/components/GlassCard';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const UNITS: DisplayUnit[] = ['gram', 'piece', 'ml', 'kg', 'liter'];
@@ -75,11 +77,7 @@ function StatCard({ icon, label, value, sub, accent }: {
   icon: React.ReactNode; label: string; value: string | number; sub?: string; accent?: string;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-2xl p-5 flex flex-col gap-3"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
-    >
+    <GlassCard intensity="light" padding="lg" className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold tracking-widest uppercase text-white/30">{label}</span>
         <span className={accent ?? 'text-white/20'}>{icon}</span>
@@ -88,7 +86,7 @@ function StatCard({ icon, label, value, sub, accent }: {
         <p className="text-3xl font-black tabular-nums leading-none">{value}</p>
         {sub && <p className="text-[11px] text-white/30 mt-1">{sub}</p>}
       </div>
-    </motion.div>
+    </GlassCard>
   );
 }
 
@@ -122,7 +120,7 @@ export default function StockPage() {
   const [saving, setSaving]   = useState(false);
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState<'all' | 'critical' | 'out_of_stock'>('all');
-  const [viewMode, setViewMode] = useState<'stock' | 'history'>('stock');
+  const [viewMode, setViewMode] = useState<'stock' | 'purchase' | 'history'>('stock');
   const now = new Date();
   const [historyMonth, setHistoryMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const [historyDay, setHistoryDay] = useState<string | null>(null);
@@ -270,12 +268,6 @@ export default function StockPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => fetchData())
       .subscribe();
     return () => { removeRealtimeChannel(channel); };
-  }, [fetchData]);
-
-  // Polling fallback — realtime işləməsə 10sn-də bir yenilə
-  useEffect(() => {
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
   }, [fetchData]);
 
   // Waste standards - əvvəlcə cached datanı çək
@@ -520,7 +512,7 @@ export default function StockPage() {
   const stats = data?.stats;
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white pb-20">
+    <PageTransition className="min-h-screen bg-[#080808] text-white pb-20">
       {/* ── Ambient background ── */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"
@@ -550,16 +542,19 @@ export default function StockPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setViewMode(viewMode === 'stock' ? 'history' : 'stock')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
-                viewMode === 'history'
-                  ? 'bg-white/10 text-white border border-white/15'
-                  : 'text-white/30 hover:text-white/60 border border-transparent'
-              }`}
-            >
-              {viewMode === 'history' ? 'Stok' : 'Tarixçə'}
-            </button>
+            {(['stock', 'purchase', 'history'] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => setViewMode(m)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
+                  viewMode === m
+                    ? 'bg-white/10 text-white border border-white/15'
+                    : 'text-white/30 hover:text-white/60 border border-transparent'
+                }`}
+              >
+                {m === 'stock' ? 'Stok' : m === 'purchase' ? 'Tədarük' : 'Tarixçə'}
+              </button>
+            ))}
             <button
               onClick={() => setModal({ mode: 'new_ingredient' })}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
@@ -621,6 +616,7 @@ export default function StockPage() {
         </div>
 
         {/* ── Search + Filter bar ── */}
+        {viewMode !== 'purchase' && (
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
@@ -646,22 +642,35 @@ export default function StockPage() {
             ))}
           </div>
         </div>
+        )}
 
         {viewMode === 'stock' && (
         <>
+        {/* ── Calibration Suggestions ── */}
+        <CalibrationSuggestionsPanel
+          suggestions={calibrationSuggestions}
+          onApplied={fetchData}
+        />
+
         {/* ── Inventory Table ── */}
         {loading ? (
           <div className="flex items-center justify-center h-48">
             <Loader2 size={28} className="animate-spin text-white/15" />
           </div>
         ) : rows.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="text-center py-24 text-white/20">
-            <Package size={44} className="mx-auto mb-4 opacity-20" />
-            <p className="text-sm font-medium">
+          <GlassCard intensity="light" padding="xl" className="text-center">
+            <Package size={44} className="mx-auto mb-4 opacity-20 text-white/30" />
+            <p className="text-sm font-medium text-white/30">
               {search || filter !== 'all' ? 'Axtarış nəticəsi tapılmadı' : 'Hələ xammal əlavə edilməyib'}
             </p>
-          </motion.div>
+            {!search && filter === 'all' && (
+              <div className="mt-4 space-y-2 text-xs text-white/20">
+                <p>📍 "Yeni Xammal" düyməsi ilə anbara məhsul əlavə edin</p>
+                <p>📄 "Tədarük" sekmesinden faktura yükləyərək OCR ilə avtomatik əlavə edin</p>
+                <p>⚙️ Hər xammal üçün kritik limit və vahid maya dəyəri təyin edin</p>
+              </div>
+            )}
+          </GlassCard>
         ) : (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -848,6 +857,21 @@ export default function StockPage() {
           </motion.div>
         )}
       </> )}
+
+        {viewMode === 'purchase' && (
+          <GlassCard intensity="light" padding="lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <ShoppingCart size={18} className="text-emerald-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Tədarük / Faktura</h2>
+                <p className="text-white/30 text-xs">Invoice yüklə, OCR ilə tanı, stoka əlavə et</p>
+              </div>
+            </div>
+            <PurchaseTab />
+          </GlassCard>
+        )}
 
         {viewMode === 'history' && (
         <div className="space-y-4">
@@ -1043,31 +1067,31 @@ export default function StockPage() {
         </div>
 
         {/* ── Monthly summary cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <GlassCard intensity="light" padding="md" className="border-emerald-500/15">
             <p className="text-[10px] uppercase tracking-wider text-emerald-400/60 font-bold">Stoka Giriş</p>
             <p className="text-lg font-black text-emerald-400 tabular-nums mt-1">
               {fmt(monthlySummary.stockIn, 1)}
             </p>
-          </div>
-          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
+          </GlassCard>
+          <GlassCard intensity="light" padding="md" className="border-red-500/15">
             <p className="text-[10px] uppercase tracking-wider text-red-400/60 font-bold">İtki</p>
             <p className="text-lg font-black text-red-400 tabular-nums mt-1">
               {fmt(monthlySummary.waste, 1)}
             </p>
-          </div>
-          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.12)' }}>
+          </GlassCard>
+          <GlassCard intensity="light" padding="md" className="border-amber-500/15">
             <p className="text-[10px] uppercase tracking-wider text-gold/60 font-bold">Tənzimləmə</p>
             <p className="text-lg font-black text-gold tabular-nums mt-1">
               {fmt(monthlySummary.adjustment, 1)}
             </p>
-          </div>
-          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          </GlassCard>
+          <GlassCard intensity="light" padding="md" className="border-white/10">
             <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Sifariş Sərfiyyatı</p>
             <p className="text-lg font-black text-white/70 tabular-nums mt-1">
               {fmt(monthlySummary.orderConsumption, 1)}
             </p>
-          </div>
+          </GlassCard>
         </div>
 
         {/* ── History table ── */}
@@ -1091,10 +1115,18 @@ export default function StockPage() {
               <Loader2 size={24} className="animate-spin text-white/[0.12]" />
             </div>
           ) : filteredLogs.length === 0 ? (
-            <div className="text-center py-16 text-white/20 text-sm">
-              <Package size={36} className="mx-auto mb-3 opacity-20" />
-              {search.trim() ? 'Axtarış nəticəsi tapılmadı' : 'Heç bir əməliyyat tapılmadı'}
-            </div>
+            <GlassCard intensity="light" padding="xl" className="text-center">
+              <Package size={36} className="mx-auto mb-3 opacity-20 text-white/30" />
+              <p className="text-sm text-white/30">
+                {search.trim() ? 'Axtarış nəticəsi tapılmadı' : 'Hələ heç bir əməliyyat qeydə alınmayıb'}
+              </p>
+              {!search.trim() && (
+                <p className="text-xs text-white/15 mt-2">
+                  Stok girişi, itki və ya inventarizasiya əməliyyatları etdikdən sonra
+                  <br />bütün hərəkətlər burada görünəcək.
+                </p>
+              )}
+            </GlassCard>
           ) : (
             <div className="divide-y divide-white/[0.04]">
               {filteredLogs.map((log: any, idx: number) => {
@@ -1694,6 +1726,6 @@ export default function StockPage() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </PageTransition>
   );
 }

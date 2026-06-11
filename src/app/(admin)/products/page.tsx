@@ -13,6 +13,8 @@ import { ProductBulkModals } from './components/ProductBulkModals';
 import { ProductCategoryModal } from './components/ProductCategoryModal';
 import { DeleteAllModal, DeleteProductModal, DeleteCategoryModal } from './components/ProductDeleteModals';
 import { ProductsLoader } from './components/ProductsLoader';
+import { PageTransition } from '@/components/PageTransition';
+import { GlassCard } from '@/components/GlassCard';
 
 /* ─── Helpers ─── */
 const normalizeProductName = (s: string) => s.trim();
@@ -675,14 +677,14 @@ const ProductsPage = () => {
 
   /* ─── Render ─── */
   return (
-    <div className="space-y-6 pb-24">
-      {/* Header - daha çox boşluq */}
-      <div className="px-4 sm:px-0">
+    <PageTransition className="space-y-6 pb-24">
+      <GlassCard intensity="light" padding="lg">
         <h2 className="text-3xl font-serif font-bold text-white tracking-tight mb-2">{t('products_title')}</h2>
         <p className="text-white/40 text-xs uppercase tracking-[0.2em]">{t('products_subtitle')}</p>
-      </div>
+      </GlassCard>
 
-      <ProductTable
+      <GlassCard intensity="light" padding="md">
+        <ProductTable
         products={products}
         categories={categories}
         groupedProducts={groupedProducts}
@@ -778,7 +780,8 @@ const ProductsPage = () => {
         onClose={() => setConfirmDeleteCategory(null)}
         onConfirm={confirmDeleteCategoryAction}
       />
-    </div>
+    </GlassCard>
+    </PageTransition>
   );
 };
 

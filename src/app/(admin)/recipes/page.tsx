@@ -11,6 +11,9 @@ import {
 import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RecipeConstructorModal } from './components/RecipeConstructorModal';
+
+import { PageTransition } from '@/components/PageTransition';
+import { GlassCard } from '@/components/GlassCard';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import type {
   CookbookRecipe,
@@ -81,12 +84,6 @@ export default function RecipesPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, () => fetchData())
       .subscribe();
     return () => { removeRealtimeChannel(channel); };
-  }, [fetchData]);
-
-  // Polling fallback — realtime işləməsə 10sn-də bir yenilə
-  useEffect(() => {
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
   }, [fetchData]);
 
   const getProductName = (p: ProductCatalogItem) => {
@@ -329,51 +326,52 @@ export default function RecipesPage() {
   }, [recipes]);
 
   return (
-    <div className="min-h-screen p-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gold/10 border border-gold/20 flex items-center justify-center">
-            <CookingPot size={18} className="text-gold" />
+    <PageTransition className="min-h-screen p-6 max-w-5xl mx-auto">
+      <GlassCard intensity="light" padding="lg" className="mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gold/10 border border-gold/20 flex items-center justify-center">
+              <CookingPot size={18} className="text-gold" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">Reseptlər</h1>
+              <p className="text-white/30 text-xs">Hər məhsulun hazırlanması üçün tələb olunan xəmmal</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">Reseptlər</h1>
-            <p className="text-white/30 text-xs">Hər məhsulun hazırlanması üçün tələb olunan xəmmal</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setEditConstructorProductId(undefined); setConstructorOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 transition-all"
+            >
+              <CookingPot size={14} /> Resept Konstruktoru
+            </button>
+            <button
+              onClick={() => setShowCookbookPanel(!showCookbookPanel)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
+            >
+              <BookOpen size={14} /> Kokbuk Yüklä {cookbookResults.length > 0 && (
+                <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{cookbookResults.length}</span>
+              )}
+            </button>
+            <button
+              onClick={() => setShowAiPanel(!showAiPanel)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
+            >
+              <BrainCircuit size={14} /> AI Təkliflər {aiSuggestedRecipes.length > 0 && (
+                <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
+              )}
+            </button>
+            <button
+              onClick={clearAllRecipes} disabled={clearingAll}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
+            >
+              {clearingAll ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              Hamısını Sil
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { setEditConstructorProductId(undefined); setConstructorOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 transition-all"
-          >
-            <CookingPot size={14} /> Resept Konstruktoru
-          </button>
-          <button
-            onClick={() => setShowCookbookPanel(!showCookbookPanel)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
-          >
-            <BookOpen size={14} /> Kokbuk Yüklä {cookbookResults.length > 0 && (
-              <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{cookbookResults.length}</span>
-            )}
-          </button>
-          <button
-            onClick={() => setShowAiPanel(!showAiPanel)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
-          >
-            <BrainCircuit size={14} /> AI Təkliflər {aiSuggestedRecipes.length > 0 && (
-              <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
-            )}
-          </button>
-          <button
-            onClick={clearAllRecipes} disabled={clearingAll}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
-          >
-            {clearingAll ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-            Hamısını Sil
-          </button>
-        </div>
-      </div>
+      </GlassCard>
 
       {/* AI Suggestion Panel */}
       <AnimatePresence>
@@ -731,7 +729,15 @@ export default function RecipesPage() {
             );
           })}
           {filteredProducts.length === 0 && (
-            <div className="text-center py-16 text-white/20 text-sm">Məhsul tapılmadı</div>
+            <GlassCard intensity="light" padding="xl" className="text-center">
+              <CookingPot size={36} className="mx-auto mb-3 opacity-20 text-white/30" />
+              <p className="text-white/30 text-sm font-medium">
+                {search ? 'Axtarış nəticəsi tapılmadı' : 'Hələ məhsul yoxdur'}
+              </p>
+              <p className="text-white/15 text-xs mt-1">
+                {!search && 'Məhsul əlavə etdikdən sonra hər birinə resept təyin edə bilərsiniz'}
+              </p>
+            </GlassCard>
           )}
         </div>
       )}
@@ -743,6 +749,6 @@ export default function RecipesPage() {
         onSaved={fetchData}
         editProductId={editConstructorProductId}
       />
-    </div>
+    </PageTransition>
   );
 }

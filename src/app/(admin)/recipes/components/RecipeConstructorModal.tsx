@@ -85,11 +85,21 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
   // Auto AI suggest: product seçiləndə və sətir yoxdursa, avtomatik təklif gətir
   useEffect(() => {
-    if (!loading && selectedProductId && rows.length === 0 && !didAutoSuggest.current) {
+    if (!loading && selectedProductId && rows.length === 0) {
+      if (didAutoSuggest.current) return;
       didAutoSuggest.current = true;
       aiSuggest();
     }
   }, [loading, selectedProductId, rows.length]);
+
+  // Yeni məhsul seçiləndə didAutoSuggest-i sıfırla
+  const handleProductChange = (id: string) => {
+    if (id !== selectedProductId) {
+      didAutoSuggest.current = false;
+      setRows([]);
+    }
+    setSelectedProductId(id);
+  };
 
   const ingredientMap = useMemo(() => new Map(ingredients.map(i => [i.id, i])), [ingredients]);
 
@@ -200,6 +210,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const reset = () => {
     setSelectedProductId(editProductId || '');
     setRows([]);
+    didAutoSuggest.current = false;
   };
 
   const aiSuggest = async () => {
@@ -290,7 +301,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                     </label>
                     <select
                       value={selectedProductId}
-                      onChange={e => setSelectedProductId(e.target.value)}
+                      onChange={e => handleProductChange(e.target.value)}
                       className="w-full px-4 py-3.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-gold/40 transition-colors text-sm"
                     >
                       <option value="" className="bg-[#111]">Menyudan məhsul seç...</option>

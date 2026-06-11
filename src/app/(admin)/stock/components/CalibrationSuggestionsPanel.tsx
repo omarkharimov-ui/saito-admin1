@@ -1,11 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AlertTriangle, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import type { InventoryReviewPayload } from '@/lib/aiIngestion';
 
-export type CalibrationSuggestion = {
+type CalibrationSuggestion = InventoryReviewPayload['review']['normalizedLines'][number] & {
   ingredient_id: string;
   ingredient_name: string;
   suggested_adjustment_pct: number;
@@ -21,10 +22,9 @@ interface Props {
 }
 
 export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
-  const [applying, setApplying] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
-  const selectable = useMemo(() => suggestions.filter(s => s.ingredient_id), [suggestions]);
+  const selectable = useMemo(() => suggestions.filter((s) => s.ingredient_id), [suggestions]);
   const count = selectable.length;
 
   const apply = async (item: CalibrationSuggestion) => {
@@ -38,13 +38,20 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
           actualStock: item.actual_stock,
           theoreticalStock: item.theoretical_stock,
           reason: item.reason,
+          review: {
+            manualReviewRequired: false,
+            warnings: [],
+            reviewNotes: item.reviewNotes ?? [],
+            fallbackMode: 'ocr',
+          },
         }),
       });
-      if (!res.ok) throw new Error('Calibration apply failed');
-      toast.success(`${item.ingredient_name} calibrasiya olundu`);
+      const data = await res.json();
+      if (!res.ok || data?.error) throw new Error(data?.error || 'Calibration apply failed');
+      toast.success(`${item.ingredient_name} kalibrasiya olundu`);
       onApplied?.();
     } catch {
-      toast.error('Calibrasiya tətbiq edilə bilmədi');
+      toast.error('Kalibrasiya tətbiq edilə bilmədi');
     } finally {
       setApplyingId(null);
     }

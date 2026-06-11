@@ -19,6 +19,7 @@ import type {
 import { CalibrationSuggestionsPanel } from './components/CalibrationSuggestionsPanel';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
+import type { InventoryReviewPayload } from '@/lib/aiIngestion';
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -222,6 +223,22 @@ export default function StockPage() {
       reason: alert.reason ?? 'Stock variance detected',
       actual_stock: Number(alert.current_stock ?? 0),
       theoretical_stock: Number(alert.theoretical_stock ?? 0),
+      manualReviewRequired: Math.abs(alert.variance_pct ?? 0) >= 10,
+      warnings: Math.abs(alert.variance_pct ?? 0) >= 10 ? ['Large variance requires review'] : [],
+      reviewNotes: alert.reason ? [alert.reason] : [],
+      fallbackMode: 'ocr',
+    } as InventoryReviewPayload['review']['normalizedLines'][number] & {
+      ingredient_id: string;
+      ingredient_name: string;
+      suggested_adjustment_pct: number;
+      confidence: number;
+      reason: string;
+      actual_stock: number;
+      theoretical_stock: number;
+      manualReviewRequired: boolean;
+      warnings: string[];
+      reviewNotes: string[];
+      fallbackMode: 'manual' | 'ocr';
     }));
   }, [data?.alerts]);
 

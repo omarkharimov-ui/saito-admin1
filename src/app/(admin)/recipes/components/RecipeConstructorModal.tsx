@@ -6,22 +6,7 @@ import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from 'lu
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
-
-interface Product {
-  id: string;
-  name: string;
-  name_az?: string | null;
-  price: number;
-}
-
-interface Ingredient {
-  id: string;
-  name: string;
-  unit: string;
-  average_cost_per_unit: number;
-  current_stock: number;
-  cold_waste_percentage: number;
-}
+import type { Ingredient, ProductCatalogItem } from '@/types/inventory';
 
 interface RecipeLine {
   ingredient_id: string;
@@ -213,7 +198,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
     const dishName = (selectedProduct as any).name_az || selectedProduct.name;
     setAiSuggesting(true);
     try {
-      const res = await fetch(`/api/recipes/ai-suggest-ingredients?dishName=${encodeURIComponent(dishName)}`);
+      const res = await fetch('/api/recipes/ai-suggest', { method: 'POST' });
       const data = await res.json();
       if (!data.suggestions || data.suggestions.length === 0) {
         toast.error('AI təklif gətirə bilmədi', { style: toastStyle });

@@ -12,52 +12,17 @@ import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RecipeConstructorModal } from './components/RecipeConstructorModal';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-
-interface Ingredient {
-  id: string;
-  name: string;
-  unit: string;
-  current_stock: number;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  name_az?: string | null;
-  name_en?: string | null;
-  name_ru?: string | null;
-  image_url?: string | null;
-  price: number;
-}
-
-interface RecipeRow {
-  id: string;
-  menu_item_id: string;
-  ingredient_id: string;
-  quantity_required: number;
-  is_ai_suggested?: boolean;
-  ingredient?: Ingredient;
-}
-
-interface AiSuggestion {
-  product_id: string;
-  product_name: string;
-  total_sold: number;
-  recipe: { ingredient_id: string; ingredient_name: string; quantity_required: number; unit: string }[];
-}
-
-interface CookbookRecipe {
-  recipeName: string;
-  suggestedProductId: string | null;
-  suggestedProductName: string | null;
-  confidence: number;
-  ingredients: { ingredient_id: string; ingredient_name: string; quantity_required: number; unit: string }[];
-  unmatchedIngredients: number;
-}
+import type {
+  AiRecipeSuggestion,
+  CookbookRecipe,
+  Ingredient,
+  ProductCatalogItem,
+  RecipeRow,
+} from '@/types/inventory';
 
 export default function RecipesPage() {
   const { language } = useLanguage();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductCatalogItem[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +35,7 @@ export default function RecipesPage() {
 
   // ── AI Suggestion state ──
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<AiRecipeSuggestion[]>([]);
   const [showAiPanel, setShowAiPanel] = useState(false);
 
   // ── Document Upload state ──
@@ -124,7 +89,7 @@ export default function RecipesPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  const getProductName = (p: Product) => {
+  const getProductName = (p: ProductCatalogItem) => {
     const pp = p as any;
     return (language === 'en' ? pp.name_en : language === 'ru' ? pp.name_ru : pp.name_az) || pp.name_az || pp.name_en || pp.name_ru || p.name;
   };
@@ -196,7 +161,7 @@ export default function RecipesPage() {
     } finally { setAiLoading(false); }
   };
 
-  const approveAi = async (suggestion: AiSuggestion) => {
+  const approveAi = async (suggestion: AiRecipeSuggestion) => {
     try {
       const res = await fetch('/api/recipes/approve', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },

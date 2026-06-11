@@ -108,3 +108,58 @@ export interface LowStockAlert {
   critical_limit: number;
   status: 'critical' | 'out_of_stock';
 }
+
+export interface ProductCatalogItem {
+  id: string;
+  name: string;
+  name_az?: string | null;
+  name_en?: string | null;
+  name_ru?: string | null;
+  image_url?: string | null;
+  price: number;
+  has_active_recipe?: boolean | null;
+  is_ready_product?: boolean | null;
+  direct_ingredient_id?: string | null;
+}
+
+export interface RecipeIngredientRow {
+  ingredient_id: string;
+  ingredient_name: string;
+  unit: string;
+  quantity: number;
+  quantity_brutto: number;
+  hot_waste_percentage: number;
+  cost: number;
+}
+
+export interface RecipeRow {
+  id: string;
+  menu_item_id: string;
+  ingredient_id: string;
+  quantity_required: number;
+  quantity_brutto?: number | null;
+  hot_waste_percentage?: number | null;
+  is_ai_suggested?: boolean | null;
+  ingredient?: Ingredient;
+}
+
+export interface AiRecipeSuggestion {
+  product_id: string;
+  product_name: string;
+  total_sold: number;
+  recipe: {
+    ingredient_id: string;
+    ingredient_name: string;
+    quantity_required: number;
+    unit: string;
+  }[];
+}
+
+export interface CookbookRecipe {
+  recipeName: string;
+  suggestedProductId: string | null;
+  suggestedProductName: string | null;
+  confidence: number;
+  ingredients: RecipeIngredientRow[];
+  unmatchedIngredients: number;
+}

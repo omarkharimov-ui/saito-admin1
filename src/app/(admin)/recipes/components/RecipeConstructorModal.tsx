@@ -51,7 +51,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
         supabase.from('products').select('id, name, name_az, price').order('name_az'),
         supabase.from('ingredients').select('id, name, unit, average_cost_per_unit, current_stock, cold_waste_percentage').order('name'),
       ]);
-      setProducts((pRes.data || []) as Product[]);
+      setProducts((pRes.data || []) as ProductCatalogItem[]);
       setIngredients((iRes.data || []) as Ingredient[]);
 
       if (editProductId) {

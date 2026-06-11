@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles, Wand2, Layers3 } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles, Wand2, Layers3, PencilLine, BadgeInfo, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -39,6 +39,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const [rows, setRows] = useState<RecipeLine[]>([]);
   const [saving, setSaving] = useState(false);
   const [aiSuggesting, setAiSuggesting] = useState(false);
+  const [aiPreview, setAiPreview] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
@@ -194,12 +195,17 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   };
 
   const aiSuggest = async () => {
+    setAiPreview('');
     if (!selectedProduct) { toast.error('Əvvəlcə məhsul seçin', { style: toastStyle }); return; }
     const dishName = selectedProduct.name_az || selectedProduct.name;
     setAiSuggesting(true);
     try {
       const res = await fetch('/api/recipes/ai-suggest', { method: 'POST' });
       const data = await res.json();
+      if (data.suggestions && data.suggestions.length > 0) {
+        const preview = data.suggestions.map((s: any) => `${s.ingredientName || s.ingredient_name || s.name || 'Ingredient'}${s.quantity ? ` • ${s.quantity}` : ''}`).join(', ');
+        setAiPreview(preview);
+      }
       if (!data.suggestions || data.suggestions.length === 0) {
         toast.error('AI təklif gətirə bilmədi', { style: toastStyle });
         return;
@@ -224,6 +230,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
         return;
       }
       setRows(newRows);
+      setAiPreview('');
       toast.success(`${newRows.length} inqrediyent AI tərəfindən təklif edildi`, { style: toastStyle });
     } catch {
       toast.error('AI xətası', { style: toastStyle });
@@ -289,11 +296,21 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
+                      {aiPreview && (
+                        <div className="w-full mb-3 rounded-2xl border border-violet-500/20 bg-violet-500/8 p-3 text-xs text-white/65">
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-violet-300 font-bold mb-1">AI preview</p>
+                          <p>{aiPreview}</p>
+                        </div>
+                      )}
+                <div className="flex items-center gap-2 text-white/45 text-[10px] uppercase tracking-[0.25em] font-bold">
+                  <BadgeInfo size={11} /> AI + Manual recipe flow
+                </div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider">
                         Tərkibi <span className="text-white/20">({rows.length} inqrediyent)</span>
                       </label>
                       <div className="flex items-center gap-2">
                         <button onClick={aiSuggest} disabled={aiSuggesting || !selectedProduct}
+                          title="Generate AI recipe suggestion"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all active:scale-95 disabled:opacity-40"
                           style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', color: '#A78BFA' }}>
                           {aiSuggesting ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} AI Təklif et

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, Upload, Sparkles, Flame, ChevronLeft, Bot, X, Wand2, Plus, Trash2, Ruler, Zap, Tag, Check } from 'lucide-react';
+import { Loader2, Upload, Sparkles, Flame, ChevronLeft, Bot, X, Wand2, Plus, Trash2, Ruler, Zap, Tag, Check, BrainCircuit, BadgeInfo } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Product, Category } from '@/types';
@@ -225,11 +225,12 @@ export default function DashboardProductModal({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [visionLoading, setVisionLoading] = useState(false);
   const [ghost, setGhost] = useState<{ name?: string; description?: string; ingredients?: string } | null>(null);
+  const [modeHint, setModeHint] = useState<'ready' | 'recipe' | null>(null);
   const orbRef = useRef<HTMLDivElement>(null);
 
   const { isDirty } = useModalFormDirty(productForm, open, editingProduct?.id);
 
-  const closeWithReset = () => { onClose(); setNameError(false); setPriceError(false); setGhost(null); setVisionLoading(false); };
+  const closeWithReset = () => { onClose(); setNameError(false); setPriceError(false); setGhost(null); setVisionLoading(false); setModeHint(null); };
 
   const normalizeProductName = (name: string) =>
     name.trim().replace(/\s+/g, ' ').replace(/^(.)/, (m: string) => m.toUpperCase());
@@ -302,6 +303,8 @@ export default function DashboardProductModal({
   const hasVariants = productForm.variants.length > 0;
   const defaultVariant = productForm.variants.find(v => v.is_default);
   const displayPrice = hasVariants && defaultVariant?.price ? defaultVariant.price : productForm.price;
+
+  const aiPreviewVisible = !!ghost || visionLoading;
 
   return createPortal(
     <AnimatePresence>

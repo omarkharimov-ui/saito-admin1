@@ -413,6 +413,17 @@ export function ProductModal({
                     {nameError && <p className="text-[10px] text-red-400 mt-1">{t('product_name_required')}</p>}
                   </div>
                   <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <button type="button" onClick={() => { onFormChange({ ...productForm, is_ready_product: true }); setModeHint('ready'); }} className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider transition-all ${productForm.is_ready_product ? 'bg-blue-500/15 text-blue-300 border-blue-500/30' : 'bg-white/[0.04] text-white/40 border-white/[0.10]'}`}>
+                        Hazır məhsul
+                      </button>
+                      <button type="button" onClick={() => { onFormChange({ ...productForm, is_ready_product: false, direct_ingredient_id: '' }); setModeHint('recipe'); }} className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider transition-all ${!productForm.is_ready_product ? 'bg-violet-500/15 text-violet-300 border-violet-500/30' : 'bg-white/[0.04] text-white/40 border-white/[0.10]'}`}>
+                        Resept məhsulu
+                      </button>
+                      <button type="button" onClick={aiSuggest} disabled={aiSuggesting || !selectedProductId} className="px-3 py-1.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider transition-all bg-white/[0.04] text-white/60 border-white/[0.10] hover:text-white hover:border-white/[0.20] disabled:opacity-40">
+                        {aiSuggesting ? <Loader2 size={11} className="inline animate-spin mr-1" /> : <BrainCircuit size={11} className="inline mr-1" />} AI preview
+                      </button>
+                    </div>
                     <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)]">
                       {t('price_label')}
                       {productForm.variants.length > 0 && (

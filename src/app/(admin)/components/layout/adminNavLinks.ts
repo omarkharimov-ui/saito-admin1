@@ -9,6 +9,9 @@ import {
   Warehouse,
   ScrollText,
   Monitor,
+  Calculator,
+  ClipboardList,
+  AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -50,7 +53,14 @@ export function getAdminNavItems(
     { id: 'combos', name: t('combos'), href: '/combos', icon: PackagePlus, roles: ['superadmin'] },
     { id: 'campaigns', name: t('campaigns'), href: '/campaigns', icon: Percent, roles: ['admin', 'superadmin'] },
     { id: 'stock', name: 'Stok', href: '/stock', icon: Warehouse, roles: ['superadmin'] },
+    { id: 'inventory', name: 'Inventory', href: '/stock?tab=inventory', icon: ClipboardList, roles: ['superadmin'] },
     { id: 'recipes', name: 'Reseptlər', href: '/recipes', icon: ScrollText, roles: ['superadmin'] },
+    { id: 'purchasing', name: 'Purchasing', href: '/stock?tab=purchasing', icon: Calculator, roles: ['superadmin'] },
+    { id: 'recipe-ai', name: 'AI Recipe Builder', href: '/stock?tab=recipes', icon: ClipboardList, roles: ['superadmin'] },
+    { id: 'ocr-import', name: 'OCR Import', href: '/stock?tab=purchasing', icon: ScrollText, roles: ['superadmin'] },
+    { id: 'reverse-analysis', name: 'Reverse Analysis', href: '/stock?tab=cost-analysis', icon: AlertTriangle, roles: ['superadmin'] },
+    { id: 'cost-analysis', name: 'Cost Analysis', href: '/stock?tab=cost-analysis', icon: BarChart3, roles: ['superadmin'] },
+    { id: 'alerts', name: 'Alerts', href: '/stock?tab=alerts', icon: AlertTriangle, roles: ['superadmin'] },
     { id: 'stats', name: t('statistics'), href: '/stats', icon: BarChart3, roles: ['superadmin'] },
     { id: 'settings', name: t('settings'), href: '/settings', icon: Settings, roles: ['superadmin'] }
   ];

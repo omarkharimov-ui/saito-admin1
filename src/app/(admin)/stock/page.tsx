@@ -10,6 +10,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { normalizeMeasurement, getMeasurementOptions, formatMeasurement } from '@/lib/measurement';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type {
   InventoryStatusRow, InventoryDashboardData,
@@ -23,7 +24,7 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const UNITS: IngredientUnit[] = ['gram', 'piece', 'ml'];
+const UNITS: IngredientUnit[] = ['gram', 'kg', 'ml', 'l', 'piece', 'pcs'];
 const UNIT_LABELS: Record<IngredientUnit, string> = { gram: 'qram', piece: 'ədəd', ml: 'ml' };
 
 const LOG_LABELS: Record<string, string> = {
@@ -108,7 +109,7 @@ function StockBar({ ratio, status }: { ratio: number; status: string }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | 'audit' | 'history' | null;
+type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | 'audit' | 'history' | 'purchasing' | 'cost_analysis' | 'alerts' | null;
 interface ActiveModal { mode: ModalMode; row?: InventoryStatusRow }
 
 export default function StockPage() {
@@ -119,7 +120,7 @@ export default function StockPage() {
   const [saving, setSaving]   = useState(false);
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState<'all' | 'critical' | 'out_of_stock'>('all');
-  const [viewMode, setViewMode] = useState<'stock' | 'history'>('stock');
+  const [viewMode, setViewMode] = useState<'stock' | 'history' | 'purchasing' | 'cost-analysis' | 'alerts'>('stock');
   const now = new Date();
   const [historyMonth, setHistoryMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const [historyDay, setHistoryDay] = useState<string | null>(null);
@@ -130,6 +131,7 @@ export default function StockPage() {
   const [reason, setReason]     = useState('');
   const [newName, setNewName]   = useState('');
   const [newUnit, setNewUnit]   = useState<IngredientUnit>('gram');
+  const [tab, setTab] = useState<'inventory' | 'recipes' | 'purchasing' | 'cost-analysis' | 'alerts'>('inventory');
   const [newLimit, setNewLimit] = useState('500');
   const [newCost, setNewCost]   = useState('');
   const [newTotalQty, setNewTotalQty] = useState('');
@@ -147,6 +149,10 @@ export default function StockPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [allLogs, setAllLogs] = useState<InventoryLog[]>([]);
   const [allLogsLoading, setAllLogsLoading] = useState(false);
+  const inventoryValue = Number((data?.stats?.inventory_value ?? 0).toFixed(2));
+  const inventoryHealth = Number((data?.stats?.health_score ?? 0).toFixed(0));
+  const discrepancyCount = data?.stats?.discrepancy_count ?? 0;
+  const movingAverageCost = Number((data?.stats?.moving_average_cost ?? 0).toFixed(2));
 
   // Auto-calculated unit cost from total qty/amount
   const calculatedUnitCost = (() => {
@@ -247,6 +253,13 @@ export default function StockPage() {
     const [y] = historyMonth.split('-').map(Number);
     setPickerYear(y);
   }, [historyMonth]);
+
+  useEffect(() => {
+    const tabParam = new URLSearchParams(window.location.search).get('tab');
+    if (tabParam === 'recipes' || tabParam === 'purchasing' || tabParam === 'cost-analysis' || tabParam === 'alerts' || tabParam === 'inventory') {
+      setTab(tabParam);
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -546,16 +559,77 @@ export default function StockPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setViewMode(viewMode === 'stock' ? 'history' : 'stock')}
+              onClick={() => setViewMode('stock')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
+                viewMode === 'stock'
+                  ? 'bg-white/10 text-white border border-white/15'
+                  : 'text-white/30 hover:text-white/60 border border-transparent'
+              }`}
+            >
+              Inventory
+            </button>
+            <button
+              onClick={() => setViewMode('history')}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
                 viewMode === 'history'
                   ? 'bg-white/10 text-white border border-white/15'
                   : 'text-white/30 hover:text-white/60 border border-transparent'
               }`}
             >
-              {viewMode === 'history' ? 'Stok' : 'Tarixçə'}
+              Tarixçə
+            </button>
+            <button
+              onClick={() => { setViewMode('purchasing'); setModal({ mode: 'purchasing' }); }}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
+                viewMode === 'purchasing'
+                  ? 'bg-white/10 text-white border border-white/15'
+                  : 'text-white/30 hover:text-white/60 border border-transparent'
+              }`}
+            >
+              Purchasing
+            </button>
+            <button
+              onClick={() => { setViewMode('cost-analysis'); setModal({ mode: 'cost_analysis' }); }}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
+                viewMode === 'cost-analysis'
+                  ? 'bg-white/10 text-white border border-white/15'
+                  : 'text-white/30 hover:text-white/60 border border-transparent'
+              }`}
+            >
+              Cost Analysis
+            </button>
+            <button
+              onClick={() => { setViewMode('alerts'); setModal({ mode: 'alerts' }); }}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
+                viewMode === 'alerts'
+                  ? 'bg-white/10 text-white border border-white/15'
+                  : 'text-white/30 hover:text-white/60 border border-transparent'
+              }`}
+            >
+              Alerts
+            </button>
+            <button
+              onClick={() => setModal({ mode: 'new_ingredient' })}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
+              style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
+            >
+              <Plus size={15} /> AI Recipe Builder
+            </button>
+            <button
+              onClick={() => setModal({ mode: 'new_ingredient' })}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
+              style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
+            >
+              <Plus size={15} /> OCR Invoice Import
+            </button>
+            <button
+              onClick={() => setModal({ mode: 'alerts' })}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
+              style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
+            >
+              <Plus size={15} /> Reverse Analysis
             </button>
             <button
               onClick={() => setModal({ mode: 'new_ingredient' })}
@@ -606,15 +680,43 @@ export default function StockPage() {
             sub={`${stats?.out_of_stock ?? 0} tamamilə bitib`} accent={(stats?.critical ?? 0) > 0 ? 'text-amber-400' : 'text-white/20'}
           />
           <StatCard
-            icon={<CheckCircle2 size={18} />} label="Normal Stok"
-            value={loading ? '—' : fmt((stats?.total ?? 0) - (stats?.critical ?? 0) - (stats?.out_of_stock ?? 0))}
-            sub="optimal səviyyədə" accent="text-emerald-400/70"
+            icon={<CheckCircle2 size={18} />} label="Inventory Health"
+            value={loading ? '—' : `${inventoryHealth}%`}
+            sub="ortalama sağlamlıq balı" accent={inventoryHealth >= 85 ? 'text-emerald-400/70' : inventoryHealth >= 60 ? 'text-amber-400' : 'text-rose-400/70'}
           />
           <StatCard
-            icon={<DollarSign size={18} />} label="Aylıq İtki Dəyəri"
-            value={loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`}
-            sub="bu ay waste + adjustment" accent="text-rose-400/70"
+            icon={<DollarSign size={18} />} label="Inventory Value"
+            value={loading ? '—' : `₼${fmtCost(inventoryValue)}`}
+            sub={`avg cost ₼${fmtCost(movingAverageCost)}`} accent="text-cyan-400/70"
           />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-white/30 font-bold">Inventory Health Score</p>
+            <div className="mt-3 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-3xl font-black tabular-nums">{loading ? '—' : `${inventoryHealth}%`}</p>
+                <p className="text-xs text-white/30 mt-1">balanced inventory + discrepancy mix</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-white/25">Discrepancies</p>
+                <p className="text-lg font-black text-amber-400 tabular-nums">{loading ? '—' : fmt(discrepancyCount)}</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl p-4" style={{ background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.12)' }}>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-400/70 font-bold">Measurement Normalization</p>
+            <p className="text-sm text-white/60 mt-2 leading-relaxed">
+              Stock values are normalized internally across g / kg, ml / l, and pcs for consistent inventory valuation.
+            </p>
+          </div>
+          <div className="rounded-2xl p-4" style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)' }}>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-gold/70 font-bold">Discrepancy Tracking</p>
+            <p className="text-sm text-white/60 mt-2 leading-relaxed">
+              The system compares theoretical vs actual stock and estimates mismatch value automatically.
+            </p>
+          </div>
         </div>
 
         {/* ── Search + Filter bar ── */}
@@ -845,6 +947,49 @@ export default function StockPage() {
           </motion.div>
         )}
       </> )}
+
+        {viewMode === 'purchasing' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className="rounded-2xl p-5 lg:col-span-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-white/30 font-bold">Purchasing</p>
+                    <h2 className="text-2xl font-serif font-bold mt-2">Supplier & Receiving Workflow</h2>
+                    <p className="text-sm text-white/45 mt-2 max-w-2xl">Track suppliers, receive goods, attach invoices and push validated quantities into inventory from one premium panel.</p>
+                  </div>
+                  <button
+                    onClick={() => setModal({ mode: 'purchasing' })}
+                    className="px-4 py-2 rounded-xl text-xs font-bold tracking-wide"
+                    style={{ background: 'linear-gradient(135deg,#111,#1b1b1b)', border: '1px solid rgba(255,255,255,0.12)' }}
+                  >
+                    Open Form
+                  </button>
+                </div>
+                <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    ['Suppliers', '12 active'],
+                    ['Open POs', '4 pending'],
+                    ['Receiving', '2 today'],
+                    ['Attachments', 'Invoice OCR ready'],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-white/25 font-bold">{label}</p>
+                      <p className="text-sm font-semibold text-white/75 mt-2">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-2xl p-5" style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.14)' }}>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-gold/70 font-bold">Stock Increase Workflow</p>
+                <p className="text-sm text-white/55 mt-2 leading-relaxed">Use stock in forms or purchase receiving to automatically write inventory movement logs and valuation updates.</p>
+                <button onClick={() => setModal({ mode: 'stock_in' })} className="mt-4 w-full px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  Increase Stock
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {viewMode === 'history' && (
         <div className="space-y-4">

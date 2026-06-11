@@ -6,6 +6,7 @@ import type {
   CreateIngredientPayload,
   LowStockAlert,
 } from '@/types/inventory';
+import { normalizeMeasurement } from '@/lib/measurement';
 
 function svc() {
   return createClient(
@@ -28,14 +29,41 @@ export async function GET() {
 
     const rows = (items ?? []) as InventoryStatusRow[];
 
+    const enrichedRows = rows.map((row) => {
+      const normalized = normalizeMeasurement(Number(row.current_stock ?? 0), row.unit);
+      const theoreticalNormalized = normalizeMeasurement(Number(row.theoretical_stock ?? 0), row.unit);
+      const discrepancyQty = Number((theoreticalNormalized.quantity - normalized.quantity).toFixed(2));
+      const discrepancyValue = Number((Math.abs(discrepancyQty) * Number(row.average_cost_per_unit ?? 0)).toFixed(2));
+      const inventoryValue = Number((normalized.quantity * Number(row.average_cost_per_unit ?? 0)).toFixed(2));
+      const healthScore = Math.max(0, Math.min(100,
+        100 - (row.status === 'out_of_stock' ? 45 : row.status === 'critical' ? 20 : 0) -
+        Math.min(25, Math.abs(discrepancyQty) * 2) -
+        Math.min(20, Number(row.cold_waste_percentage ?? 0))
+      ));
+
+      return {
+        ...row,
+        inventory_value: inventoryValue,
+        moving_average_cost: Number(row.average_cost_per_unit ?? 0),
+        health_score: Number(healthScore.toFixed(0)),
+        discrepancy_qty: discrepancyQty,
+        discrepancy_value: discrepancyValue,
+        normalized_unit: normalized.normalizedUnit,
+      } satisfies InventoryStatusRow;
+    });
+
     const stats = {
-      total: rows.length,
-      critical: rows.filter(r => r.status === 'critical').length,
-      out_of_stock: rows.filter(r => r.status === 'out_of_stock').length,
-      monthly_waste_cost: rows.reduce((s, r) => s + Number(r.monthly_waste_cost), 0),
+      total: enrichedRows.length,
+      critical: enrichedRows.filter(r => r.status === 'critical').length,
+      out_of_stock: enrichedRows.filter(r => r.status === 'out_of_stock').length,
+      monthly_waste_cost: enrichedRows.reduce((s, r) => s + Number(r.monthly_waste_cost), 0),
+      inventory_value: Number(enrichedRows.reduce((s, r) => s + Number(r.inventory_value ?? 0), 0).toFixed(2)),
+      health_score: Number((enrichedRows.reduce((s, r) => s + Number(r.health_score ?? 0), 0) / Math.max(enrichedRows.length, 1)).toFixed(0)),
+      discrepancy_count: enrichedRows.filter(r => Math.abs(Number(r.discrepancy_qty ?? 0)) > 0.01).length,
+      moving_average_cost: Number((enrichedRows.reduce((s, r) => s + Number(r.moving_average_cost ?? 0), 0) / Math.max(enrichedRows.length, 1)).toFixed(2)),
     };
 
-    const alerts: LowStockAlert[] = rows
+    const alerts: LowStockAlert[] = enrichedRows
       .filter(r => r.status !== 'normal')
       .map(r => ({
         ingredientId: r.id,
@@ -47,7 +75,7 @@ export async function GET() {
       }));
 
     const response: InventoryDashboardData & { alerts: LowStockAlert[] } = {
-      items: rows,
+      items: enrichedRows,
       stats,
       alerts,
     };

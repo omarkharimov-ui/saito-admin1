@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { InventoryImportPayload } from '@/types/recipes';
+import { buildInventoryReview } from '@/lib/aiIngestion';
 
 export async function POST(request: Request) {
   try {
@@ -31,10 +32,16 @@ export async function POST(request: Request) {
       })),
     } satisfies InventoryImportPayload;
 
+    const review = buildInventoryReview(normalized);
+
     return NextResponse.json({
-      ok: true,
-      source: 'ocr',
-      payload: normalized,
+      ...review,
+      audit: {
+        source: review.review.fallbackMode,
+        status: review.review.manualReviewRequired ? 'needs_review' : 'ready_to_apply',
+        lineCount: review.review.normalizedLines.length,
+        warningCount: review.review.warnings.length,
+      },
     });
   } catch (error: any) {
     return NextResponse.json(

@@ -14,15 +14,18 @@ export interface NormalizedRecipeSuggestion {
   ingredients: NormalizedRecipeIngredient[];
   unmatchedIngredients: number;
   source: RecipeSourceType;
+  manualReviewRequired?: boolean;
+  reviewNotes?: string[];
+  rawText?: string | null;
 }
 
 export interface InventoryImportLine {
   name: string;
-  quantity: number;
+  quantity: number | string;
   unit: string;
-  unit_cost?: number | null;
-  total_cost?: number | null;
-  waste_percentage?: number | null;
+  unit_cost?: number | string | null;
+  total_cost?: number | string | null;
+  waste_percentage?: number | string | null;
 }
 
 export interface InventoryImportPayload {
@@ -30,8 +33,8 @@ export interface InventoryImportPayload {
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
   currency?: string | null;
-  totalAmount?: number | null;
-  totalTax?: number | null;
+  totalAmount?: number | string | null;
+  totalTax?: number | string | null;
   notes?: string | null;
   lines: InventoryImportLine[];
 }

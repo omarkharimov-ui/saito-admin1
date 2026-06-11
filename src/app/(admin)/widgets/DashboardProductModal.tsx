@@ -226,6 +226,8 @@ export default function DashboardProductModal({
   const [visionLoading, setVisionLoading] = useState(false);
   const [ghost, setGhost] = useState<{ name?: string; description?: string; ingredients?: string } | null>(null);
   const [modeHint, setModeHint] = useState<'ready' | 'recipe' | null>(null);
+  const workflowReady = productForm.is_in_stock && !productForm.is_special;
+  const workflowRecipe = !workflowReady || !!productForm.ingredients.trim();
   const orbRef = useRef<HTMLDivElement>(null);
 
   const { isDirty } = useModalFormDirty(productForm, open, editingProduct?.id);
@@ -305,6 +307,7 @@ export default function DashboardProductModal({
   const displayPrice = hasVariants && defaultVariant?.price ? defaultVariant.price : productForm.price;
 
   const aiPreviewVisible = !!ghost || visionLoading;
+  const workflowLabel = workflowReady ? 'Hazır məhsul' : 'Reseptli məhsul';
 
   return createPortal(
     <AnimatePresence>
@@ -329,6 +332,35 @@ export default function DashboardProductModal({
 
           {/* Form */}
           <form id="dashboard-product-form" noValidate onSubmit={onSubmit} className="px-5 pb-32 space-y-6 overflow-y-auto h-[calc(100vh-140px)]">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/35">Product workflow</p>
+                  <h2 className="mt-1 text-base font-semibold text-white">{workflowLabel}</h2>
+                </div>
+                <div className={`flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider border ${workflowReady ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-400/25 bg-amber-400/10 text-amber-300'}`}>
+                  {workflowReady ? <BadgeCheck size={11} /> : <CircleAlert size={11} />}
+                  {workflowReady ? 'Direct stock' : 'Recipe / AI'}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => { onFormChange((p: ProductFormState) => ({ ...p, is_in_stock: true })); setModeHint('ready'); }} className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-left transition-all ${workflowReady ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-white/10 bg-white/[0.02]'}`}>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.25em] text-white/35">Ready item</div>
+                    <div className="mt-1 text-sm text-white/80">Direct stock sale</div>
+                  </div>
+                  <ArrowRight size={14} className="text-white/30" />
+                </button>
+                <button type="button" onClick={() => { onFormChange((p: ProductFormState) => ({ ...p, is_in_stock: false })); setModeHint('recipe'); }} className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-left transition-all ${workflowRecipe ? 'border-gold/30 bg-gold/10' : 'border-white/10 bg-white/[0.02]'}`}>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.25em] text-white/35">Recipe item</div>
+                    <div className="mt-1 text-sm text-white/80">AI + manual ingredients</div>
+                  </div>
+                  <ArrowRight size={14} className="text-white/30" />
+                </button>
+              </div>
+              <p className="text-[11px] text-white/35 leading-relaxed">Ready item stokdan birbaşa çıxır. Recipe item üçün resept builder və AI tövsiyəsi istifadə olunur.</p>
+            </div>
             
             {/* Name Input - Same as desktop */}
             <div className="space-y-1.5">

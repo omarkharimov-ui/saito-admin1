@@ -242,6 +242,34 @@ export default function StockPage() {
     }));
   }, [data?.alerts]);
 
+  const [ocrText, setOcrText] = useState('');
+  const [ocrFileName, setOcrFileName] = useState('');
+  const [ocrParsing, setOcrParsing] = useState(false);
+  const [ocrReviewOpen, setOcrReviewOpen] = useState(false);
+
+  const handleInvoiceImport = async () => {
+    if (!ocrText.trim()) {
+      toast.error('OCR mətni daxil edin', toastStyle);
+      return;
+    }
+    setOcrParsing(true);
+    try {
+      const res = await fetch('/api/inventory/ocr-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: ocrText, fileName: ocrFileName || null }),
+      });
+      if (!res.ok) throw new Error('OCR parse failed');
+      await fetchData();
+      setOcrReviewOpen(true);
+      toast.success('OCR import göndərildi', toastStyle);
+    } catch {
+      toast.error('OCR import alınmadı', toastStyle);
+    } finally {
+      setOcrParsing(false);
+    }
+  };
+
   const monthPickerRef = useRef<HTMLDivElement>(null);
 
   // Close month picker on outside click
@@ -1179,6 +1207,66 @@ export default function StockPage() {
       </div>
       )}
       
+      </div>
+
+      {/* OCR invoice import + calibration review */}
+      <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.35em] text-white/35">OCR import</p>
+              <h3 className="mt-1 text-lg font-semibold text-white">Faktura / qəbz skanı</h3>
+            </div>
+            <div className="rounded-full border border-violet-400/20 bg-violet-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+              invoice → review
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-white/35">OCR mətni</label>
+              <textarea
+                value={ocrText}
+                onChange={e => setOcrText(e.target.value)}
+                placeholder="Qəbzdən çıxan mətni buraya yapışdır..."
+                className="min-h-[140px] w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-white/20 focus:border-violet-400/40"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+              <input
+                type="text"
+                value={ocrFileName}
+                onChange={e => setOcrFileName(e.target.value)}
+                placeholder="Fayl adı / invoice number"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-white/20 focus:border-violet-400/40"
+              />
+              <button
+                type="button"
+                onClick={handleInvoiceImport}
+                disabled={ocrParsing || !ocrText.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-violet-400/25 bg-violet-400/10 px-4 py-3 text-sm font-semibold text-violet-200 transition-all disabled:opacity-40"
+              >
+                {ocrParsing ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />}
+                OCR import et
+              </button>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3 text-xs text-white/45">
+              OCR çıxışı avtomatik review panelinə düşür. Daha sonra calibration suggestions ilə müqayisə edib təsdiqləyə bilərsiniz.
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.35em] text-white/35">Calibration review</p>
+              <h3 className="mt-1 text-lg font-semibold text-white">Variance suggested lines</h3>
+            </div>
+            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+              live alerts
+            </div>
+          </div>
+          <CalibrationSuggestionsPanel suggestions={calibrationSuggestions} />
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════

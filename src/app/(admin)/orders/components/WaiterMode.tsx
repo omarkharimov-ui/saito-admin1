@@ -12,9 +12,9 @@ import {
   Printer, ImageOff, Utensils, Banknote, Users, ArrowLeft, Package,
 } from 'lucide-react';
 
-interface Product extends Pick<ProductCatalogItem, 'id' | 'name' | 'name_az' | 'name_en' | 'name_ru' | 'price' | 'image_url' | 'is_ready_product' | 'direct_ingredient_id' | 'has_active_recipe' | 'product_kind'> {
+type Product = Pick<ProductCatalogItem, 'id' | 'name' | 'name_az' | 'name_en' | 'name_ru' | 'price' | 'image_url' | 'is_ready_product' | 'direct_ingredient_id' | 'has_active_recipe' | 'product_kind'> & {
   category_id?: string | null;
-}
+};
 interface RecipeIng extends Pick<RecipeRow, 'menu_item_id' | 'ingredient_id' | 'quantity_required' | 'quantity_brutto'> {}
 interface Ingredient { id: string; current_stock: number; }
 interface OrderItem { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; }

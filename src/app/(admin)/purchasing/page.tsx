@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Truck, FileText, Package, Upload, Loader2, Search, Store, CheckCircle2, BarChart3, Layers3, ChevronRight } from 'lucide-react';
+import { Plus, Truck, FileText, Package, Upload, Loader2, Search, Store, CheckCircle2, BarChart3, Layers3, ChevronRight, Users, ClipboardList, FileBadge2, ArrowUpRight, RefreshCw, BadgeDollarSign, TrendingUp, Star, ShieldCheck, PackageCheck } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
@@ -47,18 +47,14 @@ export default function PurchasingPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [suppliersRes, ordersRes, ingredientsRes, analyticsRes, rowsRes] = await Promise.all([
-        supabase.from('suppliers').select('*').order('created_at', { ascending: false }),
-        supabase.from('purchase_orders').select('*, supplier:suppliers(*), items:purchase_order_items(*)').order('created_at', { ascending: false }),
-        supabase.from('ingredients').select('id, name, unit, current_stock, average_cost_per_unit, purchase_price').order('name'),
-        supabase.from('purchasing_analytics').select('*').maybeSingle(),
-        supabase.from('inventory_status').select('*').order('current_stock', { ascending: true }).limit(20),
-      ]);
-      setSuppliers((suppliersRes.data || []) as Supplier[]);
-      setOrders((ordersRes.data || []) as PurchaseOrder[]);
-      setIngredients((ingredientsRes.data || []) as Ingredient[]);
-      setAnalytics((analyticsRes.data || null) as PurchasingAnalytics | null);
-      setRows((rowsRes.data || []) as InventoryStatusRow[]);
+      const res = await fetch('/api/purchasing');
+      if (!res.ok) throw new Error('Purchasing məlumatları yüklənmədi');
+      const data = await res.json();
+      setSuppliers((data.suppliers || []) as Supplier[]);
+      setOrders((data.orders || []) as PurchaseOrder[]);
+      setIngredients((data.ingredients || []) as Ingredient[]);
+      setAnalytics((data.analytics || null) as PurchasingAnalytics | null);
+      setRows((data.rows || []) as InventoryStatusRow[]);
     } finally {
       setLoading(false);
     }
@@ -87,8 +83,9 @@ export default function PurchasingPage() {
     if (!supplierForm.name.trim()) return toast.error('Təchizatçı adı tələb olunur');
     setSaving(true);
     try {
-      const { error } = await supabase.from('suppliers').insert(supplierForm);
-      if (error) throw error;
+      const res = await fetch('/api/purchasing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'supplier_create', payload: supplierForm }) });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Supplier create failed');
       toast.success('Təchizatçı yaradıldı');
       setShowSupplierForm(false);
       setSupplierForm({ name: '', contact_name: '', phone: '', email: '', address: '', notes: '' });
@@ -107,19 +104,15 @@ export default function PurchasingPage() {
         invoice_url: orderForm.invoice_url || null,
         status: 'draft',
       };
-      const { data, error } = await supabase.from('purchase_orders').insert(payload).select('id').single();
-      if (error) throw error;
-      if (orderLines.some((line) => line.ingredient_id)) {
-        const inserts = orderLines.filter((line) => line.ingredient_id).map((line) => ({
-          purchase_order_id: data.id,
-          ingredient_id: line.ingredient_id,
-          ordered_qty: Number(line.ordered_qty || 0),
-          unit: line.unit,
-          unit_cost: Number(line.unit_cost || 0),
-        }));
-        const itemsError = await supabase.from('purchase_order_items').insert(inserts);
-        if ((itemsError as any).error) throw (itemsError as any).error;
-      }
+      const items = orderLines.filter((line) => line.ingredient_id).map((line) => ({
+        ingredient_id: line.ingredient_id,
+        ordered_qty: Number(line.ordered_qty || 0),
+        unit: line.unit,
+        unit_cost: Number(line.unit_cost || 0),
+      }));
+      const res = await fetch('/api/purchasing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'purchase_order_create', payload: { order: payload, items } }) });
+      const response = await res.json();
+      if (!res.ok) throw new Error(response.error || 'Purchase order create failed');
       toast.success('Sifariş yaradıldı');
       setShowOrderForm(false);
       setOrderForm({ supplier_id: '', notes: '', expected_at: '', invoice_url: '' });
@@ -138,11 +131,9 @@ export default function PurchasingPage() {
         unit: line.unit,
         cost_per_unit: Number(line.cost_per_unit || 0),
       }));
-      const { error } = await supabase.rpc('receive_purchase_order', {
-        p_purchase_order_id: selectedOrderId,
-        p_lines: lines,
-      });
-      if (error) throw error;
+      const res = await fetch('/api/purchasing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'receive_order', payload: { purchase_order_id: selectedOrderId, lines, receipt_note: selectedOrder?.notes || '', invoice_url: selectedOrder?.invoice_url || null } }) });
+      const response = await res.json();
+      if (!res.ok) throw new Error(response.error || 'Receiving failed');
       toast.success('Məhsullar qəbul edildi');
       setSelectedOrderId(null);
       setReceiveLines([{ ingredient_id: '', quantity: '1', unit: 'pcs', cost_per_unit: '0' }]);
@@ -151,6 +142,12 @@ export default function PurchasingPage() {
   };
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId) || null;
+
+  const activeSuppliers = suppliers.filter((supplier) => (supplier as any).is_active !== false).length;
+  const draftOrders = orders.filter((order) => order.status === 'draft' || order.status === 'sent').length;
+  const receivedOrders = orders.filter((order) => order.status === 'received' || order.status === 'completed').length;
+  const lowStockCount = rows.filter((row) => Number(row.current_stock || 0) <= Number(row.minimum_stock || 0)).length;
+  const topRows = [...rows].sort((a, b) => Number(a.current_stock || 0) - Number(b.current_stock || 0)).slice(0, 4);
 
   return (
     <div className="min-h-screen bg-[#080808] text-white pb-16">
@@ -167,17 +164,18 @@ export default function PurchasingPage() {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">
+          <StatCard label="Təchizatçı" value={activeSuppliers} sub="Aktiv bazar" icon={<Users size={18} />} />
           <StatCard label="Toplam xərcləmə" value={`₼${money(analytics?.spend_total ?? 0)}`} sub="Bütün alışlar" icon={<BarChart3 size={18} />} />
-          <StatCard label="Açıq sifariş" value={analytics?.open_orders ?? 0} sub="Pending / sent" icon={<Package size={18} />} />
-          <StatCard label="Qəbul edilən" value={analytics?.received_orders ?? 0} sub="Goods receiving" icon={<CheckCircle2 size={18} />} />
-          <StatCard label="Təchizatçı" value={analytics?.suppliers_count ?? suppliers.length} sub={analytics?.top_supplier_name || 'Aktiv baza'} icon={<Store size={18} />} />
+          <StatCard label="Açıq sifariş" value={draftOrders} sub="Pending / sent" icon={<Package size={18} />} />
+          <StatCard label="Qəbul edilən" value={receivedOrders} sub="Goods receiving" icon={<CheckCircle2 size={18} />} />
+          <StatCard label="Aşağı stok" value={lowStockCount} sub="Reorder alert" icon={<ShieldCheck size={18} />} />
           <StatCard label="Orta sifariş" value={`₼${money(analytics?.average_order_value ?? 0)}`} sub="Average order value" icon={<Truck size={18} />} />
         </div>
 
         <div className="grid xl:grid-cols-[1.3fr,0.9fr] gap-6">
           <div className="space-y-6">
-            <div className="rounded-3xl border border-white/[0.07] bg-white/[0.03] p-4 sm:p-5">
+            <div className="rounded-3xl border border-white/[0.07] bg-white/[0.03] p-4 sm:p-5 shadow-[0_20px_80px_rgba(0,0,0,0.2)] backdrop-blur-xl">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-lg font-bold">Purchase History</h2>
@@ -212,22 +210,31 @@ export default function PurchasingPage() {
           </div>
 
           <div className="space-y-6">
-            <div className="rounded-3xl border border-white/[0.07] bg-white/[0.03] p-5">
-              <h3 className="text-base font-bold mb-3">Stock Increase Integration</h3>
+            <div className="rounded-3xl border border-white/[0.07] bg-white/[0.03] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.2)] backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-base font-bold">Stock Increase Integration</h3>
+                  <p className="text-xs text-white/30">Receiving automatically feeds inventory valuation</p>
+                </div>
+                <PackageCheck size={16} className="text-emerald-400" />
+              </div>
               <div className="space-y-2">
-                {rows.slice(0, 8).map((row) => (
+                {topRows.map((row) => (
                   <div key={row.id} className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/[0.05] px-3 py-2">
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{row.name}</p>
                       <p className="text-[10px] text-white/30">{row.unit} · current {row.current_stock}</p>
                     </div>
-                    <p className="text-sm font-bold text-emerald-400">₼{money(row.inventory_value ?? 0)}</p>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-emerald-400">₼{money(row.inventory_value ?? 0)}</p>
+                      <p className="text-[10px] text-white/30">Min {row.minimum_stock ?? 0}</p>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/[0.07] bg-white/[0.03] p-5">
+            <div className="rounded-3xl border border-white/[0.07] bg-white/[0.03] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.2)] backdrop-blur-xl">
               <h3 className="text-base font-bold mb-3">Purchasing Analytics</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-2xl bg-white/[0.03] border border-white/[0.05] p-3"><p className="text-white/30 text-[10px] uppercase tracking-[0.2em]">Suppliers</p><p className="font-bold text-lg">{suppliers.length}</p></div>
@@ -244,7 +251,7 @@ export default function PurchasingPage() {
         {showSupplierForm && (
           <motion.div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="w-full max-w-2xl rounded-3xl border border-white/[0.08] bg-[#101010] p-5 space-y-4">
-              <div className="flex items-center justify-between"><h3 className="text-lg font-bold">New Supplier</h3><button onClick={() => setShowSupplierForm(false)}>×</button></div>
+              <div className="flex items-center justify-between"><h3 className="text-lg font-bold">New Supplier</h3><button onClick={() => setShowSupplierForm(false)} className="h-9 w-9 rounded-full bg-white/[0.05] border border-white/[0.08]">×</button></div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <input placeholder="Name" value={supplierForm.name} onChange={(e) => setSupplierForm((p) => ({ ...p, name: e.target.value }))} className="input-premium" />
                 <input placeholder="Contact" value={supplierForm.contact_name} onChange={(e) => setSupplierForm((p) => ({ ...p, contact_name: e.target.value }))} className="input-premium" />
@@ -253,7 +260,7 @@ export default function PurchasingPage() {
                 <input placeholder="Address" value={supplierForm.address} onChange={(e) => setSupplierForm((p) => ({ ...p, address: e.target.value }))} className="input-premium sm:col-span-2" />
                 <textarea placeholder="Notes" value={supplierForm.notes} onChange={(e) => setSupplierForm((p) => ({ ...p, notes: e.target.value }))} className="input-premium sm:col-span-2 min-h-24" />
               </div>
-              <button onClick={createSupplier} disabled={saving} className="px-4 py-2 rounded-xl bg-[#D4AF37] text-black font-bold">Save Supplier</button>
+              <button onClick={createSupplier} disabled={saving} className="px-4 py-2 rounded-xl bg-[#D4AF37] text-black font-bold inline-flex items-center gap-2"><BadgeDollarSign size={16} />Save Supplier</button>
             </div>
           </motion.div>
         )}
@@ -261,7 +268,7 @@ export default function PurchasingPage() {
         {showOrderForm && (
           <motion.div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="w-full max-w-4xl rounded-3xl border border-white/[0.08] bg-[#101010] p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between"><h3 className="text-lg font-bold">Purchase Order</h3><button onClick={() => setShowOrderForm(false)}>×</button></div>
+              <div className="flex items-center justify-between"><h3 className="text-lg font-bold">Purchase Order</h3><button onClick={() => setShowOrderForm(false)} className="h-9 w-9 rounded-full bg-white/[0.05] border border-white/[0.08]">×</button></div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <select value={orderForm.supplier_id} onChange={(e) => setOrderForm((p) => ({ ...p, supplier_id: e.target.value }))} className="input-premium"><option value="">Select supplier</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
                 <input value={orderForm.expected_at} onChange={(e) => setOrderForm((p) => ({ ...p, expected_at: e.target.value }))} placeholder="Expected at" className="input-premium" />
@@ -280,7 +287,7 @@ export default function PurchasingPage() {
                 ))}
                 <button onClick={() => setOrderLines((prev) => [...prev, { ingredient_id: '', ordered_qty: '1', unit: 'pcs', unit_cost: '0' }])} className="px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm font-semibold">Add line</button>
               </div>
-              <button onClick={createOrder} disabled={saving} className="px-4 py-2 rounded-xl bg-[#D4AF37] text-black font-bold">Create Order</button>
+              <button onClick={createOrder} disabled={saving} className="px-4 py-2 rounded-xl bg-[#D4AF37] text-black font-bold inline-flex items-center gap-2"><ClipboardList size={16} />Create Order</button>
             </div>
           </motion.div>
         )}
@@ -288,7 +295,7 @@ export default function PurchasingPage() {
         {selectedOrder && (
           <motion.div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="w-full max-w-4xl rounded-3xl border border-white/[0.08] bg-[#101010] p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between"><h3 className="text-lg font-bold">{selectedOrder.order_number}</h3><button onClick={() => setSelectedOrderId(null)}>×</button></div>
+              <div className="flex items-center justify-between"><h3 className="text-lg font-bold">{selectedOrder.order_number}</h3><button onClick={() => setSelectedOrderId(null)} className="h-9 w-9 rounded-full bg-white/[0.05] border border-white/[0.08]">×</button></div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/30 font-bold">Order Info</p>
@@ -309,7 +316,7 @@ export default function PurchasingPage() {
                     </div>
                   ))}
                   <button onClick={() => setReceiveLines((prev) => [...prev, { ingredient_id: '', quantity: '1', unit: 'pcs', cost_per_unit: '0' }])} className="px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm font-semibold">Add receiving line</button>
-                  <button onClick={receiveOrder} disabled={receiving} className="px-4 py-2 rounded-xl bg-emerald-500 text-black font-bold">Confirm receiving</button>
+                  <button onClick={receiveOrder} disabled={receiving} className="px-4 py-2 rounded-xl bg-emerald-500 text-black font-bold inline-flex items-center gap-2"><RefreshCw size={16} />Confirm receiving</button>
                 </div>
               </div>
               <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
@@ -322,8 +329,8 @@ export default function PurchasingPage() {
       </AnimatePresence>
 
       <style jsx global>{`
-        .input-premium { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 12px 14px; color: white; outline: none; width: 100%; }
-        .input-premium:focus { border-color: rgba(212,175,55,0.45); }
+        .input-premium { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 12px 14px; color: white; outline: none; width: 100%; transition: border-color .2s ease, transform .2s ease, background .2s ease; }
+        .input-premium:focus { border-color: rgba(212,175,55,0.45); background: rgba(255,255,255,0.06); }
       `}</style>
     </div>
   );

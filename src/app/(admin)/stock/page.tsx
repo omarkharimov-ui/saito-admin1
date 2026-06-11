@@ -11,10 +11,10 @@ import {
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import type {
+import {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,
-  InventoryLog,
+  InventoryLog, DisplayUnit, normalizeToStorage, formatWithUnit, parseInputQuantity,
 } from '@/types/inventory';
 import { CalibrationSuggestionsPanel } from './components/CalibrationSuggestionsPanel';
 import { supabase } from '@/lib/supabase';
@@ -22,9 +22,12 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+const UNITS: DisplayUnit[] = ['gram', 'piece', 'ml', 'kg', 'liter'];
 
-const UNITS: IngredientUnit[] = ['gram', 'piece', 'ml'];
-const UNIT_LABELS: Record<IngredientUnit, string> = { gram: 'qram', piece: 'ədəd', ml: 'ml' };
+const UNIT_LABELS: Record<DisplayUnit, string> = {
+  gram: 'qram', piece: 'ədəd', ml: 'ml',
+  kg: 'kq', liter: 'litr',
+};
 
 const LOG_LABELS: Record<string, string> = {
   stock_in: 'Giriş', waste: 'İtki', adjustment: 'Tənzimləmə', order_consumption: 'Sifariş',
@@ -129,7 +132,7 @@ export default function StockPage() {
   const [cost, setCost]         = useState('');
   const [reason, setReason]     = useState('');
   const [newName, setNewName]   = useState('');
-  const [newUnit, setNewUnit]   = useState<IngredientUnit>('gram');
+  const [newUnit, setNewUnit]   = useState<DisplayUnit>('gram');
   const [newLimit, setNewLimit] = useState('500');
   const [newCost, setNewCost]   = useState('');
   const [newTotalQty, setNewTotalQty] = useState('');
@@ -435,12 +438,13 @@ export default function StockPage() {
     try {
       const unitCost = calculatedUnitCost ?? (newCost ? parseFloat(newCost) : 0);
       const effectiveCost = effectiveUnitCost || unitCost;
+      const { value: normQty, unit: normUnit } = normalizeToStorage(parseFloat(newTotalQty) || 0, newUnit);
       const res = await fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: newName.trim(), unit: newUnit,
-          criticalLimit: parseFloat(newLimit) || 0,
+          name: newName.trim(), unit: normUnit,
+          criticalLimit: normalizeToStorage(parseFloat(newLimit) || 0, newUnit).value,
           averageCostPerUnit: effectiveCost,
           purchasePrice: unitCost,
           coldWastePercentage: parseFloat(newWastePct) || 0,
@@ -449,16 +453,15 @@ export default function StockPage() {
       if (!res.ok) throw new Error((await res.json()).error);
       const created = await res.json();
 
-      // Əgər ilkin miqdar daxil edilibsə, avtomatik stock_in et
-      const initialQty = parseFloat(newTotalQty);
-      if (initialQty > 0) {
+      // Əgər ilkin miqdar daxil edilibsə, avtomatik stock_in et (normallaşdırılmış vahiddə)
+      if (normQty > 0) {
         const logRes = await fetch('/api/inventory/logs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'stock_in',
             ingredientId: created.id,
-            quantity: initialQty,
+            quantity: normQty,
             costPerUnit: unitCost > 0 ? unitCost : undefined,
             reason: 'İlkin qeydiyyat — ' + newName.trim(),
           }),

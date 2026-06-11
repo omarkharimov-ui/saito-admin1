@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, ShoppingBag, AlertTriangle, TrendingDown, ArrowRight, Calendar, Filter } from 'lucide-react';
+import { Search, Loader2, ShoppingBag, AlertTriangle, TrendingDown, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { PageTransition, PageHeader } from '@/components/PageTransition';
+import { GlassCard } from '@/components/GlassCard';
 
 interface AuditEntry {
   id: string;
@@ -154,36 +156,30 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 max-w-6xl mx-auto space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
-          <AlertTriangle size={18} className="text-rose-400" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-white">Audit Trail</h1>
-          <p className="text-xs text-white/30">Stok dəyişikliklərinin tam tarixçəsi — hər sifariş, itki və tənzimləmə</p>
-        </div>
-      </div>
+    <PageTransition className="min-h-screen p-4 sm:p-6 max-w-6xl mx-auto space-y-5">
+      <PageHeader
+        icon={<AlertTriangle size={18} className="text-rose-400" />}
+        title="Audit Trail"
+        subtitle="Stok dəyişikliklərinin tam tarixçəsi — hər sifariş, itki və tənzimləmə"
+      />
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        <div className="rounded-xl px-4 py-3 border border-blue-500/15 bg-blue-500/[0.04]">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <GlassCard intensity="light" padding="md" className="border-blue-500/15">
           <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400/60">Sifariş Sərfiyyatı</p>
           <p className="text-lg font-black text-blue-400 tabular-nums mt-1">{summary.totalDeductions.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
-        </div>
-        <div className="rounded-xl px-4 py-3 border border-red-500/15 bg-red-500/[0.04]">
+        </GlassCard>
+        <GlassCard intensity="light" padding="md" className="border-red-500/15">
           <p className="text-[10px] font-bold uppercase tracking-wider text-red-400/60">İtki</p>
           <p className="text-lg font-black text-red-400 tabular-nums mt-1">{summary.totalWaste.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
-        </div>
-        <div className="rounded-xl px-4 py-3 border border-amber-500/15 bg-amber-500/[0.04]">
+        </GlassCard>
+        <GlassCard intensity="light" padding="md" className="border-amber-500/15">
           <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400/60">Tənzimləmə</p>
           <p className="text-lg font-black text-amber-400 tabular-nums mt-1">{summary.totalAdjustments.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
-        </div>
-        <div className="rounded-xl px-4 py-3 border border-emerald-500/15 bg-emerald-500/[0.04]">
+        </GlassCard>
+        <GlassCard intensity="light" padding="md" className="border-emerald-500/15">
           <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/60">Stoka Giriş</p>
           <p className="text-lg font-black text-emerald-400 tabular-nums mt-1">{summary.totalStockIn.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
-        </div>
+        </GlassCard>
       </div>
 
       {/* Filters */}
@@ -310,6 +306,6 @@ export default function AuditPage() {
           })
         )}
       </div>
-    </div>
+    </PageTransition>
   );
 }

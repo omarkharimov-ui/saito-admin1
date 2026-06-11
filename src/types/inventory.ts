@@ -1,6 +1,51 @@
 // ─── Inventory Management System — TypeScript Types ──────────────────────────
 
 export type IngredientUnit = 'gram' | 'piece' | 'ml';
+
+// Display units that normalize to storage units
+export type DisplayUnit = IngredientUnit | 'kg' | 'liter';
+
+export function normalizeUnit(value: number, from: DisplayUnit, to: IngredientUnit): number {
+  const conversions: Record<string, Record<string, number>> = {
+    kg: { gram: 1000 },
+    liter: { ml: 1000 },
+  };
+  const factor = conversions[from]?.[to];
+  return factor ? value * factor : value;
+}
+
+export function normalizeToStorage(value: number, unit: DisplayUnit): { value: number; unit: IngredientUnit } {
+  if (unit === 'kg') return { value: value * 1000, unit: 'gram' };
+  if (unit === 'liter') return { value: value * 1000, unit: 'ml' };
+  return { value, unit: unit as IngredientUnit };
+}
+
+export function formatWithUnit(value: number, unit: IngredientUnit, target?: DisplayUnit): string {
+  const t = target || unit;
+  if (unit === 'gram' && t === 'kg') return `${(value / 1000).toFixed(3)} kg`;
+  if (unit === 'ml' && t === 'liter') return `${(value / 1000).toFixed(3)} l`;
+  return `${value.toFixed(unit === 'piece' ? 0 : 2)} ${unit}`;
+}
+
+// OCR/input text normalization
+export function parseInputUnit(raw: string): DisplayUnit {
+  const s = raw.trim().toLowerCase();
+  if (/^k[gq]$/.test(s)) return 'kg';
+  if (/^litr/i.test(s) || /^l\b/.test(s)) return 'liter';
+  if (/^qram/i.test(s) || /^q\b/.test(s) || /^gr/.test(s)) return 'gram';
+  if (/^ml\b/.test(s) || /^mililitr/i.test(s)) return 'ml';
+  if (/^(piece|pcs|ədəd|adet)$/i.test(s)) return 'piece';
+  return 'gram';
+}
+
+export function parseInputQuantity(raw: string): { value: number; unit: DisplayUnit } | null {
+  const match = raw.match(/^([\d.,]+)\s*([a-zA-Zçəğıöşü]+)?$/);
+  if (!match) return null;
+  const value = parseFloat(match[1].replace(',', '.'));
+  if (isNaN(value)) return null;
+  const unit = match[2] ? parseInputUnit(match[2]) : 'gram';
+  return { value, unit };
+}
 export type InventoryLogType = 'stock_in' | 'waste' | 'adjustment' | 'order_consumption';
 export type InventoryStatus = 'normal' | 'critical' | 'out_of_stock';
 

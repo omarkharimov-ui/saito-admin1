@@ -119,7 +119,11 @@ export async function GET() {
       stockAlerts,
       criticalStockCount: stockAlerts.length,
       calibrationSuggestions,
-      marginInsight,
+      marginInsight: {
+        ...marginInsight,
+        grossMargin: Math.round(marginInsight.grossMargin * 100) / 100,
+        netMargin: Math.round(marginInsight.netMargin * 100) / 100,
+      },
     });
   } catch (error) {
     return NextResponse.json(
@@ -127,7 +131,7 @@ export async function GET() {
         dailyFoodCost: 0, dailyWasteCost: 0, dailyNetProfit: 0, foodCostPct: 0,
         stockAlerts: [], criticalStockCount: 0,
         calibrationSuggestions: [],
-        marginInsight: { revenue: 0, foodCost: 0, wasteCost: 0, grossMarginPct: 0, netMarginPct: 0, foodCostPct: 0, marginPressure: 'healthy' } },
+        marginInsight: { revenue: 0, foodCost: 0, wasteCost: 0, grossMarginPct: 0, netMarginPct: 0, foodCostPct: 0, marginPressure: 'healthy', grossMargin: 0, netMargin: 0 } },
       { status: 500 }
     );
   }

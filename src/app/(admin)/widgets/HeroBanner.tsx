@@ -22,6 +22,8 @@ interface DashboardStats {
     netMarginPct: number;
     foodCostPct: number;
     marginPressure: 'healthy' | 'tight' | 'critical';
+    grossMargin: number;
+    netMargin: number;
   };
 }
 
@@ -82,10 +84,10 @@ export default function HeroBanner() {
         foodCostPct: data.foodCostPct || 0,
         criticalStockCount: data.criticalStockCount || 0,
         calibrationSuggestions: Array.isArray(data.calibrationSuggestions) ? data.calibrationSuggestions.length : (data.calibrationSuggestions || 0),
-        marginInsight: data.marginInsight || { revenue: 0, foodCost: 0, wasteCost: 0, grossMarginPct: 0, netMarginPct: 0, foodCostPct: 0, marginPressure: 'healthy' },
+        marginInsight: data.marginInsight || { revenue: 0, foodCost: 0, wasteCost: 0, grossMarginPct: 0, netMarginPct: 0, foodCostPct: 0, marginPressure: 'healthy', grossMargin: 0, netMargin: 0 },
       });
     } catch {
-      setStats({ dailyRevenue: 0, todayOrders: 0, activeTables: 0, topProduct: '—', dailyNetProfit: 0, foodCostPct: 0, criticalStockCount: 0, calibrationSuggestions: 0, marginInsight: { revenue: 0, foodCost: 0, wasteCost: 0, grossMarginPct: 0, netMarginPct: 0, foodCostPct: 0, marginPressure: 'healthy' } });
+      setStats({ dailyRevenue: 0, todayOrders: 0, activeTables: 0, topProduct: '—', dailyNetProfit: 0, foodCostPct: 0, criticalStockCount: 0, calibrationSuggestions: 0, marginInsight: { revenue: 0, foodCost: 0, wasteCost: 0, grossMarginPct: 0, netMarginPct: 0, foodCostPct: 0, marginPressure: 'healthy', grossMargin: 0, netMargin: 0 } });
     } finally {
       setLoading(false);
     }
@@ -372,6 +374,7 @@ export default function HeroBanner() {
                 <div>
                   <div className="text-2xl font-semibold text-[var(--theme-text)] capitalize">{stats.marginInsight.marginPressure}</div>
                   <div className="text-xs text-[var(--theme-text-secondary)]">Gross {stats.marginInsight.grossMarginPct.toFixed(1)}% · Net {stats.marginInsight.netMarginPct.toFixed(1)}%</div>
+                  <div className="text-[11px] text-[var(--theme-text-muted)] mt-1">₼{Math.abs(stats.marginInsight.grossMargin).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} gross · ₼{Math.abs(stats.marginInsight.netMargin).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} net</div>
                 </div>
                 <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.marginInsight.marginPressure === 'critical' ? 'border-rose-500/30 text-rose-300 bg-rose-500/10' : stats.marginInsight.marginPressure === 'tight' ? 'border-amber-500/30 text-amber-300 bg-amber-500/10' : 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10'}`}>
                   FC {stats.marginInsight.foodCostPct.toFixed(1)}%

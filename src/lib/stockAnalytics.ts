@@ -21,6 +21,8 @@ export interface StockMarginInsight {
   netMarginPct: number;
   foodCostPct: number;
   marginPressure: 'healthy' | 'tight' | 'critical';
+  grossMargin: number;
+  netMargin: number;
 }
 
 export function buildRecipeConsumptionMap(recipes: RecipeRow[]) {
@@ -104,5 +106,7 @@ export function calculateMarginInsight(params: {
     netMarginPct,
     foodCostPct,
     marginPressure,
+    grossMargin,
+    netMargin,
   };
 }

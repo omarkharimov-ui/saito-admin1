@@ -118,7 +118,7 @@ export default function LiveFloorSnapshot() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-[32px] border border-white/[0.09] bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-6 shadow-[0_18px_52px_rgba(0,0,0,0.12)] backdrop-blur-2xl"
+      className="relative overflow-hidden rounded-[34px] border border-white/[0.10] bg-[linear-gradient(180deg,rgba(255,255,255,0.075),rgba(255,255,255,0.03))] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.16)] backdrop-blur-2xl ring-1 ring-white/[0.03]"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/[0.06]">
@@ -150,7 +150,7 @@ export default function LiveFloorSnapshot() {
       </div>
 
       {/* Compact Stats Row - No Table Grid */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] shadow-[0_10px_28px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-transform duration-300 hover:-translate-y-0.5">
           <p className="text-xl font-bold text-[var(--theme-text)]">{occupiedCount}<span className="text-[var(--theme-text-muted)] text-sm">/{tableCount}</span></p>
           <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5">{t('occupied')}</p>

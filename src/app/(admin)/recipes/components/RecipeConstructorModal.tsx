@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles, Wand2, Layers3 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -243,20 +243,20 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
           />
           <motion.div
             variants={modalV} initial="hidden" animate="show" exit="exit"
-            className="relative z-10 w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden max-h-[90vh]"
-            style={{ background: lightMode ? '#ffffff' : '#0e0e0e', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 32px 80px rgba(0,0,0,0.12)' : '0 32px 80px rgba(0,0,0,0.7)' }}
+            className="relative z-10 w-full sm:max-w-4xl rounded-t-[28px] sm:rounded-[32px] flex flex-col gap-0 overflow-hidden max-h-[92vh]"
+            style={{ background: lightMode ? '#ffffff' : 'linear-gradient(180deg, rgba(18,18,18,0.96), rgba(8,8,8,0.98))', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 32px 80px rgba(0,0,0,0.12)' : '0 40px 120px rgba(0,0,0,0.72)' }}
             onClick={e => e.stopPropagation()}
           >
             <div className="sm:hidden flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full bg-white/15" />
             </div>
 
-            <div className="overflow-y-auto p-6 space-y-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
-                    style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
-                    <CookingPot size={10} /> Resept Konstruktoru
+            <div className="overflow-y-auto p-5 sm:p-6 lg:p-8 space-y-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-4 sm:p-5 shadow-[0_18px_50px_rgba(0,0,0,0.14)] backdrop-blur-2xl ring-1 ring-white/[0.03]">
+                <div className="space-y-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-semibold mb-1.5 border border-white/[0.08] bg-white/[0.05] text-white/80 backdrop-blur-xl"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#fff' }}>
+                    <Layers3 size={10} /> Recipe Studio
                   </span>
                   <h2 className="text-xl font-bold">{selectedProduct ? selectedProduct.name_az || selectedProduct.name : 'Yeni Resept'}</h2>
                 </div>

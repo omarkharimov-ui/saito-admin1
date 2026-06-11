@@ -327,7 +327,7 @@ export default function RecipesPage() {
   return (
     <div className="min-h-screen p-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-6 rounded-[32px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5 shadow-[0_18px_50px_rgba(0,0,0,0.12)] backdrop-blur-2xl ring-1 ring-white/[0.03]">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gold/10 border border-gold/20 flex items-center justify-center">
             <CookingPot size={18} className="text-gold" />
@@ -337,16 +337,16 @@ export default function RecipesPage() {
             <p className="text-white/30 text-xs">Hər məhsulun hazırlanması üçün tələb olunan xəmmal</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           <button
             onClick={() => { setEditConstructorProductId(undefined); setConstructorOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/[0.08] bg-white/[0.05] text-white text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-all hover:bg-white/[0.08]"
           >
             <CookingPot size={14} /> Resept Konstruktoru
           </button>
           <button
             onClick={() => setShowCookbookPanel(!showCookbookPanel)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 text-emerald-300 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-all hover:bg-emerald-400/15"
           >
             <BookOpen size={14} /> Kokbuk Yüklä {cookbookResults.length > 0 && (
               <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{cookbookResults.length}</span>
@@ -354,7 +354,7 @@ export default function RecipesPage() {
           </button>
           <button
             onClick={() => setShowAiPanel(!showAiPanel)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-blue-400/20 bg-blue-400/10 text-blue-300 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-all hover:bg-blue-400/15"
           >
             <BrainCircuit size={14} /> AI Təkliflər {aiSuggestedRecipes.length > 0 && (
               <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
@@ -362,8 +362,8 @@ export default function RecipesPage() {
           </button>
           <button
             onClick={clearAllRecipes} disabled={clearingAll}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30 shadow-[0_10px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl"
+            style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.22)', color: '#f87171' }}
           >
             {clearingAll ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
             Hamısını Sil
@@ -378,8 +378,8 @@ export default function RecipesPage() {
             initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.25 }} className="overflow-hidden mb-4"
           >
-            <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/[0.05] to-purple-500/[0.03] p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.14)] backdrop-blur-2xl ring-1 ring-white/[0.03]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-blue-400" />
                   <span className="text-sm font-bold text-white">AI Resept Təklifləri</span>
@@ -387,7 +387,7 @@ export default function RecipesPage() {
                 <button
                   onClick={generateAiSuggestions}
                   disabled={aiLoading}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/15 border border-blue-500/25 text-blue-400 text-xs font-bold hover:bg-blue-500/25 transition-all disabled:opacity-40"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.05] text-white/80 text-xs font-semibold shadow-[0_8px_20px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-all hover:bg-white/[0.08] disabled:opacity-40"
                 >
                   {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
                   Yeni təkliflər yarat
@@ -398,20 +398,20 @@ export default function RecipesPage() {
                 <p className="text-white/30 text-xs py-2">Hazırda AI təklif yoxdur. "Yeni təkliflər yarat" basaraq satış data-sına əsasən təkliflər ala bilərsən.</p>
               )}
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {Array.from(new Set(aiSuggestedRecipes.map(r => r.menu_item_id))).map(pid => {
                   const prod = products.find(p => p.id === pid);
                   if (!prod) return null;
                   const prodRecipes = aiSuggestedRecipes.filter(r => r.menu_item_id === pid);
                   return (
-                    <div key={pid} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
+                    <div key={pid} className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 shadow-[0_12px_30px_rgba(0,0,0,0.10)] backdrop-blur-xl">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Bot size={14} className="text-purple-400" />
                           <span className="text-sm font-medium text-white">{getProductName(prod)}</span>
-                          <span className="text-[10px] text-purple-400/60 bg-purple-500/10 px-1.5 py-0.5 rounded-full">AI Təklif</span>
+                          <span className="text-[10px] text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-400/15">AI Təklif</span>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button onClick={() => approveAi({
   recipeName: getProductName(prod),
   suggestedProductId: pid,
@@ -435,7 +435,7 @@ export default function RecipesPage() {
                           </button>
                         </div>
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-2 rounded-2xl border border-white/[0.05] bg-white/[0.02] p-3">
                         {prodRecipes.map(r => (
                           <div key={r.id} className="flex items-center gap-2 text-xs text-white/50">
                             <span className="w-1.5 h-1.5 rounded-full bg-purple-400/40" />
@@ -522,7 +522,7 @@ export default function RecipesPage() {
                           {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={13} />}
                         </button>
                       </div>
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-3">
                         <span className="text-white/20 text-[10px]">Məhsul:</span>
                         <select
                           value={cookbookMatchMap[recipe.recipeName] || recipe.suggestedProductId || ''}
@@ -537,7 +537,7 @@ export default function RecipesPage() {
                       </div>
                       <div className="space-y-1">
                         {recipe.ingredients.map((ing, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs text-white/50">
+                          <div key={i} className="flex items-center gap-2 text-xs text-white/60">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40" />
                             {ing.name} × {ing.quantity} {ing.unit}
                           </div>
@@ -562,7 +562,7 @@ export default function RecipesPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Məhsul axtar..."
-          className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/25 transition-all"
+          className="w-full rounded-2xl border border-white/[0.08] bg-white/[0.04] pl-9 pr-4 py-3 text-sm text-white placeholder:text-white/20 outline-none shadow-[0_12px_30px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-all focus:border-white/[0.18]"
         />
       </div>
 
@@ -578,10 +578,10 @@ export default function RecipesPage() {
             const hasAi = recs.some(r => r.is_ai_suggested);
             const name = getProductName(product);
             return (
-              <div key={product.id} className={`rounded-2xl border ${hasAi ? 'border-purple-500/20' : 'border-white/[0.06]'} bg-white/[0.02] overflow-hidden`}>
+              <div key={product.id} className={`rounded-[28px] border ${hasAi ? 'border-purple-400/20' : 'border-white/[0.06]'} bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.025))] overflow-hidden shadow-[0_16px_44px_rgba(0,0,0,0.10)] backdrop-blur-2xl ring-1 ring-white/[0.02]`}>
                 <button
                   onClick={() => setExpandedProduct(isExpanded ? null : product.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-all text-left"
+                  className="w-full flex items-center gap-3 px-4 py-4 hover:bg-white/[0.04] transition-all text-left"
                 >
                   {product.image_url ? (
                     <img src={product.image_url} alt={name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
@@ -599,9 +599,9 @@ export default function RecipesPage() {
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-white/[0.05]">
+                  <div className="px-4 pb-4 border-t border-white/[0.06] bg-black/10">
                     {/* Document Upload Zone */}
-                    <div className="mt-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-3">
+                    <div className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 shadow-[0_12px_30px_rgba(0,0,0,0.10)]">
                       <div className="flex items-center gap-2 mb-2">
                         <FileText size={13} className="text-white/30" />
                         <span className="text-[10px] uppercase tracking-wider text-white/30 font-semibold">AI Resept Parser</span>
@@ -645,7 +645,7 @@ export default function RecipesPage() {
                       ) : (
                         <button
                           onClick={() => setUploadTarget(product.id)}
-                          className="flex items-center gap-2 text-blue-400/60 text-xs hover:text-blue-400 transition-all"
+                          className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-white/70 text-xs font-semibold shadow-[0_8px_20px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all hover:bg-white/[0.07] hover:text-white"
                         >
                           <Upload size={12} /> Resept sənədini yüklə (AI parse)
                         </button>
@@ -715,7 +715,7 @@ export default function RecipesPage() {
                         <span className="text-white/10 text-[10px]">|</span>
                         <button
                           onClick={() => setAddingFor(product.id)}
-                          className="flex items-center gap-2 text-[var(--theme-text-secondary)] text-xs font-bold hover:text-[var(--theme-text)] transition-all"
+                          className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-white/70 text-xs font-semibold shadow-[0_8px_20px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all hover:bg-white/[0.07] hover:text-white"
                         >
                           <Plus size={13} /> Sətir əlavə et
                         </button>
@@ -727,7 +727,7 @@ export default function RecipesPage() {
             );
           })}
           {filteredProducts.length === 0 && (
-            <div className="text-center py-16 text-white/20 text-sm">Məhsul tapılmadı</div>
+            <div className="text-center py-16 text-white/25 text-sm">Məhsul tapılmadı</div>
           )}
         </div>
       )}

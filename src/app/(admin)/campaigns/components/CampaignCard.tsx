@@ -45,7 +45,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         whileTap={{ scale: 0.978 }}
         onClick={() => onEdit(camp)}
 
-        className={`md:hidden relative overflow-hidden rounded-[28px] cursor-pointer border backdrop-blur-2xl shadow-[0_16px_44px_rgba(0,0,0,0.16)] transition-all duration-300 ${isActive ? 'bg-white/[0.06] border-white/[0.12]' : 'bg-white/[0.04] border-white/[0.08]'}`}
+        className={`md:hidden relative overflow-hidden rounded-[30px] cursor-pointer border backdrop-blur-2xl shadow-[0_20px_56px_rgba(0,0,0,0.18)] transition-all duration-300 ${isActive ? 'bg-white/[0.07] border-white/[0.12]' : 'bg-white/[0.045] border-white/[0.08]'}`}
       >
         {isActive && (
           <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
@@ -129,7 +129,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         whileHover={{ y: -4, boxShadow: '0 18px 42px rgba(0,0,0,0.35)' }}
         transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         onClick={() => onEdit(camp)}
-        className="hidden md:block relative group overflow-hidden cursor-pointer rounded-[24px] border border-white/[0.10] bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-6 md:p-7 shadow-[0_20px_56px_rgba(0,0,0,0.20)] backdrop-blur-2xl transition-all duration-300"
+        className="hidden md:block relative group overflow-hidden cursor-pointer rounded-[28px] border border-white/[0.10] bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-6 md:p-7 shadow-[0_24px_72px_rgba(0,0,0,0.22)] backdrop-blur-2xl transition-all duration-300 ring-1 ring-white/[0.03]"
       >
         <div className="absolute top-4 right-4 z-10">
           <button

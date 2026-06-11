@@ -563,7 +563,7 @@ export default function StockPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <button
               onClick={() => setViewMode(viewMode === 'stock' ? 'history' : 'stock')}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
@@ -1610,7 +1610,7 @@ export default function StockPage() {
                                       <span className="text-sm font-black text-gold tabular-nums">{pct.toFixed(1)}%</span>
                                       <button
                                         onClick={() => { setNewWastePct(pct.toFixed(0)); setShowWasteCalc(false); }}
-                                        className="text-[9px] font-bold px-2 py-1 rounded-lg transition-all active:scale-95"
+                                        className="text-[9px] font-semibold px-2 py-1 rounded-full transition-all active:scale-95 shadow-[0_8px_20px_rgba(0,0,0,0.08)] backdrop-blur-xl"
                                         style={{ background: 'rgba(212,175,55,0.15)', color: '#D4AF37' }}
                                       >
                                         Tətbiq et

@@ -109,7 +109,7 @@ export default function HeroBanner() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-[36px] border border-white/[0.10] bg-[linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.04))] p-4 sm:p-6 lg:p-8 shadow-[0_28px_90px_rgba(0,0,0,0.20)] backdrop-blur-3xl"
+      className="relative overflow-hidden rounded-[40px] border border-white/[0.10] bg-[linear-gradient(180deg,rgba(255,255,255,0.11),rgba(255,255,255,0.045))] p-4 sm:p-6 lg:p-8 shadow-[0_36px_120px_rgba(0,0,0,0.24)] backdrop-blur-3xl ring-1 ring-white/[0.04]"
     >
       {/* Animated gradient backgrounds */}
       <div className="absolute inset-0 overflow-hidden">
@@ -127,7 +127,7 @@ export default function HeroBanner() {
 
       <div className="relative z-10 p-4 md:p-8">
         {/* Minimal Header - Always visible */}
-        <div className="flex items-center justify-between gap-4 rounded-[28px] border border-white/[0.10] bg-white/[0.05] px-4 py-3 shadow-[0_10px_34px_rgba(0,0,0,0.12)] backdrop-blur-2xl mb-2">
+        <div className="flex flex-col gap-4 rounded-[30px] border border-white/[0.10] bg-white/[0.05] px-4 py-4 shadow-[0_16px_44px_rgba(0,0,0,0.14)] backdrop-blur-2xl mb-3 lg:flex-row lg:items-center lg:justify-between">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -156,6 +156,14 @@ export default function HeroBanner() {
             >
               {t('restaurant_running_smoothly')}
             </motion.p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-[var(--theme-text-secondary)] shadow-[0_10px_30px_rgba(0,0,0,0.10)] backdrop-blur-xl">
+              AI · Recipe · Stock
+            </div>
+            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-300 shadow-[0_10px_30px_rgba(0,0,0,0.10)] backdrop-blur-xl">
+              Live sync
+            </div>
           </div>
         </div>
 
@@ -247,7 +255,7 @@ export default function HeroBanner() {
           )}
 
           {/* Bottom: 3-col Stats */}
-          <div className="grid grid-cols-3 divide-x divide-white/[0.06] overflow-hidden rounded-[24px] border border-white/[0.06] bg-white/[0.03]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.06] overflow-hidden rounded-[26px] border border-white/[0.06] bg-white/[0.03]">
             <div className="p-4 md:p-5 transition-colors duration-300 hover:bg-white/[0.03]">
               <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-[var(--theme-text-muted)] block mb-2 leading-relaxed">
                 {t('today_orders')}

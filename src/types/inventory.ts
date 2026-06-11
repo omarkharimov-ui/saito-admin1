@@ -58,6 +58,9 @@ export interface Recipe {
   quantity_required: number;
   quantity_brutto?: number;
   hot_waste_percentage?: number;
+  waste_percentage?: number;
+  substitution_ingredient_id?: string | null;
+  substitution_ratio?: number | null;
   is_ai_suggested?: boolean;
   recipe_header_id?: string;
 }

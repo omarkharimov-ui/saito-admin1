@@ -30,6 +30,9 @@ export default function RecipesPage() {
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [newIngredientId, setNewIngredientId] = useState('');
   const [newQuantity, setNewQuantity] = useState('');
+  const [newWastePct, setNewWastePct] = useState('5');
+  const [newSubIngredientId, setNewSubIngredientId] = useState('');
+  const [newSubRatio, setNewSubRatio] = useState('1');
   const [saving, setSaving] = useState(false);
 
   // ── AI Suggestion state ──
@@ -60,7 +63,7 @@ export default function RecipesPage() {
       const [pRes, iRes, rRes] = await Promise.all([
         supabase.from('products').select('id, name, name_az, name_en, name_ru, image_url, price').order('name_az'),
         supabase.from('ingredients').select('id, name, unit, current_stock').order('name'),
-        supabase.from('recipes').select('id, menu_item_id, ingredient_id, quantity_required, is_ai_suggested'),
+        supabase.from('recipes').select('id, menu_item_id, ingredient_id, quantity_required, quantity_brutto, hot_waste_percentage, waste_percentage, substitution_ingredient_id, substitution_ratio, is_ai_suggested'),
       ]);
       setProducts((pRes.data || []) as ProductCatalogItem[]);
       setIngredients((iRes.data || []) as Ingredient[]);
@@ -104,6 +107,52 @@ export default function RecipesPage() {
 
   const productRecipes = (productId: string) =>
     recipes.filter(r => r.menu_item_id === productId).map(r => ({
+      ...r,
+      grossQuantity: Number(r.quantity_brutto ?? r.quantity_required ?? 0),
+      wastePct: Number(r.waste_percentage ?? r.hot_waste_percentage ?? 0),
+      netQuantity: Number(r.quantity_required ?? 0),
+      substitutionIngredient: ingredients.find(i => i.id === r.substitution_ingredient_id || ''),
+      ingredient: ingredients.find(i => i.id === r.ingredient_id),
+    }));
+  };
+
+  const getRecipeMetrics = (productId: string) => {
+    const rows = productRecipes(productId);
+    const product = products.find(p => p.id === productId);
+    const sellingPrice = Number(product?.price ?? 0);
+    const cost = rows.reduce((sum, row) => {
+      const ing = row.ingredient;
+      const unitCost = Number(ing?.average_cost_per_unit ?? ing?.purchase_price ?? 0);
+      const gross = Number(row.quantity_brutto ?? row.quantity_required ?? 0);
+      return sum + gross * unitCost;
+    }, 0);
+    const grossMargin = sellingPrice - cost;
+    const marginPct = sellingPrice > 0 ? (grossMargin / sellingPrice) * 100 : 0;
+    return { sellingPrice, cost, grossMargin, marginPct };
+  };
+
+  const liveRecipePreview = useMemo(() => {
+    if (!expandedProduct) return null;
+    return getRecipeMetrics(expandedProduct);
+  }, [expandedProduct, products, recipes, ingredients]);
+
+  const handleAdd = async (productId: string) => {
+    if (!newIngredientId || !newQuantity) return;
+    const qty = parseFloat(newQuantity);
+    const wastePct = parseFloat(newWastePct) || 0;
+    const subRatio = parseFloat(newSubRatio) || 1;
+    if (isNaN(qty) || qty <= 0) { toast.error('Miqdar düzgün deyil'); return; }
+    setSaving(true);
+    const { error } = await supabase.from('recipes').insert({
+      menu_item_id: productId,
+      ingredient_id: newIngredientId,
+      quantity_required: qty,
+      quantity_brutto: qty * (1 + Math.max(0, wastePct) / 100),
+      hot_waste_percentage: wastePct,
+      waste_percentage: wastePct,
+      substitution_ingredient_id: newSubIngredientId || null,
+      substitution_ratio: newSubIngredientId ? subRatio : null,
+    });
       ...r,
       ingredient: ingredients.find(i => i.id === r.ingredient_id),
     }));
@@ -672,7 +721,45 @@ export default function RecipesPage() {
 
                     {/* Quick-add row */}
                     {addingFor === product.id ? (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        <div>
+                          <label className="text-[10px] text-white/25 uppercase tracking-wider mb-1 block">İtki %</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={newWastePct}
+                            onChange={e => setNewWastePct(e.target.value)}
+                            className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-white/25 uppercase tracking-wider mb-1 block">Əvəzedici</label>
+                          <select
+                            value={newSubIngredientId}
+                            onChange={e => setNewSubIngredientId(e.target.value)}
+                            className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                          >
+                            <option value="" className="bg-[#1a1a1a]">Seçmədən davam et</option>
+                            {ingredients.map(i => (
+                              <option key={i.id} value={i.id} className="bg-[#1a1a1a]">{i.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-white/25 uppercase tracking-wider mb-1 block">Əvəzetmə nisbəti</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={newSubRatio}
+                            onChange={e => setNewSubRatio(e.target.value)}
+                            className="w-full bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                          />
+                        </div>
+                      </div>
                       <div className="mt-3 flex items-center gap-2">
+
                         <select
                           value={newIngredientId}
                           onChange={e => setNewIngredientId(e.target.value)}

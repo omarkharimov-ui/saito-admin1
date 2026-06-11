@@ -29,7 +29,7 @@ export default function POSPage() {
   const [actionSheetTable, setActionSheetTable] = useState<PosTable | null>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
   const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+
   const [orderButtonStatus, setOrderButtonStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
@@ -89,7 +89,6 @@ export default function POSPage() {
 
   /* ── Place order ── */
   const handlePlaceOrder = useCallback(async () => {
-    setSubmitting(true);
     setOrderButtonStatus('loading');
     try {
       await pos.placeOrder();
@@ -98,8 +97,6 @@ export default function POSPage() {
     } catch {
       setOrderButtonStatus('error');
       window.setTimeout(() => setOrderButtonStatus('idle'), 1600);
-    } finally {
-      setSubmitting(false);
     }
   }, [pos]);
 
@@ -116,7 +113,7 @@ export default function POSPage() {
 
   const handleCloseBill = useCallback(async () => {
     if (!payOrderId) return;
-    setSubmitting(true);
+    setOrderButtonStatus('loading');
     const payment: PaymentInfo = {
       method: payMethod === 'cash' ? 'cash' : 'card',
       cash_amount: payMethod === 'cash' ? payAmount + payTip : 0,
@@ -126,7 +123,8 @@ export default function POSPage() {
     await pos.closeBill(payOrderId, payment);
     setPaymentOpen(false);
     setPayOrderId(null);
-    setSubmitting(false);
+    setOrderButtonStatus('success');
+    window.setTimeout(() => setOrderButtonStatus('idle'), 1400);
   }, [payOrderId, payMethod, payAmount, payTip, pos]);
 
   /* ── Table actions ── */
@@ -450,7 +448,7 @@ export default function POSPage() {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-              onClick={() => !submitting && setPaymentOpen(false)}
+              onClick={() => orderButtonStatus !== 'loading' && setPaymentOpen(false)}
             />
             <motion.div
               initial={{ opacity: 0, y: 200, scale: 0.95 }}
@@ -465,7 +463,7 @@ export default function POSPage() {
                     <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {payTableNumber}</p>
                     <p className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>Ödəniş</p>
                   </div>
-                  <button onClick={() => !submitting && setPaymentOpen(false)}
+                  <button onClick={() => orderButtonStatus !== 'loading' && setPaymentOpen(false)}
                     className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
                     <X size={18} />
                   </button>
@@ -512,13 +510,13 @@ export default function POSPage() {
                   <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{(payAmount + payTip).toFixed(2)} ₼</span>
                 </div>
 
-                <button onClick={handleCloseBill} disabled={submitting}
+                <button onClick={handleCloseBill} disabled={orderButtonStatus === 'loading'}
                   className={`w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-30 ${
                     lightMode
                       ? 'bg-amber-600 text-white shadow-md hover:bg-amber-700 hover:shadow-lg'
                       : 'bg-gradient-to-br from-gold to-amber-400 text-black shadow-lg shadow-gold/30 hover:shadow-gold/40'
                   }`}>
-                  {submitting ? 'Gözləyin...' : <><CheckCircle size={18} /> Hesabı Bağla</>}
+                  {orderButtonStatus === 'loading' ? 'Gözləyin...' : <><CheckCircle size={18} /> Hesabı Bağla</>}
                 </button>
               </div>
             </motion.div>

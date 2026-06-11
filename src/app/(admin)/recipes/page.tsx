@@ -165,7 +165,7 @@ export default function RecipesPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: suggestion.suggestedProductId,
-          ingredientIds: suggestion.ingredients.map(r => r.ingredient_id),
+          ingredientIds: suggestion.ingredients.map((r: { ingredient_id: string }) => r.ingredient_id),
         }),
       });
       const data = await res.json();

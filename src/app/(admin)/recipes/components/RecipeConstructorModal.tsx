@@ -33,7 +33,7 @@ interface RecipeConstructorModalProps {
 
 export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId }: RecipeConstructorModalProps) {
   const { lightMode } = useTheme();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductCatalogItem[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [selectedProductId, setSelectedProductId] = useState(editProductId || '');
   const [rows, setRows] = useState<RecipeLine[]>([]);

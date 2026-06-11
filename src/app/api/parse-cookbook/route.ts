@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { groqChat } from '@/lib/groq';
 import { createClient } from '@supabase/supabase-js';
+import type { NormalizedRecipeIngredient, NormalizedRecipeSuggestion } from '@/types/recipes';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,7 +77,11 @@ Important: Extract EVERY recipe you find. Do not skip any. If text is truncated,
     );
 
     // JSON parse
-    let parsedData: { recipes?: any[] } = {};
+    type ParsedCookbookRecipe = Pick<NormalizedRecipeSuggestion, 'recipeName' | 'suggestedProductId' | 'suggestedProductName' | 'confidence' | 'source'> & {
+      ingredients: Array<Pick<NormalizedRecipeIngredient, 'name' | 'quantity' | 'unit'>>;
+    };
+
+    let parsedData: { recipes?: ParsedCookbookRecipe[] } = {};
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) parsedData = JSON.parse(jsonMatch[0]);
@@ -89,12 +94,12 @@ Important: Extract EVERY recipe you find. Do not skip any. If text is truncated,
     }
 
     // Match ingredients with DB IDs
-    const results = [];
+    const results: NormalizedRecipeSuggestion[] = [];
     for (const recipe of parsedData.recipes) {
-      const matchedIngredients = [];
+      const matchedIngredients: Array<NormalizedRecipeIngredient & { ingredient_id: string; ingredient_name: string; quantity_required: number }> = [];
       for (const ing of (recipe.ingredients || [])) {
         const matched = (dbIngredients || []).find(
-          (i: any) => i.name.toLowerCase().includes(ing.name.toLowerCase())
+          (i: { id: string; name: string; unit: string }) => i.name.toLowerCase().includes(ing.name.toLowerCase())
             || ing.name.toLowerCase().includes(i.name.toLowerCase())
         );
         if (matched) {
@@ -107,7 +112,7 @@ Important: Extract EVERY recipe you find. Do not skip any. If text is truncated,
         }
       }
 
-      const productExists = (dbProducts || []).find((p: any) => p.id === recipe.suggestedProductId);
+      const productExists = (dbProducts || []).find((p: { id: string }) => p.id === recipe.suggestedProductId);
 
       results.push({
         recipeName: recipe.recipeName,
@@ -116,6 +121,7 @@ Important: Extract EVERY recipe you find. Do not skip any. If text is truncated,
         confidence: recipe.confidence || 0,
         ingredients: matchedIngredients,
         unmatchedIngredients: (recipe.ingredients || []).length - matchedIngredients.length,
+        source: recipe.source || 'cookbook',
       });
     }
 

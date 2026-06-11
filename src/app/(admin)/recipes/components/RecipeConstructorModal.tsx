@@ -195,7 +195,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
   const aiSuggest = async () => {
     if (!selectedProduct) { toast.error('Əvvəlcə məhsul seçin', { style: toastStyle }); return; }
-    const dishName = (selectedProduct as any).name_az || selectedProduct.name;
+    const dishName = selectedProduct.name_az || selectedProduct.name;
     setAiSuggesting(true);
     try {
       const res = await fetch('/api/recipes/ai-suggest', { method: 'POST' });
@@ -258,7 +258,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                     style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
                     <CookingPot size={10} /> Resept Konstruktoru
                   </span>
-                  <h2 className="text-xl font-bold">{selectedProduct ? (selectedProduct as any).name_az || selectedProduct.name : 'Yeni Resept'}</h2>
+                  <h2 className="text-xl font-bold">{selectedProduct ? selectedProduct.name_az || selectedProduct.name : 'Yeni Resept'}</h2>
                 </div>
                 <button onClick={() => { reset(); onClose(); }} className="text-white/25 hover:text-white transition-colors mt-1">
                   <X size={18} />
@@ -282,7 +282,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                     >
                       <option value="" className="bg-[#111]">Menyudan məhsul seç...</option>
                       {products.map(p => (
-                        <option key={p.id} value={p.id} className="bg-[#111]">{(p as any).name_az || p.name} — ₼{p.price}</option>
+                        <option key={p.id} value={p.id} className="bg-[#111]">{p.name_az || p.name} — ₼{p.price}</option>
                       ))}
                     </select>
                   </div>

@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { groqChat, parseJsonFromText } from '@/lib/groq';
-import { supabase } from '@/lib/supabase';
-
-interface SuggestedIngredient {
-  ingredientName: string;
-  quantity: number;
-  unit: string;
-  note?: string;
-}
+import type { NormalizedRecipeIngredient } from '@/types/recipes';
 
 interface SuggestionResponse {
-  recipe: SuggestedIngredient[];
+  recipe: NormalizedRecipeIngredient[];
 }
 
 export async function GET(req: NextRequest) {

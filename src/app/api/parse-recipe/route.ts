@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { groqChat } from '@/lib/groq';
 import { createClient } from '@supabase/supabase-js';
+import type { NormalizedRecipeIngredient } from '@/types/recipes';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -83,7 +84,7 @@ Yalnız mövcud xəmmallardan istifadə et. Yalnız JSON qaytar, başqa heç nə
     }
 
     // 4. Ingredient-ləri DB-dəki ID-lərlə match et
-    const matchedRecipe: { ingredient_id: string; ingredient_name: string; quantity_required: number; unit: string }[] = [];
+    const matchedRecipe: NormalizedRecipeIngredient[] = [];
     for (const r of recipeData.recipe) {
       const matched = (dbIngredients || []).find(
         (i: any) => i.name.toLowerCase().includes(r.ingredientName.toLowerCase())
@@ -91,9 +92,8 @@ Yalnız mövcud xəmmallardan istifadə et. Yalnız JSON qaytar, başqa heç nə
       );
       if (matched) {
         matchedRecipe.push({
-          ingredient_id: matched.id,
-          ingredient_name: matched.name,
-          quantity_required: r.quantity,
+          name: matched.name,
+          quantity: r.quantity,
           unit: matched.unit,
         });
       }

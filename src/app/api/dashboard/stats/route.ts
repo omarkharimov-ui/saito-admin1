@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { calculateCalibrationSuggestions, calculateMarginInsight } from '@/lib/stockAnalytics';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -94,6 +95,18 @@ export async function GET() {
       status: i.status,
     }));
 
+    const calibrationSuggestions = calculateCalibrationSuggestions({
+      ingredients: (ingredients ?? []) as any,
+      recipes: (recipes ?? []) as any,
+      logs: (wasteLogs ?? []) as any,
+    });
+
+    const marginInsight = calculateMarginInsight({
+      revenue: dailyRevenue,
+      foodCost: dailyFoodCost,
+      wasteCost: dailyWasteCost,
+    });
+
     return NextResponse.json({
       dailyRevenue,
       todayOrders: todayOrders ?? 0,
@@ -105,12 +118,16 @@ export async function GET() {
       foodCostPct: Math.round(foodCostPct * 10) / 10,
       stockAlerts,
       criticalStockCount: stockAlerts.length,
+      calibrationSuggestions,
+      marginInsight,
     });
   } catch (error) {
     return NextResponse.json(
       { dailyRevenue: 0, todayOrders: 0, activeTables: 0, topProduct: '—',
         dailyFoodCost: 0, dailyWasteCost: 0, dailyNetProfit: 0, foodCostPct: 0,
-        stockAlerts: [], criticalStockCount: 0 },
+        stockAlerts: [], criticalStockCount: 0,
+        calibrationSuggestions: [],
+        marginInsight: { revenue: 0, foodCost: 0, wasteCost: 0, grossMarginPct: 0, netMarginPct: 0, foodCostPct: 0, marginPressure: 'healthy' } },
       { status: 500 }
     );
   }

@@ -13,7 +13,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RecipeConstructorModal } from './components/RecipeConstructorModal';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import type {
-  AiRecipeSuggestion,
   CookbookRecipe,
   Ingredient,
   ProductCatalogItem,
@@ -35,7 +34,7 @@ export default function RecipesPage() {
 
   // ── AI Suggestion state ──
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<AiRecipeSuggestion[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<CookbookRecipe[]>([]);
   const [showAiPanel, setShowAiPanel] = useState(false);
 
   // ── Document Upload state ──
@@ -63,7 +62,7 @@ export default function RecipesPage() {
         supabase.from('ingredients').select('id, name, unit, current_stock').order('name'),
         supabase.from('recipes').select('id, menu_item_id, ingredient_id, quantity_required, is_ai_suggested'),
       ]);
-      setProducts((pRes.data || []) as Product[]);
+      setProducts((pRes.data || []) as ProductCatalogItem[]);
       setIngredients((iRes.data || []) as Ingredient[]);
       setRecipes((rRes.data || []) as RecipeRow[]);
     } finally {
@@ -90,8 +89,7 @@ export default function RecipesPage() {
   }, [fetchData]);
 
   const getProductName = (p: ProductCatalogItem) => {
-    const pp = p as any;
-    return (language === 'en' ? pp.name_en : language === 'ru' ? pp.name_ru : pp.name_az) || pp.name_az || pp.name_en || pp.name_ru || p.name;
+    return (language === 'en' ? p.name_en : language === 'ru' ? p.name_ru : p.name_az) || p.name_az || p.name_en || p.name_ru || p.name;
   };
 
   const getIngredientName = (id: string) => {
@@ -151,7 +149,7 @@ export default function RecipesPage() {
       const res = await fetch('/api/recipes/ai-suggest', { method: 'POST' });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setAiSuggestions(data.suggestions || []);
+      setAiSuggestions((data.suggestions || []) as CookbookRecipe[])
       setShowAiPanel(true);
       if (data.count === 0) toast('AI təklif tapılmadı — daha çox satış data-sı lazımdır');
       else toast.success(`${data.count} AI təklif tapıldı`);
@@ -161,16 +159,19 @@ export default function RecipesPage() {
     } finally { setAiLoading(false); }
   };
 
-  const approveAi = async (suggestion: AiRecipeSuggestion) => {
+  const approveAi = async (suggestion: CookbookRecipe) => {
     try {
       const res = await fetch('/api/recipes/approve', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: suggestion.product_id, ingredientIds: suggestion.recipe.map(r => r.ingredient_id) }),
+        body: JSON.stringify({
+          productId: suggestion.suggestedProductId,
+          ingredientIds: suggestion.ingredients.map(r => r.ingredient_id),
+        }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       toast.success('AI resept təsdiqləndi');
-      setAiSuggestions(prev => prev.filter(s => s.product_id !== suggestion.product_id));
+      setAiSuggestions(prev => prev.filter(s => s.suggestedProductId !== suggestion.suggestedProductId));
       fetchData();
     } catch (e: any) { toast.error(e.message); }
   };
@@ -184,7 +185,7 @@ export default function RecipesPage() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       toast.success('AI resept rədd edildi');
-      setAiSuggestions(prev => prev.filter(s => s.product_id !== productId));
+      setAiSuggestions(prev => prev.filter(s => s.suggestedProductId !== productId));
       fetchData();
     } catch (e: any) { toast.error(e.message); }
   };
@@ -411,7 +412,22 @@ export default function RecipesPage() {
                           <span className="text-[10px] text-purple-400/60 bg-purple-500/10 px-1.5 py-0.5 rounded-full">AI Təklif</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <button onClick={() => approveAi({ product_id: pid, product_name: getProductName(prod), total_sold: 0, recipe: prodRecipes.map(r => ({ ingredient_id: r.ingredient_id, ingredient_name: getIngredientName(r.ingredient_id), quantity_required: r.quantity_required, unit: '' })) })} className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-all">
+                          <button onClick={() => approveAi({
+  recipeName: getProductName(prod),
+  suggestedProductId: pid,
+  suggestedProductName: getProductName(prod),
+  confidence: 0,
+  ingredients: prodRecipes.map(r => ({
+    ingredient_id: r.ingredient_id,
+    ingredient_name: getIngredientName(r.ingredient_id),
+    quantity_required: r.quantity_required,
+    name: getIngredientName(r.ingredient_id),
+    quantity: r.quantity_required,
+    unit: '',
+  })),
+  unmatchedIngredients: 0,
+  source: 'ai',
+})} className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-all">
                             <Check size={14} />
                           </button>
                           <button onClick={() => rejectAi(pid)} className="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-all">
@@ -523,7 +539,7 @@ export default function RecipesPage() {
                         {recipe.ingredients.map((ing, i) => (
                           <div key={i} className="flex items-center gap-2 text-xs text-white/50">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40" />
-                            {ing.ingredient_name} × {ing.quantity_required} {ing.unit}
+                            {ing.name} × {ing.quantity} {ing.unit}
                           </div>
                         ))}
                         {recipe.unmatchedIngredients > 0 && (

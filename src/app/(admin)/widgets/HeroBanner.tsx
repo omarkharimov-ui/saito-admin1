@@ -13,6 +13,16 @@ interface DashboardStats {
   dailyNetProfit: number;
   foodCostPct: number;
   criticalStockCount: number;
+  calibrationSuggestions: number;
+  marginInsight: {
+    revenue: number;
+    foodCost: number;
+    wasteCost: number;
+    grossMarginPct: number;
+    netMarginPct: number;
+    foodCostPct: number;
+    marginPressure: 'healthy' | 'tight' | 'critical';
+  };
 }
 
 export default function HeroBanner() {
@@ -27,6 +37,16 @@ export default function HeroBanner() {
     dailyNetProfit: 0,
     foodCostPct: 0,
     criticalStockCount: 0,
+    calibrationSuggestions: 0,
+    marginInsight: {
+      revenue: 0,
+      foodCost: 0,
+      wasteCost: 0,
+      grossMarginPct: 0,
+      netMarginPct: 0,
+      foodCostPct: 0,
+      marginPressure: 'healthy',
+    },
   });
   const [loading, setLoading] = useState(true);
 
@@ -61,9 +81,11 @@ export default function HeroBanner() {
         dailyNetProfit: data.dailyNetProfit || 0,
         foodCostPct: data.foodCostPct || 0,
         criticalStockCount: data.criticalStockCount || 0,
+        calibrationSuggestions: Array.isArray(data.calibrationSuggestions) ? data.calibrationSuggestions.length : (data.calibrationSuggestions || 0),
+        marginInsight: data.marginInsight || { revenue: 0, foodCost: 0, wasteCost: 0, grossMarginPct: 0, netMarginPct: 0, foodCostPct: 0, marginPressure: 'healthy' },
       });
     } catch {
-      setStats({ dailyRevenue: 0, todayOrders: 0, activeTables: 0, topProduct: '—', dailyNetProfit: 0, foodCostPct: 0, criticalStockCount: 0 });
+      setStats({ dailyRevenue: 0, todayOrders: 0, activeTables: 0, topProduct: '—', dailyNetProfit: 0, foodCostPct: 0, criticalStockCount: 0, calibrationSuggestions: 0, marginInsight: { revenue: 0, foodCost: 0, wasteCost: 0, grossMarginPct: 0, netMarginPct: 0, foodCostPct: 0, marginPressure: 'healthy' } });
     } finally {
       setLoading(false);
     }
@@ -326,6 +348,48 @@ export default function HeroBanner() {
                   </motion.span>
                 )}
               </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Stock intelligence strip */}
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4">
+              <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Calibration</div>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <div className="text-2xl font-semibold text-[var(--theme-text)]">{stats.calibrationSuggestions}</div>
+                  <div className="text-xs text-[var(--theme-text-secondary)]">AI reverse-inventory təklifi</div>
+                </div>
+                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.calibrationSuggestions > 0 ? 'border-amber-500/30 text-amber-300 bg-amber-500/10' : 'border-white/10 text-[var(--theme-text-muted)] bg-white/[0.03]'}`}>
+                  {stats.calibrationSuggestions > 0 ? 'Needs review' : 'Synced'}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4">
+              <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Margin pressure</div>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <div className="text-2xl font-semibold text-[var(--theme-text)] capitalize">{stats.marginInsight.marginPressure}</div>
+                  <div className="text-xs text-[var(--theme-text-secondary)]">Gross {stats.marginInsight.grossMarginPct.toFixed(1)}% · Net {stats.marginInsight.netMarginPct.toFixed(1)}%</div>
+                </div>
+                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.marginInsight.marginPressure === 'critical' ? 'border-rose-500/30 text-rose-300 bg-rose-500/10' : stats.marginInsight.marginPressure === 'tight' ? 'border-amber-500/30 text-amber-300 bg-amber-500/10' : 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10'}`}>
+                  FC {stats.marginInsight.foodCostPct.toFixed(1)}%
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4">
+              <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Critical stock</div>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <div className="text-2xl font-semibold text-[var(--theme-text)]">{stats.criticalStockCount}</div>
+                  <div className="text-xs text-[var(--theme-text-secondary)]">Immediate alerts</div>
+                </div>
+                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.criticalStockCount > 0 ? 'border-rose-500/30 text-rose-300 bg-rose-500/10' : 'border-white/10 text-[var(--theme-text-muted)] bg-white/[0.03]'}`}>
+                  {stats.criticalStockCount > 0 ? 'Action' : 'Clear'}
+                </div>
+              </div>
             </div>
           </div>
         </div>

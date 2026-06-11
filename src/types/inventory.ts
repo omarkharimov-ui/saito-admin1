@@ -143,23 +143,7 @@ export interface RecipeRow {
   ingredient?: Ingredient;
 }
 
-export interface AiRecipeSuggestion {
-  product_id: string;
-  product_name: string;
-  total_sold: number;
-  recipe: {
-    ingredient_id: string;
-    ingredient_name: string;
-    quantity_required: number;
-    unit: string;
-  }[];
-}
+export type { NormalizedRecipeSuggestion, NormalizedRecipeIngredient, RecipeSourceType, InventoryImportPayload, InventoryImportLine } from './recipes';
 
-export interface CookbookRecipe {
-  recipeName: string;
-  suggestedProductId: string | null;
-  suggestedProductName: string | null;
-  confidence: number;
-  ingredients: RecipeIngredientRow[];
-  unmatchedIngredients: number;
-}
+export type AiRecipeSuggestion = NormalizedRecipeSuggestion;
+export type CookbookRecipe = NormalizedRecipeSuggestion;

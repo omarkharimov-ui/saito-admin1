@@ -138,9 +138,11 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                       <div key={idx} className="flex items-center justify-between gap-3 rounded-2xl px-2 py-1.5">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`text-sm font-medium truncate ${lightMode ? 'text-gray-800' : 'text-white/85'}`}>{item.name}</span>
-                          {item.modifiers && (
-                            <span className={`text-[9px] shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{item.modifiers}</span>
-                          )}
+                          {item.modifiers?.length ? (
+                            <span className={`text-[9px] shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
+                              {(item.modifiers ?? []).map(modifier => modifier.name).join(', ')}
+                            </span>
+                          ) : null}
                         </div>
                         <span className={`text-sm font-bold shrink-0 ${lightMode ? 'text-gray-600' : 'text-white/60'}`}>×{item.quantity}</span>
                       </div>

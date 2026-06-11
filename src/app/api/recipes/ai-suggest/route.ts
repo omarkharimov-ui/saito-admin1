@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { groqChat } from '@/lib/groq';
 import type { InventoryLog, ProductCatalogItem } from '@/types/inventory';
+import type { NormalizedRecipeIngredient, NormalizedRecipeSuggestion } from '@/types/recipes';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,7 +77,7 @@ export async function POST() {
     }
 
     // 4. Hər məhsul üçün AI-ya sorğu göndər
-    const suggestions: Array<{ product_id: string; product_name: string; total_sold: number; recipe: { ingredient_id: string; ingredient_name: string; quantity_required: number; unit: string }[] }> = [];
+    const suggestions: NormalizedRecipeSuggestion[] = [];
 
     for (const product of products as ProductCatalogItem[]) {
       const salesInfo = salesByProduct[product.id];
@@ -108,7 +109,7 @@ Bu məhsulun ehtimal reseptini çıxar. Hər ingredient üçün miqdar ver. Əg�
       );
 
       // JSON parse et
-      let recipeData: { recipe?: { ingredientName: string; quantity: number; unit: string }[] } = {};
+      let recipeData: { recipe?: Array<{ ingredientName: string; quantity: number; unit: string }> } = {};
       try {
         const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -126,7 +127,7 @@ Bu məhsulun ehtimal reseptini çıxar. Hər ingredient üçün miqdar ver. Əg�
         .from('ingredients')
         .select('id, name, unit');
 
-      const matchedRecipe = [];
+      const matchedRecipe: Array<NormalizedRecipeIngredient & { ingredient_id: string; ingredient_name: string; quantity_required: number }> = [];
       for (const r of recipeData.recipe) {
         const matched = (dbIngredients || []).find(
           (i: { id: string; name: string; unit: string }) => i.name.toLowerCase().includes(r.ingredientName.toLowerCase())
@@ -137,6 +138,8 @@ Bu məhsulun ehtimal reseptini çıxar. Hər ingredient üçün miqdar ver. Əg�
             ingredient_id: matched.id,
             ingredient_name: matched.name,
             quantity_required: r.quantity,
+            name: matched.name,
+            quantity: r.quantity,
             unit: matched.unit,
           });
         }
@@ -145,10 +148,13 @@ Bu məhsulun ehtimal reseptini çıxar. Hər ingredient üçün miqdar ver. Əg�
       if (matchedRecipe.length === 0) continue;
 
       suggestions.push({
-        product_id: product.id,
-        product_name: productName,
-        total_sold: totalSold,
-        recipe: matchedRecipe,
+        recipeName: productName,
+        suggestedProductId: product.id,
+        suggestedProductName: productName,
+        confidence: 0.7,
+        ingredients: matchedRecipe,
+        unmatchedIngredients: 0,
+        source: 'ai',
       });
 
       // AI reseptini recipes cədvəlinə yaz (is_ai_suggested = true)

@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { normalizeQuantity } from './units';
 
 function getServiceClient() {
   return createClient(
@@ -88,9 +89,10 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
         const itemRecipes = recipes.filter(r => r.menu_item_id === item.product_id);
         console.log(`[stockAutomation] Item ${item.product_id} (qty=${item.quantity}): ${itemRecipes.length} recipes matched`);
         for (const rec of itemRecipes) {
-          const unitQty = (rec.quantity_brutto ?? rec.quantity_required);
-          const deductQty = unitQty * (Number(item.quantity) || 1);
-          console.log(`[stockAutomation] Recipe deduct: ingredient=${rec.ingredient_id}, unit=${unitQty}, itemQty=${item.quantity}, total=${deductQty}`);
+          const rawQty = (rec.quantity_brutto ?? rec.quantity_required);
+          const normalizedQty = normalizeQuantity(rawQty, 'g');
+          const deductQty = normalizedQty.value * (Number(item.quantity) || 1);
+          console.log(`[stockAutomation] Recipe deduct: ingredient=${rec.ingredient_id}, unit=${normalizedQty.value}${normalizedQty.unit}, itemQty=${item.quantity}, total=${deductQty}`);
           logs.push({
             ingredient_id: rec.ingredient_id,
             type: 'order_consumption',

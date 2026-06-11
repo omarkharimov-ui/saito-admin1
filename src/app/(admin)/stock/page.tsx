@@ -14,6 +14,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import type {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,
+  InventoryLog,
 } from '@/types/inventory';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
@@ -138,12 +139,12 @@ export default function StockPage() {
   const [showWasteCalc, setShowWasteCalc] = useState(false);
   const [calcRaw, setCalcRaw] = useState('');
   const [calcClean, setCalcClean] = useState('');
-  const [wasteStandards, setWasteStandards] = useState<any[]>([]);
+  const [wasteStandards, setWasteStandards] = useState<InventoryStatusRow[]>([]);
   const [selectedLogsIngredient, setSelectedLogsIngredient] = useState<string | null>(null);
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
-  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+  const [historyLogs, setHistoryLogs] = useState<InventoryLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [allLogs, setAllLogs] = useState<any[]>([]);
+  const [allLogs, setAllLogs] = useState<InventoryLog[]>([]);
   const [allLogsLoading, setAllLogsLoading] = useState(false);
 
   // Auto-calculated unit cost from total qty/amount
@@ -166,7 +167,7 @@ export default function StockPage() {
 
   // Filter logs by search when in history view
   const monthlyLogs = useMemo(() => {
-    return allLogs.filter((log: any) => {
+    return allLogs.filter((log) => {
       const d = new Date(log.created_at);
       const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       if (ym !== historyMonth) return false;
@@ -189,7 +190,7 @@ export default function StockPage() {
       adjustment: 'tənzimləmə',
       order_consumption: 'sifariş sərfiyyatı',
     };
-    return source.filter((log: any) => {
+    return source.filter((log) => {
       const name = (log.ingredient?.name || log.ingredient_id || '').toLowerCase();
       const label = (typeLabels[log.type] || log.type || '').toLowerCase();
       const note = (log.note || '').toLowerCase();

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { groqChat } from '@/lib/groq';
+import type { InventoryLog, ProductCatalogItem } from '@/types/inventory';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,11 +64,11 @@ export async function POST() {
 
     // Ingredient consumption-u qrupla
     const ingredientConsumption: Record<string, { total: number; name: string; unit: string }> = {};
-    for (const log of logs || []) {
+    for (const log of (logs || []) as Array<InventoryLog & { ingredient?: { name?: string; unit?: string } | null }>) {
       const iid = log.ingredient_id;
       if (!iid) continue;
-      const name = (log.ingredient as any)?.name || '';
-      const unit = (log.ingredient as any)?.unit || '';
+      const name = log.ingredient?.name || '';
+      const unit = log.ingredient?.unit || '';
       if (!ingredientConsumption[iid]) {
         ingredientConsumption[iid] = { total: 0, name, unit };
       }
@@ -75,9 +76,9 @@ export async function POST() {
     }
 
     // 4. Hər məhsul üçün AI-ya sorğu göndər
-    const suggestions: any[] = [];
+    const suggestions: Array<{ product_id: string; product_name: string; total_sold: number; recipe: { ingredient_id: string; ingredient_name: string; quantity_required: number; unit: string }[] }> = [];
 
-    for (const product of products) {
+    for (const product of products as ProductCatalogItem[]) {
       const salesInfo = salesByProduct[product.id];
       const totalSold = salesInfo?.totalSold || 0;
 
@@ -85,7 +86,7 @@ export async function POST() {
       if (totalSold < 1) continue;
 
       // Məhsulun adını tap
-      const productName = (product as any).name_az || product.name;
+      const productName = product.name_az || product.name;
 
       // AI prompt
       const ingredientList = Object.values(ingredientConsumption)
@@ -128,7 +129,7 @@ Bu məhsulun ehtimal reseptini çıxar. Hər ingredient üçün miqdar ver. Əg�
       const matchedRecipe = [];
       for (const r of recipeData.recipe) {
         const matched = (dbIngredients || []).find(
-          (i: any) => i.name.toLowerCase().includes(r.ingredientName.toLowerCase())
+          (i: { id: string; name: string; unit: string }) => i.name.toLowerCase().includes(r.ingredientName.toLowerCase())
             || r.ingredientName.toLowerCase().includes(i.name.toLowerCase())
         );
         if (matched) {

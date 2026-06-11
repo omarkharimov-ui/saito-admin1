@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { calculateIngredientCost } from '@/lib/inventoryEngine';
 
 function svc() {
   return createClient(
@@ -49,7 +50,7 @@ export async function POST() {
       const totalCost = (recipeIngredients || []).reduce((sum, r) => {
         const ing = Array.isArray(r.ingredient) ? r.ingredient[0] : r.ingredient;
         const qty = r.quantity_brutto ?? r.quantity_required ?? 0;
-        return sum + qty * (ing?.average_cost_per_unit || 0);
+        return sum + calculateIngredientCost(qty, ing?.average_cost_per_unit || 0);
       }, 0);
 
       const margin = product.price > 0 ? ((product.price - totalCost) / product.price) * 100 : 0;

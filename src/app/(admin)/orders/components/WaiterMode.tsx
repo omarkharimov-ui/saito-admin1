@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { deductStockForOrder } from '@/lib/stockAutomation';
+import type { ProductCatalogItem, RecipeRow } from '@/types/inventory';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import {
@@ -11,8 +12,8 @@ import {
   Printer, ImageOff, Utensils, Banknote, Users, ArrowLeft, Package,
 } from 'lucide-react';
 
-interface Product { id: string; name: string; name_az?: string; name_en?: string; name_ru?: string; price: number; image_url: string | null; is_ready_product?: boolean; direct_ingredient_id?: string | null; category_id?: string | null; }
-interface RecipeIng { menu_item_id: string; ingredient_id: string; quantity_required: number; quantity_brutto: number | null; }
+interface Product extends Pick<ProductCatalogItem, 'id' | 'name' | 'name_az' | 'name_en' | 'name_ru' | 'price' | 'image_url' | 'category_id' | 'is_ready_product' | 'direct_ingredient_id' | 'has_active_recipe' | 'product_kind'> {}
+interface RecipeIng extends Pick<RecipeRow, 'menu_item_id' | 'ingredient_id' | 'quantity_required' | 'quantity_brutto'> {}
 interface Ingredient { id: string; current_stock: number; }
 interface OrderItem { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; }
 interface OrderData { id: string; table_number: number; total_amount: number; status: string; kitchen_status: string | null; created_at: string; order_items?: OrderItem[]; }
@@ -296,7 +297,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
     const rm: Record<string, RecipeIng[]> = {};
     recipes.forEach(r => { if (!rm[r.menu_item_id]) rm[r.menu_item_id] = []; rm[r.menu_item_id].push(r); });
     products.forEach(p => {
-      if (p.is_ready_product && p.direct_ingredient_id) { a[p.id] = (stockMap[p.direct_ingredient_id] ?? 0) > 0; return; }
+      if ((p.product_kind === 'direct_stock_item' || (p.is_ready_product && p.direct_ingredient_id)) && p.direct_ingredient_id) { a[p.id] = (stockMap[p.direct_ingredient_id] ?? 0) > 0; return; }
       const rr = rm[p.id] || [];
       a[p.id] = rr.length === 0 || rr.every(r => (stockMap[r.ingredient_id] ?? 0) > 0);
     });

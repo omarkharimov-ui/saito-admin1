@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeInventoryUnit } from '@/lib/inventoryEngine';
 
 function svc() {
   return createClient(
@@ -26,8 +27,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ingredientId and actualStock are required' }, { status: 400 });
     }
 
+    const normalizedUnit = normalizeInventoryUnit('piece');
     const normalizedActualStock = Math.max(0, actualStock);
     const normalizedTheoreticalStock = Math.max(0, theoreticalStock ?? normalizedActualStock);
+    void normalizedUnit;
     const variance = normalizedActualStock - normalizedTheoreticalStock;
 
     const { data: ingredient, error: ingredientError } = await supabase

@@ -120,6 +120,7 @@ export interface ProductCatalogItem {
   has_active_recipe?: boolean | null;
   is_ready_product?: boolean | null;
   direct_ingredient_id?: string | null;
+  product_kind?: 'direct_stock_item' | 'recipe_based_item' | null;
 }
 
 export interface RecipeIngredientRow {

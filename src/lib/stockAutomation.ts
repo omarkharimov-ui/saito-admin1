@@ -6,7 +6,8 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { normalizeQuantity } from './units';
+import { buildOrderConsumptionPlan, isDirectStockItem } from './inventoryEngine';
+import type { ProductCatalogItem, RecipeRow } from '@/types/inventory';
 
 function getServiceClient() {
   return createClient(
@@ -42,67 +43,20 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
 
   const logs: { ingredient_id: string; type: 'order_consumption'; quantity: number; reason: string }[] = [];
 
-  // Hazır məhsulların id-lərini topla (resept yox, birbaşa ingredient)
-  const readyProductIds: string[] = [];
-  const recipeProductIds: string[] = [];
-
-  for (const item of items) {
-    const prod = Array.isArray(item.products) ? item.products[0] : item.products;
-    if (prod?.is_ready_product && prod?.direct_ingredient_id) {
-      readyProductIds.push(item.product_id!);
-    } else {
-      recipeProductIds.push(item.product_id!);
-    }
-  }
-
-  console.log('[stockAutomation] Ready IDs:', readyProductIds, 'Recipe IDs:', recipeProductIds);
-
-  // 2a. HAZIR MƏHSULLAR: birbaşa direct_ingredient_id ilə stock azalt
-  for (const item of items) {
-    const prod = Array.isArray(item.products) ? item.products[0] : item.products;
-    if (prod?.is_ready_product && prod?.direct_ingredient_id) {
-      const qty = Number(item.quantity) || 1;
-      console.log(`[stockAutomation] Ready deduct: product=${item.product_id}, ingredient=${prod.direct_ingredient_id}, qty=${qty}`);
-      logs.push({
-        ingredient_id: prod.direct_ingredient_id,
-        type: 'order_consumption',
-        quantity: qty,
-        reason: `Hazır məhsul satışı — Sifariş #${orderId.slice(0, 8)}`,
-      });
-    }
-  }
-
-  // 2b. RESEPTLİ MƏHSULLAR: recipes cədvəlindən oxu
-  if (recipeProductIds.length > 0) {
-    const { data: recipes } = await supabase
+  const plan = buildOrderConsumptionPlan({
+    items: items as Array<{
+      quantity: number;
+      product_id: string | null;
+      products?: Pick<ProductCatalogItem, 'has_active_recipe' | 'is_ready_product' | 'direct_ingredient_id'> | Pick<ProductCatalogItem, 'has_active_recipe' | 'is_ready_product' | 'direct_ingredient_id'>[] | null;
+    }>,
+    recipes: (await supabase
       .from('recipes')
-      .select('menu_item_id, ingredient_id, quantity_required, quantity_brutto')
-      .in('menu_item_id', recipeProductIds);
+      .select('menu_item_id, ingredient_id, quantity_required, quantity_brutto, ingredient:ingredients(unit)')
+      .in('menu_item_id', items.map(item => item.product_id).filter(Boolean) as string[])).data || [] as RecipeRow[],
+    orderId,
+  });
 
-    console.log('[stockAutomation] Recipes found:', recipes?.length || 0, JSON.stringify(recipes, null, 2));
-
-    if (recipes && recipes.length > 0) {
-      for (const item of items) {
-        const prod = Array.isArray(item.products) ? item.products[0] : item.products;
-        if (prod?.is_ready_product) continue; // hazır məhsulları skip
-
-        const itemRecipes = recipes.filter(r => r.menu_item_id === item.product_id);
-        console.log(`[stockAutomation] Item ${item.product_id} (qty=${item.quantity}): ${itemRecipes.length} recipes matched`);
-        for (const rec of itemRecipes) {
-          const rawQty = (rec.quantity_brutto ?? rec.quantity_required);
-          const normalizedQty = normalizeQuantity(rawQty, 'g');
-          const deductQty = normalizedQty.value * (Number(item.quantity) || 1);
-          console.log(`[stockAutomation] Recipe deduct: ingredient=${rec.ingredient_id}, unit=${normalizedQty.value}${normalizedQty.unit}, itemQty=${item.quantity}, total=${deductQty}`);
-          logs.push({
-            ingredient_id: rec.ingredient_id,
-            type: 'order_consumption',
-            quantity: deductQty,
-            reason: `Reseptli satış — Sifariş #${orderId.slice(0, 8)}`,
-          });
-        }
-      }
-    }
-  }
+  logs.push(...plan.logs);
 
   console.log('[stockAutomation] Logs to insert:', JSON.stringify(logs, null, 2));
 

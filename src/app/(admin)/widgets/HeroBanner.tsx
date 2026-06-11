@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -108,7 +109,7 @@ export default function HeroBanner() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl bg-[var(--theme-surface)] p-4 sm:p-6 lg:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.08)] border border-[var(--theme-border)]"
+      className="relative overflow-hidden rounded-[36px] border border-white/[0.10] bg-[linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.04))] p-4 sm:p-6 lg:p-8 shadow-[0_28px_90px_rgba(0,0,0,0.20)] backdrop-blur-3xl"
     >
       {/* Animated gradient backgrounds */}
       <div className="absolute inset-0 overflow-hidden">
@@ -118,22 +119,22 @@ export default function HeroBanner() {
           className="absolute -top-20 -right-20 w-96 h-96 bg-gold/8 rounded-full blur-[110px]"
         />
         <motion.div
-          animate={{ x: [0, -20, 0], y: [0, 30, 0], opacity: [0.2, 0.4, 0.2] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute -bottom-20 -left-20 w-80 h-80 bg-sky-400/10 rounded-full blur-[90px]"
+          animate={{ x: [0, -18, 0], y: [0, 22, 0], opacity: [0.16, 0.34, 0.16] }}
+          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          className="absolute -bottom-24 -left-24 w-[22rem] h-[22rem] bg-gradient-to-tr from-sky-400/18 via-cyan-400/10 to-transparent rounded-full blur-[100px]"
         />
       </div>
 
       <div className="relative z-10 p-4 md:p-8">
         {/* Minimal Header - Always visible */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between gap-4 rounded-[28px] border border-white/[0.10] bg-white/[0.05] px-4 py-3 shadow-[0_10px_34px_rgba(0,0,0,0.12)] backdrop-blur-2xl mb-2">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1, duration: 0.5 }}
             className="flex items-center gap-2"
           >
-            <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-gold/60">
+            <span className="text-[10px] font-bold tracking-[0.35em] uppercase text-gold/70">
               {t('dashboard')}
             </span>
             <Sparkles size={12} className="text-gold/40" />
@@ -143,7 +144,7 @@ export default function HeroBanner() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="text-2xl md:text-3xl font-serif font-bold text-[var(--theme-text)]"
+              className="text-2xl md:text-3xl font-serif font-bold text-[var(--theme-text)] tracking-tight"
             >
               {greeting}{userName ? `, ${userName}` : ''}
             </motion.h1>
@@ -151,7 +152,7 @@ export default function HeroBanner() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.5 }}
-              className="text-[var(--theme-text-secondary)] text-sm mt-1"
+              className="text-[var(--theme-text-secondary)] text-sm mt-1 max-w-xl"
             >
               {t('restaurant_running_smoothly')}
             </motion.p>
@@ -159,7 +160,7 @@ export default function HeroBanner() {
         </div>
 
         {/* Revenue Section - Monolith - Always visible */}
-        <div className="mt-8 pt-6">
+        <div className="rounded-[28px] border border-white/[0.10] bg-white/[0.04] p-4 md:p-6 backdrop-blur-2xl shadow-[0_20px_58px_rgba(0,0,0,0.14)]">
           {/* Top: Revenue + sparkline */}
           <div className="relative mb-6">
             <div className="flex items-center justify-between mb-3">
@@ -246,8 +247,8 @@ export default function HeroBanner() {
           )}
 
           {/* Bottom: 3-col Stats */}
-          <div className="grid grid-cols-3">
-            <div className="p-4">
+          <div className="grid grid-cols-3 divide-x divide-white/[0.06] overflow-hidden rounded-[24px] border border-white/[0.06] bg-white/[0.03]">
+            <div className="p-4 md:p-5 transition-colors duration-300 hover:bg-white/[0.03]">
               <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-[var(--theme-text-muted)] block mb-2 leading-relaxed">
                 {t('today_orders')}
               </span>
@@ -286,7 +287,7 @@ export default function HeroBanner() {
               </div>
             </div>
             
-            <div className="p-4">
+            <div className="p-4 md:p-5 transition-colors duration-300 hover:bg-white/[0.03]">
               <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-white/30 block mb-2 leading-relaxed">
                 {t('active_tables')}
               </span>
@@ -325,7 +326,7 @@ export default function HeroBanner() {
               </div>
             </div>
             
-            <div className="p-4">
+            <div className="p-4 md:p-5 transition-colors duration-300 hover:bg-white/[0.03]">
               <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-white/30 block mb-2 leading-relaxed">
                 {t('todays_favorite')}
               </span>

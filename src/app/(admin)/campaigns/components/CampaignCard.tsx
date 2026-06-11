@@ -45,7 +45,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         whileTap={{ scale: 0.978 }}
         onClick={() => onEdit(camp)}
 
-        className={`md:hidden relative overflow-hidden rounded-3xl cursor-pointer border ${isActive ? 'bg-[var(--theme-panel)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}
+        className={`md:hidden relative overflow-hidden rounded-[28px] cursor-pointer border backdrop-blur-2xl shadow-[0_16px_44px_rgba(0,0,0,0.16)] transition-all duration-300 ${isActive ? 'bg-white/[0.06] border-white/[0.12]' : 'bg-white/[0.04] border-white/[0.08]'}`}
       >
         {isActive && (
           <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
@@ -129,12 +129,12 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         whileHover={{ y: -4, boxShadow: '0 18px 42px rgba(0,0,0,0.35)' }}
         transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         onClick={() => onEdit(camp)}
-        className="hidden md:block bg-[var(--theme-panel)] backdrop-blur-sm border border-[var(--theme-border)] rounded-[20px] p-6 md:p-7 relative group transition-all overflow-hidden cursor-pointer shadow-[0_4px_32px_rgba(0,0,0,0.35)]"
+        className="hidden md:block relative group overflow-hidden cursor-pointer rounded-[24px] border border-white/[0.10] bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-6 md:p-7 shadow-[0_20px_56px_rgba(0,0,0,0.20)] backdrop-blur-2xl transition-all duration-300"
       >
         <div className="absolute top-4 right-4 z-10">
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
-            className="w-10 h-10 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center hover:bg-red-500/15 hover:border-red-500/40 text-[var(--theme-text-secondary)] hover:text-red-500 transition-colors"
+            className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-[var(--theme-text-secondary)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-red-500/15 hover:border-red-500/40 hover:text-red-500"
             title={t('delete_campaign')}
           >
             <Trash2 size={18} />
@@ -142,7 +142,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         </div>
 
         <div className="flex items-start gap-4 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-gold flex-shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-gold flex-shrink-0 shadow-[0_10px_24px_rgba(0,0,0,0.14)]">
             <Icon size={22} strokeWidth={1.5} />
           </div>
           <div className="pr-12 flex-1 min-w-0">

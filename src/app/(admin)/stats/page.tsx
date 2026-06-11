@@ -47,12 +47,14 @@ const StatsPage = () => {
       cancelPeakHours: {} as Record<string, { hour: number; count: number }[]>,
       totalFoodCost: 0, totalWasteCost: 0, grossProfit: 0, netProfit: 0,
       foodCostPct: 0, topProfitableItems: [] as any[], financeChartData: [] as any[],
+      marginPulse: 'healthy',
     };
     try {
       const r = localStorage.getItem('saito_stats_cache_v4_today');
       if (!r) return empty;
       const parsed = JSON.parse(r);
       if (!Array.isArray(parsed.peakHours)) return empty;
+      if (typeof parsed.marginPulse !== 'string') parsed.marginPulse = 'healthy';
       return parsed;
     } catch {
       return empty;
@@ -272,6 +274,7 @@ const StatsPage = () => {
         grossProfit: data.grossProfit ?? 0,
         netProfit: data.netProfit ?? 0,
         foodCostPct: data.foodCostPct ?? 0,
+        marginPulse: data.marginPulse ?? 'healthy',
         topProfitableItems: data.topProfitableItems ?? [],
         financeChartData: data.financeChartData ?? [],
       };

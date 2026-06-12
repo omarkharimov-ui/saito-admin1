@@ -21,20 +21,29 @@ export async function POST(request: NextRequest) {
       `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${from_table}&status=neq.paid&select=id,table_number,total_amount,guest_count,merged_into`,
       { headers }
     );
+    if (!primaryRes.ok) {
+      const err = await primaryRes.text();
+      return NextResponse.json({ error: `Failed to fetch source orders: ${err}` }, { status: 500 });
+    }
     const primaryOrders = await primaryRes.json();
-    let sourceOrders = primaryOrders || [];
+    if (!Array.isArray(primaryOrders)) {
+      return NextResponse.json({ error: 'Unexpected response fetching source orders' }, { status: 500 });
+    }
+    let sourceOrders = [...primaryOrders];
 
     // Also find child orders (merged_into = one of the primary order IDs)
-    const primaryIds = (primaryOrders || []).map((o: any) => o.id);
+    const primaryIds = primaryOrders.map((o: any) => o.id);
     if (primaryIds.length > 0) {
       const childFilter = primaryIds.map((id: string) => `merged_into.eq.${id}`).join(',');
       const childRes = await fetch(
         `${SUPABASE_URL}/rest/v1/orders?or=(${childFilter})&status=neq.paid&select=id,table_number,total_amount,guest_count,merged_into`,
         { headers }
       );
-      const childOrders = await childRes.json();
-      if (childOrders?.length) {
-        sourceOrders = [...sourceOrders, ...childOrders];
+      if (childRes.ok) {
+        const childOrders = await childRes.json();
+        if (Array.isArray(childOrders) && childOrders.length > 0) {
+          sourceOrders = [...sourceOrders, ...childOrders];
+        }
       }
     }
 
@@ -47,8 +56,12 @@ export async function POST(request: NextRequest) {
       `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${to_table}&status=neq.paid&select=id,total_amount,guest_count`,
       { headers }
     );
+    if (!targetRes.ok) {
+      const err = await targetRes.text();
+      return NextResponse.json({ error: `Failed to fetch target table orders: ${err}` }, { status: 500 });
+    }
     const targetOrders = await targetRes.json();
-    const hasTargetOrder = targetOrders?.length > 0;
+    const hasTargetOrder = Array.isArray(targetOrders) && targetOrders.length > 0;
 
     // Move all orders to target table
     const movedIds: string[] = [];
@@ -84,7 +97,7 @@ export async function POST(request: NextRequest) {
     // If target already has an order, merge totals into it
     if (hasTargetOrder && targetOrders[0]) {
       const primary = targetOrders[0];
-      await fetch(
+      const mergeRes = await fetch(
         `${SUPABASE_URL}/rest/v1/orders?id=eq.${primary.id}`,
         {
           headers: { ...headers, 'Prefer': 'return=minimal' },
@@ -98,6 +111,10 @@ export async function POST(request: NextRequest) {
           }),
         }
       );
+      if (!mergeRes.ok) {
+        const err = await mergeRes.text();
+        return NextResponse.json({ error: `Failed to merge totals into target order: ${err}` }, { status: 500 });
+      }
     }
 
     return NextResponse.json({

@@ -25,9 +25,16 @@ export async function POST(request: NextRequest) {
       `${SUPABASE_URL}/rest/v1/orders?or=(${sourceFilter})&status=neq.paid&select=id,table_number,total_amount,guest_count`,
       { headers }
     );
+    if (!sourceOrdersRes.ok) {
+      const err = await sourceOrdersRes.text();
+      return NextResponse.json({ error: `Failed to fetch source orders: ${err}` }, { status: 500 });
+    }
     const sourceOrders = await sourceOrdersRes.json();
+    if (!Array.isArray(sourceOrders)) {
+      return NextResponse.json({ error: 'Unexpected response fetching source orders' }, { status: 500 });
+    }
 
-    if (!sourceOrders?.length) {
+    if (sourceOrders.length === 0) {
       // All tables empty — nothing to merge, but not an error
       return NextResponse.json({ success: true, undo: null, message: 'no orders to merge' });
     }
@@ -37,8 +44,15 @@ export async function POST(request: NextRequest) {
       `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&select=id,total_amount,guest_count`,
       { headers }
     );
+    if (!targetOrdersRes.ok) {
+      const err = await targetOrdersRes.text();
+      return NextResponse.json({ error: `Failed to fetch target order: ${err}` }, { status: 500 });
+    }
     const targetOrders = await targetOrdersRes.json();
-    const primaryOrder = targetOrders?.[0];
+    if (!Array.isArray(targetOrders)) {
+      return NextResponse.json({ error: 'Unexpected response fetching target order' }, { status: 500 });
+    }
+    const primaryOrder = targetOrders[0];
 
     let extraTotal = 0;
 
@@ -46,7 +60,7 @@ export async function POST(request: NextRequest) {
       // Move source orders to target table + mark as merged
       for (const src of sourceOrders) {
         extraTotal += Number(src.total_amount || 0);
-        await fetch(
+        const patchRes = await fetch(
           `${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`,
           {
             method: 'PATCH',
@@ -57,10 +71,14 @@ export async function POST(request: NextRequest) {
             }),
           }
         );
+        if (!patchRes.ok) {
+          const err = await patchRes.text();
+          return NextResponse.json({ error: `Failed to merge order ${src.id}: ${err}` }, { status: 500 });
+        }
       }
 
       // Update primary order total, reset kitchen status
-      await fetch(
+      const primaryPatchRes = await fetch(
         `${SUPABASE_URL}/rest/v1/orders?id=eq.${primaryOrder.id}`,
         {
           method: 'PATCH',
@@ -74,10 +92,14 @@ export async function POST(request: NextRequest) {
           }),
         }
       );
+      if (!primaryPatchRes.ok) {
+        const err = await primaryPatchRes.text();
+        return NextResponse.json({ error: `Failed to update primary order: ${err}` }, { status: 500 });
+      }
     } else {
       // No primary order exists — just move all source orders to target table
       for (const src of sourceOrders) {
-        await fetch(
+        const patchRes = await fetch(
           `${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`,
           {
             method: 'PATCH',
@@ -85,6 +107,10 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({ table_number: targetTable }),
           }
         );
+        if (!patchRes.ok) {
+          const err = await patchRes.text();
+          return NextResponse.json({ error: `Failed to move order ${src.id}: ${err}` }, { status: 500 });
+        }
       }
     }
 

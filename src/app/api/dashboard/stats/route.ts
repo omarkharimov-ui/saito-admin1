@@ -31,10 +31,10 @@ export async function GET() {
         .select('product_id, product_name, quantity, unit_price, total_price, order:orders!inner(created_at, status)')
         .eq('order.status', 'paid')
         .gte('order.created_at', iso),
-      supabase.from('ingredients').select('id, average_cost_per_unit'),
+      supabase.from('ingredients').select('id, name, unit, current_stock, theoretical_stock, average_cost_per_unit, cold_waste_percentage'),
       supabase.from('recipes').select('menu_item_id, ingredient_id, quantity_required'),
       supabase.from('inventory_logs')
-        .select('quantity, cost_per_unit, ingredient_id')
+        .select('id, quantity, cost_per_unit, ingredient_id')
         .in('type', ['waste', 'adjustment'])
         .gte('created_at', iso),
       supabase.from('inventory_status')
@@ -95,11 +95,14 @@ export async function GET() {
       status: i.status,
     }));
 
-    const calibrationSuggestions = calculateCalibrationSuggestions({
+    const allCalibrationSuggestions = calculateCalibrationSuggestions({
       ingredients: (ingredients ?? []) as any,
       recipes: (recipes ?? []) as any,
       logs: (wasteLogs ?? []) as any,
     });
+    const calibrationSuggestions = allCalibrationSuggestions.filter(
+      (s: any) => s.severity === 'warning' || s.severity === 'critical'
+    );
 
     const marginInsight = calculateMarginInsight({
       revenue: dailyRevenue,

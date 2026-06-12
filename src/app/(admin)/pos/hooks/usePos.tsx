@@ -259,6 +259,7 @@ export function usePos() {
       fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
+      throw e;
     }
   }, [clearCart, backToFloor, fetchData]);
 
@@ -297,6 +298,55 @@ export function usePos() {
     }
   }, [backToFloor, fetchData, t]);
 
+  /* ── Undo stack ── */
+  const undoStackRef = useRef<{ action: string; data: any; message: string }[]>([]);
+
+  const showUndo = useCallback((undoAction: string, undoData: any, message: string) => {
+    undoStackRef.current.push({ action: undoAction, data: undoData, message });
+    const timeout = setTimeout(() => {
+      undoStackRef.current = undoStackRef.current.filter(u => u.data !== undoData);
+    }, 10000);
+    toast(
+      (t: any) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span>{message}</span>
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              clearTimeout(timeout);
+              undoStackRef.current = undoStackRef.current.filter(u => u.data !== undoData);
+              try {
+                const res = await fetch('/api/orders/undo', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: undoAction, data: undoData }),
+                });
+                if (!res.ok) throw new Error((await res.json()).error);
+                toast.success('Geri alındı');
+                fetchData();
+              } catch (e: any) {
+                toast.error(e.message || 'Geri alma xətası');
+              }
+            }}
+            style={{
+              padding: '4px 12px',
+              borderRadius: 6,
+              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.1)',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Geri al
+          </button>
+        </div>
+      ),
+      { duration: 10000 }
+    );
+  }, [fetchData]);
+
   /* ── Transfer Table ── */
   const transferTable = useCallback(async (fromTable: number, toTable: number) => {
     try {
@@ -305,13 +355,14 @@ export function usePos() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from_table: fromTable, to_table: toTable }),
       });
-      if (!res.ok) throw new Error((await res.json()).error);
-      toast.success(`Masa ${fromTable} → Masa ${toTable} köçürüldü`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (data.undo) showUndo('transfer', data.undo, `Masa ${fromTable} → Masa ${toTable}`);
       fetchData();
     } catch (e: any) {
       toast.error(e.message);
     }
-  }, [fetchData]);
+  }, [fetchData, showUndo]);
 
   /* ── Merge Tables ── */
   const mergeTables = useCallback(async (tableNumbers: number[]) => {
@@ -322,13 +373,14 @@ export function usePos() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_numbers: tableNumbers }),
       });
-      if (!res.ok) throw new Error((await res.json()).error);
-      toast.success(`Masalar ${tableNumbers.join(' + ')} birləşdirildi`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (data.undo) showUndo('merge', data.undo, `Masalar ${tableNumbers.join(' + ')} birləşdirildi`);
       fetchData();
     } catch (e: any) {
       toast.error(e.message);
     }
-  }, [fetchData]);
+  }, [fetchData, showUndo]);
 
   return {
     language, tables, floors, products, categories, loading,

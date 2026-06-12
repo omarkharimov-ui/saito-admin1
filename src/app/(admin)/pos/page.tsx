@@ -182,7 +182,45 @@ export default function POSPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Masa ${actionSheetTable.table_number} ayrıldı`);
+      if (data.undo) {
+        const timeout = setTimeout(() => {}, 10000);
+        toast(
+          (t: any) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span>Masa {actionSheetTable.table_number} ayrıldı</span>
+              <button
+                onClick={async () => {
+                  toast.dismiss(t.id);
+                  clearTimeout(timeout);
+                  try {
+                    const uRes = await fetch('/api/orders/undo', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'split', data: data.undo }),
+                    });
+                    if (!uRes.ok) throw new Error((await uRes.json()).error);
+                    toast.success('Geri alındı');
+                    pos.fetchData();
+                  } catch (e: any) {
+                    toast.error(e.message || 'Geri alma xətası');
+                  }
+                }}
+                style={{
+                  padding: '4px 12px', borderRadius: 6,
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'rgba(255,255,255,0.1)',
+                  color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                }}
+              >
+                Geri al
+              </button>
+            </div>
+          ),
+          { duration: 10000 }
+        );
+      } else {
+        toast.success(`Masa ${actionSheetTable.table_number} ayrıldı`);
+      }
       pos.fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');

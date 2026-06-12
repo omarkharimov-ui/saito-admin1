@@ -44,7 +44,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, moved_orders: orderIds.length });
+    return NextResponse.json({
+      success: true,
+      moved_orders: orderIds.length,
+      undo: { orderIds, from_table, to_table },
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
     };
     if (tip_amount !== undefined) updateData.tip_amount = tip_amount;
 
+    // Update primary order to paid
     const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order_id}`, {
       method: 'PATCH',
       headers,
@@ -50,22 +51,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
     }
 
+    // Also mark child orders (merged_into = order_id) as paid
     if (order.table_number) {
-      const { data: children } = await (
-        await fetch(`${SUPABASE_URL}/rest/v1/orders?select=id&merged_into=eq.${order_id}`, { headers })
-      ).json().catch(() => ({ data: [] }));
-
-      if (children && children.length > 0) {
-        const childIds = children.map((c: { id: string }) => c.id);
-        await Promise.all([
-          fetch(`${SUPABASE_URL}/rest/v1/order_items?order_id=in.(${childIds.join(',')})`, { method: 'DELETE', headers }).catch(() => {}),
-          fetch(`${SUPABASE_URL}/rest/v1/orders?id=in.(${childIds.join(',')})`, { method: 'DELETE', headers }).catch(() => {}),
-        ]);
+      const childrenRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/orders?select=id&merged_into=eq.${order_id}`,
+        { headers }
+      );
+      const children = await childrenRes.json();
+      if (children?.length) {
+        for (const child of children) {
+          await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${child.id}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ status: 'paid', kitchen_status: null }),
+          });
+        }
       }
     }
 
     // ═══ STOCK DEDUCTION ═══
-    // Sifariş ödənildi — avtomatik stokdan ingredient-ləri azalt
     try {
       await deductStockForOrder(order_id);
     } catch (stockErr) {

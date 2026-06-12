@@ -94,8 +94,13 @@ export function calculateMarginInsight(params: {
   const netMarginPct = revenue > 0 ? (netMargin / revenue) * 100 : 0;
 
   let marginPressure: StockMarginInsight['marginPressure'] = 'healthy';
-  if (netMarginPct < 15 || foodCostPct > 45) marginPressure = 'critical';
-  else if (netMarginPct < 25 || foodCostPct > 35) marginPressure = 'tight';
+  if (revenue <= 0) {
+    marginPressure = 'healthy';
+  } else if (netMarginPct < 15 || foodCostPct > 45) {
+    marginPressure = 'critical';
+  } else if (netMarginPct < 25 || foodCostPct > 35) {
+    marginPressure = 'tight';
+  }
 
   return {
     revenue,

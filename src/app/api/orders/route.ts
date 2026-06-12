@@ -57,31 +57,86 @@ export async function GET() {
   }
 }
 
-// Sifariş yarat/güncələ/sil
+// Sifariş yarat (order + order_items), güncəl, sil
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { action, data, id } = body;
 
-    let url = `${SUPABASE_URL}/rest/v1/orders`;
-    let method = 'POST';
-    
-    if (action === 'update') {
+    // ── Update / Delete ──
+    if (action === 'update' || action === 'delete') {
+      let url = `${SUPABASE_URL}/rest/v1/orders`;
+      let method = 'PATCH';
+      if (action === 'delete') method = 'DELETE';
       url += `?id=eq.${id}`;
-      method = 'PATCH';
-    } else if (action === 'delete') {
-      url += `?id=eq.${id}`;
-      method = 'DELETE';
+
+      const res = await fetch(url, {
+        method,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: action !== 'delete' ? JSON.stringify(data) : undefined,
+      });
+      const result = await res.json();
+      return NextResponse.json(result);
     }
 
-    const res = await fetch(url, {
-      method,
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: action !== 'delete' ? JSON.stringify(data) : undefined,
+    // ── Create (POS-dan gələn sifariş) ──
+    const { table_number, total_amount, status, order_type, guest_count, customer_note, items, source } = body;
+
+    if (!table_number || !items?.length) {
+      return NextResponse.json({ error: 'table_number and items required' }, { status: 400 });
+    }
+
+    // 1) Order yarat
+    const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify({
+        table_number,
+        total_amount: total_amount || items.reduce((s: number, i: any) => s + i.total_price, 0),
+        status: status || 'confirmed',
+        order_type: order_type || 'dine_in',
+        guest_count: guest_count || 1,
+        customer_note: customer_note || null,
+        // source column does not exist in orders table
+      }),
     });
 
-    const result = await res.json();
-    return NextResponse.json(result);
+    if (!orderRes.ok) {
+      const errText = await orderRes.text();
+      return NextResponse.json({ error: `Order creation failed: ${errText}` }, { status: 500 });
+    }
+
+    const [newOrder] = await orderRes.json();
+    if (!newOrder?.id) {
+      return NextResponse.json({ error: 'Order created without ID' }, { status: 500 });
+    }
+
+    // 2) Order_items yarat
+    const orderItems = items.map((item: any) => ({
+      order_id: newOrder.id,
+      product_id: item.product_id,
+      variant_id: item.variant_id || null,
+      product_name: item.product_name || null,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total_price: item.total_price || (item.unit_price * item.quantity),
+      modifiers: typeof item.modifiers === 'string' ? item.modifiers : JSON.stringify(item.modifiers || []),
+      special_notes: item.special_notes || null,
+    }));
+
+    for (const oi of orderItems) {
+      const itemRes = await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(oi),
+      });
+      if (!itemRes.ok) {
+        const errText = await itemRes.text();
+        console.error('[API /orders] Failed to create order_item:', errText);
+      }
+    }
+
+    return NextResponse.json({ success: true, order: newOrder });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

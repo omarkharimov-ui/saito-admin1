@@ -215,16 +215,31 @@ export default function StockPage() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, boolean>>({});
   const calibrationSuggestions = useMemo(() => {
-    return (data?.alerts ?? []).map((alert: any) => ({
-      ingredient_id: alert.ingredient_id,
-      ingredient_name: alert.ingredient?.name ?? alert.ingredient_name ?? 'Ingredient',
-      suggested_adjustment_pct: alert.variance_pct ?? 0,
-      confidence: Math.min(0.95, Math.max(0.35, Math.abs(alert.variance_pct ?? 0) / 100)),
-      reason: alert.reason ?? 'Stock variance detected',
-      actual_stock: Number(alert.current_stock ?? 0),
-      theoretical_stock: Number(alert.theoretical_stock ?? 0),
-    }));
-  }, [data?.alerts]);
+    return (data?.items ?? [])
+      .filter((item: any) => {
+        const theoretical = Number(item.theoretical_stock) || 0;
+        const actual = Number(item.current_stock) || 0;
+        if (theoretical === 0) return false;
+        const variancePct = Math.abs((actual - theoretical) / theoretical) * 100;
+        return variancePct >= 10;
+      })
+      .map((item: any) => {
+        const theoretical = Number(item.theoretical_stock) || 0;
+        const actual = Number(item.current_stock) || 0;
+        const variance = actual - theoretical;
+        const variancePct = theoretical > 0 ? (variance / theoretical) * 100 : 0;
+        const severity = Math.abs(variancePct) >= 25 ? 'critical' : 'warning';
+        return {
+          ingredient_id: item.id,
+          ingredient_name: item.name,
+          suggested_adjustment_pct: Math.abs(Math.round(variancePct * 10) / 10),
+          confidence: Math.min(0.95, Math.max(0.35, Math.abs(variancePct) / 100)),
+          reason: severity === 'critical' ? 'Critical stock variance detected' : 'Stock variance needs review',
+          actual_stock: actual,
+          theoretical_stock: theoretical,
+        };
+      });
+  }, [data?.items]);
 
   const monthPickerRef = useRef<HTMLDivElement>(null);
 

@@ -121,7 +121,6 @@ export async function POST(request: Request) {
       unit_price: item.unit_price,
       total_price: item.total_price || (item.unit_price * item.quantity),
       modifiers: typeof item.modifiers === 'string' ? item.modifiers : JSON.stringify(item.modifiers || []),
-      special_notes: item.special_notes || null,
     }));
 
     for (const oi of orderItems) {
@@ -132,7 +131,8 @@ export async function POST(request: Request) {
       });
       if (!itemRes.ok) {
         const errText = await itemRes.text();
-        console.error('[API /orders] Failed to create order_item:', errText);
+        await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${newOrder.id}`, { method: 'DELETE', headers });
+        return NextResponse.json({ error: `Order item creation failed: ${errText}` }, { status: 500 });
       }
     }
 

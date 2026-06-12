@@ -39,12 +39,22 @@ export async function GET() {
       ordersByTable[o.table_number].push(o);
     }
 
-    // Build merge parent → children map
+    // Build merge parent → children maps
+    // Order-level: orders whose merged_into points to a parent order
     const parentMap: Record<string, { id: string; table_number: number }[]> = {};
     for (const o of orders) {
       if (o.merged_into) {
         if (!parentMap[o.merged_into]) parentMap[o.merged_into] = [];
         parentMap[o.merged_into].push({ id: o.id, table_number: o.table_number });
+      }
+    }
+    // Table-level: tables whose merged_into_table points to a parent table
+    const parentTableMap: Record<number, number[]> = {};
+    for (const f of floors) {
+      if (f.merged_into_table) {
+        const parent = f.merged_into_table;
+        if (!parentTableMap[parent]) parentTableMap[parent] = [];
+        parentTableMap[parent].push(f.table_number);
       }
     }
 
@@ -65,10 +75,16 @@ export async function GET() {
       const hasWaitingBill = activeOrders.some(o => o.kitchen_status === 'ready');
       const oldestOrder = activeOrders.length > 0 ? activeOrders[activeOrders.length - 1] : null;
 
+      // Check if table has merged_into_table set (table-level merge, even without orders)
+      const tableLevelMergedInto = f.merged_into_table || null;
+
       // Check if all active orders on this table are child orders (merged into another)
       const allMerged = activeOrders.length > 0 && activeOrders.every(o => childOrderIds.has(o.id));
 
-      // Find parent order IDs that THIS table's children are merged into
+      // Determine if this table is a merged child (either via orders or via table-level tracking)
+      const isMergedChild = allMerged || (tableLevelMergedInto != null && activeOrders.length === 0);
+
+      // Find parent table number
       let mergedIntoTable: number | null = null;
       if (allMerged) {
         const parentId = activeOrders[0]?.merged_into;
@@ -76,11 +92,13 @@ export async function GET() {
           const parentOrder = orders.find(o => o.id === parentId);
           if (parentOrder) mergedIntoTable = parentOrder.table_number;
         }
+      } else if (tableLevelMergedInto != null && activeOrders.length === 0) {
+        mergedIntoTable = tableLevelMergedInto;
       }
 
       let status: string;
-      if (activeOrders.length === 0) status = 'empty';
-      else if (allMerged) status = 'merged';
+      if (isMergedChild) status = 'merged';
+      else if (activeOrders.length === 0) status = 'empty';
       else if (hasWaitingBill) status = 'waiting_bill';
       else if (hasCooking) status = 'cooking';
       else status = 'active';
@@ -96,7 +114,6 @@ export async function GET() {
         const children = parentMap[o.id];
         if (children) {
           mergedOrders.push(...children);
-          // Add child totals to this table's display total
           for (const child of children) {
             const childOrder = orders.find(or => or.id === child.id);
             if (childOrder) {
@@ -104,6 +121,15 @@ export async function GET() {
               childGuests += Number(childOrder.guest_count || 0);
             }
           }
+        }
+      }
+      // Also include table-level children (tables with merged_into_table pointing to this table)
+      const tableChildren = parentTableMap[f.table_number] || [];
+      for (const childTableNum of tableChildren) {
+        // Check if not already included via order-level merge
+        const alreadyIncluded = mergedOrders.some(m => m.table_number === childTableNum);
+        if (!alreadyIncluded) {
+          mergedOrders.push({ id: `table_${childTableNum}`, table_number: childTableNum });
         }
       }
 

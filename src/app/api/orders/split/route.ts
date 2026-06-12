@@ -81,6 +81,17 @@ export async function POST(request: NextRequest) {
           }),
         }
       );
+
+      // Also clear table-level merged_into_table on the child's original table
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${child.table_number}`,
+        {
+          method: 'PATCH',
+          headers: { ...headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ merged_into_table: null }),
+        }
+      );
+
       moved++;
     }
 

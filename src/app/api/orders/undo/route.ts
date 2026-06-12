@@ -18,43 +18,58 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'merge': {
-        // data: { sourceOrders, targetTable }
-        // Undo merge: clear merged_into on source orders, recalc parent total
-        const { sourceOrders, targetTable } = data;
-        if (!sourceOrders?.length) {
-          return NextResponse.json({ error: 'No source orders to undo' }, { status: 400 });
-        }
-        // Find parent order on target table to update its total
-        const parentRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&select=id,total_amount`,
-          { headers }
-        );
-        const parentOrders = await parentRes.json();
-        const parentOrder = Array.isArray(parentOrders) ? parentOrders[0] : null;
+        // data: { sourceOrders, sourceTableNumbers, targetTable }
+        // Undo merge: clear merged_into on source orders, clear merged_into_table on source table_floors, recalc parent total
+        const { sourceOrders, sourceTableNumbers, targetTable } = data;
 
-        for (const src of sourceOrders) {
-          await fetch(
-            `${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`,
-            {
-              method: 'PATCH',
-              headers: { ...headers, 'Prefer': 'return=minimal' },
-              body: JSON.stringify({ merged_into: null }),
-            }
-          );
+        // Clear table-level merged_into_table on source tables
+        if (sourceTableNumbers?.length) {
+          for (const tableNum of sourceTableNumbers) {
+            await fetch(
+              `${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tableNum}`,
+              {
+                method: 'PATCH',
+                headers: { ...headers, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ merged_into_table: null }),
+              }
+            );
+          }
         }
 
-        // Subtract child totals from parent
-        if (parentOrder) {
-          const childTotal = sourceOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
-          const newTotal = Math.max(0, Number(parentOrder.total_amount || 0) - childTotal);
-          await fetch(
-            `${SUPABASE_URL}/rest/v1/orders?id=eq.${parentOrder.id}`,
-            {
-              method: 'PATCH',
-              headers: { ...headers, 'Prefer': 'return=minimal' },
-              body: JSON.stringify({ total_amount: newTotal }),
-            }
+        // Clear order-level merged_into on source orders
+        if (sourceOrders?.length) {
+          // Find parent order on target table to update its total
+          const parentRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&select=id,total_amount`,
+            { headers }
           );
+          const parentOrders = await parentRes.json();
+          const parentOrder = Array.isArray(parentOrders) ? parentOrders[0] : null;
+
+          for (const src of sourceOrders) {
+            await fetch(
+              `${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`,
+              {
+                method: 'PATCH',
+                headers: { ...headers, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ merged_into: null }),
+              }
+            );
+          }
+
+          // Subtract child totals from parent
+          if (parentOrder) {
+            const childTotal = sourceOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
+            const newTotal = Math.max(0, Number(parentOrder.total_amount || 0) - childTotal);
+            await fetch(
+              `${SUPABASE_URL}/rest/v1/orders?id=eq.${parentOrder.id}`,
+              {
+                method: 'PATCH',
+                headers: { ...headers, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ total_amount: newTotal }),
+              }
+            );
+          }
         }
 
         return NextResponse.json({ success: true });

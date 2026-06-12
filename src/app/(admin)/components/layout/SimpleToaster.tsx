@@ -51,7 +51,11 @@ export default function SimpleToaster() {
                 {t.type === 'error' && (
                   <span style={{ color: '#f87171', fontSize: 14 }}>✕</span>
                 )}
-                <span>{typeof t.message === 'string' ? t.message : ''}</span>
+                <span>
+                  {typeof t.message === 'function'
+                    ? (t.message as (t: any) => React.ReactNode)(t)
+                    : t.message as React.ReactNode}
+                </span>
               </div>
             </motion.div>
           ))}

@@ -39,7 +39,7 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
   const isMerged = (table.merged_orders && table.merged_orders.length > 0) || false;
   const visible = actions.filter(a => {
     if (a.id === 'close_bill') return isOccupied && table.total_amount > 0;
-    if (a.id === 'merge' || a.id === 'transfer') return isOccupied;
+    if (a.id === 'merge' || a.id === 'transfer') return true;
     if (a.id === 'split') return isMerged; // unmerge
     if (a.id === 'print' || a.id === 'save_draft') return false; // non-functional
     return true;

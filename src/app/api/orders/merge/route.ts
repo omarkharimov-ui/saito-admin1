@@ -26,8 +26,10 @@ export async function POST(request: NextRequest) {
       { headers }
     );
     const sourceOrders = await sourceOrdersRes.json();
+
     if (!sourceOrders?.length) {
-      return NextResponse.json({ error: 'No active orders found on source tables' }, { status: 400 });
+      // All tables empty — nothing to merge, but not an error
+      return NextResponse.json({ success: true, undo: null, message: 'no orders to merge' });
     }
 
     // Get primary target order

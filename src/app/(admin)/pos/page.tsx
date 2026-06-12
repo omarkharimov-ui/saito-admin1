@@ -286,28 +286,26 @@ export default function POSPage() {
                         {selectedForMerge.length} masanı birləşdir
                       </button>
                     )}
-                    {(activeFloor?.tables ?? []).some(t => t.status !== 'empty') && (
-                      <>
-                        <button onClick={() => { setMergeMode(!mergeMode); setSelectedForMerge([]); }}
-                          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
-                            mergeMode
-                              ? lightMode ? 'bg-blue-50 border border-blue-200 text-blue-700 shadow-sm' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
-                              : lightMode
-                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
-                                : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
-                          }`}>Birləşdir</button>
-                        <button onClick={() => { setTransferMode(!transferMode); setTransferSource(null); }}
-                          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
-                            transferMode
-                              ? lightMode ? 'bg-violet-50 border border-violet-200 text-violet-700 shadow-sm' : 'bg-violet-500/10 border border-violet-500/20 text-violet-300'
-                              : lightMode
-                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
-                                : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
-                          }`}>
-                          {transferMode ? (transferSource ? `Masa ${transferSource} → ?` : 'Mənbə seç') : 'Köçür'}
-                        </button>
-                      </>
-                    )}
+                    <>
+                      <button onClick={() => { setMergeMode(!mergeMode); setSelectedForMerge([]); }}
+                        className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
+                          mergeMode
+                            ? lightMode ? 'bg-blue-50 border border-blue-200 text-blue-700 shadow-sm' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                            : lightMode
+                              ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
+                              : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
+                        }`}>Birləşdir</button>
+                      <button onClick={() => { setTransferMode(!transferMode); setTransferSource(null); }}
+                        className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
+                          transferMode
+                            ? lightMode ? 'bg-violet-50 border border-violet-200 text-violet-700 shadow-sm' : 'bg-violet-500/10 border border-violet-500/20 text-violet-300'
+                            : lightMode
+                              ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
+                              : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
+                        }`}>
+                        {transferMode ? (transferSource ? `Masa ${transferSource} → ?` : 'Mənbə seç') : 'Köçür'}
+                      </button>
+                    </>
                   </div>
                 </div>
               </div>

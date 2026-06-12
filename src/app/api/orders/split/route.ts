@@ -15,9 +15,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'table_number required' }, { status: 400 });
     }
 
-    // Find child orders (merged_into IS NOT NULL) on this table
+    // Find primary order on this table first
+    const parentRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${table_number}&status=neq.paid&merged_into=is.null&select=id,total_amount,guest_count`,
+      { headers }
+    );
+    if (!parentRes.ok) {
+      const errText = await parentRes.text();
+      return NextResponse.json({ error: `Fetch failed: ${errText}` }, { status: 500 });
+    }
+    const parentOrders: { id: string; total_amount: number; guest_count: number }[] = await parentRes.json();
+    const primaryOrder = parentOrders?.[0];
+    if (!primaryOrder) {
+      return NextResponse.json({ error: 'No primary order found on this table' }, { status: 400 });
+    }
+
+    // Find child orders (merged_into = primary order id) across all tables
     const childRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${table_number}&status=neq.paid&merged_into=not.is.null&select=id,table_number,total_amount,merged_into`,
+      `${SUPABASE_URL}/rest/v1/orders?merged_into=eq.${primaryOrder.id}&status=neq.paid&select=id,table_number,total_amount,merged_into`,
       { headers }
     );
     if (!childRes.ok) {
@@ -26,16 +41,11 @@ export async function POST(request: NextRequest) {
     }
     const children: { id: string; table_number: number; total_amount: number; merged_into: string }[] = await childRes.json();
     if (!children.length) {
-      return NextResponse.json({ error: 'No merged child orders found on this table' }, { status: 400 });
+      return NextResponse.json({ error: 'No merged child orders found' }, { status: 400 });
     }
 
-    // Get primary order
-    const parentId = children[0].merged_into;
-    const parentRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/orders?id=eq.${parentId}&select=id,total_amount,guest_count`,
-      { headers }
-    );
-    const [parentOrder] = await parentRes.json();
+    const parentId = primaryOrder.id;
+    const parentTotal = Number(primaryOrder.total_amount || 0);
 
     // Find next available empty table numbers
     const allTablesRes = await fetch(
@@ -74,19 +84,17 @@ export async function POST(request: NextRequest) {
       moved++;
     }
 
-    // Recalculate primary order total and guest count (subtract moved orders)
-    if (parentOrder) {
-      const childTotal = children.reduce((s, c) => s + Number(c.total_amount || 0), 0);
-      const newTotal = Math.max(0, Number(parentOrder.total_amount || 0) - childTotal);
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/orders?id=eq.${parentId}`,
-        {
-          method: 'PATCH',
-          headers: { ...headers, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ total_amount: newTotal }),
-        }
-      );
-    }
+    // Recalculate primary order total (subtract moved orders)
+    const childTotal = children.reduce((s, c) => s + Number(c.total_amount || 0), 0);
+    const newTotal = Math.max(0, parentTotal - childTotal);
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/orders?id=eq.${parentId}`,
+      {
+        method: 'PATCH',
+        headers: { ...headers, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ total_amount: newTotal }),
+      }
+    );
 
     const undoData = {
       childOrderIds: children.map(c => c.id),

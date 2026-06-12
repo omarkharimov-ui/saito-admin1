@@ -35,10 +35,10 @@ export async function POST(request: NextRequest) {
     const primaryIds = primaryOrders.map((o: any) => o.id);
     if (primaryIds.length > 0) {
       const childFilter = primaryIds.map((id: string) => `merged_into.eq.${id}`).join(',');
-      const childRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/orders?or=(${childFilter})&status=neq.paid&select=id,table_number,total_amount,guest_count,merged_into`,
-        { headers }
-      );
+      const childUrl = primaryIds.length === 1
+        ? `${SUPABASE_URL}/rest/v1/orders?merged_into=eq.${primaryIds[0]}&status=neq.paid&select=id,table_number,total_amount,guest_count,merged_into`
+        : `${SUPABASE_URL}/rest/v1/orders?or=(${childFilter})&status=neq.paid&select=id,table_number,total_amount,guest_count,merged_into`;
+      const childRes = await fetch(childUrl, { headers });
       if (childRes.ok) {
         const childOrders = await childRes.json();
         if (Array.isArray(childOrders) && childOrders.length > 0) {

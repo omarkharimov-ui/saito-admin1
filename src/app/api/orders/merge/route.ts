@@ -21,10 +21,10 @@ export async function POST(request: NextRequest) {
 
     // Get source orders (from rest tables)
     const sourceFilter = restTables.map((t: number) => `table_number.eq.${t}`).join(',');
-    const sourceOrdersRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/orders?or=(${sourceFilter})&status=neq.paid&select=id,table_number,total_amount,guest_count`,
-      { headers }
-    );
+    const sourceUrl = restTables.length === 1
+      ? `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${restTables[0]}&status=neq.paid&select=id,table_number,total_amount,guest_count`
+      : `${SUPABASE_URL}/rest/v1/orders?or=(${sourceFilter})&status=neq.paid&select=id,table_number,total_amount,guest_count`;
+    const sourceOrdersRes = await fetch(sourceUrl, { headers });
     if (!sourceOrdersRes.ok) {
       const err = await sourceOrdersRes.text();
       return NextResponse.json({ error: `Failed to fetch source orders: ${err}` }, { status: 500 });
@@ -55,18 +55,19 @@ export async function POST(request: NextRequest) {
     const primaryOrder = targetOrders[0];
 
     let extraTotal = 0;
+    let extraGuests = 0;
 
     if (primaryOrder) {
-      // Move source orders to target table + mark as merged
+      // Mark source orders as merged (don't move table_number)
       for (const src of sourceOrders) {
         extraTotal += Number(src.total_amount || 0);
+        extraGuests += Number(src.guest_count || 0);
         const patchRes = await fetch(
           `${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`,
           {
             method: 'PATCH',
             headers: { ...headers, 'Prefer': 'return=minimal' },
             body: JSON.stringify({
-              table_number: targetTable,
               merged_into: primaryOrder.id,
             }),
           }
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
           headers: { ...headers, 'Prefer': 'return=minimal' },
           body: JSON.stringify({
             total_amount: Number(primaryOrder.total_amount || 0) + extraTotal,
-            guest_count: Number(primaryOrder.guest_count || 1) + sourceOrders.reduce((s: number, o: any) => s + Number(o.guest_count || 0), 0),
+            guest_count: Number(primaryOrder.guest_count || 1) + extraGuests,
             kitchen_status: 'pending',
             is_rush: false,
             kitchen_accepted_at: null,
@@ -97,25 +98,50 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `Failed to update primary order: ${err}` }, { status: 500 });
       }
     } else {
-      // No primary order exists — just move all source orders to target table
-      for (const src of sourceOrders) {
+      // No primary order exists — make first source order the primary, mark rest as merged
+      const newPrimary = sourceOrders[0];
+      for (let i = 1; i < sourceOrders.length; i++) {
+        const src = sourceOrders[i];
+        extraTotal += Number(src.total_amount || 0);
+        extraGuests += Number(src.guest_count || 0);
         const patchRes = await fetch(
           `${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`,
           {
             method: 'PATCH',
             headers: { ...headers, 'Prefer': 'return=minimal' },
-            body: JSON.stringify({ table_number: targetTable }),
+            body: JSON.stringify({
+              merged_into: newPrimary.id,
+            }),
           }
         );
         if (!patchRes.ok) {
           const err = await patchRes.text();
-          return NextResponse.json({ error: `Failed to move order ${src.id}: ${err}` }, { status: 500 });
+          return NextResponse.json({ error: `Failed to merge order ${src.id}: ${err}` }, { status: 500 });
         }
+      }
+      // Update new primary order total
+      const primaryPatchRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/orders?id=eq.${newPrimary.id}`,
+        {
+          method: 'PATCH',
+          headers: { ...headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            total_amount: Number(newPrimary.total_amount || 0) + extraTotal,
+            guest_count: Number(newPrimary.guest_count || 1) + extraGuests,
+            kitchen_status: 'pending',
+            is_rush: false,
+            kitchen_accepted_at: null,
+          }),
+        }
+      );
+      if (!primaryPatchRes.ok) {
+        const err = await primaryPatchRes.text();
+        return NextResponse.json({ error: `Failed to update primary order: ${err}` }, { status: 500 });
       }
     }
 
     const undoData = {
-      sourceOrders: sourceOrders.map((o: any) => ({ id: o.id, original_table: o.original_table || o.table_number })),
+      sourceOrders: sourceOrders.map((o: any) => ({ id: o.id, original_table: o.table_number })),
       targetTable,
     };
     return NextResponse.json({ success: true, undo: undoData });

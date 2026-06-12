@@ -44,6 +44,7 @@ export interface PosTable {
   status: TableStatus;
   total_amount: number;
   merged_orders?: unknown[] | null;
+  merged_into_table?: number | null;
   last_activity_at?: string | null;
   opened_at?: string | null;
   order_count?: number | null;
@@ -52,7 +53,7 @@ export interface PosTable {
   sort_order?: number | null;
 }
 
-export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | string;
+export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'merged' | string;
 
 export interface FloorConfig {
   id: string;

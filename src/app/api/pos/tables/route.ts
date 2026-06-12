@@ -50,18 +50,37 @@ export async function GET() {
 
     const floorMap: Record<string, { name: string; tables: any[] }> = {};
 
+    // First pass: detect which order IDs are children (merged_into set)
+    const childOrderIds = new Set<string>();
+    for (const o of orders) {
+      if (o.merged_into) childOrderIds.add(o.id);
+    }
+
     for (const f of floors) {
       const fn = f.floor_name || 'Main';
       if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [] };
       const tableOrders = ordersByTable[f.table_number] || [];
       const activeOrders = tableOrders.filter(o => o.status !== 'paid' && o.status !== 'cancelled');
-      const totalAmount = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
       const hasCooking = activeOrders.some(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing');
       const hasWaitingBill = activeOrders.some(o => o.kitchen_status === 'ready');
       const oldestOrder = activeOrders.length > 0 ? activeOrders[activeOrders.length - 1] : null;
 
+      // Check if all active orders on this table are child orders (merged into another)
+      const allMerged = activeOrders.length > 0 && activeOrders.every(o => childOrderIds.has(o.id));
+
+      // Find parent order IDs that THIS table's children are merged into
+      let mergedIntoTable: number | null = null;
+      if (allMerged) {
+        const parentId = activeOrders[0]?.merged_into;
+        if (parentId) {
+          const parentOrder = orders.find(o => o.id === parentId);
+          if (parentOrder) mergedIntoTable = parentOrder.table_number;
+        }
+      }
+
       let status: string;
       if (activeOrders.length === 0) status = 'empty';
+      else if (allMerged) status = 'merged';
       else if (hasWaitingBill) status = 'waiting_bill';
       else if (hasCooking) status = 'cooking';
       else status = 'active';
@@ -69,12 +88,29 @@ export async function GET() {
       // Skip table_number 0 (placeholder rows for empty floors)
       if (f.table_number === 0) continue;
 
-      // Collect merged children for this table
+      // Collect merged children for this table (orders whose merged_into points to an order on THIS table)
       const mergedOrders: { id: string; table_number: number }[] = [];
+      let childTotal = 0;
+      let childGuests = 0;
       for (const o of activeOrders) {
         const children = parentMap[o.id];
-        if (children) mergedOrders.push(...children);
+        if (children) {
+          mergedOrders.push(...children);
+          // Add child totals to this table's display total
+          for (const child of children) {
+            const childOrder = orders.find(or => or.id === child.id);
+            if (childOrder) {
+              childTotal += Number(childOrder.total_amount || 0);
+              childGuests += Number(childOrder.guest_count || 0);
+            }
+          }
+        }
       }
+
+      // For merged (child) tables, only show table number and merged indicator
+      // For parent tables, include child totals
+      const totalAmount = allMerged ? 0 : activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+      const guestCount = allMerged ? 0 : (activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0));
 
       floorMap[fn].tables.push({
         id: f.id,
@@ -82,12 +118,13 @@ export async function GET() {
         floor_name: f.floor_name,
         sort_order: f.sort_order,
         status,
-        guest_count: activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0),
+        guest_count: guestCount + childGuests,
         opened_at: oldestOrder?.created_at || null,
-        total_amount: totalAmount,
-        order_count: activeOrders.length,
-        order_ids: activeOrders.map(o => o.id),
+        total_amount: totalAmount + childTotal,
+        order_count: allMerged ? 0 : activeOrders.length,
+        order_ids: allMerged ? [] : activeOrders.map(o => o.id),
         merged_orders: mergedOrders.length > 0 ? mergedOrders : undefined,
+        merged_into_table: mergedIntoTable,
       });
     }
 

@@ -18,8 +18,8 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'merge': {
-        // data: { targetTable, sourceOrderIds }
-        // Undo merge: move source orders back to original tables
+        // data: { sourceOrders, targetTable }
+        // Undo merge: clear merged_into on source orders, recalc parent total
         const { sourceOrders } = data;
         if (!sourceOrders?.length) {
           return NextResponse.json({ error: 'No source orders to undo' }, { status: 400 });
@@ -30,10 +30,7 @@ export async function POST(request: NextRequest) {
             {
               method: 'PATCH',
               headers: { ...headers, 'Prefer': 'return=minimal' },
-              body: JSON.stringify({
-                table_number: src.original_table,
-                merged_into: null,
-              }),
+              body: JSON.stringify({ merged_into: null }),
             }
           );
         }

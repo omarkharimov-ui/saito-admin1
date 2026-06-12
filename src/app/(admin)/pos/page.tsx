@@ -130,6 +130,7 @@ export default function POSPage() {
   /* ── Table actions ── */
   const handleTableTap = useCallback((table: PosTable) => {
     if (mergeMode) {
+      if (table.status === 'merged') return; // can't select already-merged tables
       if (selectedForMerge.includes(table.table_number)) {
         setSelectedForMerge(prev => prev.filter(n => n !== table.table_number));
       } else {
@@ -138,6 +139,7 @@ export default function POSPage() {
       return;
     }
     if (transferMode) {
+      if (table.status === 'merged') return;
       if (transferSource === null) {
         setTransferSource(table.table_number);
       } else if (table.table_number === transferSource) {
@@ -149,6 +151,7 @@ export default function POSPage() {
       }
       return;
     }
+    if (table.status === 'merged') return; // can't open merged table
     // Direct: tap table → go to order view
     pos.selectTable(table);
   }, [mergeMode, selectedForMerge, transferMode, transferSource, pos]);
@@ -171,6 +174,16 @@ export default function POSPage() {
       setActionSheetTable(null);
     }
   }, [actionSheetTable, openPayment]);
+
+  const handleActionMerge = useCallback(() => {
+    if (actionSheetTable) {
+      setMergeMode(true);
+      setSelectedForMerge([actionSheetTable.table_number]);
+      pos.setActiveView('floor');
+      setActionSheetOpen(false);
+      setActionSheetTable(null);
+    }
+  }, [actionSheetTable, pos]);
 
   const handleSplitTable = useCallback(async () => {
     if (!actionSheetTable) return;
@@ -474,7 +487,7 @@ export default function POSPage() {
         open={actionSheetOpen}
         onClose={() => { setActionSheetOpen(false); setActionSheetTable(null); }}
         onAddOrder={handleActionAddOrder}
-        onMerge={() => { setMergeMode(true); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); }}
+        onMerge={handleActionMerge}
         onTransfer={() => { setTransferMode(true); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); }}
         onSplitBill={handleSplitTable}
         onCloseBill={handleActionCloseBill}

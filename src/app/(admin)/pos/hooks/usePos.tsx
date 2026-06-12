@@ -380,7 +380,11 @@ export function usePos() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      if (data.undo) showUndo('merge', data.undo, `Masalar ${tableNumbers.join(' + ')} birləşdirildi`);
+      if (data.undo) {
+        showUndo('merge', data.undo, `Masalar ${tableNumbers.join(' + ')} birləşdirildi`);
+      } else {
+        toast.success(`Masalar ${tableNumbers.join(' + ')} birləşdirildi`);
+      }
       fetchData();
     } catch (e: any) {
       toast.error(e.message);

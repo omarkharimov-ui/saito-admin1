@@ -20,10 +20,18 @@ export async function POST(request: NextRequest) {
       case 'merge': {
         // data: { sourceOrders, targetTable }
         // Undo merge: clear merged_into on source orders, recalc parent total
-        const { sourceOrders } = data;
+        const { sourceOrders, targetTable } = data;
         if (!sourceOrders?.length) {
           return NextResponse.json({ error: 'No source orders to undo' }, { status: 400 });
         }
+        // Find parent order on target table to update its total
+        const parentRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&select=id,total_amount`,
+          { headers }
+        );
+        const parentOrders = await parentRes.json();
+        const parentOrder = Array.isArray(parentOrders) ? parentOrders[0] : null;
+
         for (const src of sourceOrders) {
           await fetch(
             `${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`,
@@ -34,6 +42,21 @@ export async function POST(request: NextRequest) {
             }
           );
         }
+
+        // Subtract child totals from parent
+        if (parentOrder) {
+          const childTotal = sourceOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
+          const newTotal = Math.max(0, Number(parentOrder.total_amount || 0) - childTotal);
+          await fetch(
+            `${SUPABASE_URL}/rest/v1/orders?id=eq.${parentOrder.id}`,
+            {
+              method: 'PATCH',
+              headers: { ...headers, 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ total_amount: newTotal }),
+            }
+          );
+        }
+
         return NextResponse.json({ success: true });
       }
 

@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     const undoData = {
-      sourceOrders: sourceOrders.map((o: any) => ({ id: o.id, original_table: o.table_number })),
+      sourceOrders: sourceOrders.map((o: any) => ({ id: o.id, original_table: o.table_number, total_amount: o.total_amount })),
       targetTable,
     };
     return NextResponse.json({ success: true, undo: undoData });

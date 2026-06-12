@@ -137,6 +137,12 @@ export function usePos() {
   }, []);
 
   const backToFloor = useCallback(() => {
+    const currentCart = cartRef.current;
+    if (currentCart?.items.length) {
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      all[currentCart.table_number] = currentCart;
+      saveCache(POS_CART_KEY + '_all', all);
+    }
     setSelectedTable(null);
     setActiveView('floor');
     setCart(null);

@@ -249,24 +249,35 @@ export default function POSPage() {
                           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:bg-[var(--theme-panel)] shadow-sm">
                           {selectedFloorName} <ChevronDown size={14} className={`transition-transform ${floorDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
-                        {floorDropdownOpen && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setFloorDropdownOpen(false)} />
-                            <div className="absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-xl">
-                              {pos.floors.map(f => (
-                                <button key={f.name}
-                                  onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
-                                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                                    f.name === selectedFloorName
-                                      ? 'bg-[var(--theme-accent)] text-black'
-                                      : 'text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)]'
-                                  }`}>
-                                  {f.name}
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
+                        <AnimatePresence>
+                          {floorDropdownOpen && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setFloorDropdownOpen(false)} />
+                              <motion.div
+                                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                className="absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-xl origin-top-left"
+                              >
+                                {pos.floors.map(f => (
+                                  <motion.button
+                                    key={f.name}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
+                                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                      f.name === selectedFloorName
+                                        ? 'bg-[var(--theme-accent)] text-black'
+                                        : 'text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)]'
+                                    }`}>
+                                    {f.name}
+                                  </motion.button>
+                                ))}
+                              </motion.div>
+                            </>
+                          )}
+                        </AnimatePresence>
                       </div>
                     )}
                   </div>
@@ -323,18 +334,27 @@ export default function POSPage() {
                     ))}
                   </div>
                 ) : activeFloor ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
-                    {(activeFloor.tables ?? []).map(table => (
-                      <TableCard
-                        key={table.table_number}
-                        table={table}
-                        onTap={() => handleTableTap(table)}
-                        onAction={() => handleTableAction(table)}
-                        isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
-                        isTransferSource={transferMode && transferSource === table.table_number}
-                      />
-                    ))}
-                  </div>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={selectedFloor || 'default'}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+                      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3"
+                    >
+                      {(activeFloor.tables ?? []).map(table => (
+                        <TableCard
+                          key={table.table_number}
+                          table={table}
+                          onTap={() => handleTableTap(table)}
+                          onAction={() => handleTableAction(table)}
+                          isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
+                          isTransferSource={transferMode && transferSource === table.table_number}
+                        />
+                      ))}
+                    </motion.div>
+                  </AnimatePresence>
                 ) : (
                   <div className={`flex items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/20'}`}>
                     <p className="text-sm">Mərtəbə tapılmadı</p>

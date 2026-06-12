@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { deductStockForOrder } from '@/lib/stockAutomation';
 import type {
   PosProduct,
   PosTable,
@@ -280,7 +279,7 @@ export function usePos() {
 
       if (!res.ok) throw new Error((await res.json()).error || 'Payment failed');
 
-      await deductStockForOrder(orderId);
+      // Stock deduction is handled server-side in /api/orders/pay — do NOT call again here
 
       const recipeRes = await fetch(`/api/orders/${orderId}/recipes`);
       if (recipeRes.ok) {

@@ -39,6 +39,7 @@ export default function POSPage() {
   const [floorDropdownOpen, setFloorDropdownOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const posRef = useRef<HTMLDivElement>(null);
+  const orderTabTouchedRef = useRef(false);
 
   /* ── Payment modal ── */
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -195,45 +196,7 @@ export default function POSPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      if (data.undo) {
-        const timeout = setTimeout(() => {}, 10000);
-        toast(
-          (t: any) => (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span>Masa {actionSheetTable.table_number} ayrıldı</span>
-              <button
-                onClick={async () => {
-                  toast.dismiss(t.id);
-                  clearTimeout(timeout);
-                  try {
-                    const uRes = await fetch('/api/orders/undo', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ action: 'split', data: data.undo }),
-                    });
-                    if (!uRes.ok) throw new Error((await uRes.json()).error);
-                    toast.success('Geri alındı');
-                    pos.fetchData();
-                  } catch (e: any) {
-                    toast.error(e.message || 'Geri alma xətası');
-                  }
-                }}
-                style={{
-                  padding: '4px 12px', borderRadius: 6,
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  background: 'rgba(255,255,255,0.1)',
-                  color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                }}
-              >
-                Geri al
-              </button>
-            </div>
-          ),
-          { duration: 10000 }
-        );
-      } else {
-        toast.success(`Masa ${actionSheetTable.table_number} ayrıldı`);
-      }
+      toast.success(`Masa ${actionSheetTable.table_number} ayrıldı`);
       pos.fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
@@ -395,15 +358,21 @@ export default function POSPage() {
                 />
               </div>
               <div className={`w-full md:w-[360px] xl:w-[400px] h-full md:max-h-full border-t md:border-t-0 md:border-l p-4 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'border-gray-200 bg-gray-50/50' : 'border-white/[0.06] bg-neutral-950/50'}`}>
-                <CartPanel
-                  cart={pos.cart}
-                  onUpdateQty={pos.updateCartItemQty}
-                  onRemove={pos.removeCartItem}
-                  onPlaceOrder={handlePlaceOrder}
-                  onClear={pos.clearCart}
-                  onBack={pos.backToFloor}
-                  orderButtonStatus={orderButtonStatus}
-                />
+                  <CartPanel
+                    cart={pos.cart}
+                    onUpdateQty={pos.updateCartItemQty}
+                    onRemove={pos.removeCartItem}
+                    onPlaceOrder={handlePlaceOrder}
+                    onClear={pos.clearCart}
+                    onBack={pos.backToFloor}
+                    orderButtonStatus={orderButtonStatus}
+                    onUpdateGuests={(delta: number) => {
+                      const c = pos.cart;
+                      if (!c) return;
+                      const newCount = Math.max(1, c.guest_count + delta);
+                      pos.setCart({ ...c, guest_count: newCount });
+                    }}
+                  />
               </div>
             </motion.div>
           )}
@@ -442,7 +411,7 @@ export default function POSPage() {
                       <div className="flex items-center gap-3">
                         <span className={`text-lg font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{table.total_amount.toFixed(2)} ₼</span>
                         <button onClick={() => openPayment(table.table_number, table.total_amount, table.order_ids ?? [])}
-                          className={`px-4 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700 hover:bg-amber-700 shadow-sm' : 'bg-gold/10 border border-gold/20 text-gold hover:bg-gold/20'}`}>
+                          className={`px-4 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700 hover:bg-amber-700 shadow-sm' : 'bg-white text-black border border-zinc-600 hover:bg-zinc-100'}`}>
                           Ödə
                         </button>
                       </div>
@@ -466,6 +435,10 @@ export default function POSPage() {
                 key={tab.id}
                 onClick={() => {
                   if (tab.id === 'order' && !pos.selectedTable) {
+                    if (orderTabTouchedRef.current) {
+                      toast.error('Əvvəlcə masa seçin');
+                    }
+                    orderTabTouchedRef.current = true;
                     pos.setActiveView('floor');
                   } else {
                     pos.setActiveView(tab.id);

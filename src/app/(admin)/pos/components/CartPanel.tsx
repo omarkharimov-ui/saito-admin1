@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, Trash2, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingBag, ArrowLeft, Users } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosCart } from '../types/shared';
@@ -15,11 +15,12 @@ interface CartPanelProps {
   onClear: () => void;
   onBack: () => void;
   orderButtonStatus: SendOrderButtonStatus;
+  onUpdateGuests?: (delta: number) => void;
 }
 
 export function CartPanel({
   cart, onUpdateQty, onRemove, onPlaceOrder,
-  onClear, onBack, orderButtonStatus,
+  onClear, onBack, orderButtonStatus, onUpdateGuests,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -47,7 +48,26 @@ export function CartPanel({
           </button>
           <div>
             <p className="text-lg font-bold text-[var(--theme-text)]">Masa {cart.table_number}</p>
-            <p className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} məhsul · {cart.guest_count} nəfər</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} məhsul</span>
+              <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
+              <div className="flex items-center gap-1">
+                <Users size={10} className="text-[var(--theme-text-secondary)]" />
+                {onUpdateGuests && (
+                  <button onClick={e => { e.stopPropagation(); onUpdateGuests(-1); }}
+                    className="w-4 h-4 rounded flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-[10px] font-bold leading-none">
+                    −
+                  </button>
+                )}
+                <span className="text-xs font-bold tabular-nums text-[var(--theme-text)]">{cart.guest_count}</span>
+                {onUpdateGuests && (
+                  <button onClick={e => { e.stopPropagation(); onUpdateGuests(1); }}
+                    className="w-4 h-4 rounded flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-[10px] font-bold leading-none">
+                    +
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         {!isEmpty && (

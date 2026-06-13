@@ -77,13 +77,9 @@ export function TableCard({
       onClick={onTap}
       className={`relative flex flex-col rounded-3xl p-4 text-left transition-all duration-200 ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isGroupParent ? 'pb-12' : ''}`}
     >
-      {/* Pulse for waiting */}
+      {/* Static subtle glow for waiting bill — no pulse */}
       {table.status === 'waiting_bill' && (
-        <motion.span
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className={`absolute inset-0 rounded-2xl pointer-events-none ${lightMode ? 'bg-amber-100/50' : 'bg-amber-400/5'}`}
-        />
+        <span className={`absolute inset-0 rounded-2xl pointer-events-none ${lightMode ? 'bg-amber-100/40' : 'bg-amber-400/[0.04]'}`} />
       )}
 
       {/* Header row: number + status + merge indicator */}
@@ -158,8 +154,7 @@ export function TableCard({
       {isGroupParent && (
         <div className={`absolute bottom-0 left-0 w-full px-4 py-2.5 rounded-b-3xl backdrop-blur-md border-t ${lightMode ? 'bg-zinc-100/80 border-zinc-200' : 'bg-zinc-900/60 border-zinc-800'}`}>
           <div className={`flex items-center gap-1.5 truncate ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
-            <GitMerge size={12} className="shrink-0" />
-            <span className="text-[10px] font-medium truncate">{allMergedNumbers.map(n => `M${n}`).join(' + ')} birləşib</span>
+            <span className="text-[10px] font-medium truncate">Qrup {table.table_number}</span>
           </div>
         </div>
       )}

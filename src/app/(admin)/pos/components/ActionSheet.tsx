@@ -22,13 +22,13 @@ interface ActionSheetProps {
 }
 
 const actions = [
-  { id: 'add_order', icon: Plus, label: 'Sifariş', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', lightColor: 'text-emerald-600', lightBg: 'bg-emerald-50', lightBorder: 'border-emerald-200' },
-  { id: 'merge', icon: Merge, label: 'Birləşdir', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', lightColor: 'text-blue-600', lightBg: 'bg-blue-50', lightBorder: 'border-blue-200' },
-  { id: 'transfer', icon: Move, label: 'Köçür', color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', lightColor: 'text-violet-600', lightBg: 'bg-violet-50', lightBorder: 'border-violet-200' },
-  { id: 'split', icon: Split, label: 'Böl', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', lightColor: 'text-amber-600', lightBg: 'bg-amber-50', lightBorder: 'border-amber-200' },
-  { id: 'close_bill', icon: CreditCard, label: 'Hesab', color: 'text-gold', bg: 'bg-amber-500/10', border: 'border-amber-500/20', lightColor: 'text-amber-700', lightBg: 'bg-amber-50', lightBorder: 'border-amber-200' },
-  { id: 'print', icon: Printer, label: 'Çap · soon', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' },
-  { id: 'save_draft', icon: Save, label: 'Saxla · soon', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]', border: 'border-[var(--theme-border)]', lightColor: 'text-gray-500', lightBg: 'bg-gray-100', lightBorder: 'border-gray-200' }
+  { id: 'add_order', icon: Plus, label: 'Sifariş' },
+  { id: 'merge', icon: Merge, label: 'Birləşdir' },
+  { id: 'transfer', icon: Move, label: 'Köçür' },
+  { id: 'split', icon: Split, label: 'Böl' },
+  { id: 'close_bill', icon: CreditCard, label: 'Hesab' },
+  { id: 'print', icon: Printer, label: 'Çap · soon' },
+  { id: 'save_draft', icon: Save, label: 'Saxla · soon' }
 ];
 
 export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft }: ActionSheetProps) {
@@ -96,9 +96,13 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                           if (fn) fn();
                           onClose();
                         }}
-                        className={`flex flex-col items-center gap-1.5 p-3.5 rounded-[1.25rem] border transition-all ${lightMode ? action.lightBg : action.bg} ${lightMode ? action.lightBorder : action.border} shadow-sm`}
+                        className={`flex flex-col items-center gap-1.5 p-3.5 rounded-[1.25rem] border transition-all ${
+                          lightMode
+                            ? 'bg-zinc-100 border-zinc-200'
+                            : 'bg-zinc-800/40 border-zinc-700/30'
+                        } shadow-sm hover:brightness-110`}
                       >
-                        <Icon size={20} className="text-[var(--theme-accent)]" />
+                        <Icon size={20} className={`${lightMode ? 'text-zinc-600' : 'text-zinc-300'}`} />
                         <span className="text-[9px] font-bold tracking-wider uppercase text-[var(--theme-text-secondary)] text-center leading-none">{action.label}</span>
                       </motion.button>
                     );

@@ -61,13 +61,17 @@ export function TableCard({
   const isOccupied = table.status !== 'empty';
   const isMerged = table.status === 'merged';
 
+  const mergedChildNumbers: number[] = (table.merged_orders as any[])?.map(m => m.table_number) ?? [];
+  const hasMergedChildren = mergedChildNumbers.length > 0;
+  const isGroupParent = hasMergedChildren;
+
   return (
     <motion.button
       layout
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative flex flex-col rounded-3xl border p-4 text-left transition-all duration-200 ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? cfg.lightBorder : cfg.border} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${isMerged ? '' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''}`}
+      className={`relative flex flex-col rounded-3xl p-4 text-left transition-all duration-200 ${lightMode ? cfg.lightBg : cfg.bg} ${isGroupParent ? 'border-dashed' : ''} ${lightMode ? (isGroupParent ? 'border-2 border-blue-400/40' : cfg.lightBorder) : (isGroupParent ? 'border-2 border-blue-500/30' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : isGroupParent ? 'shadow-[0_0_25px_rgba(96,165,250,0.06)]' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''}`}
     >
       {/* Pulse for waiting */}
       {table.status === 'waiting_bill' && (
@@ -84,6 +88,12 @@ export function TableCard({
           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
             {table.table_number}
           </div>
+          {/* Merged children badge */}
+          {isGroupParent && (
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold ${lightMode ? 'bg-blue-100/60 text-blue-600' : 'bg-blue-500/10 text-blue-300'}`}>
+              <span className="tabular-nums">+{mergedChildNumbers.join(', ')}</span>
+            </div>
+          )}
           <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/70' : cfg.bg}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
             {cfg.label}
@@ -116,23 +126,40 @@ export function TableCard({
       </div>
 
       {/* Info (hidden for merged child tables) */}
-      {isOccupied && !isMerged && (
-        <div className="space-y-1.5 mt-0.5">
-          <div className={`flex items-center gap-2.5 ${lightMode ? 'text-gray-500' : 'text-white/45'}`}>
-            <div className="flex items-center gap-1.5">
-              <Users size={11} />
-              <span className="text-[11px] font-medium tabular-nums">{table.guest_count}</span>
+      {!isMerged && (
+        <div className="mt-0.5">
+          {isOccupied && (
+            <div className="space-y-1.5">
+              <div className={`flex items-center gap-2.5 ${lightMode ? 'text-gray-500' : 'text-white/45'}`}>
+                <div className="flex items-center gap-1.5">
+                  <Users size={11} />
+                  <span className="text-[11px] font-medium tabular-nums">{table.guest_count}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Clock size={11} />
+                  <span className="text-[11px] font-medium tabular-nums">{timeSince(table.opened_at ?? null)}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Utensils size={11} />
+                  <span className="text-[11px] font-medium tabular-nums">{table.order_count}</span>
+                </div>
+              </div>
+              <div className={`text-sm font-black tabular-nums ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{table.total_amount.toFixed(2)} ₼</div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Clock size={11} />
-              <span className="text-[11px] font-medium tabular-nums">{timeSince(table.opened_at ?? null)}</span>
+          )}
+          {/* Group info for parent */}
+          {isGroupParent && (
+            <div className={`mt-1.5 flex items-center gap-1.5 ${lightMode ? 'text-blue-500' : 'text-blue-400/60'}`}>
+              <span className="text-[9px] uppercase tracking-[0.12em] font-semibold">
+                {mergedChildNumbers.length} Masa Birləşib
+              </span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Utensils size={11} />
-              <span className="text-[11px] font-medium tabular-nums">{table.order_count}</span>
+          )}
+          {!isOccupied && !isGroupParent && (
+            <div className="py-3 flex items-center justify-center">
+              <span className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${lightMode ? 'text-gray-400' : 'text-white/20'}`}>Boş</span>
             </div>
-          </div>
-          <div className={`text-sm font-black tabular-nums ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{table.total_amount.toFixed(2)} ₼</div>
+          )}
         </div>
       )}
 
@@ -148,13 +175,6 @@ export function TableCard({
               Birləşdi
             </span>
           </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!isOccupied && !isMerged && (
-        <div className="py-3 flex items-center justify-center">
-          <span className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${lightMode ? 'text-gray-400' : 'text-white/20'}`}>Boş</span>
         </div>
       )}
     </motion.button>

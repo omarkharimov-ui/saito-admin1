@@ -96,10 +96,16 @@ export async function GET() {
         mergedIntoTable = tableLevelMergedInto;
       }
 
+      // Determine if this table has table-level merged children
+      const tableChildren = parentTableMap[f.table_number] || [];
+
       let status: string;
       if (isMergedChild) status = 'merged';
-      else if (activeOrders.length === 0) status = 'empty';
-      else if (hasWaitingBill) status = 'waiting_bill';
+      else if (activeOrders.length === 0 && tableChildren.length === 0) status = 'empty';
+      else if (activeOrders.length === 0 && tableChildren.length > 0) {
+        // Parent is empty but has merged children → inherit status from children
+        status = 'active';
+      } else if (hasWaitingBill) status = 'waiting_bill';
       else if (hasCooking) status = 'cooking';
       else status = 'active';
 
@@ -124,7 +130,6 @@ export async function GET() {
         }
       }
       // Also include table-level children (tables with merged_into_table pointing to this table)
-      const tableChildren = parentTableMap[f.table_number] || [];
       for (const childTableNum of tableChildren) {
         // Check if not already included via order-level merge
         const alreadyIncluded = mergedOrders.some(m => m.table_number === childTableNum);

@@ -7,14 +7,14 @@ import type { PosTable } from '../types/shared';
 
 const statusConfig: Record<string, { label: string; dot: string; bg: string; border: string; text: string; glow: string; lightBg: string; lightBorder: string; lightText: string }> = {
   empty: {
-    label: 'Boş', dot: 'bg-zinc-600', bg: 'bg-[#121214]', border: 'border-zinc-900',
-    text: 'text-zinc-500', glow: '',
-    lightBg: 'bg-zinc-50/50', lightBorder: 'border-zinc-200', lightText: 'text-zinc-400',
+    label: 'Boş', dot: 'bg-zinc-500', bg: 'bg-[#131316]', border: 'border-zinc-800',
+    text: 'text-zinc-400', glow: '',
+    lightBg: 'bg-zinc-50', lightBorder: 'border-zinc-200', lightText: 'text-zinc-400',
   },
   active: {
-    label: 'Aktiv', dot: 'bg-indigo-400', bg: 'bg-indigo-500/5', border: 'border-indigo-500/20',
-    text: 'text-indigo-300', glow: 'shadow-[0_0_15px_rgba(99,102,241,0.05)]',
-    lightBg: 'bg-indigo-50/70', lightBorder: 'border-indigo-200', lightText: 'text-indigo-700',
+    label: 'Aktiv', dot: 'bg-blue-400', bg: 'bg-blue-500/5', border: 'border-blue-500/30',
+    text: 'text-blue-300', glow: 'shadow-[0_0_20px_rgba(59,130,246,0.1)]',
+    lightBg: 'bg-blue-50/70', lightBorder: 'border-blue-200', lightText: 'text-blue-700',
   },
   waiting_bill: {
     label: 'Hesab', dot: 'bg-amber-400', bg: 'bg-amber-500/5', border: 'border-amber-500/25',
@@ -75,7 +75,7 @@ export function TableCard({
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative flex flex-col rounded-3xl p-4 text-left transition-all duration-200 ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''}`}
+      className={`relative flex flex-col rounded-3xl p-4 text-left transition-all duration-200 ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isGroupParent ? 'pb-12' : ''}`}
     >
       {/* Pulse for waiting */}
       {table.status === 'waiting_bill' && (
@@ -89,7 +89,7 @@ export function TableCard({
       {/* Header row: number + status + merge indicator */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : table.status === 'empty' ? (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.03] text-zinc-500') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : table.status === 'empty' ? (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/60') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
             {table.table_number}
           </div>
           <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/70' : cfg.bg}`}>
@@ -133,7 +133,7 @@ export function TableCard({
           )}
           {!isOccupied && !isGroupParent && (
             <div className="py-3 flex items-center justify-center">
-              <span className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${lightMode ? 'text-gray-400' : 'text-zinc-500'}`}>Boş</span>
+              <span className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${lightMode ? 'text-gray-400' : 'text-zinc-400'}`}>Boş</span>
             </div>
           )}
         </div>
@@ -154,12 +154,12 @@ export function TableCard({
         </div>
       )}
 
-      {/* Glassmorphism footer for merged parent */}
+      {/* Glassmorphism footer for merged parent — absolute, won't stretch card */}
       {isGroupParent && (
-        <div className={`mt-3 -mx-4 -mb-4 px-4 py-2.5 rounded-b-3xl backdrop-blur-md border-t ${lightMode ? 'bg-zinc-100/80 border-zinc-200' : 'bg-zinc-900/60 border-zinc-800'}`}>
-          <div className={`flex items-center gap-1.5 ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
-            <GitMerge size={12} />
-            <span className="text-[10px] font-medium">{allMergedNumbers.map(n => `M${n}`).join(' + ')} birləşib</span>
+        <div className={`absolute bottom-0 left-0 w-full px-4 py-2.5 rounded-b-3xl backdrop-blur-md border-t ${lightMode ? 'bg-zinc-100/80 border-zinc-200' : 'bg-zinc-900/60 border-zinc-800'}`}>
+          <div className={`flex items-center gap-1.5 truncate ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
+            <GitMerge size={12} className="shrink-0" />
+            <span className="text-[10px] font-medium truncate">{allMergedNumbers.map(n => `M${n}`).join(' + ')} birləşib</span>
           </div>
         </div>
       )}

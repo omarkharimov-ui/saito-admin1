@@ -11,6 +11,7 @@ import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
+import MobileModal from '@/components/ui/MobileModal';
 import { toast } from 'react-hot-toast';
 import SimpleToaster from '@/app/(admin)/components/layout/SimpleToaster';
 import { supabase } from '@/lib/supabase';

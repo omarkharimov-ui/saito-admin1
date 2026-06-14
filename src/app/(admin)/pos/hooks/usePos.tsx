@@ -114,7 +114,15 @@ export function usePos() {
   }, []);
 
   useEffect(() => {
+    const currentTable = cart?.table_number;
     saveCache(POS_CART_KEY, cart);
+    const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+    if (cart && typeof currentTable === 'number') {
+      all[currentTable] = cart;
+    } else if (typeof currentTable === 'number') {
+      delete all[currentTable];
+    }
+    saveCache(POS_CART_KEY + '_all', all);
   }, [cart]);
 
   /* ── Table Selection ── */

@@ -269,10 +269,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       window.dispatchEvent(new CustomEvent('saito-notification', {
         detail: {
           id: Math.random().toString(36).substring(2, 11),
-          type: 'order',
           title: _title,
-          message: _body,
-          timestamp: new Date(),
+          body: _body,
+          time: new Date(),
+          type: 'order',
+          isRead: false,
         },
       }));
     }

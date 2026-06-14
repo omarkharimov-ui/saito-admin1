@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { toast } from 'react-hot-toast';
 import type { PosCart, LossItem } from '../types/shared';
 import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
 
@@ -26,16 +27,26 @@ export function CartPanel({
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
+  const customInputRef = useRef<HTMLInputElement>(null);
 
   const [lossMode, setLossMode] = useState(false);
-  const [selectedForLoss, setSelectedForLoss] = useState<Set<number>>(new Set());
+  const [selectedForLoss, setSelectedForLoss] = useState<Map<number, number>>(new Map());
   const [lossReason, setLossReason] = useState<string>('wrong_entry');
+  const [showCustomReason, setShowCustomReason] = useState(false);
+  const [customReasonText, setCustomReasonText] = useState('');
+  const [confirming, setConfirming] = useState(false);
 
   const lossReasons = [
     { key: 'customer_disliked', label: 'Müştəri bəyənmədi' },
     { key: 'kitchen_error', label: 'Mətbəx səhvi' },
     { key: 'wrong_entry', label: 'Səhv daxil edilmə' },
   ];
+
+  useEffect(() => {
+    if (showCustomReason && customInputRef.current) {
+      customInputRef.current.focus();
+    }
+  }, [showCustomReason]);
 
   if (!cart) {
     return (
@@ -49,32 +60,66 @@ export function CartPanel({
   const total = cart.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
   const isEmpty = cart.items.length === 0;
 
+  const lossTotal = Array.from(selectedForLoss.entries()).reduce((sum, [idx, qty]) => {
+    return sum + cart.items[idx].unit_price * qty;
+  }, 0);
+
   const toggleLossSelection = (idx: number) => {
     setSelectedForLoss(prev => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      const next = new Map(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.set(idx, cart!.items[idx].quantity);
+      }
+      return next;
+    });
+  };
+
+  const updateLossQty = (idx: number, delta: number) => {
+    setSelectedForLoss(prev => {
+      const current = prev.get(idx);
+      if (!current) return prev;
+      const next = new Map(prev);
+      const newQty = current + delta;
+      if (newQty <= 0) {
+        next.delete(idx);
+      } else {
+        next.set(idx, Math.min(newQty, cart!.items[idx].quantity));
+      }
       return next;
     });
   };
 
   const confirmLoss = async () => {
     if (!onRecordLoss || selectedForLoss.size === 0) return;
-    const items: LossItem[] = Array.from(selectedForLoss).map(idx => ({
+    setConfirming(true);
+    const reason = showCustomReason && customReasonText.trim() ? customReasonText.trim() : lossReason;
+    const items: LossItem[] = Array.from(selectedForLoss.entries()).map(([idx, qty]) => ({
       product_id: cart.items[idx].product_id,
       product_name: cart.items[idx].product_name || '',
-      quantity: cart.items[idx].quantity,
+      quantity: qty,
       unit_price: cart.items[idx].unit_price,
     }));
     try {
-      await onRecordLoss(items, lossReason);
-      const sorted = Array.from(selectedForLoss).sort((a, b) => b - a);
-      for (const idx of sorted) onUpdateQty(idx, -cart.items[idx].quantity);
+      await onRecordLoss(items, reason);
+      const sortedEntries = Array.from(selectedForLoss.entries()).sort(([a], [b]) => b - a);
+      for (const [idx, qty] of sortedEntries) {
+        onUpdateQty(idx, -qty);
+      }
+      const names = items.map(i => `${i.quantity} əd. ${i.product_name}`).join(', ');
+      toast.success(`${names} — ləğv edildi`);
       setLossMode(false);
-      setSelectedForLoss(new Set());
+      setSelectedForLoss(new Map());
+      setShowCustomReason(false);
+      setCustomReasonText('');
     } catch {
-      // error handled in parent
+    } finally {
+      setConfirming(false);
     }
   };
+
+  const hasLossSelection = selectedForLoss.size > 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -130,7 +175,7 @@ export function CartPanel({
             </button>
           )}
           {lossMode && (
-            <button onClick={() => { setLossMode(false); setSelectedForLoss(new Set()); }}
+            <button onClick={() => { setLossMode(false); setSelectedForLoss(new Map()); setShowCustomReason(false); setCustomReasonText(''); }}
               className="h-10 px-3.5 rounded-2xl text-xs font-semibold transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
               Ləğv et
             </button>
@@ -150,78 +195,160 @@ export function CartPanel({
               <p className="text-sm font-medium">Məhsul əlavə edin</p>
             </motion.div>
           ) : (
-            cart.items.map((item, idx) => (
-              <motion.div
-                key={`${item.product_id}__${idx}`}
-                layout
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20, height: 0 }}
-                transition={{ duration: 0.15 }}
-                className="flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-[0_1px_3px_rgba(255,255,255,0.04)]"
-              >
-                {lossMode && (
-                  <button onClick={() => toggleLossSelection(idx)}
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                      selectedForLoss.has(idx)
-                        ? (lightMode ? 'bg-red-600 border-red-600' : 'bg-red-500 border-red-500')
-                        : (lightMode ? 'border-gray-400' : 'border-white/30')
-                    }`}>
-                    {selectedForLoss.has(idx) && <CheckCircle size={12} className="text-white" />}
-                  </button>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
-                  {item.modifiers?.length ? (
-                    <p className="text-[10px] truncate text-[var(--theme-text-secondary)]">
-                      {(item.modifiers ?? []).map(m => m.name).join(', ')}
-                    </p>
-                  ) : null}
-                  <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <div className={`flex items-center rounded-2xl overflow-hidden ${lossMode ? 'opacity-30 pointer-events-none' : ''} bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]`}>
-                    <button disabled={lossMode} onClick={() => onUpdateQty(idx, -1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
-                      <Minus size={18} />
+            cart.items.map((item, idx) => {
+              const isChecked = selectedForLoss.has(idx);
+              const lossQty = selectedForLoss.get(idx) ?? 0;
+              return (
+                <motion.div
+                  key={`${item.product_id}__${idx}`}
+                  layout
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20, height: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className={`flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] ${isChecked ? (lightMode ? 'ring-2 ring-red-300' : 'ring-2 ring-red-500/40') : ''}`}
+                >
+                  {lossMode && (
+                    <button onClick={() => toggleLossSelection(idx)}
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${
+                        isChecked
+                          ? (lightMode ? 'bg-red-600 border-red-600' : 'bg-red-500 border-red-500')
+                          : (lightMode ? 'border-gray-400' : 'border-white/30')
+                      }`}>
+                      {isChecked && <CheckCircle size={14} className="text-white" />}
                     </button>
-                    <span className="text-base min-w-[28px] text-center font-black tabular-nums text-[var(--theme-text)]">{item.quantity}</span>
-                    <button disabled={lossMode} onClick={() => onUpdateQty(idx, 1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-accent)]">
-                      <Plus size={18} />
-                    </button>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
+                    {item.modifiers?.length ? (
+                      <p className="text-[10px] truncate text-[var(--theme-text-secondary)]">
+                        {(item.modifiers ?? []).map(m => m.name).join(', ')}
+                      </p>
+                    ) : null}
+                    <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
                   </div>
-                </div>
-              </motion.div>
-            ))
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {lossMode && isChecked ? (
+                      <div className="flex items-center rounded-2xl overflow-hidden bg-red-500/10 border border-red-500/25">
+                        <button onClick={() => updateLossQty(idx, -1)}
+                          className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
+                          <Minus size={18} />
+                        </button>
+                        <span className="text-base min-w-[28px] text-center font-black tabular-nums text-red-400">{lossQty}</span>
+                        <button onClick={() => updateLossQty(idx, 1)}
+                          className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                    ) : lossMode ? null : (
+                      <div className="flex items-center rounded-2xl overflow-hidden bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                        <button onClick={() => onUpdateQty(idx, -1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
+                          <Minus size={18} />
+                        </button>
+                        <span className="text-base min-w-[28px] text-center font-black tabular-nums text-[var(--theme-text)]">{item.quantity}</span>
+                        <button onClick={() => onUpdateQty(idx, 1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-accent)]">
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })
           )}
         </AnimatePresence>
       </div>
 
       {/* Footer */}
       <div className="flex-shrink-0 pt-4 border-t space-y-3 border-[var(--theme-border)]">
-        <div className="flex items-center justify-between px-1">
-          <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
-          <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
-        </div>
-        {lossMode && selectedForLoss.size > 0 && (
-          <div className="px-1">
-            <p className="text-[10px] uppercase tracking-widest font-semibold mb-2 text-[var(--theme-text-secondary)]">İtki səbəbi</p>
-            <div className="flex gap-1.5">
-              {lossReasons.map(r => (
-                <button key={r.key}
-                  onClick={() => setLossReason(r.key)}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
-                    lossReason === r.key
-                      ? 'bg-red-500/15 border-red-500/40 text-red-400'
-                      : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'
+        {/* Total / Loss Total */}
+        <AnimatePresence mode="wait">
+          {hasLossSelection ? (
+            <motion.div
+              key="loss-total"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              className="flex items-center justify-between px-1"
+            >
+              <span className="text-xs uppercase tracking-widest font-semibold text-red-400">Ləğv edilən məbləğ</span>
+              <span className="text-xl font-black tracking-tight tabular-nums text-red-400">{lossTotal.toFixed(2)} ₼</span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="std-total"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              className="flex items-center justify-between px-1"
+            >
+              <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
+              <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Loss reason bar */}
+        {lossMode && hasLossSelection && (
+          <div className="px-1 space-y-2">
+            <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">İtki səbəbi</p>
+            {showCustomReason ? (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-2"
+              >
+                <input
+                  ref={customInputRef}
+                  type="text"
+                  value={customReasonText}
+                  onChange={e => setCustomReasonText(e.target.value)}
+                  placeholder="Səbəbi əllə yazın..."
+                  className={`flex-1 px-4 py-3 rounded-xl text-sm border outline-none transition-all ${
+                    lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30'
+                  }`}
+                />
+                <button onClick={() => { setShowCustomReason(false); setCustomReasonText(''); }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+                    lightMode ? 'bg-gray-100 text-gray-500 hover:bg-gray-200' : 'bg-zinc-800 text-white/40 hover:text-white'
                   }`}>
-                  {r.label}
+                  <X size={16} />
                 </button>
-              ))}
-            </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-1.5"
+              >
+                <div className="flex gap-1.5">
+                  {lossReasons.map(r => (
+                    <button key={r.key}
+                      onClick={() => setLossReason(r.key)}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                        lossReason === r.key
+                          ? 'bg-red-500/15 border-red-500/40 text-red-400'
+                          : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'
+                      }`}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setShowCustomReason(true)}
+                  className="text-[11px] font-medium text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all">
+                  + Digər
+                </button>
+              </motion.div>
+            )}
           </div>
         )}
+
         <SendOrderButton
-          disabled={isEmpty || (lossMode && selectedForLoss.size === 0)}
+          disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
           status={lossMode ? 'idle' : orderButtonStatus}
           variant={lossMode ? 'loss' : 'send'}
           label={lossMode ? 'Dəyişiklikləri Təsdiqlə' : undefined}

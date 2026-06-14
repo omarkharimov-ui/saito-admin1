@@ -178,18 +178,22 @@ export function CartPanel({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Təmizlə — Apple-style opacity fade */}
+        <div className="flex items-center">
+          {/* Təmizlə — absorbs into morph button */}
           <motion.button
+            layout
             initial={false}
             animate={{
               opacity: lossMode ? 0 : 1,
-              scale: lossMode ? 0.92 : 1,
+              width: lossMode ? 0 : 'auto',
+              paddingLeft: lossMode ? 0 : 14,
+              paddingRight: lossMode ? 0 : 14,
+              marginRight: lossMode ? 0 : 8,
               pointerEvents: lossMode ? 'none' as const : 'auto' as const,
             }}
             transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
             onClick={onClear}
-            className="h-10 px-3.5 rounded-2xl text-xs font-semibold text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
+            className="h-10 rounded-2xl text-xs font-semibold whitespace-nowrap overflow-hidden text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
             style={{ display: isEmpty ? 'none' : undefined }}
           >
             Təmizlə
@@ -197,24 +201,15 @@ export function CartPanel({
 
           {/* Morphing button: İtki Yaz ↔ Ləğv et */}
           <motion.button
+            layout
             initial={false}
-            animate={{
-              color: lossMode ? '#f87171' : 'var(--theme-text-secondary)',
-            }}
+            animate={{ color: lossMode ? '#f87171' : 'var(--theme-text-secondary)' }}
             transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
             onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
-            className="h-10 rounded-2xl text-xs font-semibold flex items-center justify-center overflow-hidden hover:bg-[var(--theme-surface-soft)] transition-colors"
-            style={{ padding: '0 14px', display: isEmpty ? 'none' : undefined }}
+            className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap flex items-center justify-center hover:bg-[var(--theme-surface-soft)]"
+            style={{ display: isEmpty ? 'none' : undefined }}
           >
-            <motion.span
-              key={lossMode ? 'cancel' : 'loss'}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-              className="whitespace-nowrap"
-            >
-              {lossMode ? 'Ləğv et' : 'İtki Yaz'}
-            </motion.span>
+            {lossMode ? 'Ləğv et' : 'İtki Yaz'}
           </motion.button>
         </div>
       </div>

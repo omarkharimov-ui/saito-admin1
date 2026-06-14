@@ -179,59 +179,55 @@ export function CartPanel({
           </div>
         </div>
         <motion.div layout className="flex items-center gap-2">
-          {/* Təmizlə — slides right + fades out when loss mode */}
-          <AnimatePresence mode="popLayout">
-            {!isEmpty && !lossMode && (
-              <motion.button
-                key="clear"
-                layout
-                initial={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 24, scale: 0.9 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-                onClick={onClear}
-                className="h-10 px-3.5 rounded-2xl text-xs font-semibold text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
-              >
-                Təmizlə
-              </motion.button>
-            )}
-          </AnimatePresence>
+          {/* Təmizlə — always in DOM, just hides with spring */}
+          <motion.button
+            animate={{
+              opacity: lossMode ? 0 : 1,
+              x: lossMode ? 20 : 0,
+              scale: lossMode ? 0.9 : 1,
+              pointerEvents: lossMode ? 'none' as const : 'auto' as const,
+            }}
+            transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+            onClick={onClear}
+            className="h-10 px-3.5 rounded-2xl text-xs font-semibold text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
+            style={{ display: isEmpty ? 'none' : undefined }}
+          >
+            Təmizlə
+          </motion.button>
 
-          {/* Morphing button: İtki Yaz ↔ Ləğv et */}
-          {!isEmpty && (
-            <motion.button
-              layout
-              key="loss-toggle"
-              onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
-              className="h-10 rounded-2xl text-xs font-semibold transition-colors flex items-center justify-center overflow-hidden hover:bg-[var(--theme-surface-soft)]"
-              style={{ padding: '0 14px' }}
-            >
-              <AnimatePresence mode="wait">
-                {lossMode ? (
-                  <motion.span
-                    key="cancel"
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-                    className="whitespace-nowrap text-red-400"
-                  >
-                    Ləğv et
-                  </motion.span>
-                ) : (
-                  <motion.span
-                    key="loss"
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-                    className="whitespace-nowrap text-[var(--theme-text-secondary)]"
-                  >
-                    İtki Yaz
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.button>
-          )}
+          {/* Morphing button: İtki Yaz ↔ Ləğv et — always in DOM */}
+          <motion.button
+            layout
+            onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
+            className="h-10 rounded-2xl text-xs font-semibold transition-colors flex items-center justify-center overflow-hidden hover:bg-[var(--theme-surface-soft)]"
+            style={{ padding: '0 14px', display: isEmpty ? 'none' : undefined }}
+          >
+            <AnimatePresence mode="wait">
+              {lossMode ? (
+                <motion.span
+                  key="cancel"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+                  className="whitespace-nowrap text-red-400"
+                >
+                  Ləğv et
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="loss"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+                  className="whitespace-nowrap text-[var(--theme-text-secondary)]"
+                >
+                  İtki Yaz
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
         </motion.div>
       </div>
 

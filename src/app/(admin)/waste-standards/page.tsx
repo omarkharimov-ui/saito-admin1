@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Trash2, Edit3, X, Loader2, Percent } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import MobileModal from '@/components/ui/MobileModal';
 
 interface WasteStandard {
   id: string;
@@ -122,16 +123,11 @@ export default function WasteStandardsPage() {
     }
   };
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const handleDelete = async (id: string) => {
-    if (!confirm('Bu standartı silmək istədiyinizə əminsiniz?')) return;
-    try {
-      const res = await fetch(`/api/inventory/waste-standards?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Xəta');
-      toast.success('Standart silindi', { style: toastStyle });
-      fetchData();
-    } catch {
-      toast.error('Silinmə xətası', { style: toastStyle });
-    }
+    setPendingDeleteId(id);
+    setDeleteConfirmOpen(true);
   };
 
   const startInlineEdit = (s: WasteStandard) => {
@@ -425,6 +421,39 @@ export default function WasteStandardsPage() {
           )}
         </AnimatePresence>
       </div>
+      <MobileModal open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+        <div className="space-y-4 text-center">
+          <h3 className="text-lg font-bold">Bu standart silinsin?</h3>
+          <p className="text-sm text-[var(--theme-text-secondary)]">Bu əməliyyat geri alına bilməz.</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => setDeleteConfirmOpen(false)}
+              className="px-4 py-2 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]"
+            >
+              Ləğv
+            </button>
+            <button
+              onClick={async () => {
+                if (!pendingDeleteId) return;
+                setDeleteConfirmOpen(false);
+                const id = pendingDeleteId;
+                setPendingDeleteId(null);
+                try {
+                  const res = await fetch(`/api/inventory/waste-standards?id=${id}`, { method: 'DELETE' });
+                  if (!res.ok) throw new Error('Xəta');
+                  toast.success('Standart silindi', { style: toastStyle });
+                  fetchData();
+                } catch {
+                  toast.error('Silinmə xətası', { style: toastStyle });
+                }
+              }}
+              className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold"
+            >
+              Sil
+            </button>
+          </div>
+        </div>
+      </MobileModal>
     </div>
   );
 }

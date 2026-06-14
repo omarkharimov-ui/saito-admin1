@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
+import MobileModal from '@/components/ui/MobileModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const UNITS: DisplayUnit[] = ['gram', 'piece', 'ml', 'kg', 'liter'];
@@ -491,8 +492,9 @@ export default function StockPage() {
 
   // ── Clear all ──────────────────────────────────────────────────────────
   const [clearingAll, setClearingAll] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const clearAllIngredients = async () => {
-    if (!confirm('Bütün xammallar silinsin? Bu əməliyyat geri alına bilməz!')) return;
+    setClearConfirmOpen(false);
     setClearingAll(true);
     try {
       const res = await fetch('/api/inventory/clear-all', { method: 'POST' });
@@ -506,7 +508,6 @@ export default function StockPage() {
 
   // ── Delete ──────────────────────────────────────────────────────────────
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`"${name}" silinsin? Bu əməliyyat geri alına bilməz.`)) return;
     try {
       const res = await fetch(`/api/inventory?id=${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -578,7 +579,7 @@ export default function StockPage() {
               <Plus size={15} /> Yeni Xammal
             </button>
             <button
-              onClick={clearAllIngredients} disabled={clearingAll}
+              onClick={() => setClearConfirmOpen(true)} disabled={clearingAll}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30"
               style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
             >
@@ -1741,6 +1742,26 @@ export default function StockPage() {
           </div>
         )}
       </AnimatePresence>
+      <MobileModal open={clearConfirmOpen} onClose={() => setClearConfirmOpen(false)}>
+        <div className="space-y-4 text-center">
+          <h3 className="text-lg font-bold">Bütün xammallar silinsin?</h3>
+          <p className="text-sm text-[var(--theme-text-secondary)]">Bu əməliyyat geri alına bilməz.</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => setClearConfirmOpen(false)}
+              className="px-4 py-2 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]"
+            >
+              Ləğv
+            </button>
+            <button
+              onClick={clearAllIngredients}
+              className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold"
+            >
+              Sil
+            </button>
+          </div>
+        </div>
+      </MobileModal>
     </PageTransition>
   );
 }

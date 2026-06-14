@@ -51,6 +51,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
     }
 
+    // Reset live table state, but keep paid order history intact
+    if (order.table_number) {
+      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${order.table_number}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          status: 'empty',
+          guest_count: 0,
+          total_amount: 0,
+          opened_at: null,
+          last_activity_at: null,
+          has_pending: false,
+          oldest_pending_at: null,
+          merged_into_table: null,
+        }),
+      });
+    }
+
     // Also mark child orders (merged_into = order_id) as paid
     if (order.table_number) {
       const childrenRes = await fetch(

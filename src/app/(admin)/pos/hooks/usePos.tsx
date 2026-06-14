@@ -222,6 +222,10 @@ export function usePos() {
       guest_count: 0,
       total_amount: 0,
       status: 'empty' as const,
+      merged_orders: [],
+      order_ids: [],
+      has_pending: false,
+      oldest_pending_at: null,
     } : prev);
     if (typeof currentTable === 'number') {
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
@@ -367,6 +371,7 @@ export function usePos() {
       }
 
       toast.success('Hesap bağlandı');
+      clearCart();
       backToFloor();
       fetchData();
     } catch (e: any) {

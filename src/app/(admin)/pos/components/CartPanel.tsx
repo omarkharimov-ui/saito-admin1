@@ -178,26 +178,61 @@ export function CartPanel({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {!isEmpty && !lossMode && (
-            <button onClick={() => { setLossMode(true); setLossReason('wrong_entry'); }}
-              className="h-10 px-3.5 rounded-2xl text-xs font-semibold transition-all text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10">
-              İtki Yaz
-            </button>
+        <motion.div layout className="flex items-center gap-2">
+          {/* Təmizlə — slides right + fades out when loss mode */}
+          <AnimatePresence mode="popLayout">
+            {!isEmpty && !lossMode && (
+              <motion.button
+                key="clear"
+                layout
+                initial={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 24, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+                onClick={onClear}
+                className="h-10 px-3.5 rounded-2xl text-xs font-semibold text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
+              >
+                Təmizlə
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          {/* Morphing button: İtki Yaz ↔ Ləğv et */}
+          {!isEmpty && (
+            <motion.button
+              layout
+              key="loss-toggle"
+              onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
+              className="h-10 rounded-2xl text-xs font-semibold transition-colors flex items-center justify-center overflow-hidden"
+              style={{ padding: '0 14px' }}
+            >
+              <AnimatePresence mode="wait">
+                {lossMode ? (
+                  <motion.span
+                    key="cancel"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+                    className="whitespace-nowrap text-red-400"
+                  >
+                    Ləğv et
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="loss"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+                    className="whitespace-nowrap text-[var(--theme-text-secondary)]"
+                  >
+                    İtki Yaz
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
           )}
-          {!isEmpty && !lossMode && (
-            <button onClick={onClear}
-              className="h-10 px-3.5 rounded-2xl text-xs font-semibold transition-all text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10">
-              Təmizlə
-            </button>
-          )}
-          {lossMode && (
-            <button onClick={exitLossMode}
-              className="h-10 px-3.5 rounded-2xl text-xs font-semibold transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
-              Ləğv et
-            </button>
-          )}
-        </div>
+        </motion.div>
       </div>
 
       {/* Items */}

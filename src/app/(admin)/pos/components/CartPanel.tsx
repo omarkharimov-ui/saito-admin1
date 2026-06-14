@@ -185,6 +185,7 @@ export function CartPanel({
 
       {/* Items */}
       <div className="flex-1 overflow-y-auto py-3 space-y-2">
+        <motion.div layout className="space-y-2">
         <AnimatePresence initial={false}>
           {isEmpty ? (
             <motion.div
@@ -205,8 +206,8 @@ export function CartPanel({
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20, height: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className={`flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] ${isChecked ? (lightMode ? 'ring-2 ring-red-300' : 'ring-2 ring-red-500/40') : ''}`}
+                  transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+                  className={`flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-300 ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`}`}
                 >
                   {lossMode && (
                     <button onClick={() => toggleLossSelection(idx)}
@@ -257,6 +258,7 @@ export function CartPanel({
             })
           )}
         </AnimatePresence>
+        </motion.div>
       </div>
 
       {/* Footer */}
@@ -292,12 +294,14 @@ export function CartPanel({
         {lossMode && hasLossSelection && (
           <div className="px-1 space-y-2">
             <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">İtki səbəbi</p>
+            <AnimatePresence mode="wait">
             {showCustomReason ? (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
+                key="custom"
+                initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                 className="flex items-center gap-2"
               >
                 <input
@@ -319,10 +323,11 @@ export function CartPanel({
               </motion.div>
             ) : (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
+                key="preset"
+                initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                 className="space-y-1.5"
               >
                 <div className="flex gap-1.5">
@@ -339,11 +344,12 @@ export function CartPanel({
                   ))}
                 </div>
                 <button onClick={() => setShowCustomReason(true)}
-                  className="text-[11px] font-medium text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all">
+                  className="px-3 py-1.5 rounded-xl text-[11px] font-medium border border-dashed border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-text-muted)] transition-all">
                   + Digər
                 </button>
               </motion.div>
             )}
+            </AnimatePresence>
           </div>
         )}
 

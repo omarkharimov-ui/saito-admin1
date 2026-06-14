@@ -42,8 +42,8 @@ export default function POSPage() {
   const orderTabTouchedRef = useRef(false);
 
   /* ── Cancel / Loss state ── */
-  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
-  const [cancelTableNumber, setCancelTableNumber] = useState<number | null>(null);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearTableNumber, setClearTableNumber] = useState<number | null>(null);
   const [lossModalOpen, setLossModalOpen] = useState(false);
   const [lossReason, setLossReason] = useState('other');
   const [lossAmount, setLossAmount] = useState(0);
@@ -259,37 +259,35 @@ export default function POSPage() {
     setIsDirty(false);
   }, [pos]);
 
-  /* ── Cancel table (no loss record, no DB save) ── */
+  /* ── Clear table (hard reset live table state) ── */
   const handleActionCancelTable = useCallback(() => {
     if (actionSheetTable) {
-      setCancelTableNumber(actionSheetTable.table_number);
-      setCancelConfirmOpen(true);
+      setClearTableNumber(actionSheetTable.table_number);
+      setClearConfirmOpen(true);
     }
   }, [actionSheetTable]);
 
-  const confirmCancelTable = useCallback(async () => {
-    if (cancelTableNumber === null) return;
+  const confirmClearTable = useCallback(async () => {
+    if (clearTableNumber === null) return;
 
     try {
-      // Clear local cart first
-      pos.clearCart();
-      setIsDirty(false);
-
-      const res = await fetch(`/api/orders/cancel?table_number=${cancelTableNumber}`, { method: 'DELETE' });
+      const res = await fetch(`/api/orders/cancel?table_number=${clearTableNumber}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Masa ${cancelTableNumber} təmizləndi`);
+
       pos.clearCart();
+      setIsDirty(false);
+      toast.success(`Masa ${clearTableNumber} təmizləndi`);
       pos.fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
     }
-    setCancelConfirmOpen(false);
-    setCancelTableNumber(null);
+    setClearConfirmOpen(false);
+    setClearTableNumber(null);
     setActionSheetOpen(false);
     setActionSheetTable(null);
     pos.backToFloor();
-  }, [cancelTableNumber, pos]);
+  }, [clearTableNumber, pos]);
 
   /* ── Report loss ── */
   const handleActionReportLoss = useCallback(() => {
@@ -792,12 +790,12 @@ export default function POSPage() {
 
       {/* ── Cancel Confirm ── */}
       <AnimatePresence>
-        {cancelConfirmOpen && (
+        {clearConfirmOpen && (
           <>
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-              onClick={() => setCancelConfirmOpen(false)}
+              onClick={() => setClearConfirmOpen(false)}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -807,17 +805,17 @@ export default function POSPage() {
               <div className={`max-w-sm w-full rounded-3xl border p-6 shadow-2xl backdrop-blur-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-zinc-900/95 border-zinc-700/50'}`}>
                 <div className="text-center mb-5">
                   <XCircle size={40} className={`mx-auto mb-3 ${lightMode ? 'text-red-500' : 'text-red-400'}`} />
-                  <p className="text-lg font-bold">{t('cancel_table_confirm').replace('{table}', String(cancelTableNumber))}</p>
+                  <p className="text-lg font-bold">{t('cancel_table_confirm').replace('{table}', String(clearTableNumber))}</p>
                   <p className={`text-sm mt-1 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
                     {t('cancel_table_desc')}
                   </p>
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={() => setCancelConfirmOpen(false)}
+                  <button onClick={() => setClearConfirmOpen(false)}
                     className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-all ${lightMode ? 'border-gray-200 text-gray-600 hover:bg-gray-100' : 'border-zinc-700 text-white/60 hover:bg-zinc-800'}`}>
                     {t('cancel')}
                   </button>
-                  <button onClick={confirmCancelTable}
+                  <button onClick={confirmClearTable}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${lightMode ? 'bg-red-600 text-white border border-red-700 hover:bg-red-700' : 'bg-red-600/20 border border-red-500/30 text-red-300 hover:bg-red-600/30'}`}>
                     {t('cancel_table_btn')}
                   </button>

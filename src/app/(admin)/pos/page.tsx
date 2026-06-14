@@ -46,6 +46,7 @@ export default function POSPage() {
 
   /* ── Cancel / Loss state ── */
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelTableNumber, setCancelTableNumber] = useState<number | null>(null);
   const [lossModalOpen, setLossModalOpen] = useState(false);
   const [lossReason, setLossReason] = useState('other');
   const [lossAmount, setLossAmount] = useState(0);
@@ -248,28 +249,30 @@ export default function POSPage() {
     }
   }, [actionSheetTable, pos]);
 
-  /* ── Cancel table (no loss record) ── */
+  /* ── Cancel table (no loss record, no DB save) ── */
   const handleActionCancelTable = useCallback(() => {
     if (actionSheetTable) {
+      setCancelTableNumber(actionSheetTable.table_number);
       setCancelConfirmOpen(true);
     }
   }, [actionSheetTable]);
 
   const confirmCancelTable = useCallback(async () => {
-    if (!actionSheetTable) return;
+    if (cancelTableNumber === null) return;
     try {
-      const res = await fetch(`/api/orders/cancel?table_number=${actionSheetTable.table_number}`, { method: 'DELETE' });
+      const res = await fetch(`/api/orders/cancel?table_number=${cancelTableNumber}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success(`Masa ${actionSheetTable.table_number} təmizləndi`);
+      toast.success(`Masa ${cancelTableNumber} təmizləndi`);
       pos.fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
     }
     setCancelConfirmOpen(false);
+    setCancelTableNumber(null);
     setActionSheetOpen(false);
     setActionSheetTable(null);
-  }, [actionSheetTable, pos]);
+  }, [cancelTableNumber, pos]);
 
   /* ── Report loss ── */
   const handleActionReportLoss = useCallback(() => {

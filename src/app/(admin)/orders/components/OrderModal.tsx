@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Search, Plus, Minus, CheckCircle, Loader2,
-  CreditCard, MoreVertical, Trash2, XCircle, Clock,
+  CreditCard, MoreVertical, AlertTriangle, Trash2, XCircle, Clock,
   GitMerge, Layers, Printer, ChevronLeft,
   Utensils, ShoppingBag, Package, User, Users,
 } from 'lucide-react';
@@ -763,17 +763,36 @@ export const OrderModal = ({
                 </p>
               </div>
               {order.status !== 'paid' && (
-                <div>
-                  <button onClick={(e) => {
-                    if (confirmClear || confirmCancel) { setConfirmClear(false); setConfirmCancel(false); setShowMenu(false); setMenuAnchor(null); }
-                    else {
+                <div className="flex items-center gap-1.5">
+                  {isMergedOrder && (
+                    <button onClick={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                      setShowMenu(!showMenu);
-                      if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); }
-                    }
-                  }} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${confirmClear || confirmCancel ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-white/10 text-white/40 hover:text-white'}`}>
-                    {confirmClear || confirmCancel ? <X size={18} /> : <MoreVertical size={18} />}
+                      setShowMenu(true);
+                    }} className="w-9 h-9 rounded-xl hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white/60 transition-all"
+                      title={t('unmerge_tables')}>
+                      <MoreVertical size={16} />
+                    </button>
+                  )}
+                  {/* İtki (loss) */}
+                  {(confirmClear ? null : (
+                    <button onClick={() => {
+                      if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); return; }
+                      setSelectedCancelItems({});
+                      setCancelStep('select');
+                    }} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${cancelStep !== 'none' ? 'bg-red-500/20 text-red-400' : 'hover:bg-red-500/10 text-red-400/60 hover:text-red-400'}`}
+                      title={t('report_loss')}>
+                      {cancelStep !== 'none' ? <X size={16} /> : <AlertTriangle size={16} />}
+                    </button>
+                  ))}
+                  {/* Masanı Boşalt (ləğv et) */}
+                  <button onClick={() => {
+                    if (confirmClear) { setConfirmClear(false); return; }
+                    if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); }
+                    setConfirmClear(true);
+                  }} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${confirmClear ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-orange-500/10 text-orange-400/60 hover:text-orange-400'}`}
+                    title={t('dismiss_table')}>
+                    <XCircle size={16} />
                   </button>
                 </div>
               )}
@@ -985,14 +1004,30 @@ export const OrderModal = ({
                   {draftTotal.toFixed(2)} ₼
                 </p>
               </div>
-              <div onClick={e => e.stopPropagation()}>
-                  <button onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                    setShowMenu(!showMenu);
-                  }}
-                    className="w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
-                    <MoreVertical size={18} />
+              <div onClick={e => e.stopPropagation()} className="flex items-center gap-1.5">
+                  {isMergedOrder && (
+                    <button onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setMenuAnchor({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                      setShowMenu(true);
+                    }} className="w-9 h-9 rounded-xl hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white/60 transition-all"
+                      title={t('unmerge_tables')}>
+                      <MoreVertical size={16} />
+                    </button>
+                  )}
+                  <button onClick={() => {
+                    setSelectedCancelItems({});
+                    setCancelStep('select');
+                  }} className="w-9 h-9 rounded-xl hover:bg-red-500/10 flex items-center justify-center text-red-400/60 hover:text-red-400 transition-all"
+                    title={t('report_loss')}>
+                    <AlertTriangle size={16} />
+                  </button>
+                  <button onClick={() => {
+                    if (confirmClear) { setConfirmClear(false); return; }
+                    setConfirmClear(true);
+                  }} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${confirmClear ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-orange-500/10 text-orange-400/60 hover:text-orange-400'}`}
+                    title={t('dismiss_table')}>
+                    <XCircle size={16} />
                   </button>
               </div>
             </div>
@@ -1229,45 +1264,18 @@ export const OrderModal = ({
           </div>
         )}
 
-        {/* Portal menu — never clipped by overflow-hidden */}
-        {typeof document !== 'undefined' && (showMenu || confirmClear || confirmCancel) && menuAnchor && createPortal(
+        {/* Portal menu — unmerge only (other actions moved to header) */}
+        {typeof document !== 'undefined' && showMenu && menuAnchor && createPortal(
           <div onClick={e => e.stopPropagation()} className="fixed z-[100] w-52 bg-[#1c1c1c] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden"
             style={{ top: menuAnchor.top, right: menuAnchor.right }}>
-            {!confirmClear && !confirmCancel && isMergedOrder && (
-              <button onClick={() => { setShowMenu(false); setShowMerge(true); setSelectedTablesToSplit(new Set()); setMenuAnchor(null); }}
-                className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
-                <GitMerge size={15} className="text-gold/70" />
-                <div>
-                  <p className="text-sm font-semibold text-gold/90">{t('unmerge_tables')}</p>
-                  <p className="text-[10px] text-white/30">{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
-                </div>
-              </button>
-            )}
-            {!confirmClear && !confirmCancel && (
-              <button onClick={() => { setShowMenu(false); setSelectedCancelItems({}); setCancelStep('select'); setMenuAnchor(null); }}
-                className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-red-500/5 transition-colors text-left border-t border-white/5">
-                <Trash2 size={15} className="text-red-400/70" />
-                <span className="text-red-400 text-sm">{t('cancel_order')}</span>
-              </button>
-            )}
-            {order.table_number && (
-              confirmClear ? (
-                <div className="px-4 py-3 border-t border-white/5">
-                  <p className="text-white/60 text-sm mb-3 font-medium">{t('are_you_sure')}</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setShowMenu(false); setConfirmClear(false); setMenuAnchor(null); }} className="flex-1 py-2.5 rounded-lg border border-white/10 text-white/50 text-sm transition-all">{t('no')}</button>
-                    <button onClick={() => { setShowMenu(false); setConfirmClear(false); setMenuAnchor(null); act(() => onClearTable(order.table_number!)); }} disabled={acting}
-                      className="flex-1 py-2.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-semibold border border-red-500/40 transition-all disabled:opacity-40">{t('yes_delete')}</button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={() => { setConfirmClear(true); if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); } setMenuAnchor(null); }}
-                  className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-orange-500/5 transition-colors text-left border-t border-white/5">
-                  <X size={15} className="text-orange-400/70" />
-                  <span className="text-orange-300 text-sm">{t('dismiss_table')}</span>
-                </button>
-              )
-            )}
+            <button onClick={() => { setShowMenu(false); setShowMerge(true); setSelectedTablesToSplit(new Set()); setMenuAnchor(null); }}
+              className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
+              <GitMerge size={15} className="text-gold/70" />
+              <div>
+                <p className="text-sm font-semibold text-gold/90">{t('unmerge_tables')}</p>
+                <p className="text-[10px] text-white/30">{mergedFromTables.map(n => `${t('table_label')} ${n}`).join(', ')}</p>
+              </div>
+            </button>
           </div>,
           document.body
         )}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, AlertTriangle, X, CheckCircle } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosCart, LossItem } from '../types/shared';
@@ -20,12 +20,6 @@ interface CartPanelProps {
   onRecordLoss?: (items: LossItem[], reason: string) => Promise<void>;
 }
 
-const lossReasons = [
-  { key: 'customer_disliked', labelKey: 'loss_reason_not_liked' },
-  { key: 'kitchen_error', labelKey: 'loss_reason_kitchen_error' },
-  { key: 'wrong_entry', labelKey: 'loss_reason_wrong_entry' },
-];
-
 export function CartPanel({
   cart, onUpdateQty, onPlaceOrder,
   onClear, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
@@ -35,8 +29,6 @@ export function CartPanel({
 
   const [lossMode, setLossMode] = useState(false);
   const [selectedForLoss, setSelectedForLoss] = useState<Set<number>>(new Set());
-  const [lossModalOpen, setLossModalOpen] = useState(false);
-  const [lossSubmitting, setLossSubmitting] = useState(false);
 
   if (!cart) {
     return (
@@ -58,14 +50,8 @@ export function CartPanel({
     });
   };
 
-  const openLossModal = () => {
-    if (selectedForLoss.size === 0) return;
-    setLossModalOpen(true);
-  };
-
-  const confirmLoss = async (reason: string) => {
+  const confirmLoss = async () => {
     if (!onRecordLoss || selectedForLoss.size === 0) return;
-    setLossSubmitting(true);
     const items: LossItem[] = Array.from(selectedForLoss).map(idx => ({
       product_id: cart.items[idx].product_id,
       product_name: cart.items[idx].product_name || '',
@@ -73,17 +59,13 @@ export function CartPanel({
       unit_price: cart.items[idx].unit_price,
     }));
     try {
-      await onRecordLoss(items, reason);
-      // Remove loss items from cart
+      await onRecordLoss(items, 'wrong_entry');
       const sorted = Array.from(selectedForLoss).sort((a, b) => b - a);
       for (const idx of sorted) onUpdateQty(idx, -cart.items[idx].quantity);
       setLossMode(false);
       setSelectedForLoss(new Set());
-      setLossModalOpen(false);
     } catch {
       // error handled in parent
-    } finally {
-      setLossSubmitting(false);
     }
   };
 
@@ -218,55 +200,10 @@ export function CartPanel({
           status={lossMode ? 'idle' : orderButtonStatus}
           variant={lossMode ? 'loss' : 'send'}
           label={lossMode ? 'Dəyişiklikləri Təsdiqlə' : undefined}
-          onClick={lossMode ? openLossModal : onPlaceOrder}
+          onClick={lossMode ? confirmLoss : onPlaceOrder}
         />
       </div>
 
-      {/* Loss Reason Modal */}
-      <AnimatePresence>
-        {lossModalOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-              onClick={() => !lossSubmitting && setLossModalOpen(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            >
-              <div className={`max-w-sm w-full rounded-3xl border p-6 shadow-2xl backdrop-blur-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-zinc-900/95 border-zinc-700/50'}`}>
-                <div className="text-center mb-5">
-                  <AlertTriangle size={36} className={`mx-auto mb-3 ${lightMode ? 'text-red-500' : 'text-red-400'}`} />
-                  <p className="text-lg font-bold">İtki səbəbi</p>
-                  <p className={`text-sm mt-1 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
-                    {selectedForLoss.size} məhsul itki kimi qeyd olunacaq
-                  </p>
-                </div>
-                <div className="space-y-2 mb-5">
-                  {lossReasons.map(r => (
-                    <button key={r.key}
-                      onClick={() => confirmLoss(r.key)}
-                      disabled={lossSubmitting}
-                      className={`w-full py-3.5 px-4 rounded-2xl text-sm font-semibold border transition-all ${
-                        lightMode
-                          ? 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 active:scale-[0.98]'
-                          : 'border-zinc-700/50 bg-zinc-800/40 text-white/70 hover:bg-zinc-700/40 active:scale-[0.98]'
-                      }`}>
-                      {r.key === 'customer_disliked' ? 'Müştəri bəyənmədi' : r.key === 'kitchen_error' ? 'Mətbəx səhvi' : 'Səhv daxil edilmə'}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => setLossModalOpen(false)} disabled={lossSubmitting}
-                  className={`w-full py-3 rounded-2xl text-sm font-semibold transition-all ${lightMode ? 'text-gray-500 hover:text-gray-700' : 'text-white/40 hover:text-white/60'}`}>
-                  İmtina
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

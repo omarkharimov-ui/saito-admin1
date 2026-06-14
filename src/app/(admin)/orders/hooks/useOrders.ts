@@ -280,7 +280,7 @@ export function useOrders() {
     try {
       const { data: primaryOrders, error } = await supabase
         .from('orders')
-        .select('id, table_number, status')
+        .select('id, table_number, status, merged_into')
         .eq('table_number', tableNum)
         .neq('status', 'paid');
 
@@ -296,15 +296,15 @@ export function useOrders() {
         .neq('status', 'paid');
 
       const ordersToClear = [...(primaryOrders || []), ...(childOrders || [])];
-      const idsToClear = ordersToClear.map(order => order.id);
+      const idsToClear = Array.from(new Set(ordersToClear.map(order => order.id)));
       const childTableNums = (childOrders || [])
         .map(order => order.table_number)
         .filter((n): n is number => n !== null && n !== tableNum);
 
-      // 3. OPTİMİSTİK UPDATE: local state + localStorage dərhal yenilə
+      // 3. Optimistic UI update
       setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !idsToClear.includes(x.id))));
 
-      // 4. BAZA ƏMƏLİYYATLARI — paralel sil
+      // 4. Baza əməliyyatları — paralel sil
       const [, { error: delErr }] = await Promise.all([
         supabase.from('order_items').delete().in('order_id', idsToClear),
         supabase.from('orders').delete().in('id', idsToClear),

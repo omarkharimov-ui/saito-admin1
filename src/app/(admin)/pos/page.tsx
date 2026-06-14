@@ -279,8 +279,8 @@ export default function POSPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast.success(`Masa ${cancelTableNumber} təmizləndi`);
-      pos.fetchData();
       pos.clearCart();
+      pos.fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
     }

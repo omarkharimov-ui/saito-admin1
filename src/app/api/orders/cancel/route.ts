@@ -38,10 +38,19 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    // Reset table status and guest count to empty
+    // Reset table status and occupancy fields fully
     await supabase
       .from('table_floors')
-      .update({ merged_into_table: null })
+      .update({
+        merged_into_table: null,
+        status: 'empty',
+        guest_count: 0,
+        total_amount: 0,
+        opened_at: null,
+        last_activity_at: null,
+        has_pending: false,
+        oldest_pending_at: null,
+      })
       .eq('table_number', tableNumber);
 
     return NextResponse.json({ success: true, cleared_order_ids: orderIds });

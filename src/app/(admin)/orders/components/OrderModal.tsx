@@ -246,7 +246,12 @@ export const OrderModal = ({
 
   const handleChangeItemQty = (e: React.MouseEvent, item: OrderItem, delta: number) => {
     e.stopPropagation();
+    const served = item.served_quantity ?? 0;
     const current = draftQty[item.id] ?? item.quantity;
+    if (delta < 0 && (current + delta) < served) {
+      toast.error(`Təhvil verilmiş məhsul azaldıla bilməz (${served} ədəd)`, { id: 'served-qty' });
+      return;
+    }
     const next = current + delta;
     if (next <= 0) { setPendingDeleteItemId(item.id); return; }
     setDraftQty(prev => ({ ...prev, [item.id]: next }));
@@ -262,11 +267,21 @@ export const OrderModal = ({
 
     (async () => {
       try {
-        for (const id of snapDeleted) { await supabase.from('order_items').delete().eq('id', id); }
-        for (const id of snapReturned) { await supabase.from('order_items').delete().eq('id', id); }
+        for (const id of snapDeleted) {
+          const item = order.order_items?.find(i => i.id === id);
+          if (item && (item.served_quantity ?? 0) > 0) continue;
+          await supabase.from('order_items').delete().eq('id', id);
+        }
+        for (const id of snapReturned) {
+          const item = order.order_items?.find(i => i.id === id);
+          if (item && (item.served_quantity ?? 0) > 0) continue;
+          await supabase.from('order_items').delete().eq('id', id);
+        }
         for (const [id, qty] of Object.entries(snapDraft)) {
           const item = order.order_items?.find(i => i.id === id);
           if (!item) continue;
+          const served = item.served_quantity ?? 0;
+          if (qty < served) continue;
           const unit = item.unit_price || (item.total_price / item.quantity);
           await supabase.from('order_items').update({ quantity: qty, total_price: unit * qty }).eq('id', id);
         }
@@ -447,6 +462,11 @@ export const OrderModal = ({
       const match = addItems.find(ai => `preview-${ai.product.id}` === item.id);
       if (match) removeAddItem(match.product.id, match.variant?.id);
     } else {
+      const served = item.served_quantity ?? 0;
+      if (served > 0) {
+        toast.error(`Təhvil verilmiş məhsul silinə bilməz — ${served} ədəd artıq təhvil verilib`, { id: 'served-del' });
+        return;
+      }
       setPendingDeleteItemId(item.id);
     }
   };
@@ -784,6 +804,9 @@ export const OrderModal = ({
                     )}
                     <div className="flex-1 min-w-0 flex items-center gap-1.5">
                       <p className="text-white/70 text-xs font-medium truncate">{getProductName(item)}</p>
+                      {(item.served_quantity ?? 0) > 0 && (
+                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">✓ {item.served_quantity}/{item.quantity}</span>
+                      )}
                       {item.course && item.course !== 'main' && (
                         <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>
                       )}
@@ -986,6 +1009,9 @@ export const OrderModal = ({
                     {item.products?.image_url ? <img src={item.products.image_url} alt={getProductName(item)} loading="lazy" decoding="async" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex-shrink-0" />}
                     <div className="flex-1 min-w-0 flex items-center gap-1.5">
                       <p className="text-white text-sm font-medium truncate">{getProductName(item)}</p>
+                      {(item.served_quantity ?? 0) > 0 && (
+                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">✓ {item.served_quantity}/{item.quantity}</span>
+                      )}
                       {item.course && item.course !== 'main' && (
                         <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>
                       )}

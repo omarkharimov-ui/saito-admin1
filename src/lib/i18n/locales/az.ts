@@ -1308,4 +1308,28 @@ export const az = {
   floor_3: '3-cü Mərtəbə',
   all_floors: 'Bütün mərtəbələr',
   guest_short: 'qonaq',
+
+  // POS — Cancel / Loss
+  cancel_table: 'Ləğv et',
+  cancel_table_confirm: 'Masa {table} təmizlənsin?',
+  cancel_table_desc: 'Bütün sifarişlər ləğv ediləcək. İtki kimi qeyd olunmayacaq.',
+  cancel_table_btn: 'Təmizlə',
+  cancel_done: 'Masa {table} təmizləndi',
+  report_loss: 'İtki',
+  loss_reason: 'Səbəb',
+  loss_amount: 'Məbləğ (₼)',
+  loss_note: 'Qeyd (istəyə bağlı)',
+  loss_submit: 'İtki kimi qeyd et',
+  loss_recorded: 'İtki qeyd edildi: {reason} — {amount} ₼',
+  loss_reason_customer_dissatisfaction: 'Müştəri narazılığı',
+  loss_reason_late_order: 'Gec sifariş',
+  loss_reason_waiter_error: 'Ofisiant səhvi',
+  loss_reason_spilled_damaged: 'Tökülmə / zədə',
+  loss_reason_preparation_error: 'Səhv hazırlıq',
+  loss_reason_customer_walkout: 'Müştəri getdi',
+  loss_reason_other: 'Digər',
+
+  // Order items — served / locked
+  served_qty_error: 'Təhvil verilmiş məhsul azaldıla bilməz ({served} ədəd)',
+  served_del_error: 'Təhvil verilmiş məhsul silinə bilməz — {served} ədəd artıq təhvil verilib',
 } as const;

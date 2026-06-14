@@ -1311,4 +1311,28 @@ export const ru: TranslationMap = {
   floor_3: '3-й этаж',
   all_floors: 'Все этажи',
   guest_short: 'гость',
+
+  // POS — Cancel / Loss
+  cancel_table: 'Отменить',
+  cancel_table_confirm: 'Очистить стол {table}?',
+  cancel_table_desc: 'Все заказы будут отменены. Не учитывается как убыток.',
+  cancel_table_btn: 'Очистить',
+  cancel_done: 'Стол {table} очищен',
+  report_loss: 'Убыток',
+  loss_reason: 'Причина',
+  loss_amount: 'Сумма (₼)',
+  loss_note: 'Примечание (необязательно)',
+  loss_submit: 'Записать как убыток',
+  loss_recorded: 'Убыток записан: {reason} — {amount} ₼',
+  loss_reason_customer_dissatisfaction: 'Неудовлетворенность клиента',
+  loss_reason_late_order: 'Опоздание заказа',
+  loss_reason_waiter_error: 'Ошибка официанта',
+  loss_reason_spilled_damaged: 'Пролито / повреждено',
+  loss_reason_preparation_error: 'Ошибка приготовления',
+  loss_reason_customer_walkout: 'Клиент ушёл',
+  loss_reason_other: 'Другое',
+
+  // Order items — served / locked
+  served_qty_error: 'Нельзя уменьшить выданный товар ({served} шт.)',
+  served_del_error: 'Нельзя удалить выданный товар — {served} шт. уже передано',
 } as const;

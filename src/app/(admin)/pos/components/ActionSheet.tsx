@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Merge, Move, Split, CreditCard,
-  Printer, Save, X,
+  Printer, Save, X, XCircle, AlertTriangle,
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
@@ -19,6 +19,8 @@ interface ActionSheetProps {
   onCloseBill: () => void;
   onPrint: () => void;
   onSaveDraft: () => void;
+  onCancelTable?: () => void;
+  onReportLoss?: () => void;
 }
 
 const actions = [
@@ -27,11 +29,13 @@ const actions = [
   { id: 'transfer', icon: Move, label: 'Köçür' },
   { id: 'split', icon: Split, label: 'Böl' },
   { id: 'close_bill', icon: CreditCard, label: 'Hesab' },
+  { id: 'cancel_table', icon: XCircle, label: 'Ləğv et' },
+  { id: 'report_loss', icon: AlertTriangle, label: 'İtki' },
   { id: 'print', icon: Printer, label: 'Çap · soon' },
   { id: 'save_draft', icon: Save, label: 'Saxla · soon' }
 ];
 
-export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft }: ActionSheetProps) {
+export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft, onCancelTable, onReportLoss }: ActionSheetProps) {
   const { lightMode } = useTheme();
   if (!table) return null;
 
@@ -39,8 +43,9 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
   const isMerged = (table.merged_orders && table.merged_orders.length > 0) || false;
   const visible = actions.filter(a => {
     if (a.id === 'close_bill') return isOccupied && table.total_amount > 0;
+    if (a.id === 'cancel_table') return isOccupied;
     if (a.id === 'merge') return true;
-    if (a.id === 'transfer') return isOccupied;
+    if (a.id === 'transfer') return true;
     if (a.id === 'split') return isMerged; // unmerge
     if (a.id === 'print' || a.id === 'save_draft') return false; // non-functional
     return true;
@@ -90,6 +95,8 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                             transfer: onTransfer,
                             split: onSplitBill,
                             close_bill: onCloseBill,
+                            cancel_table: onCancelTable,
+                            report_loss: onReportLoss,
                             print: onPrint,
                             save_draft: onSaveDraft,
                           }[action.id];

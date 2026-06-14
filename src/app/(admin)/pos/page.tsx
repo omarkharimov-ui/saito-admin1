@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle } from 'lucide-react';
+import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
@@ -37,11 +37,20 @@ export default function POSPage() {
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
   const [transferMode, setTransferMode] = useState(false);
   const [transferSource, setTransferSource] = useState<number | null>(null);
+  const [transferTarget, setTransferTarget] = useState<number | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [floorDropdownOpen, setFloorDropdownOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const posRef = useRef<HTMLDivElement>(null);
   const orderTabTouchedRef = useRef(false);
+
+  /* ── Cancel / Loss state ── */
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [lossModalOpen, setLossModalOpen] = useState(false);
+  const [lossReason, setLossReason] = useState('other');
+  const [lossAmount, setLossAmount] = useState(0);
+  const [lossNote, setLossNote] = useState('');
+  const [lossSubmitting, setLossSubmitting] = useState(false);
 
   /* ── Payment modal ── */
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -165,32 +174,26 @@ export default function POSPage() {
     }
     if (transferMode) {
       if (table.status === 'merged') return;
-      if (table.status === 'empty' && transferSource === null) {
-        toast.error('Mənbə kimi boş masa seçmək olmaz', { id: 'transfer-source-empty' });
-        return;
-      }
-      if (transferSource === null) {
+      if (!transferSource) {
         setTransferSource(table.table_number);
-        toast.success(`Mənbə: Masa ${table.table_number} — indi hədəf masanı seçin`, { id: 'transfer-source' });
+        setTransferTarget(null);
+        toast.success(`Mənbə: Masa ${table.table_number}`, { id: 'transfer-source' });
+      } else if (!transferTarget && table.table_number !== transferSource) {
+        setTransferTarget(table.table_number);
+        toast.success(`Hədəf: Masa ${table.table_number} — təsdiq üçün "Köçür" düyməsinə basın`, { id: 'transfer-target' });
       } else if (table.table_number === transferSource) {
         setTransferSource(null);
+        setTransferTarget(null);
         toast('Mənbə ləğv edildi', { id: 'transfer-cancel' });
       } else {
-        try {
-          await pos.transferTable(transferSource, table.table_number);
-        } catch (e: any) {
-          toast.error(e.message || 'Köçürmə xətası', { id: 'transfer-error' });
-          return;
-        }
-        setTransferMode(false);
-        setTransferSource(null);
+        setTransferTarget(table.table_number);
       }
       return;
     }
     if (table.status === 'merged') return; // can't open merged table
     // Direct: tap table → go to order view
     pos.selectTable(table);
-  }, [mergeMode, selectedForMerge, transferMode, transferSource, pos]);
+  }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
 
   const handleTableAction = useCallback((table: PosTable) => {
     setActionSheetTable(table);
@@ -221,6 +224,82 @@ export default function POSPage() {
     }
   }, [actionSheetTable, pos]);
 
+  /* ── Cancel table (no loss record) ── */
+  const handleActionCancelTable = useCallback(() => {
+    if (actionSheetTable) {
+      setCancelConfirmOpen(true);
+    }
+  }, [actionSheetTable]);
+
+  const confirmCancelTable = useCallback(async () => {
+    if (!actionSheetTable) return;
+    try {
+      const res = await fetch(`/api/orders/cancel?table_number=${actionSheetTable.table_number}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Masa ${actionSheetTable.table_number} təmizləndi`);
+      pos.fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi');
+    }
+    setCancelConfirmOpen(false);
+    setActionSheetOpen(false);
+    setActionSheetTable(null);
+  }, [actionSheetTable, pos]);
+
+  /* ── Report loss ── */
+  const handleActionReportLoss = useCallback(() => {
+    if (actionSheetTable) {
+      setLossAmount(actionSheetTable.total_amount || 0);
+      setLossReason('customer_dissatisfaction');
+      setLossNote('');
+      setLossModalOpen(true);
+    }
+  }, [actionSheetTable]);
+
+  const lossReasons = [
+    { key: 'customer_dissatisfaction', label: 'Müştəri narazılığı' },
+    { key: 'late_order', label: 'Gec sifariş' },
+    { key: 'waiter_error', label: 'Ofisiant səhvi' },
+    { key: 'spilled_damaged', label: 'Tökülmə / zədə' },
+    { key: 'preparation_error', label: 'Səhv hazırlıq' },
+    { key: 'customer_walkout', label: 'Müştəri getdi' },
+    { key: 'other', label: 'Digər' },
+  ];
+
+  const submitLoss = useCallback(async () => {
+    if (!actionSheetTable) return;
+    setLossSubmitting(true);
+    try {
+      const reasonLabel = lossReasons.find(r => r.key === lossReason)?.label || lossReason;
+      const payload = {
+        table_number: actionSheetTable.table_number,
+        reason: lossReason,
+        reason_text: reasonLabel,
+        total_amount: lossAmount,
+        note: lossNote,
+        order_ids: actionSheetTable.order_ids ?? [],
+        items: [],
+      };
+      const res = await fetch('/api/finance/loss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`İtki qeyd edildi: ${reasonLabel} — ${lossAmount.toFixed(2)} ₼`);
+      pos.fetchData();
+      setLossModalOpen(false);
+      setActionSheetOpen(false);
+      setActionSheetTable(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi');
+    } finally {
+      setLossSubmitting(false);
+    }
+  }, [actionSheetTable, lossReason, lossAmount, lossNote, pos]);
+
   const handleSplitTable = useCallback(async () => {
     if (!actionSheetTable) return;
     try {
@@ -247,7 +326,7 @@ export default function POSPage() {
         <AnimatePresence mode="wait">
           {/* ═══ FLOOR VIEW ═══ */}
           {pos.activeView === 'floor' && (
-            <div className="h-full overflow-hidden flex flex-col">
+            <div className={`h-full overflow-hidden flex flex-col border ${lightMode ? 'border-gray-200' : 'border-white/[0.04]'} rounded-3xl m-2`}>
               {/* Top bar */}
               <div className="flex-shrink-0 p-4 sm:p-5 pb-0">
                 <div className="flex items-center justify-between mb-4 gap-3">
@@ -317,15 +396,33 @@ export default function POSPage() {
                               ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
                               : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
                         }`}>Birləşdir</button>
-                      <button onClick={() => { setTransferMode(!transferMode); setTransferSource(null); }}
+                      <button onClick={async () => {
+                        if (transferSource && transferTarget) {
+                          try {
+                            await pos.transferTable(transferSource, transferTarget);
+                          } catch (e: any) {
+                            toast.error(e.message || 'Köçürmə xətası', { id: 'transfer-error' });
+                            return;
+                          }
+                          setTransferMode(false);
+                          setTransferSource(null);
+                          setTransferTarget(null);
+                        } else {
+                          setTransferMode(!transferMode);
+                          setTransferSource(null);
+                          setTransferTarget(null);
+                        }
+                      }}
                         className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
-                          transferMode
-                            ? lightMode ? 'bg-violet-50 border border-violet-200 text-violet-700 shadow-sm' : 'bg-violet-500/10 border border-violet-500/20 text-violet-300'
-                            : lightMode
-                              ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
-                              : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
+                          transferSource && transferTarget
+                            ? lightMode ? 'bg-emerald-600 text-white border border-emerald-700 shadow-md' : 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                            : transferMode
+                              ? lightMode ? 'bg-violet-50 border border-violet-200 text-violet-700 shadow-sm' : 'bg-violet-500/10 border border-violet-500/20 text-violet-300'
+                              : lightMode
+                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
+                                : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
                         }`}>
-                        {transferMode ? (transferSource ? `Masa ${transferSource} → ? (hədəf seç)` : 'Mənbə seç') : 'Köçür'}
+                        {transferSource && transferTarget ? `Köçür: ${transferSource} → ${transferTarget}` : transferMode ? (transferSource ? `Masa ${transferSource} → ?` : 'Mənbə seç') : 'Köçür'}
                       </button>
                     </>
                   </div>
@@ -374,6 +471,7 @@ export default function POSPage() {
                             onAction={() => handleTableAction(table)}
                             isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
                             isTransferSource={transferMode && transferSource === table.table_number}
+                            isTransferTarget={transferMode && transferTarget === table.table_number}
                             isOverdue={overdueTableNumbers.has(table.table_number)}
                           />
                         ))}
@@ -514,6 +612,8 @@ export default function POSPage() {
         onSplitBill={handleSplitTable}
         onCloseBill={handleActionCloseBill}
         onPrint={() => { setActionSheetOpen(false); setActionSheetTable(null); }}
+        onCancelTable={handleActionCancelTable}
+        onReportLoss={handleActionReportLoss}
         onSaveDraft={() => { pos.saveCart(); setActionSheetOpen(false); setActionSheetTable(null); }}
       />
 
@@ -608,6 +708,124 @@ export default function POSPage() {
                       : 'bg-gradient-to-br from-gold to-amber-400 text-black shadow-lg shadow-gold/30 hover:shadow-gold/40'
                   }`}>
                   {orderButtonStatus === 'loading' ? 'Gözləyin...' : <><CheckCircle size={18} /> Hesabı Bağla</>}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Cancel Confirm ── */}
+      <AnimatePresence>
+        {cancelConfirmOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              onClick={() => setCancelConfirmOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className={`max-w-sm w-full rounded-3xl border p-6 shadow-2xl backdrop-blur-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-zinc-900/95 border-zinc-700/50'}`}>
+                <div className="text-center mb-5">
+                  <XCircle size={40} className={`mx-auto mb-3 ${lightMode ? 'text-red-500' : 'text-red-400'}`} />
+                  <p className="text-lg font-bold">Masa {actionSheetTable?.table_number} təmizlənsin?</p>
+                  <p className={`text-sm mt-1 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
+                    Bütün sifarişlər ləğv ediləcək. Bu itki kimi qeyd olunmayacaq.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setCancelConfirmOpen(false)}
+                    className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-all ${lightMode ? 'border-gray-200 text-gray-600 hover:bg-gray-100' : 'border-zinc-700 text-white/60 hover:bg-zinc-800'}`}>
+                    İmtina
+                  </button>
+                  <button onClick={confirmCancelTable}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${lightMode ? 'bg-red-600 text-white border border-red-700 hover:bg-red-700' : 'bg-red-600/20 border border-red-500/30 text-red-300 hover:bg-red-600/30'}`}>
+                    Təmizlə
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Loss Modal ── */}
+      <AnimatePresence>
+        {lossModalOpen && actionSheetTable && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              onClick={() => !lossSubmitting && setLossModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 200, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 100, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8"
+            >
+              <div className={`max-w-sm mx-auto rounded-3xl border p-5 shadow-2xl backdrop-blur-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-zinc-900/95 border-zinc-700/50'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {actionSheetTable.table_number}</p>
+                    <p className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>İtki qeyd et</p>
+                  </div>
+                  <button onClick={() => !lossSubmitting && setLossModalOpen(false)}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-500 hover:bg-gray-200' : 'bg-zinc-800 text-white/40 hover:text-white'}`}>
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="mb-4">
+                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Səbəb</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {lossReasons.map(r => (
+                      <button key={r.key}
+                        onClick={() => setLossReason(r.key)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                          lossReason === r.key
+                            ? (lightMode ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-amber-500/10 border-amber-500/30 text-amber-300')
+                            : (lightMode ? 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100' : 'bg-zinc-800 border-zinc-700 text-white/40 hover:text-white/60')
+                        }`}>
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Məbləğ (₼)</p>
+                  <input type="number" step="0.01" min="0" value={lossAmount}
+                    onChange={e => setLossAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className={`w-full px-4 py-3 rounded-xl text-lg font-bold border transition-all outline-none ${
+                      lightMode ? 'bg-gray-50 border-gray-200 text-gray-900' : 'bg-zinc-800 border-zinc-700 text-white'
+                    }`}
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Qeyd (istəyə bağlı)</p>
+                  <input type="text" value={lossNote}
+                    onChange={e => setLossNote(e.target.value)}
+                    placeholder="Məs: müştəri 3-cü dəfə gec gəldi"
+                    className={`w-full px-4 py-3 rounded-xl text-sm border transition-all outline-none ${
+                      lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30'
+                    }`}
+                  />
+                </div>
+
+                <button onClick={submitLoss} disabled={lossSubmitting || lossAmount <= 0}
+                  className={`w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-30 ${
+                    lightMode
+                      ? 'bg-red-600 text-white border border-red-700 hover:bg-red-700 shadow-sm'
+                      : 'bg-red-600/20 border border-red-500/30 text-red-300 hover:bg-red-600/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
+                  }`}>
+                  {lossSubmitting ? 'Gözləyin...' : <><AlertTriangle size={16} /> İtki kimi qeyd et</>}
                 </button>
               </div>
             </motion.div>

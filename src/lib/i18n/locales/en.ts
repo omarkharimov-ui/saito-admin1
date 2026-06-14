@@ -1309,4 +1309,28 @@ export const en: TranslationMap = {
   floor_3: 'Floor 3',
   all_floors: 'All floors',
   guest_short: 'guests',
+
+  // POS — Cancel / Loss
+  cancel_table: 'Cancel',
+  cancel_table_confirm: 'Clear table {table}?',
+  cancel_table_desc: 'All orders will be cancelled. Not recorded as loss.',
+  cancel_table_btn: 'Clear',
+  cancel_done: 'Table {table} cleared',
+  report_loss: 'Loss',
+  loss_reason: 'Reason',
+  loss_amount: 'Amount (₼)',
+  loss_note: 'Note (optional)',
+  loss_submit: 'Record as loss',
+  loss_recorded: 'Loss recorded: {reason} — {amount} ₼',
+  loss_reason_customer_dissatisfaction: 'Customer dissatisfaction',
+  loss_reason_late_order: 'Late order',
+  loss_reason_waiter_error: 'Waiter error',
+  loss_reason_spilled_damaged: 'Spilled / damaged',
+  loss_reason_preparation_error: 'Preparation error',
+  loss_reason_customer_walkout: 'Customer walked out',
+  loss_reason_other: 'Other',
+
+  // Order items — served / locked
+  served_qty_error: 'Cannot reduce served item ({served} pcs)',
+  served_del_error: 'Cannot delete served item — {served} pcs already delivered',
 } as const;

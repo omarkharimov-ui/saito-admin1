@@ -815,7 +815,7 @@ export default function KitchenPage() {
     for (const item of order.items) {
       if (item.preparedQuantity < item.orderedQuantity) {
         await supabase.from('order_items')
-          .update({ prepared_quantity: item.orderedQuantity, kitchen_status: 'ready' })
+          .update({ prepared_quantity: item.orderedQuantity, kitchen_status: 'ready', served_quantity: item.orderedQuantity })
           .eq('id', item.id);
       }
     }

@@ -8,6 +8,7 @@ export interface OrderItem {
   products?: { image_url: string | null; translations?: Record<string, { name?: string }> | null } | null;
   is_on_hold?: boolean;
   prepared_quantity?: number;
+  served_quantity?: number;
   course?: string;
 }
 

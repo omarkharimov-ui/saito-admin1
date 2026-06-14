@@ -12,6 +12,7 @@ import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { toast } from 'react-hot-toast';
+import SimpleToaster from '@/app/(admin)/components/layout/SimpleToaster';
 import { supabase } from '@/lib/supabase';
 import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable, LossItem } from './types/shared';
 
@@ -890,6 +891,7 @@ export default function POSPage() {
           </>
         )}
       </AnimatePresence>
+      {isFullscreen && <SimpleToaster />}
     </div>
   );
 }

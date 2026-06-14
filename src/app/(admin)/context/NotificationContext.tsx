@@ -305,7 +305,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('kitchen_status', 'ready')
-      .in('status', ['new', 'confirmed']);
+      .in('status', ['new', 'confirmed'])
+      .is('paid_at', null)
+      .is('closed_at', null);
     if (count !== null) setReadyOrdersCount(count);
   }, []);
 

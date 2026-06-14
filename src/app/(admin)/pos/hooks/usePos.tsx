@@ -206,8 +206,9 @@ export function usePos() {
   }, []);
 
   const clearCart = useCallback(() => {
-    setCart(null);
     const currentTable = selectedTable?.table_number ?? cartRef.current?.table_number;
+    setCart(null);
+    cartRef.current = null;
     if (typeof currentTable === 'number') {
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
       delete all[currentTable];
@@ -238,7 +239,11 @@ export function usePos() {
     const fingerprint = cartFingerprint(currentCart.items);
     const lastFingerprint = orderFingerprintRef.current[currentCart.table_number];
     const resendOnlyIfChanged = currentCart.items.every(item => (item.sentQuantity || 0) >= item.quantity);
-    if (lastFingerprint === fingerprint && resendOnlyIfChanged) {
+    const hasChangedSinceLastSend = lastFingerprint !== fingerprint || currentCart.items.some(item => {
+      const sent = item.sentQuantity || 0;
+      return item.quantity !== sent || (item.special_notes || '') !== '';
+    });
+    if (!hasChangedSinceLastSend && resendOnlyIfChanged) {
       toast('Mətbəxə artıq göndərilib', { icon: 'ℹ️' });
       return;
     }

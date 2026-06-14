@@ -205,25 +205,25 @@ export function CartPanel({
       </div>
 
       {/* Items */}
-      <div className="flex-1 overflow-y-auto py-3 space-y-2">
-        <motion.div layout className="space-y-2">
+      <div className="flex-1 overflow-y-auto py-3">
+        <div className="min-h-full flex flex-col justify-center">
         <AnimatePresence initial={false}>
           {isEmpty ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center h-full text-[var(--theme-text-muted)]"
+              className="text-center text-[var(--theme-text-muted)]"
             >
               <p className="text-sm font-medium">Məhsul əlavə edin</p>
             </motion.div>
           ) : (
-            cart.items.map((item, idx) => {
+            <div className="space-y-2">
+            {cart.items.map((item, idx) => {
               const isChecked = selectedForLoss.has(idx);
               const lossQty = selectedForLoss.get(idx) ?? 0;
               return (
                 <motion.div
                   key={`${item.product_id}__${idx}`}
-                  layout
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
@@ -276,10 +276,11 @@ export function CartPanel({
                   </div>
                 </motion.div>
               );
-            })
+            })}
+            </div>
           )}
         </AnimatePresence>
-        </motion.div>
+        </div>
       </div>
 
       {/* Footer */}

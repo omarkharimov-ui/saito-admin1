@@ -11,6 +11,7 @@ import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
+import MobileModal from '@/components/ui/MobileModal';
 import { toast } from 'react-hot-toast';
 import SimpleToaster from '@/app/(admin)/components/layout/SimpleToaster';
 import { supabase } from '@/lib/supabase';
@@ -51,6 +52,7 @@ export default function POSPage() {
 
   /* ── Payment modal ── */
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [warningOpen, setWarningOpen] = useState(false);
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
   const [payTableNumber, setPayTableNumber] = useState<number>(0);
   const [payAmount, setPayAmount] = useState(0);
@@ -463,7 +465,7 @@ export default function POSPage() {
               {/* Tables */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 pt-3">
                 {pos.loading && pos.tables.length === 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {Array.from({ length: 12 }).map((_, i) => (
                       <div key={i} className="rounded-2xl border p-4 bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-sm">
                         <div className="h-4 w-12 rounded-full animate-pulse mb-3 bg-[var(--theme-surface-soft)]" />
@@ -480,7 +482,7 @@ export default function POSPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
-                      className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
+                      className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 xl:gap-5"
                     >
                       {(activeFloor.tables ?? [])
                         .filter(t => t.status !== 'merged')
@@ -531,11 +533,7 @@ export default function POSPage() {
                     onBack={() => {
                       try {
                         if (isDirty) {
-                          if (window.confirm('Yazılmamış dəyişikliklər var. Silinsin?')) {
-                            pos.clearCart();
-                            setIsDirty(false);
-                            pos.backToFloor();
-                          }
+                          setWarningOpen(true);
                         } else {
                           pos.backToFloor();
                         }
@@ -649,6 +647,34 @@ export default function POSPage() {
           })}
         </div>
       </div>
+
+      <MobileModal open={warningOpen} onClose={() => setWarningOpen(false)}>
+        <div className="space-y-4 text-center">
+          <h3 className="text-lg font-bold">Yazılmamış dəyişikliklər var</h3>
+          <p className="text-sm text-[var(--theme-text-secondary)]">
+            Masanı tərk etsən, səbət, qonaq sayı və dəyişikliklər silinəcək.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => setWarningOpen(false)}
+              className="px-4 py-2 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]"
+            >
+              Ləğv
+            </button>
+            <button
+              onClick={() => {
+                pos.clearCart();
+                setIsDirty(false);
+                setWarningOpen(false);
+                pos.backToFloor();
+              }}
+              className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold"
+            >
+              Sil və çıx
+            </button>
+          </div>
+        </div>
+      </MobileModal>
 
       {/* ── Action Sheet ── */}
       <ActionSheet

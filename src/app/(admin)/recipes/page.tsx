@@ -14,6 +14,7 @@ import { RecipeConstructorModal } from './components/RecipeConstructorModal';
 
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
+import MobileModal from '@/components/ui/MobileModal';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import type {
   CookbookRecipe,
@@ -130,8 +131,9 @@ export default function RecipesPage() {
 
   // ── Clear all recipes ──
   const [clearingAll, setClearingAll] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const clearAllRecipes = async () => {
-    if (!confirm('Bütün reseptlər silinsin? Bu əməliyyat geri alına bilməz!')) return;
+    setClearConfirmOpen(false);
     setClearingAll(true);
     try {
       const res = await fetch('/api/recipes/clear-all', { method: 'POST' });
@@ -365,7 +367,7 @@ export default function RecipesPage() {
               )}
             </button>
             <button
-              onClick={clearAllRecipes} disabled={clearingAll}
+              onClick={() => setClearConfirmOpen(true)} disabled={clearingAll}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30"
               style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
             >
@@ -375,6 +377,27 @@ export default function RecipesPage() {
           </div>
         </div>
       </GlassCard>
+
+      <MobileModal open={clearConfirmOpen} onClose={() => setClearConfirmOpen(false)}>
+        <div className="space-y-4 text-center">
+          <h3 className="text-lg font-bold">Bütün reseptlər silinsin?</h3>
+          <p className="text-sm text-[var(--theme-text-secondary)]">Bu əməliyyat geri alına bilməz.</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => setClearConfirmOpen(false)}
+              className="px-4 py-2 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]"
+            >
+              Ləğv
+            </button>
+            <button
+              onClick={clearAllRecipes}
+              className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold"
+            >
+              Sil
+            </button>
+          </div>
+        </div>
+      </MobileModal>
 
       {/* AI Suggestion Panel */}
       <AnimatePresence>

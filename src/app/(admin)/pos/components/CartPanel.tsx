@@ -315,48 +315,39 @@ export function CartPanel({
             {showCustomReason ? (
               <motion.div
                 key="custom"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
+                initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                 className="flex items-center gap-2"
               >
-                <motion.div
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: '100%', opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                  className="flex-1 overflow-hidden"
-                >
-                  <input
-                    ref={customInputRef}
-                    type="text"
-                    value={customReasonText}
-                    onChange={e => setCustomReasonText(e.target.value)}
-                    placeholder="Səbəbi əllə yazın..."
-                    className={`w-full px-4 py-3 rounded-xl text-sm border outline-none ${
-                      lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30'
-                    }`}
-                  />
-                </motion.div>
-                <motion.button
-                  layoutId="digər-morph"
-                  onClick={() => { setShowCustomReason(false); setCustomReasonText(''); }}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors"
-                >
+                <input
+                  ref={customInputRef}
+                  type="text"
+                  value={customReasonText}
+                  onChange={e => setCustomReasonText(e.target.value)}
+                  placeholder="Səbəbi əllə yazın..."
+                  className={`flex-1 px-4 py-3 rounded-xl text-sm border outline-none transition-all ${
+                    lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30'
+                  }`}
+                />
+                <button onClick={() => { setShowCustomReason(false); setCustomReasonText(''); }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+                    lightMode ? 'bg-gray-100 text-gray-500 hover:bg-gray-200' : 'bg-zinc-800 text-white/40 hover:text-white'
+                  }`}>
                   <X size={16} />
-                </motion.button>
+                </button>
               </motion.div>
             ) : (
               <motion.div
                 key="preset"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
+                initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                 className="space-y-1.5"
               >
-                <motion.div layout className="flex gap-1.5">
+                <div className="flex gap-1.5">
                   {lossReasons.map(r => (
                     <button key={r.key}
                       onClick={() => setLossReason(r.key)}
@@ -368,14 +359,11 @@ export function CartPanel({
                       {r.label}
                     </button>
                   ))}
-                </motion.div>
-                <motion.button
-                  layoutId="digər-morph"
-                  onClick={() => setShowCustomReason(true)}
-                  className="px-3 py-1.5 rounded-xl text-[11px] font-medium border border-dashed border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-text-muted)] transition-colors"
-                >
+                </div>
+                <button onClick={() => setShowCustomReason(true)}
+                  className="px-3 py-1.5 rounded-xl text-[11px] font-medium border border-dashed border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-text-muted)] transition-all">
                   + Digər
-                </motion.button>
+                </button>
               </motion.div>
             )}
             </AnimatePresence>

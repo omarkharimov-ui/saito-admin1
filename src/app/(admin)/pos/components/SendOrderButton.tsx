@@ -13,9 +13,10 @@ interface SendOrderButtonProps {
   label?: string;
   variant?: 'send' | 'loss';
   isDirty?: boolean;
+  className?: string;
 }
 
-export function SendOrderButton({ disabled = false, status, onClick, label, variant = 'send', isDirty = false }: SendOrderButtonProps) {
+export function SendOrderButton({ disabled = false, status, onClick, label, variant = 'send', isDirty = false, className = '' }: SendOrderButtonProps) {
   const { t } = useLanguage();
   const handleClick = async () => {
     if (disabled || status === 'loading') return;
@@ -35,7 +36,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
       whileTap={{ scale: 0.97 }}
       layout
       transition={{ type: 'spring', stiffness: 400, damping: 28, mass: 0.8 }}
-      className={`relative overflow-hidden font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
+      className={`relative overflow-hidden font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${className} ${
         variant === 'loss'
           ? 'bg-red-600/15 border border-red-500/25 text-red-300'
           : 'bg-neutral-900 text-white active:bg-neutral-800'

@@ -48,6 +48,7 @@ export function usePos() {
   const cartRef = useRef<PosCart | null>(null);
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [orderHistory, setOrderHistory] = useState<any[]>([]);
+  const orderFingerprintRef = useRef<Record<number, string>>({});
 
   // Keep cartRef in sync
   cartRef.current = cart;
@@ -205,20 +206,15 @@ export function usePos() {
   }, []);
 
   const clearCart = useCallback(() => {
-    const currentCart = cartRef.current;
-    if (currentCart) {
-      setCart({
-        table_id: currentCart.table_id,
-        table_number: currentCart.table_number,
-        guest_count: currentCart.guest_count,
-        items: [],
-        notes: '',
-        order_type: currentCart.order_type,
-      });
-    } else {
-      setCart(null);
+    setCart(null);
+    const currentTable = selectedTable?.table_number ?? cartRef.current?.table_number;
+    if (typeof currentTable === 'number') {
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      delete all[currentTable];
+      saveCache(POS_CART_KEY + '_all', all);
+      delete orderFingerprintRef.current[currentTable];
     }
-  }, []);
+  }, [selectedTable]);
 
   const saveCart = useCallback(() => {
     const currentCart = cartRef.current;
@@ -231,9 +227,21 @@ export function usePos() {
   }, [backToFloor]);
 
   /* ── Order Operations ── */
+  const cartFingerprint = (items: PosCartItem[]) => items
+    .map(item => `${item.product_id}:${item.variant_id || 'base'}:${item.quantity}:${item.unit_price}:${item.special_notes || ''}:${(item.modifiers ?? []).map(m => m.id).sort().join(',')}`)
+    .join('|');
+
   const placeOrder = useCallback(async () => {
     const currentCart = cartRef.current;
     if (!currentCart || currentCart.items.length === 0) return;
+
+    const fingerprint = cartFingerprint(currentCart.items);
+    const lastFingerprint = orderFingerprintRef.current[currentCart.table_number];
+    const resendOnlyIfChanged = currentCart.items.every(item => (item.sentQuantity || 0) >= item.quantity);
+    if (lastFingerprint === fingerprint && resendOnlyIfChanged) {
+      toast('Mətbəxə artıq göndərilib', { icon: 'ℹ️' });
+      return;
+    }
 
     try {
       const orderItems = currentCart.items.map(item => ({
@@ -266,6 +274,8 @@ export function usePos() {
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to place order');
 
       toast.success(`Masa ${currentCart.table_number} — sifariş göndərildi`);
+
+      orderFingerprintRef.current[currentCart.table_number] = fingerprint;
 
       // Mark all items as sent — keep cart on screen for further edits
       setCart(prev => prev ? {

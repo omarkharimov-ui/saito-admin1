@@ -61,7 +61,90 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const prevReadyIdsRef = useRef<Set<string>>(new Set());
   const skipOrdersOnMobileRef = useRef(false);
+  const isFullscreenRef = useRef(false);
 
+  useEffect(() => {
+    const a = new Audio(DING_SOUND);
+    setAudio(a);
+  }, []);
+
+  useEffect(() => {
+    const syncFullscreen = () => {
+      isFullscreenRef.current = !!document.fullscreenElement;
+    };
+
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    syncFullscreen();
+
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+  }, []);
+@@
+   const showNotification = useCallback((_title: string, _body: string) => {
+-    // Browser OS notifications disabled — Electron will handle system notifications
+-  }, []);
++    // Keep a lightweight in-app fallback so notifications still appear in fullscreen.
++    if (isFullscreenRef.current && typeof window !== 'undefined') {
++      window.dispatchEvent(new CustomEvent('saito-notification', {
++        detail: {
++          id: Math.random().toString(36).substr(2, 9),
++          type: 'order',
++          title: _title,
++          message: _body,
++          timestamp: new Date(),
++        },
++      }));
++    }
++  }, []);
+@@
+           if (kitchenResetToPending || totalChanged) {
+             const title = 'Sifariş yeniləndi';
+             const body = `${tableName} yeniləndi`;
+             if (!isDuplicateToast(body)) {
++              showNotificationRef.current(title, body);
+               addNotificationRef.current(title, body, 'order');
+               toast((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
+                 duration: 3000,
+                 icon: undefined,
+@@
+           if (payload.new?.kitchen_status === 'accepted' && payload.old?.kitchen_status !== 'accepted') {
+             const title = 'Sifariş Qəbul Edildi';
+             const body = `${tableName} qəbul edildi`;
+             if (!isDuplicateToast(body)) {
++              showNotificationRef.current(title, body);
+               addNotificationRef.current(title, body, 'order');
+               toast((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
+                 duration: 3000,
+                 icon: undefined,
+@@
+           if (payload.new?.kitchen_status === 'preparing' && payload.old?.kitchen_status !== 'preparing') {
+             const title = 'Hazırlanır';
+             const body = `${tableName} hazırlanır`;
+             if (!isDuplicateToast(body)) {
++              showNotificationRef.current(title, body);
+               addNotificationRef.current(title, body, 'order');
+               toast((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
+                 duration: 3000,
+                 icon: undefined,
+@@
+           if (payload.new?.kitchen_status === 'ready' && payload.old?.kitchen_status !== 'ready') {
+@@
+             const title = 'Sifariş Hazırdır';
+             const body = `${tableName} hazırdır${prepStr ? ` · ${prepStr}` : ''}`;
+             if (!isDuplicateToast(body)) {
+               playSoundRef.current();
++              showNotificationRef.current(title, body);
+               addNotificationRef.current(title, body, 'order');
+               toast.success((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
+                 duration: 5000,
+                 icon: undefined,
+@@
+           if (payload.new?.status !== 'new') return;
+@@
+           if (!isDuplicateToast(toastBody)) {
+             playSoundRef.current();
+             showNotificationRef.current(title, body);
+             addNotificationRef.current(title, body, 'order');
+*** End Patch
   // Stable refs so realtime handler always uses latest functions without re-subscribing
   const playSoundRef = useRef<() => void>(() => {});
   const showNotificationRef = useRef<(t: string, b: string) => void>(() => {});
@@ -182,7 +265,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [audio]);
 
   const showNotification = useCallback((_title: string, _body: string) => {
-    // Browser OS notifications disabled — Electron will handle system notifications
+    if (isFullscreenRef.current && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('saito-notification', {
+        detail: {
+          id: Math.random().toString(36).substring(2, 11),
+          type: 'order',
+          title: _title,
+          message: _body,
+          timestamp: new Date(),
+        },
+      }));
+    }
   }, []);
 
   // Keep refs in sync with latest callbacks

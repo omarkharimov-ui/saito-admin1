@@ -202,7 +202,7 @@ export function CartPanel({
               layout
               key="loss-toggle"
               onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
-              className="h-10 rounded-2xl text-xs font-semibold transition-colors flex items-center justify-center overflow-hidden"
+              className="h-10 rounded-2xl text-xs font-semibold transition-colors flex items-center justify-center overflow-hidden hover:bg-[var(--theme-surface-soft)]"
               style={{ padding: '0 14px' }}
             >
               <AnimatePresence mode="wait">

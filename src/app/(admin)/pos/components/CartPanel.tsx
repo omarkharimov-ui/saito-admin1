@@ -196,7 +196,7 @@ export function CartPanel({
             Təmizlə
           </motion.button>
 
-          {/* Morphing button: İtki Yaz ↔ Ləğv et */}
+          {/* Morphing button: İtki Yaz ↔ Ləğv et — hər şey sağdan */}
           <motion.button
             initial={false}
             animate={{
@@ -207,31 +207,15 @@ export function CartPanel({
             className="h-10 rounded-2xl text-xs font-semibold flex items-center justify-center overflow-hidden hover:bg-[var(--theme-surface-soft)] transition-colors"
             style={{ padding: '0 14px', display: isEmpty ? 'none' : undefined }}
           >
-            <AnimatePresence mode="wait">
-              {lossMode ? (
-                <motion.span
-                  key="cancel"
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ type: 'spring', stiffness: 280, damping: 24, mass: 0.8 }}
-                  className="whitespace-nowrap"
-                >
-                  Ləğv et
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="loss"
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ type: 'spring', stiffness: 280, damping: 24, mass: 0.8 }}
-                  className="whitespace-nowrap"
-                >
-                  İtki Yaz
-                </motion.span>
-              )}
-            </AnimatePresence>
+            <motion.span
+              key={lossMode ? 'cancel' : 'loss'}
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 24, mass: 0.8 }}
+              className="whitespace-nowrap"
+            >
+              {lossMode ? 'Ləğv et' : 'İtki Yaz'}
+            </motion.span>
           </motion.button>
         </div>
       </div>

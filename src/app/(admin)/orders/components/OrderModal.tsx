@@ -797,6 +797,10 @@ export const OrderModal = ({
                   <button onClick={() => {
                     if (confirmClear) { setConfirmClear(false); return; }
                     if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); }
+                    if (order.kitchen_status && order.kitchen_status !== 'pending' && addItems.length === 0 && !hasDraft) {
+                      toast('Sifariş artıq mətbəxə göndərilib', { icon: 'ℹ️' });
+                      return;
+                    }
                     setConfirmClear(true);
                   }} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${confirmClear ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-orange-500/10 text-orange-400/60 hover:text-orange-400'}`}
                     title={t('dismiss_table')}>
@@ -1077,6 +1081,10 @@ export const OrderModal = ({
                   </button>
                   <button onClick={() => {
                     if (confirmClear) { setConfirmClear(false); return; }
+                    if (order.kitchen_status && order.kitchen_status !== 'pending' && addItems.length === 0 && !hasDraft) {
+                      toast('Sifariş artıq mətbəxə göndərilib', { icon: 'ℹ️' });
+                      return;
+                    }
                     setConfirmClear(true);
                   }} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${confirmClear ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-orange-500/10 text-orange-400/60 hover:text-orange-400'}`}
                     title={t('dismiss_table')}>

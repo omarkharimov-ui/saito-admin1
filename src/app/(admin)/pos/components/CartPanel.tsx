@@ -179,32 +179,28 @@ export function CartPanel({
           </div>
         </div>
         <div className="flex items-center">
-          {/* Təmizlə — absorbs into morph button */}
-          <motion.button
-            layout
-            initial={false}
-            animate={{
-              opacity: lossMode ? 0 : 1,
-              width: lossMode ? 0 : 'auto',
-              paddingLeft: lossMode ? 0 : 14,
-              paddingRight: lossMode ? 0 : 14,
-              marginRight: lossMode ? 0 : 8,
-              pointerEvents: lossMode ? 'none' as const : 'auto' as const,
-            }}
-            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-            onClick={onClear}
-            className="h-10 rounded-2xl text-xs font-semibold whitespace-nowrap overflow-hidden text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
-            style={{ display: isEmpty ? 'none' : undefined }}
-          >
-            Təmizlə
-          </motion.button>
+          <AnimatePresence mode="popLayout">
+            {!lossMode && (
+              <motion.button
+                key="temizle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                onClick={onClear}
+                className="h-10 px-3.5 mr-2 rounded-2xl text-xs font-semibold whitespace-nowrap text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
+                style={{ display: isEmpty ? 'none' : undefined }}
+              >
+                Təmizlə
+              </motion.button>
+            )}
+          </AnimatePresence>
 
-          {/* Morphing button: İtki Yaz ↔ Ləğv et */}
           <motion.button
             layout
             initial={false}
             animate={{ color: lossMode ? '#f87171' : 'var(--theme-text-secondary)' }}
-            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
             onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
             className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap flex items-center justify-center hover:bg-[var(--theme-surface-soft)]"
             style={{ display: isEmpty ? 'none' : undefined }}
@@ -236,7 +232,7 @@ export function CartPanel({
                   layout
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20, height: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
                   className={`flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-300 ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`}`}
                 >

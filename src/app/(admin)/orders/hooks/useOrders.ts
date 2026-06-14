@@ -278,43 +278,42 @@ export function useOrders() {
 
   const handleClearTable = useCallback(async (tableNum: number) => {
     try {
-      const { data: active, error } = await supabase
+      const { data: primaryOrders, error } = await supabase
         .from('orders')
-        .select('id, table_number, merged_into')
+        .select('id, table_number, status')
         .eq('table_number', tableNum)
-        .in('status', ['new', 'confirmed']);
+        .neq('status', 'paid');
 
       if (error) throw error;
-      const primaryOrder = active?.[0];
-      if (!primaryOrder) return;
 
-      const primaryId = primaryOrder.id;
+      const primaryIds = (primaryOrders || []).map(order => order.id);
+      if (primaryIds.length === 0) return;
 
-      // 2. Bu sifarişə bağlı olan bütün uşaq (merged) masaları tapırıq
-      const { data: mergedChildren } = await supabase
+      const { data: childOrders } = await supabase
         .from('orders')
-        .select('id, table_number')
-        .eq('merged_into', primaryId);
+        .select('id, table_number, status')
+        .in('merged_into', primaryIds)
+        .neq('status', 'paid');
 
-      const childIds = (mergedChildren || []).map(r => r.id);
-      const allIdsToClear = [primaryId, ...childIds];
-      const childTableNums = (mergedChildren || [])
-        .map(r => r.table_number)
-        .filter((n): n is number => n !== null);
+      const ordersToClear = [...(primaryOrders || []), ...(childOrders || [])];
+      const idsToClear = ordersToClear.map(order => order.id);
+      const childTableNums = (childOrders || [])
+        .map(order => order.table_number)
+        .filter((n): n is number => n !== null && n !== tableNum);
 
       // 3. OPTİMİSTİK UPDATE: local state + localStorage dərhal yenilə
-      setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !allIdsToClear.includes(x.id))));
+      setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !idsToClear.includes(x.id))));
 
       // 4. BAZA ƏMƏLİYYATLARI — paralel sil
       const [, { error: delErr }] = await Promise.all([
-        supabase.from('order_items').delete().in('order_id', allIdsToClear),
-        supabase.from('orders').delete().in('id', allIdsToClear),
+        supabase.from('order_items').delete().in('order_id', idsToClear),
+        supabase.from('orders').delete().in('id', idsToClear),
       ]);
 
       if (delErr) throw delErr;
 
       // 5. DB silməni təsdiqlədi — state-i bir daha təmizlə
-      setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !allIdsToClear.includes(x.id))));
+      setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !idsToClear.includes(x.id))));
 
       // 6. BİLDİRİŞ
       if (childTableNums.length > 0) {

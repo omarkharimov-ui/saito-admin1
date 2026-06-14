@@ -280,6 +280,7 @@ export default function POSPage() {
       if (!res.ok) throw new Error(data.error);
       toast.success(`Masa ${cancelTableNumber} təmizləndi`);
       pos.fetchData();
+      pos.clearCart();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
     }

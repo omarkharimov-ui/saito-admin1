@@ -12,42 +12,39 @@ export async function DELETE(req: NextRequest) {
     // Find active orders for this table
     const { data: orders, error: fetchErr } = await supabase
       .from('orders')
-      .select('id')
+      .select('id, merged_into')
       .eq('table_number', tableNumber)
       .neq('status', 'paid');
 
     if (fetchErr) throw fetchErr;
 
+    const orderIds = (orders || []).map(o => o.id);
+    const parentIds = orderIds.slice();
+
     if (orders && orders.length > 0) {
-      const orderIds = orders.map(o => o.id);
-
-      // Cancel all order items
-      await supabase
-        .from('order_items')
-        .update({ kitchen_status: 'cancelled' })
-        .in('order_id', orderIds);
-
-      // Cancel orders
-      await supabase
+      const { data: childOrders, error: childErr } = await supabase
         .from('orders')
-        .update({ status: 'cancelled', kitchen_status: 'cancelled' })
-        .in('id', orderIds);
+        .select('id')
+        .in('merged_into', parentIds)
+        .neq('status', 'paid');
+
+      if (childErr) throw childErr;
+
+      const idsToClear = [...orderIds, ...((childOrders || []).map(o => o.id))];
+
+      if (idsToClear.length > 0) {
+        await supabase.from('order_items').delete().in('order_id', idsToClear);
+        await supabase.from('orders').delete().in('id', idsToClear);
+      }
     }
 
     // Reset table status and guest count to empty
     await supabase
-      .from('tables')
-      .update({
-        status: 'empty',
-        guest_count: null,
-        opened_at: null,
-        last_activity_at: null,
-        total_amount: 0,
-        merged_into_table: null,
-      })
+      .from('table_floors')
+      .update({ merged_into_table: null })
       .eq('table_number', tableNumber);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, cleared_order_ids: orderIds });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

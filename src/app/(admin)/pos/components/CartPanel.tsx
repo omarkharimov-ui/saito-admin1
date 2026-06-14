@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -35,6 +35,22 @@ export function CartPanel({
   const [showCustomReason, setShowCustomReason] = useState(false);
   const [customReasonText, setCustomReasonText] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const lossExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const exitLossMode = useCallback(() => {
+    setSelectedForLoss(new Map());
+    setShowCustomReason(false);
+    setCustomReasonText('');
+    if (lossExitTimerRef.current) clearTimeout(lossExitTimerRef.current);
+    lossExitTimerRef.current = setTimeout(() => {
+      setLossMode(false);
+      lossExitTimerRef.current = null;
+    }, 250);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (lossExitTimerRef.current) clearTimeout(lossExitTimerRef.current); };
+  }, []);
 
   const lossReasons = [
     { key: 'customer_disliked', label: 'Müştəri bəyənmədi' },
@@ -109,6 +125,7 @@ export function CartPanel({
       }
       const names = items.map(i => `${i.quantity} əd. ${i.product_name}`).join(', ');
       toast.success(`${names} — ləğv edildi`);
+      if (lossExitTimerRef.current) clearTimeout(lossExitTimerRef.current);
       setLossMode(false);
       setSelectedForLoss(new Map());
       setShowCustomReason(false);
@@ -175,7 +192,7 @@ export function CartPanel({
             </button>
           )}
           {lossMode && (
-            <button onClick={() => { setLossMode(false); setSelectedForLoss(new Map()); setShowCustomReason(false); setCustomReasonText(''); }}
+            <button onClick={exitLossMode}
               className="h-10 px-3.5 rounded-2xl text-xs font-semibold transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
               Ləğv et
             </button>

@@ -7,33 +7,33 @@ import type { PosTable } from '../types/shared';
 
 const statusConfig: Record<string, { label: string; dot: string; bg: string; border: string; text: string; glow: string; lightBg: string; lightBorder: string; lightText: string }> = {
   empty: {
-    label: 'BOŞ', dot: 'bg-zinc-500', bg: 'bg-[#101012]', border: 'border-zinc-900',
-    text: 'text-zinc-500', glow: '',
+    label: 'BOŞ', dot: 'bg-zinc-500', bg: 'bg-[#101012]', border: 'border-zinc-800',
+    text: 'text-zinc-400', glow: '',
     lightBg: 'bg-zinc-50', lightBorder: 'border-zinc-200', lightText: 'text-zinc-400',
   },
   active: {
-    label: 'Aktiv', dot: 'bg-blue-400', bg: 'bg-[#131824]/60 backdrop-blur-md', border: 'border-blue-500/30',
-    text: 'text-blue-400', glow: 'shadow-[0_0_25px_rgba(59,130,246,0.06)]',
+    label: 'Aktiv', dot: 'bg-blue-400', bg: 'bg-[#182036] backdrop-blur-md', border: 'border-blue-500/40',
+    text: 'text-blue-400', glow: 'shadow-[0_0_30px_rgba(59,130,246,0.12)]',
     lightBg: 'bg-blue-50/70', lightBorder: 'border-blue-200', lightText: 'text-blue-700',
   },
   waiting_bill: {
-    label: 'Hesab', dot: 'bg-amber-400', bg: 'bg-[#1c1610]/60 backdrop-blur-md', border: 'border-amber-500/30',
-    text: 'text-amber-400', glow: 'shadow-[0_0_25px_rgba(245,158,11,0.08)]',
+    label: 'Hesab', dot: 'bg-amber-400', bg: 'bg-[#261b10] backdrop-blur-md', border: 'border-amber-500/40',
+    text: 'text-amber-400', glow: 'shadow-[0_0_30px_rgba(245,158,11,0.15)]',
     lightBg: 'bg-amber-50/70', lightBorder: 'border-amber-200', lightText: 'text-amber-700',
   },
   cooking: {
-    label: 'Mətbəx', dot: 'bg-violet-400', bg: 'bg-[#16112a]/60 backdrop-blur-md', border: 'border-violet-500/25',
-    text: 'text-violet-400', glow: 'shadow-[0_0_25px_rgba(167,139,250,0.06)]',
+    label: 'Mətbəx', dot: 'bg-violet-400', bg: 'bg-[#1e1536] backdrop-blur-md', border: 'border-violet-500/35',
+    text: 'text-violet-400', glow: 'shadow-[0_0_30px_rgba(167,139,250,0.12)]',
     lightBg: 'bg-violet-50/70', lightBorder: 'border-violet-200', lightText: 'text-violet-700',
   },
   merged: {
-    label: 'Birləşdi', dot: 'bg-zinc-400', bg: 'bg-zinc-900/70 backdrop-blur-md', border: 'border-zinc-700/30',
-    text: 'text-zinc-400', glow: 'shadow-[0_0_20px_rgba(161,161,170,0.06)]',
+    label: 'Birləşdi', dot: 'bg-zinc-400', bg: 'bg-zinc-900 backdrop-blur-md', border: 'border-zinc-700/40',
+    text: 'text-zinc-400', glow: 'shadow-[0_0_20px_rgba(161,161,170,0.08)]',
     lightBg: 'bg-zinc-100/80', lightBorder: 'border-zinc-300', lightText: 'text-zinc-600',
   },
   problem: {
-    label: 'Problem', dot: 'bg-red-400', bg: 'bg-[#1f0d0d]/60 backdrop-blur-md', border: 'border-red-500/30',
-    text: 'text-red-400', glow: 'shadow-[0_0_25px_rgba(248,113,113,0.06)]',
+    label: 'Problem', dot: 'bg-red-400', bg: 'bg-[#2e0f0f] backdrop-blur-md', border: 'border-red-500/40',
+    text: 'text-red-400', glow: 'shadow-[0_0_30px_rgba(248,113,113,0.12)]',
     lightBg: 'bg-red-50/70', lightBorder: 'border-red-200', lightText: 'text-red-700',
   },
 };
@@ -76,7 +76,7 @@ export function TableCard({
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative w-full flex flex-col rounded-2xl p-4 text-left transition-all duration-200 ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
+      className={`relative w-full flex flex-col rounded-2xl p-4 text-left transition-all duration-200 border ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
     >
       {/* Static subtle glow for waiting bill — no pulse */}
       {table.status === 'waiting_bill' && (
@@ -92,14 +92,26 @@ export function TableCard({
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : table.status === 'empty' ? (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/60') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
-            {table.table_number}
+            {isGroupParent ? (
+              <span className="flex flex-col items-center leading-tight">
+                <span className="text-[6px] font-bold uppercase tracking-wider">Qrup</span>
+                <span className="text-[13px] font-black -mt-0.5">{table.table_number}</span>
+              </span>
+            ) : (
+              table.table_number
+            )}
           </div>
           <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/70' : (table.status === 'empty' ? 'bg-white/[0.04]' : 'bg-black/20')}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
             {cfg.label}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
+          {isGroupParent && (
+            <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${lightMode ? 'bg-zinc-200/60 text-zinc-500' : 'bg-zinc-800/50 text-zinc-400'}`}>
+              <GitMerge size={12} />
+            </span>
+          )}
           {onAction && !isMerged && (
             <span
               onClick={e => { e.stopPropagation(); onAction(); }}
@@ -162,17 +174,6 @@ export function TableCard({
         </div>
       )}
 
-      {/* Merged parent capsule badge */}
-      {isGroupParent && (
-        <div className={`mt-1.5 flex items-center gap-1 truncate ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border ${lightMode ? 'bg-zinc-200/60 border-zinc-300 text-zinc-600' : 'bg-zinc-800/50 border-zinc-700/40 text-zinc-300'}`}>
-            <span className="mr-0.5">🔗</span>
-            {allMergedNumbers.map((n, i) => (
-              <span key={n}>{i > 0 && <span className="mx-0.5 text-zinc-600">+</span>}M{n}</span>
-            ))}
-          </span>
-        </div>
-      )}
     </motion.button>
   );
 }

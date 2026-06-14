@@ -1341,4 +1341,31 @@ export const az = {
   loss_reason_not_liked: 'Müştəri bəyənmədi',
   loss_reason_kitchen_error: 'Mətbəx səhvi',
   loss_reason_wrong_entry: 'Səhv daxil edilmə',
+  loss_reason_custom_placeholder: 'Səbəbi əllə yazın...',
+  loss_note_placeholder: 'Məs: müştəri 3-cü dəfə gec gəldi',
+
+  // Status labels
+  status_active: 'Aktiv',
+  status_waiting_bill: 'Hesab',
+  status_cooking: 'Mətbəx',
+  status_problem: 'Problem',
+
+  // Missing keys
+  no_table_selected: 'Masa seçilməyib',
+  add_items_hint: 'Məhsul əlavə edin',
+  cancelled_amount: 'Ləğv edilən məbləğ',
+  resend: 'Yenidən Göndər',
+  sent_to_kitchen: 'Mətbəxə göndərildi',
+  send_failed: 'Göndərmək alınmadı',
+  unsaved_changes_confirm: 'Yazılmamış dəyişikliklər var. Silinsin?',
+  overdue_banner: '{count} masada sifariş {mins}+ dəq qəbul edilməyib',
+  floor_not_found: 'Mərtəbə tapılmadı',
+  billing_tab: 'Ödənişlər',
+  no_active_payments: 'Aktiv ödəniş yoxdur',
+  select_table_first: 'Əvvəlcə masa seçin',
+  tabs_tables: 'Masalar',
+  tabs_order: 'Sifariş',
+  tabs_billing: 'Ödəniş',
+  merge_button: '{count} masanı birləşdir',
+  save_to_confirm: 'Təsdiq gözləyir',
 } as const;

@@ -15,12 +15,6 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable, LossItem } from './types/shared';
 
-const tabs = [
-  { id: 'floor' as const, icon: LayoutGrid, label: 'Masalar' },
-  { id: 'order' as const, icon: ShoppingCart, label: 'Sifariş' },
-  { id: 'billing' as const, icon: CreditCard, label: 'Ödəniş' },
-];
-
 export default function POSPage() {
   const { t } = useLanguage();
   const { lightMode, setLightMode } = useTheme();
@@ -33,6 +27,7 @@ export default function POSPage() {
   const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
 
   const [orderButtonStatus, setOrderButtonStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [isDirty, setIsDirty] = useState(false);
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
   const [transferMode, setTransferMode] = useState(false);
@@ -120,6 +115,12 @@ export default function POSPage() {
   /* ── Add product with optional modifier sheet ── */
   const handleAddProduct = useCallback((product: PosProduct) => {
     pos.addToCart(product);
+    setIsDirty(true);
+  }, [pos]);
+
+  const handleUpdateQty = useCallback((index: number, delta: number) => {
+    pos.updateCartItemQty(index, delta);
+    setIsDirty(true);
   }, [pos]);
 
   /* ── Place order ── */
@@ -128,6 +129,7 @@ export default function POSPage() {
     try {
       await pos.placeOrder();
       setOrderButtonStatus('success');
+      setIsDirty(false);
       window.setTimeout(() => setOrderButtonStatus('idle'), 1400);
     } catch {
       setOrderButtonStatus('error');
@@ -249,6 +251,11 @@ export default function POSPage() {
     }
   }, [actionSheetTable, pos]);
 
+  const handleClearCart = useCallback(() => {
+    pos.clearCart();
+    setIsDirty(false);
+  }, [pos]);
+
   /* ── Cancel table (no loss record, no DB save) ── */
   const handleActionCancelTable = useCallback(() => {
     if (actionSheetTable) {
@@ -285,13 +292,13 @@ export default function POSPage() {
   }, [actionSheetTable]);
 
   const lossReasons = [
-    { key: 'customer_dissatisfaction', label: 'Müştəri narazılığı' },
-    { key: 'late_order', label: 'Gec sifariş' },
-    { key: 'waiter_error', label: 'Ofisiant səhvi' },
-    { key: 'spilled_damaged', label: 'Tökülmə / zədə' },
-    { key: 'preparation_error', label: 'Səhv hazırlıq' },
-    { key: 'customer_walkout', label: 'Müştəri getdi' },
-    { key: 'other', label: 'Digər' },
+    { key: 'customer_dissatisfaction', label: t('loss_reason_customer_dissatisfaction') },
+    { key: 'late_order', label: t('loss_reason_late_order') },
+    { key: 'waiter_error', label: t('loss_reason_waiter_error') },
+    { key: 'spilled_damaged', label: t('loss_reason_spilled_damaged') },
+    { key: 'preparation_error', label: t('loss_reason_preparation_error') },
+    { key: 'customer_walkout', label: t('loss_reason_customer_walkout') },
+    { key: 'other', label: t('loss_reason_other') },
   ];
 
   const submitLoss = useCallback(async () => {
@@ -411,47 +418,15 @@ export default function POSPage() {
                       <button onClick={() => { pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
                         disabled={selectedForMerge.length < 2}
                         className={`px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-30 transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
-                        {selectedForMerge.length} masanı birləşdir
+                        {t('merge_button').replace('{count}', String(selectedForMerge.length))}
                       </button>
                     )}
-                    <>
-                      <button onClick={() => { setMergeMode(!mergeMode); setSelectedForMerge([]); }}
-                        className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
-                          mergeMode
-                            ? lightMode ? 'bg-blue-50 border border-blue-200 text-blue-700 shadow-sm' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
-                            : lightMode
-                              ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
-                              : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
-                        }`}>Birləşdir</button>
-                      <button onClick={async () => {
-                        if (transferSource && transferTarget) {
-                          try {
-                            await pos.transferTable(transferSource, transferTarget);
-                          } catch (e: any) {
-                            toast.error(e.message || 'Köçürmə xətası', { id: 'transfer-error' });
-                            return;
-                          }
-                          setTransferMode(false);
-                          setTransferSource(null);
-                          setTransferTarget(null);
-                        } else {
-                          setTransferMode(!transferMode);
-                          setTransferSource(null);
-                          setTransferTarget(null);
-                        }
-                      }}
-                        className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
-                          transferSource && transferTarget
-                            ? lightMode ? 'bg-emerald-600 text-white border border-emerald-700 shadow-md' : 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                            : transferMode
-                              ? lightMode ? 'bg-violet-50 border border-violet-200 text-violet-700 shadow-sm' : 'bg-violet-500/10 border border-violet-500/20 text-violet-300'
-                              : lightMode
-                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
-                                : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
-                        }`}>
-                        {transferSource && transferTarget ? `Köçür: ${transferSource} → ${transferTarget}` : transferMode ? (transferSource ? `Masa ${transferSource} → ?` : 'Mənbə seç') : 'Köçür'}
+                    {mergeMode && (
+                      <button onClick={() => { setMergeMode(false); setSelectedForMerge([]); }}
+                        className="px-4 py-2 rounded-2xl text-xs font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                        Ləğv
                       </button>
-                    </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -462,7 +437,7 @@ export default function POSPage() {
                   lightMode ? 'bg-red-50 border-red-200 text-red-700' : 'bg-red-950/40 border-red-800/40 text-red-300'
                 }`}>
                   <AlertTriangle size={14} className="flex-shrink-0" />
-                  <span>{overdueTableNumbers.size} masada sifariş {orderDelayMinutes}+ dəq qəbul edilməyib</span>
+                  <span>{t('overdue_banner').replace('{count}', String(overdueTableNumbers.size)).replace('{mins}', String(orderDelayMinutes))}</span>
                 </div>
               )}
 
@@ -506,7 +481,7 @@ export default function POSPage() {
                   </AnimatePresence>
                 ) : (
                   <div className={`flex items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/20'}`}>
-                    <p className="text-sm">Mərtəbə tapılmadı</p>
+                    <p className="text-sm">{t('floor_not_found')}</p>
                   </div>
                 )}
               </div>
@@ -531,11 +506,23 @@ export default function POSPage() {
               <div className={`w-full md:w-[360px] xl:w-[400px] h-full md:max-h-full border-t md:border-t-0 md:border-l p-4 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'border-gray-200 bg-gray-50/50' : 'border-white/[0.06] bg-neutral-950/50'}`}>
                   <CartPanel
                     cart={pos.cart}
-                    onUpdateQty={pos.updateCartItemQty}
+                    onUpdateQty={handleUpdateQty}
                     onPlaceOrder={handlePlaceOrder}
-                    onClear={pos.clearCart}
-                    onBack={pos.backToFloor}
+                    onClear={handleClearCart}
+                    onBack={() => {
+                      if (isDirty) {
+                        if (window.confirm('Yazılmamış dəyişikliklər var. Silinsin?')) {
+                          pos.clearCart();
+                          setIsDirty(false);
+                          pos.backToFloor();
+                        }
+                      } else {
+                        pos.backToFloor();
+                      }
+                    }}
                     orderButtonStatus={orderButtonStatus}
+                    isDirty={isDirty}
+                    hasExistingOrder={pos.selectedTable?.status !== 'empty' && pos.selectedTable?.status !== undefined}
                     onUpdateGuests={(delta: number) => {
                       const c = pos.cart;
                       if (!c) return;
@@ -559,11 +546,11 @@ export default function POSPage() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="h-full overflow-y-auto p-4 sm:p-6"
             >
-              <h2 className={`text-lg font-bold mb-4 ${lightMode ? 'text-gray-900' : 'text-white'}`}>Ödənişlər</h2>
+              <h2 className={`text-lg font-bold mb-4 ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('billing_tab')}</h2>
               {pos.tables.filter(t => t.status !== 'empty' && t.total_amount > 0).length === 0 ? (
                 <div className={`flex flex-col items-center justify-center h-64 ${lightMode ? 'text-gray-400' : 'text-white/20'}`}>
                   <CreditCard size={48} className="mb-4 opacity-30" />
-                  <p className="text-sm">Aktiv ödəniş yoxdur</p>
+                  <p className="text-sm">{t('no_active_payments')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -579,7 +566,7 @@ export default function POSPage() {
                           {table.table_number}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold">Masa {table.table_number}</p>
+                          <p className="text-sm font-semibold">{t('table_label')} {table.table_number}</p>
                           <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{table.guest_count} nəfər · {table.order_count} sifariş</p>
                         </div>
                       </div>
@@ -587,7 +574,7 @@ export default function POSPage() {
                         <span className={`text-lg font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{table.total_amount.toFixed(2)} ₼</span>
                         <button onClick={() => openPayment(table.table_number, table.total_amount, table.order_ids ?? [])}
                           className={`px-4 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700 hover:bg-amber-700 shadow-sm' : 'bg-white text-black border border-zinc-600 hover:bg-zinc-100'}`}>
-                          Ödə
+                          {t('pay')}
                         </button>
                       </div>
                     </motion.div>
@@ -602,7 +589,11 @@ export default function POSPage() {
       {/* ── Bottom Tab Bar ── */}
       <div className="flex-shrink-0 border-t border-[var(--theme-border)] bg-[var(--theme-surface-muted)] backdrop-blur-xl">
         <div className="flex items-center justify-around px-2 py-1.5">
-          {tabs.map(tab => {
+          {([
+            { id: 'floor' as const, icon: LayoutGrid, label: t('tabs_tables') },
+            { id: 'order' as const, icon: ShoppingCart, label: t('tabs_order') },
+            { id: 'billing' as const, icon: CreditCard, label: t('tabs_billing') },
+          ]).map(tab => {
             const Icon = tab.icon;
             const isActive = pos.activeView === tab.id;
             return (
@@ -611,7 +602,7 @@ export default function POSPage() {
                 onClick={() => {
                   if (tab.id === 'order' && !pos.selectedTable) {
                     if (orderTabTouchedRef.current) {
-                      toast.error('Əvvəlcə masa seçin', { id: 'no-table-order' });
+                      toast.error(t('select_table_first'), { id: 'no-table-order' });
                     }
                     orderTabTouchedRef.current = true;
                     pos.setActiveView('floor');
@@ -643,7 +634,6 @@ export default function POSPage() {
         onCloseBill={handleActionCloseBill}
         onPrint={() => { setActionSheetOpen(false); setActionSheetTable(null); }}
         onCancelTable={handleActionCancelTable}
-        onReportLoss={handleActionReportLoss}
         onSaveDraft={() => { pos.saveCart(); setActionSheetOpen(false); setActionSheetTable(null); }}
       />
 
@@ -681,8 +671,8 @@ export default function POSPage() {
               <div className="max-w-sm mx-auto rounded-3xl border p-5 bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-2xl backdrop-blur-xl">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {payTableNumber}</p>
-                    <p className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>Ödəniş</p>
+                    <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('table_label')} {payTableNumber}</p>
+                    <p className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{t('payment')}</p>
                   </div>
                   <button onClick={() => orderButtonStatus !== 'loading' && setPaymentOpen(false)}
                     className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
@@ -699,18 +689,18 @@ export default function POSPage() {
                     className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border ${
                       payMethod === 'card' ? 'bg-gold/10 border-gold/25 text-gold' : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-secondary)]'
                     }`}>
-                    Kart
+                    {t('card')}
                   </button>
                   <button onClick={() => setPayMethod('cash')}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border ${
                       payMethod === 'cash' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300' : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-secondary)]'
                     }`}>
-                    Nağd
+                    {t('cash')}
                   </button>
                 </div>
 
                 <div className="mb-4">
-                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Çay pulu</p>
+                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('tip')}</p>
                   <div className="flex gap-1.5">
                     {[0, 1, 2, 5, 10].map(amount => (
                       <button key={amount}
@@ -720,14 +710,14 @@ export default function POSPage() {
                             ? 'bg-[var(--theme-surface)] border-[var(--theme-border-strong)] text-[var(--theme-text)] shadow-sm'
                             : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface)]'
                         }`}>
-                        {amount === 0 ? 'Yox' : `${amount} ₼`}
+                        {amount === 0 ? t('no') : `${amount} ₼`}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div className={`flex items-center justify-between py-3 border-t mb-3 ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
-                  <span className={`text-sm font-medium ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>Cəmi</span>
+                  <span className={`text-sm font-medium ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{t('total')}</span>
                   <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-gray-900' : 'text-white'}`}>{(payAmount + payTip).toFixed(2)} ₼</span>
                 </div>
 
@@ -737,7 +727,7 @@ export default function POSPage() {
                       ? 'bg-amber-600 text-white shadow-md hover:bg-amber-700 hover:shadow-lg'
                       : 'bg-gradient-to-br from-gold to-amber-400 text-black shadow-lg shadow-gold/30 hover:shadow-gold/40'
                   }`}>
-                  {orderButtonStatus === 'loading' ? 'Gözləyin...' : <><CheckCircle size={18} /> Hesabı Bağla</>}
+                  {orderButtonStatus === 'loading' ? t('loading') : <><CheckCircle size={18} /> {t('close_bill')}</>}
                 </button>
               </div>
             </motion.div>
@@ -762,19 +752,19 @@ export default function POSPage() {
               <div className={`max-w-sm w-full rounded-3xl border p-6 shadow-2xl backdrop-blur-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-zinc-900/95 border-zinc-700/50'}`}>
                 <div className="text-center mb-5">
                   <XCircle size={40} className={`mx-auto mb-3 ${lightMode ? 'text-red-500' : 'text-red-400'}`} />
-                  <p className="text-lg font-bold">Masa {cancelTableNumber} təmizlənsin?</p>
+                  <p className="text-lg font-bold">{t('cancel_table_confirm').replace('{table}', String(cancelTableNumber))}</p>
                   <p className={`text-sm mt-1 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
-                    Bütün sifarişlər ləğv ediləcək. Bu itki kimi qeyd olunmayacaq.
+                    {t('cancel_table_desc')}
                   </p>
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setCancelConfirmOpen(false)}
                     className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-all ${lightMode ? 'border-gray-200 text-gray-600 hover:bg-gray-100' : 'border-zinc-700 text-white/60 hover:bg-zinc-800'}`}>
-                    İmtina
+                    {t('cancel')}
                   </button>
                   <button onClick={confirmCancelTable}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${lightMode ? 'bg-red-600 text-white border border-red-700 hover:bg-red-700' : 'bg-red-600/20 border border-red-500/30 text-red-300 hover:bg-red-600/30'}`}>
-                    Təmizlə
+                    {t('cancel_table_btn')}
                   </button>
                 </div>
               </div>
@@ -802,8 +792,8 @@ export default function POSPage() {
               <div className={`max-w-sm mx-auto rounded-3xl border p-5 shadow-2xl backdrop-blur-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-zinc-900/95 border-zinc-700/50'}`}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>Masa {actionSheetTable.table_number}</p>
-                    <p className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>İtki qeyd et</p>
+                    <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('table_label')} {actionSheetTable.table_number}</p>
+                    <p className={`text-sm ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{t('report_loss')}</p>
                   </div>
                   <button onClick={() => !lossSubmitting && setLossModalOpen(false)}
                     className={`w-9 h-9 rounded-xl flex items-center justify-center ${lightMode ? 'bg-gray-100 text-gray-500 hover:bg-gray-200' : 'bg-zinc-800 text-white/40 hover:text-white'}`}>
@@ -812,7 +802,7 @@ export default function POSPage() {
                 </div>
 
                 <div className="mb-4">
-                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Səbəb</p>
+                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('loss_reason')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {lossReasons.map(r => (
                       <button key={r.key}
@@ -829,7 +819,7 @@ export default function POSPage() {
                 </div>
 
                 <div className="mb-4">
-                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Məbləğ (₼)</p>
+                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('loss_amount')}</p>
                   <input type="number" step="0.01" min="0" value={lossAmount}
                     onChange={e => setLossAmount(Math.max(0, parseFloat(e.target.value) || 0))}
                     className={`w-full px-4 py-3 rounded-xl text-lg font-bold border transition-all outline-none ${
@@ -839,10 +829,10 @@ export default function POSPage() {
                 </div>
 
                 <div className="mb-4">
-                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Qeyd (istəyə bağlı)</p>
+                  <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>{t('loss_note')}</p>
                   <input type="text" value={lossNote}
                     onChange={e => setLossNote(e.target.value)}
-                    placeholder="Məs: müştəri 3-cü dəfə gec gəldi"
+                    placeholder={t('loss_note_placeholder')}
                     className={`w-full px-4 py-3 rounded-xl text-sm border transition-all outline-none ${
                       lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30'
                     }`}
@@ -855,7 +845,7 @@ export default function POSPage() {
                       ? 'bg-red-600 text-white border border-red-700 hover:bg-red-700 shadow-sm'
                       : 'bg-red-600/20 border border-red-500/30 text-red-300 hover:bg-red-600/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
                   }`}>
-                  {lossSubmitting ? 'Gözləyin...' : <><AlertTriangle size={16} /> İtki kimi qeyd et</>}
+                  {lossSubmitting ? t('loading') : <><AlertTriangle size={16} /> {t('loss_submit')}</>}
                 </button>
               </div>
             </motion.div>

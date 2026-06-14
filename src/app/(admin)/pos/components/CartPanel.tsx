@@ -19,11 +19,14 @@ interface CartPanelProps {
   onUpdateGuests?: (delta: number) => void;
   mergedChildNumbers?: number[];
   onRecordLoss?: (items: LossItem[], reason: string) => Promise<void>;
+  hasExistingOrder?: boolean;
+  isDirty?: boolean;
 }
 
 export function CartPanel({
   cart, onUpdateQty, onPlaceOrder,
   onClear, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
+  hasExistingOrder = false, isDirty = false,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -53,9 +56,9 @@ export function CartPanel({
   }, []);
 
   const lossReasons = [
-    { key: 'customer_disliked', label: 'Müştəri bəyənmədi' },
-    { key: 'kitchen_error', label: 'Mətbəx səhvi' },
-    { key: 'wrong_entry', label: 'Səhv daxil edilmə' },
+    { key: 'customer_disliked', label: t('loss_reason_not_liked') },
+    { key: 'kitchen_error', label: t('loss_reason_kitchen_error') },
+    { key: 'wrong_entry', label: t('loss_reason_wrong_entry') },
   ];
 
   useEffect(() => {
@@ -68,7 +71,7 @@ export function CartPanel({
     return (
       <div className="flex flex-col items-center justify-center h-full py-12 text-[var(--theme-text-muted)]">
         <ShoppingBag size={40} className="mb-3 opacity-30" />
-        <p className="text-sm">Masa seçilməyib</p>
+        <p className="text-sm">{t('no_table_selected')}</p>
       </div>
     );
   }
@@ -149,15 +152,15 @@ export function CartPanel({
           </button>
           <div>
             <p className="text-lg font-bold text-[var(--theme-text)]">
-              Masa {cart.table_number}
+              {mergedChildNumbers && mergedChildNumbers.length > 0 ? `${t('group_label')} ${cart.table_number}` : `${t('table_label')} ${cart.table_number}`}
               {mergedChildNumbers && mergedChildNumbers.length > 0 && (
-                <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>
-                  <GitMerge size={10} /> Qrup {cart.table_number}
+                <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>
+                  <GitMerge size={10} /> {[cart.table_number, ...mergedChildNumbers].join('+')}
                 </span>
               )}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} məhsul</span>
+              <span className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} {t('items')}</span>
               <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
               <div className="flex items-center gap-1.5">
                 <Users size={12} className="text-[var(--theme-text-secondary)]" />
@@ -189,7 +192,7 @@ export function CartPanel({
             }}
             className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
           >
-            Təmizlə
+            {t('clear')}
           </button>
           <button
             onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
@@ -199,87 +202,80 @@ export function CartPanel({
             }}
             className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[var(--theme-surface-soft)]"
           >
-            {lossMode ? 'Ləğv et' : 'İtki Yaz'}
+            {lossMode ? t('loss_mode_cancel') : t('loss_mode')}
           </button>
         </div>
       </div>
 
-      {/* Items */}
-      <div className="flex-1 overflow-y-auto py-3">
-        <div className="min-h-full flex flex-col justify-center">
-        <AnimatePresence initial={false}>
-          {isEmpty ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="text-center text-[var(--theme-text-muted)]"
-            >
-              <p className="text-sm font-medium">Məhsul əlavə edin</p>
-            </motion.div>
-          ) : (
-            <div className="space-y-2">
-            {cart.items.map((item, idx) => {
-              const isChecked = selectedForLoss.has(idx);
-              const lossQty = selectedForLoss.get(idx) ?? 0;
-              return (
-                <motion.div
-                  key={`${item.product_id}__${idx}`}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
-                  className={`flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-300 ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`}`}
-                >
-                  {lossMode && (
-                    <button onClick={() => toggleLossSelection(idx)}
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${
-                        isChecked
-                          ? (lightMode ? 'bg-red-600 border-red-600' : 'bg-red-500 border-red-500')
-                          : (lightMode ? 'border-gray-400' : 'border-white/30')
-                      }`}>
-                      {isChecked && <CheckCircle size={14} className="text-white" />}
-                    </button>
+      {/* Items — CSS opacity transitions only, no AnimatePresence to avoid blink */}
+      <div className="flex-1 overflow-y-auto py-3 relative">
+        <div
+          className="absolute inset-0 transition-opacity duration-150 ease-in-out"
+          style={{ opacity: isEmpty ? 1 : 0, pointerEvents: isEmpty ? 'auto' : 'none' }}
+        >
+          <div className="flex items-center justify-center h-full text-[var(--theme-text-muted)]">
+            <p className="text-sm font-medium">{t('add_items_hint')}</p>
+          </div>
+        </div>
+        <div
+          className="transition-opacity duration-150 ease-in-out"
+          style={{ opacity: isEmpty ? 0 : 1 }}
+        >
+          {cart.items.map((item, idx) => {
+            const isChecked = selectedForLoss.has(idx);
+            const lossQty = selectedForLoss.get(idx) ?? 0;
+            return (
+              <div
+                key={`${item.product_id}__${idx}`}
+                className={`mb-2 flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-300 ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`}`}
+              >
+                {lossMode && (
+                  <button onClick={() => toggleLossSelection(idx)}
+                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${
+                      isChecked
+                        ? (lightMode ? 'bg-red-600 border-red-600' : 'bg-red-500 border-red-500')
+                        : (lightMode ? 'border-gray-400' : 'border-white/30')
+                    }`}>
+                    {isChecked && <CheckCircle size={14} className="text-white" />}
+                  </button>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
+                  {item.modifiers?.length ? (
+                    <p className="text-[10px] truncate text-[var(--theme-text-secondary)]">
+                      {(item.modifiers ?? []).map(m => m.name).join(', ')}
+                    </p>
+                  ) : null}
+                  <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {lossMode && isChecked ? (
+                    <div className="flex items-center rounded-2xl overflow-hidden bg-red-500/10 border border-red-500/25">
+                      <button onClick={() => updateLossQty(idx, -1)}
+                        className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
+                        <Minus size={18} />
+                      </button>
+                      <span className="text-base min-w-[28px] text-center font-black tabular-nums text-red-400">{lossQty}</span>
+                      <button onClick={() => updateLossQty(idx, 1)}
+                        className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
+                        <Plus size={18} />
+                      </button>
+                    </div>
+                  ) : lossMode ? null : (
+                    <div className="flex items-center rounded-2xl overflow-hidden bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                      <button onClick={() => onUpdateQty(idx, -1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
+                        <Minus size={18} />
+                      </button>
+                      <span className="text-base min-w-[28px] text-center font-black tabular-nums text-[var(--theme-text)]">{item.quantity}</span>
+                      <button onClick={() => onUpdateQty(idx, 1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-accent)]">
+                        <Plus size={18} />
+                      </button>
+                    </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
-                    {item.modifiers?.length ? (
-                      <p className="text-[10px] truncate text-[var(--theme-text-secondary)]">
-                        {(item.modifiers ?? []).map(m => m.name).join(', ')}
-                      </p>
-                    ) : null}
-                    <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {lossMode && isChecked ? (
-                      <div className="flex items-center rounded-2xl overflow-hidden bg-red-500/10 border border-red-500/25">
-                        <button onClick={() => updateLossQty(idx, -1)}
-                          className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
-                          <Minus size={18} />
-                        </button>
-                        <span className="text-base min-w-[28px] text-center font-black tabular-nums text-red-400">{lossQty}</span>
-                        <button onClick={() => updateLossQty(idx, 1)}
-                          className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
-                          <Plus size={18} />
-                        </button>
-                      </div>
-                    ) : lossMode ? null : (
-                      <div className="flex items-center rounded-2xl overflow-hidden bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                        <button onClick={() => onUpdateQty(idx, -1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
-                          <Minus size={18} />
-                        </button>
-                        <span className="text-base min-w-[28px] text-center font-black tabular-nums text-[var(--theme-text)]">{item.quantity}</span>
-                        <button onClick={() => onUpdateQty(idx, 1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-accent)]">
-                          <Plus size={18} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
-            </div>
-          )}
-        </AnimatePresence>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -295,7 +291,7 @@ export function CartPanel({
               exit={{ opacity: 0, y: 4 }}
               className="flex items-center justify-between px-1"
             >
-              <span className="text-xs uppercase tracking-widest font-semibold text-red-400">Ləğv edilən məbləğ</span>
+              <span className="text-xs uppercase tracking-widest font-semibold text-red-400">{t('cancelled_amount')}</span>
               <span className="text-xl font-black tracking-tight tabular-nums text-red-400">{lossTotal.toFixed(2)} ₼</span>
             </motion.div>
           ) : (
@@ -315,7 +311,7 @@ export function CartPanel({
         {/* Loss reason bar */}
         {lossMode && hasLossSelection && (
           <div className="px-1 space-y-2">
-            <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">İtki səbəbi</p>
+            <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('loss_reason_title')}</p>
             <AnimatePresence mode="wait">
             {showCustomReason ? (
               <motion.div
@@ -331,7 +327,7 @@ export function CartPanel({
                   type="text"
                   value={customReasonText}
                   onChange={e => setCustomReasonText(e.target.value)}
-                  placeholder="Səbəbi əllə yazın..."
+                                                  placeholder={t('loss_reason_custom_placeholder')}
                   className={`flex-1 px-4 py-3 rounded-xl text-sm border outline-none transition-all ${
                     lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30'
                   }`}
@@ -367,7 +363,7 @@ export function CartPanel({
                 </div>
                 <button onClick={() => setShowCustomReason(true)}
                   className="px-3 py-1.5 rounded-xl text-[11px] font-medium border border-dashed border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-text-muted)] transition-all">
-                  + Digər
+                  + {t('other')}
                 </button>
               </motion.div>
             )}
@@ -379,8 +375,9 @@ export function CartPanel({
           disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
           status={lossMode ? 'idle' : orderButtonStatus}
           variant={lossMode ? 'loss' : 'send'}
-          label={lossMode ? 'Dəyişiklikləri Təsdiqlə' : undefined}
+          label={lossMode ? t('loss_confirm') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))}
           onClick={lossMode ? confirmLoss : onPlaceOrder}
+          isDirty={isDirty}
         />
       </div>
 

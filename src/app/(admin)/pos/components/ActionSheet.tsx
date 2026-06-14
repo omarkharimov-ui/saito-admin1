@@ -3,9 +3,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Merge, Move, Split, CreditCard,
-  Printer, Save, X, XCircle, AlertTriangle,
+  Printer, Save, XCircle,
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { PosTable } from '../types/shared';
 
 interface ActionSheetProps {
@@ -20,24 +21,23 @@ interface ActionSheetProps {
   onPrint: () => void;
   onSaveDraft: () => void;
   onCancelTable?: () => void;
-  onReportLoss?: () => void;
 }
 
-const actions = [
-  { id: 'add_order', icon: Plus, label: 'Sifariş' },
-  { id: 'merge', icon: Merge, label: 'Birləşdir' },
-  { id: 'transfer', icon: Move, label: 'Köçür' },
-  { id: 'split', icon: Split, label: 'Böl' },
-  { id: 'close_bill', icon: CreditCard, label: 'Hesab' },
-  { id: 'cancel_table', icon: XCircle, label: 'Ləğv et' },
-  { id: 'report_loss', icon: AlertTriangle, label: 'İtki' },
-  { id: 'print', icon: Printer, label: 'Çap · soon' },
-  { id: 'save_draft', icon: Save, label: 'Saxla · soon' }
-];
-
-export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft, onCancelTable, onReportLoss }: ActionSheetProps) {
+export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft, onCancelTable }: ActionSheetProps) {
+  const { t } = useLanguage();
   const { lightMode } = useTheme();
   if (!table) return null;
+
+  const actions = [
+    { id: 'add_order', icon: Plus, label: t('add_items') },
+    { id: 'merge', icon: Merge, label: t('merge_tables') },
+    { id: 'transfer', icon: Move, label: t('move_table') },
+    { id: 'split', icon: Split, label: t('split_label') },
+    { id: 'close_bill', icon: CreditCard, label: t('close_bill') },
+    { id: 'cancel_table', icon: XCircle, label: t('cancel_table_btn') },
+    { id: 'print', icon: Printer, label: `${t('print')} · soon` },
+    { id: 'save_draft', icon: Save, label: `${t('save')} · soon` },
+  ];
 
   const isOccupied = table.status !== 'empty';
   const isMerged = (table.merged_orders && table.merged_orders.length > 0) || false;
@@ -47,7 +47,7 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
     if (a.id === 'merge') return true;
     if (a.id === 'transfer') return true;
     if (a.id === 'split') return isMerged; // unmerge
-    if (a.id === 'print' || a.id === 'save_draft') return false; // non-functional
+    if (a.id === 'print' || a.id === 'save_draft') return false;
     return true;
   });
 
@@ -73,9 +73,9 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
               </div>
 
               <div className="text-center mb-4">
-                <p className="text-2xl font-black text-[var(--theme-text)]">Masa {table.table_number}</p>
+                <p className="text-2xl font-black text-[var(--theme-text)]">{t('table_label')} {table.table_number}</p>
                 <p className="text-sm mt-0.5 text-[var(--theme-text-secondary)]">
-                  {isOccupied ? `${table.guest_count} nəfər · ${table.total_amount.toFixed(2)} ₼` : 'Boş masa'}
+                  {isOccupied ? `${table.guest_count} ${t('guest')} · ${table.total_amount.toFixed(2)} ₼` : t('empty')}
                 </p>
               </div>
 
@@ -96,7 +96,6 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                             split: onSplitBill,
                             close_bill: onCloseBill,
                             cancel_table: onCancelTable,
-                            report_loss: onReportLoss,
                             print: onPrint,
                             save_draft: onSaveDraft,
                           }[action.id];
@@ -116,7 +115,7 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
                   })}
                 </div>
                 <button onClick={onClose} className="w-full mt-3 py-3.5 rounded-[1.25rem] text-sm font-semibold transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-panel)] shadow-sm">
-                  Bağla
+                  {t('close')}
                 </button>
               </div>
             </div>

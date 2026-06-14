@@ -1343,4 +1343,31 @@ export const en: TranslationMap = {
   loss_reason_not_liked: 'Customer disliked',
   loss_reason_kitchen_error: 'Kitchen error',
   loss_reason_wrong_entry: 'Wrong entry',
+  loss_reason_custom_placeholder: 'Type the reason...',
+  loss_note_placeholder: 'E.g.: customer came late for the 3rd time',
+
+  // Status labels
+  status_active: 'Active',
+  status_waiting_bill: 'Bill',
+  status_cooking: 'Cooking',
+  status_problem: 'Problem',
+
+  // Missing keys
+  no_table_selected: 'No table selected',
+  add_items_hint: 'Add products',
+  cancelled_amount: 'Cancelled amount',
+  resend: 'Resend',
+  sent_to_kitchen: 'Sent to kitchen',
+  send_failed: 'Send failed',
+  unsaved_changes_confirm: 'Unsaved changes will be lost. Discard?',
+  overdue_banner: '{count} tables with orders pending {mins}+ min',
+  floor_not_found: 'Floor not found',
+  billing_tab: 'Billing',
+  no_active_payments: 'No active payments',
+  select_table_first: 'Select a table first',
+  tabs_tables: 'Tables',
+  tabs_order: 'Order',
+  tabs_billing: 'Billing',
+  merge_button: 'Merge {count} tables',
+  save_to_confirm: 'Save to confirm',
 } as const;

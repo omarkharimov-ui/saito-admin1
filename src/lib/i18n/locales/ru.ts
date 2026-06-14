@@ -1337,7 +1337,6 @@ export const ru: TranslationMap = {
   served_del_error: 'Нельзя удалить выданный товар — {served} шт. уже передано',
 
   // Cart — loss mode
-  // Cart — loss mode
   loss_mode: 'Списание',
   loss_mode_cancel: 'Отмена',
   loss_confirm: 'Подтвердить изменения',
@@ -1345,4 +1344,31 @@ export const ru: TranslationMap = {
   loss_reason_not_liked: 'Клиенту не понравилось',
   loss_reason_kitchen_error: 'Ошибка кухни',
   loss_reason_wrong_entry: 'Неверный ввод',
+  loss_reason_custom_placeholder: 'Напишите причину...',
+  loss_note_placeholder: 'Напр.: клиент пришёл с опозданием в 3-й раз',
+
+  // Status labels
+  status_active: 'Активен',
+  status_waiting_bill: 'Счёт',
+  status_cooking: 'Готовится',
+  status_problem: 'Проблема',
+
+  // Missing keys
+  no_table_selected: 'Стол не выбран',
+  add_items_hint: 'Добавьте товары',
+  cancelled_amount: 'Сумма отмены',
+  resend: 'Отправить снова',
+  sent_to_kitchen: 'Отправлено на кухню',
+  send_failed: 'Ошибка отправки',
+  unsaved_changes_confirm: 'Есть несохранённые изменения. Удалить?',
+  overdue_banner: '{count} столов с заказами ожидают {mins}+ мин',
+  floor_not_found: 'Этаж не найден',
+  billing_tab: 'Оплаты',
+  no_active_payments: 'Нет активных платежей',
+  select_table_first: 'Сначала выберите стол',
+  tabs_tables: 'Столы',
+  tabs_order: 'Заказ',
+  tabs_billing: 'Оплата',
+  merge_button: 'Объединить {count} столов',
+  save_to_confirm: 'Сохранить для подтверждения',
 } as const;

@@ -27,12 +27,25 @@ export async function DELETE(req: NextRequest) {
         .update({ kitchen_status: 'cancelled' })
         .in('order_id', orderIds);
 
-      // Cancel orders (no loss record — just cleanup)
+      // Cancel orders
       await supabase
         .from('orders')
         .update({ status: 'cancelled', kitchen_status: 'cancelled' })
         .in('id', orderIds);
     }
+
+    // Reset table status and guest count to empty
+    await supabase
+      .from('tables')
+      .update({
+        status: 'empty',
+        guest_count: null,
+        opened_at: null,
+        last_activity_at: null,
+        total_amount: 0,
+        merged_into_table: null,
+      })
+      .eq('table_number', tableNumber);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

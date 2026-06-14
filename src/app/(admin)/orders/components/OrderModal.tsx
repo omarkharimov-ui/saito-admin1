@@ -735,18 +735,15 @@ export const OrderModal = ({
                 )}
               </div>
 
-              {/* Add items confirm bar */}
+              {/* Add items indicator — staged, not saved yet */}
               {addItems.length > 0 && (
-                <div className="px-5 py-4 border-t border-white/[0.05] flex items-center justify-between flex-shrink-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-white/25 text-[10px] uppercase tracking-widest">{t('addition')}</span>
+                <div className="px-5 py-3 border-t border-white/[0.05] flex items-center justify-between flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-400/70" />
+                    <span className="text-white/30 text-[10px] uppercase tracking-widest">{t('addition')}</span>
                     <span className="text-gold font-bold text-sm">+{addTotal.toFixed(2)} ₼</span>
                   </div>
-                  <button onClick={handleAddItems}
-                    style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)' }}
-                    className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-black text-xs font-black tracking-wide active:scale-95 transition-all">
-                    {t('confirm_changes')}
-                  </button>
+                  <span className="text-[9px] text-white/25 italic">{t('save_to_confirm')}</span>
                 </div>
               )}
             </section>
@@ -988,15 +985,23 @@ export const OrderModal = ({
         </div>
 
         {/* ── MOBILE SUMMARY OVERLAY ── */}
-        {order.status !== 'paid' && mobileTab === 'summary' && (
-          <div className="md:hidden absolute inset-0 z-30 flex flex-col rounded-t-[28px] overflow-hidden bg-[var(--theme-surface)]">
-            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-              <div className="w-10 h-1 rounded-full bg-white/15" />
-            </div>
-            <div className="px-4 py-2 flex-shrink-0 flex items-center gap-2">
-              <button onClick={() => setMobileTab('order')}
-                className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-white/50 active:scale-90 transition-all flex-shrink-0">
-                <ChevronLeft size={20} />
+        <AnimatePresence>
+          {order.status !== 'paid' && mobileTab === 'summary' && (
+            <motion.div
+              key="mobile-summary"
+              initial={{ opacity: 0, y: '100%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '100%' }}
+              transition={{ type: 'spring', stiffness: 380, damping: 35, mass: 0.9 }}
+              className="md:hidden absolute inset-0 z-30 flex flex-col rounded-t-[28px] overflow-hidden bg-[var(--theme-surface)]"
+            >
+              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+                <div className="w-10 h-1 rounded-full bg-white/15" />
+              </div>
+              <div className="px-4 py-2 flex-shrink-0 flex items-center gap-2">
+                <button onClick={() => setMobileTab('order')}
+                  className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-white/50 active:scale-90 transition-all flex-shrink-0">
+                  <ChevronLeft size={20} />
               </button>
               <div className="flex-1">
                 <p className="font-black text-xl tracking-tight"
@@ -1107,8 +1112,9 @@ export const OrderModal = ({
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* Split Tables Modal — checkbox selection */}
         {showMerge && (

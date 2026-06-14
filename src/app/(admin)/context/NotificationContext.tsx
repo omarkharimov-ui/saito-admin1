@@ -454,7 +454,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .from('orders')
         .select('id, table_number, created_at')
         .in('status', ['new', 'confirmed'])
-        .neq('kitchen_status', 'ready')
+        .not('kitchen_status', 'in', '("cancelled")')
         .lt('created_at', cutoff);
       if (data && data.length > 0) {
         const tables = data.map((o: any) => o.table_number ? `Masa ${o.table_number}` : '?').join(', ');

@@ -444,6 +444,18 @@ export default function POSPage() {
                         Ləğv
                       </button>
                     )}
+                    {transferMode && transferSource && transferTarget && (
+                      <button onClick={async () => { try { await pos.transferTable(transferSource, transferTarget); } catch {} setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
+                        Masa {transferSource} → {transferTarget}
+                      </button>
+                    )}
+                    {transferMode && (transferSource || transferTarget) && (
+                      <button onClick={() => { setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
+                        className="px-4 py-2 rounded-2xl text-xs font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                        Ləğv
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -527,14 +539,20 @@ export default function POSPage() {
                     onPlaceOrder={handlePlaceOrder}
                     onClearDraft={handleClearDraft}
                     onBack={() => {
-                      if (isDirty) {
-                        if (window.confirm('Yazılmamış dəyişikliklər var. Silinsin?')) {
-                          pos.clearCart();
-                          setIsDirty(false);
+                      try {
+                        if (isDirty) {
+                          if (window.confirm('Yazılmamış dəyişikliklər var. Silinsin?')) {
+                            pos.clearCart();
+                            setIsDirty(false);
+                            pos.backToFloor();
+                          }
+                        } else {
                           pos.backToFloor();
                         }
-                      } else {
-                        pos.backToFloor();
+                      } catch {
+                        pos.setActiveView('floor');
+                        pos.setSelectedTable(null);
+                        pos.setCart(null);
                       }
                     }}
                     orderButtonStatus={orderButtonStatus}
@@ -548,6 +566,9 @@ export default function POSPage() {
                       pos.setTables(prev => prev.map(t =>
                         t.table_number === c.table_number ? { ...t, guest_count: newCount } : t
                       ));
+                      supabase.from('tables').update({ guest_count: newCount }).eq('table_number', c.table_number).then(({ error }) => {
+                        if (error) console.error('Guest count sync failed', error);
+                      });
                     }}
                     mergedChildNumbers={(pos.selectedTable?.merged_orders as any[])?.map((m: any) => m.table_number) ?? []}
                     onRecordLoss={handleRecordLoss}
@@ -646,7 +667,7 @@ export default function POSPage() {
         onClose={() => { setActionSheetOpen(false); setActionSheetTable(null); }}
         onAddOrder={handleActionAddOrder}
         onMerge={handleActionMerge}
-        onTransfer={() => { setTransferMode(true); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); }}
+        onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); setTransferTarget(null); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); }}
         onSplitBill={handleSplitTable}
         onCloseBill={handleActionCloseBill}
         onPrint={() => { setActionSheetOpen(false); setActionSheetTable(null); }}

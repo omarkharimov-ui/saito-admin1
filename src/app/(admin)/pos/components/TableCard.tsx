@@ -89,7 +89,7 @@ export function TableCard({
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative w-full flex flex-col rounded-2xl p-4 text-left transition-all duration-200 border ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/50 opacity-80 shadow-[0_0_20px_rgba(251,191,36,0.08)]' : ''} ${isTransferTarget ? 'ring-2 ring-blue-400/70 shadow-lg shadow-blue-400/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
+      className={`relative w-full flex flex-col rounded-2xl p-4 text-left transition-all duration-200 border ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'opacity-70' : ''} ${isTransferTarget ? (lightMode ? 'bg-amber-50/60 shadow-md' : 'bg-white/[0.06] shadow-lg') : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
     >
       {/* Static subtle glow for waiting bill — no pulse */}
       {table.status === 'waiting_bill' && (
@@ -99,6 +99,18 @@ export function TableCard({
       {/* Overdue pending pulse */}
       {isOverdue && (
         <span className="absolute inset-0 rounded-2xl pointer-events-none ring-2 ring-red-500/40 animate-pulse" />
+      )}
+
+      {/* Transfer labels */}
+      {isTransferSource && (
+        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-white/10 text-white/60">
+          Mənbə
+        </span>
+      )}
+      {isTransferTarget && (
+        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-amber-400/15 text-amber-400/80">
+          Hədəf
+        </span>
       )}
 
       {/* Header row: number + status + merge indicator */}

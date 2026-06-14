@@ -52,6 +52,7 @@ export const OrderModal = ({
     return variantName ? `${azName} (${variantName})` : azName;
   };
   const [acting, setActing]         = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [confirmPay, setConfirmPay] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -511,8 +512,18 @@ export const OrderModal = ({
   };
 
   const handleSaveAll = async () => {
-    if (addItems.length > 0) await handleAddItems();
-    handleConfirmWithDraft();
+    setSaveStatus('loading');
+    setActing(true);
+    try {
+      if (addItems.length > 0) await handleAddItems();
+      await new Promise(r => setTimeout(r, 400)); // minimum spinner time
+      setSaveStatus('success');
+      await new Promise(r => setTimeout(r, 1200)); // show checkmark briefly
+      handleConfirmWithDraft();
+    } catch {
+      setSaveStatus('idle');
+      setActing(false);
+    }
   };
 
   const filteredProducts = allProducts.filter(p => {
@@ -894,13 +905,50 @@ export const OrderModal = ({
             <div className="px-5 pb-5 pt-3 flex-shrink-0 border-t border-white/[0.05] space-y-2.5">
               {/* Primary action: Save changes (only when there are actual changes) */}
               {((order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
-                <button disabled={acting} onClick={handleSaveAll}
-                  style={{ background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', backgroundSize: '200% 200%', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
-                  className="w-full min-h-[52px] flex items-center justify-center gap-2 px-6 font-black rounded-2xl transition-all active:scale-[0.97] disabled:opacity-30 text-black text-sm tracking-wide">
-                  {acting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                  {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}
-                  {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && t('save_changes')}
-                </button>
+                <motion.button
+                  disabled={acting} onClick={handleSaveAll}
+                  layout
+                  transition={{ type: 'spring', stiffness: 400, damping: 28, mass: 0.8 }}
+                  className={`relative overflow-hidden font-semibold text-sm flex items-center justify-center gap-2 rounded-full disabled:opacity-30 disabled:cursor-not-allowed ${
+                    saveStatus === 'loading' || saveStatus === 'success'
+                      ? 'h-[44px] w-[44px] bg-neutral-900 mx-auto'
+                      : 'h-[44px] px-5 bg-neutral-900 text-white active:bg-neutral-800'
+                  }`}>
+                  {saveStatus === 'loading' ? (
+                    <motion.span
+                      key="save-loading"
+                      initial={{ opacity: 0, rotate: -90 }}
+                      animate={{ opacity: 1, rotate: 0 }}
+                      exit={{ opacity: 0, rotate: 90 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      <Loader2 size={18} className="animate-spin text-white" />
+                    </motion.span>
+                  ) : saveStatus === 'success' ? (
+                    <motion.span
+                      key="save-success"
+                      initial={{ opacity: 0, scale: 0.4 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.4 }}
+                      transition={{ type: 'spring', stiffness: 350, damping: 18 }}
+                    >
+                      <CheckCircle size={18} className="text-emerald-400" />
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="save-idle"
+                      initial={{ opacity: 0, y: 3 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -3 }}
+                      transition={{ duration: 0.12 }}
+                      className="flex items-center gap-2"
+                    >
+                      <CheckCircle size={15} />
+                      {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}
+                      {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && t('save_changes')}
+                    </motion.span>
+                  )}
+                </motion.button>
               )}
 
               {/* Dismiss table (empty order) */}
@@ -1086,14 +1134,51 @@ export const OrderModal = ({
             </div>
             <div className="px-4 pb-6 pt-3 border-t border-white/[0.05] flex-shrink-0 space-y-2">
               {(order.status === 'new' || (order.status === 'confirmed' && hasDraft) || addItems.length > 0) && (
-                <button disabled={acting} onClick={handleSaveAll}
-                  style={{ background: 'linear-gradient(135deg,#D4AF37 0%,#F5D67B 50%,#D4AF37 100%)', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}
-                  className="w-full min-h-[52px] flex items-center justify-center gap-2 px-6 font-black rounded-2xl active:scale-[0.97] disabled:opacity-30 text-black text-sm tracking-wide">
-                  {acting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                  {order.status === 'new' && !hasDraft && addItems.length === 0 && t('confirm_order')}
-                  {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}
-                  {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && t('save_changes')}
-                </button>
+                <motion.button
+                  disabled={acting} onClick={handleSaveAll}
+                  layout
+                  transition={{ type: 'spring', stiffness: 400, damping: 28, mass: 0.8 }}
+                  className={`relative overflow-hidden font-semibold text-sm flex items-center justify-center gap-2 rounded-full disabled:opacity-30 disabled:cursor-not-allowed ${
+                    saveStatus === 'loading' || saveStatus === 'success'
+                      ? 'h-[44px] w-[44px] bg-neutral-900 mx-auto'
+                      : 'h-[44px] px-5 bg-neutral-900 text-white active:bg-neutral-800'
+                  }`}>
+                  {saveStatus === 'loading' ? (
+                    <motion.span
+                      key="save-loading"
+                      initial={{ opacity: 0, rotate: -90 }}
+                      animate={{ opacity: 1, rotate: 0 }}
+                      exit={{ opacity: 0, rotate: 90 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      <Loader2 size={18} className="animate-spin text-white" />
+                    </motion.span>
+                  ) : saveStatus === 'success' ? (
+                    <motion.span
+                      key="save-success"
+                      initial={{ opacity: 0, scale: 0.4 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.4 }}
+                      transition={{ type: 'spring', stiffness: 350, damping: 18 }}
+                    >
+                      <CheckCircle size={18} className="text-emerald-400" />
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="save-idle"
+                      initial={{ opacity: 0, y: 3 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -3 }}
+                      transition={{ duration: 0.12 }}
+                      className="flex items-center gap-2"
+                    >
+                      <CheckCircle size={15} />
+                      {order.status === 'new' && !hasDraft && addItems.length === 0 && t('confirm_order')}
+                      {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}
+                      {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && t('save_changes')}
+                    </motion.span>
+                  )}
+                </motion.button>
               )}
               {order.status === 'confirmed' && order.kitchen_status === 'ready' && !hasDraft && addItems.length === 0 && !confirmPay && displayItems.length > 0 && (
                 <button disabled={acting} onClick={() => setConfirmPay(true)}

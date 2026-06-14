@@ -371,7 +371,7 @@ export function CartPanel({
           </div>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-center">
           <SendOrderButton
             disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
             status={lossMode ? 'idle' : orderButtonStatus}

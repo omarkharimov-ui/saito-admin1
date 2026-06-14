@@ -268,17 +268,6 @@ export default function POSPage() {
   const confirmCancelTable = useCallback(async () => {
     if (cancelTableNumber === null) return;
 
-    // Check if items have already been sent to kitchen
-    const table = pos.tables.find(t => t.table_number === cancelTableNumber);
-    if (table?.has_pending) {
-      toast('Sifariş artıq mətbəxə göndərilib, ləğv etmək mümkün deyil', { icon: 'ℹ️' });
-      setCancelConfirmOpen(false);
-      setCancelTableNumber(null);
-      setActionSheetOpen(false);
-      setActionSheetTable(null);
-      return;
-    }
-
     try {
       // Clear local cart first
       pos.clearCart();

@@ -116,9 +116,9 @@ export function TableCard({
           {onAction && !isMerged && (
             <span
               onClick={e => { e.stopPropagation(); onAction(); }}
-              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]`}
+              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]"
             >
-              <MoreVertical size={14} />
+              <MoreVertical size={16} />
             </span>
           )}
         </div>

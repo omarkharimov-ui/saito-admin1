@@ -29,6 +29,13 @@ export function CartPanel({
 
   const [lossMode, setLossMode] = useState(false);
   const [selectedForLoss, setSelectedForLoss] = useState<Set<number>>(new Set());
+  const [lossReason, setLossReason] = useState<string>('wrong_entry');
+
+  const lossReasons = [
+    { key: 'customer_disliked', label: 'Müştəri bəyənmədi' },
+    { key: 'kitchen_error', label: 'Mətbəx səhvi' },
+    { key: 'wrong_entry', label: 'Səhv daxil edilmə' },
+  ];
 
   if (!cart) {
     return (
@@ -59,7 +66,7 @@ export function CartPanel({
       unit_price: cart.items[idx].unit_price,
     }));
     try {
-      await onRecordLoss(items, 'wrong_entry');
+      await onRecordLoss(items, lossReason);
       const sorted = Array.from(selectedForLoss).sort((a, b) => b - a);
       for (const idx of sorted) onUpdateQty(idx, -cart.items[idx].quantity);
       setLossMode(false);
@@ -90,18 +97,18 @@ export function CartPanel({
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} məhsul</span>
               <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
-              <div className="flex items-center gap-1">
-                <Users size={10} className="text-[var(--theme-text-secondary)]" />
+              <div className="flex items-center gap-1.5">
+                <Users size={12} className="text-[var(--theme-text-secondary)]" />
                 {onUpdateGuests && (
                   <button onClick={e => { e.stopPropagation(); onUpdateGuests(-1); }}
-                    className="w-4 h-4 rounded flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-[10px] font-bold leading-none">
+                    className="w-10 h-8 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-base font-bold leading-none transition-all active:scale-90">
                     −
                   </button>
                 )}
-                <span className="text-xs font-bold tabular-nums text-[var(--theme-text)]">{cart.guest_count}</span>
+                <span className="text-sm font-bold tabular-nums text-[var(--theme-text)] min-w-[18px] text-center">{cart.guest_count}</span>
                 {onUpdateGuests && (
                   <button onClick={e => { e.stopPropagation(); onUpdateGuests(1); }}
-                    className="w-4 h-4 rounded flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-[10px] font-bold leading-none">
+                    className="w-10 h-8 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-base font-bold leading-none transition-all active:scale-90">
                     +
                   </button>
                 )}
@@ -111,7 +118,7 @@ export function CartPanel({
         </div>
         <div className="flex items-center gap-2">
           {!isEmpty && !lossMode && (
-            <button onClick={() => setLossMode(true)}
+            <button onClick={() => { setLossMode(true); setLossReason('wrong_entry'); }}
               className="h-10 px-3.5 rounded-2xl text-xs font-semibold transition-all text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10">
               İtki Yaz
             </button>
@@ -173,13 +180,13 @@ export function CartPanel({
                   <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <div className="flex items-center rounded-2xl overflow-hidden bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                    <button onClick={() => onUpdateQty(idx, -1)} className="w-11 h-11 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
-                      <Minus size={16} />
+                  <div className={`flex items-center rounded-2xl overflow-hidden ${lossMode ? 'opacity-30 pointer-events-none' : ''} bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]`}>
+                    <button disabled={lossMode} onClick={() => onUpdateQty(idx, -1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
+                      <Minus size={18} />
                     </button>
-                    <span className="text-sm min-w-[24px] text-center font-black tabular-nums text-[var(--theme-text)]">{item.quantity}</span>
-                    <button onClick={() => onUpdateQty(idx, 1)} className="w-11 h-11 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-accent)]">
-                      <Plus size={16} />
+                    <span className="text-base min-w-[28px] text-center font-black tabular-nums text-[var(--theme-text)]">{item.quantity}</span>
+                    <button disabled={lossMode} onClick={() => onUpdateQty(idx, 1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-accent)]">
+                      <Plus size={18} />
                     </button>
                   </div>
                 </div>
@@ -195,6 +202,24 @@ export function CartPanel({
           <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
           <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
         </div>
+        {lossMode && selectedForLoss.size > 0 && (
+          <div className="px-1">
+            <p className="text-[10px] uppercase tracking-widest font-semibold mb-2 text-[var(--theme-text-secondary)]">İtki səbəbi</p>
+            <div className="flex gap-1.5">
+              {lossReasons.map(r => (
+                <button key={r.key}
+                  onClick={() => setLossReason(r.key)}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                    lossReason === r.key
+                      ? 'bg-red-500/15 border-red-500/40 text-red-400'
+                      : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'
+                  }`}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <SendOrderButton
           disabled={isEmpty || (lossMode && selectedForLoss.size === 0)}
           status={lossMode ? 'idle' : orderButtonStatus}

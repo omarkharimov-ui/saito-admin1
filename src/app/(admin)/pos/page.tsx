@@ -541,6 +541,9 @@ export default function POSPage() {
                       if (!c) return;
                       const newCount = Math.max(1, c.guest_count + delta);
                       pos.setCart({ ...c, guest_count: newCount });
+                      pos.setTables(prev => prev.map(t =>
+                        t.table_number === c.table_number ? { ...t, guest_count: newCount } : t
+                      ));
                     }}
                     mergedChildNumbers={(pos.selectedTable?.merged_orders as any[])?.map((m: any) => m.table_number) ?? []}
                     onRecordLoss={handleRecordLoss}
@@ -759,7 +762,7 @@ export default function POSPage() {
               <div className={`max-w-sm w-full rounded-3xl border p-6 shadow-2xl backdrop-blur-xl ${lightMode ? 'bg-white border-gray-200' : 'bg-zinc-900/95 border-zinc-700/50'}`}>
                 <div className="text-center mb-5">
                   <XCircle size={40} className={`mx-auto mb-3 ${lightMode ? 'text-red-500' : 'text-red-400'}`} />
-                  <p className="text-lg font-bold">Masa {actionSheetTable?.table_number} təmizlənsin?</p>
+                  <p className="text-lg font-bold">Masa {cancelTableNumber} təmizlənsin?</p>
                   <p className={`text-sm mt-1 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
                     Bütün sifarişlər ləğv ediləcək. Bu itki kimi qeyd olunmayacaq.
                   </p>

@@ -205,7 +205,19 @@ export function usePos() {
   }, []);
 
   const clearCart = useCallback(() => {
-    setCart(null);
+    const currentCart = cartRef.current;
+    if (currentCart) {
+      setCart({
+        table_id: currentCart.table_id,
+        table_number: currentCart.table_number,
+        guest_count: currentCart.guest_count,
+        items: [],
+        notes: '',
+        order_type: currentCart.order_type,
+      });
+    } else {
+      setCart(null);
+    }
   }, []);
 
   const saveCart = useCallback(() => {
@@ -396,7 +408,7 @@ export function usePos() {
     selectTable, backToFloor,
     addToCart, updateCartItemQty, removeCartItem, clearCart, saveCart,
     placeOrder, closeBill, transferTable, mergeTables,
-    setActiveView, setCart, setSelectedTable,
+    setActiveView, setCart, setSelectedTable, setTables,
     fetchData,
   };
 }

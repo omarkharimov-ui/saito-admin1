@@ -178,16 +178,17 @@ export function CartPanel({
             </div>
           </div>
         </div>
-        <motion.div layout className="flex items-center gap-2">
-          {/* Təmizlə — always in DOM, just hides with spring */}
+        <div className="flex items-center gap-2">
+          {/* Təmizlə — smooth spring exit/entry */}
           <motion.button
+            initial={false}
             animate={{
               opacity: lossMode ? 0 : 1,
               x: lossMode ? 20 : 0,
               scale: lossMode ? 0.9 : 1,
               pointerEvents: lossMode ? 'none' as const : 'auto' as const,
             }}
-            transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 24, mass: 0.8 }}
             onClick={onClear}
             className="h-10 px-3.5 rounded-2xl text-xs font-semibold text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
             style={{ display: isEmpty ? 'none' : undefined }}
@@ -195,11 +196,15 @@ export function CartPanel({
             Təmizlə
           </motion.button>
 
-          {/* Morphing button: İtki Yaz ↔ Ləğv et — always in DOM */}
+          {/* Morphing button: İtki Yaz ↔ Ləğv et */}
           <motion.button
-            layout
+            initial={false}
+            animate={{
+              color: lossMode ? '#f87171' : 'var(--theme-text-secondary)',
+            }}
+            transition={{ type: 'spring', stiffness: 280, damping: 24, mass: 0.8 }}
             onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
-            className="h-10 rounded-2xl text-xs font-semibold transition-colors flex items-center justify-center overflow-hidden hover:bg-[var(--theme-surface-soft)]"
+            className="h-10 rounded-2xl text-xs font-semibold flex items-center justify-center overflow-hidden hover:bg-[var(--theme-surface-soft)] transition-colors"
             style={{ padding: '0 14px', display: isEmpty ? 'none' : undefined }}
           >
             <AnimatePresence mode="wait">
@@ -209,8 +214,8 @@ export function CartPanel({
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-                  className="whitespace-nowrap text-red-400"
+                  transition={{ type: 'spring', stiffness: 280, damping: 24, mass: 0.8 }}
+                  className="whitespace-nowrap"
                 >
                   Ləğv et
                 </motion.span>
@@ -220,15 +225,15 @@ export function CartPanel({
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-                  className="whitespace-nowrap text-[var(--theme-text-secondary)]"
+                  transition={{ type: 'spring', stiffness: 280, damping: 24, mass: 0.8 }}
+                  className="whitespace-nowrap"
                 >
                   İtki Yaz
                 </motion.span>
               )}
             </AnimatePresence>
           </motion.button>
-        </motion.div>
+        </div>
       </div>
 
       {/* Items */}

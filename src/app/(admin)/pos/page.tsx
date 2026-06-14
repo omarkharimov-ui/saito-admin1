@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown } from 'lucide-react';
+import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
@@ -12,6 +12,7 @@ import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { toast } from 'react-hot-toast';
+import { supabase } from '@/lib/supabase';
 import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable } from './types/shared';
 
 const tabs = [
@@ -25,6 +26,7 @@ export default function POSPage() {
   const { lightMode, setLightMode } = useTheme();
   const pos = usePos();
 
+  const [orderDelayMinutes, setOrderDelayMinutes] = useState(30);
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
   const [actionSheetTable, setActionSheetTable] = useState<PosTable | null>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
@@ -58,7 +60,29 @@ export default function POSPage() {
     }
   }, [pos.floors, selectedFloor]);
 
+  /* ── Fetch kitchen delay threshold ── */
+  useEffect(() => {
+    supabase.from('settings').select('order_delay_minutes').single().then(({ data }) => {
+      if (data?.order_delay_minutes) setOrderDelayMinutes(data.order_delay_minutes);
+    });
+  }, []);
+
   const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
+
+  /* ── Overdue pending orders (per floor) ── */
+  const overdueTableNumbers = useMemo(() => {
+    const now = Date.now();
+    const cutoff = orderDelayMinutes * 60 * 1000;
+    const set = new Set<number>();
+    const tables = activeFloor?.tables ?? [];
+    for (const t of tables) {
+      if (t.has_pending && t.oldest_pending_at) {
+        const elapsed = now - new Date(t.oldest_pending_at).getTime();
+        if (elapsed > cutoff) set.add(t.table_number);
+      }
+    }
+    return set;
+  }, [activeFloor?.tables, orderDelayMinutes]);
 
   /* ── Cart counts by product for badges ── */
   const cartCounts: Record<string, number> = {};
@@ -129,7 +153,7 @@ export default function POSPage() {
   }, [payOrderId, payMethod, payAmount, payTip, pos]);
 
   /* ── Table actions ── */
-  const handleTableTap = useCallback((table: PosTable) => {
+  const handleTableTap = useCallback(async (table: PosTable) => {
     if (mergeMode) {
       if (table.status === 'merged') return; // can't select already-merged tables
       if (selectedForMerge.includes(table.table_number)) {
@@ -141,12 +165,23 @@ export default function POSPage() {
     }
     if (transferMode) {
       if (table.status === 'merged') return;
+      if (table.status === 'empty' && transferSource === null) {
+        toast.error('Mənbə kimi boş masa seçmək olmaz', { id: 'transfer-source-empty' });
+        return;
+      }
       if (transferSource === null) {
         setTransferSource(table.table_number);
+        toast.success(`Mənbə: Masa ${table.table_number} — indi hədəf masanı seçin`, { id: 'transfer-source' });
       } else if (table.table_number === transferSource) {
-        setTransferSource(null); // tap again → deselect
+        setTransferSource(null);
+        toast('Mənbə ləğv edildi', { id: 'transfer-cancel' });
       } else {
-        pos.transferTable(transferSource, table.table_number);
+        try {
+          await pos.transferTable(transferSource, table.table_number);
+        } catch (e: any) {
+          toast.error(e.message || 'Köçürmə xətası', { id: 'transfer-error' });
+          return;
+        }
         setTransferMode(false);
         setTransferSource(null);
       }
@@ -290,12 +325,22 @@ export default function POSPage() {
                               ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 shadow-sm'
                               : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/60'
                         }`}>
-                        {transferMode ? (transferSource ? `Masa ${transferSource} → ?` : 'Mənbə seç') : 'Köçür'}
+                        {transferMode ? (transferSource ? `Masa ${transferSource} → ? (hədəf seç)` : 'Mənbə seç') : 'Köçür'}
                       </button>
                     </>
                   </div>
                 </div>
               </div>
+
+              {/* Overdue banner */}
+              {overdueTableNumbers.size > 0 && (
+                <div className={`flex-shrink-0 mx-4 sm:mx-5 mt-2 mb-1 px-4 py-2.5 rounded-2xl flex items-center gap-2.5 text-xs font-semibold border ${
+                  lightMode ? 'bg-red-50 border-red-200 text-red-700' : 'bg-red-950/40 border-red-800/40 text-red-300'
+                }`}>
+                  <AlertTriangle size={14} className="flex-shrink-0" />
+                  <span>{overdueTableNumbers.size} masada sifariş {orderDelayMinutes}+ dəq qəbul edilməyib</span>
+                </div>
+              )}
 
               {/* Tables */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 pt-3">
@@ -329,6 +374,7 @@ export default function POSPage() {
                             onAction={() => handleTableAction(table)}
                             isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
                             isTransferSource={transferMode && transferSource === table.table_number}
+                            isOverdue={overdueTableNumbers.has(table.table_number)}
                           />
                         ))}
                     </motion.div>
@@ -372,6 +418,7 @@ export default function POSPage() {
                       const newCount = Math.max(1, c.guest_count + delta);
                       pos.setCart({ ...c, guest_count: newCount });
                     }}
+                    mergedChildNumbers={(pos.selectedTable?.merged_orders as any[])?.map((m: any) => m.table_number) ?? []}
                   />
               </div>
             </motion.div>

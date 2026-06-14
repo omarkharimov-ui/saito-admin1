@@ -16,38 +16,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'from_table and to_table required' }, { status: 400 });
     }
 
-    // Get primary orders on source table
-    const primaryRes = await fetch(
+    // Get all non-paid orders on source table (includes merged children)
+    const sourceRes = await fetch(
       `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${from_table}&status=neq.paid&select=id,table_number,total_amount,guest_count,merged_into`,
       { headers }
     );
-    if (!primaryRes.ok) {
-      const err = await primaryRes.text();
+    if (!sourceRes.ok) {
+      const err = await sourceRes.text();
       return NextResponse.json({ error: `Failed to fetch source orders: ${err}` }, { status: 500 });
     }
-    const primaryOrders = await primaryRes.json();
-    if (!Array.isArray(primaryOrders)) {
+    const sourceOrdersAll = await sourceRes.json();
+    if (!Array.isArray(sourceOrdersAll)) {
       return NextResponse.json({ error: 'Unexpected response fetching source orders' }, { status: 500 });
     }
-    let sourceOrders = [...primaryOrders];
-
-    // Also find child orders (merged_into = one of the primary order IDs)
-    const primaryIds = primaryOrders.map((o: any) => o.id);
-    if (primaryIds.length > 0) {
-      const childFilter = primaryIds.map((id: string) => `merged_into.eq.${id}`).join(',');
-      const childUrl = primaryIds.length === 1
-        ? `${SUPABASE_URL}/rest/v1/orders?merged_into=eq.${primaryIds[0]}&status=neq.paid&select=id,table_number,total_amount,guest_count,merged_into`
-        : `${SUPABASE_URL}/rest/v1/orders?or=(${childFilter})&status=neq.paid&select=id,table_number,total_amount,guest_count,merged_into`;
-      const childRes = await fetch(childUrl, { headers });
-      if (childRes.ok) {
-        const childOrders = await childRes.json();
-        if (Array.isArray(childOrders) && childOrders.length > 0) {
-          sourceOrders = [...sourceOrders, ...childOrders];
-        }
-      }
-    }
-
-    if (sourceOrders.length === 0) {
+    if (sourceOrdersAll.length === 0) {
       return NextResponse.json({ error: 'No active orders on source table' }, { status: 400 });
     }
 
@@ -68,7 +50,7 @@ export async function POST(request: NextRequest) {
     let extraTotal = 0;
     let extraGuests = 0;
 
-    for (const o of sourceOrders) {
+    for (const o of sourceOrdersAll) {
       movedIds.push(o.id);
       extraTotal += Number(o.total_amount || 0);
       extraGuests += Number(o.guest_count || 0);
@@ -80,10 +62,6 @@ export async function POST(request: NextRequest) {
           method: 'PATCH',
           body: JSON.stringify({
             table_number: to_table,
-            kitchen_status: 'pending',
-            is_rush: false,
-            kitchen_accepted_at: null,
-            // Clear merged_into so it's a primary order on the new table
             merged_into: null,
           }),
         }
@@ -92,6 +70,21 @@ export async function POST(request: NextRequest) {
         const err = await res.text();
         return NextResponse.json({ error: `Transfer failed for order ${o.id}: ${err}` }, { status: 500 });
       }
+    }
+
+    // Clear table-level merge link on source table (if it was a merged child)
+    const clearMergeRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${from_table}`,
+      {
+        headers: { ...headers, 'Prefer': 'return=minimal' },
+        method: 'PATCH',
+        body: JSON.stringify({ merged_into_table: null }),
+      }
+    );
+    if (!clearMergeRes.ok) {
+      const err = await clearMergeRes.text();
+      console.error('Failed to clear merged_into_table on source table:', err);
+      // non-fatal
     }
 
     // If target already has an order, merge totals into it
@@ -105,9 +98,6 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             total_amount: Number(primary.total_amount || 0) + extraTotal,
             guest_count: Number(primary.guest_count || 1) + extraGuests,
-            kitchen_status: 'pending',
-            is_rush: false,
-            kitchen_accepted_at: null,
           }),
         }
       );

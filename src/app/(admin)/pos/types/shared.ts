@@ -51,6 +51,8 @@ export interface PosTable {
   order_ids?: string[];
   floor_name?: string | null;
   sort_order?: number | null;
+  has_pending?: boolean;
+  oldest_pending_at?: string | null;
 }
 
 export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'merged' | string;

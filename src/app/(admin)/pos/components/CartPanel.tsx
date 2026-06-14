@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, Trash2, ShoppingBag, ArrowLeft, Users } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingBag, ArrowLeft, Users, GitMerge } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosCart } from '../types/shared';
@@ -16,11 +16,12 @@ interface CartPanelProps {
   onBack: () => void;
   orderButtonStatus: SendOrderButtonStatus;
   onUpdateGuests?: (delta: number) => void;
+  mergedChildNumbers?: number[];
 }
 
 export function CartPanel({
   cart, onUpdateQty, onRemove, onPlaceOrder,
-  onClear, onBack, orderButtonStatus, onUpdateGuests,
+  onClear, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -47,7 +48,14 @@ export function CartPanel({
             <ArrowLeft size={18} />
           </button>
           <div>
-            <p className="text-lg font-bold text-[var(--theme-text)]">Masa {cart.table_number}</p>
+            <p className="text-lg font-bold text-[var(--theme-text)]">
+              Masa {cart.table_number}
+              {mergedChildNumbers && mergedChildNumbers.length > 0 && (
+                <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>
+                  <GitMerge size={10} /> Qrup {cart.table_number}
+                </span>
+              )}
+            </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} məhsul</span>
               <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>

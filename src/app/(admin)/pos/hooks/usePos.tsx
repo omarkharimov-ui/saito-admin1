@@ -354,19 +354,18 @@ export function usePos() {
 
   /* ── Transfer Table ── */
   const transferTable = useCallback(async (fromTable: number, toTable: number) => {
-    try {
-      const res = await fetch('/api/orders/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from_table: fromTable, to_table: toTable }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      if (data.undo) showUndo('transfer', data.undo, `Masa ${fromTable} → Masa ${toTable}`);
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    const res = await fetch('/api/orders/transfer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_table: fromTable, to_table: toTable }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (data.undo) showUndo('transfer', data.undo, `Masa ${fromTable} → Masa ${toTable}`);
+    // delay fetch so Supabase has time to propagate the PATCH
+    await new Promise(r => setTimeout(r, 300));
+    fetchData();
+    return data;
   }, [fetchData, showUndo]);
 
   /* ── Merge Tables ── */

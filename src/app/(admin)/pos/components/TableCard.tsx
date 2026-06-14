@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Clock, Users, Utensils, MoreVertical, GitMerge, ArrowLeft } from 'lucide-react';
+import { Clock, Users, Utensils, MoreVertical, GitMerge, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
 
@@ -48,13 +48,14 @@ function timeSince(dateStr: string | null | undefined): string {
 }
 
 export function TableCard({
-  table, onTap, onAction, isSelected, isTransferSource,
+  table, onTap, onAction, isSelected, isTransferSource, isOverdue,
 }: {
   table: PosTable;
   onTap: () => void;
   onAction?: () => void;
   isSelected: boolean;
   isTransferSource?: boolean;
+  isOverdue?: boolean;
 }) {
   const { lightMode } = useTheme();
   const cfg = statusConfig[table.status] || statusConfig.empty;
@@ -75,18 +76,30 @@ export function TableCard({
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative flex flex-col rounded-3xl p-4 text-left transition-all duration-200 ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isGroupParent ? 'pb-12' : ''}`}
+      className={`relative flex flex-col rounded-3xl p-4 text-left transition-all duration-200 ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-500/10' : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isGroupParent ? 'pb-12' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
     >
       {/* Static subtle glow for waiting bill — no pulse */}
       {table.status === 'waiting_bill' && (
         <span className={`absolute inset-0 rounded-2xl pointer-events-none ${lightMode ? 'bg-amber-100/40' : 'bg-amber-400/[0.04]'}`} />
       )}
 
+      {/* Overdue pending pulse */}
+      {isOverdue && (
+        <span className="absolute inset-0 rounded-3xl pointer-events-none ring-2 ring-red-500/40 animate-pulse" />
+      )}
+
       {/* Header row: number + status + merge indicator */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : table.status === 'empty' ? (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/60') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
-            {table.table_number}
+            {isGroupParent ? (
+              <span className="flex flex-col items-center leading-tight">
+                <span className="text-[6px] font-bold uppercase tracking-wider">Qrup</span>
+                <span className="text-[13px] font-black -mt-0.5">{table.table_number}</span>
+              </span>
+            ) : (
+              table.table_number
+            )}
           </div>
           <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/70' : cfg.bg}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -119,6 +132,12 @@ export function TableCard({
                   <Clock size={11} />
                   <span className="text-[11px] font-medium tabular-nums">{timeSince(table.opened_at ?? null)}</span>
                 </div>
+                {isOverdue && table.oldest_pending_at && (
+                  <div className="flex items-center gap-1 text-red-400">
+                    <AlertTriangle size={10} />
+                    <span className="text-[10px] font-bold tabular-nums">{timeSince(table.oldest_pending_at)}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5">
                   <Utensils size={11} />
                   <span className="text-[11px] font-medium tabular-nums">{table.order_count}</span>

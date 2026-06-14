@@ -73,6 +73,14 @@ export async function GET() {
       const activeOrders = tableOrders.filter(o => o.status !== 'paid' && o.status !== 'cancelled');
       const hasCooking = activeOrders.some(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing');
       const hasWaitingBill = activeOrders.some(o => o.kitchen_status === 'ready');
+
+      // Pending = not yet accepted by kitchen
+      const pendingOrders = activeOrders.filter(o => o.kitchen_status === 'pending' || o.kitchen_status == null);
+      const hasPending = pendingOrders.length > 0;
+      const oldestPendingAt = pendingOrders.length > 0
+        ? pendingOrders.reduce((a, b) => new Date(a.created_at) < new Date(b.created_at) ? a : b).created_at
+        : null;
+
       const oldestOrder = activeOrders.length > 0 ? activeOrders[activeOrders.length - 1] : null;
 
       // Check if table has merged_into_table set (table-level merge, even without orders)
@@ -156,6 +164,8 @@ export async function GET() {
         order_ids: allMerged ? [] : activeOrders.map(o => o.id),
         merged_orders: mergedOrders.length > 0 ? mergedOrders : undefined,
         merged_into_table: mergedIntoTable,
+        has_pending: hasPending,
+        oldest_pending_at: oldestPendingAt,
       });
     }
 

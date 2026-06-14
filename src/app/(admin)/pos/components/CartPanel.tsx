@@ -13,7 +13,7 @@ interface CartPanelProps {
   cart: PosCart | null;
   onUpdateQty: (index: number, delta: number) => void;
   onPlaceOrder: () => void;
-  onClear: () => void;
+  onClearDraft: () => void;
   onBack: () => void;
   orderButtonStatus: SendOrderButtonStatus;
   onUpdateGuests?: (delta: number) => void;
@@ -25,7 +25,7 @@ interface CartPanelProps {
 
 export function CartPanel({
   cart, onUpdateQty, onPlaceOrder,
-  onClear, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
+  onClearDraft, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
 }: CartPanelProps) {
   const { t } = useLanguage();
@@ -183,7 +183,7 @@ export function CartPanel({
         </div>
         <div className="flex items-center">
           <button
-            onClick={onClear}
+            onClick={onClearDraft}
             style={{
               opacity: lossMode ? 0 : 1,
               marginRight: lossMode ? 0 : 8,

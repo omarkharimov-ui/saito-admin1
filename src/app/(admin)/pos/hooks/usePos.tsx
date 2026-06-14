@@ -267,18 +267,47 @@ export function usePos() {
 
       toast.success(`Masa ${currentCart.table_number} — sifariş göndərildi`);
 
-      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-      delete all[currentCart.table_number];
-      saveCache(POS_CART_KEY + '_all', all);
+      // Mark all items as sent — keep cart on screen for further edits
+      setCart(prev => prev ? {
+        ...prev,
+        items: prev.items.map(item => ({ ...item, sentQuantity: item.quantity })),
+      } : null);
 
-      clearCart();
-      backToFloor();
       fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
       throw e;
     }
-  }, [clearCart, backToFloor, fetchData]);
+  }, [fetchData]);
+
+  const clearDrafts = useCallback(() => {
+    const currentCart = cartRef.current;
+    if (!currentCart || currentCart.items.length === 0) return;
+
+    const hasDraft = currentCart.items.some(item =>
+      !item.sentQuantity || item.quantity !== item.sentQuantity
+    );
+
+    if (!hasDraft) {
+      toast('Sifariş artıq mətbəxə göndərilib', { icon: 'ℹ️' });
+      return;
+    }
+
+    setCart(prev => {
+      if (!prev) return null;
+      const items = prev.items
+        .map(item => {
+          if (!item.sentQuantity) return null; // new item → remove
+          if (item.quantity !== item.sentQuantity) {
+            // reset to sent quantity (handles both increase and decrease)
+            return { ...item, quantity: item.sentQuantity, total_price: item.unit_price * item.sentQuantity };
+          }
+          return item; // sent item, unchanged
+        })
+        .filter(Boolean) as PosCartItem[];
+      return { ...prev, items };
+    });
+  }, []);
 
   /* ── Billing ── */
   const closeBill = useCallback(async (orderId: string, payment: PaymentInfo) => {
@@ -406,7 +435,7 @@ export function usePos() {
     language, tables, floors, products, categories, loading,
     selectedTable, cart, activeView, orderHistory,
     selectTable, backToFloor,
-    addToCart, updateCartItemQty, removeCartItem, clearCart, saveCart,
+    addToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts, saveCart,
     placeOrder, closeBill, transferTable, mergeTables,
     setActiveView, setCart, setSelectedTable, setTables,
     fetchData,

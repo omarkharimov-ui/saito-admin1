@@ -251,8 +251,8 @@ export default function POSPage() {
     }
   }, [actionSheetTable, pos]);
 
-  const handleClearCart = useCallback(() => {
-    pos.clearCart();
+  const handleClearDraft = useCallback(() => {
+    pos.clearDrafts();
     setIsDirty(false);
   }, [pos]);
 
@@ -508,7 +508,7 @@ export default function POSPage() {
                     cart={pos.cart}
                     onUpdateQty={handleUpdateQty}
                     onPlaceOrder={handlePlaceOrder}
-                    onClear={handleClearCart}
+                    onClearDraft={handleClearDraft}
                     onBack={() => {
                       if (isDirty) {
                         if (window.confirm('Yazılmamış dəyişikliklər var. Silinsin?')) {

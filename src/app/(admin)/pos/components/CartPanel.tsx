@@ -371,14 +371,16 @@ export function CartPanel({
           </div>
         )}
 
-        <SendOrderButton
-          disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
-          status={lossMode ? 'idle' : orderButtonStatus}
-          variant={lossMode ? 'loss' : 'send'}
-          label={lossMode ? t('loss_confirm') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))}
-          onClick={lossMode ? confirmLoss : onPlaceOrder}
-          isDirty={isDirty}
-        />
+        <div className="flex justify-end">
+          <SendOrderButton
+            disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
+            status={lossMode ? 'idle' : orderButtonStatus}
+            variant={lossMode ? 'loss' : 'send'}
+            label={lossMode ? t('loss_confirm') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))}
+            onClick={lossMode ? confirmLoss : onPlaceOrder}
+            isDirty={isDirty}
+          />
+        </div>
       </div>
 
     </div>

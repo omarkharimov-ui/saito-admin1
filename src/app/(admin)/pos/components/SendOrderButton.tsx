@@ -25,23 +25,25 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
   const isLoading = status === 'loading';
   const isSuccess = status === 'success';
   const isError = status === 'error';
+  const showText = !isLoading && !isSuccess && !isError;
 
   return (
     <motion.button
       type="button"
       onClick={handleClick}
       disabled={disabled || isLoading}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-      className={`relative overflow-hidden font-bold text-sm flex items-center justify-center gap-2 w-full h-[52px] rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed ${
+      whileTap={{ scale: 0.95 }}
+      layout
+      transition={{ type: 'spring', stiffness: 400, damping: 28, mass: 0.8 }}
+      className={`relative overflow-hidden font-semibold text-sm flex items-center justify-center gap-2 rounded-full disabled:opacity-40 disabled:cursor-not-allowed ${
         variant === 'loss'
           ? 'bg-red-600/15 border border-red-500/25 text-red-300'
           : 'bg-neutral-900 text-white active:bg-neutral-800'
-      }`}
+      } ${showText ? 'h-[44px] px-5' : 'h-[44px] w-[44px]'}`}
     >
       {/* Dirty dot */}
       {isDirty && !isLoading && !isSuccess && !isError && (
-        <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
       )}
 
       <AnimatePresence mode="wait" initial={false}>
@@ -51,44 +53,40 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
             initial={{ opacity: 0, rotate: -90 }}
             animate={{ opacity: 1, rotate: 0 }}
             exit={{ opacity: 0, rotate: 90 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18 }}
           >
-            <Loader2 size={20} className="animate-spin" />
+            <Loader2 size={18} className="animate-spin" />
           </motion.span>
         ) : isSuccess ? (
           <motion.span
             key="success"
-            initial={{ opacity: 0, scale: 0.5 }}
+            initial={{ opacity: 0, scale: 0.4 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 22 }}
-            className="flex items-center gap-2"
+            exit={{ opacity: 0, scale: 0.4 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 18 }}
           >
             <CheckCircle size={18} className="text-emerald-400" />
-            <span>{t('sent_to_kitchen')}</span>
           </motion.span>
         ) : isError ? (
           <motion.span
             key="failed"
-            initial={{ opacity: 0, x: -6 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 6 }}
-            transition={{ duration: 0.2 }}
-            className="flex items-center gap-2"
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.4 }}
+            transition={{ duration: 0.15 }}
           >
             <span className="text-base leading-none text-red-400">✕</span>
-            <span>{t('send_failed')}</span>
           </motion.span>
         ) : (
           <motion.span
             key="idle"
-            initial={{ opacity: 0, y: 4 }}
+            initial={{ opacity: 0, y: 3 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.15 }}
+            exit={{ opacity: 0, y: -3 }}
+            transition={{ duration: 0.12 }}
             className="flex items-center gap-2"
           >
-            {variant === 'send' ? <Send size={16} /> : <CheckCircle size={16} />}
+            {variant === 'send' ? <Send size={15} /> : <CheckCircle size={15} />}
             {label || (variant === 'send' ? 'Sifariş göndər' : 'Dəyişiklikləri Təsdiqlə')}
           </motion.span>
         )}

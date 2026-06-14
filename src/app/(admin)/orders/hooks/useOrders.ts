@@ -278,13 +278,12 @@ export function useOrders() {
 
   const handleClearTable = useCallback(async (tableNum: number) => {
     try {
-      // 1. Aktiv (yeni və ya təsdiqlənmiş) ana sifarişi tapırıq
       const { data: active, error } = await supabase
         .from('orders')
-        .select('id, table_number')
+        .select('id, table_number, merged_into')
         .eq('table_number', tableNum)
         .in('status', ['new', 'confirmed']);
-      
+
       if (error) throw error;
       const primaryOrder = active?.[0];
       if (!primaryOrder) return;

@@ -79,10 +79,10 @@ export function CustomNotificationProvider() {
       }, 5000);
     };
 
-    window.addEventListener('saito-notification' as any, handleNewNotification);
+    window.addEventListener('saito-notification', handleNewNotification as EventListener);
 
     return () => {
-      window.removeEventListener('saito-notification' as any, handleNewNotification);
+      window.removeEventListener('saito-notification', handleNewNotification as EventListener);
     };
   }, []);
 
@@ -91,7 +91,7 @@ export function CustomNotificationProvider() {
   };
 
   return (
-    <div className="fixed top-0 right-0 z-[9999] p-4 space-y-3 pointer-events-none">
+    <div className="fixed top-4 right-4 left-4 sm:left-auto sm:w-[min(100vw-2rem,28rem)] z-[10000] space-y-3 pointer-events-none">
       <AnimatePresence>
         {notifications.map((notif) => {
           const Icon = iconMap[notif.type];
@@ -103,9 +103,9 @@ export function CustomNotificationProvider() {
               initial={{ x: 100, opacity: 0, scale: 0.9 }}
               animate={{ x: 0, opacity: 1, scale: 1 }}
               exit={{ x: 100, opacity: 0, scale: 0.9 }}
-              className="pointer-events-auto"
+              className="pointer-events-auto w-full"
             >
-              <div className="bg-black/95 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl min-w-[320px] max-w-[400px]">
+              <div className="bg-black/95 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl w-full min-w-0 max-w-none ring-1 ring-white/5">
                 <div className="flex items-start gap-3">
                   {/* Icon */}
                   <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center`}>

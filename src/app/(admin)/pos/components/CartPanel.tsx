@@ -371,7 +371,7 @@ export function CartPanel({
           </div>
         )}
 
-        <div className="flex justify-center">
+        <div className="w-full">
           <SendOrderButton
             disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
             status={lossMode ? 'idle' : orderButtonStatus}
@@ -379,6 +379,7 @@ export function CartPanel({
             label={lossMode ? t('loss_confirm') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))}
             onClick={lossMode ? confirmLoss : onPlaceOrder}
             isDirty={isDirty}
+            className="w-full"
           />
         </div>
       </div>

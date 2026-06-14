@@ -51,6 +51,7 @@ export default function POSPage() {
 
   /* ── Payment modal ── */
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [warningOpen, setWarningOpen] = useState(false);
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
   const [payTableNumber, setPayTableNumber] = useState<number>(0);
   const [payAmount, setPayAmount] = useState(0);
@@ -531,11 +532,7 @@ export default function POSPage() {
                     onBack={() => {
                       try {
                         if (isDirty) {
-                          if (window.confirm('Yazılmamış dəyişikliklər var. Silinsin?')) {
-                            pos.clearCart();
-                            setIsDirty(false);
-                            pos.backToFloor();
-                          }
+                          setWarningOpen(true);
                         } else {
                           pos.backToFloor();
                         }
@@ -649,6 +646,34 @@ export default function POSPage() {
           })}
         </div>
       </div>
+
+      <MobileModal open={warningOpen} onClose={() => setWarningOpen(false)}>
+        <div className="space-y-4 text-center">
+          <h3 className="text-lg font-bold">Yazılmamış dəyişikliklər var</h3>
+          <p className="text-sm text-[var(--theme-text-secondary)]">
+            Masanı tərk etsən, səbət, qonaq sayı və dəyişikliklər silinəcək.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => setWarningOpen(false)}
+              className="px-4 py-2 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]"
+            >
+              Ləğv
+            </button>
+            <button
+              onClick={() => {
+                pos.clearCart();
+                setIsDirty(false);
+                setWarningOpen(false);
+                pos.backToFloor();
+              }}
+              className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold"
+            >
+              Sil və çıx
+            </button>
+          </div>
+        </div>
+      </MobileModal>
 
       {/* ── Action Sheet ── */}
       <ActionSheet

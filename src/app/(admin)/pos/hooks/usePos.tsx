@@ -217,12 +217,19 @@ export function usePos() {
     const currentTable = selectedTable?.table_number ?? cartRef.current?.table_number;
     setCart(null);
     cartRef.current = null;
+    setSelectedTable(prev => prev ? {
+      ...prev,
+      guest_count: 0,
+      total_amount: 0,
+      status: 'empty' as const,
+    } : prev);
     if (typeof currentTable === 'number') {
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
       delete all[currentTable];
       saveCache(POS_CART_KEY + '_all', all);
       delete orderFingerprintRef.current[currentTable];
     }
+    saveCache(POS_CART_KEY, null);
   }, [selectedTable]);
 
   const saveCart = useCallback(() => {

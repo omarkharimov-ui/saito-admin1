@@ -13,7 +13,7 @@ import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
-import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable } from './types/shared';
+import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable, LossItem } from './types/shared';
 
 const tabs = [
   { id: 'floor' as const, icon: LayoutGrid, label: 'Masalar' },
@@ -131,6 +131,30 @@ export default function POSPage() {
     } catch {
       setOrderButtonStatus('error');
       window.setTimeout(() => setOrderButtonStatus('idle'), 1600);
+    }
+  }, [pos]);
+
+  /* ── Record loss from cart ── */
+  const handleRecordLoss = useCallback(async (items: LossItem[], reason: string) => {
+    try {
+      const res = await fetch('/api/finance/loss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table_number: pos.selectedTable?.table_number,
+          reason,
+          reason_text: reason,
+          total_amount: items.reduce((s, i) => s + i.unit_price * i.quantity, 0),
+          items,
+          source: 'pos',
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success(`İtki qeyd edildi`);
+      pos.fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi');
+      throw e;
     }
   }, [pos]);
 
@@ -505,7 +529,6 @@ export default function POSPage() {
                   <CartPanel
                     cart={pos.cart}
                     onUpdateQty={pos.updateCartItemQty}
-                    onRemove={pos.removeCartItem}
                     onPlaceOrder={handlePlaceOrder}
                     onClear={pos.clearCart}
                     onBack={pos.backToFloor}
@@ -517,6 +540,7 @@ export default function POSPage() {
                       pos.setCart({ ...c, guest_count: newCount });
                     }}
                     mergedChildNumbers={(pos.selectedTable?.merged_orders as any[])?.map((m: any) => m.table_number) ?? []}
+                    onRecordLoss={handleRecordLoss}
                   />
               </div>
             </motion.div>

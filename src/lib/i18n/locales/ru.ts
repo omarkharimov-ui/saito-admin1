@@ -1335,4 +1335,14 @@ export const ru: TranslationMap = {
   // Order items — served / locked
   served_qty_error: 'Нельзя уменьшить выданный товар ({served} шт.)',
   served_del_error: 'Нельзя удалить выданный товар — {served} шт. уже передано',
+
+  // Cart — loss mode
+  // Cart — loss mode
+  loss_mode: 'Списание',
+  loss_mode_cancel: 'Отмена',
+  loss_confirm: 'Подтвердить изменения',
+  loss_reason_title: 'Причина списания',
+  loss_reason_not_liked: 'Клиенту не понравилось',
+  loss_reason_kitchen_error: 'Ошибка кухни',
+  loss_reason_wrong_entry: 'Неверный ввод',
 } as const;

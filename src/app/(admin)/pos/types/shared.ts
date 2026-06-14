@@ -81,3 +81,10 @@ export interface PaymentInfo {
   card_amount: number;
   tip: number;
 }
+
+export interface LossItem {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+}

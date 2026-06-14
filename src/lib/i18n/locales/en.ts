@@ -1333,4 +1333,14 @@ export const en: TranslationMap = {
   // Order items — served / locked
   served_qty_error: 'Cannot reduce served item ({served} pcs)',
   served_del_error: 'Cannot delete served item — {served} pcs already delivered',
+
+  // Cart — loss mode
+  // Cart — loss mode
+  loss_mode: 'Write Off',
+  loss_mode_cancel: 'Cancel',
+  loss_confirm: 'Confirm Changes',
+  loss_reason_title: 'Loss Reason',
+  loss_reason_not_liked: 'Customer disliked',
+  loss_reason_kitchen_error: 'Kitchen error',
+  loss_reason_wrong_entry: 'Wrong entry',
 } as const;

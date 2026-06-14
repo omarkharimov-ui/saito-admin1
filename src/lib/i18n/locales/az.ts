@@ -1332,4 +1332,13 @@ export const az = {
   // Order items — served / locked
   served_qty_error: 'Təhvil verilmiş məhsul azaldıla bilməz ({served} ədəd)',
   served_del_error: 'Təhvil verilmiş məhsul silinə bilməz — {served} ədəd artıq təhvil verilib',
+
+  // Cart — loss mode
+  loss_mode: 'İtki Yaz',
+  loss_mode_cancel: 'Ləğv et',
+  loss_confirm: 'Dəyişiklikləri Təsdiqlə',
+  loss_reason_title: 'İtki səbəbi',
+  loss_reason_not_liked: 'Müştəri bəyənmədi',
+  loss_reason_kitchen_error: 'Mətbəx səhvi',
+  loss_reason_wrong_entry: 'Səhv daxil edilmə',
 } as const;

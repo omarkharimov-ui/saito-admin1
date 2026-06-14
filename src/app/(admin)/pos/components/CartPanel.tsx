@@ -179,34 +179,28 @@ export function CartPanel({
           </div>
         </div>
         <div className="flex items-center">
-          <AnimatePresence mode="popLayout">
-            {!lossMode && (
-              <motion.button
-                key="temizle"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                onClick={onClear}
-                className="h-10 px-3.5 mr-2 rounded-2xl text-xs font-semibold whitespace-nowrap text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
-                style={{ display: isEmpty ? 'none' : undefined }}
-              >
-                Təmizlə
-              </motion.button>
-            )}
-          </AnimatePresence>
-
-          <motion.button
-            layout
-            initial={false}
-            animate={{ color: lossMode ? '#f87171' : 'var(--theme-text-secondary)' }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+          <button
+            onClick={onClear}
+            style={{
+              opacity: lossMode ? 0 : 1,
+              marginRight: lossMode ? 0 : 8,
+              pointerEvents: lossMode ? 'none' as const : 'auto' as const,
+              display: isEmpty ? 'none' : undefined,
+            }}
+            className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
+          >
+            Təmizlə
+          </button>
+          <button
             onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
-            className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap flex items-center justify-center hover:bg-[var(--theme-surface-soft)]"
-            style={{ display: isEmpty ? 'none' : undefined }}
+            style={{
+              color: lossMode ? '#f87171' : 'var(--theme-text-secondary)',
+              display: isEmpty ? 'none' : undefined,
+            }}
+            className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[var(--theme-surface-soft)]"
           >
             {lossMode ? 'Ləğv et' : 'İtki Yaz'}
-          </motion.button>
+          </button>
         </div>
       </div>
 

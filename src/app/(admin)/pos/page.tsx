@@ -436,7 +436,7 @@ export default function POSPage() {
                 onClick={() => {
                   if (tab.id === 'order' && !pos.selectedTable) {
                     if (orderTabTouchedRef.current) {
-                      toast.error('Əvvəlcə masa seçin');
+                      toast.error('Əvvəlcə masa seçin', { id: 'no-table-order' });
                     }
                     orderTabTouchedRef.current = true;
                     pos.setActiveView('floor');

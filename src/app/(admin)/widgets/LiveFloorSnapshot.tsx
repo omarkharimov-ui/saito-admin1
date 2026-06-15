@@ -76,14 +76,14 @@ export default function LiveFloorSnapshot() {
     return () => clearInterval(interval);
   }, []);
 
-  const getStatusColor = (status: TableStatus['status']) => {
+  const getStatusStyle = (status: TableStatus['status']) => {
     switch (status) {
-      case 'empty': return 'bg-white/[0.03] text-white/30';
-      case 'new': return 'bg-emerald-500/10 text-emerald-400';
-      case 'order_placed': return 'bg-amber-500/10 text-amber-400';
-      case 'payment_pending': return 'bg-slate-500/10 text-slate-300';
-      case 'occupied': return 'bg-white/[0.06] text-white/50';
-      default: return 'bg-white/[0.03] text-white/30';
+      case 'empty': return { bar: 'bg-[var(--theme-border)]', dot: 'bg-[var(--theme-text-muted)]', text: 'text-[var(--theme-text-muted)]' };
+      case 'new': return { bar: 'bg-emerald-500', dot: 'bg-emerald-500', text: 'text-emerald-600' };
+      case 'order_placed': return { bar: 'bg-amber-500', dot: 'bg-amber-500', text: 'text-amber-600' };
+      case 'payment_pending': return { bar: 'bg-slate-500', dot: 'bg-slate-500', text: 'text-slate-600' };
+      case 'occupied': return { bar: 'bg-[var(--theme-text)]', dot: 'bg-[var(--theme-text)]', text: 'text-[var(--theme-text)]' };
+      default: return { bar: 'bg-[var(--theme-border)]', dot: 'bg-[var(--theme-text-muted)]', text: 'text-[var(--theme-text-muted)]' };
     }
   };
 
@@ -121,7 +121,7 @@ export default function LiveFloorSnapshot() {
       className="relative overflow-hidden rounded-3xl bg-[var(--theme-surface)] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)] border border-[var(--theme-border)]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-[var(--theme-nested)] flex items-center justify-center shadow-[0_8px_24px_rgba(0,122,255,0.10)]">
             <Armchair size={20} className="text-gold" />
@@ -135,31 +135,31 @@ export default function LiveFloorSnapshot() {
         {/* Legend */}
         <div className="hidden sm:flex items-center gap-3 text-[10px] text-[var(--theme-text-muted)]">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(0,208,132,0.12)] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.10)]" />
             {t('new')}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.12)]" />
+            <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.10)]" />
             {t('cooking')}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_0_4px_rgba(0,122,255,0.12)]" />
+            <span className="w-2 h-2 rounded-full bg-[var(--theme-text)] shadow-[0_0_0_4px_rgba(15,23,42,0.08)]" />
             DOLU
           </span>
         </div>
       </div>
 
       {/* Compact Stats Row - No Table Grid */}
-      <div className="flex gap-3">
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="relative overflow-hidden p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--theme-border)] before:content-['']">
           <p className="text-xl font-bold text-[var(--theme-text)]">{occupiedCount}<span className="text-[var(--theme-text-muted)] text-sm">/{tableCount}</span></p>
           <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5">{t('occupied')}</p>
         </div>
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
+        <div className="relative overflow-hidden p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-emerald-500 before:content-['']">
           <p className="text-xl font-bold text-emerald-500">{newCount}</p>
           <p className="text-[9px] text-emerald-500 uppercase tracking-wider mt-0.5">{t('new_arrivals')}</p>
         </div>
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
+        <div className="relative overflow-hidden p-3 rounded-2xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-amber-500 before:content-['']">
           <p className="text-xl font-bold text-amber-500">{cookingCount}</p>
           <p className="text-[9px] text-amber-500 uppercase tracking-wider mt-0.5">{t('in_kitchen')}</p>
         </div>

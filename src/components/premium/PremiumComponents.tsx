@@ -219,19 +219,19 @@ export function SlidingTabs({
   className?: string;
 }) {
   return (
-    <div className={`inline-flex items-center gap-1 p-1 rounded-xl border border-white/[0.08] bg-white/[0.03] ${className}`}>
+    <div className={`inline-flex items-center gap-1 p-1 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] ${className}`}>
       {tabs.map(tab => {
         const active = value === tab.id;
         return (
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className={`relative px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors ${active ? 'text-white' : 'text-white/50 hover:text-white/80'}`}
+            className={`relative px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors ${active ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'}`}
           >
             {active && (
               <motion.span
                 layoutId={layoutId}
-                className="absolute inset-0 rounded-lg bg-white/[0.12] border border-white/[0.15]"
+                className="absolute inset-0 rounded-lg bg-[var(--theme-surface)] border border-[var(--theme-border-strong)] shadow-[0_6px_18px_rgba(0,0,0,0.05)]"
                 transition={{ type: 'spring', stiffness: 460, damping: 34 }}
               />
             )}
@@ -258,7 +258,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`bg-white rounded-[16px] border border-[#E5E5E7] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.04)] p-6 ${className}`}
+      className={`bg-[var(--theme-surface)] rounded-[16px] border border-[var(--theme-border)] shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.04)] p-6 ${className}`}
       {...props}
     >
       {children}
@@ -284,18 +284,18 @@ export function Input({
   return (
     <div className="flex flex-col gap-2">
       {label && (
-        <label className="text-sm font-medium text-[#6E6E73]">{label}</label>
+        <label className="text-sm font-medium text-[var(--theme-text-secondary)]">{label}</label>
       )}
       <input
         className={`px-4 py-2.5 rounded-[10px] border font-medium text-base transition-all outline-none
-          focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]
-          ${error ? 'border-[#BE123C]' : 'border-[#E5E5E7]'}
-          bg-white text-[#1D1D1F] placeholder-[#8E8E93]
-          disabled:bg-[#F7F7F8] disabled:cursor-not-allowed disabled:opacity-50`}
+          focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(212,175,55,0.12)]
+          ${error ? 'border-[#BE123C]' : 'border-[var(--theme-border)]'}
+          bg-[var(--theme-surface)] text-[var(--theme-text)] placeholder-[var(--theme-text-muted)]
+          disabled:bg-[var(--theme-surface-soft)] disabled:cursor-not-allowed disabled:opacity-50`}
         {...props}
       />
       {error && <p className="text-sm text-[#BE123C]">{error}</p>}
-      {helperText && <p className="text-sm text-[#8E8E93]">{helperText}</p>}
+      {helperText && <p className="text-sm text-[var(--theme-text-muted)]">{helperText}</p>}
     </div>
   );
 }
@@ -328,7 +328,7 @@ export function Modal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/30 z-40 backdrop-blur-[2px]"
+        className="fixed inset-0 bg-black/20 z-40 backdrop-blur-[2px]"
         onClick={onClose}
       />
 
@@ -338,13 +338,13 @@ export function Modal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: 6 }}
         transition={{ duration: 0.18 }}
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[90vh] bg-white/82 backdrop-blur-2xl rounded-[20px] shadow-[0_8px_30px_rgba(0,0,0,0.10)] z-50 overflow-hidden flex flex-col border border-[#E5E5E7]"
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[90vh] bg-[var(--theme-surface)]/92 backdrop-blur-2xl rounded-[20px] shadow-[0_8px_30px_rgba(0,0,0,0.10)] z-50 overflow-hidden flex flex-col border border-[var(--theme-border)]"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#E5E5E7]">
-          <h2 className="text-xl font-semibold text-[#1D1D1F]">{title}</h2>
+        <div className="px-6 py-4 border-b border-[var(--theme-border)]">
+          <h2 className="text-xl font-semibold text-[var(--theme-text)]">{title}</h2>
           {description && (
-            <p className="text-sm text-[#6E6E73] mt-1">{description}</p>
+            <p className="text-sm text-[var(--theme-text-secondary)] mt-1">{description}</p>
           )}
         </div>
 
@@ -353,7 +353,7 @@ export function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-[#E5E5E7] flex gap-3 justify-end">
+          <div className="px-6 py-4 border-t border-[var(--theme-border)] flex gap-3 justify-end">
             {footer}
           </div>
         )}

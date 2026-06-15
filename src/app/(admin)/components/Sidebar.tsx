@@ -49,7 +49,7 @@ const Sidebar = ({
       style={{ width: 272 }}
     >
       {/* Glass panel */}
-      <div className="mx-3 mt-3 flex-1 flex flex-col overflow-hidden rounded-[22px] border border-[var(--theme-border)] bg-[var(--theme-panel)] shadow-[0_20px_60px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
+      <div className="mx-3 mt-3 flex-1 flex flex-col overflow-hidden rounded-[22px] border border-[var(--theme-border)] bg-[var(--theme-panel)] shadow-[0_16px_44px_rgba(0,0,0,0.08)] backdrop-blur-2xl">
 
         {/* Brand */}
         <div className="px-6 pt-6 pb-5">
@@ -76,11 +76,11 @@ const Sidebar = ({
                 key={link.id}
                 href={link.href}
                 onClick={onClose}
-                className={`group relative flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-[14px] border ${isActive ? 'text-[var(--theme-text)] bg-[var(--theme-surface)] border-[var(--theme-border-strong)] shadow-[0_8px_24px_rgba(0,0,0,0.05)]' : 'text-[var(--theme-text-secondary)] bg-transparent border-transparent hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]'}`}
+                className={`group relative flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-[14px] border ${isActive ? 'text-[var(--theme-text)] bg-[var(--theme-surface-soft)] border-[var(--theme-border)] shadow-[0_6px_18px_rgba(0,0,0,0.04)]' : 'text-[var(--theme-text-secondary)] bg-transparent border-transparent hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]'}`}
               >
                 {/* Active indicator — left bar */}
                 {isActive && (
-                  <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full pointer-events-none bg-[var(--theme-text)]" />
+                  <span className="absolute left-0 top-2.5 bottom-2.5 w-[2px] rounded-full pointer-events-none bg-[var(--theme-accent)] shadow-[0_0_10px_rgba(212,175,55,0.25)]" />
                 )}
 
                 <span

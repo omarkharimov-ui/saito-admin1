@@ -45,12 +45,12 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
   const openTime = openMatch?.[1];
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_14px_40px_rgba(0,0,0,0.28)]">
-      <div className="relative z-10 flex items-center gap-5 p-6">
+    <div className="relative overflow-hidden rounded-[24px] bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+      <div className="relative z-10 flex items-center gap-5 p-6 md:p-7">
         {/* Brain icon */}
         <div className="relative shrink-0 sensei-icon-calm">
           <div
-            className="relative w-20 h-20 md:w-16 md:h-16 rounded-2xl flex items-center justify-center"
+            className="relative w-[4.5rem] h-[4.5rem] md:w-16 md:h-16 rounded-[18px] flex items-center justify-center"
             style={{ background: 'var(--theme-surface-soft)' }}
           >
             {/* Animated Brain Circuit */}

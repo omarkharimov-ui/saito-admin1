@@ -26,29 +26,29 @@ export function PremiumDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--theme-background)] text-[var(--theme-text)]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-8 py-6">
+      <header className="bg-[var(--theme-surface)]/90 backdrop-blur-xl border-b border-[var(--theme-border)] px-6 md:px-8 py-6 md:py-7 shadow-[0_10px_30px_rgba(0,0,0,0.04)]">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-600 mt-1">Friday, January 10, 2025 • 14:35</p>
+          <h1 className="text-3xl md:text-[2rem] font-semibold tracking-[-0.03em] text-[var(--theme-text)]">Dashboard</h1>
+          <p className="text-sm text-[var(--theme-text-secondary)] mt-1">Friday, January 10, 2025 • 14:35</p>
         </div>
       </header>
 
       {/* Content */}
-      <main className="px-8 py-8 space-y-8">
+      <main className="px-6 md:px-8 py-6 md:py-8 space-y-7 md:space-y-8">
         {/* Alerts */}
         {alerts.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {alerts.map((alert, idx) => (
               <motion.div
                 key={idx}
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`flex items-center gap-3 p-4 rounded-lg border ${
+                className={`flex items-start gap-3 p-4 rounded-[18px] border shadow-[0_8px_24px_rgba(0,0,0,0.04)] ${
                   alert.type === 'warning'
-                    ? 'bg-amber-50 border-amber-200 text-amber-900'
-                    : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-primary)]'
+                    ? 'bg-amber-50/80 border-amber-200/80 text-amber-950'
+                    : 'bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-text)]'
                 }`}
               >
                 <AlertCircle size={18} className="flex-shrink-0" />

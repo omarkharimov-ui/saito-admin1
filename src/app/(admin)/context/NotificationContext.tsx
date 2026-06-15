@@ -245,7 +245,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         fetchPendingCountRef.current();
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, async (payload) => {
-        if (skipOrdersOnMobileRef.current) return;
         fetchNewOrdersCountRef.current();
         fetchReadyOrdersCountRef.current();
         const tableNum = payload.new?.table_number;

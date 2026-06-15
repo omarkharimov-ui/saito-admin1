@@ -329,7 +329,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     fetchReadyOrdersCount();
 
     const overdueInterval = setInterval(async () => {
-      if (skipOrdersOnMobileRef.current) return;
       const cutoff = new Date(Date.now() - 20 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from('orders')

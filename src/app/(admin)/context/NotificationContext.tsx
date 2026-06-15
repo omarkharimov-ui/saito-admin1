@@ -118,7 +118,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (fullscreenNotificationRef.current === fingerprint) fullscreenNotificationRef.current = null;
     }, 3000);
 
-    const detail = { id: Math.random().toString(36).substring(2, 11), title, body, time: new Date(), type: 'order', isRead: false };
+    const detail = { id: Math.random().toString(36).substring(2, 11), title, body, message: body, time: new Date(), type: 'order', isRead: false };
     window.dispatchEvent(new CustomEvent('saito-notification', { detail }));
     if (isFullscreen) {
       window.dispatchEvent(new CustomEvent('saito-notification-fullscreen', { detail }));

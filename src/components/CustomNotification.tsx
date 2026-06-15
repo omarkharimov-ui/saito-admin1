@@ -152,15 +152,15 @@ export function showSAITONotification(
   message: string,
   data?: any
 ) {
-  const event = new CustomEvent('saito-notification', {
-    detail: {
-      id: Math.random().toString(36).substr(2, 9),
-      type,
-      title,
-      message,
-      timestamp: new Date(),
-      data,
-    } as Notification,
-  });
+  const detail = {
+    id: Math.random().toString(36).substr(2, 9),
+    type,
+    title,
+    body: message,
+    message,
+    timestamp: new Date(),
+    data,
+  } as Notification & { body?: string };
+  const event = new CustomEvent('saito-notification', { detail });
   window.dispatchEvent(event);
 }

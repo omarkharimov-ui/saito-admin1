@@ -672,6 +672,13 @@ export default function POSPage() {
                 pos.clearCart();
                 pos.backToFloor();
                 setIsDirty(false);
+                setMergeMode(false);
+                setSelectedForMerge([]);
+                setTransferMode(false);
+                setTransferSource(null);
+                setTransferTarget(null);
+                setActionSheetOpen(false);
+                setActionSheetTable(null);
                 setWarningOpen(false);
               }}
               className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold shadow-lg shadow-[var(--theme-accent)]/20 transition-transform duration-150 active:scale-95"

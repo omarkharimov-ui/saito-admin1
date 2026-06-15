@@ -316,31 +316,29 @@ export function usePos() {
 
   const clearDrafts = useCallback(() => {
     const currentCart = cartRef.current;
-    if (!currentCart || currentCart.items.length === 0) return;
-
-    const hasDraft = currentCart.items.some(item =>
-      !item.sentQuantity || item.quantity !== item.sentQuantity
-    );
-
-    if (!hasDraft) {
-      toast('Sifariş artıq mətbəxə göndərilib', { icon: 'ℹ️' });
-      return;
-    }
+    if (!currentCart) return;
 
     setCart(prev => {
       if (!prev) return null;
-      const items = prev.items
-        .map(item => {
-          if (!item.sentQuantity) return null; // new item → remove
-          if (item.quantity !== item.sentQuantity) {
-            // reset to sent quantity (handles both increase and decrease)
-            return { ...item, quantity: item.sentQuantity, total_price: item.unit_price * item.sentQuantity };
-          }
-          return item; // sent item, unchanged
-        })
-        .filter(Boolean) as PosCartItem[];
-      return { ...prev, items };
+      return {
+        ...prev,
+        items: [],
+        guest_count: 0,
+        notes: '',
+      };
     });
+
+    if (typeof currentCart.table_number === 'number') {
+      orderFingerprintRef.current[currentCart.table_number] = '';
+    }
+
+    const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+    if (typeof currentCart.table_number === 'number') {
+      delete all[currentCart.table_number];
+      saveCache(POS_CART_KEY + '_all', all);
+    }
+
+    saveCache(POS_CART_KEY, null);
   }, []);
 
   /* ── Billing ── */

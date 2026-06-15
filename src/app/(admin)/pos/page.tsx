@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import MobileModal from '@/components/ui/MobileModal';
 import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -11,7 +12,6 @@ import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
-import MobileModal from '@/components/ui/MobileModal';
 import { toast } from 'react-hot-toast';
 import SimpleToaster from '@/app/(admin)/components/layout/SimpleToaster';
 import { supabase } from '@/lib/supabase';
@@ -653,25 +653,28 @@ export default function POSPage() {
 
       <MobileModal open={warningOpen} onClose={() => setWarningOpen(false)}>
         <div className="space-y-4 text-center">
-          <h3 className="text-lg font-bold">Yazılmamış dəyişikliklər var</h3>
-          <p className="text-sm text-[var(--theme-text-secondary)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+            <AlertTriangle size={22} />
+          </div>
+          <h3 className="text-lg font-semibold tracking-tight">Yazılmamış dəyişikliklər var</h3>
+          <p className="text-sm leading-6 text-[var(--theme-text-secondary)]">
             Masanı tərk etsən, səbət, qonaq sayı və dəyişikliklər silinəcək.
           </p>
-          <div className="flex gap-3 justify-center">
+          <div className="flex gap-3 justify-center pt-2">
             <button
               onClick={() => setWarningOpen(false)}
-              className="px-4 py-2 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]"
+              className="px-4 py-2 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-text-primary)]"
             >
               Ləğv
             </button>
             <button
               onClick={() => {
                 pos.clearCart();
+                pos.backToFloor();
                 setIsDirty(false);
                 setWarningOpen(false);
-                pos.backToFloor();
               }}
-              className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold"
+              className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold shadow-lg shadow-[var(--theme-accent)]/20 transition-transform duration-150 active:scale-95"
             >
               Sil və çıx
             </button>

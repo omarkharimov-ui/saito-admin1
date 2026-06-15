@@ -60,7 +60,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const skipOrdersOnMobileRef = useRef(false);
+  const fullscreenNotificationRef = useRef<string | null>(null);
   const prevPendingRef = useRef<number | null>(null);
   const recentToastsRef = useRef<Map<string, number>>(new Map());
 
@@ -85,12 +85,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)');
     const apply = () => {
-      skipOrdersOnMobileRef.current = mq.matches;
-      if (mq.matches) {
-        setNewOrdersCount(0);
-        setReadyOrdersCount(0);
-        setNotifications(prev => prev.filter(n => n.type !== 'order'));
-      }
+      skipOrdersOnMobileRef.current = false;
     };
     apply();
     mq.addEventListener('change', apply);
@@ -109,7 +104,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const addNotification = useCallback((title: string, body: string, type: 'reservation' | 'order') => {
-    if (type === 'order' && skipOrdersOnMobileRef.current) return;
     setNotifications(prev => [
       { id: Math.random().toString(36).substring(7), title, body, time: new Date(), type, isRead: false },
       ...prev,
@@ -117,10 +111,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const showNotification = useCallback((title: string, body: string) => {
-    window.dispatchEvent(new CustomEvent('saito-notification', {
-      detail: { id: Math.random().toString(36).substring(2, 11), title, body, time: new Date(), type: 'order', isRead: false },
-    }));
-    if (isFullscreen) return;
+    const fingerprint = `${title}::${body}`;
+    if (fullscreenNotificationRef.current === fingerprint) return;
+    fullscreenNotificationRef.current = fingerprint;
+    window.setTimeout(() => {
+      if (fullscreenNotificationRef.current === fingerprint) fullscreenNotificationRef.current = null;
+    }, 3000);
+
+    const detail = { id: Math.random().toString(36).substring(2, 11), title, body, time: new Date(), type: 'order', isRead: false };
+    window.dispatchEvent(new CustomEvent('saito-notification', { detail }));
+    if (isFullscreen) {
+      window.dispatchEvent(new CustomEvent('saito-notification-fullscreen', { detail }));
+    }
   }, [isFullscreen]);
 
   const playSound = useCallback(() => {

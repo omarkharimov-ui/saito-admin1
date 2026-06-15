@@ -316,7 +316,7 @@ export function usePos() {
 
   const clearDrafts = useCallback(() => {
     const currentCart = cartRef.current;
-    if (!currentCart) return;
+    const currentTableNumber = currentCart?.table_number;
 
     setCart(prev => {
       if (!prev) return null;
@@ -328,13 +328,13 @@ export function usePos() {
       };
     });
 
-    if (typeof currentCart.table_number === 'number') {
-      orderFingerprintRef.current[currentCart.table_number] = '';
+    if (typeof currentTableNumber === 'number') {
+      orderFingerprintRef.current[currentTableNumber] = '';
     }
 
     const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-    if (typeof currentCart.table_number === 'number') {
-      delete all[currentCart.table_number];
+    if (typeof currentTableNumber === 'number') {
+      delete all[currentTableNumber];
       saveCache(POS_CART_KEY + '_all', all);
     }
 

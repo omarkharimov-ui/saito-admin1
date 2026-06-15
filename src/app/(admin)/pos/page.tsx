@@ -267,6 +267,20 @@ export default function POSPage() {
     }
   }, [actionSheetTable]);
 
+  const resetPosSessionUi = useCallback(() => {
+    setIsDirty(false);
+    setMergeMode(false);
+    setSelectedForMerge([]);
+    setTransferMode(false);
+    setTransferSource(null);
+    setTransferTarget(null);
+    setActionSheetOpen(false);
+    setActionSheetTable(null);
+    setWarningOpen(false);
+    setClearConfirmOpen(false);
+    setClearTableNumber(null);
+  }, []);
+
   const confirmClearTable = useCallback(async () => {
     if (clearTableNumber === null) return;
 
@@ -276,18 +290,18 @@ export default function POSPage() {
       if (!res.ok) throw new Error(data.error);
 
       pos.clearCart();
-      setIsDirty(false);
+      resetPosSessionUi();
       toast.success(`Masa ${clearTableNumber} təmizləndi`);
       pos.fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
+      setClearConfirmOpen(false);
+      setClearTableNumber(null);
+      setActionSheetOpen(false);
+      setActionSheetTable(null);
     }
-    setClearConfirmOpen(false);
-    setClearTableNumber(null);
-    setActionSheetOpen(false);
-    setActionSheetTable(null);
     pos.backToFloor();
-  }, [clearTableNumber, pos]);
+  }, [clearTableNumber, pos, resetPosSessionUi]);
 
   /* ── Report loss ── */
   const handleActionReportLoss = useCallback(() => {
@@ -658,7 +672,7 @@ export default function POSPage() {
           </div>
           <h3 className="text-lg font-semibold tracking-tight">Yazılmamış dəyişikliklər var</h3>
           <p className="text-sm leading-6 text-[var(--theme-text-secondary)]">
-            Masanı tərk etsən, səbət, qonaq sayı və dəyişikliklər silinəcək.
+            Masanı tərk etsən, səbət, qonaq sayı və draft vəziyyəti tam sıfırlanacaq.
           </p>
           <div className="flex gap-3 justify-center pt-2">
             <button
@@ -680,6 +694,8 @@ export default function POSPage() {
                 setActionSheetOpen(false);
                 setActionSheetTable(null);
                 setWarningOpen(false);
+                setClearConfirmOpen(false);
+                setClearTableNumber(null);
               }}
               className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold shadow-lg shadow-[var(--theme-accent)]/20 transition-transform duration-150 active:scale-95"
             >

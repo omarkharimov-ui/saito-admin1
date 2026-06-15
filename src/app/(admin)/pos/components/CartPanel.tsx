@@ -379,7 +379,6 @@ export function CartPanel({
             label={lossMode ? t('loss_confirm') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))}
             onClick={lossMode ? confirmLoss : onPlaceOrder}
             isDirty={isDirty}
-            className="w-full"
           />
         </div>
       </div>

@@ -77,19 +77,29 @@ export default function POSPage() {
 
   const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
 
-  /* ── Overdue pending orders (per floor) ── */
-  const overdueTableNumbers = useMemo(() => {
+  /* ── Overdue status buckets (per floor) ── */
+  const overdueStatus = useMemo(() => {
     const now = Date.now();
     const cutoff = orderDelayMinutes * 60 * 1000;
-    const set = new Set<number>();
+    const pending = new Set<number>();
+    const cooking = new Set<number>();
     const tables = activeFloor?.tables ?? [];
+
     for (const t of tables) {
-      if (t.has_pending && t.oldest_pending_at) {
-        const elapsed = now - new Date(t.oldest_pending_at).getTime();
-        if (elapsed > cutoff) set.add(t.table_number);
+      const pendingAt = t.oldest_pending_at ? new Date(t.oldest_pending_at).getTime() : null;
+      const baselineAt = t.last_activity_at ? new Date(t.last_activity_at).getTime() : null;
+      const cookingAgeSource = baselineAt ?? (t.opened_at ? new Date(t.opened_at).getTime() : null);
+
+      if (t.has_pending && pendingAt !== null && now - pendingAt > cutoff && t.status !== 'cooking') {
+        pending.add(t.table_number);
+      }
+
+      if (t.status === 'cooking' && cookingAgeSource !== null && now - cookingAgeSource > cutoff) {
+        cooking.add(t.table_number);
       }
     }
-    return set;
+
+    return { pending, cooking };
   }, [activeFloor?.tables, orderDelayMinutes]);
 
   /* ── Cart counts by product for badges ── */
@@ -470,12 +480,23 @@ export default function POSPage() {
               </div>
 
               {/* Overdue banner */}
-              {overdueTableNumbers.size > 0 && (
-                <div className={`flex-shrink-0 mx-4 sm:mx-5 mt-2 mb-1 px-4 py-2.5 rounded-2xl flex items-center gap-2.5 text-xs font-semibold border ${
+              {(overdueStatus.pending.size > 0 || overdueStatus.cooking.size > 0) && (
+                <div className={`flex-shrink-0 mx-4 sm:mx-5 mt-2 mb-1 px-4 py-2.5 rounded-2xl border ${
                   lightMode ? 'bg-red-50 border-red-200 text-red-700' : 'bg-red-950/40 border-red-800/40 text-red-300'
                 }`}>
-                  <AlertTriangle size={14} className="flex-shrink-0" />
-                  <span>{t('overdue_banner').replace('{count}', String(overdueTableNumbers.size)).replace('{mins}', String(orderDelayMinutes))}</span>
+                  <div className="flex items-center gap-2.5 text-xs font-semibold">
+                    <AlertTriangle size={14} className="flex-shrink-0" />
+                    <span>
+                      {overdueStatus.pending.size > 0
+                        ? `${overdueStatus.pending.size} masa ${orderDelayMinutes}+ dəq. mətbəxə göndərilib, amma qəbul olunmayıb`
+                        : `${overdueStatus.cooking.size} masa ${orderDelayMinutes}+ dəq. hazırlanmada gecikir`}
+                    </span>
+                  </div>
+                  {overdueStatus.pending.size > 0 && overdueStatus.cooking.size > 0 && (
+                    <div className="mt-1.5 text-[11px] font-medium opacity-80">
+                      Gecikmə səbəbləri ayrı izlənir: qəbul gözləyən sifariş və hazırlanan sifariş.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -512,7 +533,7 @@ export default function POSPage() {
                             isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
                             isTransferSource={transferMode && transferSource === table.table_number}
                             isTransferTarget={transferMode && transferTarget === table.table_number}
-                            isOverdue={overdueTableNumbers.has(table.table_number)}
+                            isOverdue={overdueStatus.pending.has(table.table_number) || overdueStatus.cooking.has(table.table_number)}
                           />
                         ))}
                     </motion.div>

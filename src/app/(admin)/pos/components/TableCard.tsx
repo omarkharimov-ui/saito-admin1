@@ -85,6 +85,17 @@ export function TableCard({
     ? [table.table_number, ...mergedChildNumbers]
     : [];
   const isSelectedVisual = isSelected || isTransferSource || isTransferTarget;
+  const transferVisual = isTransferSource
+    ? 'bg-amber-100/35 ring-1 ring-amber-400/20 shadow-[0_8px_22px_rgba(217,119,6,0.06)]'
+    : isTransferTarget
+      ? 'bg-amber-50/70 ring-1 ring-amber-300/30 shadow-[0_10px_24px_rgba(217,119,6,0.08)]'
+      : '';
+  const overdueTone = isOverdue ? (lightMode ? 'border-red-400/40' : 'border-red-500/45') : '';
+  const statusStrip = isOverdue
+    ? (table.status === 'cooking'
+      ? 'bg-gradient-to-r from-amber-500/70 via-orange-400/70 to-red-400/70'
+      : 'bg-gradient-to-r from-rose-500/70 via-rose-400/70 to-orange-400/70')
+    : '';
   const statusTone = lightMode
     ? (table.status === 'active' ? 'bg-amber-50/65' : table.status === 'waiting_bill' ? 'bg-amber-50/55' : table.status === 'cooking' ? 'bg-violet-50/55' : table.status === 'problem' ? 'bg-red-50/55' : cfg.lightBg)
     : (table.status === 'active' ? 'bg-white/[0.045]' : cfg.bg);
@@ -100,9 +111,10 @@ export function TableCard({
       whileHover={{ y: -1.5, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.97, transition: { duration: 0.08 } }}
       onClick={onTap}
-      className={`relative w-full flex flex-col rounded-[1.35rem] p-3.5 text-left transition-all duration-200 border overflow-hidden ${statusTone} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelectedVisual ? (lightMode ? 'shadow-[0_10px_30px_rgba(24,24,27,0.08)]' : 'shadow-[0_12px_34px_rgba(0,0,0,0.28)]') : ''} ${isTransferSource ? 'opacity-75' : ''} ${isTransferTarget ? (lightMode ? 'bg-amber-50/80 shadow-[0_10px_30px_rgba(217,119,6,0.10)]' : 'bg-amber-500/10 shadow-[0_10px_30px_rgba(0,0,0,0.18)]') : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-[3px] border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
+      className={`relative w-full flex flex-col rounded-[1.35rem] p-3.5 text-left transition-all duration-200 border overflow-hidden ${statusTone} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelectedVisual ? (lightMode ? 'shadow-[0_10px_30px_rgba(24,24,27,0.08)]' : 'shadow-[0_12px_34px_rgba(0,0,0,0.28)]') : ''} ${transferVisual} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-[3px] border-l-zinc-500/40' : ''} ${overdueTone}`}
     >
       <span className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${selectionAccent} opacity-0 ${isSelectedVisual ? 'opacity-100' : ''} pointer-events-none`} />
+      {statusStrip && <span className={`absolute inset-x-0 top-0 h-1.5 ${statusStrip} pointer-events-none`} />}
       {isSelectedVisual && <span className={`absolute inset-0 rounded-[1.35rem] ring-1 ${lightMode ? 'ring-amber-200/80' : 'ring-white/10'} pointer-events-none`} />}
       {/* Static subtle glow for waiting bill — no pulse */}
       {table.status === 'waiting_bill' && (
@@ -110,21 +122,8 @@ export function TableCard({
       )}
 
       {/* Overdue pending pulse */}
-      {isOverdue && (
-        <span className="absolute inset-0 rounded-2xl pointer-events-none ring-2 ring-red-500/40 animate-pulse" />
-      )}
 
       {/* Transfer labels */}
-      {isTransferSource && (
-        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-white/10 text-white/60">
-          Mənbə
-        </span>
-      )}
-      {isTransferTarget && (
-        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-amber-400/15 text-amber-400/80">
-          Hədəf
-        </span>
-      )}
 
       {/* Header row: number + status + merge indicator */}
       <div className="flex items-center justify-between mb-2">
@@ -148,6 +147,16 @@ export function TableCard({
           {isGroupParent && (
             <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${lightMode ? 'bg-zinc-200/60 text-zinc-500' : 'bg-zinc-800/50 text-zinc-400'}`}>
               <GitMerge size={12} />
+            </span>
+          )}
+          {isTransferSource && !isSelectedVisual && (
+            <span className={`px-2.5 py-1 rounded-full text-[8px] font-semibold uppercase tracking-[0.18em] ${lightMode ? 'bg-amber-100 text-amber-800' : 'bg-amber-400/15 text-amber-200'}`}>
+              Mənbə
+            </span>
+          )}
+          {isTransferTarget && !isSelectedVisual && (
+            <span className={`px-2.5 py-1 rounded-full text-[8px] font-semibold uppercase tracking-[0.18em] ${lightMode ? 'bg-amber-50 text-amber-700' : 'bg-amber-400/20 text-amber-100'}`}>
+              Hədəf
             </span>
           )}
           {onAction && !isMerged && (

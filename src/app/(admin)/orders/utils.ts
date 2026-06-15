@@ -12,21 +12,30 @@ export const getStatusConfig = (t: (k: any) => string): Record<Order['status'], 
 
 export const getKitchenStatusConfig = (kitchenStatus: Order['kitchen_status'], ageMin: number, t?: (k: string) => string) => {
   const label = (key: string, fallback: string) => t ? t(key) : fallback;
+  const isOverdue = ageMin > 30;
+
   switch (kitchenStatus) {
     case 'cooking':
     case 'preparing':
-      return { label: label('badge_preparing', 'Hazırlanır'), color: 'text-blue-400',    bg: 'bg-blue-500/15',  border: 'border-blue-500/30',   glow: 'shadow-[0_0_12px_rgba(59,130,246,0.3)]',  flash: false };
+      return {
+        label: isOverdue ? label('badge_overdue', 'Gecikir') : label('badge_preparing', 'Hazırlanır'),
+        color: isOverdue ? 'text-red-400' : 'text-blue-400',
+        bg: isOverdue ? 'bg-red-500/15' : 'bg-blue-500/15',
+        border: isOverdue ? 'border-red-500/30' : 'border-blue-500/30',
+        glow: isOverdue ? 'shadow-[0_0_12px_rgba(239,68,68,0.3)]' : 'shadow-[0_0_12px_rgba(59,130,246,0.3)]',
+        flash: isOverdue,
+      };
     case 'ready':
-      return { label: label('badge_ready', 'Hazırdır'),   color: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', glow: 'shadow-[0_0_20px_rgba(16,185,129,0.5)]', flash: true  };
+      return { label: label('badge_ready', 'Hazırdır'), color: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', glow: 'shadow-[0_0_20px_rgba(16,185,129,0.5)]', flash: true  };
     case 'pending':
     default:
       return {
-        label:  label('badge_waiting', 'Gözləyir'),
-        color:  ageMin > 30 ? 'text-red-400'    : 'text-amber-400',
-        bg:     ageMin > 30 ? 'bg-red-500/15'   : 'bg-amber-500/15',
-        border: ageMin > 30 ? 'border-red-500/30' : 'border-amber-500/30',
-        glow:   ageMin > 30 ? 'shadow-[0_0_12px_rgba(239,68,68,0.3)]' : 'shadow-[0_0_12px_rgba(245,158,11,0.2)]',
-        flash:  false,
+        label: isOverdue ? label('badge_overdue', 'Gecikir') : label('badge_waiting', 'Gözləyir'),
+        color: isOverdue ? 'text-red-400' : 'text-amber-400',
+        bg: isOverdue ? 'bg-red-500/15' : 'bg-amber-500/15',
+        border: isOverdue ? 'border-red-500/30' : 'border-amber-500/30',
+        glow: isOverdue ? 'shadow-[0_0_12px_rgba(239,68,68,0.3)]' : 'shadow-[0_0_12px_rgba(245,158,11,0.2)]',
+        flash: false,
       };
   }
 };

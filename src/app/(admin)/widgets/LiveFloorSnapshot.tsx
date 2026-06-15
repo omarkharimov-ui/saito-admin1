@@ -79,9 +79,9 @@ export default function LiveFloorSnapshot() {
   const getStatusStyle = (status: TableStatus['status']) => {
     switch (status) {
       case 'empty': return { bar: 'bg-[var(--theme-border)]', dot: 'bg-[var(--theme-text-muted)]', text: 'text-[var(--theme-text-muted)]' };
-      case 'new': return { bar: 'bg-emerald-500', dot: 'bg-emerald-500', text: 'text-emerald-600' };
-      case 'order_placed': return { bar: 'bg-amber-500', dot: 'bg-amber-500', text: 'text-amber-600' };
-      case 'payment_pending': return { bar: 'bg-slate-500', dot: 'bg-slate-500', text: 'text-slate-600' };
+      case 'new': return { bar: 'bg-[#16a34a]', dot: 'bg-[#16a34a]', text: 'text-[#15803d]' };
+      case 'order_placed': return { bar: 'bg-[#d97706]', dot: 'bg-[#d97706]', text: 'text-[#b45309]' };
+      case 'payment_pending': return { bar: 'bg-[#1f2937]', dot: 'bg-[#1f2937]', text: 'text-[#374151]' };
       case 'occupied': return { bar: 'bg-[var(--theme-text)]', dot: 'bg-[var(--theme-text)]', text: 'text-[var(--theme-text)]' };
       default: return { bar: 'bg-[var(--theme-border)]', dot: 'bg-[var(--theme-text-muted)]', text: 'text-[var(--theme-text-muted)]' };
     }

@@ -13,19 +13,19 @@ const statusStyles: Record<string, { dot: string; bg: string; border: string; te
     lightBg: 'bg-zinc-50', lightBorder: 'border-zinc-200', lightText: 'text-zinc-400',
   },
   active: {
-    dot: 'bg-blue-400', bg: 'bg-[#182036] backdrop-blur-md', border: 'border-blue-500/40',
-    text: 'text-blue-400', glow: 'shadow-[0_0_30px_rgba(59,130,246,0.12)]',
-    lightBg: 'bg-blue-50/70', lightBorder: 'border-blue-200', lightText: 'text-blue-700',
+    dot: 'bg-amber-400', bg: 'bg-[#261b10] backdrop-blur-md', border: 'border-amber-500/35',
+    text: 'text-amber-300', glow: 'shadow-[0_0_24px_rgba(245,158,11,0.10)]',
+    lightBg: 'bg-amber-50/70', lightBorder: 'border-amber-200', lightText: 'text-amber-800',
   },
   waiting_bill: {
-    dot: 'bg-amber-400', bg: 'bg-[#261b10] backdrop-blur-md', border: 'border-amber-500/40',
-    text: 'text-amber-400', glow: 'shadow-[0_0_30px_rgba(245,158,11,0.15)]',
-    lightBg: 'bg-amber-50/70', lightBorder: 'border-amber-200', lightText: 'text-amber-700',
+    dot: 'bg-amber-400', bg: 'bg-[#261b10] backdrop-blur-md', border: 'border-amber-500/30',
+    text: 'text-amber-300', glow: 'shadow-[0_0_20px_rgba(245,158,11,0.10)]',
+    lightBg: 'bg-amber-50/65', lightBorder: 'border-amber-200', lightText: 'text-amber-800',
   },
   cooking: {
-    dot: 'bg-violet-400', bg: 'bg-[#1e1536] backdrop-blur-md', border: 'border-violet-500/35',
-    text: 'text-violet-400', glow: 'shadow-[0_0_30px_rgba(167,139,250,0.12)]',
-    lightBg: 'bg-violet-50/70', lightBorder: 'border-violet-200', lightText: 'text-violet-700',
+    dot: 'bg-slate-400', bg: 'bg-[#17181d] backdrop-blur-md', border: 'border-slate-600/40',
+    text: 'text-slate-300', glow: 'shadow-[0_0_20px_rgba(148,163,184,0.10)]',
+    lightBg: 'bg-slate-50/80', lightBorder: 'border-slate-200', lightText: 'text-slate-700',
   },
   merged: {
     dot: 'bg-zinc-400', bg: 'bg-zinc-900 backdrop-blur-md', border: 'border-zinc-700/40',
@@ -33,8 +33,8 @@ const statusStyles: Record<string, { dot: string; bg: string; border: string; te
     lightBg: 'bg-zinc-100/80', lightBorder: 'border-zinc-300', lightText: 'text-zinc-600',
   },
   problem: {
-    dot: 'bg-red-400', bg: 'bg-[#2e0f0f] backdrop-blur-md', border: 'border-red-500/40',
-    text: 'text-red-400', glow: 'shadow-[0_0_30px_rgba(248,113,113,0.12)]',
+    dot: 'bg-red-400', bg: 'bg-[#2e0f0f] backdrop-blur-md', border: 'border-red-500/35',
+    text: 'text-red-300', glow: 'shadow-[0_0_20px_rgba(248,113,113,0.10)]',
     lightBg: 'bg-red-50/70', lightBorder: 'border-red-200', lightText: 'text-red-700',
   },
 };

@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface MobileModalProps {
   open: boolean;
@@ -16,6 +17,8 @@ interface MobileModalProps {
  * GPU-composited: only opacity + scale animated.
  */
 export default function MobileModal({ open, onClose, children, className = '' }: MobileModalProps) {
+  const { lightMode } = useTheme();
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -48,7 +51,7 @@ export default function MobileModal({ open, onClose, children, className = '' }:
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'rgba(0,0,0,0.6)',
+          background: lightMode ? 'rgba(17,24,39,0.34)' : 'rgba(0,0,0,0.6)',
           opacity: open ? 1 : 0,
           transition: 'opacity 0.2s ease',
           WebkitBackdropFilter: 'blur(4px)',
@@ -61,14 +64,15 @@ export default function MobileModal({ open, onClose, children, className = '' }:
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: 400,
-          background: 'var(--card)',
-          border: '1px solid rgba(128,128,128,0.22)',
-          borderRadius: 20,
-          padding: 28,
+          maxWidth: 420,
+          background: lightMode ? 'var(--theme-surface)' : 'var(--card)',
+          border: '1px solid var(--theme-border)',
+          borderRadius: 24,
+          padding: 24,
           opacity: open ? 1 : 0,
           transform: open ? 'scale(1) translateY(0)' : 'scale(0.94) translateY(8px)',
           transition: 'opacity 0.22s ease, transform 0.22s cubic-bezier(0.32,0.72,0,1)',
+          boxShadow: lightMode ? '0 20px 60px rgba(17,24,39,0.12)' : '0 20px 60px rgba(0,0,0,0.35)',
           willChange: 'transform, opacity',
           WebkitTransform: open
             ? 'scale(1) translateY(0)'

@@ -22,7 +22,7 @@ interface AuditEntry {
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  order_consumption: { label: 'Sifariş Sərfiyyatı', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+  order_consumption: { label: 'Sifariş Sərfiyyatı', color: 'text-slate-300', bg: 'bg-slate-500/10', border: 'border-slate-500/20' },
   stock_in: { label: 'Stoka Giriş', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
   waste: { label: 'İtki', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
   adjustment: { label: 'Tənzimləmə', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
@@ -165,8 +165,8 @@ export default function AuditPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <GlassCard intensity="light" padding="md" className="border-blue-500/15">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400/60">Sifariş Sərfiyyatı</p>
-          <p className="text-lg font-black text-blue-400 tabular-nums mt-1">{summary.totalDeductions.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400/70">Sifariş Sərfiyyatı</p>
+          <p className="text-lg font-black text-slate-300 tabular-nums mt-1">{summary.totalDeductions.toFixed(1)} <span className="text-[10px] font-normal opacity-50">vahid</span></p>
         </GlassCard>
         <GlassCard intensity="light" padding="md" className="border-red-500/15">
           <p className="text-[10px] font-bold uppercase tracking-wider text-red-400/60">İtki</p>

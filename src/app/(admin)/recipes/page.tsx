@@ -360,10 +360,10 @@ export default function RecipesPage() {
             </button>
             <button
               onClick={() => setShowAiPanel(!showAiPanel)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-500/10 border border-slate-500/20 text-slate-300 text-xs font-bold hover:bg-slate-500/20 transition-all"
             >
               <BrainCircuit size={14} /> AI Təkliflər {aiSuggestedRecipes.length > 0 && (
-                <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
+                <span className="bg-slate-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
               )}
             </button>
             <button
@@ -406,16 +406,16 @@ export default function RecipesPage() {
             initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.25 }} className="overflow-hidden mb-4"
           >
-            <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/[0.05] to-purple-500/[0.03] p-4">
+            <div className="rounded-2xl border border-slate-500/20 bg-gradient-to-br from-slate-500/[0.05] to-zinc-500/[0.03] p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="text-blue-400" />
+                  <Sparkles size={16} className="text-slate-300" />
                   <span className="text-sm font-bold text-white">AI Resept Təklifləri</span>
                 </div>
                 <button
                   onClick={generateAiSuggestions}
                   disabled={aiLoading}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/15 border border-blue-500/25 text-blue-400 text-xs font-bold hover:bg-blue-500/25 transition-all disabled:opacity-40"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-500/15 border border-slate-500/25 text-slate-300 text-xs font-bold hover:bg-slate-500/25 transition-all disabled:opacity-40"
                 >
                   {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
                   Yeni təkliflər yarat
@@ -645,7 +645,7 @@ export default function RecipesPage() {
                             <Upload size={20} className="mx-auto mb-1 text-white/20" />
                             <p className="text-white/30 text-xs">PDF, Word və ya TXT faylını bura sürüklə</p>
                             <input type="file" accept=".txt,.pdf,.doc,.docx" onChange={handleFileSelect} className="hidden" id={`file-${product.id}`} />
-                            <label htmlFor={`file-${product.id}`} className="text-blue-400/70 text-xs cursor-pointer hover:text-blue-400">və ya kliklə seç</label>
+                            <label htmlFor={`file-${product.id}`} className="text-slate-400/70 text-xs cursor-pointer hover:text-slate-300">və ya kliklə seç</label>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-white/20 text-[10px]">və ya yaz:</span>
@@ -658,7 +658,7 @@ export default function RecipesPage() {
                             <button
                               onClick={parseFromText}
                               disabled={uploadLoading || !uploadText.trim()}
-                              className="px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold hover:bg-blue-500/20 transition-all disabled:opacity-30"
+                              className="px-2 py-1 rounded-lg bg-slate-500/10 border border-slate-500/20 text-slate-300 text-[10px] font-bold hover:bg-slate-500/20 transition-all disabled:opacity-30"
                             >
                               {uploadLoading ? <Loader2 size={10} className="animate-spin" /> : 'Parse'}
                             </button>
@@ -673,7 +673,7 @@ export default function RecipesPage() {
                       ) : (
                         <button
                           onClick={() => setUploadTarget(product.id)}
-                          className="flex items-center gap-2 text-blue-400/60 text-xs hover:text-blue-400 transition-all"
+                          className="flex items-center gap-2 text-slate-400/60 text-xs hover:text-slate-300 transition-all"
                         >
                           <Upload size={12} /> Resept sənədini yüklə (AI parse)
                         </button>

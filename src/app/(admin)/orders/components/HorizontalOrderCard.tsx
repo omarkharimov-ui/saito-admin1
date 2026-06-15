@@ -14,7 +14,7 @@ const MiniBadge = React.memo(function MiniBadge({ badgeType }: { badgeType: Badg
   const base = 'text-[9px] font-black px-1.5 py-0.5 rounded-full';
   const badge =
     badgeType === 'ready'     ? <span className={`${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/30`}>{t('badge_ready')}</span> :
-    badgeType === 'preparing' ? <span className={`${base} bg-blue-500/15 text-blue-400 border border-blue-500/30`}>{t('badge_preparing')}</span> :
+    badgeType === 'preparing' ? <span className={`${base} bg-slate-500/15 text-slate-300 border border-slate-500/30`}>{t('badge_preparing')}</span> :
     badgeType === 'confirmed' ? <span className={`${base} bg-white/5 text-white/70 border border-white/20`}>{t('badge_confirmed')}</span> :
     <span className={`${base} bg-white/5 text-white/50 border border-white/10`}>{t('badge_waiting')}</span>;
   return badge;
@@ -109,7 +109,7 @@ export const HorizontalOrderCard = React.memo(function HorizontalOrderCard({
           <span>{timeAgo(order.created_at, t)}</span>
           <span className="text-white/15">|</span>
           {order.order_type === 'takeaway' ? <ShoppingBag size={9} className="text-amber-400/60" />
-            : order.order_type === 'delivery' ? <Package size={9} className="text-blue-400/60" />
+            : order.order_type === 'delivery' ? <Package size={9} className="text-slate-300/60" />
             : <Utensils size={9} className="text-emerald-400/60" />}
         </div>
       </div>

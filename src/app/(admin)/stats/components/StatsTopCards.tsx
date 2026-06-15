@@ -75,7 +75,7 @@ const StatsTopCards = ({ totalRevenue, totalOrders, aov, missedRevenue, netProfi
         transition={{ delay: 0.12, duration: 0.4, ease: 'easeOut' }}
         className="relative overflow-hidden rounded-2xl p-4 md:p-5 bg-card border border-white/5"
       >
-        <div className="mb-3 text-blue-400/70"><Percent size={16} /></div>
+        <div className="mb-3 text-slate-400/70"><Percent size={16} /></div>
         <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-white/35 mb-1">{t('stats_aov_label')}</p>
         <h3 className="font-serif font-bold text-white text-xl md:text-2xl leading-tight">₼ {fmt(aov)}</h3>
         <p className="text-[10px] text-white/20 mt-1">hər sifariş üzrə</p>

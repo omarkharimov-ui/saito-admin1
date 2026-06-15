@@ -829,7 +829,7 @@ export default function StatsSenseiPanel({
             className="rounded-2xl border border-white/[0.07] overflow-hidden"
             style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))' }}>
             <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/[0.04]">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
               <span className="text-[10px] font-black tracking-[0.3em] uppercase text-white/35">
                 {t('sensei_overview')}
               </span>

@@ -28,6 +28,8 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
   const isError = status === 'error';
   const isCompact = isLoading || isSuccess || isError;
 
+  const widthClass = isCompact ? 'h-[50px] w-[50px] rounded-full mx-auto' : 'h-[50px] px-7 rounded-2xl min-w-[210px]';
+
   return (
     <motion.button
       type="button"
@@ -40,7 +42,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
         variant === 'loss'
           ? 'bg-red-600/15 border border-red-500/25 text-red-300'
           : 'bg-neutral-900 text-white active:bg-neutral-800'
-      } ${isCompact ? 'h-[50px] w-[50px] rounded-full mx-auto' : 'h-[50px] px-7 rounded-2xl min-w-[170px]'}`}
+      } ${widthClass}`}
     >
       {/* Dirty dot */}
       {isDirty && !isLoading && !isSuccess && !isError && (

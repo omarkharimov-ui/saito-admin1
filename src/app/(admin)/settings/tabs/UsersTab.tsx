@@ -10,7 +10,7 @@ type AdminUser = { id: string; email: string; role: AdminRole; is_active: boolea
 
 const ROLE_CONFIG: Record<AdminRole, { label: string; icon: React.ReactNode; color: string }> = {
   superadmin: { label: 'Superadmin', icon: <ShieldCheck size={11} />, color: 'text-gold bg-gold/10 border-gold/25' },
-  admin:      { label: 'Admin',      icon: <UserCog size={11} />,     color: 'text-blue-400 bg-blue-400/10 border-blue-400/25' },
+  admin:      { label: 'Admin',      icon: <UserCog size={11} />,     color: 'text-slate-300 bg-slate-500/10 border-slate-500/25' },
   kitchen:    { label: 'Mətbəx',    icon: <ChefHat size={11} />,     color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/25' },
 };
 

@@ -88,6 +88,7 @@ html[data-theme="light"] {
   --border-subtle:  var(--border-soft);
   --border-default: var(--border-soft);
   --border-focus:   rgba(17,17,17,.18);
+  --surface-backdrop: rgba(17,24,39,.32);
 
   --shadow-card:    0 1px 2px rgba(0,0,0,.03), 0 8px 24px rgba(0,0,0,.04);
   --shadow-elevated:0 2px 6px rgba(0,0,0,.04), 0 12px 28px rgba(0,0,0,.06);

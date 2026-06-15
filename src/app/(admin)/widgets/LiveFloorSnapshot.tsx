@@ -81,7 +81,7 @@ export default function LiveFloorSnapshot() {
       case 'empty': return 'bg-white/[0.03] text-white/30';
       case 'new': return 'bg-emerald-500/10 text-emerald-400';
       case 'order_placed': return 'bg-amber-500/10 text-amber-400';
-      case 'payment_pending': return 'bg-blue-500/10 text-blue-400';
+      case 'payment_pending': return 'bg-slate-500/10 text-slate-300';
       case 'occupied': return 'bg-white/[0.06] text-white/50';
       default: return 'bg-white/[0.03] text-white/30';
     }

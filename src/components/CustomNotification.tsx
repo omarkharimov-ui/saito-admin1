@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import { Bell, X, Check, ChefHat, Calendar, CreditCard, Package } from 'lucide-react';
 
 interface Notification {
@@ -46,6 +47,7 @@ const colorMap = {
 };
 
 export function CustomNotificationProvider() {
+  const { lightMode } = useTheme();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
@@ -105,7 +107,7 @@ export function CustomNotificationProvider() {
               exit={{ x: 100, opacity: 0, scale: 0.9 }}
               className="pointer-events-auto w-full"
             >
-              <div className="bg-black/95 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl w-full min-w-0 max-w-none ring-1 ring-white/5">
+              <div className={`${lightMode ? 'bg-white border-[color:var(--theme-border)] ring-black/5 shadow-[0_12px_36px_rgba(17,24,39,0.10)]' : 'bg-black/95 border-white/10 ring-white/5 shadow-2xl'} backdrop-blur-xl rounded-xl p-4 w-full min-w-0 max-w-none ring-1`}>
                 <div className="flex items-start gap-3">
                   {/* Icon */}
                   <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center`}>

@@ -663,19 +663,19 @@ export function ProductModal({
                       onClick={() => onFormChange({ ...productForm, is_ready_product: true })}
                       className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                         productForm.is_ready_product
-                          ? 'border-blue-500/50 bg-blue-500/[0.06] shadow-[0_0_20px_rgba(96,165,250,0.08)]'
+                          ? 'border-slate-500/50 bg-slate-500/[0.06] shadow-[0_0_20px_rgba(148,163,184,0.08)]'
                           : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${productForm.is_ready_product ? 'bg-blue-500/20' : 'bg-white/[0.05]'}`}>
-                        <PackagePlus size={20} className={productForm.is_ready_product ? 'text-blue-400' : 'text-white/30'} />
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${productForm.is_ready_product ? 'bg-slate-500/20' : 'bg-white/[0.05]'}`}>
+                        <PackagePlus size={20} className={productForm.is_ready_product ? 'text-slate-300' : 'text-white/30'} />
                       </div>
                       <div className="text-center">
-                        <p className={`text-xs font-bold tracking-wider uppercase ${productForm.is_ready_product ? 'text-blue-400' : 'text-white/50'}`}>Birbaşa Stok</p>
+                        <p className={`text-xs font-bold tracking-wider uppercase ${productForm.is_ready_product ? 'text-slate-300' : 'text-white/50'}`}>Birbaşa Stok</p>
                         <p className="text-[9px] text-white/30 mt-0.5">cola, su, qablaşdırılmış</p>
                       </div>
                       {productForm.is_ready_product && (
-                        <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]" />
+                        <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-slate-300 shadow-[0_0_8px_rgba(148,163,184,0.35)]" />
                       )}
                     </button>
                   </div>

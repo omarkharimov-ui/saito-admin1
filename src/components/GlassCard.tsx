@@ -2,6 +2,7 @@
 
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { forwardRef } from 'react';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface GlassCardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
   children: React.ReactNode;
@@ -40,7 +41,11 @@ const paddingMap = {
 
 export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
   ({ children, hover = false, intensity = 'medium', padding = 'md', className = '', ...props }, ref) => {
+    const { lightMode } = useTheme();
     const style = intensityMap[intensity];
+    const baseBg = lightMode ? 'bg-white' : style.bg;
+    const baseBorder = lightMode ? 'border-[var(--theme-border)]' : style.border;
+    const baseGlow = lightMode ? 'rgba(17,24,39,0.04)' : style.glow;
     return (
       <motion.div
         ref={ref}
@@ -49,13 +54,15 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
         className={`
           rounded-2xl border backdrop-blur-xl
-          ${style.bg} ${style.border}
+          ${baseBg} ${baseBorder}
           ${hover ? style.hover + ' transition-all duration-300' : ''}
           ${paddingMap[padding]}
           ${className}
         `}
         style={{
-          boxShadow: `0 4px 24px rgba(0,0,0,0.04), inset 0 1px 0 ${style.glow}`,
+          boxShadow: lightMode
+            ? `0 4px 24px rgba(17,24,39,0.06), inset 0 1px 0 ${baseGlow}`
+            : `0 4px 24px rgba(0,0,0,0.04), inset 0 1px 0 ${baseGlow}`,
         }}
         {...props}
       >

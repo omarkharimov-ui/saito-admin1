@@ -89,7 +89,7 @@ export function TableCard({
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative w-full flex flex-col rounded-2xl p-4 text-left transition-all duration-200 border ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'opacity-70' : ''} ${isTransferTarget ? (lightMode ? 'bg-amber-50/60 shadow-md' : 'bg-white/[0.06] shadow-lg') : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
+      className={`relative w-full flex flex-col rounded-2xl p-5 min-h-[130px] text-left transition-all duration-200 border ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'opacity-70' : ''} ${isTransferTarget ? (lightMode ? 'bg-amber-50/60 shadow-md' : 'bg-white/[0.06] shadow-lg') : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
     >
       {/* Static subtle glow for waiting bill — no pulse */}
       {table.status === 'waiting_bill' && (
@@ -114,27 +114,27 @@ export function TableCard({
       )}
 
       {/* Header row: number + status + merge indicator */}
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2">
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : table.status === 'empty' ? (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/60') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : table.status === 'empty' ? (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/60') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
             {isGroupParent ? (
               <span className="flex flex-col items-center leading-tight">
-                <span className="text-[6px] font-bold uppercase tracking-wider">{t('group_label')}</span>
-                <span className="text-[13px] font-black -mt-0.5">{table.table_number}</span>
+                <span className="text-[7px] font-bold uppercase tracking-wider">{t('group_label')}</span>
+                <span className="text-[15px] font-black -mt-0.5">{table.table_number}</span>
               </span>
             ) : (
               table.table_number
             )}
           </div>
-          <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/70' : (table.status === 'empty' ? 'bg-white/[0.04]' : 'bg-black/20')}`}>
+          <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.16em] ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/70' : (table.status === 'empty' ? 'bg-white/[0.04]' : 'bg-black/20')}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
             {statusLabel}
           </span>
         </div>
         <div className="flex items-center gap-1">
           {isGroupParent && (
-            <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${lightMode ? 'bg-zinc-200/60 text-zinc-500' : 'bg-zinc-800/50 text-zinc-400'}`}>
-              <GitMerge size={12} />
+            <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${lightMode ? 'bg-zinc-200/60 text-zinc-500' : 'bg-zinc-800/50 text-zinc-400'}`}>
+              <GitMerge size={14} />
             </span>
           )}
           {onAction && !isMerged && (
@@ -142,7 +142,7 @@ export function TableCard({
               onClick={e => { e.stopPropagation(); onAction(); }}
               className="w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]"
             >
-              <MoreVertical size={16} />
+              <MoreVertical size={18} />
             </span>
           )}
         </div>
@@ -150,17 +150,17 @@ export function TableCard({
 
       {/* Info (hidden for merged child tables) */}
       {!isMerged && (
-        <div className="mt-0.5">
+        <div className="mt-1">
           {isOccupied && (
-            <div className="space-y-1.5">
-              <div className={`flex items-center gap-2.5 ${lightMode ? 'text-gray-500' : 'text-white/45'}`}>
+            <div className="space-y-2">
+              <div className={`flex items-center gap-3 ${lightMode ? 'text-gray-500' : 'text-white/45'}`}>
                 <div className="flex items-center gap-1.5">
-                  <Users size={11} />
-                  <span className="text-[11px] font-medium tabular-nums">{table.guest_count}</span>
+                  <Users size={13} />
+                  <span className="text-[13px] font-medium tabular-nums">{table.guest_count}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Clock size={11} />
-                  <span className="text-[11px] font-medium tabular-nums">{timeSince(table.opened_at ?? null)}</span>
+                  <Clock size={13} />
+                  <span className="text-[13px] font-medium tabular-nums">{timeSince(table.opened_at ?? null)}</span>
                 </div>
                 {isOverdue && table.oldest_pending_at && (
                   <div className="flex items-center gap-1 text-red-400">

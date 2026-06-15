@@ -340,9 +340,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     fetchNewOrdersCount();
     fetchReadyOrdersCount();
 
+    // Load delay threshold from settings
+    let orderDelayMinutes = 20;
+    supabase.from('settings').select('order_delay_minutes').limit(1).then(({ data }) => {
+      const val = Number(data?.[0]?.order_delay_minutes);
+      if (!isNaN(val) && val >= 1) orderDelayMinutes = val;
+    });
+
+    // Overdue order polling — warn admin every 5 min if any POS order exceeds delay threshold
     const overdueInterval = setInterval(async () => {
       if (skipOrdersOnMobileRef.current) return;
-      const cutoff = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+      const cutoff = new Date(Date.now() - orderDelayMinutes * 60 * 1000).toISOString();
       const { data } = await supabase
         .from('orders')
         .select('id, table_number, created_at, status, paid_at, closed_at, kitchen_status')
@@ -350,6 +358,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .is('paid_at', null)
         .is('closed_at', null)
         .not('kitchen_status', 'eq', 'cancelled')
+        .gt('table_number', 0)
         .lt('created_at', cutoff);
       if (data && data.length > 0) {
         const tables = data.map((o: any) => (o.table_number ? `Masa ${o.table_number}` : '?')).join(', ');

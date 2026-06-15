@@ -366,6 +366,19 @@ export function usePos() {
         }
       }
 
+      // Wipe localStorage cart for this table so stale data doesn't reload
+      const tableNum = cartRef.current?.table_number;
+      if (tableNum) {
+        try {
+          const raw = localStorage.getItem('saito_pos_cart_all');
+          if (raw) {
+            const all = JSON.parse(raw);
+            delete all[tableNum];
+            localStorage.setItem('saito_pos_cart_all', JSON.stringify(all));
+          }
+        } catch {} // eslint-disable-line no-empty
+      }
+
       toast.success('Hesap bağlandı');
       backToFloor();
       fetchData();

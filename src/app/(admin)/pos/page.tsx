@@ -274,6 +274,15 @@ export default function POSPage() {
       // Clear local cart first
       pos.clearCart();
       setIsDirty(false);
+      // Also wipe localStorage cart for this table so it doesn't reload stale data
+      try {
+        const raw = localStorage.getItem('saito_pos_cart_all');
+        if (raw) {
+          const all = JSON.parse(raw);
+          delete all[cancelTableNumber];
+          localStorage.setItem('saito_pos_cart_all', JSON.stringify(all));
+        }
+      } catch {} // eslint-disable-line no-empty
 
       const res = await fetch(`/api/orders/cancel?table_number=${cancelTableNumber}`, { method: 'DELETE' });
       const data = await res.json();
@@ -465,7 +474,7 @@ export default function POSPage() {
               {/* Tables */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 pt-3">
                 {pos.loading && pos.tables.length === 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
                     {Array.from({ length: 12 }).map((_, i) => (
                       <div key={i} className="rounded-2xl border p-4 bg-[var(--theme-surface-muted)] border-[var(--theme-border)] shadow-sm">
                         <div className="h-4 w-12 rounded-full animate-pulse mb-3 bg-[var(--theme-surface-soft)]" />
@@ -482,7 +491,7 @@ export default function POSPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
-                      className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 xl:gap-5"
+                      className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-7"
                     >
                       {(activeFloor.tables ?? [])
                         .filter(t => t.status !== 'merged')

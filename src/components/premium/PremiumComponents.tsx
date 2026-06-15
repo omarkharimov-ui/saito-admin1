@@ -82,9 +82,9 @@ export function Button({
   const baseClasses = 'font-medium transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2';
 
   const variants = {
-    primary: 'bg-[#111111] text-white border border-[#111111] hover:bg-[#1F1F1F] active:bg-[#0A0A0A]',
-    secondary: 'bg-white border border-[#D2D2D7] text-[#1D1D1F] hover:bg-[#F7F7F8]',
-    ghost: 'bg-transparent text-[#1D1D1F] hover:bg-black/[0.03]',
+    primary: 'bg-[var(--theme-text)] text-[var(--theme-surface)] border border-[var(--theme-text)] hover:opacity-90 active:opacity-85',
+    secondary: 'bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]',
+    ghost: 'bg-transparent text-[var(--theme-text)] hover:bg-black/[0.03]',
     danger: 'bg-[#BE123C] text-white border border-[#BE123C] hover:bg-[#9F1239]',
   };
 
@@ -190,8 +190,8 @@ export function ElasticSwitch({
       onClick={() => !disabled && onChange(!checked)}
       className={`relative h-8 w-14 rounded-full border transition-all backdrop-blur-xl ${
         checked
-          ? 'bg-[#111111]/90 border-[#111111]'
-          : 'bg-white/60 border-[#D2D2D7]'
+          ? 'bg-[var(--theme-text)] border-[var(--theme-text)]'
+          : 'bg-[var(--theme-surface)]/70 border-[var(--theme-border)]'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       <motion.span
@@ -402,9 +402,9 @@ export function Table({
   renderRow: (row: any, idx: number) => React.ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto rounded-[16px] border border-[#E5E5E7] bg-white">
+    <div className="overflow-x-auto rounded-[16px] border border-[var(--theme-border)] bg-[var(--theme-surface)]">
       <table className="w-full">
-        <thead className="bg-[#FCFCFD] border-b border-[#E5E5E7]">
+        <thead className="bg-[var(--theme-surface-soft)] border-b border-[var(--theme-border)]">
           <tr>
             {columns.map(col => (
               <th

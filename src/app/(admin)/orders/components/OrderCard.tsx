@@ -20,7 +20,7 @@ const KitchenBadge = React.memo(function KitchenBadge({ badgeType }: { badgeType
   };
   const badge =
     badgeType === 'ready'     ? <motion.span key="ready"     {...anim} className={`${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/30`}>{t('badge_ready')}</motion.span> :
-    badgeType === 'preparing' ? <motion.span key="preparing" {...anim} className={`${base} bg-blue-500/15 text-blue-400 border border-blue-500/30`}>{t('badge_preparing')}</motion.span> :
+    badgeType === 'preparing' ? <motion.span key="preparing" {...anim} className={`${base} bg-[var(--theme-blue-soft)] text-[var(--theme-blue)] border border-[var(--theme-blue-border)]`}>{t('badge_preparing')}</motion.span> :
     badgeType === 'confirmed' ? <motion.span key="confirmed" {...anim} className={`${base} bg-white/5 text-white/70 border border-white/20`}>{t('badge_confirmed')}</motion.span> :
     <motion.span key="waiting" {...anim} className={`${base} bg-white/5 text-white/50 border border-white/10`}>{t('badge_waiting')}</motion.span>;
   return <AnimatePresence mode="wait" initial={false}>{badge}</AnimatePresence>;
@@ -51,7 +51,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
   const prog       = getProgressProps(cappedAge, delayThreshold, order.kitchen_status);
   const progressGlow =
     effectiveKsEarly === 'ready' || effectiveKsEarly === 'preparing' || effectiveKsEarly === 'cooking'
-      ? '0 0 6px rgba(59,130,246,0.35)'
+      ? '0 0 6px rgba(37,99,235,0.3)'
       : 'none';
 
   const isKitchenReady = order.kitchen_status === 'ready' ||
@@ -103,7 +103,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
   const dotColor =
     isEmptyGroup                                                        ? 'bg-white/[0.12]' :
     badgeType === 'ready'                                               ? 'bg-emerald-400' :
-    badgeType === 'preparing'                                           ? 'bg-blue-400' :
+    badgeType === 'preparing'                                           ? 'bg-[var(--theme-blue)]' :
     order.status === 'new'                                              ? 'bg-orange-400' :
     (cappedAge >= delayThreshold && !!order.kitchen_accepted_at && ks !== 'preparing' && ks !== 'cooking')
                                                                           ? 'bg-amber-400' :
@@ -124,7 +124,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
         {/* left status bar */}
         <div className={`absolute left-0 top-0 bottom-0 w-[2px] ${dotColor}`}
           style={badgeType === 'ready' ? { boxShadow: '0 0 8px rgba(52,211,153,0.6)' }
-            : badgeType === 'preparing' ? { boxShadow: '0 0 8px rgba(96,165,250,0.5)' }
+            : badgeType === 'preparing' ? { boxShadow: '0 0 8px rgba(37,99,235,0.35)' }
             : order.status === 'new' ? { boxShadow: '0 0 8px rgba(251,146,60,0.5)' }
             : undefined}
         />
@@ -213,7 +213,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
         {order.status === 'confirmed' && (
           <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent to-transparent ${
             order.kitchen_status === 'ready' ? 'via-emerald-400/70' :
-            (order.kitchen_status === 'cooking' || order.kitchen_status === 'preparing') ? 'via-blue-400/70' : 'via-amber-400/50'
+            (order.kitchen_status === 'cooking' || order.kitchen_status === 'preparing') ? 'via-[var(--theme-blue)]/70' : 'via-amber-400/50'
           }`} />
         )}
         <div className="px-5 pt-5 pb-3 border-b border-white/[0.05]">

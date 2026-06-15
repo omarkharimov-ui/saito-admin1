@@ -15,7 +15,7 @@ export const getKitchenStatusConfig = (kitchenStatus: Order['kitchen_status'], a
   switch (kitchenStatus) {
     case 'cooking':
     case 'preparing':
-      return { label: label('badge_preparing', 'Hazırlanır'), color: 'text-blue-400',    bg: 'bg-blue-500/15',  border: 'border-blue-500/30',   glow: 'shadow-[0_0_12px_rgba(59,130,246,0.3)]',  flash: false };
+      return { label: label('badge_preparing', 'Hazırlanır'), color: 'text-[var(--theme-blue)]',    bg: 'bg-[var(--theme-blue-soft)]',  border: 'border-[var(--theme-blue-border)]',   glow: 'shadow-[0_0_12px_var(--theme-blue-border)]',  flash: false };
     case 'ready':
       return { label: label('badge_ready', 'Hazırdır'),   color: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', glow: 'shadow-[0_0_20px_rgba(16,185,129,0.5)]', flash: true  };
     case 'pending':
@@ -48,7 +48,7 @@ export function getProgressProps(minutes: number, cap = 30, _kitchenStatus?: Ord
   const s = cap / 6; // each stage = 1/6 of cap
   if (minutes < s)     return { pct, from: '#10b981', to: '#34d399', glow: '0 0 8px rgba(16,185,129,0.7)' };
   if (minutes < s * 2) return { pct, from: '#14b8a6', to: '#2dd4bf', glow: '0 0 8px rgba(20,184,166,0.7)' };
-  if (minutes < s * 3) return { pct, from: '#3b82f6', to: '#60a5fa', glow: '0 0 8px rgba(59,130,246,0.7)' };
+  if (minutes < s * 3) return { pct, from: '#2563eb', to: '#3b82f6', glow: '0 0 8px rgba(37,99,235,0.6)' };
   if (minutes < s * 4) return { pct, from: '#eab308', to: '#fbbf24', glow: '0 0 8px rgba(234,179,8,0.7)'  };
   if (minutes < s * 5) return { pct, from: '#f97316', to: '#fb923c', glow: '0 0 8px rgba(249,115,22,0.7)' };
   return                      { pct, from: '#ef4444', to: '#f87171', glow: '0 0 10px rgba(239,68,68,0.9)' };

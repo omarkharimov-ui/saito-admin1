@@ -144,7 +144,7 @@ export default function ImmersiveNavigationDock({
         aria-label="Əsas naviqasiya"
       >
         <div
-          className="mx-2 my-1 flex items-center justify-around h-[5.1rem] px-2 gap-1 rounded-[30px] border border-white/10 bg-neutral-900/60 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.18)] touch-none select-none"
+          className="mx-2 my-1 flex items-center justify-around h-[5.1rem] px-2 gap-1 rounded-[30px] border border-[var(--theme-border)] bg-[var(--theme-panel)] backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] touch-none select-none"
 
           onPointerDown={(event) => {
             setDockDragging(true);
@@ -189,9 +189,9 @@ export default function ImmersiveNavigationDock({
                 left: `${Math.max(0, primary.findIndex((link) => link.id === (dockDragging ? dragActiveKey : activeDockKey))) * (100 / Math.max(1, primary.length))}%`,
                 width: `${100 / Math.max(1, primary.length)}%`,
                 minHeight: 'calc(100% - 4px)',
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06))',
-                border: '1px solid rgba(255,255,255,0.28)',
-                boxShadow: '0 10px 26px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
+                background: 'var(--theme-accent-soft)',
+                border: '1px solid var(--theme-accent-border)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
               }}
               animate={{
                 x: 0,
@@ -201,19 +201,10 @@ export default function ImmersiveNavigationDock({
               transition={dockSpring}
             >
               <div
-                className="absolute inset-0 opacity-80"
+                className="absolute inset-0 opacity-40"
                 style={{
                   background:
-                    'radial-gradient(circle at 30% 30%, rgba(34,211,238,0.18), transparent 34%), radial-gradient(circle at 70% 25%, rgba(217,70,239,0.12), transparent 34%), radial-gradient(circle at 50% 75%, rgba(250,204,21,0.1), transparent 30%)',
-                  filter: 'blur(12px)',
-                }}
-              />
-              <div
-                className="absolute -bottom-0.5 left-1/2 h-[1px] w-5 -translate-x-1/2 rounded-full opacity-80"
-                style={{
-                  background:
-                    'linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,0.75), rgba(168,85,247,0.82), rgba(250,204,21,0.75), rgba(34,211,238,0))',
-                  filter: 'blur(2px)',
+                    'radial-gradient(circle at 30% 30%, var(--theme-accent-soft), transparent 60%)',
                 }}
               />
             </motion.div>
@@ -237,12 +228,12 @@ export default function ImmersiveNavigationDock({
                   animate={{ scale: draggingActive ? 1.02 : active ? 1 : 0.99, y: active ? -1 : 0 }}
                   transition={dockSpring}
                 >
-                  <Icon size={20} strokeWidth={2} className={active ? 'text-sky-400' : 'text-white/60'} />
-                  <span className={active ? 'text-[10px] font-semibold text-sky-400' : 'text-[10px] font-semibold text-white/60'}>
+                  <Icon size={20} strokeWidth={2} className={active ? 'text-[var(--theme-accent)]' : 'text-[var(--theme-text-muted)]'} />
+                  <span className={active ? 'text-[10px] font-semibold text-[var(--theme-accent)]' : 'text-[10px] font-semibold text-[var(--theme-text-muted)]'}>
                     {link.name}
                   </span>
                   {link.badge && link.badge > 0 ? (
-                    <span className={active ? 'absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#007aff] text-[9px] font-bold text-white flex items-center justify-center shadow-[0_4px_14px_rgba(0,122,255,0.18)]' : 'absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-[9px] font-bold text-black flex items-center justify-center'}>
+                    <span className={active ? 'absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[var(--theme-accent)] text-[9px] font-bold text-white flex items-center justify-center shadow-[0_4px_14px_rgba(0,0,0,0.12)]' : 'absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[var(--theme-surface-soft)] text-[9px] font-bold text-[var(--theme-text-secondary)] flex items-center justify-center'}>
                       {link.badge > 9 ? '9+' : link.badge}
                     </span>
                   ) : null}
@@ -268,7 +259,7 @@ export default function ImmersiveNavigationDock({
                   <Grid2x2 size={20} className="text-[var(--theme-text-secondary)]" />
                 </motion.span>
               ) : (
-                <MoreHorizontal size={22} strokeWidth={1.6} className="text-white/60" />
+                <MoreHorizontal size={22} strokeWidth={1.6} className="text-[var(--theme-text-muted)]" />
               )}
             </button>
           ) : null}

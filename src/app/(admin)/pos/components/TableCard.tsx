@@ -13,9 +13,9 @@ const statusStyles: Record<string, { dot: string; bg: string; border: string; te
     lightBg: 'bg-zinc-50', lightBorder: 'border-zinc-200', lightText: 'text-zinc-400',
   },
   active: {
-    dot: 'bg-blue-400', bg: 'bg-[#182036] backdrop-blur-md', border: 'border-blue-500/40',
-    text: 'text-blue-400', glow: 'shadow-[0_0_30px_rgba(59,130,246,0.12)]',
-    lightBg: 'bg-blue-50/70', lightBorder: 'border-blue-200', lightText: 'text-blue-700',
+    dot: 'bg-[var(--theme-blue)]', bg: 'bg-[#182036] backdrop-blur-md', border: 'border-[var(--theme-blue-border)]',
+    text: 'text-[var(--theme-blue)]', glow: 'shadow-[0_0_30px_var(--theme-blue-border)]',
+    lightBg: 'bg-[var(--theme-blue-soft)]', lightBorder: 'border-[var(--theme-blue-border)]', lightText: 'text-[var(--theme-blue)]',
   },
   waiting_bill: {
     dot: 'bg-amber-400', bg: 'bg-[#261b10] backdrop-blur-md', border: 'border-amber-500/40',

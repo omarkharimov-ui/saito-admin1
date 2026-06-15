@@ -158,7 +158,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                   <div className="flex gap-2 pt-1">
                     {order.status === 'pending' && (
                       <button onClick={() => handleStatusUpdate(order.id, 'cooking')}
-                        className={`flex-1 py-2.5 rounded-2xl text-xs font-bold transition-all ${lightMode ? 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100' : 'bg-blue-500/10 border border-blue-500/20 text-blue-300 hover:bg-blue-500/20'}`}>
+                        className={`flex-1 py-2.5 rounded-2xl text-xs font-bold transition-all ${lightMode ? 'bg-[var(--theme-blue-soft)] border border-[var(--theme-blue-border)] text-[var(--theme-blue)] hover:brightness-95' : 'bg-[var(--theme-blue-soft)] border border-[var(--theme-blue-border)] text-[var(--theme-blue)] hover:brightness-125'}`}>
                         Qəbul et
                       </button>
                     )}

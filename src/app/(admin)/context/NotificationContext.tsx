@@ -9,10 +9,10 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 const dismissToast = (t: Toast) => toast.dismiss(t.id);
 
 const toastBaseStyle = {
-  background: '#111111',
-  color: '#f5f5f7',
-  border: '1px solid rgba(255,255,255,0.08)',
-  boxShadow: '0 12px 30px rgba(0,0,0,0.28)',
+  background: 'var(--theme-panel, #111111)',
+  color: 'var(--theme-text, #f5f5f7)',
+  border: '1px solid var(--theme-border, rgba(255,255,255,0.08))',
+  boxShadow: '0 12px 30px rgba(0,0,0,0.12)',
 } as const;
 
 export const toastSuccess = (message: string, options: Parameters<typeof toast.success>[1] = {}) =>
@@ -25,7 +25,7 @@ export const toastSuccess = (message: string, options: Parameters<typeof toast.s
 export const toastError = (message: string, options: Parameters<typeof toast.error>[1] = {}) =>
   toast.error(message, {
     icon: <X size={16} strokeWidth={2.2} />,
-    style: { ...toastBaseStyle, background: '#1a1111', color: '#fecaca', border: '1px solid rgba(248,113,113,0.28)' },
+    style: { ...toastBaseStyle, background: 'var(--theme-error-bg, #1a1111)', color: 'var(--theme-error-text, #fecaca)', border: '1px solid rgba(248,113,113,0.28)' },
     ...options,
   });
 
@@ -243,7 +243,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         addNotificationRef.current(title, body, 'reservation');
         toast.success((t) => <span onClick={() => dismissToast(t)}>Yeni rezervasiya: {guestName}{guestDate ? ` (${guestDate})` : ''}</span>, {
           duration: 4000,
-          style: { background: '#1a1a1a', color: '#fff', border: '1px solid #D4AF3740', cursor: 'pointer' },
+          style: { background: 'var(--theme-panel, #1a1a1a)', color: 'var(--theme-text, #fff)', border: '1px solid var(--theme-accent-border, #D4AF3740)', cursor: 'pointer' },
         });
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'reservations' }, () => {
@@ -268,7 +268,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             toast((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
               duration: 3000,
               icon: undefined,
-              style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold', cursor: 'pointer' },
+              style: { background: 'var(--theme-warning-bg, #1a1200)', color: 'var(--theme-warning-text, #fbbf24)', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold', cursor: 'pointer' },
             });
           }
         }
@@ -279,7 +279,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             toast((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
               duration: 3000,
               icon: undefined,
-              style: { background: '#111', color: '#d1d5db', border: '1px solid rgba(255,255,255,0.12)', fontWeight: 'bold', cursor: 'pointer' },
+              style: { background: 'var(--theme-panel, #111)', color: 'var(--theme-text-secondary, #d1d5db)', border: '1px solid var(--theme-border, rgba(255,255,255,0.12))', fontWeight: 'bold', cursor: 'pointer' },
             });
           }
         }
@@ -290,7 +290,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             toast((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
               duration: 3000,
               icon: undefined,
-              style: { background: '#0d1525', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.35)', fontWeight: 'bold', cursor: 'pointer' },
+              style: { background: 'var(--theme-info-bg, #0d1525)', color: 'var(--theme-info-text, #93c5fd)', border: '1px solid rgba(59,130,246,0.35)', fontWeight: 'bold', cursor: 'pointer' },
             });
           }
         }
@@ -305,7 +305,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             toast.success((t) => <span onClick={() => dismissToast(t)}>{body}</span>, {
               duration: 5000,
               icon: undefined,
-              style: { background: '#0d0b00', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.28)', fontWeight: 'bold', cursor: 'pointer' },
+              style: { background: 'var(--theme-accent-soft, #0d0b00)', color: 'var(--theme-accent, #D4AF37)', border: '1px solid var(--theme-accent-border, rgba(212,175,55,0.28))', fontWeight: 'bold', cursor: 'pointer' },
             });
           }
         }
@@ -331,7 +331,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           addNotificationRef.current('Saito: Yeni Sifariş!', body, 'order');
           toast.success((t) => <span onClick={() => dismissToast(t)}>{toastBody}</span>, {
             duration: 4000,
-            style: { background: '#1a1a1a', color: '#fff', border: '1px solid #D4AF3740', cursor: 'pointer' },
+            style: { background: 'var(--theme-panel, #1a1a1a)', color: 'var(--theme-text, #fff)', border: '1px solid var(--theme-accent-border, #D4AF3740)', cursor: 'pointer' },
           });
         }
       })
@@ -364,7 +364,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const tables = data.map((o: any) => (o.table_number ? `Masa ${o.table_number}` : '?')).join(', ');
         toast((t) => <span onClick={() => dismissToast(t)}>{data.length} gecikən sifariş: {tables}</span>, {
           duration: 5000,
-          style: { background: '#1f0d0d', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 'bold', cursor: 'pointer' },
+          style: { background: 'var(--theme-error-bg, #1f0d0d)', color: 'var(--theme-error-text, #f87171)', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 'bold', cursor: 'pointer' },
         });
       }
     }, 5 * 60 * 1000);

@@ -574,7 +574,7 @@ export const OrderModal = ({
                 : timeAgo(order.created_at, t)}
             </span>
             {order.order_type && order.order_type !== 'dine_in' && (
-              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1 ${order.order_type === 'takeaway' ? 'text-amber-400/70 bg-amber-500/10 border border-amber-500/20' : 'text-blue-400/70 bg-blue-500/10 border border-blue-500/20'}`}>
+              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1 ${order.order_type === 'takeaway' ? 'text-amber-400/70 bg-amber-500/10 border border-amber-500/20' : 'text-[var(--theme-blue)] bg-[var(--theme-blue-soft)]/70 border border-[var(--theme-blue-border)]'}`}>
                 {order.order_type === 'takeaway' ? <ShoppingBag size={9} /> : <Package size={9} />}
                 {order.order_type === 'takeaway' ? t('takeaway') : t('delivery')}
               </span>
@@ -606,7 +606,7 @@ export const OrderModal = ({
               const isEmptyGroup = isMergedOrder && (!order.order_items || order.order_items.length === 0);
               if (isEmptyGroup) return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-white/[0.06] text-white/30 border border-white/10">{t('draft')}</span>;
               if (ks === 'ready') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">{t('badge_ready')}</span>;
-              if (ks === 'preparing' || ks === 'cooking') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-blue-500/15 text-blue-400 border border-blue-500/30">{t('badge_preparing')}</span>;
+              if (ks === 'preparing' || ks === 'cooking') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-[var(--theme-blue-soft)] text-[var(--theme-blue)] border border-[var(--theme-blue-border)]">{t('badge_preparing')}</span>;
               if (status === 'new') return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-orange-500/15 text-orange-400 border border-orange-500/30">{t('new')}</span>;
               return <span className="text-[9px] font-black px-2 py-1 rounded-full tracking-wider uppercase bg-[var(--theme-surface-muted)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)]">{t('badge_waiting')}</span>;
             })()}

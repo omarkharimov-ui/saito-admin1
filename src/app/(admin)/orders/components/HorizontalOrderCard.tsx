@@ -14,7 +14,7 @@ const MiniBadge = React.memo(function MiniBadge({ badgeType }: { badgeType: Badg
   const base = 'text-[9px] font-black px-1.5 py-0.5 rounded-full';
   const badge =
     badgeType === 'ready'     ? <span className={`${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/30`}>{t('badge_ready')}</span> :
-    badgeType === 'preparing' ? <span className={`${base} bg-blue-500/15 text-blue-400 border border-blue-500/30`}>{t('badge_preparing')}</span> :
+    badgeType === 'preparing' ? <span className={`${base} bg-[var(--theme-blue-soft)] text-[var(--theme-blue)] border border-[var(--theme-blue-border)]`}>{t('badge_preparing')}</span> :
     badgeType === 'confirmed' ? <span className={`${base} bg-white/5 text-white/70 border border-white/20`}>{t('badge_confirmed')}</span> :
     <span className={`${base} bg-white/5 text-white/50 border border-white/10`}>{t('badge_waiting')}</span>;
   return badge;
@@ -78,7 +78,7 @@ export const HorizontalOrderCard = React.memo(function HorizontalOrderCard({
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-400/70 via-emerald-400 to-emerald-400/70" />
       )}
       {(badgeType === 'preparing' || effectiveKs === 'cooking') && (
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400/70 via-blue-400 to-blue-400/70" />
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[var(--theme-blue)]/70 via-[var(--theme-blue)] to-[var(--theme-blue)]/70" />
       )}
       {(order.status === 'new' && !badgeType) && (
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-400/70 via-orange-400 to-orange-400/70" />
@@ -109,7 +109,7 @@ export const HorizontalOrderCard = React.memo(function HorizontalOrderCard({
           <span>{timeAgo(order.created_at, t)}</span>
           <span className="text-white/15">|</span>
           {order.order_type === 'takeaway' ? <ShoppingBag size={9} className="text-amber-400/60" />
-            : order.order_type === 'delivery' ? <Package size={9} className="text-blue-400/60" />
+            : order.order_type === 'delivery' ? <Package size={9} className="text-[var(--theme-blue)]/60" />
             : <Utensils size={9} className="text-emerald-400/60" />}
         </div>
       </div>

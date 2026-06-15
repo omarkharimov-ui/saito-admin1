@@ -116,7 +116,7 @@ function TableTooltip({
                 {order.kitchen_accepted_at && !order.kitchen_ready_at && (() => {
                   const isOverdue = (kitchenStatus === 'cooking' || kitchenStatus === 'preparing') && ageMin >= delayThreshold;
                   return (
-                    <p className={`text-[10px] ${isOverdue ? 'text-red-400/90 font-bold' : 'text-blue-400/90'}`}>
+                    <p className={`text-[10px] ${isOverdue ? 'text-red-400/90 font-bold' : 'text-[var(--theme-blue)]/90'}`}>
                       {isOverdue ? `${t('grid_status_overdue')} — ${ageMin} dəq` : t('grid_preparing_hint')}
                     </p>
                   );

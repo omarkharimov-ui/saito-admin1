@@ -144,10 +144,10 @@ export function CartPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0 pb-4 border-b border-[var(--theme-border)]">
+      <div className="flex items-center justify-between flex-shrink-0 pb-4 border-b border-[var(--theme-border)] gap-3">
         <div className="flex items-center gap-2">
           <button onClick={onBack}
-            className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
+            className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] active:scale-95">
             <ArrowLeft size={18} />
           </button>
           <div>
@@ -166,14 +166,14 @@ export function CartPanel({
                 <Users size={12} className="text-[var(--theme-text-secondary)]" />
                 {onUpdateGuests && (
                   <button onClick={e => { e.stopPropagation(); onUpdateGuests(-1); }}
-                    className="w-10 h-8 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-base font-bold leading-none transition-all active:scale-90">
+                    className="w-10 h-8 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-base font-bold leading-none transition-all active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/35">
                     −
                   </button>
                 )}
                 <span className="text-sm font-bold tabular-nums text-[var(--theme-text)] min-w-[18px] text-center">{cart.guest_count}</span>
                 {onUpdateGuests && (
                   <button onClick={e => { e.stopPropagation(); onUpdateGuests(1); }}
-                    className="w-10 h-8 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-base font-bold leading-none transition-all active:scale-90">
+                    className="w-10 h-8 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-base font-bold leading-none transition-all active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/35">
                     +
                   </button>
                 )}
@@ -181,7 +181,7 @@ export function CartPanel({
             </div>
           </div>
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={onClearDraft}
             style={{
@@ -190,7 +190,7 @@ export function CartPanel({
               pointerEvents: lossMode ? 'none' as const : 'auto' as const,
               display: isEmpty ? 'none' : undefined,
             }}
-            className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
+            className="h-10 px-4 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10 active:scale-95"
           >
             {t('clear')}
           </button>
@@ -200,7 +200,7 @@ export function CartPanel({
               color: lossMode ? '#f87171' : 'var(--theme-text-secondary)',
               display: isEmpty ? 'none' : undefined,
             }}
-            className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[var(--theme-surface-soft)]"
+            className="h-10 px-4 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[var(--theme-surface-soft)] active:scale-95"
           >
             {lossMode ? t('loss_mode_cancel') : t('loss_mode')}
           </button>

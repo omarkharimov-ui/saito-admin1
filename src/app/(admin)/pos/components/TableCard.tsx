@@ -42,10 +42,12 @@ const statusStyles: Record<string, { dot: string; bg: string; border: string; te
 function timeSince(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
   const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}d`;
+  if (Number.isNaN(diff)) return '—';
+  const mins = Math.max(0, Math.floor(diff / 60000));
+  if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);
-  return `${hrs}s ${mins % 60}d`;
+  const remMins = mins % 60;
+  return remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`;
 }
 
 const statusLabelKeys: Record<string, string> = {
@@ -82,6 +84,15 @@ export function TableCard({
   const allMergedNumbers = isGroupParent
     ? [table.table_number, ...mergedChildNumbers]
     : [];
+  const isSelectedVisual = isSelected || isTransferSource || isTransferTarget;
+  const statusTone = lightMode
+    ? (table.status === 'active' ? 'bg-amber-50/80' : table.status === 'waiting_bill' ? 'bg-amber-50/70' : table.status === 'cooking' ? 'bg-violet-50/70' : table.status === 'problem' ? 'bg-red-50/70' : cfg.lightBg)
+    : (table.status === 'active' ? 'bg-white/[0.05]' : cfg.bg);
+  const selectionAccent = isTransferTarget
+    ? (lightMode ? 'from-amber-200/60 to-amber-50/0' : 'from-amber-400/30 to-transparent')
+    : isSelectedVisual
+      ? (lightMode ? 'from-amber-100/80 to-transparent' : 'from-white/10 to-transparent')
+      : '';
 
   return (
     <motion.button
@@ -89,11 +100,12 @@ export function TableCard({
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative w-full flex flex-col rounded-2xl p-4 text-left transition-all duration-200 border ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'opacity-70' : ''} ${isTransferTarget ? (lightMode ? 'bg-amber-50/60 shadow-md' : 'bg-white/[0.06] shadow-lg') : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
+      className={`relative w-full flex flex-col rounded-[1.35rem] p-4 text-left transition-all duration-200 border overflow-hidden ${statusTone} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelectedVisual ? (lightMode ? 'shadow-[0_10px_30px_rgba(24,24,27,0.08)]' : 'shadow-[0_12px_34px_rgba(0,0,0,0.28)]') : ''} ${isTransferSource ? 'opacity-75' : ''} ${isTransferTarget ? (lightMode ? 'bg-amber-50/80 shadow-[0_10px_30px_rgba(217,119,6,0.10)]' : 'bg-amber-500/10 shadow-[0_10px_30px_rgba(0,0,0,0.18)]') : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-[3px] border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
     >
+      <span className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${selectionAccent} opacity-0 ${isSelectedVisual ? 'opacity-100' : ''} pointer-events-none`} />
       {/* Static subtle glow for waiting bill — no pulse */}
       {table.status === 'waiting_bill' && (
-        <span className={`absolute inset-0 rounded-2xl pointer-events-none ${lightMode ? 'bg-amber-100/40' : 'bg-amber-400/[0.04]'}`} />
+        <span className={`absolute inset-0 pointer-events-none ${lightMode ? 'bg-amber-100/35' : 'bg-amber-400/[0.04]'}`} />
       )}
 
       {/* Overdue pending pulse */}
@@ -116,7 +128,7 @@ export function TableCard({
       {/* Header row: number + status + merge indicator */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black ${isSelected ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white/20 text-white') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : table.status === 'empty' ? (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/60') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black transition-all ${isSelectedVisual ? (lightMode ? 'bg-amber-100 text-amber-950 shadow-sm' : 'bg-amber-400/15 text-amber-200') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : table.status === 'empty' ? (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/60') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
             {isGroupParent ? (
               <span className="flex flex-col items-center leading-tight">
                 <span className="text-[6px] font-bold uppercase tracking-wider">{t('group_label')}</span>
@@ -126,7 +138,7 @@ export function TableCard({
               table.table_number
             )}
           </div>
-          <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] ${lightMode ? cfg.lightText : cfg.text} ${lightMode ? 'bg-white/70' : (table.status === 'empty' ? 'bg-white/[0.04]' : 'bg-black/20')}`}>
+          <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.18em] ${lightMode ? cfg.lightText : cfg.text} ${isSelectedVisual ? (lightMode ? 'bg-amber-100 text-amber-800' : 'bg-amber-400/15 text-amber-200') : lightMode ? 'bg-white/70' : (table.status === 'empty' ? 'bg-white/[0.04]' : 'bg-black/20')}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
             {statusLabel}
           </span>

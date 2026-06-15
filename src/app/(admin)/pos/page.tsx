@@ -423,29 +423,33 @@ export default function POSPage() {
                       {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
                     </button>
                     {mergeMode && (
-                      <button onClick={() => { pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
-                        disabled={selectedForMerge.length < 2}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-30 transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
-                        {t('merge_button').replace('{count}', String(selectedForMerge.length))}
-                      </button>
+                      <>
+                        <button onClick={() => { pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
+                          disabled={selectedForMerge.length < 2}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-30 transition-all active:scale-95 ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
+                          {t('merge_button').replace('{count}', String(selectedForMerge.length))}
+                        </button>
+                        <button onClick={() => { setMergeMode(false); setSelectedForMerge([]); }}
+                          className="px-4 py-2 rounded-2xl text-xs font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                          Ləğv
+                        </button>
+                      </>
                     )}
-                    {mergeMode && (
-                      <button onClick={() => { setMergeMode(false); setSelectedForMerge([]); }}
-                        className="px-4 py-2 rounded-2xl text-xs font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                        Ləğv
-                      </button>
-                    )}
-                    {transferMode && transferSource && transferTarget && (
-                      <button onClick={async () => { try { await pos.transferTable(transferSource, transferTarget); } catch {} setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
-                        Masa {transferSource} → {transferTarget}
-                      </button>
-                    )}
-                    {transferMode && (transferSource || transferTarget) && (
-                      <button onClick={() => { setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
-                        className="px-4 py-2 rounded-2xl text-xs font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                        Ləğv
-                      </button>
+                    {transferMode && (
+                      <>
+                        {transferSource && transferTarget && (
+                          <button onClick={async () => { try { await pos.transferTable(transferSource, transferTarget); } finally { setTransferMode(false); setTransferSource(null); setTransferTarget(null); } }}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
+                            Masa {transferSource} → {transferTarget}
+                          </button>
+                        )}
+                        {(transferSource || transferTarget) && (
+                          <button onClick={() => { setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
+                            className="px-4 py-2 rounded-2xl text-xs font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                            Ləğv
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

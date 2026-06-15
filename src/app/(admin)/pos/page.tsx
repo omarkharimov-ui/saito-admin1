@@ -485,7 +485,7 @@ export default function POSPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
-                      className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 xl:gap-5"
+                      className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 xl:gap-4"
                     >
                       {(activeFloor.tables ?? [])
                         .filter(t => t.status !== 'merged')

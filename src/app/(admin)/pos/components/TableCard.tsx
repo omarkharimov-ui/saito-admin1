@@ -100,7 +100,7 @@ export function TableCard({
       whileHover={{ y: -2, transition: { duration: 0.12 } }}
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className={`relative w-full flex flex-col rounded-[1.35rem] p-4 text-left transition-all duration-200 border overflow-hidden ${statusTone} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelectedVisual ? (lightMode ? 'shadow-[0_10px_30px_rgba(24,24,27,0.08)]' : 'shadow-[0_12px_34px_rgba(0,0,0,0.28)]') : ''} ${isTransferSource ? 'opacity-75' : ''} ${isTransferTarget ? (lightMode ? 'bg-amber-50/80 shadow-[0_10px_30px_rgba(217,119,6,0.10)]' : 'bg-amber-500/10 shadow-[0_10px_30px_rgba(0,0,0,0.18)]') : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-[3px] border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
+      className={`relative w-full flex flex-col rounded-[1.35rem] p-3.5 text-left transition-all duration-200 border overflow-hidden ${statusTone} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelectedVisual ? (lightMode ? 'shadow-[0_10px_30px_rgba(24,24,27,0.08)]' : 'shadow-[0_12px_34px_rgba(0,0,0,0.28)]') : ''} ${isTransferSource ? 'opacity-75' : ''} ${isTransferTarget ? (lightMode ? 'bg-amber-50/80 shadow-[0_10px_30px_rgba(217,119,6,0.10)]' : 'bg-amber-500/10 shadow-[0_10px_30px_rgba(0,0,0,0.18)]') : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-[3px] border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
     >
       <span className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${selectionAccent} opacity-0 ${isSelectedVisual ? 'opacity-100' : ''} pointer-events-none`} />
       {/* Static subtle glow for waiting bill — no pulse */}
@@ -126,7 +126,7 @@ export function TableCard({
       )}
 
       {/* Header row: number + status + merge indicator */}
-      <div className="flex items-center justify-between mb-2.5">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base font-black transition-all ${isSelectedVisual ? (lightMode ? 'bg-amber-100 text-amber-950 shadow-sm' : 'bg-amber-400/15 text-amber-200') : isMerged ? (lightMode ? 'bg-zinc-300 text-zinc-600' : 'bg-zinc-700/60 text-zinc-200') : table.status === 'empty' ? (lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/[0.04] text-white/60') : lightMode ? 'bg-white/80 text-gray-700 shadow-sm' : 'bg-white/[0.06] text-white/80'}`}>
             {isGroupParent ? (

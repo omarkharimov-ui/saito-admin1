@@ -30,9 +30,8 @@ export default function POSPage() {
 
   const [orderButtonStatus, setOrderButtonStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isDirty, setIsDirty] = useState(false);
-  const [mergeMode, setMergeMode] = useState(false);
+  const [tableFlowMode, setTableFlowMode] = useState<'idle' | 'merge' | 'transfer'>('idle');
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
-  const [transferMode, setTransferMode] = useState(false);
   const [transferSource, setTransferSource] = useState<number | null>(null);
   const [transferTarget, setTransferTarget] = useState<number | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
@@ -203,7 +202,7 @@ export default function POSPage() {
 
   /* ── Table actions ── */
   const handleTableTap = useCallback(async (table: PosTable) => {
-    if (mergeMode) {
+    if (tableFlowMode === 'merge') {
       if (table.status === 'merged') return; // can't select already-merged tables
       if (selectedForMerge.includes(table.table_number)) {
         setSelectedForMerge(prev => prev.filter(n => n !== table.table_number));
@@ -212,7 +211,7 @@ export default function POSPage() {
       }
       return;
     }
-    if (transferMode) {
+    if (tableFlowMode === 'transfer') {
       if (table.status === 'merged') return;
       if (!transferSource) {
         setTransferSource(table.table_number);
@@ -233,7 +232,7 @@ export default function POSPage() {
     if (table.status === 'merged') return; // can't open merged table
     // Direct: tap table → go to order view
     pos.selectTable(table);
-  }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
+  }, [tableFlowMode, selectedForMerge, transferSource, transferTarget, pos]);
 
   const handleTableAction = useCallback((table: PosTable) => {
     setActionSheetTable(table);
@@ -256,7 +255,7 @@ export default function POSPage() {
 
   const handleActionMerge = useCallback(() => {
     if (actionSheetTable) {
-      setMergeMode(true);
+      setTableFlowMode('merge');
       setSelectedForMerge([actionSheetTable.table_number]);
       pos.setActiveView('floor');
       setActionSheetOpen(false);
@@ -277,19 +276,22 @@ export default function POSPage() {
     }
   }, [actionSheetTable]);
 
-  const resetPosSessionUi = useCallback(() => {
-    setIsDirty(false);
-    setMergeMode(false);
-    setSelectedForMerge([]);
-    setTransferMode(false);
+  const exitTransferMode = useCallback(() => {
+    setTableFlowMode('idle');
     setTransferSource(null);
     setTransferTarget(null);
+  }, []);
+
+  const resetPosSessionUi = useCallback(() => {
+    setIsDirty(false);
+    setSelectedForMerge([]);
+    exitTransferMode();
     setActionSheetOpen(false);
     setActionSheetTable(null);
     setWarningOpen(false);
     setClearConfirmOpen(false);
     setClearTableNumber(null);
-  }, []);
+  }, [exitTransferMode]);
 
   const confirmClearTable = useCallback(async () => {
     if (clearTableNumber === null) return;
@@ -301,6 +303,7 @@ export default function POSPage() {
 
       pos.clearCart();
       resetPosSessionUi();
+      pos.backToFloor();
       toast.success(`Masa ${clearTableNumber} təmizləndi`);
       pos.fetchData();
     } catch (e: any) {
@@ -310,7 +313,6 @@ export default function POSPage() {
       setActionSheetOpen(false);
       setActionSheetTable(null);
     }
-    pos.backToFloor();
   }, [clearTableNumber, pos, resetPosSessionUi]);
 
   /* ── Report loss ── */
@@ -446,30 +448,43 @@ export default function POSPage() {
                       className="p-2.5 rounded-2xl transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface)] hover:text-[var(--theme-text)] shadow-sm">
                       {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
                     </button>
-                    {mergeMode && (
+                    {tableFlowMode === 'merge' && (
                       <>
-                        <button onClick={() => { pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
+                        <button
+                          onClick={async () => {
+                            await pos.mergeTables(selectedForMerge);
+                            window.setTimeout(() => {
+                              setMergeMode(false);
+                              setSelectedForMerge([]);
+                            }, 180);
+                          }}
                           disabled={selectedForMerge.length < 2}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-30 transition-all active:scale-95 ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
+                          className={`min-h-[44px] px-4 py-2.5 rounded-2xl text-sm font-bold disabled:opacity-30 transition-all active:scale-95 ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
                           {t('merge_button').replace('{count}', String(selectedForMerge.length))}
                         </button>
                         <button onClick={() => { setMergeMode(false); setSelectedForMerge([]); }}
-                          className="px-4 py-2 rounded-2xl text-xs font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                          className="min-h-[44px] px-4 py-2.5 rounded-2xl text-sm font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                           Ləğv
                         </button>
                       </>
                     )}
-                    {transferMode && (
+                    {tableFlowMode === 'transfer' && (
                       <>
                         {transferSource && transferTarget && (
-                          <button onClick={async () => { try { await pos.transferTable(transferSource, transferTarget); } finally { setTransferMode(false); setTransferSource(null); setTransferTarget(null); } }}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
+                          <button
+                            onClick={async () => {
+                              await pos.transferTable(transferSource, transferTarget);
+                              window.setTimeout(() => {
+                                exitTransferMode();
+                              }, 180);
+                            }}
+                            className={`min-h-[44px] px-4 py-2.5 rounded-2xl text-sm font-bold transition-all active:scale-95 ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
                             Masa {transferSource} → {transferTarget}
                           </button>
                         )}
                         {(transferSource || transferTarget) && (
-                          <button onClick={() => { setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
-                            className="px-4 py-2 rounded-2xl text-xs font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                          <button onClick={exitTransferMode}
+                            className="min-h-[44px] px-4 py-2.5 rounded-2xl text-sm font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                             Ləğv
                           </button>
                         )}
@@ -530,9 +545,9 @@ export default function POSPage() {
                             table={table}
                             onTap={() => handleTableTap(table)}
                             onAction={() => handleTableAction(table)}
-                            isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
-                            isTransferSource={transferMode && transferSource === table.table_number}
-                            isTransferTarget={transferMode && transferTarget === table.table_number}
+                            isSelected={tableFlowMode === 'merge' && selectedForMerge.includes(table.table_number)}
+                            isTransferSource={tableFlowMode === 'transfer' && transferSource === table.table_number}
+                            isTransferTarget={tableFlowMode === 'transfer' && transferTarget === table.table_number}
                             isOverdue={overdueStatus.pending.has(table.table_number) || overdueStatus.cooking.has(table.table_number)}
                           />
                         ))}
@@ -733,7 +748,7 @@ export default function POSPage() {
         onClose={() => { setActionSheetOpen(false); setActionSheetTable(null); }}
         onAddOrder={handleActionAddOrder}
         onMerge={handleActionMerge}
-        onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); setTransferTarget(null); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); }}
+        onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); setTransferTarget(null); pos.setSelectedTable(actionSheetTable!); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); toast.success(`Mənbə masa seçildi: ${actionSheetTable!.table_number}`); }}
         onSplitBill={handleSplitTable}
         onCloseBill={handleActionCloseBill}
         onPrint={() => { setActionSheetOpen(false); setActionSheetTable(null); }}

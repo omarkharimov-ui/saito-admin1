@@ -371,7 +371,7 @@ export function CartPanel({
           </div>
         )}
 
-        <div className="w-full">
+        <div className="flex flex-col gap-2.5 pt-1">
           <SendOrderButton
             disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
             status={lossMode ? 'idle' : orderButtonStatus}
@@ -379,7 +379,15 @@ export function CartPanel({
             label={lossMode ? t('loss_confirm') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))}
             onClick={lossMode ? confirmLoss : onPlaceOrder}
             isDirty={isDirty}
+            className="w-full"
           />
+          <button
+            type="button"
+            onClick={onClearDraft}
+            className="w-full h-[46px] rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-sm font-semibold text-[var(--theme-text-secondary)] transition-all hover:text-[var(--theme-text)] hover:border-[var(--theme-text-muted)]"
+          >
+            {t('clear')}
+          </button>
         </div>
       </div>
 

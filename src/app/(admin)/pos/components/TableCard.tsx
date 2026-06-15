@@ -85,37 +85,38 @@ export function TableCard({
     ? [table.table_number, ...mergedChildNumbers]
     : [];
   const isSelectedVisual = isSelected || isTransferSource || isTransferTarget;
+  const isActiveVisual = table.status === 'active';
   const transferVisual = isTransferSource
-    ? 'bg-amber-100/35 ring-1 ring-amber-400/20 shadow-[0_8px_22px_rgba(217,119,6,0.06)]'
+    ? 'bg-amber-100/10 ring-1 ring-amber-400/10'
     : isTransferTarget
-      ? 'bg-amber-50/70 ring-1 ring-amber-300/30 shadow-[0_10px_24px_rgba(217,119,6,0.08)]'
+      ? 'bg-amber-50/30 ring-1 ring-amber-300/14'
       : '';
-  const overdueTone = isOverdue ? (lightMode ? 'border-red-400/40' : 'border-red-500/45') : '';
+  const overdueTone = isOverdue ? (lightMode ? 'border-red-400/30' : 'border-red-500/35') : '';
   const statusStrip = isOverdue
     ? (table.status === 'cooking'
-      ? 'bg-gradient-to-r from-amber-500/70 via-orange-400/70 to-red-400/70'
-      : 'bg-gradient-to-r from-rose-500/70 via-rose-400/70 to-orange-400/70')
+      ? 'bg-gradient-to-r from-amber-500/45 via-orange-400/45 to-red-400/45'
+      : 'bg-gradient-to-r from-rose-500/45 via-rose-400/45 to-orange-400/45')
     : '';
   const statusTone = lightMode
-    ? (table.status === 'active' ? 'bg-amber-50/65' : table.status === 'waiting_bill' ? 'bg-amber-50/55' : table.status === 'cooking' ? 'bg-violet-50/55' : table.status === 'problem' ? 'bg-red-50/55' : cfg.lightBg)
-    : (table.status === 'active' ? 'bg-white/[0.045]' : cfg.bg);
+    ? (isActiveVisual ? 'bg-amber-50/45' : table.status === 'waiting_bill' ? 'bg-amber-50/38' : table.status === 'cooking' ? 'bg-violet-50/38' : table.status === 'problem' ? 'bg-red-50/38' : cfg.lightBg)
+    : (isActiveVisual ? 'bg-white/[0.03]' : cfg.bg);
   const selectionAccent = isTransferTarget
-    ? (lightMode ? 'from-amber-200/60 to-amber-50/0' : 'from-amber-400/30 to-transparent')
+    ? (lightMode ? 'from-amber-200/40 to-amber-50/0' : 'from-amber-400/20 to-transparent')
     : isSelectedVisual
-      ? (lightMode ? 'from-amber-100/80 to-transparent' : 'from-white/10 to-transparent')
+      ? (lightMode ? 'from-amber-100/45 to-transparent' : 'from-white/8 to-transparent')
       : '';
 
   return (
     <motion.button
       layout
-      whileHover={{ y: -1.5, transition: { duration: 0.12 } }}
-      whileTap={{ scale: 0.97, transition: { duration: 0.08 } }}
+      whileHover={{ y: -0.5, transition: { duration: 0.12 } }}
+      whileTap={{ scale: 0.99, transition: { duration: 0.08 } }}
       onClick={onTap}
-      className={`relative w-full flex flex-col rounded-[1.35rem] p-3.5 text-left transition-all duration-200 border overflow-hidden ${statusTone} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelectedVisual ? (lightMode ? 'shadow-[0_10px_30px_rgba(24,24,27,0.08)]' : 'shadow-[0_12px_34px_rgba(0,0,0,0.28)]') : ''} ${transferVisual} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-[3px] border-l-zinc-500/40' : ''} ${overdueTone}`}
+      className={`relative w-full flex flex-col rounded-[1.35rem] p-3.5 text-left transition-[transform,box-shadow,border-color,background-color] duration-200 border overflow-hidden will-change-transform ${statusTone} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelectedVisual ? (lightMode ? 'shadow-[0_8px_20px_rgba(24,24,27,0.05)]' : 'shadow-[0_8px_18px_rgba(0,0,0,0.18)]') : ''} ${transferVisual} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-[3px] border-l-zinc-500/30' : ''} ${overdueTone}`}
     >
       <span className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${selectionAccent} opacity-0 ${isSelectedVisual ? 'opacity-100' : ''} pointer-events-none`} />
       {statusStrip && <span className={`absolute inset-x-0 top-0 h-1.5 ${statusStrip} pointer-events-none`} />}
-      {isSelectedVisual && <span className={`absolute inset-0 rounded-[1.35rem] ring-1 ${lightMode ? 'ring-amber-200/80' : 'ring-white/10'} pointer-events-none`} />}
+      {isSelectedVisual && <span className={`absolute inset-0 rounded-[1.35rem] ring-1 ${lightMode ? 'ring-amber-200/35' : 'ring-white/10'} pointer-events-none`} />}
       {/* Static subtle glow for waiting bill — no pulse */}
       {table.status === 'waiting_bill' && (
         <span className={`absolute inset-0 pointer-events-none ${lightMode ? 'bg-amber-100/35' : 'bg-amber-400/[0.04]'}`} />
@@ -150,19 +151,19 @@ export function TableCard({
             </span>
           )}
           {isTransferSource && !isSelectedVisual && (
-            <span className={`px-2.5 py-1 rounded-full text-[8px] font-semibold uppercase tracking-[0.18em] ${lightMode ? 'bg-amber-100 text-amber-800' : 'bg-amber-400/15 text-amber-200'}`}>
+            <span className={`px-2.5 py-1 rounded-full text-[8px] font-semibold uppercase tracking-[0.18em] ${lightMode ? 'bg-amber-100 text-amber-800' : 'bg-amber-400/8 text-amber-100'}`}>
               Mənbə
             </span>
           )}
           {isTransferTarget && !isSelectedVisual && (
-            <span className={`px-2.5 py-1 rounded-full text-[8px] font-semibold uppercase tracking-[0.18em] ${lightMode ? 'bg-amber-50 text-amber-700' : 'bg-amber-400/20 text-amber-100'}`}>
+            <span className={`px-2.5 py-1 rounded-full text-[8px] font-semibold uppercase tracking-[0.18em] ${lightMode ? 'bg-amber-50 text-amber-700' : 'bg-amber-400/10 text-amber-100'}`}>
               Hədəf
             </span>
           )}
           {onAction && !isMerged && (
             <span
               onClick={e => { e.stopPropagation(); onAction(); }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]"
+              className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all cursor-pointer text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] active:scale-95"
             >
               <MoreVertical size={16} />
             </span>

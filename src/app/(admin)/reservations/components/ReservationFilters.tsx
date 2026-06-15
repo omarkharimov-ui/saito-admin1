@@ -84,7 +84,7 @@ const ReservationFilters = ({
                 onClick={() => onStatusFilter(status)}
                 className={`relative px-3.5 py-2 rounded-full text-[12px] font-medium transition-colors duration-200 border ${
                   statusFilter === status
-                    ? 'bg-white/[0.08] text-white border-white/[0.12]'
+                    ? 'bg-[var(--theme-surface)] text-[var(--theme-text-primary)] border-[var(--theme-border)]'
                     : 'bg-transparent text-white/50 border-transparent hover:text-white/70 hover:bg-white/[0.03]'
                 }`}
               >
@@ -103,11 +103,11 @@ const ReservationFilters = ({
                   <button
                     type="button"
                     onClick={onSelectAll}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white/60 hover:text-white transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-xs text-[var(--theme-text-secondary)] hover:text-[var(--theme-text-primary)] transition-colors"
                   >
                     <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                       selectedArchiveCount === totalArchiveCount && totalArchiveCount > 0
-                        ? 'bg-blue-500 border-blue-500'
+                        ? 'bg-gold border-gold'
                         : 'border-white/30 bg-transparent'
                     }`}>
                       {selectedArchiveCount === totalArchiveCount && totalArchiveCount > 0 && (
@@ -118,13 +118,13 @@ const ReservationFilters = ({
                     </span>
                     Hamısını seç ({totalArchiveCount})
                   </button>
-                  <span className="text-xs text-white/40">{selectedArchiveCount} seçili</span>
+                  <span className="text-xs text-[var(--theme-text-secondary)]">{selectedArchiveCount} seçili</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={onCancelArchiveSelection}
-                    className="flex-1 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] px-4 py-2 text-sm text-[var(--theme-text-secondary)] transition hover:bg-[var(--theme-surface)]"
+                    className="flex-1 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] px-4 py-2 text-sm text-[var(--theme-text-secondary)] transition hover:bg-[var(--theme-surface-elevated)]"
                   >
                     {t('cancel_selection')}
                   </button>
@@ -144,13 +144,13 @@ const ReservationFilters = ({
                   <button
                     type="button"
                     onClick={onStartArchiveSelection}
-                    className="mobile-tap-lift w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-medium tracking-wide text-red-300 border border-red-500/15 bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-surface)] transition-all duration-200"
+                    className="mobile-tap-lift w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-medium tracking-wide text-red-500 border border-red-500/20 bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-surface-elevated)] transition-all duration-200"
                   >
                     <Trash2 size={16} strokeWidth={2} />
                     {t('select_archive')}
                   </button>
                 </div>
-                <p className="text-[11px] text-center text-white/40 mt-2 leading-relaxed px-2">
+                <p className="text-[11px] text-center text-[var(--theme-text-secondary)] mt-2 leading-relaxed px-2">
                   {t('clear_archive_help')}
                 </p>
               </>
@@ -261,11 +261,11 @@ const ReservationFilters = ({
                 </div>
               ) : (
                 <div className="relative group shrink-0">
-                  <button onClick={onStartArchiveSelection} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-white/40 hover:text-red-400 border border-white/10 hover:border-red-500/30 hover:bg-red-500/5 transition-all hover:-translate-y-0.5 active:translate-y-0">
+                  <button onClick={onStartArchiveSelection} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-[var(--theme-text-secondary)] hover:text-red-500 border border-[var(--theme-border)] hover:border-red-500/30 hover:bg-red-500/5 transition-all hover:-translate-y-0.5 active:translate-y-0">
                     <Trash2 size={14} />
                     {t('select_archive')}
                   </button>
-                  <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max -translate-x-1/2 rounded-xl bg-gray-900/95 px-3 py-2 text-[11px] text-white border border-white/15 shadow-[0_18px_60px_rgba(0,0,0,0.35)] opacity-0 translate-y-1 transition-all group-hover:opacity-100 group-hover:translate-y-0">
+                  <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-max -translate-x-1/2 rounded-xl bg-[var(--theme-surface-elevated)] px-3 py-2 text-[11px] text-[var(--theme-text-primary)] border border-[var(--theme-border)] shadow-[0_18px_60px_rgba(15,23,42,0.12)] opacity-0 translate-y-1 transition-all group-hover:opacity-100 group-hover:translate-y-0">
                     {t('clear_archive_help')}
                   </div>
                 </div>
@@ -280,7 +280,7 @@ const ReservationFilters = ({
                   onClick={() => onStatusFilter(status)}
                   className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
                     statusFilter === status
-                      ? 'bg-white/10 text-white'
+                      ? 'bg-[var(--theme-surface-elevated)] text-[var(--theme-text-primary)]'
                       : 'text-white/40 hover:text-white/70 hover:bg-white/5'
                   }`}
                 >

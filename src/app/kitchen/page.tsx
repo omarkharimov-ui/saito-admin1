@@ -920,7 +920,7 @@ export default function KitchenPage() {
     const allItemsReady = order.items.length > 0 && order.items.every(it => it.preparedQuantity >= it.orderedQuantity);
     const kitchenStatusLabel = (() => {
       if (allItemsReady)                         return { text: 'Hazırdır',   color: 'text-emerald-300', badge: 'bg-emerald-500/15 border-emerald-400/30', pulse: false };
-      if (order.kitchen_status === 'preparing')  return { text: 'Hazırlanır', color: 'text-blue-300',    badge: 'bg-blue-500/15 border-blue-400/30',       pulse: false };
+      if (order.kitchen_status === 'preparing')  return { text: 'Hazırlanır', color: 'text-[var(--theme-text-secondary)]', badge: 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)]', pulse: false };
       return { text: 'YENİ', color: 'text-amber-300', badge: 'bg-amber-500/15 border-amber-400/30', pulse: true };
     })();
 

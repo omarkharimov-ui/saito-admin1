@@ -48,7 +48,7 @@ export function PremiumDashboard() {
                 className={`flex items-center gap-3 p-4 rounded-lg border ${
                   alert.type === 'warning'
                     ? 'bg-amber-50 border-amber-200 text-amber-900'
-                    : 'bg-blue-50 border-blue-200 text-blue-900'
+                    : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-primary)]'
                 }`}
               >
                 <AlertCircle size={18} className="flex-shrink-0" />

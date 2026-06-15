@@ -128,19 +128,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [audio]);
 
   const fetchNewOrdersCount = useCallback(async () => {
-    if (skipOrdersOnMobileRef.current) {
-      setNewOrdersCount(0);
-      return;
-    }
     const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'new');
     if (count !== null) setNewOrdersCount(count);
   }, []);
 
   const fetchReadyOrdersCount = useCallback(async () => {
-    if (skipOrdersOnMobileRef.current) {
-      setReadyOrdersCount(0);
-      return;
-    }
     const { count } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })

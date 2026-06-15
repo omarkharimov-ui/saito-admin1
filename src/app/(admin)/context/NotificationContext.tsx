@@ -302,13 +302,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'orders' }, () => {
-        if (!skipOrdersOnMobileRef.current) {
-          fetchNewOrdersCountRef.current();
-          fetchReadyOrdersCountRef.current();
-        }
+        fetchNewOrdersCountRef.current();
+        fetchReadyOrdersCountRef.current();
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, async (payload) => {
-        if (skipOrdersOnMobileRef.current) return;
         fetchNewOrdersCountRef.current();
         if (payload.new?.status !== 'new') return;
         const tableNum = payload.new?.table_number;

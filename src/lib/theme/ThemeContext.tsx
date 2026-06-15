@@ -10,6 +10,12 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+const fallbackTheme: ThemeContextValue = {
+  isHighContrast: false,
+  lightMode: false,
+  setLightMode: () => {},
+};
+
 function getSystemContrast(): boolean {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(prefers-contrast: more)').matches;
@@ -87,6 +93,5 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
 export const useTheme = (): ThemeContextValue => {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
-  return ctx;
+  return ctx ?? fallbackTheme;
 };

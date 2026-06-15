@@ -646,9 +646,11 @@ const AdminDashboard = () => {
   }, [products, todayAov, role, language, t]);
 
   return (
-    <div className="flex flex-col gap-y-4 pb-4 lg:pb-20 overflow-visible">
+    <div className="flex flex-col gap-y-5 pb-4 lg:pb-20 overflow-visible">
       {/* Hero Banner - Greeting + Live Badge */}
-      <HeroBanner />
+      <div className="relative overflow-visible">
+        <HeroBanner />
+      </div>
 
       <>
 
@@ -659,55 +661,55 @@ const AdminDashboard = () => {
         <>
           {/* DESKTOP — Yoji AI Advice Card */}
           <div
-            className="hidden lg:block p-8 relative z-10 group rounded-2xl overflow-hidden flex-shrink-0"
+            className="hidden lg:block p-8 relative z-10 group rounded-[28px] overflow-hidden flex-shrink-0"
             style={{ background: 'var(--theme-panel)', border: '1px solid var(--theme-border)' }}
           >
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--theme-border-strong)] to-transparent opacity-70" />
             <div className="flex items-start gap-6 relative z-0">
               <div className="relative shrink-0" style={{ width: 96, height: 96 }}>
-                {/* Pulse glow arxada */}
-                <motion.span 
-                  className="absolute inset-[8px] rounded-2xl blur-lg pointer-events-none z-0"
-                  animate={{ 
-                    backgroundColor: ['rgba(212,175,55,0)', 'rgba(212,175,55,0.4)', 'rgba(212,175,55,0)'],
-                    scale: [1, 1.1, 1],
+                <motion.span
+                  className="absolute inset-[10px] rounded-[22px] blur-xl pointer-events-none z-0"
+                  animate={{
+                    backgroundColor: ['rgba(120,119,198,0)', 'rgba(120,119,198,0.12)', 'rgba(120,119,198,0)'],
+                    scale: [1, 1.05, 1],
                   }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
                 />
-                <div className="absolute inset-[8px] rounded-2xl bg-gold text-black shadow-xl shadow-gold/20 flex items-center justify-center z-10">
-                  {/* Animated Brain Circuit */}
-                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <div className="absolute inset-[10px] rounded-[22px] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center z-10 shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--theme-text-secondary)]">
                     <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
                     <path d="M9 13a4.5 4.5 0 0 0 3-4" /><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
                     <path d="M3.477 10.896a4 4 0 0 1 .585-.396" /><path d="M6 18a4 4 0 0 1-1.967-.516" />
                     <path d="M12 13h4" /><path d="M12 18h6a2 2 0 0 1 2 2v1" /><path d="M12 8h8" />
                     <path d="M16 8V5a2 2 0 0 1 2-2" />
-                    {/* Animated circuit lines */}
-                    <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" 
-                      stroke="rgba(0,0,0,0.9)" strokeWidth="2" strokeDasharray="5 25" 
-                      style={{ animation: 'circuitFlow 2.5s linear infinite' }} />
-                    <path d="M12 8h8M16 8V5a2 2 0 0 1 2-2M12 13h4M12 18h6a2 2 0 0 1 2 2v1" 
-                      stroke="rgba(0,0,0,0.8)" strokeWidth="1.5" strokeDasharray="4 18" 
-                      style={{ animation: 'circuitFlow 1.8s linear infinite reverse' }} />
+                    <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"
+                      stroke="rgba(120,119,198,0.6)" strokeWidth="2" strokeDasharray="5 25"
+                      style={{ animation: 'circuitFlow 2.8s linear infinite' }} />
+                    <path d="M12 8h8M16 8V5a2 2 0 0 1 2-2M12 13h4M12 18h6a2 2 0 0 1 2 2v1"
+                      stroke="rgba(148,163,184,0.65)" strokeWidth="1.5" strokeDasharray="4 18"
+                      style={{ animation: 'circuitFlow 2.1s linear infinite reverse' }} />
                   </svg>
                 </div>
               </div>
-              <div className="space-y-3 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-gold">{t('yoji_advice')}</span>
-                  <Sparkles size={14} className="text-gold" />
+              <div className="space-y-4 flex-1 min-w-0">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[10px] uppercase tracking-[0.42em] font-bold text-[var(--theme-text-secondary)]">{t('yoji_advice')}</span>
+                  <Sparkles size={13} className="text-[var(--theme-text-secondary)]" />
                 </div>
                 {yojiAdvice ? (
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <span className="text-[10px] font-bold tracking-[0.2em] uppercase mb-1 block text-gold/60">{yojiAdvice.title}</span>
-                      <p className="text-xl font-serif italic leading-relaxed text-[var(--theme-text)]">
+                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="space-y-2.5 min-w-0">
+                      <span className="inline-flex w-fit text-[10px] font-bold tracking-[0.22em] uppercase px-2.5 py-1 rounded-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">
+                        {yojiAdvice.title}
+                      </span>
+                      <p className="text-[17px] md:text-[19px] font-serif italic leading-[1.55] text-[var(--theme-text)] max-w-[42rem]">
                         &ldquo;{yojiAdvice.text}&rdquo;
                       </p>
                     </div>
                     {yojiAdvice.productId && (
-                      <div className="flex-shrink-0 flex flex-col items-start md:items-end gap-2">
-                        <span className="text-[10px] uppercase tracking-[0.25em] text-green-300/80">
-                          {t('expected_growth')}: <span className="font-bold text-green-300">+15%</span>
+                      <div className="flex-shrink-0 flex flex-col items-start md:items-end gap-3">
+                        <span className="text-[10px] uppercase tracking-[0.24em] text-[var(--theme-text-secondary)]">
+                          {t('expected_growth')}: <span className="font-bold text-[var(--theme-text)]">+15%</span>
                         </span>
                         <button
                           onClick={() => {
@@ -715,15 +717,15 @@ const AdminDashboard = () => {
                             if (!product) return;
                             openAiDiscountModal(product.id, product.name, 10, yojiAdvice.type === 'HAPPY_HOUR' ? 'HAPPY_HOUR' : 'PERCENTAGE');
                           }}
-                          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold tracking-widest uppercase transition-all transition-premium shadow-lg ${lightMode ? 'bg-gray-900 text-white shadow-black/10 border border-gray-900' : 'text-black shadow-gold/10 bg-gradient-to-r from-gold via-[#E7C85A] to-gold border border-gold/30'}`}
+                          className={`flex items-center gap-2.5 px-5 py-3 rounded-[14px] text-[11px] font-bold tracking-[0.24em] uppercase transition-all transition-premium border shadow-sm ${lightMode ? 'bg-[var(--theme-text)] text-[var(--theme-surface)] border-[var(--theme-text)] shadow-black/5' : 'text-black bg-gradient-to-r from-gold via-[#E7C85A] to-gold border border-gold/30 shadow-gold/10'}`}
                         >
-                          <Zap size={16} /> {t('apply')}
+                          <Zap size={15} /> {t('apply')}
                         </button>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <p className="text-xl font-serif italic leading-relaxed text-white/60">
+                  <p className="text-[17px] md:text-[19px] font-serif italic leading-[1.55] text-[var(--theme-text-secondary)] max-w-[42rem]">
                     {t('ai_analyzing')}
                   </p>
                 )}
@@ -821,7 +823,9 @@ const AdminDashboard = () => {
       )}
 
       {/* Live Floor Snapshot - Canlı Masa Planı (Yoji Məsləhəti altında) */}
-      <LiveFloorSnapshot />
+      <div className="mt-1">
+        <LiveFloorSnapshot />
+      </div>
 
       {/* Product Modal */}
       <DashboardProductModal

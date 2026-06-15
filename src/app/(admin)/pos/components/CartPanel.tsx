@@ -144,7 +144,7 @@ export function CartPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0 pb-4 border-b border-[var(--theme-border)] gap-3">
+      <div className="flex items-start justify-between flex-shrink-0 pb-4 border-b border-[var(--theme-border)] gap-4">
         <div className="flex items-center gap-2">
           <button onClick={onBack}
             className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] active:scale-95">
@@ -159,7 +159,7 @@ export function CartPanel({
                 </span>
               )}
             </p>
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="flex items-center gap-1.5 mt-1">
               <span className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} {t('items')}</span>
               <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
               <div className="flex items-center gap-1.5">
@@ -327,7 +327,7 @@ export function CartPanel({
                   type="text"
                   value={customReasonText}
                   onChange={e => setCustomReasonText(e.target.value)}
-                                                  placeholder={t('loss_reason_custom_placeholder')}
+                  placeholder={t('loss_reason_custom_placeholder')}
                   className={`flex-1 px-4 py-3 rounded-xl text-sm border outline-none transition-all ${
                     lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30'
                   }`}
@@ -348,7 +348,7 @@ export function CartPanel({
                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                 className="space-y-1.5"
               >
-                <div className="flex gap-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                   {lossReasons.map(r => (
                     <button key={r.key}
                       onClick={() => setLossReason(r.key)}

@@ -454,15 +454,17 @@ export default function POSPage() {
                           onClick={async () => {
                             await pos.mergeTables(selectedForMerge);
                             window.setTimeout(() => {
-                              setMergeMode(false);
+                              setTableFlowMode('idle');
                               setSelectedForMerge([]);
+                              setTransferSource(null);
+                              setTransferTarget(null);
                             }, 180);
                           }}
                           disabled={selectedForMerge.length < 2}
                           className={`min-h-[44px] px-4 py-2.5 rounded-2xl text-sm font-bold disabled:opacity-30 transition-all active:scale-95 ${lightMode ? 'bg-amber-600 text-white border border-amber-700' : 'bg-gold/10 border border-gold/20 text-gold'}`}>
                           {t('merge_button').replace('{count}', String(selectedForMerge.length))}
                         </button>
-                        <button onClick={() => { setMergeMode(false); setSelectedForMerge([]); }}
+                        <button onClick={() => { setTableFlowMode('idle'); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); }}
                           className="min-h-[44px] px-4 py-2.5 rounded-2xl text-sm font-bold transition-all text-[var(--theme-text-secondary)] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                           Ləğv
                         </button>
@@ -722,9 +724,8 @@ export default function POSPage() {
                 pos.clearCart();
                 pos.backToFloor();
                 setIsDirty(false);
-                setMergeMode(false);
+                setTableFlowMode('idle');
                 setSelectedForMerge([]);
-                setTransferMode(false);
                 setTransferSource(null);
                 setTransferTarget(null);
                 setActionSheetOpen(false);
@@ -748,7 +749,7 @@ export default function POSPage() {
         onClose={() => { setActionSheetOpen(false); setActionSheetTable(null); }}
         onAddOrder={handleActionAddOrder}
         onMerge={handleActionMerge}
-        onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); setTransferTarget(null); pos.setSelectedTable(actionSheetTable!); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); toast.success(`Mənbə masa seçildi: ${actionSheetTable!.table_number}`); }}
+        onTransfer={() => { setTableFlowMode('transfer'); setTransferSource(actionSheetTable!.table_number); setTransferTarget(null); pos.setSelectedTable(actionSheetTable!); pos.setActiveView('floor'); setActionSheetOpen(false); setActionSheetTable(null); toast.success(`Mənbə masa seçildi: ${actionSheetTable!.table_number}`); }}
         onSplitBill={handleSplitTable}
         onCloseBill={handleActionCloseBill}
         onPrint={() => { setActionSheetOpen(false); setActionSheetTable(null); }}

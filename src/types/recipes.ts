@@ -29,9 +29,11 @@ export interface InventoryImportPayload {
   supplierName?: string | null;
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
+  purchaseOrderNumber?: string | null;
   currency?: string | null;
   totalAmount?: number | null;
   totalTax?: number | null;
   notes?: string | null;
+  reviewMode?: boolean;
   lines: InventoryImportLine[];
 }

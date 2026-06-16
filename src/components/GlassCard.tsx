@@ -43,9 +43,9 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
   ({ children, hover = false, intensity = 'medium', padding = 'md', className = '', ...props }, ref) => {
     const { lightMode } = useTheme();
     const style = intensityMap[intensity];
-    const baseBg = lightMode ? 'bg-white' : style.bg;
+    const baseBg = lightMode ? 'bg-[var(--theme-surface)]' : style.bg;
     const baseBorder = lightMode ? 'border-[var(--theme-border)]' : style.border;
-    const baseGlow = lightMode ? 'rgba(17,24,39,0.04)' : style.glow;
+    const baseGlow = lightMode ? 'rgba(17,24,39,0.035)' : style.glow;
     return (
       <motion.div
         ref={ref}
@@ -55,13 +55,13 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
         className={`
           rounded-2xl border backdrop-blur-xl
           ${baseBg} ${baseBorder}
-          ${hover ? style.hover + ' transition-all duration-300' : ''}
+          ${hover ? (lightMode ? 'hover:bg-[var(--theme-surface-soft)]' : style.hover) + ' transition-all duration-300' : ''}
           ${paddingMap[padding]}
           ${className}
         `}
         style={{
           boxShadow: lightMode
-            ? `0 4px 24px rgba(17,24,39,0.06), inset 0 1px 0 ${baseGlow}`
+            ? `0 2px 12px rgba(17,24,39,0.04), inset 0 1px 0 ${baseGlow}`
             : `0 4px 24px rgba(0,0,0,0.04), inset 0 1px 0 ${baseGlow}`,
         }}
         {...props}

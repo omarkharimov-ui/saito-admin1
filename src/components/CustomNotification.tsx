@@ -107,7 +107,7 @@ export function CustomNotificationProvider() {
               exit={{ x: 100, opacity: 0, scale: 0.9 }}
               className="pointer-events-auto w-full"
             >
-              <div className={`${lightMode ? 'bg-white border-[color:var(--theme-border)] ring-black/5 shadow-[0_12px_36px_rgba(17,24,39,0.10)]' : 'bg-black/95 border-white/10 ring-white/5 shadow-2xl'} backdrop-blur-xl rounded-xl p-4 w-full min-w-0 max-w-none ring-1`}>
+              <div className={`${lightMode ? 'bg-[var(--theme-surface)] border-[color:var(--theme-border)] ring-black/5 shadow-[0_12px_30px_rgba(17,24,39,0.06)]' : 'bg-black/95 border-white/10 ring-white/5 shadow-2xl'} backdrop-blur-xl rounded-xl p-4 w-full min-w-0 max-w-none ring-1`}>
                 <div className="flex items-start gap-3">
                   {/* Icon */}
                   <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center`}>
@@ -116,13 +116,13 @@ export function CustomNotificationProvider() {
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-semibold text-white truncate">
+                    <h4 className="text-sm font-semibold text-[var(--theme-text)] truncate">
                       {notif.title}
                     </h4>
-                    <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
+                    <p className="text-xs text-[var(--theme-text-secondary)] mt-1 line-clamp-2">
                       {notif.message}
                     </p>
-                    <span className="text-[10px] text-zinc-600 mt-2 block">
+                    <span className="text-[10px] text-[var(--theme-text-muted)] mt-2 block">
                       {notif.timestamp.toLocaleTimeString('az-AZ', { 
                         hour: '2-digit', 
                         minute: '2-digit' 
@@ -133,7 +133,7 @@ export function CustomNotificationProvider() {
                   {/* Dismiss */}
                   <button
                     onClick={() => dismissNotification(notif.id)}
-                    className="flex-shrink-0 p-1.5 text-zinc-500 hover:text-white transition-colors"
+                    className="flex-shrink-0 p-1.5 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"
                   >
                     <X size={16} />
                   </button>

@@ -69,7 +69,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
             {role === 'superadmin' ? t('superadmin') : t('admin')}
           </span>
         </p>
-        <Link href="/" className="text-base font-serif font-bold truncate block text-[var(--theme-text)]">
+        <Link href="/" className="text-base font-semibold truncate block text-[var(--theme-text)]">
           Saito Admin
         </Link>
       </div>
@@ -133,7 +133,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
                       <button
                         type="button"
                         onClick={clearNotifications}
-                        className="text-[10px] uppercase text-[var(--theme-text-secondary)]"
+                        className="text-[10px] uppercase text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]"
                       >
                         {t('clear_all')}
                       </button>

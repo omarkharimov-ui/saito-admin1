@@ -106,7 +106,7 @@ export default function HeroBanner() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl bg-[var(--theme-surface)] p-4 sm:p-6 lg:p-8 shadow-[0_12px_40px_rgba(0,0,0,0.08)] border border-[var(--theme-border)]"
+      className="relative overflow-hidden rounded-3xl bg-[var(--theme-surface)] p-4 sm:p-6 lg:p-8 shadow-[0_12px_30px_rgba(17,24,39,0.06)] border border-[var(--theme-border)]"
     >
       {/* Animated gradient backgrounds */}
       <div className="absolute inset-0 overflow-hidden">
@@ -141,7 +141,7 @@ export default function HeroBanner() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="text-2xl md:text-3xl font-serif font-bold text-[var(--theme-text)]"
+              className="text-2xl md:text-3xl font-semibold tracking-[-0.03em] text-[var(--theme-text)]"
             >
               {greeting}{userName ? `, ${userName}` : ''}
             </motion.h1>
@@ -184,7 +184,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
-                      className="text-5xl md:text-6xl"
+                      className="text-5xl md:text-6xl font-semibold tracking-[-0.05em] text-[var(--theme-text)]"
                     >
                       {revenueValue}
                     </motion.span>
@@ -360,7 +360,7 @@ export default function HeroBanner() {
                   <div className="text-2xl font-semibold text-[var(--theme-text)]">{stats.calibrationSuggestions}</div>
                   <div className="text-xs text-[var(--theme-text-secondary)]">AI reverse-inventory təklifi</div>
                 </div>
-                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.calibrationSuggestions > 0 ? 'border-amber-500/30 text-amber-300 bg-amber-500/10' : 'border-white/10 text-[var(--theme-text-muted)] bg-white/[0.03]'}`}>
+                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.calibrationSuggestions > 0 ? 'border-amber-500/20 text-amber-700 bg-amber-50' : 'border-[var(--theme-border)] text-[var(--theme-text-muted)] bg-[var(--theme-surface-soft)]'}`}>
                   {stats.calibrationSuggestions > 0 ? 'Needs review' : 'Synced'}
                 </div>
               </div>
@@ -373,7 +373,7 @@ export default function HeroBanner() {
                   <div className="text-2xl font-semibold text-[var(--theme-text)] capitalize">{stats.marginInsight.marginPressure}</div>
                   <div className="text-xs text-[var(--theme-text-secondary)]">Gross {stats.marginInsight.grossMarginPct.toFixed(1)}% · Net {stats.marginInsight.netMarginPct.toFixed(1)}%</div>
                 </div>
-                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.marginInsight.marginPressure === 'critical' ? 'border-rose-500/30 text-rose-300 bg-rose-500/10' : stats.marginInsight.marginPressure === 'tight' ? 'border-amber-500/30 text-amber-300 bg-amber-500/10' : 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10'}`}>
+                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.marginInsight.marginPressure === 'critical' ? 'border-rose-200 text-rose-700 bg-rose-50' : stats.marginInsight.marginPressure === 'tight' ? 'border-amber-200 text-amber-700 bg-amber-50' : 'border-emerald-200 text-emerald-700 bg-emerald-50'}`}>
                   FC {stats.marginInsight.foodCostPct.toFixed(1)}%
                 </div>
               </div>

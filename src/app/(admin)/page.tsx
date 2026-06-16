@@ -45,7 +45,7 @@ function SenseiSleepCard({ openingHours }: { openingHours: string }) {
   const openTime = openMatch?.[1];
 
   return (
-    <div className="relative overflow-hidden rounded-[24px] bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+    <div className="relative overflow-hidden rounded-[24px] bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_10px_30px_rgba(17,24,39,0.06)]">
       <div className="relative z-10 flex items-center gap-5 p-6 md:p-7">
         {/* Brain icon */}
         <div className="relative shrink-0 sensei-icon-calm">

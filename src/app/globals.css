@@ -32,18 +32,18 @@
 }
 html { background-color: var(--theme-bg); }
 html[data-theme="light"] {
-  --theme-bg: #f5f6f8;
+  --theme-bg: #f5f5f7;
   --theme-surface: #ffffff;
   --theme-surface-elevated: #ffffff;
-  --theme-surface-soft: #f1f3f7;
-  --theme-text: #111827;
-  --theme-text-secondary: #4b5563;
-  --theme-text-muted: #6b7280;
-  --theme-border: #e5e7eb;
-  --theme-border-strong: #cbd2dc;
-  --theme-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  --theme-surface-soft: #f3f4f6;
+  --theme-text: #1d1d1f;
+  --theme-text-secondary: #6e6e73;
+  --theme-text-muted: #8e8e93;
+  --theme-border: #e5e5e7;
+  --theme-border-strong: #d2d2d7;
+  --theme-shadow: 0 2px 12px rgba(17, 24, 39, 0.04);
   --theme-panel: #ffffff;
-  --theme-panel-strong: #fafafa;
+  --theme-panel-strong: #fbfbfc;
   --theme-accent: #0f766e;
   --theme-accent-soft: rgba(15, 118, 110, 0.08);
   --theme-accent-border: rgba(15, 118, 110, 0.16);
@@ -67,6 +67,21 @@ html[data-theme="dark"] {
 }
 body { background-color: var(--theme-bg); color: var(--theme-text); }
 
+html[data-theme="light"] .font-serif {
+  font-family: var(--font-sans);
+}
+
+html[data-theme="light"] .text-white {
+  color: var(--theme-text);
+}
+
+html[data-theme="light"] .text-white\/70,
+html[data-theme="light"] .text-white\/80,
+html[data-theme="light"] .text-white\/85,
+html[data-theme="light"] .text-white\/90 {
+  color: var(--theme-text-secondary);
+}
+
 @import "tailwindcss";
 @import "../styles/foundation.css";
 @import "../styles/surfaces.css";
@@ -81,7 +96,7 @@ body { background-color: var(--theme-bg); color: var(--theme-text); }
   --color-card:        var(--card);
   --color-gold:        var(--gold);
   --color-gold-hover:  var(--gold-hover);
-  --font-serif: "Playfair Display", serif;
+  --font-serif: "Noto Sans", var(--font-geist-sans), "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-sans:  "Noto Sans", var(--font-geist-sans), "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 

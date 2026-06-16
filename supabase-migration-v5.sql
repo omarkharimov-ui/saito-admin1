@@ -1,10 +1,15 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- SUPPLIER & PURCHASE ORDER SYSTEM
 -- Migration v5 — Phase 1 of procurement intelligence
+-- Drop first so CREATE TABLE works fresh (no production data yet)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
+DROP TABLE IF EXISTS purchase_order_items;
+DROP TABLE IF EXISTS purchase_orders;
+DROP TABLE IF EXISTS suppliers;
+
 -- ─── Suppliers ───────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS suppliers (
+CREATE TABLE suppliers (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name            TEXT NOT NULL,
   contact_person  TEXT,
@@ -22,11 +27,11 @@ CREATE TABLE IF NOT EXISTS suppliers (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_suppliers_status ON suppliers(status);
-CREATE INDEX IF NOT EXISTS idx_suppliers_name  ON suppliers(name);
+CREATE INDEX idx_suppliers_status ON suppliers(status);
+CREATE INDEX idx_suppliers_name  ON suppliers(name);
 
 -- ─── Purchase Orders ─────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS purchase_orders (
+CREATE TABLE purchase_orders (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   supplier_id     UUID NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
   order_number    TEXT NOT NULL,
@@ -39,12 +44,12 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON purchase_orders(supplier_id);
-CREATE INDEX IF NOT EXISTS idx_purchase_orders_status   ON purchase_orders(status);
-CREATE INDEX IF NOT EXISTS idx_purchase_orders_number   ON purchase_orders(order_number);
+CREATE INDEX idx_purchase_orders_supplier ON purchase_orders(supplier_id);
+CREATE INDEX idx_purchase_orders_status   ON purchase_orders(status);
+CREATE INDEX idx_purchase_orders_number   ON purchase_orders(order_number);
 
 -- ─── Purchase Order Items ────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS purchase_order_items (
+CREATE TABLE purchase_order_items (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   purchase_order_id   UUID NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
   ingredient_id       UUID REFERENCES ingredients(id) ON DELETE SET NULL,
@@ -57,8 +62,8 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_po_items_purchase_order ON purchase_order_items(purchase_order_id);
-CREATE INDEX IF NOT EXISTS idx_po_items_ingredient     ON purchase_order_items(ingredient_id);
+CREATE INDEX idx_po_items_purchase_order ON purchase_order_items(purchase_order_id);
+CREATE INDEX idx_po_items_ingredient     ON purchase_order_items(ingredient_id);
 
 -- ─── Auto-update `updated_at` trigger ──────────────────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at_column()

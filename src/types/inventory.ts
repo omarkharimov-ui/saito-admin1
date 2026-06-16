@@ -192,3 +192,75 @@ export type { NormalizedRecipeSuggestion, NormalizedRecipeIngredient, RecipeSour
 
 export type AiRecipeSuggestion = import('./recipes').NormalizedRecipeSuggestion;
 export type CookbookRecipe = import('./recipes').NormalizedRecipeSuggestion;
+
+// ─── Supplier ──────────────────────────────────────────────────────────────────
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  tax_id: string | null;
+  notes: string | null;
+  status: 'active' | 'inactive';
+  score: number | null;
+  total_orders: number;
+  on_time_delivery_rate: number | null;
+  avg_price_stability: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSupplierPayload {
+  name: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  tax_id?: string;
+  notes?: string;
+}
+
+// ─── Purchase Order ────────────────────────────────────────────────────────────
+
+export type PurchaseOrderStatus = 'draft' | 'sent' | 'partial' | 'received' | 'cancelled';
+
+export interface PurchaseOrder {
+  id: string;
+  supplier_id: string;
+  order_number: string;
+  status: PurchaseOrderStatus;
+  total_amount: number;
+  notes: string | null;
+  ordered_at: string;
+  received_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseOrderItem {
+  id: string;
+  purchase_order_id: string;
+  ingredient_id: string | null;
+  product_name: string;
+  quantity: number;
+  unit: string;
+  unit_cost: number;
+  total_cost: number;
+  received_quantity: number;
+  created_at: string;
+}
+
+export interface CreatePurchaseOrderPayload {
+  supplier_id: string;
+  notes?: string;
+  items: {
+    ingredient_id?: string | null;
+    product_name: string;
+    quantity: number;
+    unit: string;
+    unit_cost: number;
+  }[];
+}

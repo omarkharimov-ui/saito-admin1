@@ -8,7 +8,7 @@ export default function PurchasePage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/stock');
+    router.replace('/purchase-orders');
   }, [router]);
 
   return (

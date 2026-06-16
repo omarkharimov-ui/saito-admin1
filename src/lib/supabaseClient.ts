@@ -437,6 +437,250 @@ export type Database = {
         };
         Relationships: [];
       };
+      ingredients: {
+        Row: {
+          id: string;
+          name: string;
+          unit: 'gram' | 'piece' | 'ml';
+          current_stock: number;
+          theoretical_stock: number;
+          critical_limit: number;
+          average_cost_per_unit: number;
+          purchase_price: number;
+          cold_waste_percentage: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          unit: 'gram' | 'piece' | 'ml';
+          current_stock?: number;
+          theoretical_stock?: number;
+          critical_limit?: number;
+          average_cost_per_unit?: number;
+          purchase_price?: number;
+          cold_waste_percentage?: number;
+        };
+        Update: {
+          name?: string;
+          unit?: 'gram' | 'piece' | 'ml';
+          current_stock?: number;
+          theoretical_stock?: number;
+          critical_limit?: number;
+          average_cost_per_unit?: number;
+          purchase_price?: number;
+          cold_waste_percentage?: number;
+        };
+        Relationships: [];
+      };
+      inventory_logs: {
+        Row: {
+          id: string;
+          ingredient_id: string;
+          type: 'stock_in' | 'waste' | 'adjustment' | 'order_consumption';
+          quantity: number;
+          cost_per_unit: number | null;
+          reason: string | null;
+          order_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          ingredient_id: string;
+          type: 'stock_in' | 'waste' | 'adjustment' | 'order_consumption';
+          quantity: number;
+          cost_per_unit?: number | null;
+          reason?: string | null;
+          order_id?: string | null;
+        };
+        Update: {
+          ingredient_id?: string;
+          type?: 'stock_in' | 'waste' | 'adjustment' | 'order_consumption';
+          quantity?: number;
+          cost_per_unit?: number | null;
+          reason?: string | null;
+          order_id?: string | null;
+        };
+        Relationships: [];
+      };
+      recipes: {
+        Row: {
+          id: string;
+          menu_item_id: string;
+          ingredient_id: string;
+          quantity_required: number;
+          quantity_brutto: number | null;
+          hot_waste_percentage: number | null;
+          is_ai_suggested: boolean | null;
+          recipe_header_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          menu_item_id: string;
+          ingredient_id: string;
+          quantity_required: number;
+          quantity_brutto?: number | null;
+          hot_waste_percentage?: number | null;
+          is_ai_suggested?: boolean | null;
+          recipe_header_id?: string | null;
+        };
+        Update: {
+          menu_item_id?: string;
+          ingredient_id?: string;
+          quantity_required?: number;
+          quantity_brutto?: number | null;
+          hot_waste_percentage?: number | null;
+          is_ai_suggested?: boolean | null;
+          recipe_header_id?: string | null;
+        };
+        Relationships: [];
+      };
+      waste_standards: {
+        Row: {
+          id: string;
+          keyword: string;
+          keyword_en: string | null;
+          waste_percentage: number;
+          note: string | null;
+          category: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          keyword: string;
+          keyword_en?: string | null;
+          waste_percentage: number;
+          note?: string | null;
+          category?: string | null;
+        };
+        Update: {
+          keyword?: string;
+          keyword_en?: string | null;
+          waste_percentage?: number;
+          note?: string | null;
+          category?: string | null;
+        };
+        Relationships: [];
+      };
+      suppliers: {
+        Row: {
+          id: string;
+          name: string;
+          contact_person: string | null;
+          phone: string | null;
+          email: string | null;
+          address: string | null;
+          tax_id: string | null;
+          notes: string | null;
+          status: 'active' | 'inactive';
+          score: number | null;
+          total_orders: number;
+          on_time_delivery_rate: number | null;
+          avg_price_stability: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          contact_person?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          address?: string | null;
+          tax_id?: string | null;
+          notes?: string | null;
+          status?: 'active' | 'inactive';
+          score?: number | null;
+          total_orders?: number;
+          on_time_delivery_rate?: number | null;
+          avg_price_stability?: number | null;
+        };
+        Update: {
+          name?: string;
+          contact_person?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          address?: string | null;
+          tax_id?: string | null;
+          notes?: string | null;
+          status?: 'active' | 'inactive';
+          score?: number | null;
+          total_orders?: number;
+          on_time_delivery_rate?: number | null;
+          avg_price_stability?: number | null;
+        };
+        Relationships: [];
+      };
+      purchase_orders: {
+        Row: {
+          id: string;
+          supplier_id: string;
+          order_number: string;
+          status: 'draft' | 'sent' | 'partial' | 'received' | 'cancelled';
+          total_amount: number;
+          notes: string | null;
+          ordered_at: string;
+          received_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          supplier_id: string;
+          order_number: string;
+          status?: 'draft' | 'sent' | 'partial' | 'received' | 'cancelled';
+          total_amount?: number;
+          notes?: string | null;
+          ordered_at?: string;
+          received_at?: string | null;
+        };
+        Update: {
+          supplier_id?: string;
+          order_number?: string;
+          status?: 'draft' | 'sent' | 'partial' | 'received' | 'cancelled';
+          total_amount?: number;
+          notes?: string | null;
+          ordered_at?: string;
+          received_at?: string | null;
+        };
+        Relationships: [];
+      };
+      purchase_order_items: {
+        Row: {
+          id: string;
+          purchase_order_id: string;
+          ingredient_id: string | null;
+          product_name: string;
+          quantity: number;
+          unit: string;
+          unit_cost: number;
+          total_cost: number;
+          received_quantity: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          purchase_order_id: string;
+          ingredient_id?: string | null;
+          product_name: string;
+          quantity: number;
+          unit: string;
+          unit_cost: number;
+          total_cost: number;
+          received_quantity?: number;
+        };
+        Update: {
+          ingredient_id?: string | null;
+          product_name?: string;
+          quantity?: number;
+          unit?: string;
+          unit_cost?: number;
+          total_cost?: number;
+          received_quantity?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -3,13 +3,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Plus, Trash2, ChevronDown, Loader2, Search, ShoppingCart,
+  X, Plus, Trash2, ChevronDown, Loader2, Search, ShoppingCart, PackageCheck,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type {
   PurchaseOrder, PurchaseOrderStatus, CreatePurchaseOrderPayload,
-  Supplier,
+  PurchaseOrderItem, Supplier,
 } from '@/types/inventory';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
@@ -72,6 +72,9 @@ export default function PurchaseOrdersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showReceive, setShowReceive] = useState<string | null>(null);
+  const [receiveItems, setReceiveItems] = useState<{ id: string; product_name: string; quantity: number; unit: string; received: string }[]>([]);
+  const [receiving, setReceiving] = useState(false);
 
   const supplierMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -193,6 +196,50 @@ export default function PurchaseOrdersPage() {
       fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xəta baş verdi');
+    }
+  };
+
+  // ── Receive (Goods Receipt) ───────────────────────────────────────────────
+  const openReceive = async (orderId: string) => {
+    try {
+      const res = await fetch(`/api/purchase-orders/${orderId}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const items: PurchaseOrderItem[] = data.items || [];
+      setReceiveItems(items.map(i => ({
+        id: i.id,
+        product_name: i.product_name,
+        quantity: i.quantity,
+        unit: i.unit,
+        received: String(i.received_quantity || 0),
+      })));
+      setShowReceive(orderId);
+    } catch {
+      toast.error('Məhsullar yüklənərkən xəta');
+    }
+  };
+
+  const handleReceive = async () => {
+    if (!showReceive) return;
+    setReceiving(true);
+    try {
+      const items = receiveItems.map(i => ({
+        id: i.id,
+        received_quantity: parseFloat(i.received) || 0,
+      }));
+      const res = await fetch('/api/goods-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purchaseOrderId: showReceive, items }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success('Mallar qəbul edildi');
+      setShowReceive(null);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta');
+    } finally {
+      setReceiving(false);
     }
   };
 
@@ -337,7 +384,15 @@ export default function PurchaseOrdersPage() {
 
                     {/* Actions */}
                     <div className="flex items-center justify-end gap-1">
-                      {/* Status dropdown */}
+                      {(order.status === 'sent' || order.status === 'partial') && (
+                        <button
+                          onClick={() => openReceive(order.id)}
+                          className="w-7 h-7 rounded-lg hover:bg-emerald-500/10 transition-all flex items-center justify-center text-[var(--theme-text-muted)] hover:text-emerald-400"
+                          title="Qəbul et"
+                        >
+                          <PackageCheck size={13} />
+                        </button>
+                      )}
                       <div className="relative group/drop">
                         <button className="w-7 h-7 rounded-lg hover:bg-white/[0.06] transition-all flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]">
                           <ChevronDown size={13} />
@@ -384,7 +439,15 @@ export default function PurchaseOrdersPage() {
                       <span className="text-sm font-bold tabular-nums">₼{fmtCurrency(order.total_amount)}</span>
                     </div>
                     <div className="flex gap-2">
-                      {/* Status dropdown (mobile: inline select) */}
+                      {(order.status === 'sent' || order.status === 'partial') && (
+                        <button
+                          onClick={() => openReceive(order.id)}
+                          className="px-3 py-2 rounded-xl text-xs font-bold transition-all bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20"
+                        >
+                          <PackageCheck size={13} />
+                        </button>
+                      )}
+                      {/* Status dropdown (mobile: inline select) */}{' '}
                       <select
                         value={order.status}
                         onChange={e => handleStatusUpdate(order.id, e.target.value as PurchaseOrderStatus)}
@@ -617,6 +680,84 @@ export default function PurchaseOrdersPage() {
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all"
                 >
                   Sil
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══════════════════════════════════════════════════════
+          RECEIVE MODAL (Goods Receipt Note)
+      ════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showReceive && (
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowReceive(null)}
+            />
+            <motion.div
+              variants={modalV} initial="hidden" animate="show" exit="exit"
+              className="relative z-10 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl flex flex-col gap-0"
+              style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="sm:hidden flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-white/15" />
+              </div>
+              <div className="p-6 space-y-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
+                      style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981' }}>
+                      <PackageCheck size={10} /> Mal Qəbulu
+                    </span>
+                    <h2 className="text-xl font-bold">Tədarükün qəbulu</h2>
+                    <p className="text-sm text-[var(--theme-text-muted)] mt-1">Qəbul edilən miqdarları daxil edin</p>
+                  </div>
+                  <button onClick={() => setShowReceive(null)} className="text-white/25 hover:text-white transition-colors mt-1">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Items */}
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {receiveItems.map((item) => (
+                    <div key={item.id}
+                      className="p-3 rounded-xl flex items-center gap-3"
+                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{item.product_name}</p>
+                        <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">
+                          Sifariş: {item.quantity} {item.unit}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-[var(--theme-text-muted)] whitespace-nowrap">Qəbul:</span>
+                        <input
+                          type="number" min="0" step="0.001"
+                          value={item.received}
+                          onChange={e => setReceiveItems(prev =>
+                            prev.map(i => i.id === item.id ? { ...i, received: e.target.value } : i)
+                          )}
+                          className="w-20 px-3 py-2 rounded-lg text-sm text-white bg-white/[0.04] border border-white/[0.08] outline-none focus:border-emerald-500/40 transition-colors text-right tabular-nums"
+                        />
+                        <span className="text-[10px] text-[var(--theme-text-muted)]">{item.unit}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={handleReceive}
+                  disabled={receiving}
+                  className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
+                  style={{ background: '#065f46', color: '#ffffff' }}
+                >
+                  {receiving ? <Loader2 size={16} className="animate-spin" /> : <><PackageCheck size={15} /> Qəbulu Təsdiq Et</>}
                 </button>
               </div>
             </motion.div>

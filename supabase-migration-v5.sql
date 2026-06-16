@@ -4,9 +4,12 @@
 -- Drop first so CREATE TABLE works fresh (no production data yet)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-DROP TABLE IF EXISTS purchase_order_items;
-DROP TABLE IF EXISTS purchase_orders;
-DROP TABLE IF EXISTS suppliers;
+DROP TABLE IF EXISTS purchase_order_lines CASCADE;
+DROP TABLE IF EXISTS supplier_invoices CASCADE;
+DROP TABLE IF EXISTS goods_receipts CASCADE;
+DROP TABLE IF EXISTS purchase_order_items CASCADE;
+DROP TABLE IF EXISTS purchase_orders CASCADE;
+DROP TABLE IF EXISTS suppliers CASCADE;
 
 -- ─── Suppliers ───────────────────────────────────────────────────────────────
 CREATE TABLE suppliers (

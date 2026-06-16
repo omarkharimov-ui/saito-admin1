@@ -49,6 +49,10 @@ node_modules/
 # cursor rules
 .windsurf/
 
+# ai tool skills
+.claude/
+.opencode/
+
 # supabase cli cache
 supabase/.temp/
 

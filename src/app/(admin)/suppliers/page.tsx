@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { X, Plus, Search, Pencil, Trash2, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 import type { Supplier, CreateSupplierPayload } from '@/types/inventory';
@@ -34,11 +35,12 @@ export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Supplier | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<SupplierForm>(emptyForm());
-  const [confirmDelete, setConfirmDelete] = useState<Supplier | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const fetchSuppliers = useCallback(async () => {
     try {
@@ -61,7 +63,7 @@ export default function SuppliersPage() {
   };
 
   const openEdit = (supplier: Supplier) => {
-    setEditing(supplier);
+    setEditing(supplier.id);
     setForm({
       name: supplier.name,
       contact_person: supplier.contact_person || '',
@@ -95,7 +97,7 @@ export default function SuppliersPage() {
         notes: form.notes.trim() || undefined,
       };
       if (editing) {
-        const res = await fetch(`/api/suppliers/${editing.id}`, {
+        const res = await fetch(`/api/suppliers/${editing}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -123,7 +125,7 @@ export default function SuppliersPage() {
   const handleDelete = async () => {
     if (!confirmDelete) return;
     try {
-      const res = await fetch(`/api/suppliers/${confirmDelete.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/suppliers/${confirmDelete}`, { method: 'DELETE' });
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success('Tədarükçü silindi');
       setConfirmDelete(null);
@@ -207,7 +209,7 @@ export default function SuppliersPage() {
               transition={{ delay: i * 0.03 }}
               className="group cursor-pointer transition-colors hover:bg-white/[0.018]"
               style={{ borderBottom: i < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
-              onClick={() => openEdit(s)}
+              onClick={() => router.push(`/suppliers/${s.id}`)}
             >
               <div
                 className="hidden lg:grid gap-4 items-center px-6 py-4"
@@ -226,26 +228,30 @@ export default function SuppliersPage() {
                   {s.status === 'active' ? 'Aktiv' : 'Deaktiv'}
                 </span>
                 <p className="text-sm text-white/60 tabular-nums text-right">{s.score ?? '—'}</p>
-                <p className="text-sm text-white/60 tabular-nums text-right">{s.total_orders}</p>
+                <div className="flex items-center justify-end gap-1">
+                  <p className="text-sm text-white/60 tabular-nums text-right">{s.total_orders}</p>
+                  <button
+                    onClick={e => { e.stopPropagation(); openEdit(s); }}
+                    className="w-7 h-7 rounded-lg hover:bg-white/[0.06] transition-all flex items-center justify-center text-white/20 hover:text-white ml-1"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                </div>
               </div>
 
               <div className="lg:hidden p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-white">{s.name}</p>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
-                    s.status === 'active'
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                  }`}>
-                    {s.status === 'active' ? 'Aktiv' : 'Deaktiv'}
-                  </span>
+                  <ChevronRight size={14} className="text-white/20" />
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/40">
-                  {s.contact_person && <span>👤 {s.contact_person}</span>}
-                  {s.phone && <span>📞 {s.phone}</span>}
-                  {s.email && <span>✉️ {s.email}</span>}
-                  <span>Bal: {s.score ?? '—'}</span>
-                  <span>Sifariş: {s.total_orders}</span>
+                  {s.contact_person && <span>{s.contact_person}</span>}
+                  {s.phone && <span>{s.phone}</span>}
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold ${
+                    s.status === 'active'
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : 'bg-red-500/10 text-red-400'
+                  }`}>{s.status === 'active' ? 'Aktiv' : 'Deaktiv'}</span>
                 </div>
               </div>
             </motion.div>
@@ -397,7 +403,7 @@ export default function SuppliersPage() {
               >
                 <h3 className="text-lg font-bold text-white mb-2">Tədarükçünü Sil</h3>
                 <p className="text-sm text-white/50 mb-6">
-                  <strong className="text-white">{confirmDelete.name}</strong> tədarükçüsünü silmək istədiyinizə əminsiniz?
+                  <strong className="text-white">{suppliers.find(s => s.id === confirmDelete)?.name || '?'}</strong> tədarükçüsünü silmək istədiyinizə əminsiniz?
                 </p>
                 <div className="flex justify-end gap-3">
                   <button

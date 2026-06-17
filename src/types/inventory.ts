@@ -264,3 +264,201 @@ export interface CreatePurchaseOrderPayload {
     unit_cost: number;
   }[];
 }
+
+// ─── Invoice Reconciliation ────────────────────────────────────────────────────
+
+export type InvoiceStatus = 'pending' | 'matched' | 'partial' | 'discrepancy' | 'reconciled';
+
+export interface Invoice {
+  id: string;
+  supplier_id: string;
+  purchase_order_id: string | null;
+  invoice_number: string;
+  invoice_date: string | null;
+  total_amount: number;
+  tax_amount: number;
+  currency: string;
+  status: InvoiceStatus;
+  notes: string | null;
+  ocr_raw: unknown | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceItem {
+  id: string;
+  invoice_id: string;
+  purchase_order_item_id: string | null;
+  product_name: string;
+  quantity: number;
+  unit: string;
+  unit_cost: number;
+  total_cost: number;
+  matched: boolean;
+  variance_quantity: number;
+  variance_cost: number;
+  created_at: string;
+}
+
+export interface CreateInvoicePayload {
+  supplier_id: string;
+  purchase_order_id?: string | null;
+  invoice_number: string;
+  invoice_date?: string | null;
+  total_amount: number;
+  tax_amount?: number;
+  currency?: string;
+  notes?: string | null;
+  ocr_raw?: unknown | null;
+  items: {
+    product_name: string;
+    quantity: number;
+    unit: string;
+    unit_cost: number;
+    total_cost: number;
+  }[];
+}
+
+export interface InvoiceReconciliation {
+  invoice: Invoice;
+  items: InvoiceItem[];
+  summary: {
+    total_variance: number;
+    item_discrepancies: number;
+    price_anomalies: {
+      product_name: string;
+      invoice_unit_cost: number;
+      expected_unit_cost: number;
+      variance_pct: number;
+      severity: 'low' | 'medium' | 'high';
+    }[];
+    margin_impact: {
+      product_name: string;
+      cost_increase_pct: number;
+      estimated_margin_impact_pct: number;
+    }[];
+  };
+}
+
+export interface PriceAnomaly {
+  product_name: string;
+  current_unit_cost: number;
+  avg_unit_cost: number;
+  min_unit_cost: number;
+  max_unit_cost: number;
+  variance_pct: number;
+  occurrences: number;
+  last_occurrence: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+// ─── Stock Suggestions (Phase 3b) ─────────────────────────────────────────────
+
+export interface StockSuggestion {
+  ingredient_id: string;
+  ingredient_name: string;
+  unit: string;
+  current_stock: number;
+  critical_limit: number;
+  daily_consumption_rate: number;
+  days_remaining: number;
+  suggested_reorder_qty: number;
+  reorder_point: number;
+  urgency: 'critical' | 'high' | 'medium' | 'low';
+  consumption_trend: 'rising' | 'stable' | 'falling';
+  avg_cost_per_unit: number;
+  estimated_reorder_cost: number;
+  lead_time_days: number;
+}
+
+export interface ConsumptionTrend {
+  ingredient_id: string;
+  ingredient_name: string;
+  unit: string;
+  daily: { date: string; consumption: number }[];
+  weekly_avg: number;
+  monthly_avg: number;
+  trend_pct: number;
+}
+
+// ─── Recipe Intelligence (Phase 3c) ────────────────────────────────────────────
+
+export interface RecipeIntelligence {
+  menu_item_id: string;
+  product_name: string;
+  total_servings: number;
+  theoretical_cost_per_serving: number;
+  actual_cost_per_serving: number;
+  cost_variance_pct: number;
+  theoretical_consumption: Record<string, number>;
+  actual_consumption: Record<string, number>;
+  waste_analysis: {
+    ingredient_name: string;
+    theoretical_qty: number;
+    actual_qty: number;
+    waste_qty: number;
+    waste_pct: number;
+  }[];
+  margin_analysis: {
+    selling_price: number;
+    theoretical_cost: number;
+    actual_cost: number;
+    theoretical_margin_pct: number;
+    actual_margin_pct: number;
+  };
+}
+
+export interface DishMarginBreakdown {
+  menu_item_id: string;
+  product_name: string;
+  selling_price: number;
+  cost_price: number;
+  margin_pct: number;
+  profit_per_unit: number;
+  monthly_units_sold: number;
+  monthly_profit: number;
+  cost_drivers: { ingredient_name: string; cost_pct: number }[];
+  optimization_potential: 'high' | 'medium' | 'low';
+}
+
+// ─── Procurement / Receiving (Phase 4) ─────────────────────────────────────────
+
+export interface ProcurementReview {
+  id: string;
+  purchase_order_id: string | null;
+  invoice_id: string | null;
+  product_name: string;
+  quantity: number;
+  unit: string;
+  unit_cost: number;
+  suggested_ingredient_id: string | null;
+  match_confidence: number | null;
+  status: 'pending' | 'approved' | 'rejected' | 'mapped';
+  notes: string | null;
+  created_at: string;
+}
+
+export interface DiscrepancyAlert {
+  id: string;
+  type: 'invoice_amount' | 'received_qty' | 'stock_vs_sales' | 'recipe_vs_actual' | 'supplier_price' | 'waste_vs_norm' | 'margin_drop';
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  title: string;
+  description: string | null;
+  source_id: string | null;
+  source_table: string | null;
+  value: number;
+  expected_value: number;
+  variance_pct: number;
+  status: 'open' | 'acknowledged' | 'resolved';
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface AIInsight {
+  type: 'reorder' | 'trend' | 'supplier' | 'waste' | 'margin' | 'optimization';
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  action_url: string | null;
+  created_at: string;
+}

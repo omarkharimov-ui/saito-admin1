@@ -66,15 +66,21 @@ function StatCard({ icon, label, value, sub, accent, trend }: {
   icon: React.ReactNode; label: string; value: string | number; sub?: string; accent?: string; trend?: { dir: 'up' | 'down'; pct: string };
 }) {
   return (
-    <GlassCard intensity="light" padding="lg" className="relative overflow-hidden group cursor-default">
+    <GlassCard intensity="light" padding="lg"
+      className="relative overflow-hidden group cursor-pointer"
+      whileHover={{ scale: 1.02 }}
+      transition={{ type: 'spring' as const, stiffness: 400, damping: 25 }}
+    >
       {/* Decorative ambient glow */}
-      <div className="pointer-events-none absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-[0.04] group-hover:opacity-[0.08] transition-all duration-700"
+      <div className="pointer-events-none absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-[0.04] group-hover:opacity-[0.15] transition-all duration-700"
         style={{ background: `radial-gradient(circle, ${accent?.includes('emerald') ? '#10B981' : accent?.includes('amber') ? '#F59E0B' : accent?.includes('rose') ? '#F43F5E' : '#D4AF37'}, transparent 70%)` }} />
-      <div className="pointer-events-none absolute -bottom-8 -left-8 w-24 h-24 rounded-full opacity-[0.02]"
+      <div className="pointer-events-none absolute -bottom-8 -left-8 w-24 h-24 rounded-full opacity-[0.02] group-hover:opacity-[0.08] transition-all duration-700"
         style={{ background: `radial-gradient(circle, ${accent?.includes('emerald') ? '#10B981' : '#D4AF37'}, transparent 70%)` }} />
+      <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+        style={{ boxShadow: `inset 0 0 30px ${accent?.includes('emerald') ? 'rgba(16,185,129,0.06)' : accent?.includes('amber') ? 'rgba(245,158,11,0.06)' : accent?.includes('rose') ? 'rgba(244,63,94,0.06)' : 'rgba(212,175,55,0.06)'}` }} />
       <div className="flex items-center justify-between mb-4">
         <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/25">{label}</span>
-        <span className={`p-2 rounded-xl ${accent ?? 'text-white/20'} bg-white/[0.03] border border-white/[0.06]`}>{icon}</span>
+        <span className={`p-2 rounded-xl ${accent ?? 'text-white/20'} bg-white/[0.03] border border-white/[0.06] group-hover:bg-white/[0.06] group-hover:border-white/[0.12] transition-all duration-300`}>{icon}</span>
       </div>
       <div className="flex items-end justify-between gap-2">
         <div>
@@ -90,6 +96,8 @@ function StatCard({ icon, label, value, sub, accent, trend }: {
       </div>
       {/* Subtle top light edge */}
       <div className="pointer-events-none absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+      {/* Hover border glow */}
+      <div className="pointer-events-none absolute inset-0 rounded-2xl border border-transparent group-hover:border-white/[0.12] transition-all duration-500" />
     </GlassCard>
   );
 }
@@ -796,7 +804,7 @@ export default function StockPage() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="group px-4 lg:px-6 py-4 transition-all duration-300 hover:bg-white/[0.018] hover:scale-[1.002]"
+                  className="group relative px-4 lg:px-6 py-4 transition-all duration-300 hover:bg-white/[0.018] hover:scale-[1.005] hover:shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]"
                   style={{ borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
                 >
                   {/* Desktop row */}

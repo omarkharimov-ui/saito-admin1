@@ -84,11 +84,18 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
       ) : (
         <div className="mt-4 space-y-3">
           {selectable.slice(0, 4).map((s) => (
-            <button
+            <motion.button
               key={s.ingredient_id}
+              layout
+              initial={{ opacity: 0, y: 12, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8, y: -20, filter: 'blur(4px)' }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              whileHover={{ scale: 1.015 }}
+              whileTap={{ scale: 0.98 }}
               type="button"
               onClick={() => void apply(s)}
-              className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${applyingId === s.ingredient_id ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-white/10 bg-white/[0.03]'}`}
+              className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors ${applyingId === s.ingredient_id ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
             >
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -100,7 +107,7 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
                   <div className="text-[10px] uppercase tracking-[0.2em] text-white/35">conf {Math.round(s.confidence * 100)}%</div>
                 </div>
               </div>
-            </button>
+            </motion.button>
           ))}
         </div>
       )}

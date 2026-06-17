@@ -584,6 +584,7 @@ function SuppliersSection() {
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [detailSupplier, setDetailSupplier] = useState<Supplier | null>(null);
 
   const [form, setForm] = useState<CreateSupplierPayload>({ name: '', contact_person: '', phone: '', email: '', address: '', tax_id: '', notes: '' });
 
@@ -649,7 +650,8 @@ function SuppliersSection() {
         <div className="grid gap-2 sm:grid-cols-2">
           {filtered.map(s => (
             <motion.div key={s.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-              className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-colors"
+              onClick={() => setDetailSupplier(s)}
+              className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-colors cursor-pointer"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -717,6 +719,53 @@ function SuppliersSection() {
             <div className="flex gap-2 justify-end">
               <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded-xl text-xs font-bold text-white/50 hover:text-white/70 transition-colors">İmtina</button>
               <button onClick={remove} className="px-5 py-2 rounded-xl text-xs font-bold bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30">Sil</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {detailSupplier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDetailSupplier(null)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-lg mx-4 rounded-2xl border border-white/[0.08] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="text-base font-semibold text-white/90">{detailSupplier.name}</h3>
+                <p className="text-xs text-white/30 mt-0.5">{detailSupplier.email || detailSupplier.phone || '—'}</p>
+              </div>
+              <button onClick={() => setDetailSupplier(null)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors"><X size={16} /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Ümumi Bal</p>
+                <p className={`text-lg font-bold mt-1 ${detailSupplier.score !== null && detailSupplier.score >= 80 ? 'text-emerald-400' : detailSupplier.score !== null && detailSupplier.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                  {detailSupplier.score !== null ? `${detailSupplier.score}/100` : 'Hesablanmayıb'}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Vaxtında Təhvil</p>
+                <p className="text-lg font-bold mt-1 text-white">{detailSupplier.on_time_delivery_rate !== null ? `${detailSupplier.on_time_delivery_rate}%` : '—'}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Qiymət Stabililiyi</p>
+                <p className="text-lg font-bold mt-1 text-white">{detailSupplier.avg_price_stability !== null ? `${detailSupplier.avg_price_stability}%` : '—'}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Sifariş Sayı</p>
+                <p className="text-lg font-bold mt-1 text-white">{detailSupplier.total_orders}</p>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-xs text-white/40">
+              {detailSupplier.contact_person && <div>👤 {detailSupplier.contact_person}</div>}
+              {detailSupplier.phone && <div>📞 {detailSupplier.phone}</div>}
+              {detailSupplier.email && <div>✉️ {detailSupplier.email}</div>}
+              {detailSupplier.address && <div>📍 {detailSupplier.address}</div>}
+              {detailSupplier.tax_id && <div>🏛️ VÖEN: {detailSupplier.tax_id}</div>}
+              {detailSupplier.notes && <div className="mt-2 p-2 rounded-lg bg-white/[0.03] text-white/50">{detailSupplier.notes}</div>}
+            </div>
+            <div className="flex gap-2 mt-5 justify-end">
+              <button onClick={() => { setDetailSupplier(null); openEdit(detailSupplier); }} className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10">Redaktə Et</button>
+              <button onClick={() => setDetailSupplier(null)} className="px-4 py-2 rounded-xl text-xs font-bold text-white/50 hover:text-white/70 transition-colors">Bağla</button>
             </div>
           </motion.div>
         </div>

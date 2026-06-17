@@ -691,11 +691,12 @@ export type Database = {
           total_amount: number;
           tax_amount: number;
           currency: string;
-          status: 'pending' | 'matched' | 'partial' | 'discrepancy' | 'reconciled';
+          status: 'draft' | 'matched' | 'needs_review' | 'approved' | 'applied' | 'rejected' | 'rolled_back' | 'partially_applied';
           notes: string | null;
           ocr_raw: unknown | null;
           created_at: string;
           updated_at: string;
+          applied_at: string | null;
         };
         Insert: {
           id?: string;
@@ -706,9 +707,10 @@ export type Database = {
           total_amount: number;
           tax_amount?: number;
           currency?: string;
-          status?: 'pending' | 'matched' | 'partial' | 'discrepancy' | 'reconciled';
+          status?: 'draft' | 'matched' | 'needs_review' | 'approved' | 'applied' | 'rejected' | 'rolled_back' | 'partially_applied';
           notes?: string | null;
           ocr_raw?: unknown | null;
+          applied_at?: string | null;
         };
         Update: {
           supplier_id?: string;
@@ -718,9 +720,10 @@ export type Database = {
           total_amount?: number;
           tax_amount?: number;
           currency?: string;
-          status?: 'pending' | 'matched' | 'partial' | 'discrepancy' | 'reconciled';
+          status?: 'draft' | 'matched' | 'needs_review' | 'approved' | 'applied' | 'rejected' | 'rolled_back' | 'partially_applied';
           notes?: string | null;
           ocr_raw?: unknown | null;
+          applied_at?: string | null;
         };
         Relationships: [];
       };
@@ -777,9 +780,10 @@ export type Database = {
           unit_cost: number;
           suggested_ingredient_id: string | null;
           match_confidence: number | null;
-          status: 'pending' | 'approved' | 'rejected' | 'mapped';
+          status: 'pending' | 'approved' | 'rejected' | 'mapped' | 'rolled_back';
           notes: string | null;
           created_at: string;
+          severity: 'critical' | 'high' | 'medium' | 'low';
         };
         Insert: {
           id?: string;
@@ -791,8 +795,9 @@ export type Database = {
           unit_cost?: number;
           suggested_ingredient_id?: string | null;
           match_confidence?: number | null;
-          status?: 'pending' | 'approved' | 'rejected' | 'mapped';
+          status?: 'pending' | 'approved' | 'rejected' | 'mapped' | 'rolled_back';
           notes?: string | null;
+          severity?: 'critical' | 'high' | 'medium' | 'low';
         };
         Update: {
           purchase_order_id?: string | null;
@@ -803,8 +808,9 @@ export type Database = {
           unit_cost?: number;
           suggested_ingredient_id?: string | null;
           match_confidence?: number | null;
-          status?: 'pending' | 'approved' | 'rejected' | 'mapped';
+          status?: 'pending' | 'approved' | 'rejected' | 'mapped' | 'rolled_back';
           notes?: string | null;
+          severity?: 'critical' | 'high' | 'medium' | 'low';
         };
         Relationships: [];
       };

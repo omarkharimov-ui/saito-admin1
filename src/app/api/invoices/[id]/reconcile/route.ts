@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { withTransaction, createTransactionLog } from '@/lib/transaction';
+import { canTransitionInvoice } from '@/types/inventory';
+import type { InvoiceStatus } from '@/types/inventory';
 
 function svc() {
   return createClient(
@@ -35,6 +38,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
+    const currentStatus = invoice.status as InvoiceStatus;
+    if (!canTransitionInvoice(currentStatus, 'matched') && !canTransitionInvoice(currentStatus, 'needs_review')) {
+      return NextResponse.json({
+        error: `Cannot reconcile invoice in status "${currentStatus}". Only draft or needs_review invoices can be reconciled.`
+      }, { status: 409 });
+    }
+
     const invoiceItems = invoice.invoice_items || [];
     const anomalies: any[] = [];
     const marginImpacts: any[] = [];
@@ -47,10 +57,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .eq('purchase_order_id', invoice.purchase_order_id);
       poItems = items || [];
     }
-
-    const { data: allSuppliers } = await supabase
-      .from('suppliers')
-      .select('id, name');
 
     const reconciledItems = await Promise.all(invoiceItems.map(async (invItem: any) => {
       if (poItems.length > 0) {
@@ -120,43 +126,73 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const totalVariance = reconciledItems.reduce((s: number, i: any) => s + i.variance_cost, 0);
     const itemDiscrepancies = reconciledItems.filter((i: any) => !i.matched).length;
 
-    let reconciledStatus = 'matched';
-    if (itemDiscrepancies > 0) reconciledStatus = 'partial';
-    if (anomalies.length > 0) reconciledStatus = 'discrepancy';
-    if (totalVariance === 0 && itemDiscrepancies === 0 && anomalies.length === 0) reconciledStatus = 'reconciled';
+    let reconciledStatus: InvoiceStatus = 'matched';
+    if (itemDiscrepancies > 0) reconciledStatus = 'needs_review';
+    if (anomalies.length > 0 && itemDiscrepancies === 0) reconciledStatus = 'matched';
+    if (totalVariance === 0 && itemDiscrepancies === 0 && anomalies.length === 0) reconciledStatus = 'matched';
 
-    await supabase.from('invoices').update({ status: reconciledStatus }).eq('id', id);
+    await withTransaction([
+      {
+        name: 'update_invoice_status',
+        execute: async () => {
+          await supabase.from('invoices').update({ status: reconciledStatus }).eq('id', id);
+          if (reconciledItems.length > 0 && invoiceItems.length > 0) {
+            for (const item of reconciledItems) {
+              if (item.id) {
+                await supabase.from('invoice_items').update({
+                  matched: item.matched,
+                  variance_quantity: item.variance_quantity || 0,
+                  variance_cost: item.variance_cost || 0,
+                }).eq('id', item.id);
+              }
+            }
+          }
+        },
+        rollback: async () => {
+          await supabase.from('invoices').update({ status: currentStatus }).eq('id', id);
+        },
+      },
+      {
+        name: 'create_alerts',
+        execute: async () => {
+          if (anomalies.length > 0) {
+            const supplierName = (invoice as any).supplier?.name || 'Unknown';
+            for (const a of anomalies) {
+              await supabase.from('discrepancy_alerts').insert({
+                type: 'supplier_price' as any,
+                severity: a.severity,
+                title: `${supplierName}: ${a.product_name} qiymət anomaliyası`,
+                description: `Faktura qiyməti: ${a.invoice_unit_cost} AZN, gözlənilən: ${a.expected_unit_cost} AZN (${a.variance_pct > 0 ? '+' : ''}${a.variance_pct}%)`,
+                source_id: id,
+                source_table: 'invoices',
+                value: a.invoice_unit_cost,
+                expected_value: a.expected_unit_cost,
+                variance_pct: a.variance_pct,
+              });
+            }
+          }
 
-    if (anomalies.length > 0) {
-      const supplierName = (invoice as any).supplier?.name || 'Unknown';
-      for (const a of anomalies) {
-        await supabase.from('discrepancy_alerts').insert({
-          type: 'supplier_price',
-          severity: a.severity,
-          title: `${supplierName}: ${a.product_name} qiymət anomaliyası`,
-          description: `Faktura qiyməti: ${a.invoice_unit_cost} AZN, gözlənilən: ${a.expected_unit_cost} AZN (${a.variance_pct > 0 ? '+' : ''}${a.variance_pct}%)`,
-          source_id: id,
-          source_table: 'invoices',
-          value: a.invoice_unit_cost,
-          expected_value: a.expected_unit_cost,
-          variance_pct: a.variance_pct,
-        });
-      }
-    }
+          if (itemDiscrepancies > 0) {
+            await supabase.from('discrepancy_alerts').insert({
+              type: 'received_qty' as any,
+              severity: itemDiscrepancies > 3 ? 'high' : 'medium',
+              title: `${invoice.invoice_number}: ${itemDiscrepancies} uyğunsuz maddə`,
+              description: `${itemDiscrepancies} invoice maddəsi PO ilə match edilə bilmədi. Manual review tələb olunur.`,
+              source_id: id,
+              source_table: 'invoices',
+              value: itemDiscrepancies,
+              expected_value: 0,
+              variance_pct: 100,
+            });
+          }
+        },
+        rollback: async () => {},
+      },
+    ]);
 
-    if (itemDiscrepancies > 0) {
-      await supabase.from('discrepancy_alerts').insert({
-        type: 'received_qty',
-        severity: itemDiscrepancies > 3 ? 'high' : 'medium',
-        title: `${invoice.invoice_number}: ${itemDiscrepancies} uyğunsuz maddə`,
-        description: `${itemDiscrepancies} invoice maddəsi PO ilə match edilə bilmədi. Manual review tələb olunur.`,
-        source_id: id,
-        source_table: 'invoices',
-        value: itemDiscrepancies,
-        expected_value: 0,
-        variance_pct: 100,
-      });
-    }
+    await createTransactionLog('reconcile_invoice', 'completed', JSON.stringify({
+      invoiceId: id, status: reconciledStatus, anomalies: anomalies.length, discrepancies: itemDiscrepancies
+    }));
 
     const { data: updatedInvoice } = await supabase
       .from('invoices')
@@ -175,6 +211,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
     });
   } catch (e: any) {
+    await createTransactionLog('reconcile_invoice', 'failed', e.message).catch(() => {});
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

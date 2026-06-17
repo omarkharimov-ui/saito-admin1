@@ -54,6 +54,9 @@ export default function ReceivingPage() {
   const [result, setResult] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [poItems, setPoItems] = useState<any[]>([]);
+  const [selectedReviews, setSelectedReviews] = useState<string[]>([]);
+  const [batchAction, setBatchAction] = useState<'approve' | 'reject' | null>(null);
+  const [batchLoading, setBatchLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchPos(); fetchReviews(); }, []);
@@ -210,11 +213,35 @@ export default function ReceivingPage() {
     setConfirming(false);
   };
 
+  const toggleReview = (id: string) => {
+    setSelectedReviews(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchAction = async (action: 'approve' | 'reject') => {
+    if (!selectedReviews.length) return;
+    setBatchLoading(true);
+    setBatchAction(action);
+    try {
+      const status = action === 'approve' ? 'approved' : 'rejected';
+      await fetch('/api/procurement/reviews', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedReviews, status }),
+      });
+      setSelectedReviews([]);
+      fetchReviews();
+    } catch { /* ignore */ }
+    setBatchLoading(false);
+    setBatchAction(null);
+  };
+
   const handleApproveReview = async (id: string, ingredientId?: string) => {
     await fetch('/api/procurement/reviews', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status: 'approved', suggested_ingredient_id: ingredientId }),
+      body: JSON.stringify({ ids: [id], status: 'approved', suggested_ingredient_id: ingredientId }),
     });
     fetchReviews();
   };
@@ -223,12 +250,32 @@ export default function ReceivingPage() {
     await fetch('/api/procurement/reviews', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status: 'rejected' }),
+      body: JSON.stringify({ ids: [id], status: 'rejected' }),
     });
     fetchReviews();
   };
 
+  const handleRollbackReview = async (r: any) => {
+    try {
+      await fetch('/api/procurement/reviews', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [r.id], status: 'rolled_back' }),
+      });
+      fetchReviews();
+    } catch { /* ignore */ }
+  };
+
   const pendingReviews = reviews.filter((r: any) => r.status === 'pending');
+  const approvedReviews = reviews.filter((r: any) => r.status === 'approved' || r.status === 'mapped');
+  const rejectedReviews = reviews.filter((r: any) => r.status === 'rejected');
+
+  const severityConfig: Record<string, { label: string; color: string; bg: string }> = {
+    critical: { label: 'Kritik', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
+    high: { label: 'Yüksək', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
+    medium: { label: 'Orta', color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
+    low: { label: 'Aşağı', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
+  };
   const matchedCount = lineItems.filter(l => l.matched_ingredient).length;
   const missingCount = lineItems.filter(l => l.status === 'missing').length;
   const extraCount = lineItems.filter(l => l.status === 'extra').length;
@@ -455,45 +502,141 @@ export default function ReceivingPage() {
 
         {tab === 'reviews' && (
           <>
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+              <div className="flex gap-3">
+                <button onClick={() => setTab('receive')}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)' }}>
+                  ← Qəbula qayıt
+                </button>
+                <span className="text-xs text-white/30 flex items-center">
+                  {pendingReviews.length} gözləyən | {approvedReviews.length} təsdiqlənmiş | {rejectedReviews.length} rədd edilmiş
+                </span>
+              </div>
+              {selectedReviews.length > 0 && (
+                <div className="flex gap-2">
+                  <button onClick={() => handleBatchAction('approve')} disabled={batchLoading}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-40 flex items-center gap-1"
+                    style={{ background: 'rgba(16,185,129,0.15)', color: '#34D399' }}>
+                    {batchLoading && batchAction === 'approve' ? '...' : <CheckCircle size={11} />}
+                    {selectedReviews.length} Təsdiq Et
+                  </button>
+                  <button onClick={() => handleBatchAction('reject')} disabled={batchLoading}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-40 flex items-center gap-1"
+                    style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>
+                    {batchLoading && batchAction === 'reject' ? '...' : <X size={11} />}
+                    {selectedReviews.length} Rədd Et
+                  </button>
+                </div>
+              )}
+            </div>
+
             {reviews.length === 0 ? (
               <div className="text-center py-16 text-white/20">
                 <CheckCircle size={40} className="mx-auto mb-3 text-emerald-400/50" />
                 <p className="text-sm">Review tələb edən maddə yoxdur</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {(reviews as any[]).map((r: any, i: number) => (
-                  <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                    className="rounded-2xl border p-5" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${r.status === 'pending' ? 'bg-yellow-500/15' : r.status === 'approved' ? 'bg-emerald-500/15' : 'bg-red-500/15'}`}>
-                          {r.status === 'pending' ? <AlertTriangle size={18} className="text-yellow-400" /> :
-                           r.status === 'approved' ? <CheckCircle size={18} className="text-emerald-400" /> : <X size={18} className="text-red-400" />}
+              <div className="space-y-2">
+                {pendingReviews.map((r: any, i: number) => {
+                  const sev = severityConfig[r.severity || 'medium'] || severityConfig.medium;
+                  return (
+                    <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
+                      className={`rounded-2xl border p-4 transition-all cursor-pointer ${selectedReviews.includes(r.id) ? 'ring-1 ring-[#D4AF37]/30 border-[#D4AF37]/20' : ''}`}
+                      style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}
+                      onClick={() => toggleReview(r.id)}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" checked={selectedReviews.includes(r.id)}
+                            onChange={() => toggleReview(r.id)}
+                            className="rounded border-white/20 bg-transparent accent-[#D4AF37]"
+                            onClick={e => e.stopPropagation()} />
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-yellow-500/15">
+                            <AlertTriangle size={16} className="text-yellow-400" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-semibold text-white">{r.product_name}</h3>
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${sev.bg} ${sev.color}`}>{sev.label}</span>
+                              {r.severity === 'critical' && <span className="text-red-400 text-[9px] font-bold animate-pulse">⚠ KRITIK</span>}
+                            </div>
+                            <p className="text-xs text-white/30">{r.quantity} {r.unit} × {r.unit_cost?.toFixed(2)} ₼{r.suggested_ingredient_id ? ` → AI: ${r.match_confidence ? Math.round(r.match_confidence * 100) : '?'}%` : ''}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-sm font-semibold text-white">{r.product_name}</h3>
-                          <p className="text-xs text-white/30">{r.quantity} {r.unit} × {r.unit_cost?.toFixed(2)} ₼{r.suggested_ingredient_id ? ` → AI: ${r.match_confidence ? Math.round(r.match_confidence * 100) : '?'}%` : ''}</p>
-                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/20">
+                          Gözləyir
+                        </span>
                       </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'pending' ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20' : r.status === 'approved' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/15 text-red-400 border border-red-500/20'}`}>
-                        {r.status === 'pending' ? 'Gözləyir' : r.status === 'approved' ? 'Təsdiqləndi' : 'Rədd edildi'}
-                      </span>
-                    </div>
-                    {r.status === 'pending' && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 mt-2" onClick={e => e.stopPropagation()}>
                         <button onClick={() => handleApproveReview(r.id, r.suggested_ingredient_id)}
-                          className="flex-1 py-2 rounded-xl text-xs font-bold transition-all" style={{ background: 'rgba(16,185,129,0.15)', color: '#34D399' }}>
+                          className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80" style={{ background: 'rgba(16,185,129,0.15)', color: '#34D399' }}>
                           <CheckCircle size={12} className="inline mr-1" /> Təsdiq Et
                         </button>
                         <button onClick={() => handleRejectReview(r.id)}
-                          className="flex-1 py-2 rounded-xl text-xs font-bold transition-all" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>
+                          className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>
                           <X size={12} className="inline mr-1" /> Rədd Et
                         </button>
                       </div>
-                    )}
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
+
+                {approvedReviews.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-2 pt-4 pb-1">
+                      <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                      <span className="text-[10px] text-emerald-400/50 font-bold uppercase tracking-wider">Təsdiqlənmiş ({approvedReviews.length})</span>
+                      <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                    </div>
+                    {approvedReviews.map((r: any, i: number) => (
+                      <motion.div key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+                        className="rounded-2xl border p-4 opacity-70" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-500/10">
+                              <CheckCircle size={16} className="text-emerald-400/50" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold text-white/60">{r.product_name}</h3>
+                              <p className="text-xs text-white/20">{r.quantity} {r.unit} × {r.unit_cost?.toFixed(2)} ₼</p>
+                            </div>
+                          </div>
+                          <button onClick={() => handleRollbackReview(r)}
+                            className="px-2 py-1 rounded-lg text-[10px] font-bold text-orange-400/50 hover:text-orange-400 transition-all"
+                            style={{ background: 'rgba(255,255,255,0.03)' }}>
+                            Geri al
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </>
+                )}
+
+                {rejectedReviews.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-2 pt-4 pb-1">
+                      <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                      <span className="text-[10px] text-red-400/50 font-bold uppercase tracking-wider">Rədd edilmiş ({rejectedReviews.length})</span>
+                      <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                    </div>
+                    {rejectedReviews.map((r: any, i: number) => (
+                      <motion.div key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+                        className="rounded-2xl border p-4 opacity-50" style={{ borderColor: 'rgba(255,255,255,0.03)' }}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-500/10">
+                              <X size={16} className="text-red-400/50" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold text-white/40">{r.product_name}</h3>
+                              <p className="text-xs text-white/20">{r.quantity} {r.unit}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </>

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { withTransaction, createTransactionLog } from '@/lib/transaction';
 
 function svc() {
   return createClient(
@@ -8,8 +9,6 @@ function svc() {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 }
-
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,7 +62,7 @@ export async function POST(request: NextRequest) {
             purchase_order_id: po.id,
             invoice_number: ocrData.invoiceNumber || `OCR-${Date.now()}`,
             total_amount: ocrData.totalAmount || 0,
-            status: 'pending',
+            status: 'draft',
             ocr_raw: ocrData,
           }).select().single();
           invoice = inv;
@@ -85,8 +84,9 @@ export async function POST(request: NextRequest) {
       }));
     }
 
-    const autoStockUpdates: { ingredient_id: string; quantity: number; cost_per_unit: number }[] = [];
+    const autoStockUpdates: { ingredient_id: string; quantity: number; cost_per_unit: number; stock_before: number }[] = [];
     const reviews: any[] = [];
+    const oldIngredientSnapshots: Record<string, number> = {};
 
     for (const item of invoiceItems) {
       const matchRes = await fetch(`${request.nextUrl.origin}/api/procurement/match-ingredient`, {
@@ -97,10 +97,14 @@ export async function POST(request: NextRequest) {
       const matchData = await matchRes.json();
 
       if (matchData.match && matchData.match.confidence >= 0.7) {
+        const ing = (ingredients || []).find(i => i.id === matchData.match.id);
+        const stockBefore = ing?.current_stock || 0;
+        oldIngredientSnapshots[matchData.match.id] = stockBefore;
         autoStockUpdates.push({
           ingredient_id: matchData.match.id,
           quantity: item.quantity,
           cost_per_unit: item.unit_cost,
+          stock_before: stockBefore,
         });
       } else {
         reviews.push({
@@ -117,60 +121,95 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    for (const upd of autoStockUpdates) {
-      const ing = (ingredients || []).find(i => i.id === upd.ingredient_id);
-      if (!ing) continue;
-
-      const newQty = (ing.current_stock || 0) + upd.quantity;
-      await supabase.from('ingredients').update({ current_stock: newQty }).eq('id', upd.ingredient_id);
-
-      await supabase.from('inventory_logs').insert({
-        ingredient_id: upd.ingredient_id,
-        type: 'stock_in',
-        quantity: upd.quantity,
-        cost_per_unit: upd.cost_per_unit,
-        reason: `Auto-receive from PO ${po.order_number}`,
-        order_id: po.id,
-      });
-    }
-
-    if (reviews.length > 0) {
-      await supabase.from('procurement_reviews').insert(reviews);
+    const oldPoStatus = po.status;
+    const oldItemReceived: Record<string, number> = {};
+    for (const pi of poItems) {
+      oldItemReceived[pi.id] = pi.received_quantity;
     }
 
     const allMatched = autoStockUpdates.length;
     const totalItems = invoiceItems.length;
 
-    let poStatus = po.status;
-    if (allMatched === totalItems) {
-      poStatus = 'received';
-    } else if (allMatched > 0) {
-      poStatus = 'partial';
-    }
+    const result = await withTransaction([
+      {
+        name: 'update_stock',
+        execute: async () => {
+          for (const upd of autoStockUpdates) {
+            const newQty = upd.stock_before + upd.quantity;
+            await supabase.from('ingredients').update({ current_stock: newQty }).eq('id', upd.ingredient_id);
+            await supabase.from('inventory_logs').insert({
+              ingredient_id: upd.ingredient_id,
+              type: 'stock_in',
+              quantity: upd.quantity,
+              cost_per_unit: upd.cost_per_unit,
+              reason: `Auto-receive from PO ${po.order_number}`,
+              order_id: po.id,
+            });
+          }
+        },
+        rollback: async () => {
+          for (const upd of autoStockUpdates) {
+            await supabase.from('ingredients').update({ current_stock: upd.stock_before }).eq('id', upd.ingredient_id);
+          }
+        },
+      },
+      {
+        name: 'insert_reviews',
+        execute: async () => {
+          if (reviews.length > 0) {
+            await supabase.from('procurement_reviews').insert(reviews);
+          }
+        },
+        rollback: async () => {
+          if (reviews.length > 0) {
+            const productNames = reviews.map((r: any) => r.product_name);
+            await supabase.from('procurement_reviews').delete().in('product_name', productNames);
+          }
+        },
+      },
+      {
+        name: 'update_po',
+        execute: async () => {
+          let poStatus = oldPoStatus;
+          if (allMatched === totalItems) poStatus = 'received';
+          else if (allMatched > 0) poStatus = 'partial';
+          await supabase.from('purchase_orders').update({
+            status: poStatus,
+            received_at: new Date().toISOString(),
+          }).eq('id', po.id);
 
-    await supabase.from('purchase_orders').update({
-      status: poStatus,
-      received_at: new Date().toISOString(),
-    }).eq('id', po.id);
+          const poItemMap = new Map(poItems.map(i => [i.product_name.toLowerCase().trim(), i]));
+          for (const item of invoiceItems) {
+            const existing = poItemMap.get(item.product_name.toLowerCase().trim());
+            if (existing) {
+              const receivedQty = Math.min(item.quantity, (oldItemReceived[existing.id] || 0) + item.quantity);
+              await supabase.from('purchase_order_items').update({ received_quantity: receivedQty }).eq('id', existing.id);
+            }
+          }
+        },
+        rollback: async () => {
+          await supabase.from('purchase_orders').update({ status: oldPoStatus, received_at: null }).eq('id', po.id);
+          for (const pi of poItems) {
+            await supabase.from('purchase_order_items').update({ received_quantity: oldItemReceived[pi.id] }).eq('id', pi.id);
+          }
+        },
+      },
+    ]);
 
-    const poItemMap = new Map(poItems.map(i => [i.product_name.toLowerCase().trim(), i]));
-    for (const item of invoiceItems) {
-      const existing = poItemMap.get(item.product_name.toLowerCase().trim());
-      if (existing) {
-        const receivedQty = Math.min(item.quantity, existing.received_quantity + item.quantity);
-        await supabase.from('purchase_order_items').update({ received_quantity: receivedQty }).eq('id', existing.id);
-      }
-    }
+    await createTransactionLog('receive_goods', 'completed', JSON.stringify({
+      poId: purchaseOrderId, matched: allMatched, total: totalItems, reviews: reviews.length
+    }));
 
     return NextResponse.json({
       success: true,
-      po_status: poStatus,
+      po_status: result.results[2]?.status || oldPoStatus,
       auto_matched: allMatched,
       total_items: totalItems,
       review_items: reviews.length,
       invoice_id: invoice?.id || null,
     });
   } catch (e: any) {
+    await createTransactionLog('receive_goods', 'failed', e.message).catch(() => {});
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

@@ -267,7 +267,22 @@ export interface CreatePurchaseOrderPayload {
 
 // ─── Invoice Reconciliation ────────────────────────────────────────────────────
 
-export type InvoiceStatus = 'pending' | 'matched' | 'partial' | 'discrepancy' | 'reconciled';
+export type InvoiceStatus = 'draft' | 'matched' | 'needs_review' | 'approved' | 'applied' | 'rejected' | 'rolled_back' | 'partially_applied';
+
+export const INVOICE_STATUS_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
+  draft: ['matched', 'needs_review'],
+  matched: ['approved', 'applied'],
+  needs_review: ['matched', 'rejected'],
+  approved: ['applied', 'rolled_back'],
+  applied: ['rolled_back'],
+  rejected: ['draft'],
+  rolled_back: ['draft'],
+  partially_applied: ['rolled_back'],
+};
+
+export function canTransitionInvoice(from: InvoiceStatus, to: string): boolean {
+  return INVOICE_STATUS_TRANSITIONS[from]?.includes(to as InvoiceStatus) ?? false;
+}
 
 export interface Invoice {
   id: string;
@@ -283,6 +298,7 @@ export interface Invoice {
   ocr_raw: unknown | null;
   created_at: string;
   updated_at: string;
+  applied_at: string | null;
 }
 
 export interface InvoiceItem {

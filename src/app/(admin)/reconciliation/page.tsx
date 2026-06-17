@@ -10,11 +10,14 @@ import type { Invoice, InvoiceItem, PriceAnomaly } from '@/types/inventory';
 type Tab = 'invoices' | 'anomalies';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-  pending: { label: 'Gözləyir', color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
+  draft: { label: 'Qaralama', color: 'text-white/40', bg: 'bg-white/5 border-white/10' },
   matched: { label: 'Uyğun', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-  partial: { label: 'Qismən', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
-  discrepancy: { label: 'Uyğunsuzluq', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
-  reconciled: { label: 'Təsdiqləndi', color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/20' },
+  needs_review: { label: 'Uyğunsuzluq', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
+  approved: { label: 'Təsdiqləndi', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/20' },
+  applied: { label: 'Tətbiq Edildi', color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/20' },
+  rejected: { label: 'Rədd Edildi', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
+  rolled_back: { label: 'Geri Alındı', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
+  partially_applied: { label: 'Qismən Tətbiq', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
 };
 
 export default function ReconciliationPage() {
@@ -67,6 +70,21 @@ export default function ReconciliationPage() {
       fetchInvoices();
     } catch { /* ignore */ }
     setReconciling(null);
+  };
+
+  const handleApplyInvoice = async (invoiceId: string) => {
+    try {
+      await fetch(`/api/invoices/${invoiceId}/apply`, { method: 'POST' });
+      fetchInvoices();
+    } catch { /* ignore */ }
+  };
+
+  const handleRollbackInvoice = async (invoiceId: string) => {
+    if (!confirm('Fakturanı geri almaq istədiyinizə əminsiniz? Stok geri çəkiləcək.')) return;
+    try {
+      await fetch(`/api/invoices/${invoiceId}/rollback`, { method: 'POST' });
+      fetchInvoices();
+    } catch { /* ignore */ }
   };
 
   const filteredInvoices = invoices.filter(inv =>
@@ -123,7 +141,7 @@ export default function ReconciliationPage() {
                 <div className="text-center py-12 text-white/20">Faktura tapılmadı</div>
               ) : (
                 filteredInvoices.map((inv, i) => {
-                  const cfg = statusConfig[inv.status] || statusConfig.pending;
+                  const cfg = statusConfig[inv.status] || statusConfig.draft;
                   return (
                     <motion.div
                       key={inv.id}
@@ -136,9 +154,10 @@ export default function ReconciliationPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${inv.status === 'discrepancy' ? 'bg-red-500/15' : 'bg-white/[0.04]'}`}>
-                            {inv.status === 'discrepancy' ? <AlertTriangle size={18} className="text-red-400" /> :
-                             inv.status === 'reconciled' ? <CheckCircle size={18} className="text-sky-400" /> :
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${inv.status === 'needs_review' ? 'bg-red-500/15' : 'bg-white/[0.04]'}`}>
+                            {inv.status === 'needs_review' ? <AlertTriangle size={18} className="text-red-400" /> :
+                             inv.status === 'applied' || inv.status === 'approved' ? <CheckCircle size={18} className="text-sky-400" /> :
+                             inv.status === 'rolled_back' || inv.status === 'rejected' ? <X size={18} className="text-orange-400" /> :
                              <FileText size={18} className="text-white/30" />}
                           </div>
                           <div>
@@ -186,18 +205,38 @@ export default function ReconciliationPage() {
                           )}
 
                           <div className="flex gap-2 pt-1">
-                            <button
-                              onClick={e => { e.stopPropagation(); handleReconcile(inv.id); }}
-                              disabled={reconciling === inv.id || !inv.purchase_order_id}
-                              className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-30"
-                              style={{ background: '#D4AF37', color: '#000' }}
-                            >
-                              {reconciling === inv.id ? (
-                                <>Uyğunlaşdırılır...</>
-                              ) : (
-                                <><RefreshCw size={12} /> Uyğunlaşdır</>
-                              )}
-                            </button>
+                            {(inv.status === 'draft' || inv.status === 'needs_review') && (
+                              <button
+                                onClick={e => { e.stopPropagation(); handleReconcile(inv.id); }}
+                                disabled={reconciling === inv.id || !inv.purchase_order_id}
+                                className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-30"
+                                style={{ background: '#D4AF37', color: '#000' }}
+                              >
+                                {reconciling === inv.id ? (
+                                  <>Uyğunlaşdırılır...</>
+                                ) : (
+                                  <><RefreshCw size={12} /> Uyğunlaşdır</>
+                                )}
+                              </button>
+                            )}
+                            {(inv.status === 'matched' || inv.status === 'approved') && (
+                              <button
+                                onClick={e => { e.stopPropagation(); handleApplyInvoice(inv.id); }}
+                                className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                style={{ background: '#059669', color: '#fff' }}
+                              >
+                                <CheckCircle size={12} /> Tətbiq Et
+                              </button>
+                            )}
+                            {(inv.status === 'applied' || inv.status === 'approved' || inv.status === 'partially_applied') && (
+                              <button
+                                onClick={e => { e.stopPropagation(); handleRollbackInvoice(inv.id); }}
+                                className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                                style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}
+                              >
+                                <X size={12} /> Geri Al
+                              </button>
+                            )}
                             {!inv.purchase_order_id && (
                               <span className="text-[10px] text-white/20 self-center">Sifarişə bağlı deyil</span>
                             )}

@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { canTransitionInvoice } from '@/types/inventory';
+import type { InvoiceStatus } from '@/types/inventory';
 
 function svc() {
   return createClient(
@@ -32,6 +34,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const supabase = svc();
     const body = await request.json();
+
+    if (body.status) {
+      const { data: current } = await supabase
+        .from('invoices')
+        .select('status')
+        .eq('id', id)
+        .single();
+      if (current && !canTransitionInvoice(current.status as InvoiceStatus, body.status)) {
+        return NextResponse.json({
+          error: `Cannot transition from "${current.status}" to "${body.status}"`,
+          validTransitions: ['draft', 'matched', 'needs_review', 'approved', 'applied', 'rejected', 'rolled_back', 'partially_applied'],
+        }, { status: 409 });
+      }
+    }
 
     const { error } = await supabase.from('invoices').update(body).eq('id', id);
     if (error) throw error;

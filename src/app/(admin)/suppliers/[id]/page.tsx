@@ -66,10 +66,10 @@ export default function SupplierDetailPage() {
       try {
         const [supRes, statsRes] = await Promise.all([
           fetch(`/api/suppliers/${id}`),
-          fetch(`/api/suppliers/${id}/stats`),
+          fetch(`/api/suppliers/${id}/stats`, { method: 'PATCH' }).then(r => r.ok ? r.json() : fetch(`/api/suppliers/${id}/stats`).then(r => r.ok ? r.json() : null)),
         ]);
         if (supRes.ok) setSupplier(await supRes.json());
-        if (statsRes.ok) setStats(await statsRes.json());
+        if (statsRes) setStats(statsRes);
       } catch {
         toast.error('Məlumat yüklənərkən xəta');
       } finally {

@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     const supabase = svc();
     const body: CreateIngredientPayload = await req.json();
 
-    const { name, unit, criticalLimit, averageCostPerUnit, purchasePrice, coldWastePercentage } = body;
+    const { name, unit, criticalLimit, averageCostPerUnit, purchasePrice, coldWastePercentage, supplierId } = body;
     if (!name?.trim() || !unit) {
       return NextResponse.json({ error: 'name and unit are required' }, { status: 400 });
     }
@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
         average_cost_per_unit: averageCostPerUnit ?? 0,
         purchase_price: purchasePrice ?? averageCostPerUnit ?? 0,
         cold_waste_percentage: coldWastePercentage ?? 0,
+        supplier_id: supplierId || null,
       })
       .select()
       .single();

@@ -123,6 +123,7 @@ export interface CreateIngredientPayload {
   averageCostPerUnit?: number;
   purchasePrice?: number;
   coldWastePercentage?: number;
+  supplierId?: string;
 }
 
 export interface CreateRecipePayload {

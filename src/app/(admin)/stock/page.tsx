@@ -15,6 +15,7 @@ import {
   InventoryStatusRow, InventoryDashboardData,
   IngredientUnit, LowStockAlert,
   InventoryLog, DisplayUnit, normalizeToStorage, formatWithUnit, parseInputQuantity,
+  Supplier,
 } from '@/types/inventory';
 import { StockStatusBadge, getStatusMeta, StockStatusBar } from '@/components/StockStatusBadge';
 import ProcurementTab from './components/ProcurementTab';
@@ -113,6 +114,7 @@ export default function StockPage() {
   const [newTotalAmount, setNewTotalAmount] = useState('');
   const [newWastePct, setNewWastePct] = useState('');
   const [newSupplier, setNewSupplier] = useState('');
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [auditQty, setAuditQty] = useState('');
   const [showWasteCalc, setShowWasteCalc] = useState(false);
   const [calcRaw, setCalcRaw] = useState('');
@@ -243,8 +245,12 @@ export default function StockPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/inventory');
-      if (res.ok) setData(await res.json());
+      const [invRes, supRes] = await Promise.all([
+        fetch('/api/inventory'),
+        fetch('/api/suppliers'),
+      ]);
+      if (invRes.ok) setData(await invRes.json());
+      if (supRes.ok) setSuppliers(await supRes.json());
     } finally {
       setLoading(false);
     }
@@ -431,6 +437,7 @@ export default function StockPage() {
           averageCostPerUnit: effectiveCost,
           purchasePrice: unitCost,
           coldWastePercentage: parseFloat(newWastePct) || 0,
+          supplierId: newSupplier || undefined,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -1434,10 +1441,14 @@ export default function StockPage() {
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
                         Təchizatçı <span className="text-white/20">— istəyə görə</span>
                       </label>
-                      <input type="text" value={newSupplier} onChange={e => setNewSupplier(e.target.value)}
-                        placeholder="Məs: Limasol, Baku Fish Co..."
+                      <select value={newSupplier} onChange={e => setNewSupplier(e.target.value)}
                         className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
-                      />
+                      >
+                        <option value="" style={{ background: '#111' }}>Seçilməyib</option>
+                        {suppliers.map(s => (
+                          <option key={s.id} value={s.id} style={{ background: '#111' }}>{s.name}</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

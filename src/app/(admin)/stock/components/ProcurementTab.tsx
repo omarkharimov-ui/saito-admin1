@@ -5,14 +5,16 @@ import { motion } from 'framer-motion';
 import {
   Upload, FileText, CheckCircle, AlertTriangle, X, RefreshCw,
   Package, ArrowRight, Image, Scale, PackageCheck, DollarSign, TrendingDown,
+  Truck, Plus, Pencil, Trash2,
 } from 'lucide-react';
 import { TableActionBar } from '@/components/TableActionBar';
 import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import { SummaryCards } from '@/components/ProcurementSummaryCards';
 import { StockStatusBadge } from '@/components/StockStatusBadge';
-import type { Invoice, InvoiceItem, PriceAnomaly, DiscrepancyAlert } from '@/types/inventory';
+import { toast } from '@/lib/toast';
+import type { Invoice, InvoiceItem, PriceAnomaly, DiscrepancyAlert, Supplier, CreateSupplierPayload } from '@/types/inventory';
 
-type ProcTab = 'receive' | 'reconcile' | 'anomalies';
+type ProcTab = 'receive' | 'reconcile' | 'anomalies' | 'suppliers';
 type Step = 'select' | 'upload' | 'review' | 'confirm';
 
 interface LineItem {
@@ -72,10 +74,10 @@ export default function ProcurementTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        {(['receive', 'reconcile', 'anomalies'] as const).map(t => (
+        {(['receive', 'reconcile', 'anomalies', 'suppliers'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${tab === t ? 'bg-white/10 text-white border border-white/15' : 'text-white/30 hover:text-white/60 border border-transparent'}`}>
-            {t === 'receive' ? 'Qəbul' : t === 'reconcile' ? 'Faktura' : 'Anomaliyalar'}
+            {t === 'receive' ? 'Qəbul' : t === 'reconcile' ? 'Faktura' : t === 'anomalies' ? 'Anomaliyalar' : 'Tədarükçülər'}
           </button>
         ))}
       </div>
@@ -83,6 +85,7 @@ export default function ProcurementTab() {
       {tab === 'receive' && <ReceiveSection />}
       {tab === 'reconcile' && <ReconcileSection />}
       {tab === 'anomalies' && <AnomaliesSection />}
+      {tab === 'suppliers' && <SuppliersSection />}
     </div>
   );
 }
@@ -568,6 +571,154 @@ function AnomaliesSection() {
               </motion.div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SuppliersSection() {
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<Supplier | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  const [form, setForm] = useState<CreateSupplierPayload>({ name: '', contact_person: '', phone: '', email: '', address: '', tax_id: '', notes: '' });
+
+  useEffect(() => { load(); }, []);
+
+  const load = async () => {
+    setLoading(true);
+    const res = await fetch('/api/suppliers');
+    if (res.ok) setSuppliers(await res.json());
+    setLoading(false);
+  };
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ name: '', contact_person: '', phone: '', email: '', address: '', tax_id: '', notes: '' });
+    setShowModal(true);
+  };
+
+  const openEdit = (s: Supplier) => {
+    setEditing(s);
+    setForm({ name: s.name, contact_person: s.contact_person || '', phone: s.phone || '', email: s.email || '', address: s.address || '', tax_id: s.tax_id || '', notes: s.notes || '' });
+    setShowModal(true);
+  };
+
+  const save = async () => {
+    if (!form.name.trim()) return toast('Ad tələb olunur');
+    const url = editing ? `/api/suppliers/${editing.id}` : '/api/suppliers';
+    const method = editing ? 'PATCH' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    if (!res.ok) return toast('Xəta baş verdi');
+    toast(editing ? 'Yeniləndi' : 'Əlavə edildi');
+    setShowModal(false);
+    load();
+  };
+
+  const remove = async () => {
+    if (!confirmDelete) return;
+    const res = await fetch(`/api/suppliers/${confirmDelete}`, { method: 'DELETE' });
+    if (!res.ok) return toast('Silinmədi');
+    toast('Silindi');
+    setConfirmDelete(null);
+    load();
+  };
+
+  const filtered = suppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+
+  if (loading) return <LoadingState />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1 max-w-sm">
+          <TableActionBar search={search} onSearchChange={setSearch} searchPlaceholder="Tədarükçü axtar..." />
+        </div>
+        <button onClick={openCreate} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10">
+          <Plus size={14} /> Yeni
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState icon={<Truck size={32} className="text-white/30" />} title="Tədarükçü tapılmadı" description="Hələ heç bir tədarükçü əlavə edilməyib" />
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {filtered.map(s => (
+            <motion.div key={s.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-white/90 truncate">{s.name}</div>
+                  <div className="mt-1 text-[11px] text-white/30 space-y-0.5">
+                    {s.contact_person && <div> 👤 {s.contact_person}</div>}
+                    {s.phone && <div> 📞 {s.phone}</div>}
+                    {s.email && <div> ✉️ {s.email}</div>}
+                  </div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors"><Pencil size={13} /></button>
+                  <button onClick={() => setConfirmDelete(s.id)} className="p-1.5 rounded-lg hover:bg-white/10 text-red-400/50 hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {s.score !== null && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${s.score >= 80 ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : s.score >= 50 ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10' : 'text-red-400 border-red-500/30 bg-red-500/10'}`}>
+                    {s.score}/100
+                  </span>
+                )}
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${s.status === 'active' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-white/30 border-white/[0.07] bg-white/[0.03]'}`}>
+                  {s.status === 'active' ? 'Aktiv' : 'Deaktiv'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full text-white/30 border border-white/[0.07]">
+                  {s.total_orders} sifariş
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-lg mx-4 rounded-2xl border border-white/[0.08] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-white/90 mb-4">{editing ? 'Redaktə Et' : 'Yeni Tədarükçü'}</h3>
+            <div className="space-y-3">
+              {(['name', 'contact_person', 'phone', 'email', 'address', 'tax_id', 'notes'] as const).map(f => (
+                <div key={f}>
+                  <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1 block">
+                    {f === 'name' ? 'Ad' : f === 'contact_person' ? 'Əlaqə Şəxs' : f === 'phone' ? 'Telefon' : f === 'email' ? 'Email' : f === 'address' ? 'Ünvan' : f === 'tax_id' ? 'VÖEN' : 'Qeyd'}
+                  </label>
+                  <input type={f === 'email' ? 'email' : 'text'} value={form[f] || ''} onChange={e => setForm(p => ({ ...p, [f]: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-5 justify-end">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 rounded-xl text-xs font-bold text-white/50 hover:text-white/70 transition-colors">Ləğv Et</button>
+              <button onClick={save} className="px-5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10">{editing ? 'Yadda Saxla' : 'Əlavə Et'}</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setConfirmDelete(null)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm mx-4 rounded-2xl border border-white/[0.08] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-white/90 mb-2">Tədarükçünü Sil</h3>
+            <p className="text-sm text-white/50 mb-4">Bu tədarükçünü silmək istədiyinizə əminsiniz?</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded-xl text-xs font-bold text-white/50 hover:text-white/70 transition-colors">İmtina</button>
+              <button onClick={remove} className="px-5 py-2 rounded-xl text-xs font-bold bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30">Sil</button>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ interface GlassCardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
   children: React.ReactNode;
   hover?: boolean;
   intensity?: 'light' | 'medium' | 'strong';
-  padding?: 'sm' | 'md' | 'lg' | 'xl';
+  padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
 const intensityMap = {
@@ -32,6 +32,7 @@ const intensityMap = {
 };
 
 const paddingMap = {
+  none: '',
   sm: 'p-3',
   md: 'p-4',
   lg: 'p-5',

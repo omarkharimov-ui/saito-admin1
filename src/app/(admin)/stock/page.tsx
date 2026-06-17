@@ -6,8 +6,8 @@ import {
   Package, Plus, TrendingDown, TrendingUp,
   Trash2, X, Loader2, FlaskConical, RefreshCw,
   DollarSign, ShieldAlert, CheckCircle2, Search,
-  Calculator, Lightbulb, ChevronDown, ChevronUp,
-  ChevronLeft, ChevronRight, Pencil,
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
+  Pencil, Lightbulb, Calculator,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -62,19 +62,34 @@ const modalV = {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatCard({ icon, label, value, sub, accent }: {
-  icon: React.ReactNode; label: string; value: string | number; sub?: string; accent?: string;
+function StatCard({ icon, label, value, sub, accent, trend }: {
+  icon: React.ReactNode; label: string; value: string | number; sub?: string; accent?: string; trend?: { dir: 'up' | 'down'; pct: string };
 }) {
   return (
-    <GlassCard intensity="light" padding="lg" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold tracking-widest uppercase text-white/30">{label}</span>
-        <span className={accent ?? 'text-white/20'}>{icon}</span>
+    <GlassCard intensity="light" padding="lg" className="relative overflow-hidden group cursor-default">
+      {/* Decorative ambient glow */}
+      <div className="pointer-events-none absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-[0.04] group-hover:opacity-[0.08] transition-all duration-700"
+        style={{ background: `radial-gradient(circle, ${accent?.includes('emerald') ? '#10B981' : accent?.includes('amber') ? '#F59E0B' : accent?.includes('rose') ? '#F43F5E' : '#D4AF37'}, transparent 70%)` }} />
+      <div className="pointer-events-none absolute -bottom-8 -left-8 w-24 h-24 rounded-full opacity-[0.02]"
+        style={{ background: `radial-gradient(circle, ${accent?.includes('emerald') ? '#10B981' : '#D4AF37'}, transparent 70%)` }} />
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/25">{label}</span>
+        <span className={`p-2 rounded-xl ${accent ?? 'text-white/20'} bg-white/[0.03] border border-white/[0.06]`}>{icon}</span>
       </div>
-      <div>
-        <p className="text-3xl font-black tabular-nums leading-none">{value}</p>
-        {sub && <p className="text-[11px] text-white/30 mt-1">{sub}</p>}
+      <div className="flex items-end justify-between gap-2">
+        <div>
+          <p className="text-3xl sm:text-4xl font-black tabular-nums leading-none tracking-tight text-white/90">{value}</p>
+          {sub && <p className="text-[11px] text-white/25 mt-2 font-medium">{sub}</p>}
+        </div>
+        {trend && (
+          <span className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg ${trend.dir === 'up' ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
+            {trend.dir === 'up' ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+            {trend.pct}
+          </span>
+        )}
       </div>
+      {/* Subtle top light edge */}
+      <div className="pointer-events-none absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
     </GlassCard>
   );
 }
@@ -675,24 +690,24 @@ export default function StockPage() {
         </AnimatePresence>
 
         {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           <StatCard
-            icon={<FlaskConical size={18} />} label="Ümumi Xammal"
+            icon={<Package size={16} />} label="Ümumi Xammal"
             value={loading ? '—' : fmt(stats?.total ?? 0)}
-            sub="aktiv inqredient" accent="text-[#D4AF37]/60"
+            sub="aktiv ingredient" accent="text-[#D4AF37]/60"
           />
           <StatCard
-            icon={<ShieldAlert size={18} />} label="Kritik Vəziyyət"
+            icon={<ShieldAlert size={16} />} label="Kritik Vəziyyət"
             value={loading ? '—' : fmt((stats?.critical ?? 0) + (stats?.out_of_stock ?? 0))}
-            sub={`${stats?.out_of_stock ?? 0} tamamilə bitib`} accent={(stats?.critical ?? 0) > 0 ? 'text-amber-400' : 'text-white/20'}
+            sub={`${stats?.out_of_stock ?? 0} tamamilə bitib`} accent="text-amber-400"
           />
           <StatCard
-            icon={<CheckCircle2 size={18} />} label="Normal Stok"
+            icon={<CheckCircle2 size={16} />} label="Normal Stok"
             value={loading ? '—' : fmt((stats?.total ?? 0) - (stats?.critical ?? 0) - (stats?.out_of_stock ?? 0))}
             sub="optimal səviyyədə" accent="text-emerald-400/70"
           />
           <StatCard
-            icon={<DollarSign size={18} />} label="Aylıq İtki Dəyəri"
+            icon={<DollarSign size={16} />} label="Aylıq İtki Dəyəri"
             value={loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`}
             sub="bu ay waste + adjustment" accent="text-rose-400/70"
           />
@@ -755,23 +770,20 @@ export default function StockPage() {
             )}
           </GlassCard>
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="rounded-2xl"
-            style={{ border: '1px solid rgba(255,255,255,0.06)' }}
-          >
+          <GlassCard intensity="light" padding="none" className="overflow-hidden">
             {/* Table head */}
             <div
               className="hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-white/20"
               style={{
-                gridTemplateColumns: '1fr 120px 100px 130px 60px',
+                gridTemplateColumns: '1fr 100px 80px 120px 120px 60px',
                 background: 'rgba(255,255,255,0.018)',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
               }}
             >
               <span>Xammal</span>
               <span className="text-right">Cari Stok</span>
-              <span className="text-right">Kritik Limit</span>
+              <span className="text-right">Limit</span>
+              <span className="text-right">Maya Dəyəri</span>
               <span className="text-center">Status</span>
               <span className="text-right">Əməliyyat</span>
             </div>
@@ -784,13 +796,13 @@ export default function StockPage() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="group px-4 lg:px-6 py-4 transition-colors hover:bg-white/[0.018]"
+                  className="group px-4 lg:px-6 py-4 transition-all duration-300 hover:bg-white/[0.018] hover:scale-[1.002]"
                   style={{ borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
                 >
                   {/* Desktop row */}
                   <div
                     className="hidden lg:grid gap-4 items-center"
-                    style={{ gridTemplateColumns: '1fr 120px 100px 130px 60px' }}
+                    style={{ gridTemplateColumns: '1fr 100px 80px 120px 120px 60px' }}
                   >
                     {/* Name + bar */}
                     <div className="flex items-center gap-3 min-w-0">
@@ -804,7 +816,7 @@ export default function StockPage() {
                           <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
                         </div>
                         <p className="text-[10px] text-white/20 mt-1">
-                          {UNIT_LABELS[row.unit]} · alış: ₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]}
+                          {UNIT_LABELS[row.unit]}
                           {(row as any).cold_waste_percentage > 0 && <span className="text-red-400/40 ml-1.5">· itki: {row.cold_waste_percentage}%</span>}
                         </p>
                       </div>
@@ -822,6 +834,16 @@ export default function StockPage() {
                     <div className="text-right">
                       <span className="text-sm text-white/35 tabular-nums">{fmt(row.critical_limit, 0)}</span>
                       <span className="text-[10px] text-white/20 ml-1">{UNIT_LABELS[row.unit]}</span>
+                    </div>
+
+                    {/* Total cost */}
+                    <div className="text-right">
+                      <p className="text-base font-black tabular-nums text-white/80">
+                        ₼{fmtCost((row.current_stock || 0) * (row.purchase_price ?? row.average_cost_per_unit))}
+                      </p>
+                      <p className="text-[10px] text-white/20 mt-0.5">
+                        ₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)} / {UNIT_LABELS[row.unit]}
+                      </p>
                     </div>
 
                     {/* Status */}
@@ -900,6 +922,15 @@ export default function StockPage() {
                       </span>
                     </div>
                     <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white/40 font-medium">Maya dəyəri</span>
+                      <span className="font-bold text-white/80 tabular-nums">
+                        ₼{fmtCost((row.current_stock || 0) * (row.purchase_price ?? row.average_cost_per_unit))}
+                        <span className="text-white/20 font-normal ml-1">
+                          (₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]})
+                        </span>
+                      </span>
+                    </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="text-lg font-black tabular-nums" style={{ color: meta.text }}>
@@ -957,7 +988,7 @@ export default function StockPage() {
                 </motion.div>
               );
             })}
-          </motion.div>
+          </GlassCard>
         )}
       </> )}
 

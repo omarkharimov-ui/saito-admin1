@@ -65,8 +65,8 @@ export function StockStatusBadge({ status, size = 'sm' }: { status: string; size
 export function StockStatusBar({ status, pct }: { status: string; pct: number }) {
   const s = getStatusMeta(status);
   return (
-    <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
-      <div className={`h-full rounded-full transition-all duration-500 ${s.bar}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+    <div className="w-full h-1 rounded-full bg-white/[0.03] overflow-hidden">
+      <div className={`h-full rounded-full transition-all duration-700 ease-out ${s.bar}`} style={{ width: `${Math.min(pct, 100)}%` }} />
     </div>
   );
 }

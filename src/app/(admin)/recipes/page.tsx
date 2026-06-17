@@ -11,6 +11,7 @@ import {
 import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RecipeConstructorModal } from './components/RecipeConstructorModal';
+import IntelligenceTab from './components/IntelligenceTab';
 
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
@@ -47,6 +48,8 @@ export default function RecipesPage() {
   const [uploadText, setUploadText] = useState('');
   const [uploadLoading, setUploadLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+
+  const [viewMode, setViewMode] = useState<'recipes' | 'intelligence'>('recipes');
 
   // ── Constructor Modal state ──
   const [constructorOpen, setConstructorOpen] = useState(false);
@@ -342,8 +345,15 @@ export default function RecipesPage() {
               <h1 className="text-xl font-bold text-white">Reseptlər</h1>
               <p className="text-white/30 text-xs">Hər məhsulun hazırlanması üçün tələb olunan xəmmal</p>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              {(['recipes', 'intelligence'] as const).map(m => (
+                <button key={m} onClick={() => setViewMode(m)}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
+                    viewMode === m ? 'bg-white/10 text-white border border-white/15' : 'text-white/30 hover:text-white/60 border border-transparent'
+                  }`}>
+                  {m === 'recipes' ? 'Reseptlər' : 'İntellekt'}
+                </button>
+              ))}
             <button
               onClick={() => { setEditConstructorProductId(undefined); setConstructorOpen(true); }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 transition-all"
@@ -376,8 +386,14 @@ export default function RecipesPage() {
             </button>
           </div>
         </div>
-      </GlassCard>
+      </div>
+    </GlassCard>
 
+      {viewMode === 'intelligence' && (
+        <IntelligenceTab />
+      )}
+
+      <div style={{ display: viewMode === 'recipes' ? '' : 'none' }}>
       <MobileModal open={clearConfirmOpen} onClose={() => setClearConfirmOpen(false)}>
         <div className="space-y-4 text-center">
           <h3 className="text-lg font-bold">Bütün reseptlər silinsin?</h3>
@@ -767,6 +783,7 @@ export default function RecipesPage() {
           )}
         </div>
       )}
+      </div>
 
       {/* Recipe Constructor Modal */}
       <RecipeConstructorModal

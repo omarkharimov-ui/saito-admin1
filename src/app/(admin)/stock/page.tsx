@@ -7,7 +7,7 @@ import {
   Trash2, X, Loader2, FlaskConical, RefreshCw,
   DollarSign, ShieldAlert, CheckCircle2, Search,
   Calculator, Lightbulb, ChevronDown, ChevronUp,
-  ChevronLeft, ChevronRight, ShoppingCart,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -16,8 +16,10 @@ import {
   IngredientUnit, LowStockAlert,
   InventoryLog, DisplayUnit, normalizeToStorage, formatWithUnit, parseInputQuantity,
 } from '@/types/inventory';
+import { StockStatusBadge, getStatusMeta, StockStatusBar } from '@/components/StockStatusBadge';
+import ProcurementTab from './components/ProcurementTab';
+import IntelligenceTabComponent from './components/IntelligenceTab';
 import { CalibrationSuggestionsPanel } from './components/CalibrationSuggestionsPanel';
-import { PurchaseTab } from './components/PurchaseTab';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { PageTransition } from '@/components/PageTransition';
@@ -40,21 +42,6 @@ const LOG_COLORS: Record<string, string> = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function statusMeta(status: string) {
-  if (status === 'out_of_stock') return {
-    label: 'Bitib', dot: 'bg-red-500', text: 'text-red-400',
-    bg: 'bg-red-500/10', border: 'border-red-500/25', bar: 'bg-red-500',
-  };
-  if (status === 'critical') return {
-    label: 'Kritik', dot: 'bg-amber-400', text: 'text-amber-400',
-    bg: 'bg-amber-500/10', border: 'border-amber-500/25', bar: 'bg-amber-400',
-  };
-  return {
-    label: 'Normal', dot: 'bg-emerald-400', text: 'text-emerald-400',
-    bg: 'bg-emerald-500/10', border: 'border-emerald-500/25', bar: 'bg-emerald-400',
-  };
-}
 
 function fmt(n: number, dec = 0) {
   return Number(n).toLocaleString('az-AZ', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -92,20 +79,8 @@ function StatCard({ icon, label, value, sub, accent }: {
 }
 
 function StockBar({ ratio, status }: { ratio: number; status: string }) {
-  const meta = statusMeta(status);
-  const pct = Math.min(Math.max(ratio, 0), 200);
-  const displayPct = Math.min(pct, 100);
-  return (
-    <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-      <motion.div
-        className={`h-full rounded-full ${meta.bar}`}
-        initial={{ width: 0 }}
-        animate={{ width: `${displayPct}%` }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        style={{ opacity: status === 'out_of_stock' ? 0.3 : 1 }}
-      />
-    </div>
-  );
+  const pct = Math.min(Math.max(ratio, 0), 100);
+  return <StockStatusBar status={status} pct={pct} />;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -121,7 +96,7 @@ export default function StockPage() {
   const [saving, setSaving]   = useState(false);
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState<'all' | 'critical' | 'out_of_stock'>('all');
-  const [viewMode, setViewMode] = useState<'stock' | 'purchase' | 'history'>('stock');
+  const [viewMode, setViewMode] = useState<'stock' | 'procurement' | 'intelligence' | 'history'>('stock');
   const now = new Date();
   const [historyMonth, setHistoryMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const [historyDay, setHistoryDay] = useState<string | null>(null);
@@ -558,7 +533,7 @@ export default function StockPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {(['stock', 'purchase', 'history'] as const).map(m => (
+            {(['stock', 'procurement', 'intelligence', 'history'] as const).map(m => (
               <button
                 key={m}
                 onClick={() => setViewMode(m)}
@@ -568,7 +543,7 @@ export default function StockPage() {
                     : 'text-white/30 hover:text-white/60 border border-transparent'
                 }`}
               >
-                {m === 'stock' ? 'Stok' : m === 'purchase' ? 'Tədarük' : 'Tarixçə'}
+                {m === 'stock' ? 'Stok' : m === 'procurement' ? 'Tədarük' : m === 'intelligence' ? 'İntellekt' : 'Tarixçə'}
               </button>
             ))}
             <button
@@ -632,7 +607,7 @@ export default function StockPage() {
         </div>
 
         {/* ── Search + Filter bar ── */}
-        {viewMode !== 'purchase' && (
+        {viewMode === 'stock' && (
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
@@ -710,7 +685,7 @@ export default function StockPage() {
             </div>
 
             {rows.map((row, i) => {
-              const meta = statusMeta(row.status);
+              const meta = getStatusMeta(row.status);
               return (
                 <motion.div
                   key={row.id}
@@ -874,19 +849,14 @@ export default function StockPage() {
         )}
       </> )}
 
-        {viewMode === 'purchase' && (
-          <GlassCard intensity="light" padding="lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                <ShoppingCart size={18} className="text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">Tədarük / Faktura</h2>
-                <p className="text-white/30 text-xs">Invoice yüklə, OCR ilə tanı, stoka əlavə et</p>
-              </div>
-            </div>
-            <PurchaseTab />
-          </GlassCard>
+        {viewMode === 'procurement' && (
+          <ProcurementTab />
+        )}
+
+        {viewMode === 'intelligence' && (
+          <div className="max-w-3xl">
+            <IntelligenceTabComponent />
+          </div>
         )}
 
         {viewMode === 'history' && (
@@ -1248,7 +1218,7 @@ export default function StockPage() {
                       </span>
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
                       <p className="text-white/30 text-xs mt-0.5">
-                        Cari: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
+                        Cari: <span className={`font-semibold ${getStatusMeta(modal.row.status).text}`}>
                           {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span>
                       </p>
@@ -1307,7 +1277,7 @@ export default function StockPage() {
                       </span>
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
                       <p className="text-white/30 text-xs mt-0.5">
-                        Cari: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
+                        Cari: <span className={`font-semibold ${getStatusMeta(modal.row.status).text}`}>
                           {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span>
                       </p>
@@ -1680,7 +1650,7 @@ export default function StockPage() {
                       </span>
                       <h2 className="text-xl font-bold leading-tight">{modal.row.name}</h2>
                       <p className="text-white/30 text-xs mt-0.5">
-                        Cari stok: <span className={`font-semibold ${statusMeta(modal.row.status).text}`}>
+                        Cari stok: <span className={`font-semibold ${getStatusMeta(modal.row.status).text}`}>
                           {fmt(modal.row.current_stock, 1)} {UNIT_LABELS[modal.row!.unit]}
                         </span>
                       </p>

@@ -56,7 +56,7 @@ export default function ProcurementTab() {
             {tab === t && (
               <motion.div
                 layoutId="proc-tab-indicator"
-                transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 className="absolute inset-0 rounded-lg"
                 style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
               />

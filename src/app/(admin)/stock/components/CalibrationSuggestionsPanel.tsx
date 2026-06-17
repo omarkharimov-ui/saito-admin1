@@ -61,6 +61,8 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
           onClick={() => setOpen(true)}
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl text-sm font-semibold text-white/80 hover:text-white hover:bg-white/[0.06] transition-colors"
@@ -80,10 +82,10 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
           <motion.div
             key="calibration-panel"
             layoutId="calibration-panel"
-            initial={{ opacity: 0, scale: 0.92, y: -8 }}
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: -8 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            exit={{ opacity: 0, scale: 0.93, y: -8 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 28 }}
             className="rounded-2xl border border-white/10 bg-[#0c0c0c] backdrop-blur-xl p-4 sm:p-5 shadow-[0_16px_48px_rgba(0,0,0,0.5)]"
           >
             <div className="flex items-start justify-between gap-4">
@@ -111,7 +113,7 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
                     layout
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 40, scale: 0.95, filter: 'blur(4px)' }}
+                    exit={{ opacity: 0, y: 60, scale: 0.9, filter: 'blur(6px)' }}
                     transition={{ type: 'spring', stiffness: 400, damping: 28 }}
                     whileHover={{ scale: 1.01, backgroundColor: 'rgba(255,255,255,0.04)' }}
                     whileTap={{ scale: 0.98 }}

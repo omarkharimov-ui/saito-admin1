@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Plus, TrendingDown, TrendingUp,
   Trash2, X, Loader2, FlaskConical, RefreshCw,
-  DollarSign, ShieldAlert, CheckCircle2, Search,
+  ShieldAlert, Search,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   Pencil, Lightbulb, Calculator,
 } from 'lucide-react';
@@ -17,7 +17,7 @@ import {
   InventoryLog, DisplayUnit, normalizeToStorage, formatWithUnit, parseInputQuantity,
   Supplier,
 } from '@/types/inventory';
-import { StockStatusBadge, getStatusMeta, StockStatusBar } from '@/components/StockStatusBadge';
+import { getStatusMeta, StockStatusBar } from '@/components/StockStatusBadge';
 import ProcurementTab from './components/ProcurementTab';
 import IntelligenceTabComponent from './components/IntelligenceTab';
 import { CalibrationSuggestionsPanel } from './components/CalibrationSuggestionsPanel';
@@ -76,8 +76,12 @@ function InventoryHealthCard({ stats, alerts, loading }: {
   const healthBg = score >= 80 ? 'from-emerald-500/20 to-emerald-500/5' : score >= 50 ? 'from-amber-500/20 to-amber-500/5' : 'from-red-500/20 to-red-500/5';
 
   return (
-    <motion.div layout className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-xl">
-      <motion.div layout="position" className="p-5 sm:p-6">
+    <motion.div
+      layout
+      transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+      className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-xl"
+    >
+      <div className="p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -110,26 +114,25 @@ function InventoryHealthCard({ stats, alerts, loading }: {
         {!loading && total > 0 && (
           <div className="mt-4 h-1.5 rounded-full bg-white/[0.04] overflow-hidden flex">
             <motion.div initial={{ width: 0 }} animate={{ width: `${(normal / total) * 100}%` }}
-              transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 120, damping: 20 }}
               className="h-full bg-emerald-400/60 rounded-l-full" />
             <motion.div initial={{ width: 0 }} animate={{ width: `${(critical / total) * 100}%` }}
-              transition={{ delay: 0.35, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ delay: 0.3, type: 'spring', stiffness: 120, damping: 20 }}
               className="h-full bg-amber-400/60" />
             <motion.div initial={{ width: 0 }} animate={{ width: `${((stats?.out_of_stock ?? 0) / total) * 100}%` }}
-              transition={{ delay: 0.5, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ delay: 0.4, type: 'spring', stiffness: 120, damping: 20 }}
               className="h-full bg-red-400/60 rounded-r-full" />
           </div>
         )}
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {expanded && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 24 }}
           >
             <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-0 space-y-3">
               <div className="h-px bg-white/[0.06]" />
@@ -733,7 +736,7 @@ export default function StockPage() {
                 {viewMode === m && (
                   <motion.div
                     layoutId="tab-indicator"
-                    transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                     className="absolute inset-0 rounded-lg"
                     style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
                   />
@@ -790,15 +793,15 @@ export default function StockPage() {
         {viewMode === 'stock' && (
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <AnimatePresence mode="wait">
+            <motion.div
+              layout
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              className={`relative ${!isSearchOpen ? 'w-10 h-10' : 'w-full'}`}
+            >
               {!isSearchOpen ? (
                 <motion.button
                   key="search-icon"
-                  layoutId="search"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  onClick={() => setIsSearchOpen(true)}
+                  onClick={() => { setIsSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 100); }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -807,14 +810,7 @@ export default function StockPage() {
                   <Search size={15} className="text-white/30" />
                 </motion.button>
               ) : (
-                <motion.div
-                  key="search-input"
-                  layoutId="search"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="relative"
-                >
+                <div className="relative w-full">
                   <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
                   <input
                     ref={searchRef}
@@ -822,20 +818,14 @@ export default function StockPage() {
                     placeholder="Xammal axtar..."
                     className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/30 transition-colors"
                     onKeyDown={e => { if (e.key === 'Escape') { setSearch(''); setIsSearchOpen(false); } }}
+                    onBlur={() => { if (!search) setIsSearchOpen(false); }}
                   />
-                  {search && (
-                    <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors">
-                      <X size={14} />
-                    </button>
-                  )}
-                  {!search && (
-                    <button onClick={() => setIsSearchOpen(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors">
-                      <X size={14} />
-                    </button>
-                  )}
-                </motion.div>
+                  <button onClick={() => { setSearch(''); setIsSearchOpen(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors">
+                    <X size={14} />
+                  </button>
+                </div>
               )}
-            </AnimatePresence>
+            </motion.div>
           </div>
           <div className="flex gap-2">
             {(['all', 'critical', 'out_of_stock'] as const).map(f => (

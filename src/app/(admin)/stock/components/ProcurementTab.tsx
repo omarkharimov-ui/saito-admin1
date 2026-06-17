@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Upload, FileText, CheckCircle, AlertTriangle, X, RefreshCw,
-  Package, ArrowRight, Image, Scale, PackageCheck, DollarSign, TrendingDown,
+  Package, Image, Scale, PackageCheck, DollarSign, TrendingDown,
   Truck, Plus, Pencil, Trash2,
 } from 'lucide-react';
 import { TableActionBar } from '@/components/TableActionBar';
@@ -15,27 +15,13 @@ import { toast } from '@/lib/toast';
 import type { DiscrepancyAlert, Supplier, CreateSupplierPayload } from '@/types/inventory';
 
 type ProcTab = 'receive' | 'anomalies' | 'suppliers';
-type Step = 'select' | 'upload' | 'review' | 'confirm';
+type Step = 'upload' | 'review' | 'confirm';
 
 interface LineItem {
   id: string; product_name: string; quantity: number; unit: string;
   unit_cost: number; total_cost: number;
-  po_quantity?: number; po_unit?: string; po_unit_cost?: number;
   matched_ingredient?: { id: string; name: string; confidence: number };
-  variance_qty?: number;
-  status: 'matched' | 'adjusted' | 'missing' | 'extra';
-}
-
-const unitConversions: Record<string, Record<string, number>> = {
-  kg: { gram: 1000, g: 1000 }, gram: { kg: 0.001 },
-  liter: { ml: 1000, l: 1000 }, ml: { liter: 0.001, l: 0.001 },
-};
-
-function convertUnit(value: number, from: string, to: string): number {
-  const k = from.toLowerCase(), t = to.toLowerCase();
-  if (k === t) return value;
-  const f = unitConversions[k]?.[t] || unitConversions[t]?.[k];
-  return f ? (f > 1 ? value * f : value / (1 / f)) : value;
+  status: 'matched' | 'extra';
 }
 
 const severityConfig: Record<string, { label: string; color: string; bg: string }> = {
@@ -71,18 +57,17 @@ export default function ProcurementTab() {
         ))}
       </div>
 
-      {tab === 'receive' && <ReceiveSection />}
+      {tab === 'receive' && <InvoiceUploadSection />}
       {tab === 'anomalies' && <AnomaliesSection />}
       {tab === 'suppliers' && <SuppliersSection />}
     </div>
   );
 }
 
-function ReceiveSection() {
+function InvoiceUploadSection() {
   const [pos, setPos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPo, setSelectedPo] = useState<any | null>(null);
-  const [step, setStep] = useState<Step>('select');
+  const [step, setStep] = useState<Step>('upload');
   const [invoiceImage, setInvoiceImage] = useState<string | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
@@ -90,7 +75,7 @@ function ReceiveSection() {
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [poItems, setPoItems] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchPos(); fetchReviews(); }, []);
@@ -103,11 +88,6 @@ function ReceiveSection() {
     try { setReviews(await (await fetch('/api/procurement/reviews')).json()); } catch {}
   };
 
-  const selectPo = async (po: any) => {
-    setSelectedPo(po); setStep('upload'); setInvoiceImage(null); setLineItems([]); setResult(null);
-    try { const r = await fetch(`/api/purchase-orders/${po.id}`); setPoItems((await r.json()).items || []); } catch {}
-  };
-
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
@@ -118,25 +98,12 @@ function ReceiveSection() {
         const res = await fetch('/api/invoice-ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: base64, language: 'az' }) });
         if (res.ok) {
           const data = await res.json();
-          const lines: LineItem[] = (data.lines || []).map((l: any) => {
-            const poMatch = poItems.find((p: any) => p.product_name.toLowerCase().trim() === (l.name || '').toLowerCase().trim());
-            const qty = l.quantity || 0; const poQty = poMatch?.quantity || 0;
-            return {
-              id: `inv-${Math.random().toString(36).slice(2)}`,
-              product_name: l.name || 'Unknown', quantity: qty, unit: l.unit || 'gram',
-              unit_cost: l.unit_cost || 0, total_cost: l.total_cost || 0,
-              po_quantity: poQty, po_unit: poMatch?.unit, po_unit_cost: poMatch?.unit_cost,
-              variance_qty: poQty ? qty - poQty : undefined,
-              status: !poQty ? 'extra' : Math.abs(qty - poQty) / poQty > 0.05 ? 'adjusted' : 'matched',
-            };
-          });
-          if (lines.length === 0 && poItems.length > 0) {
-            for (const p of poItems) lines.push({
-              id: `po-${p.id}`, product_name: p.product_name, quantity: 0, unit: p.unit,
-              unit_cost: p.unit_cost, total_cost: 0, po_quantity: p.quantity,
-              po_unit: p.unit, po_unit_cost: p.unit_cost, variance_qty: -p.quantity, status: 'missing',
-            });
-          }
+          const lines: LineItem[] = (data.lines || []).map((l: any) => ({
+            id: `inv-${Math.random().toString(36).slice(2)}`,
+            product_name: l.name || 'Unknown', quantity: l.quantity || 0, unit: l.unit || 'gram',
+            unit_cost: l.unit_cost || 0, total_cost: l.total_cost || 0,
+            status: 'matched',
+          }));
           setLineItems(lines); setStep('review');
         }
       } catch {}
@@ -164,7 +131,7 @@ function ReceiveSection() {
         product_name: l.product_name, quantity: l.quantity, unit: l.unit,
         unit_cost: l.unit_cost, total_cost: l.total_cost, ingredient_id: l.matched_ingredient!.id,
       }));
-      const r = await fetch('/api/procurement/receive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchaseOrderId: selectedPo.id, invoiceImage, manualItems }) });
+      const r = await fetch('/api/procurement/receive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchaseOrderId: null, invoiceImage, manualItems }) });
       setResult(await r.json()); setStep('confirm'); fetchPos(); fetchReviews();
     } catch {}
     setConfirming(false);
@@ -184,29 +151,54 @@ function ReceiveSection() {
 
   if (loading) return <LoadingState />;
 
-  if (!selectedPo || step === 'select') {
+  if (step === 'upload') {
     return (
-      <div className="grid gap-3 md:grid-cols-2">
-        {pos.map((po, i) => (
-          <motion.div key={po.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-            className="rounded-2xl border p-5 cursor-pointer hover:bg-white/[0.018] transition-all"
-            style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }} onClick={() => selectPo(po)}>
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-white">{po.order_number}</h3>
-                <p className="text-xs text-white/40 mt-0.5">{po.supplier?.name || '—'}</p>
-              </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${po.status === 'sent' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-orange-500/15 text-orange-400 border border-orange-500/20'}`}>
-                {po.status === 'sent' ? 'Göndərilib' : 'Qismən'}
-              </span>
+      <div className="space-y-4">
+        <div onClick={() => fileRef.current?.click()} className="rounded-2xl border-2 border-dashed p-12 text-center cursor-pointer hover:bg-white/[0.01] transition-all" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+          {ocrLoading ? (
+            <div className="space-y-3">
+              <RefreshCw size={32} className="mx-auto text-[#D4AF37] animate-spin" />
+              <p className="text-sm text-white/50">Faktura oxunur...</p>
             </div>
-            <div className="text-xs text-white/30">{po.total_amount?.toFixed(2)} ₼ • {new Date(po.ordered_at).toLocaleDateString('az')}</div>
-            <div className="mt-3 flex items-center gap-1.5 text-xs text-[#D4AF37]"><ArrowRight size={12} /> Davam et</div>
-          </motion.div>
-        ))}
-        {pos.length === 0 && <div className="col-span-2"><EmptyState title="Göndərilmiş PO yoxdur" description="Yeni tədarük qəbulu üçün göndərilmiş PO lazımdır" /></div>}
+          ) : (
+            <div className="space-y-3">
+              <Image size={32} className="mx-auto text-white/20" />
+              <p className="text-sm text-white/50">Faktura şəklini yükləyin</p>
+              <p className="text-xs text-white/20">AI OCR avtomatik məhsul adlarını, miqdarları və qiymətləri çıxaracaq</p>
+            </div>
+          )}
+          {invoiceImage && <img src={invoiceImage} alt="Invoice" className="mt-4 max-h-48 mx-auto rounded-xl object-contain" />}
+        </div>
+
+        {pos.length > 0 && (
+          <>
+            <div className="border-t pt-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
+              <p className="text-xs text-white/30 mb-3">Bu faktura hansı sifarişə aiddir? (köməkçi)</p>
+              <div className="grid gap-2 md:grid-cols-2">
+                {pos.map((po, i) => (
+                  <div key={po.id}
+                    className="rounded-2xl border p-4 cursor-pointer hover:bg-white/[0.018] transition-all"
+                    style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white">{po.order_number}</h3>
+                        <p className="text-xs text-white/40 mt-0.5">{po.supplier?.name || '—'}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${po.status === 'sent' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-orange-500/15 text-orange-400 border border-orange-500/20'}`}>
+                        {po.status === 'sent' ? 'Göndərilib' : 'Qismən'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-white/30">{po.total_amount?.toFixed(2)} ₼ • {new Date(po.ordered_at).toLocaleDateString('az')}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
         {pendingReviewItems.length > 0 && (
-          <div className="col-span-2 rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
+          <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
             <p className="text-sm font-semibold text-white mb-3">{pendingReviewItems.length} review gözləyir</p>
             <div className="space-y-2">
               {pendingReviewItems.slice(0, 5).map((r: any) => (
@@ -228,37 +220,14 @@ function ReceiveSection() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 text-xs text-white/30 mb-2">
-        <span className={step === 'upload' ? 'text-[#D4AF37] font-bold' : ''}>1. Faktura Yüklə</span>
+        <span className="text-[#D4AF37] font-bold">1. Faktura Yüklə</span>
         <span>→</span>
         <span className={step === 'review' ? 'text-[#D4AF37] font-bold' : ''}>2. Xətləri Yoxla</span>
         <span>→</span>
         <span className={step === 'confirm' ? 'text-[#D4AF37] font-bold' : ''}>3. Təsdiq Et</span>
       </div>
 
-      <div className="flex items-center justify-between">
-        <button onClick={() => { setSelectedPo(null); setStep('select'); }} className="text-xs text-white/30 hover:text-white transition-colors">← Geri</button>
-        <span className="text-sm font-semibold text-white">{selectedPo.order_number} — {selectedPo.supplier?.name}</span>
-        <div />
-      </div>
-
-      {step === 'upload' && (
-        <div onClick={() => fileRef.current?.click()} className="rounded-2xl border-2 border-dashed p-12 text-center cursor-pointer hover:bg-white/[0.01] transition-all" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
-          {ocrLoading ? (
-            <div className="space-y-3">
-              <RefreshCw size={32} className="mx-auto text-[#D4AF37] animate-spin" />
-              <p className="text-sm text-white/50">Faktura oxunur...</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <Image size={32} className="mx-auto text-white/20" />
-              <p className="text-sm text-white/50">Faktura şəklini yükləyin</p>
-              <p className="text-xs text-white/20">AI OCR avtomatik məhsul adlarını, miqdarları və qiymətləri çıxaracaq</p>
-            </div>
-          )}
-          {invoiceImage && <img src={invoiceImage} alt="Invoice" className="mt-4 max-h-48 mx-auto rounded-xl object-contain" />}
-        </div>
-      )}
+      <button onClick={() => { setStep('upload'); setLineItems([]); setResult(null); }} className="text-xs text-white/30 hover:text-white transition-colors">← Geri</button>
 
       {step === 'review' && (
         <>
@@ -277,7 +246,7 @@ function ReceiveSection() {
               <div key={item.id} className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${item.status === 'matched' ? 'bg-emerald-400' : item.status === 'adjusted' ? 'bg-yellow-400' : item.status === 'missing' ? 'bg-red-400' : 'bg-orange-400'}`} />
+                    <span className={`w-2 h-2 rounded-full ${item.status === 'extra' ? 'bg-orange-400' : 'bg-emerald-400'}`} />
                     <span className="text-sm font-medium text-white">{item.product_name}</span>
                   </div>
                   {item.matched_ingredient && (
@@ -290,25 +259,11 @@ function ReceiveSection() {
                     <span className="text-white font-semibold">{item.quantity} {item.unit}</span>
                     <span className="ml-1 text-white/40">× {item.unit_cost.toFixed(2)} ₼</span>
                   </div>
-                  {item.po_quantity !== undefined && (
-                    <div className="p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                      <p className="text-white/30 mb-0.5">Sifariş</p>
-                      <p className="text-white font-semibold">{convertUnit(item.po_quantity, item.po_unit || 'gram', item.unit).toFixed(1)} {item.unit}</p>
-                    </div>
-                  )}
-                  {item.variance_qty !== undefined && (
-                    <div className="p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                      <p className="text-white/30 mb-0.5">Fərq</p>
-                      <p className={`font-semibold ${(item.variance_qty || 0) > 0 ? 'text-orange-400' : (item.variance_qty || 0) < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                        {item.variance_qty > 0 ? '+' : ''}{item.variance_qty?.toFixed(1)}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
           </div>
-          <button onClick={confirm} disabled={confirming || !selectedPo}
+          <button onClick={confirm} disabled={confirming}
             className="w-full py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-40 flex items-center justify-center gap-2"
             style={{ background: '#D4AF37', color: '#000' }}>
             {confirming ? 'Stok yenilənir...' : <><CheckCircle size={16} /> Təsdiq Et və Stoku Artır</>}
@@ -338,7 +293,7 @@ function ReceiveSection() {
               <p className="text-white/30">Status</p>
             </div>
           </div>
-          <button onClick={() => { setSelectedPo(null); setStep('select'); setResult(null); }}
+          <button onClick={() => { setStep('upload'); setLineItems([]); setResult(null); setInvoiceImage(null); }}
             className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all" style={{ background: '#D4AF37', color: '#000' }}>
             Yeni Qəbul
           </button>

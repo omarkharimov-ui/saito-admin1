@@ -61,6 +61,7 @@ export interface Ingredient {
   average_cost_per_unit: number;
   purchase_price: number;
   cold_waste_percentage: number;
+  supplier_id?: string;
   updated_at: string;
 }
 

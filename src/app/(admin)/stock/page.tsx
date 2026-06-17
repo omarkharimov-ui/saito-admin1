@@ -7,7 +7,7 @@ import {
   Trash2, X, Loader2, FlaskConical, RefreshCw,
   DollarSign, ShieldAlert, CheckCircle2, Search,
   Calculator, Lightbulb, ChevronDown, ChevronUp,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Pencil,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -86,7 +86,7 @@ function StockBar({ ratio, status }: { ratio: number; status: string }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | 'audit' | 'history' | null;
+type ModalMode = 'stock_in' | 'waste' | 'new_ingredient' | 'edit_ingredient' | 'audit' | 'history' | null;
 interface ActiveModal { mode: ModalMode; row?: InventoryStatusRow }
 
 export default function StockPage() {
@@ -115,11 +115,13 @@ export default function StockPage() {
   const [newWastePct, setNewWastePct] = useState('');
   const [newSupplier, setNewSupplier] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [showQuickSupplier, setShowQuickSupplier] = useState(false);
   const [qsName, setQsName] = useState('');
   const [qsPhone, setQsPhone] = useState('');
   const [qsContact, setQsContact] = useState('');
-  const [qsSaving, setQsSaving] = useState(false);
+  const [editRow, setEditRow] = useState<InventoryStatusRow | null>(null);
+  const [editQsName, setEditQsName] = useState('');
+  const [editQsPhone, setEditQsPhone] = useState('');
+  const [editQsContact, setEditQsContact] = useState('');
   const [auditQty, setAuditQty] = useState('');
   const [showWasteCalc, setShowWasteCalc] = useState(false);
   const [calcRaw, setCalcRaw] = useState('');
@@ -332,6 +334,7 @@ export default function StockPage() {
     setNewTotalQty(''); setNewTotalAmount(''); setNewWastePct(''); setNewSupplier('');
     setAuditQty(''); setShowWasteCalc(false); setCalcRaw(''); setCalcClean('');
     setFormErrors({});
+    setEditRow(null); setEditQsName(''); setEditQsPhone(''); setEditQsContact('');
   };
 
   // ── Stock In ────────────────────────────────────────────────────────────
@@ -433,6 +436,32 @@ export default function StockPage() {
       const unitCost = calculatedUnitCost ?? (newCost ? parseFloat(newCost) : 0);
       const effectiveCost = effectiveUnitCost || unitCost;
       const { value: normQty, unit: normUnit } = normalizeToStorage(parseFloat(newTotalQty) || 0, newUnit);
+
+      // Create or find supplier
+      let supplierId = newSupplier;
+      if (qsName.trim()) {
+        const existing = suppliers.find(s => s.name.toLowerCase() === qsName.trim().toLowerCase());
+        if (existing) {
+          supplierId = existing.id;
+        } else {
+          const supRes = await fetch('/api/suppliers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: qsName.trim(), phone: qsPhone.trim() || undefined, contact_person: qsContact.trim() || undefined }),
+          });
+          if (supRes.ok) {
+            const created = await supRes.json();
+            supplierId = created.id;
+            setSuppliers(prev => [...prev, created]);
+          }
+        }
+      }
+      if (!supplierId) {
+        toast.error('Tədarükçü adı daxil edin', { style: toastStyle });
+        setSaving(false);
+        return;
+      }
+
       const res = await fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -442,7 +471,7 @@ export default function StockPage() {
           averageCostPerUnit: effectiveCost,
           purchasePrice: unitCost,
           coldWastePercentage: parseFloat(newWastePct) || 0,
-          supplierId: newSupplier || undefined,
+          supplierId,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -474,6 +503,57 @@ export default function StockPage() {
       toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Update Ingredient ──────────────────────────────────────────────────────────
+  const [updateSaving, setUpdateSaving] = useState(false);
+  const handleUpdateIngredient = async () => {
+    if (!editRow) return;
+    if (!newName.trim()) { toast.error('Ad tələb olunur', { style: toastStyle }); return; }
+    if (!newLimit.trim()) { toast.error('Kritik limit tələb olunur', { style: toastStyle }); return; }
+    setUpdateSaving(true);
+    try {
+      let supplierId = editRow.supplier_id;
+      if (editQsName.trim()) {
+        const existing = suppliers.find(s => s.name.toLowerCase() === editQsName.trim().toLowerCase());
+        if (existing) {
+          supplierId = existing.id;
+        } else {
+          const supRes = await fetch('/api/suppliers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: editQsName.trim(), phone: editQsPhone.trim() || undefined, contact_person: editQsContact.trim() || undefined }),
+          });
+          if (supRes.ok) {
+            const created = await supRes.json();
+            supplierId = created.id;
+            setSuppliers(prev => [...prev, created]);
+          }
+        }
+      }
+      const { value: normLimit } = normalizeToStorage(parseFloat(newLimit) || 0, newUnit);
+      const body: Record<string, any> = {
+        name: newName.trim(),
+        unit: newUnit,
+        critical_limit: normLimit,
+        cold_waste_percentage: parseFloat(newWastePct) || 0,
+      };
+      if (supplierId) body.supplier_id = supplierId;
+
+      const res = await fetch(`/api/inventory/${editRow.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success('Yeniləndi', { style: toastStyle });
+      closeModal();
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi', { style: toastStyle });
+    } finally {
+      setUpdateSaving(false);
     }
   };
 
@@ -780,6 +860,16 @@ export default function StockPage() {
                               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
                               <RefreshCw size={13} className="text-white/40" /> Tarixçə
                             </button>
+                            <button onClick={() => {
+                              const s = row.supplier_id ? suppliers.find(x => x.id === row.supplier_id) : null;
+                              setNewName(row.name); setNewLimit(String(row.critical_limit)); setNewUnit(row.unit);
+                              setNewWastePct(String(row.cold_waste_percentage || ''));
+                              setEditQsName(s?.name || ''); setEditQsPhone(s?.phone || ''); setEditQsContact(s?.contact_person || '');
+                              setEditRow(row); setModal({ mode: 'edit_ingredient', row }); setOpenActionsId(null);
+                            }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                              <Pencil size={13} className="text-white/40" /> Redaktə et
+                            </button>
                             <div className="h-px bg-white/[0.06]" />
                             <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
                               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05] text-red-400">
@@ -842,6 +932,16 @@ export default function StockPage() {
                               <button onClick={() => { setOpenActionsId(null); handleViewHistory(row); }}
                                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
                                 <RefreshCw size={13} className="text-white/40" /> Tarixçə
+                              </button>
+                              <button onClick={() => {
+                                const s = row.supplier_id ? suppliers.find(x => x.id === row.supplier_id) : null;
+                                setNewName(row.name); setNewLimit(String(row.critical_limit)); setNewUnit(row.unit);
+                                setNewWastePct(String(row.cold_waste_percentage || ''));
+                                setEditQsName(s?.name || ''); setEditQsPhone(s?.phone || ''); setEditQsContact(s?.contact_person || '');
+                                setEditRow(row); setModal({ mode: 'edit_ingredient', row }); setOpenActionsId(null);
+                              }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
+                                <Pencil size={13} className="text-white/40" /> Redaktə et
                               </button>
                               <div className="h-px bg-white/[0.06]" />
                               <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
@@ -1444,58 +1544,19 @@ export default function StockPage() {
 
                     <div>
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
-                        Təchizatçı <span className="text-white/20">— istəyə görə</span>
+                        Təchizatçı <span className="text-red-400/60">*</span>
                       </label>
-                      <div className="flex gap-2">
-                        <select value={newSupplier} onChange={e => setNewSupplier(e.target.value)}
-                          className="flex-1 px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
-                        >
-                          <option value="" style={{ background: '#111' }}>Seçilməyib</option>
-                          {suppliers.map(s => (
-                            <option key={s.id} value={s.id} style={{ background: '#111' }}>{s.name}</option>
-                          ))}
-                        </select>
-                        <button type="button" onClick={() => setShowQuickSupplier(p => !p)}
-                          className="px-3 py-3 rounded-xl text-xs font-bold bg-white/[0.04] hover:bg-white/[0.08] text-white/50 hover:text-white/80 transition-all border border-white/[0.09] shrink-0">
-                          + Yeni
-                        </button>
-                      </div>
-                      {showQuickSupplier && (
-                        <div className="mt-2 p-3 rounded-xl border border-white/[0.07] bg-white/[0.02] space-y-2">
-                          <input value={qsName} onChange={e => setQsName(e.target.value)} placeholder="Tədarükçü adı *"
-                            className="w-full px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 text-sm" />
-                          <div className="flex gap-2">
-                            <input value={qsPhone} onChange={e => setQsPhone(e.target.value)} placeholder="Telefon"
-                              className="flex-1 px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 text-sm" />
-                            <input value={qsContact} onChange={e => setQsContact(e.target.value)} placeholder="Əlaqə şəxs"
-                              className="flex-1 px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 text-sm" />
-                          </div>
-                          <div className="flex gap-2 justify-end">
-                            <button type="button" onClick={() => { setShowQuickSupplier(false); setQsName(''); setQsPhone(''); setQsContact(''); }}
-                              className="px-3 py-1.5 rounded-lg text-xs text-white/40 hover:text-white/60 transition-colors">Ləğv</button>
-                            <button type="button" onClick={async () => {
-                              if (!qsName.trim()) return;
-                              setQsSaving(true);
-                              try {
-                                const r = await fetch('/api/suppliers', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ name: qsName.trim(), phone: qsPhone.trim() || undefined, contact_person: qsContact.trim() || undefined }),
-                                });
-                                if (!r.ok) return toast('Xəta baş verdi');
-                                const created = await r.json();
-                                setNewSupplier(created.id);
-                                setSuppliers(prev => [...prev, created]);
-                                setShowQuickSupplier(false);
-                                setQsName(''); setQsPhone(''); setQsContact('');
-                              } finally { setQsSaving(false); }
-                            }} disabled={qsSaving || !qsName.trim()}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10 disabled:opacity-30">
-                              {qsSaving ? 'Saxlanılır...' : 'Əlavə et'}
-                            </button>
-                          </div>
+                      <div className="space-y-2">
+                        <input value={qsName} onChange={e => setQsName(e.target.value)}
+                          placeholder="Tədarükçü adı"
+                          className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
+                        <div className="flex gap-2">
+                          <input value={qsPhone} onChange={e => setQsPhone(e.target.value)} placeholder="Telefon"
+                            className="flex-1 px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
+                          <input value={qsContact} onChange={e => setQsContact(e.target.value)} placeholder="Əlaqə şəxs"
+                            className="flex-1 px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -1695,6 +1756,64 @@ export default function StockPage() {
                     {saving ? <Loader2 size={16} className="animate-spin text-white" /> : <><Plus size={15} /> Əlavə Et</>}
                   </button>
                 </div>
+              )}
+
+              {/* ── EDIT INGREDIENT ── */}
+              {modal.mode === 'edit_ingredient' && editRow && (
+                (() => {
+                  const existingSupplier = editRow.supplier_id ? suppliers.find(s => s.id === editRow.supplier_id) : null;
+                  return (
+                    <div className="p-6 space-y-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <h2 className="text-lg font-bold">Xammalı Redaktə Et</h2>
+                        <button onClick={closeModal} className="text-white/25 hover:text-white transition-colors"><X size={18} /></button>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Ad</label>
+                          <input value={newName} onChange={e => setNewName(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Təchizatçı</label>
+                          <input value={editQsName} onChange={e => setEditQsName(e.target.value)}
+                            placeholder={existingSupplier?.name || 'Tədarükçü adı'}
+                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
+                          <div className="flex gap-2 mt-2">
+                            <input value={editQsPhone} onChange={e => setEditQsPhone(e.target.value)} placeholder={existingSupplier?.phone || 'Telefon'}
+                              className="flex-1 px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
+                            <input value={editQsContact} onChange={e => setEditQsContact(e.target.value)} placeholder={existingSupplier?.contact_person || 'Əlaqə şəxs'}
+                              className="flex-1 px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Vahid</label>
+                            <select value={newUnit} onChange={e => setNewUnit(e.target.value as IngredientUnit)}
+                              className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm">
+                              {UNITS.map(u => <option key={u} value={u} style={{ background: '#111' }}>{UNIT_LABELS[u]}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">Kritik limit</label>
+                            <input type="number" min="0" step="1" value={newLimit} onChange={e => setNewLimit(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">İtki Faizi (%)</label>
+                          <input type="number" min="0" max="99" step="1" value={newWastePct} onChange={e => setNewWastePct(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
+                        </div>
+                      </div>
+                      <button onClick={handleUpdateIngredient} disabled={updateSaving}
+                        className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
+                        style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}>
+                        {updateSaving ? <Loader2 size={16} className="animate-spin text-white" /> : <><Pencil size={15} /> Yadda saxla</>}
+                      </button>
+                    </div>
+                  );
+                })()
               )}
 
               {/* ── HISTORY ── */}

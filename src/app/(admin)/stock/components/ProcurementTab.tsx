@@ -12,9 +12,9 @@ import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import { SummaryCards } from '@/components/ProcurementSummaryCards';
 import { StockStatusBadge } from '@/components/StockStatusBadge';
 import { toast } from '@/lib/toast';
-import type { Invoice, InvoiceItem, PriceAnomaly, DiscrepancyAlert, Supplier, CreateSupplierPayload } from '@/types/inventory';
+import type { DiscrepancyAlert, Supplier, CreateSupplierPayload } from '@/types/inventory';
 
-type ProcTab = 'receive' | 'reconcile' | 'anomalies' | 'suppliers';
+type ProcTab = 'receive' | 'anomalies' | 'suppliers';
 type Step = 'select' | 'upload' | 'review' | 'confirm';
 
 interface LineItem {
@@ -37,17 +37,6 @@ function convertUnit(value: number, from: string, to: string): number {
   const f = unitConversions[k]?.[t] || unitConversions[t]?.[k];
   return f ? (f > 1 ? value * f : value / (1 / f)) : value;
 }
-
-const invStatusConfig: Record<string, { label: string; color: string; bg: string }> = {
-  draft: { label: 'Qaralama', color: 'text-white/40', bg: 'bg-white/5 border-white/10' },
-  matched: { label: 'Uyğun', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-  needs_review: { label: 'Uyğunsuzluq', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
-  approved: { label: 'Təsdiqləndi', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/20' },
-  applied: { label: 'Tətbiq Edildi', color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/20' },
-  rejected: { label: 'Rədd Edildi', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
-  rolled_back: { label: 'Geri Alındı', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
-  partially_applied: { label: 'Qismən Tətbiq', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
-};
 
 const severityConfig: Record<string, { label: string; color: string; bg: string }> = {
   critical: { label: 'Kritik', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
@@ -74,16 +63,15 @@ export default function ProcurementTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        {(['receive', 'reconcile', 'anomalies', 'suppliers'] as const).map(t => (
+        {(['receive', 'anomalies', 'suppliers'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${tab === t ? 'bg-white/10 text-white border border-white/15' : 'text-white/30 hover:text-white/60 border border-transparent'}`}>
-            {t === 'receive' ? 'Qəbul' : t === 'reconcile' ? 'Faktura' : t === 'anomalies' ? 'Anomaliyalar' : 'Tədarükçülər'}
+            {t === 'receive' ? 'Faktura' : t === 'anomalies' ? 'Anomaliyalar' : 'Tədarükçülər'}
           </button>
         ))}
       </div>
 
       {tab === 'receive' && <ReceiveSection />}
-      {tab === 'reconcile' && <ReconcileSection />}
       {tab === 'anomalies' && <AnomaliesSection />}
       {tab === 'suppliers' && <SuppliersSection />}
     </div>
@@ -355,103 +343,6 @@ function ReceiveSection() {
             Yeni Qəbul
           </button>
         </motion.div>
-      )}
-    </div>
-  );
-}
-
-function ReconcileSection() {
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [reconciling, setReconciling] = useState<string | null>(null);
-
-  useEffect(() => { fetchInvoices(); }, []);
-
-  const fetchInvoices = async () => {
-    try { setInvoices(await (await fetch('/api/invoices')).json()); } catch {}
-    setLoading(false);
-  };
-
-  const handleReconcile = async (id: string) => {
-    setReconciling(id);
-    try { await fetch(`/api/invoices/${id}/reconcile`, { method: 'POST' }); fetchInvoices(); } catch {}
-    setReconciling(null);
-  };
-
-  const handleApply = async (id: string) => {
-    try { await fetch(`/api/invoices/${id}/apply`, { method: 'POST' }); fetchInvoices(); } catch {}
-  };
-
-  const handleRollback = async (id: string) => {
-    if (!confirm('Fakturanı geri almaq istədiyinizə əminsiniz?')) return;
-    try { await fetch(`/api/invoices/${id}/rollback`, { method: 'POST' }); fetchInvoices(); } catch {}
-  };
-
-  const filtered = invoices.filter((inv: any) =>
-    inv.invoice_number.toLowerCase().includes(search.toLowerCase())
-  );
-
-  if (loading) return <LoadingState />;
-
-  return (
-    <div className="space-y-3">
-      <div className="relative max-w-md">
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full pl-4 pr-4 py-2.5 rounded-xl text-sm bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/30 transition-colors"
-          placeholder="Faktura nömrəsi..." />
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyState title="Faktura tapılmadı" />
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((inv: any, i: number) => {
-            const cfg = invStatusConfig[inv.status] || invStatusConfig.draft;
-            return (
-              <motion.div key={inv.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-                className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, rgba(255,255,255,0.06))' }}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${inv.status === 'needs_review' ? 'bg-red-500/15' : 'bg-white/[0.04]'}`}>
-                      {inv.status === 'needs_review' ? <AlertTriangle size={18} className="text-red-400" /> :
-                       inv.status === 'applied' || inv.status === 'approved' ? <CheckCircle size={18} className="text-sky-400" /> :
-                       inv.status === 'rolled_back' || inv.status === 'rejected' ? <X size={18} className="text-orange-400" /> :
-                       <FileText size={18} className="text-white/30" />}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">{inv.invoice_number}</p>
-                      <p className="text-xs text-white/30 mt-0.5">{inv.total_amount?.toFixed(2)} ₼</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  {(inv.status === 'draft' || inv.status === 'needs_review') && (
-                    <button onClick={() => handleReconcile(inv.id)} disabled={reconciling === inv.id || !inv.purchase_order_id}
-                      className="px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-30" style={{ background: '#D4AF37', color: '#000' }}>
-                      {reconciling === inv.id ? 'Uyğunlaşdırılır...' : 'Uyğunlaşdır'}
-                    </button>
-                  )}
-                  {(inv.status === 'matched' || inv.status === 'approved') && (
-                    <button onClick={() => handleApply(inv.id)}
-                      className="px-4 py-2 rounded-xl text-xs font-bold" style={{ background: '#059669', color: '#fff' }}>
-                      <CheckCircle size={12} className="inline mr-1" /> Tətbiq Et
-                    </button>
-                  )}
-                  {(inv.status === 'applied' || inv.status === 'approved' || inv.status === 'partially_applied') && (
-                    <button onClick={() => handleRollback(inv.id)}
-                      className="px-4 py-2 rounded-xl text-xs font-bold" style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>
-                      <X size={12} className="inline mr-1" /> Geri Al
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
       )}
     </div>
   );

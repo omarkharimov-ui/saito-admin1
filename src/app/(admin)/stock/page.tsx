@@ -62,43 +62,116 @@ const modalV = {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatCard({ icon, label, value, sub, accent, trend }: {
-  icon: React.ReactNode; label: string; value: string | number; sub?: string; accent?: string; trend?: { dir: 'up' | 'down'; pct: string };
+function InventoryHealthCard({ stats, alerts, loading }: {
+  stats?: { total: number; critical: number; out_of_stock: number; monthly_waste_cost: number };
+  alerts: LowStockAlert[];
+  loading: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const total = stats?.total ?? 0;
+  const critical = (stats?.critical ?? 0) + (stats?.out_of_stock ?? 0);
+  const normal = total - critical;
+  const score = total > 0 ? Math.round((normal / total) * 100) : 100;
+  const healthColor = score >= 80 ? 'text-emerald-400' : score >= 50 ? 'text-amber-400' : 'text-red-400';
+  const healthBg = score >= 80 ? 'from-emerald-500/20 to-emerald-500/5' : score >= 50 ? 'from-amber-500/20 to-amber-500/5' : 'from-red-500/20 to-red-500/5';
+
   return (
-    <GlassCard intensity="light" padding="lg"
-      className="relative overflow-hidden group cursor-pointer"
-      whileHover={{ scale: 1.02 }}
-      transition={{ type: 'spring' as const, stiffness: 400, damping: 25 }}
-    >
-      {/* Decorative ambient glow */}
-      <div className="pointer-events-none absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-[0.04] group-hover:opacity-[0.15] transition-all duration-700"
-        style={{ background: `radial-gradient(circle, ${accent?.includes('emerald') ? '#10B981' : accent?.includes('amber') ? '#F59E0B' : accent?.includes('rose') ? '#F43F5E' : '#D4AF37'}, transparent 70%)` }} />
-      <div className="pointer-events-none absolute -bottom-8 -left-8 w-24 h-24 rounded-full opacity-[0.02] group-hover:opacity-[0.08] transition-all duration-700"
-        style={{ background: `radial-gradient(circle, ${accent?.includes('emerald') ? '#10B981' : '#D4AF37'}, transparent 70%)` }} />
-      <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        style={{ boxShadow: `inset 0 0 30px ${accent?.includes('emerald') ? 'rgba(16,185,129,0.06)' : accent?.includes('amber') ? 'rgba(245,158,11,0.06)' : accent?.includes('rose') ? 'rgba(244,63,94,0.06)' : 'rgba(212,175,55,0.06)'}` }} />
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/25">{label}</span>
-        <span className={`p-2 rounded-xl ${accent ?? 'text-white/20'} bg-white/[0.03] border border-white/[0.06] group-hover:bg-white/[0.06] group-hover:border-white/[0.12] transition-all duration-300`}>{icon}</span>
-      </div>
-      <div className="flex items-end justify-between gap-2">
-        <div>
-          <p className="text-3xl sm:text-4xl font-black tabular-nums leading-none tracking-tight text-white/90">{value}</p>
-          {sub && <p className="text-[11px] text-white/25 mt-2 font-medium">{sub}</p>}
+    <motion.div layout className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-xl">
+      <motion.div layout="position" className="p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <motion.div layoutId="health-ring"
+                className="w-14 h-14 rounded-full flex items-center justify-center font-black text-lg tabular-nums"
+                style={{ background: `conic-gradient(${score >= 80 ? '#34D399' : score >= 50 ? '#FBBF24' : '#F87171'} ${score}%, rgba(255,255,255,0.05) ${score}%)` }}>
+                <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: '#0a0a0a' }}>
+                  <span className={healthColor}>{loading ? '—' : score}</span>
+                </div>
+              </motion.div>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Inventory Health</h2>
+              <p className="text-[11px] text-white/30 mt-0.5">
+                {loading ? '—' : `${normal} normal · ${critical} kritik · ${total} cəmi`}
+              </p>
+            </div>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            onClick={() => setExpanded(!expanded)}
+            className="shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-bold text-white/40 hover:text-white transition-colors"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {expanded ? 'Gizlət' : 'Ətraflı'}
+          </motion.button>
         </div>
-        {trend && (
-          <span className={`shrink-0 flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg ${trend.dir === 'up' ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
-            {trend.dir === 'up' ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-            {trend.pct}
-          </span>
+
+        {/* Mini metrik bar */}
+        {!loading && total > 0 && (
+          <div className="mt-4 h-1.5 rounded-full bg-white/[0.04] overflow-hidden flex">
+            <motion.div initial={{ width: 0 }} animate={{ width: `${(normal / total) * 100}%` }}
+              transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="h-full bg-emerald-400/60 rounded-l-full" />
+            <motion.div initial={{ width: 0 }} animate={{ width: `${(critical / total) * 100}%` }}
+              transition={{ delay: 0.35, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="h-full bg-amber-400/60" />
+            <motion.div initial={{ width: 0 }} animate={{ width: `${((stats?.out_of_stock ?? 0) / total) * 100}%` }}
+              transition={{ delay: 0.5, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="h-full bg-red-400/60 rounded-r-full" />
+          </div>
         )}
-      </div>
-      {/* Subtle top light edge */}
-      <div className="pointer-events-none absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
-      {/* Hover border glow */}
-      <div className="pointer-events-none absolute inset-0 rounded-2xl border border-transparent group-hover:border-white/[0.12] transition-all duration-500" />
-    </GlassCard>
+      </motion.div>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-0 space-y-3">
+              <div className="h-px bg-white/[0.06]" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p className="text-[10px] uppercase tracking-wider text-white/30 font-bold">Normal</p>
+                  <p className="text-lg font-black text-emerald-400 tabular-nums mt-1">{loading ? '—' : fmt(normal)}</p>
+                </div>
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p className="text-[10px] uppercase tracking-wider text-white/30 font-bold">Kritik</p>
+                  <p className="text-lg font-black text-amber-400 tabular-nums mt-1">{loading ? '—' : fmt(critical)}</p>
+                </div>
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p className="text-[10px] uppercase tracking-wider text-white/30 font-bold">Bitib</p>
+                  <p className="text-lg font-black text-red-400 tabular-nums mt-1">{loading ? '—' : fmt(stats?.out_of_stock ?? 0)}</p>
+                </div>
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p className="text-[10px] uppercase tracking-wider text-white/30 font-bold">İtki Dəy.</p>
+                  <p className="text-lg font-black text-rose-400 tabular-nums mt-1">{loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`}</p>
+                </div>
+              </div>
+              {alerts.length > 0 && (
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert size={14} className="text-red-400" />
+                    <span className="text-xs text-red-300 font-medium">{alerts.length} xammal təcili diqqət tələb edir</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {alerts.slice(0, 6).map(a => (
+                      <span key={a.ingredientId} className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-red-300/80" style={{ background: 'rgba(239,68,68,0.1)' }}>
+                        {a.name}
+                      </span>
+                    ))}
+                    {alerts.length > 6 && <span className="text-[10px] text-white/30 px-2 py-0.5">+{alerts.length - 6} daha</span>}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -119,6 +192,8 @@ export default function StockPage() {
   const [modal, setModal]     = useState<ActiveModal>({ mode: null });
   const [saving, setSaving]   = useState(false);
   const [search, setSearch]   = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter]   = useState<'all' | 'critical' | 'out_of_stock'>('all');
   const [viewMode, setViewMode] = useState<'stock' | 'procurement' | 'intelligence' | 'history'>('stock');
   const now = new Date();
@@ -647,20 +722,27 @@ export default function StockPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 p-1 rounded-xl relative" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
             {(['stock', 'procurement', 'intelligence', 'history'] as const).map(m => (
               <button
                 key={m}
                 onClick={() => setViewMode(m)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
-                  viewMode === m
-                    ? 'bg-white/10 text-white border border-white/15'
-                    : 'text-white/30 hover:text-white/60 border border-transparent'
-                }`}
+                className="relative px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-colors active:scale-95"
+                style={{ color: viewMode === m ? '#ffffff' : 'rgba(255,255,255,0.3)' }}
               >
-                {m === 'stock' ? 'Stok' : m === 'procurement' ? 'Tədarük' : m === 'intelligence' ? 'İntellekt' : 'Tarixçə'}
+                {viewMode === m && (
+                  <motion.div
+                    layoutId="tab-indicator"
+                    transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+                    className="absolute inset-0 rounded-lg"
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  />
+                )}
+                <span className="relative z-10">{m === 'stock' ? 'Stok' : m === 'procurement' ? 'Tədarük' : m === 'intelligence' ? 'İntellekt' : 'Tarixçə'}</span>
               </button>
             ))}
+          </div>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setModal({ mode: 'new_ingredient' })}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
@@ -697,40 +779,63 @@ export default function StockPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          <StatCard
-            icon={<Package size={16} />} label="Ümumi Xammal"
-            value={loading ? '—' : fmt(stats?.total ?? 0)}
-            sub="aktiv ingredient" accent="text-[#D4AF37]/60"
-          />
-          <StatCard
-            icon={<ShieldAlert size={16} />} label="Kritik Vəziyyət"
-            value={loading ? '—' : fmt((stats?.critical ?? 0) + (stats?.out_of_stock ?? 0))}
-            sub={`${stats?.out_of_stock ?? 0} tamamilə bitib`} accent="text-amber-400"
-          />
-          <StatCard
-            icon={<CheckCircle2 size={16} />} label="Normal Stok"
-            value={loading ? '—' : fmt((stats?.total ?? 0) - (stats?.critical ?? 0) - (stats?.out_of_stock ?? 0))}
-            sub="optimal səviyyədə" accent="text-emerald-400/70"
-          />
-          <StatCard
-            icon={<DollarSign size={16} />} label="Aylıq İtki Dəyəri"
-            value={loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`}
-            sub="bu ay waste + adjustment" accent="text-rose-400/70"
-          />
-        </div>
+        {/* ── Inventory Health ── */}
+        <InventoryHealthCard
+          stats={stats}
+          alerts={data?.alerts ?? []}
+          loading={loading}
+        />
 
         {/* ── Search + Filter bar ── */}
         {viewMode === 'stock' && (
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
-            <input
-              value={search} onChange={e => setSearch(e.target.value)}
-              placeholder={viewMode === 'stock' ? 'Xammal axtar...' : 'Məhsul axtar...'}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/30 transition-colors"
-            />
+            <AnimatePresence mode="wait">
+              {!isSearchOpen ? (
+                <motion.button
+                  key="search-icon"
+                  layoutId="search"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={() => setIsSearchOpen(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <Search size={15} className="text-white/30" />
+                </motion.button>
+              ) : (
+                <motion.div
+                  key="search-input"
+                  layoutId="search"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="relative"
+                >
+                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
+                  <input
+                    ref={searchRef}
+                    value={search} onChange={e => setSearch(e.target.value)}
+                    placeholder="Xammal axtar..."
+                    className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/30 transition-colors"
+                    onKeyDown={e => { if (e.key === 'Escape') { setSearch(''); setIsSearchOpen(false); } }}
+                  />
+                  {search && (
+                    <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors">
+                      <X size={14} />
+                    </button>
+                  )}
+                  {!search && (
+                    <button onClick={() => setIsSearchOpen(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors">
+                      <X size={14} />
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <div className="flex gap-2">
             {(['all', 'critical', 'out_of_stock'] as const).map(f => (

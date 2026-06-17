@@ -48,11 +48,20 @@ export default function ProcurementTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
         {(['receive', 'anomalies', 'suppliers'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${tab === t ? 'bg-white/10 text-white border border-white/15' : 'text-white/30 hover:text-white/60 border border-transparent'}`}>
-            {t === 'receive' ? 'Faktura' : t === 'anomalies' ? 'Anomaliyalar' : 'Tədarükçülər'}
+            className="relative px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-colors"
+            style={{ color: tab === t ? '#ffffff' : 'rgba(255,255,255,0.3)' }}>
+            {tab === t && (
+              <motion.div
+                layoutId="proc-tab-indicator"
+                transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+                className="absolute inset-0 rounded-lg"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+            )}
+            <span className="relative z-10">{t === 'receive' ? 'Faktura' : t === 'anomalies' ? 'Anomaliyalar' : 'Tədarükçülər'}</span>
           </button>
         ))}
       </div>

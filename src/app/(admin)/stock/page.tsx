@@ -115,6 +115,11 @@ export default function StockPage() {
   const [newWastePct, setNewWastePct] = useState('');
   const [newSupplier, setNewSupplier] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [showQuickSupplier, setShowQuickSupplier] = useState(false);
+  const [qsName, setQsName] = useState('');
+  const [qsPhone, setQsPhone] = useState('');
+  const [qsContact, setQsContact] = useState('');
+  const [qsSaving, setQsSaving] = useState(false);
   const [auditQty, setAuditQty] = useState('');
   const [showWasteCalc, setShowWasteCalc] = useState(false);
   const [calcRaw, setCalcRaw] = useState('');
@@ -1441,14 +1446,56 @@ export default function StockPage() {
                       <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
                         Təchizatçı <span className="text-white/20">— istəyə görə</span>
                       </label>
-                      <select value={newSupplier} onChange={e => setNewSupplier(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
-                      >
-                        <option value="" style={{ background: '#111' }}>Seçilməyib</option>
-                        {suppliers.map(s => (
-                          <option key={s.id} value={s.id} style={{ background: '#111' }}>{s.name}</option>
-                        ))}
-                      </select>
+                      <div className="flex gap-2">
+                        <select value={newSupplier} onChange={e => setNewSupplier(e.target.value)}
+                          className="flex-1 px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                        >
+                          <option value="" style={{ background: '#111' }}>Seçilməyib</option>
+                          {suppliers.map(s => (
+                            <option key={s.id} value={s.id} style={{ background: '#111' }}>{s.name}</option>
+                          ))}
+                        </select>
+                        <button type="button" onClick={() => setShowQuickSupplier(p => !p)}
+                          className="px-3 py-3 rounded-xl text-xs font-bold bg-white/[0.04] hover:bg-white/[0.08] text-white/50 hover:text-white/80 transition-all border border-white/[0.09] shrink-0">
+                          + Yeni
+                        </button>
+                      </div>
+                      {showQuickSupplier && (
+                        <div className="mt-2 p-3 rounded-xl border border-white/[0.07] bg-white/[0.02] space-y-2">
+                          <input value={qsName} onChange={e => setQsName(e.target.value)} placeholder="Tədarükçü adı *"
+                            className="w-full px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 text-sm" />
+                          <div className="flex gap-2">
+                            <input value={qsPhone} onChange={e => setQsPhone(e.target.value)} placeholder="Telefon"
+                              className="flex-1 px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 text-sm" />
+                            <input value={qsContact} onChange={e => setQsContact(e.target.value)} placeholder="Əlaqə şəxs"
+                              className="flex-1 px-3 py-2 rounded-lg text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 text-sm" />
+                          </div>
+                          <div className="flex gap-2 justify-end">
+                            <button type="button" onClick={() => { setShowQuickSupplier(false); setQsName(''); setQsPhone(''); setQsContact(''); }}
+                              className="px-3 py-1.5 rounded-lg text-xs text-white/40 hover:text-white/60 transition-colors">Ləğv</button>
+                            <button type="button" onClick={async () => {
+                              if (!qsName.trim()) return;
+                              setQsSaving(true);
+                              try {
+                                const r = await fetch('/api/suppliers', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ name: qsName.trim(), phone: qsPhone.trim() || undefined, contact_person: qsContact.trim() || undefined }),
+                                });
+                                if (!r.ok) return toast('Xəta baş verdi');
+                                const created = await r.json();
+                                setNewSupplier(created.id);
+                                setSuppliers(prev => [...prev, created]);
+                                setShowQuickSupplier(false);
+                                setQsName(''); setQsPhone(''); setQsContact('');
+                              } finally { setQsSaving(false); }
+                            }} disabled={qsSaving || !qsName.trim()}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10 disabled:opacity-30">
+                              {qsSaving ? 'Saxlanılır...' : 'Əlavə et'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

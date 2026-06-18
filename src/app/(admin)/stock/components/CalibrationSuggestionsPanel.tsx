@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Loader2, AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Sparkles, Loader2, AlertTriangle, ChevronDown } from 'lucide-react';
 import { toast } from '@/lib/toast';
 
 export type CalibrationSuggestion = {
@@ -17,10 +17,11 @@ export type CalibrationSuggestion = {
 
 interface Props {
   suggestions: CalibrationSuggestion[];
-  onApplied?: () => void;
+  onApplied?: (item: CalibrationSuggestion) => void;
+  onApplyStart?: (item: CalibrationSuggestion, el: HTMLElement) => void;
 }
 
-export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
+export function CalibrationSuggestionsPanel({ suggestions, onApplied, onApplyStart }: Props) {
   const [open, setOpen] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
@@ -42,7 +43,7 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
       });
       if (!res.ok) throw new Error('Calibration apply failed');
       toast.success(`${item.ingredient_name} calibrasiya olundu`);
-      onApplied?.();
+      onApplied?.(item);
     } catch {
       toast.error('Calibrasiya tətbiq edilə bilmədi');
     } finally {
@@ -53,11 +54,10 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
   if (count === 0 && !open) return null;
 
   return (
-    <div className="relative">
-      {/* Compact trigger — pill badge */}
-      {!open && count > 0 && (
+    <AnimatePresence mode="popLayout">
+      {!open && count > 0 ? (
         <motion.button
-          layoutId="calibration-panel"
+          key="calibration-pill"
           onClick={() => setOpen(true)}
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -74,85 +74,83 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied }: Props) {
           </span>
           <ChevronDown size={12} className="text-white/30" />
         </motion.button>
-      )}
-
-      {/* Expanded panel */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key="calibration-panel"
-            layoutId="calibration-panel"
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.93, y: -8 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-            className="rounded-2xl border border-white/10 bg-[#0c0c0c] backdrop-blur-xl p-4 sm:p-5 shadow-[0_16px_48px_rgba(0,0,0,0.5)]"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40 font-bold">
-                  <Sparkles size={11} /> AI Calibration
-                </div>
-                <h3 className="mt-1.5 text-base font-bold text-white">Reverse inventory calibration</h3>
-                <p className="mt-0.5 text-xs text-white/45">AI/stock mismatch nəticələrini bir kliklə tətbiq et.</p>
+      ) : open ? (
+        <motion.div
+          key="calibration-panel"
+          layoutId="calibration-panel"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10, transition: { duration: 0.12 } }}
+          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+          className="rounded-2xl border border-white/10 bg-[#0c0c0c] backdrop-blur-xl p-4 sm:p-5 shadow-[0_16px_48px_rgba(0,0,0,0.5)]"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40 font-bold">
+                <Sparkles size={11} /> AI Calibration
               </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-bold text-white/40 hover:text-white transition-colors"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                Bağla
-              </button>
+              <h3 className="mt-1.5 text-base font-bold text-white">Reverse inventory calibration</h3>
+              <p className="mt-0.5 text-xs text-white/45">AI/stock mismatch nəticələrini bir kliklə tətbiq et.</p>
             </div>
+            <button
+              onClick={() => setOpen(false)}
+              className="shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-bold text-white/40 hover:text-white transition-colors"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              Bağla
+            </button>
+          </div>
 
-            <div className="mt-4 space-y-2">
-              <AnimatePresence mode="popLayout">
-                {selectable.slice(0, 4).map((s) => (
-                  <motion.button
-                    key={s.ingredient_id}
-                    layout
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 60, scale: 0.9, filter: 'blur(6px)' }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-                    whileHover={{ scale: 1.01, backgroundColor: 'rgba(255,255,255,0.04)' }}
-                    whileTap={{ scale: 0.98 }}
-                    type="button"
-                    disabled={applyingId !== null}
-                    onClick={() => void apply(s)}
-                    className="w-full rounded-xl border px-4 py-3 text-left transition-colors"
-                    style={{
-                      borderColor: applyingId === s.ingredient_id ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.06)',
-                      background: applyingId === s.ingredient_id ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.02)',
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-white">{s.ingredient_name}</span>
-                          {applyingId === s.ingredient_id && <Loader2 size={12} className="animate-spin text-emerald-400" />}
-                        </div>
-                        <div className="text-[11px] text-white/40 mt-0.5">{s.reason}</div>
+          <div className="mt-4 space-y-2">
+            <AnimatePresence mode="popLayout">
+              {selectable.slice(0, 4).map((s, index) => (
+                <motion.button
+                  key={s.ingredient_id}
+                  layout
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05, type: 'spring', stiffness: 320, damping: 28 }}
+                  exit={{ opacity: 0, y: 60, scale: 0.9, filter: 'blur(6px)' }}
+                  whileHover={{ scale: 1.01, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  disabled={applyingId !== null}
+                  onClick={(e) => {
+                    onApplyStart?.(s, e.currentTarget);
+                    void apply(s);
+                  }}
+                  className="w-full rounded-xl border px-4 py-3 text-left transition-colors"
+                  style={{
+                    borderColor: applyingId === s.ingredient_id ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.06)',
+                    background: applyingId === s.ingredient_id ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.02)',
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-white">{s.ingredient_name}</span>
+                        {applyingId === s.ingredient_id && <Loader2 size={12} className="animate-spin text-emerald-400" />}
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-bold text-white">{s.suggested_adjustment_pct.toFixed(1)}%</div>
-                        <div className="text-[10px] uppercase tracking-[0.15em] text-white/30">conf {Math.round(s.confidence * 100)}%</div>
-                      </div>
+                      <div className="text-[11px] text-white/40 mt-0.5">{s.reason}</div>
                     </div>
-                  </motion.button>
-                ))}
-              </AnimatePresence>
-            </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-bold text-white">{s.suggested_adjustment_pct.toFixed(1)}%</div>
+                      <div className="text-[10px] uppercase tracking-[0.15em] text-white/30">conf {Math.round(s.confidence * 100)}%</div>
+                    </div>
+                  </div>
+                </motion.button>
+              ))}
+            </AnimatePresence>
+          </div>
 
-            {count > 0 && (
-              <div className="mt-3 flex items-center gap-2 text-[11px] text-white/35">
-                <AlertTriangle size={12} className="text-amber-400/60" />
-                {count} aktiv calibrasiya
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          {count > 0 && (
+            <div className="mt-3 flex items-center gap-2 text-[11px] text-white/35">
+              <AlertTriangle size={12} className="text-amber-400/60" />
+              {count} aktiv calibrasiya
+            </div>
+          )}
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }

@@ -20,7 +20,7 @@ import {
 import { getStatusMeta, StockStatusBar } from '@/components/StockStatusBadge';
 import ProcurementTab from './components/ProcurementTab';
 import IntelligenceTabComponent from './components/IntelligenceTab';
-import { CalibrationSuggestionsPanel } from './components/CalibrationSuggestionsPanel';
+import { CalibrationSuggestionsPanel, CalibrationSuggestion } from './components/CalibrationSuggestionsPanel';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { PageTransition } from '@/components/PageTransition';
@@ -234,6 +234,42 @@ export default function StockPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [allLogs, setAllLogs] = useState<InventoryLog[]>([]);
   const [allLogsLoading, setAllLogsLoading] = useState(false);
+
+  // ── Calibration morph overlay ──────────────────────────────────────────
+  const [morph, setMorph] = useState<{
+    from: { left: number; top: number; width: number; height: number };
+    to: { left: number; top: number; width: number; height: number };
+    name: string;
+  } | null>(null);
+
+  const handleCalibrationApplyStart = (item: CalibrationSuggestion, el: HTMLElement) => {
+    const from = el.getBoundingClientRect();
+    const targetRow = document.getElementById('row-' + item.ingredient_id);
+    if (!targetRow) return;
+    const to = targetRow.getBoundingClientRect();
+    setMorph({ from, to, name: item.ingredient_name });
+    setTimeout(() => {
+      setMorph(null);
+      targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 500);
+  };
+
+  const handleCalibrationApplied = (item: CalibrationSuggestion) => {
+    // Optimistic update — sync current_stock → theoretical_stock immediately
+    setData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map(i =>
+          i.id === item.ingredient_id
+            ? { ...i, current_stock: item.theoretical_stock, theoretical_stock: item.theoretical_stock }
+            : i
+        ),
+      };
+    });
+    // Background refresh (user doesn't notice)
+    setTimeout(fetchData, 3000);
+  };
 
   // Auto-calculated unit cost from total qty/amount
   const calculatedUnitCost = (() => {
@@ -850,7 +886,8 @@ export default function StockPage() {
         {/* ── Calibration Suggestions ── */}
         <CalibrationSuggestionsPanel
           suggestions={calibrationSuggestions}
-          onApplied={fetchData}
+          onApplyStart={handleCalibrationApplyStart}
+          onApplied={handleCalibrationApplied}
         />
 
         {/* ── Inventory Table ── */}
@@ -895,6 +932,7 @@ export default function StockPage() {
               const meta = getStatusMeta(row.status);
               return (
                 <motion.div
+                  id={'row-' + row.id}
                   key={row.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -2043,6 +2081,39 @@ export default function StockPage() {
           </div>
         </div>
       </MobileModal>
+
+      {/* ── Calibration morph overlay ── */}
+      <AnimatePresence>
+        {morph && (
+          <motion.div
+            initial={{
+              position: 'fixed',
+              left: morph.from.left,
+              top: morph.from.top,
+              width: morph.from.width,
+              height: morph.from.height,
+              opacity: 1,
+            }}
+            animate={{
+              left: morph.to.left,
+              top: morph.to.top,
+              width: morph.to.width,
+              height: morph.to.height,
+              opacity: 0,
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28, mass: 0.8 }}
+            className="z-50 flex items-center justify-center rounded-xl pointer-events-none"
+            style={{
+              background: 'rgba(52,211,153,0.15)',
+              border: '1px solid rgba(52,211,153,0.3)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <span className="text-sm font-bold text-emerald-300">{morph.name}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </PageTransition>
   );
 }

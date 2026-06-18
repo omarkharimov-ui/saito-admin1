@@ -1279,7 +1279,6 @@ export default function StockPage() {
         </div>
       </div>
 
-      {/* ── Inspector Panel (right side) ── */}
       <InspectorPanel
         row={selectedRow}
         onClose={() => setSelectedRow(null)}

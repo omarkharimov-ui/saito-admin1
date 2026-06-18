@@ -1278,8 +1278,9 @@ export default function StockPage() {
           )}
         </div>
       </div>
+    </>
 
-      <InspectorPanel
+    <InspectorPanel
         row={selectedRow}
         onClose={() => setSelectedRow(null)}
         UNIT_LABELS={UNIT_LABELS}

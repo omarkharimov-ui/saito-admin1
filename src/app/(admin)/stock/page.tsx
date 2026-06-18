@@ -636,9 +636,9 @@ export default function StockPage() {
   return (
     <PageTransition className="min-h-screen bg-[#070707] text-white pb-24">
       <div className="absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.12),transparent_42%),radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.06),transparent_30%)] pointer-events-none" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 relative">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="space-y-6 min-w-0">
+      <div className="max-w-none mx-auto px-4 sm:px-6 pt-6 sm:pt-10 relative">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
+          <div className="space-y-6 min-w-0 xl:col-span-1">
             <section className="relative overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] px-6 py-6 sm:px-8 sm:py-8 backdrop-blur-2xl shadow-[0_30px_120px_rgba(0,0,0,0.28)]">
               <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),transparent_36%,transparent_64%,rgba(212,175,55,0.08))]" />
               <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -739,7 +739,7 @@ export default function StockPage() {
             )}
 
             {viewMode === 'stock' && (
-              <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
                 <CalibrationSuggestionsPanel
                   suggestions={calibrationSuggestions}
                   onApplyStart={handleCalibrationApplyStart}
@@ -847,11 +847,11 @@ export default function StockPage() {
 
                 {/* ── Inventory Table ── */}
                 {loading ? (
-                  <div className="flex items-center justify-center h-48 rounded-[28px] border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
+                  <div className="flex items-center justify-center min-h-[28rem] rounded-[28px] border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
                     <Loader2 size={28} className="animate-spin text-white/15" />
                   </div>
                 ) : rows.length === 0 ? (
-                  <GlassCard intensity="light" padding="xl" className="text-center">
+                  <GlassCard intensity="light" padding="xl" className="text-center xl:min-h-[28rem] flex flex-col justify-center">
                     <Package size={44} className="mx-auto mb-4 opacity-20 text-white/30" />
                     <p className="text-sm font-medium text-white/30">
                       {search || filter !== 'all' ? 'Axtarış nəticəsi tapılmadı' : 'Hələ xammal əlavə edilməyib'}
@@ -865,7 +865,7 @@ export default function StockPage() {
                     )}
                   </GlassCard>
                 ) : (
-                  <GlassCard intensity="light" padding="none" className="overflow-hidden bg-white/[0.04] backdrop-blur-xl">
+                  <GlassCard intensity="light" padding="none" className="overflow-hidden bg-white/[0.04] backdrop-blur-xl xl:min-h-[36rem]">
                     {/* Table head */}
                     <div
                       className="hidden lg:grid gap-4 px-6 py-3 text-[11px] font-medium uppercase text-white/25 tracking-wider"

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Plus, TrendingDown, TrendingUp,
-  Trash2, X, Loader2, RefreshCw,
+  X, Loader2, RefreshCw,
   ShieldAlert, Search,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   Pencil, Lightbulb, Calculator,
@@ -25,7 +25,7 @@ import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
-import MobileModal from '@/components/ui/MobileModal';
+import { InspectorPanel } from './components/InspectorPanel';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const UNITS: DisplayUnit[] = ['gram', 'piece', 'ml', 'kg', 'liter'];
@@ -72,26 +72,26 @@ function SummaryStrip({ stats, alerts, loading }: {
   const normal = total - critical;
 
   const cards = [
-    { label: 'Normal', value: loading ? '—' : fmt(normal), color: 'text-emerald-400', bg: 'bg-emerald-500/8' },
-    { label: 'Kritik', value: loading ? '—' : fmt(critical), color: 'text-amber-400', bg: 'bg-amber-500/8' },
-    { label: 'Bitib', value: loading ? '—' : fmt(stats?.out_of_stock ?? 0), color: 'text-red-400', bg: 'bg-red-500/8' },
-    { label: 'İtki', value: loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`, color: 'text-rose-400', bg: 'bg-rose-500/8' },
+    { label: 'Normal', value: loading ? '—' : fmt(normal), color: 'text-emerald-400' },
+    { label: 'Kritik', value: loading ? '—' : fmt(critical), color: 'text-amber-400' },
+    { label: 'Bitib', value: loading ? '—' : fmt(stats?.out_of_stock ?? 0), color: 'text-red-400' },
+    { label: 'İtki', value: loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`, color: 'text-rose-400' },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {cards.map(c => (
-        <div key={c.label} className={`rounded-xl border border-white/[0.06] ${c.bg} p-4`}>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-white/35">{c.label}</p>
-          <p className={`text-2xl font-light tabular-nums mt-1.5 ${c.color}`}>{c.value}</p>
+    <div className="flex items-stretch divide-x divide-white/[0.06] border border-white/[0.06] rounded-xl">
+      {cards.map((c, i) => (
+        <div key={c.label} className="flex-1 px-5 py-3.5">
+          <p className="text-[11px] font-medium uppercase tracking-widest text-white/30">{c.label}</p>
+          <p className={`text-xl font-semibold tabular-nums mt-1 ${c.color}`}>{c.value}</p>
         </div>
       ))}
       {alerts.length > 0 && (
-        <div className="sm:col-span-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/8 border border-red-500/15">
+        <div className="flex items-center gap-2 px-4 py-3 bg-red-500/5 border-l border-red-500/15 rounded-r-xl">
           <ShieldAlert size={13} className="text-red-400 shrink-0" />
           <span className="text-xs text-red-300 font-medium">
-            {alerts.length} xammal təcili diqqət tələb edir: {alerts.slice(0, 3).map(a => a.name).join(', ')}
-            {alerts.length > 3 && ` +${alerts.length - 3} daha`}
+            {alerts.length} xammal təcili diqqət tələb edir: {alerts.slice(0, 2).map(a => a.name).join(', ')}
+            {alerts.length > 2 && ` +${alerts.length - 2}`}
           </span>
         </div>
       )}
@@ -114,6 +114,7 @@ export default function StockPage() {
   const [data, setData]       = useState<InventoryDashboardData & { alerts: LowStockAlert[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal]     = useState<ActiveModal>({ mode: null });
+  const [selectedRow, setSelectedRow] = useState<InventoryStatusRow | null>(null);
   const [saving, setSaving]   = useState(false);
   const [search, setSearch]   = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -615,31 +616,20 @@ export default function StockPage() {
     }
   };
 
-  // ── Clear all ──────────────────────────────────────────────────────────
-  const [clearingAll, setClearingAll] = useState(false);
-  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
-  const clearAllIngredients = async () => {
-    setClearConfirmOpen(false);
-    setClearingAll(true);
-    try {
-      const res = await fetch('/api/inventory/clear-all', { method: 'POST' });
-      if (!res.ok) throw new Error((await res.json()).error);
-      toast.success('Bütün xammallar silindi', { style: toastStyle });
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message, { style: toastStyle });
-    } finally { setClearingAll(false); }
-  };
-
   // ── Delete ──────────────────────────────────────────────────────────────
-  const handleDelete = async (id: string, name: string) => {
+  const handleDelete = async (row: InventoryStatusRow) => {
+    if (!window.confirm(`${row.name} — bu xammalı silmək istədiyinizə əminsiniz?`)) return;
+    setSaving(true);
     try {
-      const res = await fetch(`/api/inventory?id=${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error((await res.json()).error);
-      toast.success('Silindi', { style: toastStyle });
+      const res = await fetch(`/api/inventory/ingredients/${row.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success(`${row.name} silindi`, { style: toastStyle });
+      setSelectedRow(null);
       fetchData();
     } catch (e: any) {
       toast.error(e.message, { style: toastStyle });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -654,7 +644,9 @@ export default function StockPage() {
 
   return (
     <PageTransition className="min-h-screen bg-[#080808] text-white pb-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
+        <div className="flex gap-6 items-start">
+          <div className={`flex-1 min-w-0 space-y-6 ${selectedRow ? 'lg:w-[calc(100%-24rem)]' : ''}`}>
 
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -700,14 +692,6 @@ export default function StockPage() {
               style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
             >
               <Plus size={15} /> Yeni Xammal
-            </button>
-            <button
-              onClick={() => setClearConfirmOpen(true)} disabled={clearingAll}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
-            >
-              {clearingAll ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-              Hamısını Sil
             </button>
           </div>
         </div>
@@ -802,16 +786,17 @@ export default function StockPage() {
             )}
           </GlassCard>
         ) : (
-          <GlassCard intensity="light" padding="none" className="overflow-hidden">
+          <GlassCard intensity="light" padding="none" className="overflow-hidden bg-white/[0.04] backdrop-blur-xl">
             {/* Table head */}
             <div
-              className="hidden lg:grid gap-4 px-6 py-2.5 text-[10px] font-semibold uppercase text-white/20 tracking-wider"
+              className="hidden lg:grid gap-4 px-6 py-3 text-[11px] font-medium uppercase text-white/25 tracking-wider"
               style={{
-                gridTemplateColumns: '1fr 100px 140px 100px',
+                gridTemplateColumns: '1fr 120px 100px 140px 100px',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
               }}
             >
               <span>Ad</span>
+              <span>Stok Səviyyəsi</span>
               <span className="text-right">Stok</span>
               <span className="text-right">Maya Dəyəri</span>
               <span className="text-center">Status</span>
@@ -823,24 +808,26 @@ export default function StockPage() {
                 <div
                   id={'row-' + row.id}
                   key={row.id}
-                  className="px-4 lg:px-6 py-3.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.015] transition-colors duration-150 cursor-pointer"
-                  onClick={() => setModal({ mode: 'history', row })}
+                  className="px-4 lg:px-6 py-4 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors duration-150 cursor-pointer"
+                  onClick={() => setSelectedRow(row)}
                 >
                   {/* Desktop row */}
                   <div
                     className="hidden lg:grid gap-4 items-center"
-                    style={{ gridTemplateColumns: '1fr 100px 140px 100px' }}
+                    style={{ gridTemplateColumns: '1fr 120px 100px 140px 100px' }}
                   >
                     {/* Name */}
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-white/90 truncate leading-none">{row.name}</p>
-                      <div className="mt-1.5">
-                        <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
-                      </div>
-                      <p className="text-[10px] text-white/20 mt-1">
-                        {UNIT_LABELS[row.unit]}
-                        {(row as any).cold_waste_percentage > 0 && <span className="text-rose-400/50 ml-1.5">· itki {row.cold_waste_percentage}%</span>}
-                      </p>
+                      <p className="text-[11px] text-white/25 mt-1">{UNIT_LABELS[row.unit]}</p>
+                    </div>
+
+                    {/* Stock Level bar */}
+                    <div className="pr-8">
+                      <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
+                      {(row as any).cold_waste_percentage > 0 && (
+                        <p className="text-[10px] text-rose-400/40 mt-1">itki: {row.cold_waste_percentage}%</p>
+                      )}
                     </div>
 
                     {/* Current stock */}
@@ -848,16 +835,15 @@ export default function StockPage() {
                       <span className="text-base font-semibold tabular-nums text-white/90">
                         {fmt(row.current_stock, 1)}
                       </span>
-                      <span className="text-[10px] text-white/25 ml-1">{UNIT_LABELS[row.unit]}</span>
                     </div>
 
                     {/* Cost */}
                     <div className="text-right">
-                      <p className="text-sm font-semibold tabular-nums text-white/70">
+                      <p className="text-sm font-semibold tabular-nums text-white/95">
                         ₼{fmtCost((row.current_stock || 0) * (row.purchase_price ?? row.average_cost_per_unit))}
                       </p>
-                      <p className="text-[10px] text-white/20 mt-0.5">
-                        ₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]}
+                      <p className="text-[11px] text-white/30 mt-0.5">
+                        ₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)} / {UNIT_LABELS[row.unit]}
                       </p>
                     </div>
 
@@ -871,18 +857,21 @@ export default function StockPage() {
                   </div>
 
                   {/* Mobile card */}
-                  <div className="lg:hidden space-y-2.5">
+                  <div className="lg:hidden space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-white/90">{row.name}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-white/90">{row.name}</p>
+                        <p className="text-[11px] text-white/25">{UNIT_LABELS[row.unit]}</p>
+                      </div>
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold ${meta.bg} ${meta.text}`}>
                         <span className={`w-1 h-1 rounded-full ${meta.dot}`} />
                         {meta.label}
                       </span>
                     </div>
                     <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-white/30">{UNIT_LABELS[row.unit]} · {fmt(row.current_stock, 1)} stok</span>
-                      <span className="font-semibold text-white/70 tabular-nums">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold tabular-nums text-white/90">{fmt(row.current_stock, 1)} {UNIT_LABELS[row.unit]}</span>
+                      <span className="font-semibold tabular-nums text-white/95">
                         ₼{fmtCost((row.current_stock || 0) * (row.purchase_price ?? row.average_cost_per_unit))}
                       </span>
                     </div>
@@ -1220,8 +1209,22 @@ export default function StockPage() {
         </div>
       </div>
       )}
-      
+
       </div>
+
+      {/* ── Inspector Panel (right side) ── */}
+      <InspectorPanel
+        row={selectedRow}
+        onClose={() => setSelectedRow(null)}
+        UNIT_LABELS={UNIT_LABELS}
+        onStockIn={(r) => { setSelectedRow(null); setModal({ mode: 'stock_in', row: r }); }}
+        onWaste={(r) => { setSelectedRow(null); setModal({ mode: 'waste', row: r }); }}
+        onAudit={(r) => { setSelectedRow(null); setModal({ mode: 'audit', row: r }); }}
+        onHistory={(r) => { setSelectedRow(null); setModal({ mode: 'history', row: r }); }}
+        onDelete={(r) => handleDelete(r)}
+      />
+    </div>
+  </div>
 
       {/* ═══════════════════════════════════════════════════════
           MODALS
@@ -1815,26 +1818,6 @@ export default function StockPage() {
           </div>
         )}
       </AnimatePresence>
-      <MobileModal open={clearConfirmOpen} onClose={() => setClearConfirmOpen(false)}>
-        <div className="space-y-4 text-center">
-          <h3 className="text-lg font-bold">Bütün xammallar silinsin?</h3>
-          <p className="text-sm text-[var(--theme-text-secondary)]">Bu əməliyyat geri alına bilməz.</p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => setClearConfirmOpen(false)}
-              className="px-4 py-2 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]"
-            >
-              Ləğv
-            </button>
-            <button
-              onClick={clearAllIngredients}
-              className="px-4 py-2 rounded-xl bg-[var(--theme-accent)] text-black font-semibold"
-            >
-              Sil
-            </button>
-          </div>
-        </div>
-      </MobileModal>
 
       {/* ── Calibration morph overlay ── */}
       <AnimatePresence>

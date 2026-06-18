@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Plus, TrendingDown, TrendingUp,
-  Trash2, X, Loader2, FlaskConical, RefreshCw,
+  Trash2, X, Loader2, RefreshCw,
   ShieldAlert, Search,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   Pencil, Lightbulb, Calculator,
@@ -62,119 +62,40 @@ const modalV = {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function InventoryHealthCard({ stats, alerts, loading }: {
+function SummaryStrip({ stats, alerts, loading }: {
   stats?: { total: number; critical: number; out_of_stock: number; monthly_waste_cost: number };
   alerts: LowStockAlert[];
   loading: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const total = stats?.total ?? 0;
   const critical = (stats?.critical ?? 0) + (stats?.out_of_stock ?? 0);
   const normal = total - critical;
-  const score = total > 0 ? Math.round((normal / total) * 100) : 100;
-  const healthColor = score >= 80 ? 'text-emerald-400' : score >= 50 ? 'text-amber-400' : 'text-red-400';
-  const healthBg = score >= 80 ? 'from-emerald-500/20 to-emerald-500/5' : score >= 50 ? 'from-amber-500/20 to-amber-500/5' : 'from-red-500/20 to-red-500/5';
+
+  const cards = [
+    { label: 'Normal', value: loading ? '—' : fmt(normal), color: 'text-emerald-400', bg: 'bg-emerald-500/8' },
+    { label: 'Kritik', value: loading ? '—' : fmt(critical), color: 'text-amber-400', bg: 'bg-amber-500/8' },
+    { label: 'Bitib', value: loading ? '—' : fmt(stats?.out_of_stock ?? 0), color: 'text-red-400', bg: 'bg-red-500/8' },
+    { label: 'İtki', value: loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`, color: 'text-rose-400', bg: 'bg-rose-500/8' },
+  ];
 
   return (
-    <motion.div
-      layout
-      transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-      className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-xl"
-    >
-      <div className="p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <motion.div layoutId="health-ring"
-                className="w-14 h-14 rounded-full flex items-center justify-center font-black text-lg tabular-nums"
-                style={{ background: `conic-gradient(${score >= 80 ? '#34D399' : score >= 50 ? '#FBBF24' : '#F87171'} ${score}%, rgba(255,255,255,0.05) ${score}%)` }}>
-                <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: '#0a0a0a' }}>
-                  <span className={healthColor}>{loading ? '—' : score}</span>
-                </div>
-              </motion.div>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">Inventory Health</h2>
-              <p className="text-[11px] text-white/30 mt-0.5">
-                {loading ? '—' : `${normal} normal · ${critical} kritik · ${total} cəmi`}
-              </p>
-            </div>
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={() => setExpanded(!expanded)}
-            className="shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-bold text-white/40 hover:text-white transition-colors"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            {expanded ? 'Gizlət' : 'Ətraflı'}
-          </motion.button>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {cards.map(c => (
+        <div key={c.label} className={`rounded-xl border border-white/[0.06] ${c.bg} p-4`}>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-white/35">{c.label}</p>
+          <p className={`text-2xl font-light tabular-nums mt-1.5 ${c.color}`}>{c.value}</p>
         </div>
-
-        {/* Mini metrik bar */}
-        {!loading && total > 0 && (
-          <div className="mt-4 h-1.5 rounded-full bg-white/[0.04] overflow-hidden flex">
-            <motion.div initial={{ width: 0 }} animate={{ width: `${(normal / total) * 100}%` }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 120, damping: 20 }}
-              className="h-full bg-emerald-400/60 rounded-l-full" />
-            <motion.div initial={{ width: 0 }} animate={{ width: `${(critical / total) * 100}%` }}
-              transition={{ delay: 0.3, type: 'spring', stiffness: 120, damping: 20 }}
-              className="h-full bg-amber-400/60" />
-            <motion.div initial={{ width: 0 }} animate={{ width: `${((stats?.out_of_stock ?? 0) / total) * 100}%` }}
-              transition={{ delay: 0.4, type: 'spring', stiffness: 120, damping: 20 }}
-              className="h-full bg-red-400/60 rounded-r-full" />
-          </div>
-        )}
-      </div>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 24 }}
-          >
-            <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-0 space-y-3">
-              <div className="h-px bg-white/[0.06]" />
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <p className="text-[10px] uppercase tracking-wider text-white/30 font-bold">Normal</p>
-                  <p className="text-lg font-black text-emerald-400 tabular-nums mt-1">{loading ? '—' : fmt(normal)}</p>
-                </div>
-                <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <p className="text-[10px] uppercase tracking-wider text-white/30 font-bold">Kritik</p>
-                  <p className="text-lg font-black text-amber-400 tabular-nums mt-1">{loading ? '—' : fmt(critical)}</p>
-                </div>
-                <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <p className="text-[10px] uppercase tracking-wider text-white/30 font-bold">Bitib</p>
-                  <p className="text-lg font-black text-red-400 tabular-nums mt-1">{loading ? '—' : fmt(stats?.out_of_stock ?? 0)}</p>
-                </div>
-                <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <p className="text-[10px] uppercase tracking-wider text-white/30 font-bold">İtki Dəy.</p>
-                  <p className="text-lg font-black text-rose-400 tabular-nums mt-1">{loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`}</p>
-                </div>
-              </div>
-              {alerts.length > 0 && (
-                <div className="p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
-                  <div className="flex items-center gap-2">
-                    <ShieldAlert size={14} className="text-red-400" />
-                    <span className="text-xs text-red-300 font-medium">{alerts.length} xammal təcili diqqət tələb edir</span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {alerts.slice(0, 6).map(a => (
-                      <span key={a.ingredientId} className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-red-300/80" style={{ background: 'rgba(239,68,68,0.1)' }}>
-                        {a.name}
-                      </span>
-                    ))}
-                    {alerts.length > 6 && <span className="text-[10px] text-white/30 px-2 py-0.5">+{alerts.length - 6} daha</span>}
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+      ))}
+      {alerts.length > 0 && (
+        <div className="sm:col-span-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/8 border border-red-500/15">
+          <ShieldAlert size={13} className="text-red-400 shrink-0" />
+          <span className="text-xs text-red-300 font-medium">
+            {alerts.length} xammal təcili diqqət tələb edir: {alerts.slice(0, 3).map(a => a.name).join(', ')}
+            {alerts.length > 3 && ` +${alerts.length - 3} daha`}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -733,30 +654,21 @@ export default function StockPage() {
 
   return (
     <PageTransition className="min-h-screen bg-[#080808] text-white pb-20">
-      {/* ── Ambient background ── */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.04]"
-          style={{ background: 'radial-gradient(ellipse,#D4AF37,transparent 70%)' }} />
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-6">
 
         {/* ── Header ── */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-        >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#1e1600,#140f00)', border: '1px solid rgba(212,175,55,0.2)' }}>
-              <Package size={20} className="text-[#D4AF37]" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/[0.08]"
+              style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <Package size={18} className="text-white/40" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-tight leading-none">
+              <h1 className="text-xl font-semibold tracking-tight leading-none text-white/90">
                 Anbar İdarəetməsi
               </h1>
-              <p className="text-[11px] text-white/25 uppercase tracking-[0.2em] mt-1">
-                Inventory Management System
+              <p className="text-[11px] text-white/20 uppercase tracking-[0.15em] mt-0.5">
+                Inventory
               </p>
             </div>
           </div>
@@ -798,28 +710,10 @@ export default function StockPage() {
               Hamısını Sil
             </button>
           </div>
-        </motion.div>
+        </div>
 
-        {/* ── Low stock alert banner ── */}
-        <AnimatePresence>
-          {(data?.alerts ?? []).length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
-            >
-              <ShieldAlert size={16} className="text-red-400 flex-shrink-0" />
-              <p className="text-sm text-red-300">
-                <span className="font-bold">{data!.alerts.length} xammal</span> kritik səviyyədə və ya bitib —{' '}
-                {data!.alerts.slice(0, 3).map(a => a.name).join(', ')}
-                {data!.alerts.length > 3 && ` +${data!.alerts.length - 3} digər`}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Inventory Health ── */}
-        <InventoryHealthCard
+        {/* ── Summary strip ── */}
+        <SummaryStrip
           stats={stats}
           alerts={data?.alerts ?? []}
           loading={loading}
@@ -838,8 +732,6 @@ export default function StockPage() {
                 <motion.button
                   key="search-icon"
                   onClick={() => { setIsSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 100); }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
@@ -913,220 +805,89 @@ export default function StockPage() {
           <GlassCard intensity="light" padding="none" className="overflow-hidden">
             {/* Table head */}
             <div
-              className="hidden lg:grid gap-4 px-6 py-3 text-[10px] font-bold tracking-[0.15em] uppercase text-white/20"
+              className="hidden lg:grid gap-4 px-6 py-2.5 text-[10px] font-semibold uppercase text-white/20 tracking-wider"
               style={{
-                gridTemplateColumns: '1fr 100px 80px 120px 120px 60px',
-                background: 'rgba(255,255,255,0.018)',
+                gridTemplateColumns: '1fr 100px 140px 100px',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
               }}
             >
-              <span>Xammal</span>
-              <span className="text-right">Cari Stok</span>
-              <span className="text-right">Limit</span>
+              <span>Ad</span>
+              <span className="text-right">Stok</span>
               <span className="text-right">Maya Dəyəri</span>
               <span className="text-center">Status</span>
-              <span className="text-right">Əməliyyat</span>
             </div>
 
-            {rows.map((row, i) => {
+            {rows.map((row) => {
               const meta = getStatusMeta(row.status);
               return (
-                <motion.div
+                <div
                   id={'row-' + row.id}
                   key={row.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="group relative px-4 lg:px-6 py-4 transition-all duration-300 hover:bg-white/[0.018] hover:scale-[1.005] hover:shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]"
-                  style={{ borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
+                  className="px-4 lg:px-6 py-3.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.015] transition-colors duration-150 cursor-pointer"
+                  onClick={() => setModal({ mode: 'history', row })}
                 >
                   {/* Desktop row */}
                   <div
                     className="hidden lg:grid gap-4 items-center"
-                    style={{ gridTemplateColumns: '1fr 100px 80px 120px 120px 60px' }}
+                    style={{ gridTemplateColumns: '1fr 100px 140px 100px' }}
                   >
-                    {/* Name + bar */}
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.1)' }}>
-                        <FlaskConical size={14} className="text-[#D4AF37]/50" />
+                    {/* Name */}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white/90 truncate leading-none">{row.name}</p>
+                      <div className="mt-1.5">
+                        <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold truncate leading-none">{row.name}</p>
-                        <div className="mt-1.5">
-                          <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
-                        </div>
-                        <p className="text-[10px] text-white/20 mt-1">
-                          {UNIT_LABELS[row.unit]}
-                          {(row as any).cold_waste_percentage > 0 && <span className="text-red-400/40 ml-1.5">· itki: {row.cold_waste_percentage}%</span>}
-                        </p>
-                      </div>
+                      <p className="text-[10px] text-white/20 mt-1">
+                        {UNIT_LABELS[row.unit]}
+                        {(row as any).cold_waste_percentage > 0 && <span className="text-rose-400/50 ml-1.5">· itki {row.cold_waste_percentage}%</span>}
+                      </p>
                     </div>
 
-                    {/* Current stock - inline editable */}
+                    {/* Current stock */}
                     <div className="text-right">
-                      <span className="text-base font-black tabular-nums" style={{ color: meta.text }}>
+                      <span className="text-base font-semibold tabular-nums text-white/90">
                         {fmt(row.current_stock, 1)}
                       </span>
                       <span className="text-[10px] text-white/25 ml-1">{UNIT_LABELS[row.unit]}</span>
                     </div>
 
-                    {/* Critical limit */}
+                    {/* Cost */}
                     <div className="text-right">
-                      <span className="text-sm text-white/35 tabular-nums">{fmt(row.critical_limit, 0)}</span>
-                      <span className="text-[10px] text-white/20 ml-1">{UNIT_LABELS[row.unit]}</span>
-                    </div>
-
-                    {/* Total cost */}
-                    <div className="text-right">
-                      <p className="text-base font-black tabular-nums text-white/80">
+                      <p className="text-sm font-semibold tabular-nums text-white/70">
                         ₼{fmtCost((row.current_stock || 0) * (row.purchase_price ?? row.average_cost_per_unit))}
                       </p>
                       <p className="text-[10px] text-white/20 mt-0.5">
-                        ₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)} / {UNIT_LABELS[row.unit]}
+                        ₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]}
                       </p>
                     </div>
 
                     {/* Status */}
                     <div className="flex justify-center">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold ${meta.bg} border ${meta.border} ${meta.text}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold ${meta.bg} ${meta.text}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
                         {meta.label}
                       </span>
                     </div>
-
-                    {/* Actions — 3 nöqtə dropdown */}
-                    <div className="flex items-center justify-end relative">
-                      <button onClick={() => setOpenActionsId(openActionsId === row.id ? null : row.id)}
-                        className="w-8 h-8 rounded-xl hover:bg-white/[0.06] transition-all flex items-center justify-center text-white/30 hover:text-white active:scale-90"
-                      >
-                        <span className="text-lg font-bold leading-none tracking-[0.1em]">⋯</span>
-                      </button>
-                      {openActionsId === row.id && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setOpenActionsId(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-xl overflow-hidden"
-                            style={{ background: lightMode ? '#ffffff' : '#141414', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 12px 40px rgba(0,0,0,0.08)' : '0 12px 40px rgba(0,0,0,0.6)' }}>
-                            <button onClick={() => { setModal({ mode: 'stock_in', row }); setOpenActionsId(null); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                              <TrendingUp size={13} className="text-emerald-400" /> Mal Girişi
-                            </button>
-                            <button onClick={() => { setModal({ mode: 'waste', row }); setOpenActionsId(null); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                              <TrendingDown size={13} className="text-red-400" /> İtki
-                            </button>
-                            <button onClick={() => { setModal({ mode: 'audit', row }); setOpenActionsId(null); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                              <RefreshCw size={13} className="text-gold" /> Audit
-                            </button>
-                            <button onClick={() => { setOpenActionsId(null); handleViewHistory(row); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                              <RefreshCw size={13} className="text-white/40" /> Tarixçə
-                            </button>
-                            <button onClick={() => {
-                              const s = row.supplier_id ? suppliers.find(x => x.id === row.supplier_id) : null;
-                              setNewName(row.name); setNewLimit(String(row.critical_limit)); setNewUnit(row.unit);
-                              setNewWastePct(String(row.cold_waste_percentage || ''));
-                              setEditQsName(s?.name || ''); setEditQsPhone(s?.phone || ''); setEditQsContact(s?.contact_person || '');
-                              setEditRow(row); setModal({ mode: 'edit_ingredient', row }); setOpenActionsId(null);
-                            }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                              <Pencil size={13} className="text-white/40" /> Redaktə et
-                            </button>
-                            <div className="h-px bg-white/[0.06]" />
-                            <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05] text-red-400">
-                              <Trash2 size={13} /> Sil
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
                   </div>
 
                   {/* Mobile card */}
-                  <div className="lg:hidden space-y-3">
+                  <div className="lg:hidden space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.1)' }}>
-                          <FlaskConical size={13} className="text-[#D4AF37]/50" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold">{row.name}</p>
-                          <p className="text-[10px] text-white/25">{UNIT_LABELS[row.unit]}</p>
-                        </div>
-                      </div>
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold ${meta.bg} border ${meta.border} ${meta.text}`}>
+                      <p className="text-sm font-semibold text-white/90">{row.name}</p>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold ${meta.bg} ${meta.text}`}>
                         <span className={`w-1 h-1 rounded-full ${meta.dot}`} />
                         {meta.label}
                       </span>
                     </div>
                     <StockBar ratio={Number(row.stock_ratio)} status={row.status} />
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-white/40 font-medium">Maya dəyəri</span>
-                      <span className="font-bold text-white/80 tabular-nums">
+                      <span className="text-white/30">{UNIT_LABELS[row.unit]} · {fmt(row.current_stock, 1)} stok</span>
+                      <span className="font-semibold text-white/70 tabular-nums">
                         ₼{fmtCost((row.current_stock || 0) * (row.purchase_price ?? row.average_cost_per_unit))}
-                        <span className="text-white/20 font-normal ml-1">
-                          (₼{fmtCost(row.purchase_price ?? row.average_cost_per_unit)}/{UNIT_LABELS[row.unit]})
-                        </span>
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-lg font-black tabular-nums" style={{ color: meta.text }}>
-                          {fmt(row.current_stock, 1)}
-                        </span>
-                        <span className="text-xs text-white/25 ml-1">/ {fmt(row.critical_limit, 0)} {UNIT_LABELS[row.unit]}</span>
-                      </div>
-                      <div className="flex gap-1.5 relative">
-                        <button onClick={() => setOpenActionsId(openActionsId === row.id ? null : row.id)}
-                          className="w-8 h-8 rounded-xl hover:bg-white/[0.06] transition-all flex items-center justify-center text-white/30 hover:text-white active:scale-90">
-                          <span className="text-lg font-bold leading-none tracking-[0.1em]">⋯</span>
-                        </button>
-                        {openActionsId === row.id && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setOpenActionsId(null)} />
-                            <div className="absolute right-0 -top-1 z-50 min-w-[140px] rounded-xl overflow-hidden translate-y-[-100%]"
-                              style={{ background: lightMode ? '#ffffff' : '#141414', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 12px 40px rgba(0,0,0,0.08)' : '0 12px 40px rgba(0,0,0,0.6)' }}>
-                              <button onClick={() => { setModal({ mode: 'stock_in', row }); setOpenActionsId(null); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                                <TrendingUp size={13} className="text-emerald-400" /> Mal Girişi
-                              </button>
-                              <button onClick={() => { setModal({ mode: 'waste', row }); setOpenActionsId(null); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                                <TrendingDown size={13} className="text-red-400" /> İtki
-                              </button>
-                              <button onClick={() => { setModal({ mode: 'audit', row }); setOpenActionsId(null); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                                <RefreshCw size={13} className="text-gold" /> Audit
-                              </button>
-                              <button onClick={() => { setOpenActionsId(null); handleViewHistory(row); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                                <RefreshCw size={13} className="text-white/40" /> Tarixçə
-                              </button>
-                              <button onClick={() => {
-                                const s = row.supplier_id ? suppliers.find(x => x.id === row.supplier_id) : null;
-                                setNewName(row.name); setNewLimit(String(row.critical_limit)); setNewUnit(row.unit);
-                                setNewWastePct(String(row.cold_waste_percentage || ''));
-                                setEditQsName(s?.name || ''); setEditQsPhone(s?.phone || ''); setEditQsContact(s?.contact_person || '');
-                                setEditRow(row); setModal({ mode: 'edit_ingredient', row }); setOpenActionsId(null);
-                              }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05]">
-                                <Pencil size={13} className="text-white/40" /> Redaktə et
-                              </button>
-                              <div className="h-px bg-white/[0.06]" />
-                              <button onClick={() => { setOpenActionsId(null); handleDelete(row.id, row.name); }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-white/[0.05] text-red-400">
-                                <Trash2 size={13} /> Sil
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </GlassCard>
@@ -1166,7 +927,6 @@ export default function StockPage() {
           <div className="flex items-center gap-2">
             <div ref={monthPickerRef} className="relative">
               <motion.button
-                whileTap={{ scale: 0.96 }}
                 onClick={() => setShowMonthPicker(!showMonthPicker)}
                 className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all"
                 style={{
@@ -1206,9 +966,8 @@ export default function StockPage() {
                     {/* Month/Year navigator */}
                     <div className="flex items-center justify-between px-5 pt-4 pb-1">
                       <motion.button
-                        whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
                         onClick={() => setPickerYear(p => p - 1)}
-                        className="p-1.5 rounded-lg text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)] transition-colors"
+                        className="p-1.5 rounded-lg text-white/30 hover:text-white/60 transition-colors"
                       >
                         <ChevronLeft size={16} />
                       </motion.button>
@@ -1232,9 +991,8 @@ export default function StockPage() {
                         </motion.span>
                       </div>
                       <motion.button
-                        whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
                         onClick={() => setPickerYear(p => p + 1)}
-                        className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+                        className="p-1.5 rounded-lg text-white/30 hover:text-white/70 transition-colors"
                       >
                         <ChevronRight size={16} />
                       </motion.button>
@@ -1268,13 +1026,11 @@ export default function StockPage() {
                           days.push(
                             <motion.button
                               key={dateStr}
-                              whileHover={{ scale: 1.12 }}
-                              whileTap={{ scale: 0.88 }}
                               onClick={() => {
                                 setHistoryDay(dateStr);
                                 setShowMonthPicker(false);
                               }}
-                              className="relative flex items-center justify-center h-9 rounded-xl text-xs font-bold transition-all"
+                              className="relative flex items-center justify-center h-9 rounded-xl text-xs font-semibold transition-colors"
                               style={{
                                 background: isSelected
                                   ? 'linear-gradient(135deg, rgba(212,175,55,0.25), rgba(212,175,55,0.1))'
@@ -1309,14 +1065,12 @@ export default function StockPage() {
                           return (
                             <motion.button
                               key={monthStr}
-                              whileHover={{ scale: 1.04 }}
-                              whileTap={{ scale: 0.94 }}
                               onClick={() => {
                                 setHistoryMonth(monthStr);
                                 setHistoryDay(null);
                                 setShowMonthPicker(false);
                               }}
-                              className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wide transition-all"
+                              className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold tracking-wide transition-colors"
                               style={{
                                 background: isSelected ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)',
                                 color: isSelected ? '#D4AF37' : 'rgba(255,255,255,0.4)',

@@ -637,8 +637,7 @@ export default function StockPage() {
     <PageTransition className="min-h-screen bg-[#070707] text-white pb-24">
       <div className="absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.12),transparent_42%),radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.06),transparent_30%)] pointer-events-none" />
       <div className="max-w-none mx-auto px-4 sm:px-6 pt-6 sm:pt-10 relative">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
-          <div className="space-y-6 min-w-0 xl:col-span-1">
+        <div className="space-y-6 min-w-0">
             <section className="relative overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] px-6 py-6 sm:px-8 sm:py-8 backdrop-blur-2xl shadow-[0_30px_120px_rgba(0,0,0,0.28)]">
               <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),transparent_36%,transparent_64%,rgba(212,175,55,0.08))]" />
               <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -739,7 +738,7 @@ export default function StockPage() {
             )}
 
             {viewMode === 'stock' && (
-              <div className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
+              <div className="grid gap-4">
                 <CalibrationSuggestionsPanel
                   suggestions={calibrationSuggestions}
                   onApplyStart={handleCalibrationApplyStart}

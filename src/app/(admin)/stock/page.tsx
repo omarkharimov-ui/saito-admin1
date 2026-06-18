@@ -993,9 +993,9 @@ export default function StockPage() {
         )}
 
         {viewMode === 'history' && (
-        <div className="space-y-4">
-        {/* ── Premium Calendar Picker ── */}
-        <div className="flex items-center justify-between">
+          <div className="space-y-4">
+            {/* ── Premium Calendar Picker ── */}
+            <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <p className="text-xs font-bold uppercase tracking-[0.15em] text-white/40">
               {historyDay ? 'Günlük Tarixçə' : 'Aylıq Tarixçə'} <span className="text-white/15">({filteredLogs.length})</span>
@@ -1277,22 +1277,22 @@ export default function StockPage() {
             </div>
           )}
         </div>
-      </div>
 
-      <InspectorPanel
-        row={selectedRow}
-        onClose={() => setSelectedRow(null)}
-        UNIT_LABELS={UNIT_LABELS}
-        onStockIn={(r) => { setSelectedRow(null); setModal({ mode: 'stock_in', row: r }); }}
-        onWaste={(r) => { setSelectedRow(null); setModal({ mode: 'waste', row: r }); }}
-        onAudit={(r) => { setSelectedRow(null); setModal({ mode: 'audit', row: r }); }}
-        onHistory={(r) => { setSelectedRow(null); setModal({ mode: 'history', row: r }); }}
-        onDelete={(r) => handleDelete(r)}
-      />
-      {/* ═══════════════════════════════════════════════════════
-          MODALS
-      ════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
+        <InspectorPanel
+          row={selectedRow}
+          onClose={() => setSelectedRow(null)}
+          UNIT_LABELS={UNIT_LABELS}
+          onStockIn={(r) => { setSelectedRow(null); setModal({ mode: 'stock_in', row: r }); }}
+          onWaste={(r) => { setSelectedRow(null); setModal({ mode: 'waste', row: r }); }}
+          onAudit={(r) => { setSelectedRow(null); setModal({ mode: 'audit', row: r }); }}
+          onHistory={(r) => { setSelectedRow(null); setModal({ mode: 'history', row: r }); }}
+          onDelete={(r) => handleDelete(r)}
+        />
+
+        {/* ═══════════════════════════════════════════════════════
+            MODALS
+        ════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
         {modal.mode && (
           <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div

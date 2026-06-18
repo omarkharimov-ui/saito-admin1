@@ -739,12 +739,6 @@ export default function StockPage() {
 
             {viewMode === 'stock' && (
               <div className="grid gap-4">
-                <CalibrationSuggestionsPanel
-                  suggestions={calibrationSuggestions}
-                  onApplyStart={handleCalibrationApplyStart}
-                  onApplied={handleCalibrationApplied}
-                />
-                <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5 backdrop-blur-xl">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-3">
                       <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/70">
@@ -784,6 +778,32 @@ export default function StockPage() {
                         </button>
                       )}
                     </div>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {viewMode === 'stock' && selectedRow && (
+              <div className="grid gap-4">
+                <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5 backdrop-blur-xl">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-white/90">Dərin panel</p>
+                      <p className="text-xs text-white/35">Seçilmiş məhsulun detallarını aşağıda oxu</p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedRow(null)}
+                      className="rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs text-white/70"
+                    >
+                      Bağla
+                    </button>
+                  </div>
+                  <div className="mt-4">
+                    <CalibrationSuggestionsPanel
+                      suggestions={calibrationSuggestions}
+                      onApplyStart={handleCalibrationApplyStart}
+                      onApplied={handleCalibrationApplied}
+                    />
                   </div>
                 </section>
               </div>

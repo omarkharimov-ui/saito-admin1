@@ -63,58 +63,8 @@ const modalV = {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SummaryStrip({ stats, alerts, loading }: {
-  stats?: { total: number; critical: number; out_of_stock: number; monthly_waste_cost: number };
-  alerts: LowStockAlert[];
-  loading: boolean;
-}) {
-  const total = stats?.total ?? 0;
-  const critical = (stats?.critical ?? 0) + (stats?.out_of_stock ?? 0);
-  const normal = total - critical;
-
-  const cards = [
-    { label: 'Normal', value: loading ? '—' : fmt(normal), color: 'text-emerald-300', icon: Layers3 },
-    { label: 'Kritik', value: loading ? '—' : fmt(critical), color: 'text-amber-300', icon: ShieldAlert },
-    { label: 'Bitib', value: loading ? '—' : fmt(stats?.out_of_stock ?? 0), color: 'text-red-300', icon: Database },
-    { label: 'İtki', value: loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`, color: 'text-rose-300', icon: TrendingDown },
-  ];
-
-  return (
-    <div className="grid gap-3 xl:grid-cols-[1.2fr_1.2fr_1.2fr_1.4fr]">
-      {cards.map((c) => {
-        const Icon = c.icon;
-        return (
-          <div key={c.label} className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] px-5 py-4 backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.18)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-white/35">{c.label}</p>
-                <p className={`mt-3 text-3xl font-semibold tracking-[-0.04em] tabular-nums ${c.color}`}>{c.value}</p>
-              </div>
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/75">
-                <Icon size={18} />
-              </span>
-            </div>
-          </div>
-        );
-      })}
-      {alerts.length > 0 && (
-        <div className="rounded-[24px] border border-red-500/15 bg-red-500/5 px-5 py-4 backdrop-blur-xl xl:col-span-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-red-500/10 text-red-300">
-              <ShieldAlert size={18} />
-            </span>
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-red-200/60">Diqqət tələb edən xammallar</p>
-              <p className="mt-1 text-sm text-red-100/90">
-                {alerts.length} məhsul təcili izlənməlidir: {alerts.slice(0, 2).map(a => a.name).join(', ')}
-                {alerts.length > 2 && ` +${alerts.length - 2}`}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function SummaryStrip() {
+  return null;
 }
 
 function StockBar({ ratio, status }: { ratio: number; status: string }) {
@@ -660,10 +610,28 @@ export default function StockPage() {
 
   const stats = data?.stats;
   const heroMetrics = [
-    { label: 'Ümumi xammal', value: loading ? '—' : fmt(stats?.total ?? 0), icon: Database },
-    { label: 'Kritik risk', value: loading ? '—' : fmt((stats?.critical ?? 0) + (stats?.out_of_stock ?? 0)), icon: ShieldAlert },
-    { label: 'Ağır itki', value: loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`, icon: TrendingDown },
+    {
+      label: 'Ümumi xammal',
+      value: loading ? '—' : fmt(stats?.total ?? 0),
+      icon: Database,
+      note: 'Aktiv məhsul bazası',
+    },
+    {
+      label: 'Kritik risk',
+      value: loading ? '—' : fmt((stats?.critical ?? 0) + (stats?.out_of_stock ?? 0)),
+      icon: ShieldAlert,
+      note: 'Diqqət tələb edənlər',
+    },
+    {
+      label: 'Ağır itki',
+      value: loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`,
+      icon: TrendingDown,
+      note: 'Aylıq israf xərci',
+    },
   ];
+
+  const [expandedHeroCard, setExpandedHeroCard] = useState<number | null>(null);
+  const expandedHeroMetric = expandedHeroCard != null ? heroMetrics[expandedHeroCard] : null;
 
   return (
     <PageTransition className="min-h-screen bg-[#070707] text-white pb-24">
@@ -721,60 +689,155 @@ export default function StockPage() {
               </div>
             </section>
 
-            <SummaryStrip stats={stats} alerts={data?.alerts ?? []} loading={loading} />
-
             {viewMode === 'stock' && (
-              <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5 backdrop-blur-xl">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/70">
-                      <Filter size={16} />
-                    </span>
+              <section className="rounded-[36px] border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.02))] p-4 sm:p-5 backdrop-blur-2xl shadow-[0_24px_100px_rgba(0,0,0,0.28)]">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="max-w-2xl space-y-4">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] font-medium tracking-[0.24em] text-white/50 uppercase">
+                      <Sparkles size={12} className="text-[#D4AF37]" />
+                      Live stock surface
+                    </div>
                     <div>
-                      <p className="text-sm font-semibold text-white/90">Axtarış və filtrlər</p>
-                      <p className="text-xs text-white/35">Dəqiq axtar, riskə görə ayır və məhsulu seç.</p>
+                      <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.05em] text-white/95">Sakit, tam ekran iş səthi</h2>
+                      <p className="mt-2 max-w-xl text-sm leading-6 text-white/45">Tək bir geniş paneldə xammal vəziyyətini göstər, sonra kartı açaraq detalları morf kimi dərinləşdir.</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {(['all', 'critical', 'out_of_stock'] as const).map(f => (
-                      <button
-                        key={f}
-                        onClick={() => setFilter(f)}
-                        className={`rounded-full px-4 py-2 text-xs font-medium transition-all ${filter === f ? 'bg-white text-black' : 'border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white/80'}`}
-                      >
-                        {f === 'all' ? 'Hamısı' : f === 'critical' ? 'Kritik' : 'Bitib'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
-                  <div className="relative flex-1">
-                    <Search size={14} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/25" />
-                    <input
-                      ref={searchRef}
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      placeholder="Xammal axtar..."
-                      className="w-full rounded-2xl border border-white/[0.08] bg-black/20 py-3 pl-10 pr-10 text-sm text-white outline-none placeholder:text-white/22 focus:border-white/20"
-                      onKeyDown={e => { if (e.key === 'Escape') { setSearch(''); setIsSearchOpen(false); } }}
-                    />
-                    {search && (
-                      <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/70">
-                        <X size={14} />
-                      </button>
-                    )}
+                    {heroMetrics.map((metric, index) => {
+                      const Icon = metric.icon;
+                      const isActive = expandedHeroCard === index;
+                      return (
+                        <motion.button
+                          key={metric.label}
+                          layout
+                          onClick={() => setExpandedHeroCard(isActive ? null : index)}
+                          className={`group relative overflow-hidden rounded-[28px] border border-white/[0.06] bg-white/[0.03] px-4 py-4 text-left transition-all duration-300 ${isActive ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]'}`}
+                          style={{ minWidth: 180 }}
+                        >
+                          <motion.div layout className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-white/28">{metric.label}</p>
+                              <p className="mt-2 text-2xl font-semibold tracking-[-0.05em] tabular-nums text-white/92">{metric.value}</p>
+                              <p className="mt-2 text-[11px] text-white/34">{metric.note}</p>
+                            </div>
+                            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.04] text-white/70 transition-transform duration-300 group-hover:scale-[1.03]">
+                              <Icon size={18} />
+                            </span>
+                          </motion.div>
+                        </motion.button>
+                      );
+                    })}
                   </div>
                 </div>
               </section>
             )}
 
             {viewMode === 'stock' && (
-              <>
+              <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
                 <CalibrationSuggestionsPanel
                   suggestions={calibrationSuggestions}
                   onApplyStart={handleCalibrationApplyStart}
                   onApplied={handleCalibrationApplied}
                 />
+                <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5 backdrop-blur-xl">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/70">
+                        <Filter size={16} />
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-white/90">Axtarış və filtrlər</p>
+                        <p className="text-xs text-white/35">Dəqiq axtar, riskə görə ayır və məhsulu seç.</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(['all', 'critical', 'out_of_stock'] as const).map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setFilter(f)}
+                          className={`rounded-full px-4 py-2 text-xs font-medium transition-all ${filter === f ? 'bg-white text-black' : 'border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white/80'}`}
+                        >
+                          {f === 'all' ? 'Hamısı' : f === 'critical' ? 'Kritik' : 'Bitib'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <div className="relative flex-1">
+                      <Search size={14} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/25" />
+                      <input
+                        ref={searchRef}
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Xammal axtar..."
+                        className="w-full rounded-2xl border border-white/[0.08] bg-black/20 py-3 pl-10 pr-10 text-sm text-white outline-none placeholder:text-white/22 focus:border-white/20"
+                        onKeyDown={e => { if (e.key === 'Escape') { setSearch(''); setIsSearchOpen(false); } }}
+                      />
+                      {search && (
+                        <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/70">
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {viewMode === 'stock' && (
+              <>
+                <AnimatePresence>
+                  {expandedHeroMetric && (
+                    <motion.div
+                      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-6"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setExpandedHeroCard(null)}
+                    >
+                      <motion.div
+                        className="absolute inset-0 bg-black/70 backdrop-blur-md"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      />
+                      <motion.div
+                        layoutId={`hero-metric-${expandedHeroCard}`}
+                        className="relative z-10 w-full sm:max-w-3xl rounded-t-[32px] sm:rounded-[32px] border border-white/[0.08] bg-[#0c0c0c] p-5 sm:p-8 shadow-[0_40px_140px_rgba(0,0,0,0.55)]"
+                        initial={{ scale: 0.96, y: 20 }}
+                        animate={{ scale: 1, y: 0 }}
+                        exit={{ scale: 0.96, y: 20 }}
+                        transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-white/30">{expandedHeroMetric.label}</p>
+                            <p className="mt-4 text-5xl sm:text-6xl font-semibold tracking-[-0.06em] tabular-nums text-white/96">{expandedHeroMetric.value}</p>
+                            <p className="mt-3 max-w-lg text-sm leading-6 text-white/45">{expandedHeroMetric.note}. Bu kart toxunulduqda açılır və daha böyük səthdə detalları göstərir.</p>
+                          </div>
+                          <button onClick={() => setExpandedHeroCard(null)} className="rounded-full border border-white/[0.08] bg-white/[0.04] p-3 text-white/70 transition-colors hover:bg-white/[0.08]">
+                            <X size={16} />
+                          </button>
+                        </div>
+                        <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-[24px] border border-white/[0.06] bg-white/[0.03] p-4">
+                            <p className="text-[11px] uppercase tracking-[0.24em] text-white/30">Fokus</p>
+                            <p className="mt-2 text-sm text-white/70">Məlumatı genişləndirilmiş səthdə oxu</p>
+                          </div>
+                          <div className="rounded-[24px] border border-white/[0.06] bg-white/[0.03] p-4">
+                            <p className="text-[11px] uppercase tracking-[0.24em] text-white/30">Əlaqə</p>
+                            <p className="mt-2 text-sm text-white/70">Kart və panel arasında keçid morf kimi görünür</p>
+                          </div>
+                          <div className="rounded-[24px] border border-white/[0.06] bg-white/[0.03] p-4">
+                            <p className="text-[11px] uppercase tracking-[0.24em] text-white/30">Növbəti addım</p>
+                            <p className="mt-2 text-sm text-white/70">İstəsən burada ayrıca daxili drill-down da qura bilərik</p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* ── Inventory Table ── */}
                 {loading ? (

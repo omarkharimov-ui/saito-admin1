@@ -1915,5 +1915,6 @@ export default function StockPage() {
         )}
       </AnimatePresence>
     </PageTransition>
+  </div>
   );
 }

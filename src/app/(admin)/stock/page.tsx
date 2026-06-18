@@ -8,6 +8,7 @@ import {
   ShieldAlert, Search,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   Pencil, Lightbulb, Calculator,
+  Sparkles, Layers3, ArrowUpRight, Database, BarChart3, Clock3, Filter,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -72,27 +73,44 @@ function SummaryStrip({ stats, alerts, loading }: {
   const normal = total - critical;
 
   const cards = [
-    { label: 'Normal', value: loading ? '—' : fmt(normal), color: 'text-emerald-400' },
-    { label: 'Kritik', value: loading ? '—' : fmt(critical), color: 'text-amber-400' },
-    { label: 'Bitib', value: loading ? '—' : fmt(stats?.out_of_stock ?? 0), color: 'text-red-400' },
-    { label: 'İtki', value: loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`, color: 'text-rose-400' },
+    { label: 'Normal', value: loading ? '—' : fmt(normal), color: 'text-emerald-300', icon: Layers3 },
+    { label: 'Kritik', value: loading ? '—' : fmt(critical), color: 'text-amber-300', icon: ShieldAlert },
+    { label: 'Bitib', value: loading ? '—' : fmt(stats?.out_of_stock ?? 0), color: 'text-red-300', icon: Database },
+    { label: 'İtki', value: loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`, color: 'text-rose-300', icon: TrendingDown },
   ];
 
   return (
-    <div className="flex items-stretch divide-x divide-white/[0.06] border border-white/[0.06] rounded-xl">
-      {cards.map((c, i) => (
-        <div key={c.label} className="flex-1 px-5 py-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-widest text-white/30">{c.label}</p>
-          <p className={`text-xl font-semibold tabular-nums mt-1 ${c.color}`}>{c.value}</p>
-        </div>
-      ))}
+    <div className="grid gap-3 xl:grid-cols-[1.2fr_1.2fr_1.2fr_1.4fr]">
+      {cards.map((c) => {
+        const Icon = c.icon;
+        return (
+          <div key={c.label} className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] px-5 py-4 backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.18)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-white/35">{c.label}</p>
+                <p className={`mt-3 text-3xl font-semibold tracking-[-0.04em] tabular-nums ${c.color}`}>{c.value}</p>
+              </div>
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/75">
+                <Icon size={18} />
+              </span>
+            </div>
+          </div>
+        );
+      })}
       {alerts.length > 0 && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-red-500/5 border-l border-red-500/15 rounded-r-xl">
-          <ShieldAlert size={13} className="text-red-400 shrink-0" />
-          <span className="text-xs text-red-300 font-medium">
-            {alerts.length} xammal təcili diqqət tələb edir: {alerts.slice(0, 2).map(a => a.name).join(', ')}
-            {alerts.length > 2 && ` +${alerts.length - 2}`}
-          </span>
+        <div className="rounded-[24px] border border-red-500/15 bg-red-500/5 px-5 py-4 backdrop-blur-xl xl:col-span-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-red-500/10 text-red-300">
+              <ShieldAlert size={18} />
+            </span>
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-red-200/60">Diqqət tələb edən xammallar</p>
+              <p className="mt-1 text-sm text-red-100/90">
+                {alerts.length} məhsul təcili izlənməlidir: {alerts.slice(0, 2).map(a => a.name).join(', ')}
+                {alerts.length > 2 && ` +${alerts.length - 2}`}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -641,160 +659,152 @@ export default function StockPage() {
   });
 
   const stats = data?.stats;
+  const heroMetrics = [
+    { label: 'Ümumi xammal', value: loading ? '—' : fmt(stats?.total ?? 0), icon: Database },
+    { label: 'Kritik risk', value: loading ? '—' : fmt((stats?.critical ?? 0) + (stats?.out_of_stock ?? 0)), icon: ShieldAlert },
+    { label: 'Ağır itki', value: loading ? '—' : `₼${fmtCost(stats?.monthly_waste_cost ?? 0)}`, icon: TrendingDown },
+  ];
 
   return (
-    <PageTransition className="min-h-screen bg-[#080808] text-white pb-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
-        <div className="flex gap-6 items-start">
-          <div className={`flex-1 min-w-0 space-y-6 ${selectedRow ? 'lg:w-[calc(100%-24rem)]' : ''}`}>
-
-        {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/[0.08]"
-              style={{ background: 'rgba(255,255,255,0.03)' }}>
-              <Package size={18} className="text-white/40" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight leading-none text-white/90">
-                Anbar İdarəetməsi
-              </h1>
-              <p className="text-[11px] text-white/20 uppercase tracking-[0.15em] mt-0.5">
-                Inventory
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 p-1 rounded-xl relative" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            {(['stock', 'procurement', 'intelligence', 'history'] as const).map(m => (
-              <button
-                key={m}
-                onClick={() => setViewMode(m)}
-                className="relative px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-colors active:scale-95"
-                style={{ color: viewMode === m ? '#ffffff' : 'rgba(255,255,255,0.3)' }}
-              >
-                {viewMode === m && (
-                  <motion.div
-                    layoutId="tab-indicator"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    className="absolute inset-0 rounded-lg"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
-                  />
-                )}
-                <span className="relative z-10">{m === 'stock' ? 'Stok' : m === 'procurement' ? 'Tədarük' : m === 'intelligence' ? 'İntellekt' : 'Tarixçə'}</span>
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setModal({ mode: 'new_ingredient' })}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
-              style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
-            >
-              <Plus size={15} /> Yeni Xammal
-            </button>
-          </div>
-        </div>
-
-        {/* ── Summary strip ── */}
-        <SummaryStrip
-          stats={stats}
-          alerts={data?.alerts ?? []}
-          loading={loading}
-        />
-
-        {/* ── Search + Filter bar ── */}
-        {viewMode === 'stock' && (
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <motion.div
-              layout
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-              className={`relative ${!isSearchOpen ? 'w-10 h-10' : 'w-full'}`}
-            >
-              {!isSearchOpen ? (
-                <motion.button
-                  key="search-icon"
-                  onClick={() => { setIsSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 100); }}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  <Search size={15} className="text-white/30" />
-                </motion.button>
-              ) : (
-                <div className="relative w-full">
-                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
-                  <input
-                    ref={searchRef}
-                    value={search} onChange={e => setSearch(e.target.value)}
-                    placeholder="Xammal axtar..."
-                    className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-[#D4AF37]/30 transition-colors"
-                    onKeyDown={e => { if (e.key === 'Escape') { setSearch(''); setIsSearchOpen(false); } }}
-                    onBlur={() => { if (!search) setIsSearchOpen(false); }}
-                  />
-                  <button onClick={() => { setSearch(''); setIsSearchOpen(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors">
-                    <X size={14} />
+    <PageTransition className="min-h-screen bg-[#070707] text-white pb-24">
+      <div className="absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.12),transparent_42%),radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.06),transparent_30%)] pointer-events-none" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 relative">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="space-y-6 min-w-0">
+            <section className="relative overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] px-6 py-6 sm:px-8 sm:py-8 backdrop-blur-2xl shadow-[0_30px_120px_rgba(0,0,0,0.28)]">
+              <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),transparent_36%,transparent_64%,rgba(212,175,55,0.08))]" />
+              <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-2xl space-y-5">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] font-medium tracking-[0.22em] text-white/55 uppercase">
+                    <Sparkles size={12} className="text-[#D4AF37]" />
+                    Premium inventory control
+                  </div>
+                  <div className="space-y-3">
+                    <h1 className="text-4xl sm:text-5xl font-semibold tracking-[-0.06em] leading-[0.95] text-white/95">Stok</h1>
+                    <p className="max-w-xl text-sm sm:text-base leading-6 text-white/46">
+                      İnqredientlərin canlı vəziyyəti, kritik risklər və hərəkət tarixçəsi üçün sakit, premium iş səthi.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {heroMetrics.map((metric) => {
+                      const Icon = metric.icon;
+                      return (
+                        <div key={metric.label} className="rounded-[24px] border border-white/[0.08] bg-black/20 px-4 py-4 backdrop-blur-xl">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-white/30">{metric.label}</p>
+                              <p className="mt-2 text-2xl font-semibold tracking-[-0.05em] tabular-nums text-white/90">{metric.value}</p>
+                            </div>
+                            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/70">
+                              <Icon size={18} />
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => setModal({ mode: 'new_ingredient' })}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] bg-white text-black px-5 py-3 text-sm font-semibold tracking-[-0.01em] transition-transform active:scale-[0.98]"
+                  >
+                    <Plus size={16} /> Yeni Xammal
+                  </button>
+                  <button
+                    onClick={fetchData}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.04] px-5 py-3 text-sm font-medium tracking-[-0.01em] text-white/80 transition-colors hover:bg-white/[0.06]"
+                  >
+                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Yenilə
                   </button>
                 </div>
-              )}
-            </motion.div>
-          </div>
-          <div className="flex gap-2">
-            {(['all', 'critical', 'out_of_stock'] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold tracking-wide transition-all ${
-                  filter === f
-                    ? 'bg-white/10 text-white border border-white/15'
-                    : 'text-white/30 hover:text-white/60 border border-transparent'
-                }`}
-              >
-                {f === 'all' ? 'Hamısı' : f === 'critical' ? 'Kritik' : 'Bitib'}
-              </button>
-            ))}
-          </div>
-        </div>
-        )}
-
-        {viewMode === 'stock' && (
-        <>
-        {/* ── Calibration Suggestions ── */}
-        <CalibrationSuggestionsPanel
-          suggestions={calibrationSuggestions}
-          onApplyStart={handleCalibrationApplyStart}
-          onApplied={handleCalibrationApplied}
-        />
-
-        {/* ── Inventory Table ── */}
-        {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <Loader2 size={28} className="animate-spin text-white/15" />
-          </div>
-        ) : rows.length === 0 ? (
-          <GlassCard intensity="light" padding="xl" className="text-center">
-            <Package size={44} className="mx-auto mb-4 opacity-20 text-white/30" />
-            <p className="text-sm font-medium text-white/30">
-              {search || filter !== 'all' ? 'Axtarış nəticəsi tapılmadı' : 'Hələ xammal əlavə edilməyib'}
-            </p>
-            {!search && filter === 'all' && (
-              <div className="mt-4 space-y-2 text-xs text-white/20">
-                <p>📍 "Yeni Xammal" düyməsi ilə anbara məhsul əlavə edin</p>
-                <p>📄 "Tədarük" sekmesinden faktura yükləyərək OCR ilə avtomatik əlavə edin</p>
-                <p>⚙️ Hər xammal üçün kritik limit və vahid maya dəyəri təyin edin</p>
               </div>
+            </section>
+
+            <SummaryStrip stats={stats} alerts={data?.alerts ?? []} loading={loading} />
+
+            {viewMode === 'stock' && (
+              <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5 backdrop-blur-xl">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/70">
+                      <Filter size={16} />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-white/90">Axtarış və filtrlər</p>
+                      <p className="text-xs text-white/35">Dəqiq axtar, riskə görə ayır və məhsulu seç.</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(['all', 'critical', 'out_of_stock'] as const).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        className={`rounded-full px-4 py-2 text-xs font-medium transition-all ${filter === f ? 'bg-white text-black' : 'border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white/80'}`}
+                      >
+                        {f === 'all' ? 'Hamısı' : f === 'critical' ? 'Kritik' : 'Bitib'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+                  <div className="relative flex-1">
+                    <Search size={14} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/25" />
+                    <input
+                      ref={searchRef}
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Xammal axtar..."
+                      className="w-full rounded-2xl border border-white/[0.08] bg-black/20 py-3 pl-10 pr-10 text-sm text-white outline-none placeholder:text-white/22 focus:border-white/20"
+                      onKeyDown={e => { if (e.key === 'Escape') { setSearch(''); setIsSearchOpen(false); } }}
+                    />
+                    {search && (
+                      <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/70">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </section>
             )}
-          </GlassCard>
-        ) : (
-          <GlassCard intensity="light" padding="none" className="overflow-hidden bg-white/[0.04] backdrop-blur-xl">
-            {/* Table head */}
-            <div
-              className="hidden lg:grid gap-4 px-6 py-3 text-[11px] font-medium uppercase text-white/25 tracking-wider"
-              style={{
-                gridTemplateColumns: '1fr 120px 100px 140px 100px',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-              }}
-            >
+
+            {viewMode === 'stock' && (
+              <>
+                <CalibrationSuggestionsPanel
+                  suggestions={calibrationSuggestions}
+                  onApplyStart={handleCalibrationApplyStart}
+                  onApplied={handleCalibrationApplied}
+                />
+
+                {/* ── Inventory Table ── */}
+                {loading ? (
+                  <div className="flex items-center justify-center h-48 rounded-[28px] border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl">
+                    <Loader2 size={28} className="animate-spin text-white/15" />
+                  </div>
+                ) : rows.length === 0 ? (
+                  <GlassCard intensity="light" padding="xl" className="text-center">
+                    <Package size={44} className="mx-auto mb-4 opacity-20 text-white/30" />
+                    <p className="text-sm font-medium text-white/30">
+                      {search || filter !== 'all' ? 'Axtarış nəticəsi tapılmadı' : 'Hələ xammal əlavə edilməyib'}
+                    </p>
+                    {!search && filter === 'all' && (
+                      <div className="mt-4 space-y-2 text-xs text-white/20">
+                        <p>📍 "Yeni Xammal" düyməsi ilə anbara məhsul əlavə edin</p>
+                        <p>📄 "Tədarük" sekmesinden faktura yükləyərək OCR ilə avtomatik əlavə edin</p>
+                        <p>⚙️ Hər xammal üçün kritik limit və vahid maya dəyəri təyin edin</p>
+                      </div>
+                    )}
+                  </GlassCard>
+                ) : (
+                  <GlassCard intensity="light" padding="none" className="overflow-hidden bg-white/[0.04] backdrop-blur-xl">
+                    {/* Table head */}
+                    <div
+                      className="hidden lg:grid gap-4 px-6 py-3 text-[11px] font-medium uppercase text-white/25 tracking-wider"
+                      style={{
+                        gridTemplateColumns: '1fr 120px 100px 140px 100px',
+                        borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      }}
+                    >
               <span>Ad</span>
               <span>Stok Səviyyəsi</span>
               <span className="text-right">Stok</span>

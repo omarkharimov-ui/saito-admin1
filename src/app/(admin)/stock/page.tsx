@@ -1301,9 +1301,6 @@ export default function StockPage() {
         onHistory={(r) => { setSelectedRow(null); setModal({ mode: 'history', row: r }); }}
         onDelete={(r) => handleDelete(r)}
       />
-    </div>
-  </div>
-
       {/* ═══════════════════════════════════════════════════════
           MODALS
       ════════════════════════════════════════════════════════ */}

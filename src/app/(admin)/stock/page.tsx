@@ -1251,9 +1251,7 @@ export default function StockPage() {
                   adjustment: 'rgba(212,175,55,0.08)',
                 };
                 return (
-                  <div key={log.id || idx}
-                    className="hidden lg:grid gap-4 px-6 py-4 items-center transition-colors hover:bg-white/[0.018]"
-                    style={{ gridTemplateColumns: '120px 1fr 100px 90px 110px 1fr' }}>
+                  <div key={log.id || idx} className="space-y-2 px-4 py-3 lg:grid lg:grid-cols-[120px_1fr_100px_90px_110px_1fr] lg:gap-4 lg:px-6 lg:py-4 lg:items-center transition-colors hover:bg-white/[0.018]">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider ${color}`}
                       style={{ background: bgMap[log.type] || 'rgba(255,255,255,0.04)' }}>
                       {LOG_LABELS[log.type] || log.type}
@@ -1273,33 +1271,6 @@ export default function StockPage() {
                     <span className="text-xs text-white/40 truncate">
                       {log.type === 'order_consumption' ? '—' : log.note || '—'}
                     </span>
-
-                    {/* ── Mobile card ── */}
-                    <div className="lg:hidden space-y-2 px-4 py-3">
-                      <div className="flex items-center justify-between">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold ${color}`}
-                          style={{ background: bgMap[log.type] || 'rgba(255,255,255,0.04)' }}>
-                          {LOG_LABELS[log.type] || log.type}
-                        </span>
-                        <span className="text-xs text-white/50">
-                          {dt.toLocaleDateString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-white/90">
-                          {log.ingredient?.name || log.ingredient_id?.slice(0, 8)}
-                        </span>
-                        <span className={`text-sm font-bold tabular-nums ${color}`}>
-                          {sign}{fmt(Math.abs(log.quantity), 1)} {log.ingredient?.unit || ''}
-                        </span>
-                      </div>
-                      {log.type !== 'order_consumption' && (
-                        <div className="flex items-center justify-between text-[11px] text-white/50">
-                          <span>{log.cost_per_unit != null ? `Maya: ₼${fmtCost(log.cost_per_unit)}` : 'Maya: —'}</span>
-                          {log.note && <span className="truncate ml-2 text-white/30">{log.note}</span>}
-                        </div>
-                      )}
-                    </div>
                   </div>
                 );
               })}

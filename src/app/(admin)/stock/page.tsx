@@ -702,7 +702,7 @@ export default function StockPage() {
                       <p className="mt-2 max-w-xl text-sm leading-6 text-white/45">Tək bir geniş paneldə xammal vəziyyətini göstər, sonra kartı açaraq detalları morf kimi dərinləşdir.</p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid gap-3 sm:grid-cols-3 xl:w-full">
                     {heroMetrics.map((metric, index) => {
                       const Icon = metric.icon;
                       const isActive = expandedHeroCard === index;
@@ -711,18 +711,24 @@ export default function StockPage() {
                           key={metric.label}
                           layout
                           onClick={() => setExpandedHeroCard(isActive ? null : index)}
-                          className={`group relative overflow-hidden rounded-[28px] border border-white/[0.06] bg-white/[0.03] px-4 py-4 text-left transition-all duration-300 ${isActive ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]'}`}
-                          style={{ minWidth: 180 }}
+                          className={`group relative overflow-hidden rounded-[32px] border border-white/[0.06] bg-white/[0.03] px-5 py-6 text-left transition-all duration-300 ${isActive ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]'}`}
+                          style={{ minHeight: 210 }}
                         >
-                          <motion.div layout className="flex items-start justify-between gap-4">
-                            <div>
-                              <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-white/28">{metric.label}</p>
-                              <p className="mt-2 text-2xl font-semibold tracking-[-0.05em] tabular-nums text-white/92">{metric.value}</p>
-                              <p className="mt-2 text-[11px] text-white/34">{metric.note}</p>
+                          <motion.div layout className="flex h-full min-h-[180px] flex-col justify-between gap-6">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-white/28">{metric.label}</p>
+                                <p className="mt-3 text-3xl font-semibold tracking-[-0.05em] tabular-nums text-white/95">{metric.value}</p>
+                              </div>
+                              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.04] text-white/70 transition-transform duration-300 group-hover:scale-[1.03]">
+                                <Icon size={18} />
+                              </span>
                             </div>
-                            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.04] text-white/70 transition-transform duration-300 group-hover:scale-[1.03]">
-                              <Icon size={18} />
-                            </span>
+                            <div className="space-y-3">
+                              <div className="h-px w-full bg-white/[0.08]" />
+                              <p className="text-[11px] leading-5 text-white/34">{metric.note}</p>
+                              <p className="text-[11px] uppercase tracking-[0.24em] text-white/22">Tap to expand</p>
+                            </div>
                           </motion.div>
                         </motion.button>
                       );
@@ -789,7 +795,7 @@ export default function StockPage() {
                 <AnimatePresence>
                   {expandedHeroMetric && (
                     <motion.div
-                      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-6"
+                      className="fixed inset-0 z-[70] flex items-stretch justify-stretch p-0"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
@@ -803,7 +809,7 @@ export default function StockPage() {
                       />
                       <motion.div
                         layoutId={`hero-metric-${expandedHeroCard}`}
-                        className="relative z-10 w-full sm:max-w-3xl rounded-t-[32px] sm:rounded-[32px] border border-white/[0.08] bg-[#0c0c0c] p-5 sm:p-8 shadow-[0_40px_140px_rgba(0,0,0,0.55)]"
+                        className="relative z-10 h-full w-full rounded-none border border-white/[0.08] bg-[#0c0c0c] p-6 sm:p-10 shadow-[0_40px_140px_rgba(0,0,0,0.55)]"
                         initial={{ scale: 0.96, y: 20 }}
                         animate={{ scale: 1, y: 0 }}
                         exit={{ scale: 0.96, y: 20 }}
@@ -820,7 +826,7 @@ export default function StockPage() {
                             <X size={16} />
                           </button>
                         </div>
-                        <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                        <div className="mt-10 grid gap-3 sm:grid-cols-3">
                           <div className="rounded-[24px] border border-white/[0.06] bg-white/[0.03] p-4">
                             <p className="text-[11px] uppercase tracking-[0.24em] text-white/30">Fokus</p>
                             <p className="mt-2 text-sm text-white/70">Məlumatı genişləndirilmiş səthdə oxu</p>

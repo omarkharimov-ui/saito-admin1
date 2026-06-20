@@ -1,104 +1,118 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import HeroBanner from './widgets/HeroBanner';
 import LiveFloorSnapshot from './widgets/LiveFloorSnapshot';
-import { motion } from 'framer-motion';
-import { ShoppingCart, Monitor, Calendar, Settings, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, Lightbulb, Zap, AlertTriangle, BrainCircuit } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+
+function YojiAdvice() {
+  const { t } = useLanguage();
+  const [advice, setAdvice] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAdvice = async () => {
+      try {
+        const res = await fetch('/api/dashboard/stats');
+        const data = await res.json();
+        // Here we can use the static advice or fetched AI insights
+        setAdvice({
+          title: "Günün Strategiyası",
+          text: data.marginInsight?.marginPressure === 'healthy' 
+            ? "Mənfəət marjanız stabil qalır. Bu gün premium set menyuları önə çıxarmaq üçün əla fürsətdir."
+            : "Xərc təzyiqi hiss olunur. FC (Food Cost) optimallaşdırmasına diqqət yetirin.",
+          type: data.marginInsight?.marginPressure || 'growth'
+        });
+      } catch {
+        setAdvice({
+          title: "Yoji-dən Mesaj",
+          text: "Saito-da işlər qaydasında gedir. Müştəri məmnuniyyətinə fokuslanmağa davam edin.",
+          type: 'growth'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAdvice();
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+      className="relative overflow-hidden rounded-3xl bg-card border border-white/[0.06] p-8 shadow-xl"
+    >
+      <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
+        <BrainCircuit size={120} className="text-gold" />
+      </div>
+      
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center border border-gold/20">
+          <Lightbulb className="text-gold" size={24} />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-white tracking-tight">Yoji Məsləhətləri</h3>
+          <p className="text-[10px] text-gold uppercase tracking-[0.3em]">AI Strategiya Analizi</p>
+        </div>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+            <div className="h-4 w-3/4 bg-white/5 rounded-full animate-pulse" />
+            <div className="h-4 w-1/2 bg-white/5 rounded-full animate-pulse" />
+          </motion.div>
+        ) : (
+          <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <p className="text-[15px] text-white/75 leading-relaxed font-medium italic italic-serif">
+              "{advice?.text}"
+            </p>
+            <div className="flex items-center gap-4 pt-2">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                <Zap size={10} className="text-gold" /> {advice?.title}
+              </div>
+              <Link href="/admin/stats" className="text-[10px] font-bold text-gold/60 hover:text-gold uppercase tracking-widest transition-colors flex items-center gap-1">
+                Daha çox analiz <Sparkles size={10} />
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
 
 function DashboardContent() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
 
-  // Keep the setup redirect logic just in case, but as a secondary action
   if (searchParams.get('needsSetup') === 'true') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
         <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center mb-6">
-          <Settings className="text-amber-500" size={32} />
+          <AlertTriangle className="text-amber-500" size={32} />
         </div>
         <h1 className="text-2xl font-bold mb-2">Qurulum Lazımdır</h1>
-        <p className="text-[var(--theme-text-secondary)] mb-8 max-w-sm">
-          Sistemdən tam istifadə etmək üçün ilk növbədə istifadəçi tənzimləmələrini tamamlamalısınız.
-        </p>
-        <Link 
-          href="/admin/settings?section=users&setup=true"
-          className="px-8 py-3 rounded-xl bg-gold text-black font-bold uppercase tracking-widest text-xs hover:brightness-110 transition-all"
-        >
-          Ayarlara Get
-        </Link>
+        <Link href="/admin/settings?section=users&setup=true" className="px-8 py-3 rounded-xl bg-gold text-black font-bold uppercase tracking-widest text-xs">Ayarlara Get</Link>
       </div>
     );
   }
 
-  const QUICK_ACTIONS = [
-    { id: 'pos', name: 'POS Sistemi', href: '/admin/pos', icon: Monitor, color: 'bg-blue-500/10 text-blue-400' },
-    { id: 'reservations', name: t('reservations'), href: '/admin/reservations', icon: Calendar, color: 'bg-emerald-500/10 text-emerald-400' },
-    { id: 'products', name: t('products'), href: '/admin/products', icon: ShoppingCart, color: 'bg-purple-500/10 text-purple-400' },
-    { id: 'settings', name: t('settings'), href: '/admin/settings', icon: Settings, color: 'bg-zinc-500/10 text-zinc-400' },
-  ];
-
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 max-w-[1400px] mx-auto">
       {/* 1. Hero Stats */}
       <HeroBanner />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* 2. Live Floor Snapshot (Left/Main) */}
-        <div className="lg:col-span-8">
-          <LiveFloorSnapshot />
-        </div>
+      {/* 2. Yoji Advice (Now Center/Main) */}
+      <YojiAdvice />
 
-        {/* 3. Quick Actions (Right/Side) */}
-        <div className="lg:col-span-4 space-y-6">
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="rounded-3xl bg-[var(--theme-surface)] p-6 border border-[var(--theme-border)] shadow-sm"
-          >
-            <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-5">Tez Keçidlər</h3>
-            <div className="grid grid-cols-1 gap-3">
-              {QUICK_ACTIONS.map((action) => (
-                <Link key={action.id} href={action.href}>
-                  <div className="group flex items-center justify-between p-4 rounded-2xl bg-[var(--theme-nested)] border border-transparent hover:border-[var(--theme-border-strong)] transition-all cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.color}`}>
-                        <action.icon size={20} />
-                      </div>
-                      <span className="text-sm font-semibold text-[var(--theme-text)]">{action.name}</span>
-                    </div>
-                    <ArrowRight size={16} className="text-[var(--theme-text-muted)] opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="rounded-3xl bg-gradient-to-br from-gold/20 to-amber-500/5 p-6 border border-gold/10 relative overflow-hidden group"
-          >
-            <div className="relative z-10">
-              <h4 className="text-gold font-bold text-lg mb-1">Saito AI Sensei</h4>
-              <p className="text-[11px] text-gold/60 leading-relaxed mb-4">Masa doluluğu və satış analizi əsasında tövsiyələr hazırlanır.</p>
-              <Link href="/admin/stats">
-                <button className="text-[10px] font-black uppercase tracking-widest text-gold flex items-center gap-2 group-hover:gap-3 transition-all">
-                  Analizə Bax <ArrowRight size={12} />
-                </button>
-              </Link>
-            </div>
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
-              <Monitor size={120} className="text-gold" />
-            </div>
-          </motion.div>
-        </div>
-      </div>
+      {/* 3. Live Floor Snapshot */}
+      <LiveFloorSnapshot />
     </div>
   );
 }

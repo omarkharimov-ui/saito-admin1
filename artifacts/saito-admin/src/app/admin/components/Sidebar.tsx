@@ -67,43 +67,35 @@ const Sidebar = ({
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
           {links.map((link) => {
             const Icon = link.icon;
-            const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
+            const isActive = pathname === link.href;
 
             return (
               <Link
                 key={link.id}
                 href={link.href}
                 onClick={onClose}
-                className={`group relative flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-[14px] border ${isActive ? 'text-[var(--theme-text)] bg-[var(--theme-surface)] border-[var(--theme-border-strong)] shadow-[0_8px_24px_rgba(0,0,0,0.05)]' : 'text-[var(--theme-text-secondary)] bg-transparent border-transparent hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]'}`}
+                className={`group relative flex items-center gap-3 px-4 py-3.5 text-[11px] font-bold uppercase tracking-[0.15em] transition-all duration-300 rounded-[14px] ${isActive ? 'text-gold' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}
               >
-                {/* Active indicator — left bar */}
-                {isActive && (
-                  <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full pointer-events-none bg-[var(--theme-text)]" />
-                )}
-
                 <span
-                  className={`relative z-10 flex-shrink-0 transition-colors ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text-secondary)]'}`}
+                  className={`relative z-10 flex-shrink-0 transition-colors ${isActive ? 'text-gold' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text-secondary)]'}`}
                 >
-                  <Icon size={20} />
+                  <Icon size={18} />
                 </span>
 
                 {/* Label */}
-                <span className="relative z-10 flex-1 transition-transform duration-200 group-hover:translate-x-[2px]">
+                <span className="relative z-10 flex-1">
                   {link.name}
+                  {/* Underline effect - Premium Style */}
+                  <span className={`absolute -bottom-1 left-0 h-[1.5px] bg-gold transition-all duration-500 ${isActive ? 'w-full opacity-100' : 'w-0 opacity-0 group-hover:w-1/2 group-hover:opacity-50'}`} />
                 </span>
 
                 {/* Badges */}
                 <span className="relative z-10 flex-shrink-0 flex items-center gap-1">
                   {(link as any).readyBadge > 0 && (
-                    <span className="tabular-nums text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border border-[var(--theme-accent-border)]">
+                    <span className="tabular-nums text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 bg-gold text-black">
                       {(link as any).readyBadge}
                     </span>
                   )}
-                  {link.badge && link.badge > 0 ? (
-                    <span className={`tabular-nums text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 ${link.blink ? 'bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border border-[var(--theme-accent-border)]' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)]'}`}>
-                      {link.badge}
-                    </span>
-                  ) : null}
                 </span>
               </Link>
             );

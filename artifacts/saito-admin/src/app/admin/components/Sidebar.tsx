@@ -94,29 +94,9 @@ const Sidebar = ({
       style={{ width: 290 }}
     >
       {/* iOS 27 Vision Pro Container */}
-      <div className="mx-5 my-5 flex-1 flex flex-col overflow-hidden rounded-[44px] border border-white/[0.12] bg-[#050505]/70 backdrop-blur-[60px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.9)] relative">
+      <div className="mx-5 my-5 flex-1 flex flex-col overflow-hidden rounded-[44px] border border-white/[0.08] bg-[#121212] backdrop-blur-[60px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.9)] relative">
         
-        {/* Chromatic Aberration Aura (The Rainbow Edge you saw in screenshot) */}
-        <div className="absolute -inset-[2px] rounded-[46px] pointer-events-none opacity-20 bg-gradient-to-br from-red-500 via-green-500 to-blue-500 blur-[1px] -z-10" />
-
-        {/* Brand */}
-        <div className="px-9 pt-12 pb-10">
-          <Link href="/admin" className="flex items-center gap-4 group">
-            <motion.div 
-              whileTap={{ scale: 0.9, rotate: -10 }}
-              className="w-11 h-11 rounded-[16px] bg-white text-black flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.25)] relative overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-              <Zap size={22} fill="currentColor" />
-            </motion.div>
-            <div className="flex flex-col">
-              <span className="text-[15px] font-black tracking-[0.4em] text-white leading-none">SAITO</span>
-              <span className="text-[10px] font-bold tracking-[0.45em] text-gold/60 uppercase mt-2">v.27 PRO</span>
-            </div>
-          </Link>
-        </div>
-
-        {/* Tactile Navigation */}
+        {/* Navigation */}
         <nav className="flex-1 px-5 space-y-1.5 overflow-y-auto scrollbar-none py-2">
           {links.map((link) => {
             const Icon = link.icon;
@@ -133,8 +113,8 @@ const Sidebar = ({
                   onClick={onClose}
                   className={`group relative flex items-center gap-4 px-5 py-4 rounded-[24px] transition-all duration-500 ${
                     isActive 
-                      ? 'bg-white/[0.1] border border-white/[0.1] shadow-[0_15px_35px_-10px_rgba(0,0,0,0.6)]' 
-                      : 'hover:bg-white/[0.04]'
+                      ? 'bg-[#1c1c1e] border border-white/[0.05] shadow-[0_15px_35px_-10px_rgba(0,0,0,0.6)]' 
+                      : 'hover:bg-white/[0.03]'
                   }`}
                 >
                   <div className={`relative flex items-center justify-center transition-all duration-500 ${isActive ? 'text-white' : 'text-white/25 group-hover:text-white/60'}`}>

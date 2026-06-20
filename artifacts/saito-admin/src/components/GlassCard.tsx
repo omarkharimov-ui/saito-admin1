@@ -48,18 +48,10 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
         }
       : {};
     return (
-      <motion.div
-        ref={ref}
-        className={`
-          rounded-xl border
-          ${style.bg} ${style.border}
-          ${hover ? style.hover + ' transition-colors duration-200' : ''}
-          ${paddingMap[padding]}
-          ${className}
-        `}
-        {...motionProps}
-        {...props}
-      >
+    <motion.div
+      {...motionProps}
+      className={`relative overflow-hidden rounded-[32px] border border-white/[0.08] bg-[#1c1c1e] p-6 shadow-2xl ${className}`}
+    >
         {children}
       </motion.div>
     );

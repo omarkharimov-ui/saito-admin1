@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Transition } from 'framer-motion';
 import { ChevronRight, TrendingDown } from 'lucide-react';
 
 interface HealthStats {
@@ -17,7 +17,7 @@ interface Props {
   loading: boolean;
 }
 
-const spring = { type: 'spring', stiffness: 280, damping: 28 };
+const spring: Transition = { type: 'spring', stiffness: 280, damping: 28 };
 
 function fmtCost(n: number) {
     return Number(n).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

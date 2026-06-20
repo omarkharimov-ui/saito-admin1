@@ -44,8 +44,8 @@ export default function AuditPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('week');
 
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
+  const fetchLogs = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -123,7 +123,7 @@ export default function AuditPage() {
 
   useEffect(() => {
     fetchLogs();
-    const interval = setInterval(fetchLogs, 15000);
+    const interval = setInterval(() => fetchLogs(true), 30000);
     return () => clearInterval(interval);
   }, [fetchLogs]);
 
@@ -241,10 +241,10 @@ export default function AuditPage() {
             const dt = new Date(entry.created_at);
             return (
               <motion.div
-                key={entry.id || idx}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.015 }}
+                key={entry.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.15 }}
                 className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 hover:bg-white/[0.04] transition-all"
               >
                 <div className="flex items-start justify-between gap-3">

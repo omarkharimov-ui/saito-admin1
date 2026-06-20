@@ -642,10 +642,7 @@ export default function POSPage() {
                 key={tab.id}
                 onClick={() => {
                   if (tab.id === 'order' && !pos.selectedTable) {
-                    if (orderTabTouchedRef.current) {
-                      toast.error(t('select_table_first'), { id: 'no-table-order' });
-                    }
-                    orderTabTouchedRef.current = true;
+                    toast.error(t('select_table_first'), { id: 'no-table-order' });
                     pos.setActiveView('floor');
                   } else {
                     pos.setActiveView(tab.id);

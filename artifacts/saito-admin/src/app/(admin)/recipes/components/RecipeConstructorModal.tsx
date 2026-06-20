@@ -384,18 +384,18 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                                   type="number" min="0" step="0.001"
                                   value={row.quantity || ''}
                                   onChange={e => updateRowQuantity(idx, parseFloat(e.target.value) || 0)}
-                                  placeholder="Miqdar"
-                                  className="w-24 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 text-right tabular-nums"
+                                  placeholder="Miqdar (netto)"
+                                  className="w-28 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 text-right tabular-nums"
                                 />
-                                <span className="text-[9px] text-white/25 w-6">{row.unit || 'vahid'}</span>
+                                <span className="text-[9px] text-white/25">{row.unit || 'vahid'}</span>
+                                {row.ingredient_id && coldPct > 0 && row.quantity_brutto > 0 && (
+                                  <span className="text-[9px] text-amber-400/40 tabular-nums">
+                                    → brutto {row.quantity_brutto}
+                                  </span>
+                                )}
                                 {row.ingredient_id && row.quantity > 0 && (
-                                  <span className="text-[10px] text-white/35 tabular-nums ml-auto">
+                                  <span className="text-[10px] text-white/35 tabular-nums ml-auto font-semibold">
                                     ₼{row.cost.toFixed(2)}
-                                    {coldPct > 0 && (
-                                      <span className="text-white/20 ml-1">
-                                        (brutto {row.quantity_brutto}{row.unit} · itki {coldPct}%)
-                                      </span>
-                                    )}
                                   </span>
                                 )}
                                 <button onClick={() => removeRow(idx)}
@@ -403,11 +403,6 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                                   <Trash2 size={12} />
                                 </button>
                               </div>
-                              {coldPct > 0 && row.ingredient_id && row.quantity_brutto > 0 && (
-                                <p className="text-[9px] text-red-400/40 ml-1">
-                                  soyuq itki {coldPct}% · brutto {row.quantity_brutto} {row.unit}
-                                </p>
-                              )}
                             </div>
                           </motion.div>
                         );

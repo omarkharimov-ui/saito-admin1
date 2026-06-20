@@ -33,7 +33,7 @@ export function middleware(request: NextRequest) {
   // Only redirect logged-in admins away from landing to admin panel
   if (pathname === '/') {
     if (isLoggedIn && role && ADMIN_ROLES.has(role)) {
-      return NextResponse.redirect(new URL('/admin/orders', request.url));
+      return NextResponse.redirect(new URL('/admin', request.url));
     }
     return NextResponse.next();
   }

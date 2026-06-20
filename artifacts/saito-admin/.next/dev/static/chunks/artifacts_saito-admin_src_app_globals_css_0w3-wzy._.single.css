@@ -5610,6 +5610,16 @@ body {
     background-color: var(--color-red-400);
   }
 
+  .bg-red-400\/10 {
+    background-color: #ff65681a;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .bg-red-400\/10 {
+      background-color: color-mix(in oklab, var(--color-red-400) 10%, transparent);
+    }
+  }
+
   .bg-red-500 {
     background-color: var(--color-red-500);
   }
@@ -7943,6 +7953,16 @@ body {
 
   .text-amber-400 {
     color: var(--color-amber-400);
+  }
+
+  .text-amber-400\/40 {
+    color: #fcbb0066;
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .text-amber-400\/40 {
+      color: color-mix(in oklab, var(--color-amber-400) 40%, transparent);
+    }
   }
 
   .text-amber-400\/50 {
@@ -12046,6 +12066,12 @@ body {
   @media (min-width: 40rem) {
     .sm\:max-w-sm {
       max-width: var(--container-sm);
+    }
+  }
+
+  @media (min-width: 40rem) {
+    .sm\:max-w-xl {
+      max-width: var(--container-xl);
     }
   }
 

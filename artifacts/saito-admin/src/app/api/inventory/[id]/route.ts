@@ -76,3 +76,37 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const supabase = svc();
+
+    // Check if ingredient is used in any recipes
+    const { data: recipes } = await supabase
+      .from('recipes')
+      .select('id')
+      .eq('ingredient_id', id)
+      .limit(1);
+
+    if (recipes && recipes.length > 0) {
+      return NextResponse.json(
+        { error: 'Bu inqredient reseptdə istifadə olunur. Əvvəlcə reseptdən silin.' },
+        { status: 409 }
+      );
+    }
+
+    // Delete inventory logs first (foreign key)
+    await supabase.from('inventory_logs').delete().eq('ingredient_id', id);
+
+    const { error } = await supabase.from('ingredients').delete().eq('id', id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}

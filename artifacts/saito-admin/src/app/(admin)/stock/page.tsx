@@ -8,7 +8,7 @@ import {
   X, Loader2, RefreshCw,
   ShieldAlert, Search,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
-  Pencil, Lightbulb, Calculator,
+  Pencil, Lightbulb, Calculator, Trash2,
   Sparkles, Layers3, ArrowUpRight, Database, BarChart3, Clock3, Filter,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
@@ -89,12 +89,12 @@ export default function StockPage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter]   = useState<'all' | 'critical' | 'out_of_stock'>('all');
-  const [viewMode, setViewMode] = useState<'stock' | 'procurement' | 'intelligence' | 'history'>('stock');
+  const [viewMode, setViewMode] = useState<'stock' | 'intelligence' | 'history'>('stock');
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get('tab');
   useEffect(() => {
-    if (tabParam && ['stock', 'procurement', 'intelligence', 'history'].includes(tabParam)) {
+    if (tabParam && ['stock', 'intelligence', 'history'].includes(tabParam)) {
       setViewMode(tabParam as typeof viewMode);
     }
   }, [tabParam]);
@@ -285,7 +285,10 @@ export default function StockPage() {
     setPickerYear(y);
   }, [historyMonth]);
 
+  const lastFetchTimeRef = useRef(0);
+
   const fetchData = useCallback(async () => {
+    lastFetchTimeRef.current = Date.now();
     setLoading(true);
     try {
       const [invRes, supRes] = await Promise.all([
@@ -302,11 +305,13 @@ export default function StockPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // Real-time subscription — inventory_logs, ingredients, orders
+  // Guard: skip if data was fetched within the last 1.5 s (avoids double-fire after manual save)
   useEffect(() => {
+    const guard = () => { if (Date.now() - lastFetchTimeRef.current > 1500) fetchData(); };
     const channel = createRealtimeChannel('stock-page')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => fetchData())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, guard)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, guard)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, guard)
       .subscribe();
     return () => { removeRealtimeChannel(channel); };
   }, [fetchData]);
@@ -547,6 +552,25 @@ export default function StockPage() {
 
   // ── Update Ingredient ──────────────────────────────────────────────────────────
   const [updateSaving, setUpdateSaving] = useState(false);
+  const [deletingIngredient, setDeletingIngredient] = useState(false);
+
+  const handleDeleteIngredient = async () => {
+    if (!editRow) return;
+    if (!window.confirm(`"${editRow.name}" xammalını silmək istədiyinizə əminsiniz?`)) return;
+    setDeletingIngredient(true);
+    try {
+      const res = await fetch(`/api/inventory/${editRow.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`${editRow.name} silindi`, { style: toastStyle });
+      closeModal();
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Silinə bilmədi', { style: toastStyle });
+    } finally {
+      setDeletingIngredient(false);
+    }
+  };
   const handleUpdateIngredient = async () => {
     if (!editRow) return;
     if (!newName.trim()) { toast.error('Ad tələb olunur', { style: toastStyle }); return; }
@@ -697,7 +721,7 @@ export default function StockPage() {
           {/* ── Tab Bar ── */}
           <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.03] px-2 py-2 backdrop-blur-xl">
             <div className="flex items-center gap-1">
-              {(['stock', 'procurement', 'intelligence', 'history'] as const).map(t => (
+              {(['stock', 'intelligence', 'history'] as const).map(t => (
                 <button
                   key={t}
                   onClick={() => { setViewMode(t); router.push(`/admin/stock${t === 'stock' ? '' : `?tab=${t}`}`); }}
@@ -715,7 +739,7 @@ export default function StockPage() {
                     />
                   )}
                   <span className="relative z-10">
-                    {t === 'stock' ? 'Stok' : t === 'procurement' ? 'Tədarük' : t === 'intelligence' ? 'İntellekt' : 'Tarixçə'}
+                    {t === 'stock' ? 'Stok' : t === 'intelligence' ? 'İntellekt' : 'Tarixçə'}
                   </span>
                 </button>
               ))}
@@ -976,12 +1000,9 @@ export default function StockPage() {
                     {/* Action */}
                     <div className="flex justify-center">
                       {(row.status === 'out_of_stock' || row.status === 'critical') && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); window.location.href = `/admin/stock?tab=procurement&ingredient=${row.id}`; }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-amber-300 bg-amber-400/10 border border-amber-400/20 hover:bg-amber-400/20 transition-colors"
-                        >
-                          Sifariş et
-                        </button>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-red-300 bg-red-400/10 border border-red-400/20">
+                          Kritik
+                        </span>
                       )}
                     </div>
                   </div>
@@ -1006,12 +1027,9 @@ export default function StockPage() {
                       </span>
                     </div>
                     {(row.status === 'out_of_stock' || row.status === 'critical') && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); window.location.href = `/admin/stock?tab=procurement&ingredient=${row.id}`; }}
-                        className="mt-2 w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-[11px] font-semibold text-amber-300 bg-amber-400/10 border border-amber-400/20 hover:bg-amber-400/20 transition-colors"
-                      >
-                        Sifariş et
-                      </button>
+                      <span className="mt-2 w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-[11px] font-semibold text-red-300 bg-red-400/10 border border-red-400/20">
+                        Kritik
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1020,10 +1038,6 @@ export default function StockPage() {
           </GlassCard>
         )}
       </> )}
-
-        {viewMode === 'procurement' && (
-          <ProcurementTab />
-        )}
 
         {viewMode === 'intelligence' && (
           <div className="max-w-3xl">
@@ -1344,7 +1358,7 @@ export default function StockPage() {
 
             <motion.div
               variants={modalV} initial="hidden" animate="show" exit="exit"
-              className="relative z-10 w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden"
+              className="relative z-10 w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden"
               style={{ background: lightMode ? '#ffffff' : '#0e0e0e', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 32px 80px rgba(0,0,0,0.12)' : '0 32px 80px rgba(0,0,0,0.7)' }}
               onClick={e => e.stopPropagation()}
             >
@@ -1839,11 +1853,18 @@ export default function StockPage() {
                             className="w-full px-4 py-3 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm" />
                         </div>
                       </div>
-                      <button onClick={handleUpdateIngredient} disabled={updateSaving}
-                        className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
-                        style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}>
-                        {updateSaving ? <Loader2 size={16} className="animate-spin text-white" /> : <><Pencil size={15} /> Yadda saxla</>}
-                      </button>
+                      <div className="flex gap-2">
+                        <button onClick={handleUpdateIngredient} disabled={updateSaving || deletingIngredient}
+                          className="flex-1 py-3.5 rounded-xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
+                          style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}>
+                          {updateSaving ? <Loader2 size={16} className="animate-spin text-white" /> : <><Pencil size={15} /> Yadda saxla</>}
+                        </button>
+                        <button onClick={handleDeleteIngredient} disabled={deletingIngredient || updateSaving}
+                          className="px-4 py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-40 active:scale-[0.98]"
+                          style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}>
+                          {deletingIngredient ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                        </button>
+                      </div>
                     </div>
                   );
                 })()

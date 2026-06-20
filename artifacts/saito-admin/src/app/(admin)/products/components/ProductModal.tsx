@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { Tag, X, Upload, Loader2, Sparkles, Wand2, Flame, Plus, Trash2, Ruler, Bot, Zap, ChevronLeft, PackagePlus, ScrollText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
@@ -235,6 +236,7 @@ export function ProductModal({
   onSubmit, getCategoryName, normalizeProductName,
 }: ProductModalProps) {
   const { t, language } = useLanguage();
+  const router = useRouter();
   
   // Use global hook for dirty checking - exclude category for new products
   // so initial category selection doesn't trigger dirty state
@@ -831,7 +833,7 @@ export function ProductModal({
                         })()}
                         <button
                           type="button"
-                          onClick={() => window.location.href = `/admin/recipes?productId=${editingProduct?.id}`}
+                          onClick={() => { onClose(); router.push(`/admin/recipes?productId=${editingProduct?.id}`); }}
                           className="text-[10px] text-gold/60 hover:text-gold underline underline-offset-2 transition-colors"
                         >
                           Resepti düzəliş et →
@@ -842,7 +844,7 @@ export function ProductModal({
                         <span className="text-xs text-white/30">Resept bağlı deyil</span>
                         <button
                           type="button"
-                          onClick={() => window.location.href = `/admin/recipes?productId=${editingProduct?.id}`}
+                          onClick={() => { onClose(); router.push(`/admin/recipes?productId=${editingProduct?.id}`); }}
                           className="text-[10px] text-gold/60 hover:text-gold underline underline-offset-2 transition-colors"
                         >
                           Resept yarat →
@@ -1185,7 +1187,7 @@ export function ProductModal({
                       })()}
                       <button
                         type="button"
-                        onClick={() => window.location.href = `/admin/recipes?productId=${editingProduct?.id}`}
+                        onClick={() => { onClose(); router.push(`/admin/recipes?productId=${editingProduct?.id}`); }}
                         className="text-[10px] text-gold/60 hover:text-gold underline underline-offset-2 transition-colors"
                       >
                         Resepti düzəliş et →
@@ -1196,7 +1198,7 @@ export function ProductModal({
                       <span className="text-xs text-white/30">Resept bağlı deyil</span>
                       <button
                         type="button"
-                        onClick={() => window.location.href = `/admin/recipes?productId=${editingProduct?.id}`}
+                        onClick={() => { onClose(); router.push(`/admin/recipes?productId=${editingProduct?.id}`); }}
                         className="text-[10px] text-gold/60 hover:text-gold underline underline-offset-2 transition-colors"
                       >
                         Resept yarat →

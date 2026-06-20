@@ -1,0 +1,47 @@
+feedbacks:
+dashboard sehifesine girmir girende(this page coulnd load deyir) /admin/orders sheifesine gonderir anlamadm nie.
+
+POS
+ table secib mehsul daxil etme modalindaki bezi mehsul kartlari heddident artiq gec yuklenir(instnat yuklenme mutleq).
+close bill/ 3dots— clear— sebetdeki mehsullar  nedeki qonaq sayi reset olunmur duzgun hell bunlari yox olmalidir e amanki close bill ve ya 3 dots clear basanda dostum mutleq.
+move table0— menbe ve hedef labelleri ust uste dusur kartlarin nomreleri yerlerini duzeldek tez bir sekilde. 
+move table secib menbe masani secdiyim masaya gondermeye calisdim vizual olaraq basarili oldu lakin icindeki sebetdeki mehsul saylari guest saylari diger secilen masaya digru getmedi.
+bundan elave ise geri al duymesini basanda ise etdiyimi bu (move table) evvelki vezoyyetine qayida bilmedi bunlari duzeldek suretli sekilde dogr ilsmelidir. 
+sebetlerdeki en boyuk problem budurki bir emeliiuat edende sebetin ici hele de dolu qalir. 
+full screen rejimini secirem lakin bize erilen xeberdarliq popuplari gosterilmir, yalnizca gormek ucun full screenden cxmaq lazim olur bunu duzeldek fulls screen-de gormek mumkun olsunn.
+ order tab-na basanda bize warning verilsinki ilk once masa secin table secin ama bu yoxdur.
+
+products.
+ reseptli,  birbasa stok adli kartlar dehset boyukdur onlari duzgun formaya salaq modalin ici.
+ resept maya deyeri adli hisse var lakin  resept baglidit uazir lakin maya deyerin gostermir hemcinin onu verdiyi marjina teklifini vermelidir yoxdur  bundan elave resept duzelis et adli buttona basanda bize hemin mehsulun reseptli hissesine gonderilmir( /recipe— ve hemin mehslun resepti).
+
+baxilis et gor:
+add size/modifers yaradanda gorunurmur modalda duzgun isleyirmir bu hisse hemciinin ona baxmaliyiq biz 
+
+product description/ ingredients aralarinda gezende yeniden o xanaya gelende icindeki melumat bize yeniden mouse ile basanda basqa irb sey yazir bu nedir axi duzeldek bunu.
+
+stok sehifesi. artirma azlatma edende 2x defe bas verir bu emeliiyatlar.
+ satis edende ise o miqdar qeder azalmalidir eger birbasa stokdursa, yox eeger reseptlidrise verilen reseptin miqdari qeder azalma basvermelidir. eger bitibse mehsul POS sehifesinde bu gorunmelidir ve hemin mehsul bloklanmalidir daxil etmek olmamalidir. 
+live stock sruface adli kartin yerine calibration ai sugestions adli hisseler olmalidir koddda onu daxil edek gore bilek hal hazirda user ucun elcatmazdir gorubnmur. 
+auto-refresh var onu yox edek. yenile adli(manual refreesh) buttonu legv edirik. realtime olmalidir.
+hal hazirda xammal kartlarinin ustune basanda bir modal acilir lakin o qeder kicikdirki hec bir buttona basmaq olmur sagda durub veya modalin icindeki deyisiklik ad deyisiliyi veya nese deyisdirmek istesek edit ede bilmirik ve bunu save edemmirik. 
+burada bir  xammalai silmek olmur error verir.
+emeliyyat sifaris ver adli tablar ve button var bunu legv ediirk lazim deyil.
+tedrukculer adli bir hissede yoxdur alinan xammalin teduarucuklerin, yeni xammal yaradanda onlari inputlara daxil etmek olur lakin onu bir ozel tabda gore bilmirik performans ucun.
+ 
+
+
+reseptler:
+resept konsturtkturu modali duzgun yigilmayib mence her sey cox qairsiqdir minimal ve duzgun qrulmalidir ai teklif edende sisirtlmemelidir duzgu qurmalidir metbex standrarltina uygun her bir mehsulu dogru qramajina qeder. modalin icini user tez anlaya bilecek sekilde cox duzgun quraq.  
+ai teklifler adli bi button var bunu en sonda mene izah ele menasi nedir (modalin icindekini nezerde tutmuram) sehifde olan.
+
+audit:
+blink var duzeldek her bir tabda.
+sifaris serfiyyati ve diger kartlardaki melumatlar sisirtmedir dogru melumatleri eks etidrsin her zaman.
+ statisika:
+ total revenue(yeniki dovriyye ) temiz qazanc ile eyni olmmaliaidr( temiz qazanc verdiyimiz mehsulun qoymeti deyilde ustune qoyduugmuz o qiymet maya deyeri bir mehsulun hazirlanmasi ile birlikde 15 manatdirsa biz 20 ye satiriqisa bizim dovriyye 20 qazanciimiz ise 5 manatdir burada) mentiqi duzgun quraq.
+ deep scan  buttonnu error verir bizde. statisikadaki qazancimiz dovriyyemiz maya deyerleri olan kartlar etc bunlar duzgun qurulmalidir dostum duzgun!!
+dediklerimin her birine noqtesine qeder arasdir!
+
+
+

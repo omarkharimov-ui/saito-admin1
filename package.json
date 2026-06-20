@@ -6,7 +6,7 @@
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "dev": "pnpm --filter @workspace/saito-admin dev",
-    "build": "pnpm --filter @workspace/saito-admin build",
+    "build": "pnpm --filter @workspace/saito-admin build && cp -r artifacts/saito-admin/.next . && cp -r artifacts/saito-admin/public .",
     "start": "pnpm --filter @workspace/saito-admin start",
     "lint": "pnpm --filter @workspace/saito-admin lint",
     "typecheck": "tsc --build && pnpm -r --if-present run typecheck"

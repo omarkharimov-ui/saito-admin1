@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm build",
+  "outputDirectory": "artifacts/saito-admin/.next",
+  "framework": "nextjs"
+}

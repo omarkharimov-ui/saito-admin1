@@ -106,7 +106,6 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
 
   const totalCost = useMemo(() => rows.reduce((sum, r) => sum + r.cost, 0), [rows]);
-  const costPerServing = totalCost;
 
   const salePrice = selectedProduct?.price || 0;
   const profit = salePrice - totalCost;
@@ -121,7 +120,6 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
 
   const priceSafe = salePrice >= suggestedMinPrice * 0.9 && salePrice <= suggestedMaxPrice * 1.1;
   const priceUnderpriced = salePrice > 0 && salePrice < suggestedMinPrice * 0.9;
-  const priceOverpriced = salePrice > suggestedMaxPrice * 1.1;
 
   function calcBrutto(ingredientId: string, nettoQty: number, hotWastePct = 0): number {
     if (nettoQty <= 0) return 0;
@@ -287,8 +285,8 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
               <div className="w-10 h-1 rounded-full bg-white/15" />
             </div>
 
-            <div className="overflow-y-auto p-6 space-y-5">
-              <div className="flex items-start justify-between">
+            <div className="overflow-y-auto p-5 sm:p-6 space-y-4 sm:space-y-5 max-h-[calc(90vh-84px)]">
+              <div className="flex items-start justify-between gap-4 sticky top-0 z-10 pb-3" style={{ background: lightMode ? '#ffffff' : '#0e0e0e' }}>
                 <div>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold mb-2.5"
                     style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
@@ -355,7 +353,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                         const coldPct = ing?.cold_waste_percentage || 0;
                         return (
                           <motion.div
-                            key={idx}
+                            key={row.ingredient_id || `${idx}-${row.ingredient_name}`}
                             initial={{ opacity: 0, y: -8, height: 0 }}
                             animate={{ opacity: 1, y: 0, height: 'auto' }}
                             exit={{ opacity: 0, x: 20, height: 0 }}
@@ -403,7 +401,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                                   <Trash2 size={12} />
                                 </button>
                               </div>
-                              {coldPct > 0 && row.quantity > 0 && !row.ingredient_id && (
+                              {coldPct > 0 && row.quantity > 0 && row.ingredient_id && (
                                 <p className="text-[9px] text-red-400/40 ml-1">
                                   soyuq itki {coldPct}% · brutto {row.quantity_brutto} {row.unit}
                                 </p>

@@ -184,9 +184,10 @@ export default function POSPage() {
       card_amount: payMethod === 'card' ? payAmount + payTip : 0,
       tip: payTip,
     };
-    await pos.closeBill(payOrderId, payment);
-    setPaymentOpen(false);
+    const orderId = payOrderId;
     setPayOrderId(null);
+    setPaymentOpen(false);
+    await pos.closeBill(orderId, payment);
     setOrderButtonStatus('success');
     window.setTimeout(() => setOrderButtonStatus('idle'), 1400);
   }, [payOrderId, payMethod, payAmount, payTip, pos]);

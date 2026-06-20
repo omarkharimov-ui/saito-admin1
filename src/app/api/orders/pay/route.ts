@@ -32,10 +32,11 @@ export async function POST(request: NextRequest) {
 
     const order = orders[0];
 
+    const paidAmount = (cash_amount || 0) + (card_amount || 0) || Number(order.total_amount) || 0;
     const updateData: Record<string, any> = {
       status: 'paid',
       payment_method: payment_method || 'card',
-      paid_amount: (cash_amount || 0) + (card_amount || 0),
+      paid_amount: paidAmount,
       kitchen_status: null,
     };
     if (tip_amount !== undefined) updateData.tip_amount = tip_amount;

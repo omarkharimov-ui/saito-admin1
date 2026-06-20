@@ -66,7 +66,7 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied, onApplySta
           className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm font-medium text-white/70 hover:text-white hover:bg-white/[0.06] transition-colors"
         >
           <Sparkles size={13} className="text-amber-400" />
-          AI Suggestions
+          Calibration AI Suggestions
           <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold text-amber-300 bg-amber-400/15">
             {count}
           </span>
@@ -87,7 +87,7 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied, onApplySta
                 <Sparkles size={11} /> AI Calibration
               </div>
               <h3 className="mt-1.5 text-base font-bold text-white">Reverse inventory calibration</h3>
-              <p className="mt-0.5 text-xs text-white/45">AI/stock mismatch nəticələrini bir kliklə tətbiq et.</p>
+              <p className="mt-0.5 text-xs text-white/45">Bu panel kalibrasiya fərqlərini göstərir və seçilmiş xammalı real stokla sinxronlaşdırır.</p>
             </div>
             <button
               onClick={() => setOpen(false)}

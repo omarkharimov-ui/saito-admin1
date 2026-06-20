@@ -108,7 +108,7 @@ export function TableCard({
         </span>
       )}
       {isTransferTarget && (
-        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-amber-400/15 text-amber-400/80">
+        <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-amber-400/15 text-amber-400/80">
           Hədəf
         </span>
       )}

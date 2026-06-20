@@ -367,7 +367,7 @@ export function usePos() {
       }
 
       // Wipe localStorage cart for this table so stale data doesn't reload
-      const tableNum = cartRef.current?.table_number;
+      const tableNum = cartRef.current?.table_number ?? selectedTable?.table_number;
       if (tableNum) {
         try {
           const raw = localStorage.getItem('saito_pos_cart_all');
@@ -376,6 +376,10 @@ export function usePos() {
             delete all[tableNum];
             localStorage.setItem('saito_pos_cart_all', JSON.stringify(all));
           }
+          delete orderFingerprintRef.current[tableNum];
+          cartRef.current = null;
+          setCart(null);
+          setSelectedTable(null);
         } catch {} // eslint-disable-line no-empty
       }
 
@@ -445,6 +449,18 @@ export function usePos() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
+
+    try {
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      delete all[fromTable];
+      delete all[toTable];
+      saveCache(POS_CART_KEY + '_all', all);
+      delete orderFingerprintRef.current[fromTable];
+      delete orderFingerprintRef.current[toTable];
+      setCart(prev => (prev?.table_number === fromTable ? null : prev));
+      setSelectedTable(prev => (prev?.table_number === fromTable ? null : prev));
+    } catch {}
+
     if (data.undo) showUndo('transfer', data.undo, `Masa ${fromTable} → Masa ${toTable}`);
     // delay fetch so Supabase has time to propagate the PATCH
     await new Promise(r => setTimeout(r, 300));

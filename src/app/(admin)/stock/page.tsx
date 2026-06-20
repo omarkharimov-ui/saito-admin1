@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Plus, TrendingDown, TrendingUp,
@@ -79,6 +80,8 @@ interface ActiveModal { mode: ModalMode; row?: InventoryStatusRow }
 
 export default function StockPage() {
   const { lightMode } = useTheme();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [data, setData]       = useState<InventoryDashboardData & { alerts: LowStockAlert[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal]     = useState<ActiveModal>({ mode: null });
@@ -92,6 +95,21 @@ export default function StockPage() {
   const now = new Date();
   const [historyMonth, setHistoryMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const [historyDay, setHistoryDay] = useState<string | null>(null);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'procurement' || tab === 'intelligence' || tab === 'history' || tab === 'stock') {
+      setViewMode(tab);
+    }
+  }, [searchParams]);
+
+  const updateTab = useCallback((tab: 'stock' | 'procurement' | 'intelligence' | 'history') => {
+    setViewMode(tab);
+    if (typeof window === 'undefined') return;
+    const next = new URLSearchParams(window.location.search);
+    if (tab === 'stock') next.delete('tab'); else next.set('tab', tab);
+    router.replace(`/admin/stock${next.toString() ? `?${next.toString()}` : ''}`);
+  }, [router]);
 
   // Form fields
   const [qty, setQty]           = useState('');
@@ -681,7 +699,9 @@ export default function StockPage() {
                   </button>
                   <button
                     onClick={fetchData}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.04] px-5 py-3 text-sm font-medium tracking-[-0.01em] text-white/80 transition-colors hover:bg-white/[0.06]"
+                    className="hidden"
+                    aria-hidden="true"
+                    tabIndex={-1}
                   >
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Yenilə
                   </button>
@@ -791,7 +811,7 @@ export default function StockPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-white/90">Dərin panel</p>
-                      <p className="text-xs text-white/35">Seçilmiş məhsulun detallarını aşağıda oxu</p>
+                      <p className="text-xs text-white/35">Kalibrasiya siqnallarını buradan izləyin</p>
                     </div>
                     <button
                       onClick={() => setSelectedRow(null)}
@@ -830,7 +850,7 @@ export default function StockPage() {
                       />
                       <motion.div
                         layoutId={`hero-metric-${expandedHeroCard}`}
-                        className="relative z-10 h-full w-full rounded-none border border-white/[0.08] bg-[#0c0c0c] p-6 sm:p-10 shadow-[0_40px_140px_rgba(0,0,0,0.55)]"
+                        className="relative z-10 h-full w-full overflow-y-auto rounded-none border border-white/[0.08] bg-[#0c0c0c] p-6 sm:p-10 shadow-[0_40px_140px_rgba(0,0,0,0.55)]"
                         initial={{ scale: 0.96, y: 20 }}
                         animate={{ scale: 1, y: 0 }}
                         exit={{ scale: 0.96, y: 20 }}
@@ -1119,6 +1139,7 @@ export default function StockPage() {
                               onClick={() => {
                                 setHistoryDay(dateStr);
                                 setShowMonthPicker(false);
+                                updateTab('history');
                               }}
                               className="relative flex items-center justify-center h-9 rounded-xl text-xs font-semibold transition-colors"
                               style={{
@@ -1159,6 +1180,7 @@ export default function StockPage() {
                                 setHistoryMonth(monthStr);
                                 setHistoryDay(null);
                                 setShowMonthPicker(false);
+                                updateTab('history');
                               }}
                               className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold tracking-wide transition-colors"
                               style={{
@@ -1306,7 +1328,7 @@ export default function StockPage() {
 
             <motion.div
               variants={modalV} initial="hidden" animate="show" exit="exit"
-              className="relative z-10 w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden"
+              className="relative z-10 w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl flex flex-col gap-0 overflow-hidden max-h-[90vh]"
               style={{ background: lightMode ? '#ffffff' : '#0e0e0e', border: lightMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.08)', boxShadow: lightMode ? '0 32px 80px rgba(0,0,0,0.12)' : '0 32px 80px rgba(0,0,0,0.7)' }}
               onClick={e => e.stopPropagation()}
             >

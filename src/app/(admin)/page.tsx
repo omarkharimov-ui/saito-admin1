@@ -146,6 +146,11 @@ const AdminDashboard = () => {
         setHappyHourForm(prev => ({ ...prev, productId: data.products[0].id }));
       }
     } catch (error: any) {
+      console.error('Dashboard fetch failed:', error);
+      setSettingsLoaded(true);
+      setProducts([]);
+      setCategories([]);
+      setTodayAov(0);
       toast.error('Məlumatları yükləmək mümkün olmadı: ' + error.message, { id: 'action-toast' });
     }
   };

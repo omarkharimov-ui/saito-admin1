@@ -1,5 +1,6 @@
-import { useRouter } from 'next/navigation';
 'use client';
+
+import { useRouter } from 'next/navigation';
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';

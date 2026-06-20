@@ -8,7 +8,7 @@ import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { inputCls, labelCls, saveButtonCls } from './_shared';
 import ReceiptPreview from '../../shared/ReceiptPreview';
-import { LiquidToggle } from '../../components/ui/MotionControls';
+import TactileSwitch from '../../components/ui/TactileSwitch';
 
 interface ReceiptCfg {
   receipt_title: string;
@@ -124,7 +124,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
               <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">{t('receipt_service_fee_hint')}</p>
             </div>
           </div>
-          <LiquidToggle checked={cfg.receipt_show_service_fee} onChange={(next) => setCfg({ ...cfg, receipt_show_service_fee: next })} />
+          <TactileSwitch checked={cfg.receipt_show_service_fee} onChange={(next) => setCfg({ ...cfg, receipt_show_service_fee: next })} />
         </div>
 
         {cfg.receipt_show_service_fee && (

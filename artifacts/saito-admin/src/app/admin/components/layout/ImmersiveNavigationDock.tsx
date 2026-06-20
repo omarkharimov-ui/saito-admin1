@@ -129,13 +129,14 @@ export default function ImmersiveNavigationDock({
           {/* Active Indicator (Squishy Pill) */}
           <motion.div
             layoutId="dock-pill"
-            className="absolute h-[calc(100%-16px)] rounded-[28px] bg-white/[0.08] border border-white/[0.1] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+            className="absolute h-[calc(100%-20px)] rounded-[30px] bg-white/[0.12] border border-white/[0.15] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.1)]"
             animate={{
               left: `${activeIndex * (100 / (primary.length + (hasMore ? 1 : 0)))}%`,
               width: `${100 / (primary.length + (hasMore ? 1 : 0))}%`,
-              scale: isPressing ? 0.95 : 1,
+              scaleX: isPressing ? 1.1 : 1,
+              scaleY: isPressing ? 0.9 : 1,
             }}
-            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
           />
 
           {primary.map((link, i) => {

@@ -8,10 +8,10 @@ export default function AdminPage() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Only redirect to settings if needsSetup is explicitly passed
     if (searchParams.get('needsSetup') === 'true') {
       router.replace('/admin/settings?section=users&setup=true');
     }
-    // If no setup is needed, redirect to the POS page (Dashboard).
     else {
       router.replace('/admin/pos');
     }

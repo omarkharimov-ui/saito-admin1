@@ -67,9 +67,7 @@ const Sidebar = ({
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
           {links.map((link) => {
             const Icon = link.icon;
-            const isActive = link.href === '/'
-              ? pathname === '/'
-              : pathname === link.href || pathname?.startsWith(link.href + '/');
+            const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
 
             return (
               <Link

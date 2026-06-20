@@ -82,7 +82,7 @@ export default function LiveFloorSnapshot() {
       } catch (error) {
         console.error("An unexpected error occurred in fetchFloorStatus:", error);
         // In case of a major error, set a default safe state
-        const defaultTables = [];
+        const defaultTables: TableStatus[] = [];
         for (let i = 1; i <= tableCount; i++) {
           defaultTables.push({ tableNumber: i, status: 'empty' });
         }

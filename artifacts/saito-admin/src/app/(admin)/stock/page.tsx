@@ -23,11 +23,14 @@ import { getStatusMeta, StockStatusBar } from '@/components/StockStatusBadge';
 import ProcurementTab from './components/ProcurementTab';
 import IntelligenceTabComponent from './components/IntelligenceTab';
 import { CalibrationSuggestionsPanel, CalibrationSuggestion } from './components/CalibrationSuggestionsPanel';
+import { InventoryHealthCard } from './components/InventoryHealthCard'; // <-- IMPORT THE NEW COMPONENT
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
 import { InspectorPanel } from './components/InspectorPanel';
+
+// ... (rest of the file remains the same, only the render part will be changed)
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const UNITS: DisplayUnit[] = ['gram', 'piece', 'ml', 'kg', 'liter'];
@@ -676,45 +679,33 @@ export default function StockPage() {
         <div className="space-y-6 min-w-0">
           <section className="relative overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] px-6 py-6 sm:px-8 sm:py-8 backdrop-blur-2xl shadow-[0_30px_120px_rgba(0,0,0,0.28)]">
               <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),transparent_36%,transparent_64%,rgba(212,175,55,0.08))]" />
-              <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-2xl space-y-5">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] font-medium tracking-[0.22em] text-white/55 uppercase">
-                    <Sparkles size={12} className="text-[#D4AF37]" />
-                    Premium inventory control
-                  </div>
-                  <div className="space-y-3">
-                    <h1 className="text-4xl sm:text-5xl font-semibold tracking-[-0.06em] leading-[0.95] text-white/95">Stok</h1>
-                    <p className="max-w-xl text-sm sm:text-base leading-6 text-white/46">
-                      İnqredientlərin canlı vəziyyəti, kritik risklər və hərəkət tarixçəsi üçün sakit, premium iş səthi.
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {heroMetrics.map((metric) => {
-                      const Icon = metric.icon;
-                      return (
-                        <div key={metric.label} className="rounded-[24px] border border-white/[0.08] bg-black/20 px-4 py-4 backdrop-blur-xl">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-white/30">{metric.label}</p>
-                              <p className="mt-2 text-2xl font-semibold tracking-[-0.05em] tabular-nums text-white/90">{metric.value}</p>
-                            </div>
-                            <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/70">
-                              <Icon size={18} />
-                            </span>
-                          </div>
+              <div className="relative flex flex-col gap-6">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="max-w-2xl space-y-5">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] font-medium tracking-[0.22em] text-white/55 uppercase">
+                            <Sparkles size={12} className="text-[#D4AF37]" />
+                            Premium inventory control
                         </div>
-                      );
-                    })}
-                  </div>
+                        <div className="space-y-3">
+                            <h1 className="text-4xl sm:text-5xl font-semibold tracking-[-0.06em] leading-[0.95] text-white/95">Stok</h1>
+                            <p className="max-w-xl text-sm sm:text-base leading-6 text-white/46">
+                            İnqredientlərin canlı vəziyyəti, kritik risklər və hərəkət tarixçəsi üçün sakit, premium iş səthi.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        <button
+                            onClick={() => setModal({ mode: 'new_ingredient' })}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] bg-white text-black px-5 py-3 text-sm font-semibold tracking-[-0.01em] transition-transform active:scale-[0.98]"
+                        >
+                            <Plus size={16} /> Yeni Xammal
+                        </button>
+                    </div>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => setModal({ mode: 'new_ingredient' })}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] bg-white text-black px-5 py-3 text-sm font-semibold tracking-[-0.01em] transition-transform active:scale-[0.98]"
-                  >
-                    <Plus size={16} /> Yeni Xammal
-                  </button>
-                </div>
+
+                {/* <-- ADDING THE HEALTH CARD HERE --> */}
+                <InventoryHealthCard stats={stats} loading={loading} />
+
               </div>
             </section>
 

@@ -21,54 +21,75 @@ export default function LiveFloorSnapshot() {
 
   useEffect(() => {
     const fetchFloorStatus = async () => {
-      // Get table count from settings
-      const { data: settings } = await supabase.from('settings').select('qr_table_count').maybeSingle();
-      const count = settings?.qr_table_count || 12;
-      setTableCount(count);
+      setLoading(true);
+      try {
+        // Get table count from settings
+        const { data: settings, error: settingsError } = await supabase.from('settings').select('qr_table_count').maybeSingle();
+        if (settingsError) {
+          console.error("Error fetching settings:", settingsError);
+        }
+        const count = settings?.qr_table_count || 12;
+        setTableCount(count);
 
-      // Get active orders with table info
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('table_number, status, kitchen_status, created_at, total_amount')
-        .in('status', ['new', 'confirmed'])
-        .order('created_at', { ascending: false });
+        // Get active orders with table info
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('table_number, status, kitchen_status, created_at, total_amount')
+          .in('status', ['new', 'confirmed'])
+          .order('created_at', { ascending: false });
 
-      // Build table status map
-      const tableMap = new Map<number, TableStatus>();
-      
-      // Initialize all tables as empty
-      for (let i = 1; i <= count; i++) {
-        tableMap.set(i, { tableNumber: i, status: 'empty' });
-      }
-
-      // Update based on orders
-      orders?.forEach(order => {
-        const tableNum = order.table_number;
-        if (!tableNum) return;
-
-        const existing = tableMap.get(tableNum);
-        let status: TableStatus['status'] = 'occupied';
-        
-        if (order.status === 'new') {
-          status = 'new';
-        } else if (order.kitchen_status === 'ready') {
-          status = 'payment_pending';
-        } else {
-          status = 'order_placed';
+        if (ordersError) {
+          console.error("Error fetching orders:", ordersError);
         }
 
-        const waitTime = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
+        // Build table status map
+        const tableMap = new Map<number, TableStatus>();
+        
+        // Initialize all tables as empty
+        for (let i = 1; i <= count; i++) {
+          tableMap.set(i, { tableNumber: i, status: 'empty' });
+        }
 
-        tableMap.set(tableNum, {
-          tableNumber: tableNum,
-          status,
-          orderCount: (existing?.orderCount || 0) + 1,
-          waitTime,
-        });
-      });
+        // Update based on orders, only if orders is a valid array
+        if (Array.isArray(orders)) {
+            orders.forEach(order => {
+                if (!order || !order.table_number) return;
 
-      setTables(Array.from(tableMap.values()));
-      setLoading(false);
+                const tableNum = order.table_number;
+                const existing = tableMap.get(tableNum);
+                let status: TableStatus['status'] = 'occupied';
+                
+                if (order.status === 'new') {
+                status = 'new';
+                } else if (order.kitchen_status === 'ready') {
+                status = 'payment_pending';
+                } else {
+                status = 'order_placed';
+                }
+
+                const waitTime = order.created_at ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000) : 0;
+
+                tableMap.set(tableNum, {
+                tableNumber: tableNum,
+                status,
+                orderCount: (existing?.orderCount || 0) + 1,
+                waitTime,
+                });
+            });
+        }
+
+        setTables(Array.from(tableMap.values()));
+      } catch (error) {
+        console.error("An unexpected error occurred in fetchFloorStatus:", error);
+        // In case of a major error, set a default safe state
+        const defaultTables = [];
+        for (let i = 1; i <= tableCount; i++) {
+          defaultTables.push({ tableNumber: i, status: 'empty' });
+        }
+        setTables(defaultTables);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchFloorStatus();

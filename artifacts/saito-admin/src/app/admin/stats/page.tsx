@@ -406,6 +406,7 @@ const StatsPage = () => {
         onWhatIfChangeChange={setWhatIfChange}
         onFetchWhatIf={handleFetchWhatIf}
         restaurantCity={restaurantCity}
+        orderItems={stats.productPerformance}
       />
 
       <StatsPeakHours peakHours={stats.peakHours} timeFilter={timeFilter} />

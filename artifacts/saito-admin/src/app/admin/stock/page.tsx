@@ -149,7 +149,14 @@ export default function StockPage() {
     setLoading(false);
 }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    const ch = createRealtimeChannel('stock_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => fetchData())
+      .subscribe();
+    return () => { removeRealtimeChannel(ch); };
+  }, [fetchData]);
 
 
   const rows = (data?.items ?? []).filter(r => {

@@ -45,7 +45,9 @@ export default function AuditPage() {
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('week');
 
   const fetchLogs = useCallback(async (background = false) => {
-    if (!background) setLoading(true);
+    // Only show global loading on initial mount
+    if (!background && entries.length === 0) setLoading(true);
+    
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();

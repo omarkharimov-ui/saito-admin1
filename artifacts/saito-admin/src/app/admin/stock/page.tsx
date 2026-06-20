@@ -166,13 +166,13 @@ export default function StockPage() {
           </section>
 
           {viewMode === 'stock' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Main List */}
-              <div className="lg:col-span-8 space-y-4">
+            <div className="grid grid-cols-1 gap-6 items-start">
+              {/* Main List - Now Full Width */}
+              <div className="space-y-4">
                 <GlassCard padding="none" className="overflow-hidden border-white/[0.05]">
-                  {/* Search & Filter */}
-                  <div className="p-4 border-b border-white/[0.05] flex items-center gap-4">
-                    <div className="relative flex-1">
+                  {/* Search & Tabs instead of Dropdown */}
+                  <div className="p-4 border-b border-white/[0.05] flex flex-col md:flex-row items-center gap-4">
+                    <div className="relative flex-1 w-full">
                       <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
                       <input 
                         value={search} onChange={e => setSearch(e.target.value)}
@@ -180,11 +180,20 @@ export default function StockPage() {
                         className="w-full bg-white/[0.03] border border-white/[0.06] rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-white/20"
                       />
                     </div>
-                    <select value={filter} onChange={e => setFilter(e.target.value as any)} className="bg-white/[0.03] border border-white/[0.06] rounded-2xl px-4 py-3 text-sm outline-none">
-                      <option value="all" className="bg-[#111]">Hamısı</option>
-                      <option value="critical" className="bg-[#111]">Kritik</option>
-                      <option value="out_of_stock" className="bg-[#111]">Bitənlər</option>
-                    </select>
+                    <div className="flex bg-white/[0.03] p-1 rounded-2xl border border-white/[0.06]">
+                      <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? 'bg-white text-black' : 'text-white/40'}`}>Hamısı</button>
+                      <button onClick={() => setFilter('critical')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'critical' ? 'bg-rose-500 text-white' : 'text-white/40'}`}>Kritik</button>
+                      <button onClick={() => setFilter('out_of_stock')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'out_of_stock' ? 'bg-red-600 text-white' : 'text-white/40'}`}>Bitənlər</button>
+                    </div>
+                  </div>
+
+                  {/* Table Header */}
+                  <div className="hidden md:grid grid-cols-12 px-6 py-3 bg-white/[0.02] border-b border-white/[0.05] text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
+                    <div className="col-span-4">Xammal Adı</div>
+                    <div className="col-span-2 text-center">Birim Qiymət</div>
+                    <div className="col-span-2 text-center">Mövcud Stok</div>
+                    <div className="col-span-2 text-center">Status</div>
+                    <div className="col-span-2 text-right">Əməliyyat</div>
                   </div>
 
                   {/* List Rows */}
@@ -193,26 +202,36 @@ export default function StockPage() {
                       const meta = getStatusMeta(row.status);
                       return (
                         <motion.div 
-                          key={row.id} onClick={() => setSelectedRow(row)}
-                          className={`px-6 py-5 flex items-center justify-between cursor-pointer transition-all hover:bg-white/[0.02] ${selectedRow?.id === row.id ? 'bg-gold/[0.03] border-l-2 border-gold' : ''}`}
+                          key={row.id} 
+                          className={`px-6 py-4 grid grid-cols-1 md:grid-cols-12 items-center transition-all hover:bg-white/[0.02] ${selectedRow?.id === row.id ? 'bg-gold/[0.03]' : ''}`}
                         >
-                          <div className="flex items-center gap-4">
+                          <div className="col-span-4 flex items-center gap-4">
                             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${meta.bg}`}>
                               <Package size={20} className={meta.text} />
                             </div>
                             <div>
                               <p className="text-sm font-bold text-white/90">{row.name}</p>
-                              <p className="text-[10px] text-white/25 uppercase tracking-widest mt-1">{UNIT_LABELS[row.unit]} · ₼{row.average_cost_per_unit.toFixed(2)}</p>
+                              <p className="text-[10px] text-white/25 uppercase tracking-widest mt-1">{UNIT_LABELS[row.unit]}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-8">
-                            <div className="text-right">
-                              <p className="text-lg font-black tabular-nums text-white">{row.current_stock.toFixed(1)}</p>
-                              <p className="text-[9px] text-white/20 uppercase tracking-tighter">Mövcud</p>
-                            </div>
+                          <div className="col-span-2 text-center hidden md:block">
+                            <p className="text-sm font-bold text-white/60">₼{row.average_cost_per_unit.toFixed(2)}</p>
+                          </div>
+                          <div className="col-span-2 text-center">
+                            <p className="text-lg font-black tabular-nums text-white">{row.current_stock.toFixed(1)}</p>
+                          </div>
+                          <div className="col-span-2 flex justify-center">
                             <div className="w-24">
                               <StockStatusBar status={row.status} pct={Math.round(row.stock_ratio)} />
                             </div>
+                          </div>
+                          <div className="col-span-2 flex justify-end gap-2">
+                             <button onClick={() => setSelectedRow(row)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/40 transition-all">
+                               <Pencil size={14} />
+                             </button>
+                             <button onClick={() => { setSelectedRow(row); setModalMode('stock_in'); }} className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all">
+                               <Plus size={14} />
+                             </button>
                           </div>
                         </motion.div>
                       );
@@ -220,23 +239,8 @@ export default function StockPage() {
                   </div>
                 </GlassCard>
               </div>
-
-              {/* Right Sidebar - Inspector */}
-              <div className="lg:col-span-4 sticky top-6">
-                <InspectorPanel 
-                  row={selectedRow} 
-                  onClose={() => setSelectedRow(null)} 
-                  UNIT_LABELS={UNIT_LABELS}
-                  onStockIn={() => setModalMode('stock_in')}
-                  onWaste={() => setModalMode('waste')}
-                  onAudit={() => setModalMode('audit')}
-                  onHistory={() => {}}
-                  onDelete={() => {}}
-                  onUpdate={fetchData}
-                />
-              </div>
             </div>
-          )}
+          )},old_string:
 
           {viewMode === 'suppliers' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

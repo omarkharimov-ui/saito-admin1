@@ -1,0 +1,3 @@
+{"timestamp":"00:00:02.216","source":"Server","level":"WARN","message":"⚠ Lockfile was successfully patched, please run \"npm install\" to ensure @next/swc dependencies are downloaded"}
+{"timestamp":"00:00:03.941","source":"Server","level":"WARN","message":"⚠ Slow filesystem detected. The benchmark took 1285ms. If /home/wuying/.accio/accounts/1770834361/agents/DID-F456DA-49F456DAU1781988-6520-EAC5B8/project/saito-admin1/artifacts/saito-admin/.next/dev is a network drive, consider moving it to a local folder.\nSee more: https://nextjs.org/docs/app/guides/local-development"}
+{"timestamp":"00:00:07.441","source":"Server","level":"LOG","message":""}

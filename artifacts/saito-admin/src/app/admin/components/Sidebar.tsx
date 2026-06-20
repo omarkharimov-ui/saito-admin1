@@ -1,7 +1,10 @@
+'use client';
+
 import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOut } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -43,85 +46,105 @@ const Sidebar = ({
 
   return (
     <div
-      className={`fixed inset-y-0 left-0 z-50 flex flex-col transform transition-transform duration-300 lg:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-50 flex flex-col transform transition-transform duration-500 lg:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
-      style={{ width: 272 }}
+      style={{ width: 280 }}
     >
-      {/* Glass panel */}
-      <div className="mx-3 mt-3 flex-1 flex flex-col overflow-hidden rounded-[22px] border border-[var(--theme-border)] bg-[var(--theme-panel)] shadow-[0_20px_60px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
-
-        {/* Brand */}
-        <div className="px-6 pt-6 pb-5">
-          <Link href="/admin" className="flex items-center group">
-            <span className="text-[11px] font-black tracking-[0.35em] leading-none uppercase text-[var(--theme-text)]">
-              SAITO
-            </span>
+      {/* Premium Glass Container */}
+      <div className="mx-4 my-4 flex-1 flex flex-col overflow-hidden rounded-[32px] border border-white/[0.08] bg-[#0a0a0a]/80 backdrop-blur-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
+        
+        {/* Brand / Logo */}
+        <div className="px-8 pt-9 pb-8">
+          <Link href="/admin" className="flex items-center group gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gold to-amber-600 flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.3)] group-hover:scale-110 transition-transform duration-500">
+              <span className="text-black font-black text-xs">S</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[13px] font-bold tracking-[0.3em] uppercase text-white leading-none">
+                SAITO
+              </span>
+              <span className="text-[8px] font-medium tracking-[0.4em] uppercase text-gold/50 mt-1">
+                Management
+              </span>
+            </div>
           </Link>
         </div>
 
-        {/* Divider */}
-        <div className="mx-4 h-px mb-3 bg-[var(--theme-border)]" />
-
-        {/* Nav */}
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+        {/* Navigation */}
+        <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto scrollbar-none py-2">
           {links.map((link) => {
             const Icon = link.icon;
-            const isActive = pathname === link.href;
+            // Strict match for dashboard, prefix match for others
+            const isActive = link.href === '/admin' 
+              ? pathname === '/admin' 
+              : pathname.startsWith(link.href);
 
             return (
               <Link
                 key={link.id}
                 href={link.href}
                 onClick={onClose}
-                className={`group relative flex items-center gap-3 px-4 py-3.5 text-[11px] font-bold uppercase tracking-[0.15em] transition-all duration-300 rounded-[14px] ${isActive ? 'text-gold' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}
+                className="group relative flex items-center gap-3.5 px-5 py-3.5 rounded-2xl transition-all duration-300 outline-none"
               >
+                {/* Active Hover Background (Pill Effect) */}
+                {isActive && (
+                  <motion.div
+                    layoutId="active-pill"
+                    className="absolute inset-0 bg-white/[0.05] border border-white/[0.08] rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                
+                {/* Hover Glow */}
+                <div className="absolute inset-0 bg-gold/0 group-hover:bg-gold/[0.03] rounded-2xl transition-colors duration-300" />
+
+                {/* Left Indicator Dot */}
+                <div className={`relative z-10 w-1 h-1 rounded-full transition-all duration-500 ${isActive ? 'bg-gold scale-100 shadow-[0_0_8px_#D4AF37]' : 'bg-transparent scale-0'}`} />
+
                 <span
-                  className={`relative z-10 flex-shrink-0 transition-colors ${isActive ? 'text-gold' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text-secondary)]'}`}
+                  className={`relative z-10 flex-shrink-0 transition-all duration-300 ${isActive ? 'text-gold' : 'text-white/40 group-hover:text-white/70'}`}
                 >
-                  <Icon size={18} />
+                  <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
                 </span>
 
-                {/* Label */}
-                <span className="relative z-10 flex-1">
+                <span className={`relative z-10 flex-1 text-[11px] font-bold uppercase tracking-[0.18em] transition-all duration-300 ${isActive ? 'text-white' : 'text-white/30 group-hover:text-white/60 group-hover:translate-x-0.5'}`}>
                   {link.name}
-                  {/* Underline effect - Premium Style */}
-                  <span className={`absolute -bottom-1 left-0 h-[1.5px] bg-gold transition-all duration-500 ${isActive ? 'w-full opacity-100' : 'w-0 opacity-0 group-hover:w-1/2 group-hover:opacity-50'}`} />
                 </span>
 
-                {/* Badges */}
-                <span className="relative z-10 flex-shrink-0 flex items-center gap-1">
-                  {(link as any).readyBadge > 0 && (
-                    <span className="tabular-nums text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 bg-gold text-black">
-                      {(link as any).readyBadge}
-                    </span>
-                  )}
-                </span>
+                {/* Notification Badge */}
+                {(link as any).readyBadge > 0 && (
+                  <span className="relative z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gold px-1.5 text-[10px] font-black text-black shadow-[0_0_12px_rgba(212,175,55,0.4)]">
+                    {(link as any).readyBadge}
+                  </span>
+                )}
               </Link>
             );
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="mx-3 mt-3 mb-3">
-          <div className="h-px mb-3 bg-[var(--theme-border)]" />
-          <div className="flex items-center gap-3 px-2 py-2 rounded-[10px]">
-            <div className="w-8 h-8 rounded-[12px] flex items-center justify-center flex-shrink-0 bg-[var(--theme-surface)] border border-[var(--theme-border)]">
-              <span className="text-[10px] font-black text-[var(--theme-text-muted)]">
+        {/* Footer / User Profile */}
+        <div className="p-4 mt-auto">
+          <div className="rounded-[24px] bg-white/[0.03] border border-white/[0.06] p-4 flex items-center gap-3 group hover:border-white/10 transition-colors">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-900 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.05)] transition-all">
+              <span className="text-[11px] font-black text-white/40">
                 {role === 'superadmin' ? 'SA' : 'A'}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <span className="block text-[9px] font-black uppercase tracking-widest text-[var(--theme-text-secondary)]">
-                {role === 'superadmin' ? t('superadmin') : t('admin')}
+              <span className="block text-[10px] font-bold text-white/80 uppercase tracking-widest truncate">
+                {role === 'superadmin' ? 'Superadmin' : 'Administrator'}
+              </span>
+              <span className="block text-[8px] text-white/20 uppercase tracking-tighter mt-0.5 font-medium">
+                Saito Sushi System
               </span>
             </div>
             <button
               onClick={handleLogout}
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-white/20 hover:text-rose-400 hover:bg-rose-500/10 transition-all duration-300"
               title={t('logout')}
-              className="w-9 h-9 rounded-[12px] flex items-center justify-center border border-transparent transition-all text-[var(--theme-text-secondary)] hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20"
             >
-              <LogOut size={17} />
+              <LogOut size={16} />
             </button>
           </div>
         </div>

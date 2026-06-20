@@ -101,16 +101,22 @@ export function TableCard({
         <span className="absolute inset-0 rounded-2xl pointer-events-none ring-2 ring-red-500/40 animate-pulse" />
       )}
 
-      {/* Transfer labels */}
-      {isTransferSource && (
-        <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-white/10 text-white/60">
-          Mənbə
-        </span>
-      )}
-      {isTransferTarget && (
-        <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-amber-400/15 text-amber-400/80">
-          Hədəf
-        </span>
+      {/* Transfer labels — Centered and clear */}
+      {(isTransferSource || isTransferTarget) && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none rounded-2xl overflow-hidden">
+          <div className={`absolute inset-0 ${isTransferSource ? 'bg-black/40' : 'bg-gold/10'}`} />
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`relative px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-[0.25em] shadow-2xl border ${
+              isTransferSource 
+                ? 'bg-zinc-800 border-white/20 text-white/70' 
+                : 'bg-gold text-black border-gold/50 shadow-gold/20'
+            }`}
+          >
+            {isTransferSource ? 'Mənbə' : 'Hədəf'}
+          </motion.div>
+        </div>
       )}
 
       {/* Header row: number + status + merge indicator */}

@@ -647,7 +647,13 @@ export default function StockPage() {
     return matchSearch && matchFilter;
   });
 
-  const stats = data?.stats;
+  const stats = useMemo(() => {
+    if (!data?.stats) return undefined;
+    const { total, critical, out_of_stock } = data.stats;
+    const normal = Math.max(0, total - critical - out_of_stock);
+    return { ...data.stats, normal };
+  }, [data?.stats]);
+
   const heroMetrics = [
     {
       label: 'Ümumi xammal',

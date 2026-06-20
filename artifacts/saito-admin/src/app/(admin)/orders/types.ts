@@ -1,0 +1,80 @@
+export interface OrderItem {
+  id: string;
+  product_id: string | null;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  products?: { image_url: string | null; translations?: Record<string, { name?: string }> | null } | null;
+  is_on_hold?: boolean;
+  prepared_quantity?: number;
+  served_quantity?: number;
+  course?: string;
+}
+
+export function getOrderTypeLabel(type: string | undefined, t: (key: string) => string): string {
+  if (type === 'takeaway') return t('takeaway');
+  if (type === 'delivery') return t('delivery');
+  return t('dine_in');
+}
+
+export interface Order {
+  id: string;
+  customer_note: string | null;
+  table_number: number | null;
+  total_amount: number;
+  status: 'new' | 'confirmed' | 'paid';
+  kitchen_status: 'pending' | 'cooking' | 'preparing' | 'ready' | 'cancelled' | null;
+  kitchen_accepted_at: string | null;
+  kitchen_ready_at: string | null;
+  created_at: string;
+  is_rush?: boolean;
+  merged_into?: string | null;
+  merged_orders?: { id: string; table_number: number | null }[];
+  order_items?: OrderItem[];
+  void_reason?: string | null;
+  is_served?: boolean | null;
+  order_type?: 'dine_in' | 'takeaway' | 'delivery';
+  customer_id?: string | null;
+  guest_count?: number;
+  tip_amount?: number;
+}
+
+export interface TableFloor {
+  id: string;
+  table_number: number;
+  floor_name: string;
+  sort_order: number;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  name_az?: string;
+  name_en?: string;
+  name_ru?: string;
+  price: number;
+  image_url: string | null;
+  is_available?: boolean;
+  category_id?: string | null;
+  category?: { name: string }[] | { name: string } | null;
+  translations?: Record<string, { name?: string }> | null;
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  price: number;
+  is_default: boolean;
+}
+
+export interface ManualItem {
+  product: Product;
+  variant: ProductVariant | null;
+  quantity: number;
+  note?: string;
+}
+
+export type TabKey = 'active' | 'archive';
+export type BadgeType = 'ready' | 'preparing' | 'waiting' | 'confirmed' | null;
+export type TableFilterType = 'all' | 'active' | 'empty' | 'new';

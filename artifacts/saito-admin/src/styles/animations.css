@@ -1,0 +1,203 @@
+/* ═══════════════════════════════════════════
+   LAYER 6 — ANIMATION SYSTEM
+   Keyframes, transitions, motion timing
+   ═══════════════════════════════════════════ */
+
+/* ── Easing utilities ── */
+@layer utilities {
+  .ease-premium {
+    transition-timing-function: var(--ease-premium);
+  }
+  .transition-premium {
+    transition-duration: 220ms;
+    transition-timing-function: var(--ease-premium);
+  }
+}
+
+/* ── GPU layer promotion — prevents backdrop-blur jank on mobile ── */
+@layer utilities {
+  .backdrop-blur-sm,
+  .backdrop-blur,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-3xl,
+  [class*="backdrop-blur-["] {
+    transform: translateZ(0);
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+}
+
+/* ── Keyframes ── */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+@keyframes shimmerFull {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes meshFloat {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(40px, -30px, 0) scale(1.08); }
+}
+@keyframes btnShimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 220% 50%; }
+}
+@keyframes gradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes slow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 1; }
+}
+@keyframes ring-breathe {
+  0%, 100% { opacity: 0.82; }
+  50%       { opacity: 1; }
+}
+@keyframes rush-pulse {
+  0%, 100% { opacity: 0.75; }
+  50%       { opacity: 1; }
+}
+
+/* Toast titrəmə animasiyası */
+@keyframes toast-shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1;    filter: drop-shadow(0 0 10px rgba(212,175,55,0.8)); }
+  50%       { opacity: 0.35; filter: drop-shadow(0 0 2px  rgba(212,175,55,0.2)); }
+}
+@keyframes orbitCW {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes orbitCCW {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+@keyframes circuitSpark {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -300; }
+}
+@keyframes shake {
+  0%, 100%                        { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90%         { transform: translateX(-4px); }
+  20%, 40%, 60%, 80%              { transform: translateX(4px); }
+}
+@keyframes slide {
+  0%   { background-position: 0 0; }
+  100% { background-position: 48px 0; }
+}
+@keyframes progressShimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@keyframes hoverPulse {
+  from { opacity: 0.5; r: 2.5; }
+  to   { opacity: 1;   r: 4; }
+}
+
+/* ── Border breathe animations ── */
+@keyframes border-breathe-orange {
+  0%, 100% {
+    border-color: rgba(249,115,22,0.35);
+    box-shadow: 0 0 6px rgba(249,115,22,0.1);
+  }
+  50% {
+    border-color: rgba(249,115,22,0.9);
+    box-shadow: 0 0 22px rgba(249,115,22,0.35);
+  }
+}
+@keyframes border-breathe-red {
+  0%, 100% {
+    border-color: rgba(239,68,68,0.3);
+    box-shadow: 0 0 5px rgba(239,68,68,0.08);
+  }
+  50% {
+    border-color: rgba(239,68,68,0.55);
+    box-shadow: 0 0 12px rgba(239,68,68,0.15);
+  }
+}
+
+/* ── Neon strike ── */
+@keyframes neon-strike-flash {
+  0%   { box-shadow: 0 0 0px rgba(249,115,22,0);    border-color: rgba(249,115,22,0.35); }
+  12%  { box-shadow: 0 0 32px rgba(249,115,22,0.95), inset 0 0 12px rgba(249,115,22,0.2); border-color: rgba(249,115,22,1); }
+  28%  { box-shadow: 0 0 8px rgba(249,115,22,0.4);   border-color: rgba(249,115,22,0.6); }
+  100% { box-shadow: 0 0 14px rgba(249,115,22,0.25); border-color: rgba(249,115,22,0.55); }
+}
+@keyframes neon-sweep {
+  0%   { --sweep-angle: 0deg;   opacity: 1; }
+  80%  { --sweep-angle: 360deg; opacity: 1; }
+  100% { --sweep-angle: 360deg; opacity: 0; }
+}
+@keyframes neon-glow-pulse {
+  0%, 100% {
+    text-shadow: 0 0 4px rgba(249,115,22,0.6), 0 0 10px rgba(249,115,22,0.3);
+    opacity: 1;
+  }
+  50% {
+    text-shadow: 0 0 8px rgba(249,115,22,0.9), 0 0 20px rgba(249,115,22,0.5), 0 0 40px rgba(249,115,22,0.2);
+    opacity: 0.92;
+  }
+}
+@keyframes rush-border-breathe {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(249,115,22,0.15), 0 0 0 1px rgba(249,115,22,0.3);
+    border-color: rgba(249,115,22,0.4);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(249,115,22,0.3), 0 0 0 1px rgba(249,115,22,0.5);
+    border-color: rgba(249,115,22,0.6);
+  }
+}
+
+/* ── Animation utility classes ── */
+@layer utilities {
+  .animate-mesh        { animation: meshFloat 20s var(--ease-premium) infinite alternate; will-change: transform; }
+  .animate-mesh-slow   { animation: meshFloat 30s var(--ease-premium) infinite alternate; will-change: transform; }
+  .animate-spin-slow   { animation: spin 8s linear infinite; will-change: transform; }
+  .animate-shimmer     { animation: shimmerFull 4s infinite; will-change: transform; }
+  .animate-slow-pulse  { animation: slow-pulse 6s ease-in-out infinite; will-change: opacity; }
+  .animate-ring-breathe{ animation: ring-breathe 24s ease-in-out infinite; will-change: opacity; }
+  .animate-rush-pulse  { animation: rush-pulse 5s ease-in-out infinite; will-change: opacity; }
+  .animate-gradient    { animation: gradient 3s ease infinite; }
+  .animate-shake       { animation: shake 0.6s ease-in-out; animation-iteration-count: 3; }
+  .animate-border-orange { animation: border-breathe-orange 8s ease-in-out infinite; will-change: border-color, box-shadow; }
+  .animate-border-red    { animation: border-breathe-red    8s ease-in-out infinite; will-change: border-color, box-shadow; }
+  .animate-neon-strike   {
+    animation:
+      neon-strike-flash 0.7s cubic-bezier(0.22,1,0.36,1) forwards,
+      rush-border-breathe 6s ease-in-out 0.7s infinite;
+    will-change: box-shadow, border-color;
+  }
+  .animate-neon-glow   { animation: neon-glow-pulse 4s ease-in-out infinite; will-change: text-shadow; }
+  .animate-rush-border { animation: rush-border-breathe 6s ease-in-out infinite; will-change: box-shadow, border-color; }
+  .animate-toast-shake { animation: toast-shake 0.45s cubic-bezier(0.36,0.07,0.19,0.97); }
+}
+
+@keyframes shake {
+  0%,100% { transform: translateX(0) rotate(0deg); }
+  15%     { transform: translateX(-8px) rotate(-1deg); }
+  30%     { transform: translateX(8px)  rotate(1deg); }
+  45%     { transform: translateX(-6px) rotate(-0.5deg); }
+  60%     { transform: translateX(6px)  rotate(0.5deg); }
+  75%     { transform: translateX(-3px); }
+  90%     { transform: translateX(3px); }
+}
+
+/* ── Circuit Flow Animation for YOJI Icons ── */
+@keyframes circuitFlow {
+  0%   { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -300; }
+}
+

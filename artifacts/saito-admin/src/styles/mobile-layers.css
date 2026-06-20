@@ -1,0 +1,95 @@
+/* Mobile Layer-based Architecture for Reservations */
+
+.mobile-reservation-layered {
+  position: relative;
+  min-height: 100%;
+  isolation: isolate;
+}
+
+/* Background Layer */
+.mobile-bg-layer {
+  z-index: 1;
+}
+
+/* Content Layer */
+.mobile-content-layer {
+  z-index: 10;
+  padding: 0;
+  margin: 0;
+}
+
+.mobile-reservation-list {
+  padding: 0;
+  margin: 0;
+}
+
+.mobile-reservation-item {
+  animation: mobile-layered-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center bottom;
+}
+
+@keyframes mobile-layered-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Empty State */
+.mobile-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  padding: 2rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-state-text {
+  opacity: 0.7;
+}
+
+/* Interaction Layer */
+.mobile-interaction-layer {
+  z-index: 20;
+}
+
+.mobile-touch-overlay {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+/* Prevent double-tap zoom on mobile */
+.mobile-reservation-layered * {
+  touch-action: manipulation;
+}
+
+/* Ensure proper stacking context */
+.mobile-reservation-layered {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Performance optimizations */
+.mobile-reservation-item {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-reservation-item {
+    animation: none;
+  }
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#1a0a0a"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Saito S logo — scaled and centered from favicon path -->
+  <!-- Original viewBox 0 0 100 100, scaled to fit 512x512 with padding ~64px each side -->
+  <g transform="translate(64, 64) scale(3.84)">
+    <path fill="none" stroke="#D32F2F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"
+      d="M30,35 C28,15 68,15 68,30 C68,42 48,46 32,52 C16,58 18,82 38,86 C56,90 78,76 70,58"/>
+  </g>
+</svg>

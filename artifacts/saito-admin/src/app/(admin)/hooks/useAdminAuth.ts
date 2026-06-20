@@ -1,3 +1,4 @@
+import { useRouter } from 'next/navigation';
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -7,6 +8,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export function useAdminAuth() {
   const { t } = useLanguage();
+  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [role, setRole] = useState<'admin' | 'superadmin' | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -59,12 +61,13 @@ export function useAdminAuth() {
           const users = await res.json();
           if (users.length === 0) {
             setNeedsSetup(true);
+            router.push('/admin?needsSetup=true');
           }
         }
       } catch { /* silent */ }
     };
     check();
-  }, []);
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

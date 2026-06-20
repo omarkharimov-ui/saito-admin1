@@ -9,11 +9,11 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (searchParams.get('needsSetup') === 'true') {
-      router.replace('/admin/settings?section=users&setup=true');
+      router.replace('/settings?section=users&setup=true');
     }
     // If no setup is needed, redirect to the default page.
     else {
-      router.replace('/admin/orders');
+      router.replace('/orders');
     }
   }, [searchParams, router]);
 

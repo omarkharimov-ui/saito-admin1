@@ -14,6 +14,9 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+const PWA_PROMPT_DISMISSAL_KEY = 'pwa-prompt-dismissed-until';
+const PWA_PROMPT_DISMISSAL_COOLDOWN_MS = 1000 * 60 * 60 * 24 * 7;
+
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -38,19 +41,25 @@ export default function PWAInstallPrompt() {
       return;
     }
 
-    // Check if user has dismissed the prompt before
-    const hasDismissed = localStorage.getItem('pwa-prompt-dismissed');
-    if (hasDismissed === 'true') {
-      return;
+    const dismissedUntil = localStorage.getItem(PWA_PROMPT_DISMISSAL_KEY);
+    if (dismissedUntil) {
+      const dismissedUntilDate = Number(dismissedUntil);
+      if (!Number.isNaN(dismissedUntilDate) && dismissedUntilDate > Date.now()) {
+        return;
+      }
+
+      localStorage.removeItem(PWA_PROMPT_DISMISSAL_KEY);
     }
 
     // Listen for beforeinstallprompt event
+    let showPromptTimeoutId: ReturnType<typeof window.setTimeout> | null = null;
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      
+
       // Show prompt after a short delay
-      setTimeout(() => {
+      showPromptTimeoutId = window.setTimeout(() => {
         setShowPrompt(true);
       }, 3000);
     };
@@ -72,6 +81,10 @@ export default function PWAInstallPrompt() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+
+      if (showPromptTimeoutId) {
+        window.clearTimeout(showPromptTimeoutId);
+      }
     };
   }, []);
 
@@ -150,7 +163,10 @@ export default function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('pwa-prompt-dismissed', 'true');
+    localStorage.setItem(
+      PWA_PROMPT_DISMISSAL_KEY,
+      String(Date.now() + PWA_PROMPT_DISMISSAL_COOLDOWN_MS),
+    );
   };
 
   // Don't render if already installed or no prompt

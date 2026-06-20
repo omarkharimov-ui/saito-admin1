@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Package, TrendingUp, TrendingDown, AlertTriangle, History, Trash2, ClipboardCheck, Pencil, Save, Trash } from 'lucide-react';
+import { X, Package, TrendingUp, TrendingDown, AlertTriangle, History, Trash2, ClipboardCheck, Pencil, Save, Trash, ChevronRight } from 'lucide-react';
 import type { InventoryStatusRow, InventoryLog, Supplier } from '@/types/inventory';
 import React, { useState, useMemo, useEffect } from 'react';
 import { StockStatusBar } from '@/components/StockStatusBadge';

@@ -1368,4 +1368,8 @@ export const az = {
   tabs_billing: 'Ödəniş',
   merge_button: '{count} masanı birləşdir',
   save_to_confirm: 'Təsdiq gözləyir',
+
+  // Dashboard - Sensei status
+  sleeping: 'yatır',
+  opens_at: 'açılır',
 } as const;

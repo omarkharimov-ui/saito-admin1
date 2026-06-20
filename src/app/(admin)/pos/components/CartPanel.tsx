@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import type { PosCart, LossItem } from '../types/shared';
 import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
 

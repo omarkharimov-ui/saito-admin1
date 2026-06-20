@@ -993,6 +993,7 @@ export default function StockPage() {
         )}
 
         {viewMode === 'history' && (
+          <>
           <div className="space-y-4">
             {/* ── Premium Calendar Picker ── */}
             <div className="flex items-center justify-between">
@@ -1176,6 +1177,7 @@ export default function StockPage() {
             </div>
 
           </div>
+          </div>
         </div>
 
         {/* ── Monthly summary cards ── */}
@@ -1276,8 +1278,8 @@ export default function StockPage() {
               })}
             </div>
           )}
-        </div>
-
+          </div>
+          </> )}
         <InspectorPanel
           row={selectedRow}
           onClose={() => setSelectedRow(null)}
@@ -1881,6 +1883,8 @@ export default function StockPage() {
           </div>
         )}
       </AnimatePresence>
+        </div>
+      </div>
 
       {/* ── Calibration morph overlay ── */}
       <AnimatePresence>
@@ -1915,6 +1919,5 @@ export default function StockPage() {
         )}
       </AnimatePresence>
     </PageTransition>
-  </div>
   );
 }

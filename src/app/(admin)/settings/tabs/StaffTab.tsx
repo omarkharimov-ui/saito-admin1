@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Plus, X, Trash2, User, Users, Briefcase, Phone, Clock } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

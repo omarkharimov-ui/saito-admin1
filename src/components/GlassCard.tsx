@@ -8,6 +8,7 @@ interface GlassCardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
   hover?: boolean;
   intensity?: 'light' | 'medium' | 'strong';
   padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  animate?: boolean;
 }
 
 const intensityMap = {
@@ -37,14 +38,18 @@ const paddingMap = {
 };
 
 export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
-  ({ children, hover = false, intensity = 'medium', padding = 'md', className = '', ...props }, ref) => {
+  ({ children, hover = false, intensity = 'medium', padding = 'md', animate: shouldAnimate = false, className = '', ...props }, ref) => {
     const style = intensityMap[intensity];
+    const motionProps = shouldAnimate
+      ? {
+          initial: { opacity: 0, y: 8 } as const,
+          animate: { opacity: 1, y: 0 } as const,
+          transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number] },
+        }
+      : {};
     return (
       <motion.div
         ref={ref}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number] }}
         className={`
           rounded-xl border
           ${style.bg} ${style.border}
@@ -52,6 +57,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
           ${paddingMap[padding]}
           ${className}
         `}
+        {...motionProps}
         {...props}
       >
         {children}

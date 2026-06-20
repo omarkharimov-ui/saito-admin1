@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Save, Loader2, MapPin } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { inputCls } from './_shared';
 
 type FloorRow = { id: string; table_number: number; floor_name: string; sort_order: number };

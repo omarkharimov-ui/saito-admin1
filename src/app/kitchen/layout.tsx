@@ -1,6 +1,6 @@
 import React from 'react';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from '@/lib/toast';
 
 export default function KitchenLayout({ children }: { children: React.ReactNode }) {
   return (

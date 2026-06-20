@@ -6,7 +6,7 @@ import { Plus, Edit3, Trash2, Search, Filter, Tag, AlertCircle, X, Sparkles, Zap
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Product, Category } from '@/types';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 
 /* ── Drag-to-dismiss Bottom Sheet ── */
 function BottomSheet({ product, onClose, onEdit, onToggleStock, onDelete, getProductName, language, t }: {

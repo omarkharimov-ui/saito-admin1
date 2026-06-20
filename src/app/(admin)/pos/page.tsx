@@ -12,7 +12,7 @@ import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import MobileModal from '@/components/ui/MobileModal';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import SimpleToaster from '@/app/(admin)/components/layout/SimpleToaster';
 import { supabase } from '@/lib/supabase';
 import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable, LossItem } from './types/shared';

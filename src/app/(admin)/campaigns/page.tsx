@@ -5,10 +5,11 @@ import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Product, Category, Campaign } from '@/types';
 import { Plus, Trash2, Loader2, Sparkles } from 'lucide-react';
+import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import CampaignCard from './components/CampaignCard';
 import CampaignModal from './components/CampaignModal';
 import { DeleteCampaignModal, DeleteAllCampaignsModal } from './components/CampaignModals';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { CampaignsSkeleton } from './components/CampaignsSkeleton';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
@@ -493,10 +494,20 @@ const CampaignsPage = () => {
 
       {/* ── Campaign list ── */}
       {campaigns.length === 0 ? (
-        <div className="text-center py-32 md:py-40 bg-[var(--theme-surface)] border border-dashed border-[var(--theme-border)] rounded-2xl">
-          <Sparkles className="mx-auto text-[var(--theme-border)] mb-6" size={64} />
-          <p className="text-[var(--theme-text-muted)] uppercase tracking-[0.4em] text-xs font-bold">{t('no_active_campaigns_empty')}</p>
-        </div>
+        <EmptyState
+          icon={<Sparkles size={20} />}
+          title={t('no_active_campaigns_empty')}
+          description={t('campaigns_subtitle')}
+          action={
+            <button
+              onClick={handleNewCampaign}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] font-bold text-[11px] uppercase tracking-widest hover:brightness-95 transition-all"
+            >
+              <Plus size={14} />
+              {t('new_campaign')}
+            </button>
+          }
+        />
       ) : (
         <>
           {(() => {

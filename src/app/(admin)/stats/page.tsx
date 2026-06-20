@@ -14,7 +14,7 @@ import StatsSenseiPanel from './components/StatsSenseiPanel';
 import StatsFinancePanel from './components/StatsFinancePanel';
 import StatsCancellationChart from './components/StatsCancellationChart';
 import StatsMobileView from './components/StatsMobileView';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import { StatSkeleton } from '@/components/SkeletonLoader';

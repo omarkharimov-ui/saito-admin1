@@ -1370,4 +1370,8 @@ export const en: TranslationMap = {
   tabs_billing: 'Billing',
   merge_button: 'Merge {count} tables',
   save_to_confirm: 'Save to confirm',
+
+  // Dashboard - Sensei status
+  sleeping: 'sleeping',
+  opens_at: 'opens at',
 } as const;

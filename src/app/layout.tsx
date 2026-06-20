@@ -68,20 +68,20 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <PWAInstallPrompt />
         <LanguageProvider>
-          <LegacyLanguageProvider>
-            <LanguageTransitionWrapper>
-              <UIProvider>
-                <CartProvider>
-                    <CustomNotificationProvider />
-                    <ClientLayout>
-                      <main className="flex-1 overflow-y-auto scrollbar-none">
-                        {children}
-                      </main>
-                    </ClientLayout>
-                </CartProvider>
-              </UIProvider>
-            </LanguageTransitionWrapper>
-          </LegacyLanguageProvider>
+        <LegacyLanguageProvider>
+          <LanguageTransitionWrapper>
+            <UIProvider>
+              <CartProvider>
+                  <CustomNotificationProvider />
+                  <ClientLayout>
+                    <main className="flex-1 overflow-y-auto scrollbar-none">
+                      {children}
+                    </main>
+                  </ClientLayout>
+              </CartProvider>
+            </UIProvider>
+          </LanguageTransitionWrapper>
+        </LegacyLanguageProvider>
         </LanguageProvider>
       </body>
     </html>

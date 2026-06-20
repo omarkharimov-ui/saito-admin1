@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Lock, User, ChevronDown, Save, Loader2, Shield, ChefHat, Eye, EyeOff } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 
 interface AccountItem {
   key: 'superadmin' | 'admin' | 'kitchen';

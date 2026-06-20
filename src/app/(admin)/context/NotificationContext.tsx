@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { toast, type Toast } from 'react-hot-toast';
+import { toast, type Toast } from '@/lib/toast';
 import { CheckCircle2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';

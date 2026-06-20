@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Plus, Trash2, ChevronDown, Loader2, Search, ShoppingCart, PackageCheck,
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type {
   PurchaseOrder, PurchaseOrderStatus, CreatePurchaseOrderPayload,

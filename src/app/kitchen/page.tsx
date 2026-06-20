@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast, { useToaster } from 'react-hot-toast';
+import toast, { useToaster } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge } from 'lucide-react';

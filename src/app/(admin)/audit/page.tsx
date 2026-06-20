@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Loader2, ShoppingBag, AlertTriangle, TrendingDown, ArrowRight } from 'lucide-react';
+import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import { supabase } from '@/lib/supabase';
 import { PageTransition, PageHeader } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
@@ -228,7 +229,11 @@ export default function AuditPage() {
       {/* Content */}
       <div className="space-y-1.5">
         {filtered.length === 0 ? (
-          <div className="text-center py-16 text-white/20 text-sm">Heç bir əməliyyat tapılmadı</div>
+          <EmptyState
+            icon={<ShoppingBag size={20} />}
+            title="Heç bir əməliyyat tapılmadı"
+            description={search || typeFilter !== 'all' ? 'Cari filtrlərə uyğun nəticə yoxdur.' : 'Hələ ki, heç bir stok hərəkəti qeydə alınmayıb.'}
+          />
         ) : (
           filtered.map((entry, idx) => {
             const meta = TYPE_LABELS[entry.type] || TYPE_LABELS.order_consumption;

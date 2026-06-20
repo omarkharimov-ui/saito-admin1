@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useFormDirtyCompare } from '@/hooks/useFormDirty';
 import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Receipt, Percent, DollarSign, AlignLeft, Eye } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { inputCls, labelCls, saveButtonCls } from './_shared';
 import ReceiptPreview from '../../shared/ReceiptPreview';

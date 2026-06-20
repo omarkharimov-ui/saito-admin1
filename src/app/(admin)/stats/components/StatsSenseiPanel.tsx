@@ -115,40 +115,7 @@ interface StatsSenseiPanelProps {
 
 /* ─── Matrix Rain ─── */
 function MatrixRain() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const visibleRef = useRef(true);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    const cols = Math.floor(canvas.width / 14);
-    const drops = Array(cols).fill(0);
-    const chars = 'アイウエオカキクケコ0123456789₼%';
-    const observer = new IntersectionObserver(([e]) => { visibleRef.current = e.isIntersecting; }, { threshold: 0 });
-    observer.observe(canvas);
-    const onVis = () => { visibleRef.current = document.visibilityState === 'visible'; };
-    document.addEventListener('visibilitychange', onVis);
-    let intervalId: ReturnType<typeof setInterval>;
-    const draw = () => {
-      if (!visibleRef.current || document.visibilityState === 'hidden') return;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'rgba(212, 175, 55, 0.15)';
-      ctx.font = '11px monospace';
-      for (let i = 0; i < drops.length; i++) {
-        const ch = chars[Math.floor(Math.random() * chars.length)];
-        ctx.fillText(ch, i * 14, drops[i] * 14);
-        if (drops[i] * 14 > canvas.height && Math.random() > 0.975) drops[i] = 0;
-        drops[i]++;
-      }
-    };
-    intervalId = setInterval(draw, 80);
-    return () => { clearInterval(intervalId); observer.disconnect(); document.removeEventListener('visibilitychange', onVis); };
-  }, []);
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-40" />;
+  return null;
 }
 
 /* ─── Typing Effect Hook ─── */
@@ -177,86 +144,7 @@ function useTypingEffect(text: string | null, speed = 20) {
 
 // Module-level component: stable reference prevents unmount/remount on parent re-render
 export function HologramGrid() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const visibleRef = useRef(true);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
-    resize();
-    const onResize = () => resize();
-    window.addEventListener('resize', onResize);
-
-    // IntersectionObserver — fully pause when scrolled out of view
-    const observer = new IntersectionObserver(
-      ([entry]) => { visibleRef.current = entry.isIntersecting; },
-      { threshold: 0 }
-    );
-    observer.observe(canvas);
-
-    const cols = 16;
-    const rows = 8;
-    const chars = '0123456789₼+-×÷%ΔΣΠ';
-    type Cell = { x: number; y: number; char: string; phase: number; speed: number };
-    const cells: Cell[] = [];
-    for (let i = 0; i < cols * rows; i++) {
-      cells.push({
-        x: (i % cols) / cols,
-        y: Math.floor(i / cols) / rows,
-        char: chars[Math.floor(Math.random() * chars.length)],
-        phase: Math.random() * Math.PI * 2,
-        speed: 0.5 + Math.random() * 1.5,
-      });
-    }
-
-    let interval: ReturnType<typeof setInterval> | null = null;
-    const draw = () => {
-      if (!ctx || !visibleRef.current || document.visibilityState === 'hidden') return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const w = canvas.width;
-      const h = canvas.height;
-      const cw = w / cols;
-      const rh = h / rows;
-
-      // Sparse grid lines
-      ctx.strokeStyle = 'rgba(212, 175, 55, 0.012)';
-      ctx.lineWidth = 0.5;
-      for (let i = 0; i <= cols; i += 3) {
-        const x = i * cw;
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-      }
-      for (let i = 0; i <= rows; i += 3) {
-        const y = i * rh;
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-      }
-
-      // Flowing numbers
-      cells.forEach(c => {
-        c.phase += c.speed * 0.015;
-        const alpha = (Math.sin(c.phase) + 1) * 0.5 * 0.04;
-        if (alpha < 0.003) return;
-        if (Math.random() < 0.005) c.char = chars[Math.floor(Math.random() * chars.length)];
-        ctx.fillStyle = `rgba(212, 175, 55, ${alpha})`;
-        ctx.font = `${Math.max(9, Math.min(12, cw * 0.45))}px monospace`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(c.char, c.x * w + cw / 2, c.y * h + rh / 2);
-      });
-    };
-
-    interval = setInterval(draw, 300);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      observer.disconnect();
-      if (interval) clearInterval(interval);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
+  return null;
 }
 
 export default function StatsSenseiPanel({

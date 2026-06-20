@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Trash2, Edit3, X, Loader2, Percent } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
+import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import MobileModal from '@/components/ui/MobileModal';
 
@@ -198,10 +199,11 @@ export default function WasteStandardsPage() {
             <Loader2 size={28} className="animate-spin text-white/15" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-24 text-white/20">
-            <Percent size={44} className="mx-auto mb-4 opacity-20" />
-            <p className="text-sm font-medium">Standart tapılmadı</p>
-          </div>
+          <EmptyState
+            icon={<Percent size={20} />}
+            title="Standart tapılmadı"
+            description={search ? 'Axtarışınıza uyğun nəticə yoxdur.' : 'Hələ heç bir itki standartı əlavə edilməyib.'}
+          />
         ) : (
           <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
             {/* Table head */}

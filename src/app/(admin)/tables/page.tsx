@@ -5,9 +5,10 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'qrcode';
 import { QrCode, Download, Printer, Plus, Minus, X, ExternalLink, Loader2, Save } from 'lucide-react';
+import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 
 const TablesPage = () => {
   const [tableCount, setTableCount] = useState(12);
@@ -230,6 +231,13 @@ const TablesPage = () => {
       </div>
 
       {/* List */}
+      {!loading && tableCount === 0 ? (
+        <EmptyState
+          icon={<QrCode size={20} />}
+          title="Heç bir masa yoxdur"
+          description="Masa sayını artırmaq üçün yuxarıdakı idarəedicilərdən istifadə edin."
+        />
+      ) : (
       <div className="bg-card border border-white/5 rounded-2xl overflow-hidden overflow-x-auto scrollbar-none">
         <div className="grid grid-cols-[auto_1fr_auto] gap-0 divide-y divide-white/5 min-w-[380px]">
           {/* Header row */}
@@ -283,6 +291,7 @@ const TablesPage = () => {
           ))}
         </div>
       </div>
+      )}
 
       {/* QR Preview Modal */}
       {typeof document !== 'undefined' && createPortal(

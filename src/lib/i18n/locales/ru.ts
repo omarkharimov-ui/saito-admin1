@@ -1371,4 +1371,8 @@ export const ru: TranslationMap = {
   tabs_billing: 'Оплата',
   merge_button: 'Объединить {count} столов',
   save_to_confirm: 'Сохранить для подтверждения',
+
+  // Dashboard - Sensei status
+  sleeping: 'спит',
+  opens_at: 'открывается',
 } as const;

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { Product, Category } from '@/types';
 import {
@@ -12,121 +11,11 @@ import HeroBanner from './widgets/HeroBanner';
 import LiveFloorSnapshot from './widgets/LiveFloorSnapshot';
 import DashboardProductModal from './widgets/DashboardProductModal';
 import { HappyHourModal, DeleteProductModal } from './widgets/DashboardModals';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
-import { useTheme } from '@/lib/theme/ThemeContext';
-
-function SenseiSleepCard({ openingHours }: { openingHours: string }) {
-  const { lightMode } = useTheme();
-  const [countdown, setCountdown] = useState<{ h: number; m: number; s: number } | null>(null);
-
-  useEffect(() => {
-    const getCountdown = () => {
-      const match = openingHours.match(/^(\d{2}:\d{2})[\-–](\d{2}:\d{2})$/);
-      if (!match) return null;
-      const [oh, om] = match[1].split(':').map(Number);
-      const now = new Date();
-      const open = new Date(now);
-      open.setHours(oh, om, 0, 0);
-      if (open <= now) open.setDate(open.getDate() + 1);
-      const diff = open.getTime() - now.getTime();
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      return { h, m, s };
-    };
-
-    setCountdown(getCountdown());
-    const id = setInterval(() => setCountdown(getCountdown()), 1000);
-    return () => clearInterval(id);
-  }, [openingHours]);
-
-  const openMatch = openingHours.match(/^(\d{2}:\d{2})[\-–](\d{2}:\d{2})$/);
-  const openTime = openMatch?.[1];
-
-  return (
-    <div className="relative overflow-hidden rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_14px_40px_rgba(0,0,0,0.28)]">
-      <div className="relative z-10 flex items-center gap-5 p-6">
-        {/* Brain icon */}
-        <div className="relative shrink-0 sensei-icon-calm">
-          <div
-            className="relative w-20 h-20 md:w-16 md:h-16 rounded-2xl flex items-center justify-center"
-            style={{ background: 'var(--theme-surface-soft)' }}
-          >
-            {/* Animated Brain Circuit */}
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--theme-text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'relative', zIndex: 1 }}>
-              <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-              <path d="M9 13a4.5 4.5 0 0 0 3-4" /><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
-              <path d="M3.477 10.896a4 4 0 0 1 .585-.396" /><path d="M6 18a4 4 0 0 1-1.967-.516" />
-              <path d="M12 13h4" /><path d="M12 18h6a2 2 0 0 1 2 2v1" /><path d="M12 8h8" />
-              <path d="M16 8V5a2 2 0 0 1 2-2" />
-              {/* Animated circuit lines */}
-              <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"
-                className="sensei-circuit-a"
-                stroke="rgba(212,175,55,0.65)" strokeWidth="2" strokeDasharray="6 44"
-                style={{ animation: 'circuitFlow 3s linear infinite' }} />
-              <path d="M12 8h8M16 8V5a2 2 0 0 1 2-2M12 13h4M12 18h6a2 2 0 0 1 2 2v1"
-                className="sensei-circuit-b"
-                stroke="rgba(212,175,55,0.5)" strokeWidth="1.5" strokeDasharray="4 30"
-                style={{ animation: 'circuitFlow 2.2s linear infinite reverse' }} />
-            </svg>
-          </div>
-        </div>
-
-        {/* Text */}
-        <div className="flex-1 min-w-0">
-          {/* Header row */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-black tracking-[0.4em] uppercase" style={{ color: 'var(--theme-text-secondary)' }}>
-              SENSEI AI
-            </span>
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--theme-border-strong)' }} />
-            <span className="text-[10px] font-bold tracking-[0.25em] uppercase text-[var(--theme-text-secondary)]">
-              Yuxu rejimi
-            </span>
-          </div>
-
-          {/* Countdown */}
-          {countdown ? (
-            <div>
-              <p className="text-[var(--theme-text)] text-base leading-snug mb-2.5">
-                <span className="font-serif italic text-[var(--theme-text-secondary)]">Sensei </span>
-                {countdown.h > 0 && (
-                  <span className="font-mono font-black text-lg" style={{ color: 'var(--theme-text)' }}>
-                    {countdown.h}<span className="text-sm font-bold text-[var(--theme-text-secondary)] ml-0.5">saat </span>
-                  </span>
-                )}
-                <span className="font-mono font-black text-lg" style={{ color: 'var(--theme-text)' }}>
-                  {String(countdown.m).padStart(2,'0')}<span className="text-sm font-bold text-[var(--theme-text-secondary)] ml-0.5">dəq </span>
-                </span>
-                <span className="font-mono font-bold text-base text-[var(--theme-text-secondary)]">
-                  {String(countdown.s).padStart(2,'0')}<span className="text-sm ml-0.5 text-[var(--theme-text-secondary)]">san</span>
-                </span>
-                <span className="font-serif italic text-[var(--theme-text-secondary)]"> sonra oyanacaq</span>
-              </p>
-              {openTime && (
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1 h-1 rounded-full" style={{ background: 'var(--theme-border-strong)' }} />
-                  <span className="text-[11px] text-[var(--theme-text-secondary)]">
-                    Açılış: <span className="font-mono font-bold text-[var(--theme-text)]">{openTime}</span>
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-[var(--theme-text-secondary)] text-base font-serif italic">
-              İş saatları başlayana qədər istirahət edirəm...
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const AdminDashboard = () => {
   const { t, language } = useLanguage();
-  const { lightMode } = useTheme();
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const r = localStorage.getItem('saito_products_cache');
@@ -652,172 +541,49 @@ const AdminDashboard = () => {
 
       <>
 
-      {/* AI Suggestion Section - Yoji Məsləhəti (HeroBanner və Canlı Masa Planı arasında) */}
-      {!settingsLoaded ? (
-        <div className="rounded-2xl h-[96px]" style={{ background: 'var(--theme-panel)', border: '1px solid var(--theme-border)' }} />
-      ) : isWithinBusinessHours() ? (
-        <>
-          {/* DESKTOP — Yoji AI Advice Card */}
-          <div
-            className="hidden lg:block p-8 relative z-10 group rounded-2xl overflow-hidden flex-shrink-0"
-            style={{ background: 'var(--theme-panel)', border: '1px solid var(--theme-border)' }}
-          >
-            <div className="flex items-start gap-6 relative z-0">
-              <div className="relative shrink-0" style={{ width: 96, height: 96 }}>
-                {/* Pulse glow arxada */}
-                <motion.span 
-                  className="absolute inset-[8px] rounded-2xl blur-lg pointer-events-none z-0"
-                  animate={{ 
-                    backgroundColor: ['rgba(212,175,55,0)', 'rgba(212,175,55,0.4)', 'rgba(212,175,55,0)'],
-                    scale: [1, 1.1, 1],
+      {/* AI Insight Bar - Compact actionable suggestions */}
+      {settingsLoaded && (
+        <div className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface)]">
+          {isWithinBusinessHours() && yojiAdvice ? (
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0">
+                <Sparkles size={14} className="text-gold" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gold/70">{yojiAdvice.title}</span>
+                <p className="text-sm text-[var(--theme-text-secondary)] truncate">{yojiAdvice.text}</p>
+              </div>
+              {yojiAdvice.productId && (
+                <button
+                  onClick={() => {
+                    const product = products.find(p => p.id === yojiAdvice.productId);
+                    if (!product) return;
+                    openAiDiscountModal(product.id, product.name, 10, yojiAdvice.type === 'HAPPY_HOUR' ? 'HAPPY_HOUR' : 'PERCENTAGE');
                   }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                />
-                <div className="absolute inset-[8px] rounded-2xl bg-gold text-black shadow-xl shadow-gold/20 flex items-center justify-center z-10">
-                  {/* Animated Brain Circuit */}
-                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-                    <path d="M9 13a4.5 4.5 0 0 0 3-4" /><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
-                    <path d="M3.477 10.896a4 4 0 0 1 .585-.396" /><path d="M6 18a4 4 0 0 1-1.967-.516" />
-                    <path d="M12 13h4" /><path d="M12 18h6a2 2 0 0 1 2 2v1" /><path d="M12 8h8" />
-                    <path d="M16 8V5a2 2 0 0 1 2-2" />
-                    {/* Animated circuit lines */}
-                    <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" 
-                      stroke="rgba(0,0,0,0.9)" strokeWidth="2" strokeDasharray="5 25" 
-                      style={{ animation: 'circuitFlow 2.5s linear infinite' }} />
-                    <path d="M12 8h8M16 8V5a2 2 0 0 1 2-2M12 13h4M12 18h6a2 2 0 0 1 2 2v1" 
-                      stroke="rgba(0,0,0,0.8)" strokeWidth="1.5" strokeDasharray="4 18" 
-                      style={{ animation: 'circuitFlow 1.8s linear infinite reverse' }} />
-                  </svg>
-                </div>
-              </div>
-              <div className="space-y-3 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-gold">{t('yoji_advice')}</span>
-                  <Sparkles size={14} className="text-gold" />
-                </div>
-                {yojiAdvice ? (
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <span className="text-[10px] font-bold tracking-[0.2em] uppercase mb-1 block text-gold/60">{yojiAdvice.title}</span>
-                      <p className="text-xl font-serif italic leading-relaxed text-[var(--theme-text)]">
-                        &ldquo;{yojiAdvice.text}&rdquo;
-                      </p>
-                    </div>
-                    {yojiAdvice.productId && (
-                      <div className="flex-shrink-0 flex flex-col items-start md:items-end gap-2">
-                        <span className="text-[10px] uppercase tracking-[0.25em] text-green-300/80">
-                          {t('expected_growth')}: <span className="font-bold text-green-300">+15%</span>
-                        </span>
-                        <button
-                          onClick={() => {
-                            const product = products.find(p => p.id === yojiAdvice.productId);
-                            if (!product) return;
-                            openAiDiscountModal(product.id, product.name, 10, yojiAdvice.type === 'HAPPY_HOUR' ? 'HAPPY_HOUR' : 'PERCENTAGE');
-                          }}
-                          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold tracking-widest uppercase transition-all transition-premium shadow-lg ${lightMode ? 'bg-gray-900 text-white shadow-black/10 border border-gray-900' : 'text-black shadow-gold/10 bg-gradient-to-r from-gold via-[#E7C85A] to-gold border border-gold/30'}`}
-                        >
-                          <Zap size={16} /> {t('apply')}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xl font-serif italic leading-relaxed text-white/60">
-                    {t('ai_analyzing')}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* MOBILE — Glassmorphism Yoji card */}
-          <div
-            className="lg:hidden relative"
-          >
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-gold/30 via-white/[0.06] to-transparent p-[1px]">
-              <div className="w-full h-full rounded-2xl bg-[#080808]" />
-            </div>
-            <div className="absolute -top-6 -left-6 w-32 h-32 bg-gold/[0.07] rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-gold/[0.04] rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative p-6 backdrop-blur-md rounded-2xl overflow-hidden">
-              <div className="flex items-center gap-3 border-b border-white/[0.06] pb-4 mb-5">
-                <div className="relative w-14 h-14 shrink-0 sensei-icon-calm">
-                  <span
-                    className="sensei-pulse-glow absolute inset-[4px] rounded-xl blur-sm pointer-events-none z-0"
-                    style={{
-                      background: 'radial-gradient(circle, rgba(212,175,55,0.2) 0%, transparent 70%)',
-                    }}
-                  />
-                  <div className="absolute inset-[4px] rounded-xl bg-gold text-black flex items-center justify-center z-10">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-                      <path d="M9 13a4.5 4.5 0 0 0 3-4" /><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
-                      <path d="M3.477 10.896a4 4 0 0 1 .585-.396" /><path d="M6 18a4 4 0 0 1-1.967-.516" />
-                      <path d="M12 13h4" /><path d="M12 18h6a2 2 0 0 1 2 2v1" /><path d="M12 8h8" />
-                      <path d="M16 8V5a2 2 0 0 1 2-2" />
-                      <path
-                        className="sensei-circuit-a"
-                        d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"
-                        stroke="rgba(0,0,0,0.85)" strokeWidth="2" strokeDasharray="5 25"
-                        style={{ animation: 'circuitFlow 2.5s linear infinite' }}
-                      />
-                      <path
-                        className="sensei-circuit-b"
-                        d="M12 8h8M16 8V5a2 2 0 0 1 2-2M12 13h4M12 18h6a2 2 0 0 1 2 2v1"
-                        stroke="rgba(0,0,0,0.75)" strokeWidth="1.5" strokeDasharray="4 18"
-                        style={{ animation: 'circuitFlow 1.8s linear infinite reverse' }}
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-[11px] font-bold text-gold tracking-[0.2em] uppercase">{t('yoji_advice')}</h4>
-                  {yojiAdvice && (
-                    <span className="text-[10px] font-medium text-green-400/80 mt-0.5 block">{t('high_potential')}</span>
-                  )}
-                </div>
-                {yojiAdvice && (
-                  <span className="text-sm font-bold text-green-400 shrink-0">+15%</span>
-                )}
-              </div>
-
-              {yojiAdvice ? (
-                <>
-                  <p className="text-white/70 text-[15px] italic font-serif leading-[1.7] mb-8">
-                    &ldquo;{yojiAdvice.text}&rdquo;
-                  </p>
-                  {yojiAdvice.productId && (
-                    <button
-                      onClick={() => {
-                        const product = products.find(p => p.id === yojiAdvice.productId);
-                        if (!product) return;
-                        openAiDiscountModal(product.id, product.name, 10, yojiAdvice.type === 'HAPPY_HOUR' ? 'HAPPY_HOUR' : 'PERCENTAGE');
-                      }}
-                      className="group relative flex items-center justify-center gap-2.5 w-full h-[52px] rounded-xl border border-gold/40 text-gold text-xs font-bold tracking-[0.2em] uppercase overflow-hidden transition-all hover:border-gold/60 active:scale-[0.98]"
-                    >
-                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-gold/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                      <Zap size={17} className="relative z-10" />
-                      <span className="relative z-10">{t('apply')}</span>
-                    </button>
-                  )}
-                </>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-soft)] flex items-center justify-center">
-                    <BrainCircuit size={18} className="text-[var(--theme-text-muted)]" />
-                  </div>
-                  <p className="text-[var(--theme-text-muted)] text-[15px] italic font-serif leading-relaxed">
-                    {t('ai_analyzing')}
-                  </p>
-                </div>
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-gold text-black shrink-0 hover:brightness-110 transition-all"
+                >
+                  <Zap size={12} /> {t('apply')}
+                </button>
               )}
             </div>
-          </div>
-        </>
-      ) : (
-        <SenseiSleepCard openingHours={openingHours} />
+          ) : isWithinBusinessHours() && !yojiAdvice ? (
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="w-8 h-8 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center shrink-0">
+                <BrainCircuit size={14} className="text-[var(--theme-text-muted)]" />
+              </div>
+              <p className="text-sm text-[var(--theme-text-muted)]">{t('ai_analyzing')}</p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="w-8 h-8 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center shrink-0">
+                <BrainCircuit size={14} className="text-[var(--theme-text-muted)]" />
+              </div>
+              <p className="text-sm text-[var(--theme-text-muted)]">
+                Sensei {openingHours ? `${t('sleeping')} — ${t('opens_at')} ${openingHours.split('–')[0]}` : t('sleeping')}
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Live Floor Snapshot - Canlı Masa Planı (Yoji Məsləhəti altında) */}

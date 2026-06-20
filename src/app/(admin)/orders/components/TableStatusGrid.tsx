@@ -13,7 +13,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Order, TableFilterType, TableFloor } from '../types';
 import { getOrderAgeMinutes, getKitchenStatusConfig } from '../utils';
 import { GitMerge } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 
 /* ─── TableCell ─── */

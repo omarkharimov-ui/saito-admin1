@@ -6,6 +6,7 @@ import {
   Search, X, Loader2, History, ShoppingCart, FileText,
   Plus, Trash2, RotateCcw, ChevronDown, Clock,
 } from 'lucide-react';
+import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 
 interface HistoryEvent {
   id: string;
@@ -190,23 +191,17 @@ export default function HistoryPage() {
             </div>
           </div>
         ) : filtered.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="text-center py-32"
-          >
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <History size={24} className="text-white/10" />
-            </div>
-            <p className="text-sm font-medium text-white/20">
-              {hasFilter ? 'Heç nə tapılmadı' : 'Hələ hadisə yoxdur'}
-            </p>
-            {hasFilter && (
+          <EmptyState
+            icon={<History size={20} />}
+            title="Heç bir tarixçə qeydi yoxdur"
+            description="Hələ ki, heç bir inventar hərəkəti qeydə alınmayıb."
+            action={hasFilter ? (
               <button onClick={() => { setSearch(''); setFilter('all'); }}
-                className="mt-3 text-[11px] text-indigo-400/50 hover:text-indigo-400 transition-colors">
+                className="text-[11px] text-indigo-400/50 hover:text-indigo-400 transition-colors">
                 Filtrləri təmizlə
               </button>
-            )}
-          </motion.div>
+            ) : undefined}
+          />
         ) : (
           <div className="space-y-8">
             {days.map((day, di) => (

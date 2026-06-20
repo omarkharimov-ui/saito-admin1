@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit3, Trash2, PackagePlus, Loader2, ShoppingBag, AlertCircle } from 'lucide-react';
+import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import type { Combo, Product } from '@/types';
 import ComboModal from './components/ComboModal';
 
@@ -165,19 +166,18 @@ export default function CombosPage() {
 
       {/* Content */}
       {enrichedCombos.length === 0 ? (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center py-24 gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.07] flex items-center justify-center">
-            <PackagePlus size={28} className="text-[var(--theme-border)]" />
-          </div>
-          <p className="text-[var(--theme-text-secondary)] font-medium">{t('combo_empty')}</p>
-          <p className="text-[var(--theme-text-muted)] text-sm">{t('combo_empty_hint')}</p>
-          <button onClick={openNew}
-            className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-panel)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] text-[12px] font-semibold transition-all">
-            <Plus size={14} />
-            {t('combo_new')}
-          </button>
-        </motion.div>
+        <EmptyState
+          icon={<PackagePlus size={20} />}
+          title={t('combo_empty')}
+          description={t('combo_empty_hint')}
+          action={
+            <button onClick={openNew}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-panel)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] text-[12px] font-semibold transition-all">
+              <Plus size={14} />
+              {t('combo_new')}
+            </button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {enrichedCombos.map((combo) => {

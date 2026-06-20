@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Loader2, Eye, EyeOff, ShieldCheck, ChefHat, UserCog, X, KeyRound, Mail, Server, Send, LayoutDashboard, Package, Megaphone, BarChart2, Settings, ChevronDown } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type AdminRole = 'superadmin' | 'admin' | 'kitchen';

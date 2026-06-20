@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, Upload, Trash2, ChevronDown, ChevronLeft } from 'lucide-react';
 import { SaveSuccessButton, ElasticSwitch } from '@/components/premium/PremiumComponents';
 import { supabase } from '@/lib/supabase';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { createPortal } from 'react-dom';
 import type { Combo, ComboItem, Product, ProductVariant } from '@/types';

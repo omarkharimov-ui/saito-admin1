@@ -1,6 +1,6 @@
 'use client';
 
-import { useToaster } from 'react-hot-toast';
+import { useToaster } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
 

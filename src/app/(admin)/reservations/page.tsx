@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { Reservation } from '@/types';
 import { Calendar, Search, X } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';

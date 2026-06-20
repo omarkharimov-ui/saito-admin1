@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Timer, AlertTriangle } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import { useLanguage, interpolateTemplate } from '@/lib/i18n/LanguageContext';
 import { labelCls } from './_shared';
 

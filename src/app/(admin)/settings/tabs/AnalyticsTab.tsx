@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useFormDirtyCompare } from '@/hooks/useFormDirty';
 import { supabase } from '@/lib/supabase';
 import { Save, Loader2, BrainCircuit, Store, Cloud, Bot, Sunrise, TrendingUp, Eye, Wand2 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/lib/toast';
 import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { labelCls, saveButtonCls } from './_shared';

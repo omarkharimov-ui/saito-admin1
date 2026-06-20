@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     ] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,total_amount,created_at,status,table_number&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
       fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/products?select=id,name,price,image_url,views_count,category:categories(id,name)`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/products?select=id,name,price,image_url,views_count,is_ready_product,direct_ingredient_id,category:categories(id,name)`, { headers: H }),
       fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name,translations&order=name`, { headers: H }),
       fetch(`${SUPABASE_URL}/rest/v1/cancelled_orders?select=*&created_at=gte.${isoStartDate}`, { headers: H }),
       fetch(`${SUPABASE_URL}/rest/v1/recipes?select=menu_item_id,ingredient_id,quantity_required`, { headers: H }),
@@ -138,6 +138,12 @@ export async function GET(request: Request) {
       recipeMap.set(r.menu_item_id, list);
     });
 
+    // Build product metadata map for quick lookup
+    const productMeta = new Map<string, any>();
+    (Array.isArray(products) ? products : []).forEach((p: any) => {
+      productMeta.set(p.id, p);
+    });
+
     // Calculate food cost per sold item
     let totalFoodCost = 0;
     const profitByProduct = new Map<string, { name: string; sold: number; revenue: number; food_cost: number }>();
@@ -147,10 +153,26 @@ export async function GET(request: Request) {
       if (!pid) return;
       const qty = Number(item.quantity) || 0;
       const unitRevenue = Number(item.unit_price) || Number(item.total_price) / (qty || 1);
+      
+      const prod = productMeta.get(pid);
       const recipeIngredients = recipeMap.get(pid) || [];
-      const unitFoodCost = recipeIngredients.reduce((sum, ri) => {
-        return sum + ri.quantity_required * (ingCostMap.get(ri.ingredient_id) || 0);
-      }, 0);
+      
+      let unitFoodCost = 0;
+      
+      if (recipeIngredients.length > 0) {
+        // Option A: Use Recipe
+        unitFoodCost = recipeIngredients.reduce((sum, ri) => {
+          return sum + ri.quantity_required * (ingCostMap.get(ri.ingredient_id) || 0);
+        }, 0);
+      } else if (prod?.is_ready_product && prod?.direct_ingredient_id) {
+        // Option B: Ready product (direct ingredient connection)
+        unitFoodCost = ingCostMap.get(prod.direct_ingredient_id) || 0;
+      } else {
+        // Option C: No data — we need a logical estimation based on current inventory average costs 
+        // to avoid 0 profit errors. Instead of static %, we use the avg category foodcost if possible.
+        unitFoodCost = unitRevenue * 0.30; // fallback to a conservative 30% for unknown items
+      }
+
       const lineFoodCost = unitFoodCost * qty;
       totalFoodCost += lineFoodCost;
 

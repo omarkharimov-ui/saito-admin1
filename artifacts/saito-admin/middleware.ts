@@ -64,9 +64,16 @@ export async function middleware(request: NextRequest) {
   // Only redirect logged-in admins away from landing to admin panel
   if (pathname === '/') {
     if (isLoggedIn && role && ADMIN_ROLES.has(role)) {
-      return NextResponse.redirect(new URL('/admin', request.url));
+      return NextResponse.redirect(new URL('/admin/pos', request.url));
     }
     return NextResponse.next();
+  }
+
+  // Handle /admin root specifically to redirect to /admin/pos
+  if (pathname === '/admin') {
+    if (isLoggedIn && role && ADMIN_ROLES.has(role)) {
+      return NextResponse.redirect(new URL('/admin/pos', request.url));
+    }
   }
 
   return NextResponse.next();

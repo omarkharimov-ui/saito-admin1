@@ -221,21 +221,31 @@ export function usePos() {
 
   const clearCart = useCallback(() => {
     const currentTable = selectedTable?.table_number ?? cartRef.current?.table_number;
+    
+    // Clear all state immediately
     setCart(null);
     cartRef.current = null;
-    setSelectedTable(prev => prev ? {
-      ...prev,
-      guest_count: 0,
-      total_amount: 0,
-      status: 'empty' as const,
-    } : prev);
+    
     if (typeof currentTable === 'number') {
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
       delete all[currentTable];
       saveCache(POS_CART_KEY + '_all', all);
       delete orderFingerprintRef.current[currentTable];
     }
+    
     saveCache(POS_CART_KEY, null);
+    
+    // Reset table status locally if needed
+    if (selectedTable) {
+      setSelectedTable({
+        ...selectedTable,
+        guest_count: 0,
+        total_amount: 0,
+        status: 'empty' as const,
+      });
+    }
+    
+    toast.success('Səbət təmizləndi');
   }, [selectedTable]);
 
   const saveCart = useCallback(() => {
@@ -447,6 +457,23 @@ export function usePos() {
 
   /* ── Transfer Table ── */
   const transferTable = useCallback(async (fromTable: number, toTable: number) => {
+    // 1. Move the cart in localStorage first
+    try {
+      const raw = localStorage.getItem(POS_CART_KEY + '_all');
+      if (raw) {
+        const all = JSON.parse(raw);
+        if (all[fromTable]) {
+          // Transfer the cart object to the new key
+          all[toTable] = { ...all[fromTable], table_number: toTable };
+          delete all[fromTable];
+          localStorage.setItem(POS_CART_KEY + '_all', JSON.stringify(all));
+        }
+      }
+    } catch (e) {
+      console.error('Local cart transfer failed:', e);
+    }
+
+    // 2. Call the API to move the database order
     const res = await fetch('/api/orders/transfer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -454,23 +481,27 @@ export function usePos() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
+
     if (data.undo) showUndo('transfer', data.undo, `Masa ${fromTable} → Masa ${toTable}`);
-    // Clean up localStorage cart for source table
-    const raw = localStorage.getItem('saito_pos_cart_all');
-    if (raw) {
-      try {
-        const all = JSON.parse(raw);
-        delete all[fromTable];
-        localStorage.setItem('saito_pos_cart_all', JSON.stringify(all));
-      } catch {} // eslint-disable-line no-empty
-    }
-    // Clear fingerprint so new orders on source table are sent
+
+    // 3. Clear fingerprints and sync states
     delete orderFingerprintRef.current[fromTable];
-    // delay fetch so Supabase has time to propagate the PATCH
-    await new Promise(r => setTimeout(r, 300));
+    
+    // If the currently selected table was the source, switch to target or clear
+    if (selectedTable?.table_number === fromTable) {
+      const targetTable = tables.find(t => t.table_number === toTable);
+      if (targetTable) {
+        setSelectedTable(targetTable);
+        // Cart state will be updated by the next select/fetch
+      } else {
+        backToFloor();
+      }
+    }
+
+    await new Promise(r => setTimeout(r, 400));
     fetchData();
     return data;
-  }, [fetchData, showUndo]);
+  }, [fetchData, showUndo, tables, selectedTable, backToFloor]);
 
   /* ── Merge Tables ── */
   const mergeTables = useCallback(async (tableNumbers: number[]) => {

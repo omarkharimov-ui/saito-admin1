@@ -673,42 +673,36 @@ export function ProductModal({
                     <button
                       type="button"
                       onClick={() => onFormChange({ ...productForm, is_ready_product: false, direct_ingredient_id: '' })}
-                      className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                      className={`relative flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
                         !productForm.is_ready_product
                           ? 'border-gold/50 bg-gold/[0.06] shadow-[0_0_20px_rgba(212,175,55,0.08)]'
                           : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${!productForm.is_ready_product ? 'bg-gold/20' : 'bg-white/[0.05]'}`}>
-                        <ScrollText size={20} className={!productForm.is_ready_product ? 'text-gold' : 'text-white/30'} />
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${!productForm.is_ready_product ? 'bg-gold/20' : 'bg-white/[0.05]'}`}>
+                        <ScrollText size={16} className={!productForm.is_ready_product ? 'text-gold' : 'text-white/30'} />
                       </div>
-                      <div className="text-center">
-                        <p className={`text-xs font-bold tracking-wider uppercase ${!productForm.is_ready_product ? 'text-gold' : 'text-white/50'}`}>Reseptli</p>
-                        <p className="text-[9px] text-white/30 mt-0.5">Lahmacun, roll, döner</p>
+                      <div className="text-left">
+                        <p className={`text-[11px] font-bold tracking-wider uppercase ${!productForm.is_ready_product ? 'text-gold' : 'text-white/50'}`}>Reseptli</p>
+                        <p className="text-[8px] text-white/30 truncate">Mətbəx sifarişi</p>
                       </div>
-                      {!productForm.is_ready_product && (
-                        <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-gold shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
-                      )}
                     </button>
                     <button
                       type="button"
                       onClick={() => onFormChange({ ...productForm, is_ready_product: true })}
-                      className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                      className={`relative flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
                         productForm.is_ready_product
                           ? 'border-blue-500/50 bg-blue-500/[0.06] shadow-[0_0_20px_rgba(96,165,250,0.08)]'
                           : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${productForm.is_ready_product ? 'bg-blue-500/20' : 'bg-white/[0.05]'}`}>
-                        <PackagePlus size={20} className={productForm.is_ready_product ? 'text-blue-400' : 'text-white/30'} />
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${productForm.is_ready_product ? 'bg-blue-500/20' : 'bg-white/[0.05]'}`}>
+                        <PackagePlus size={16} className={productForm.is_ready_product ? 'text-blue-400' : 'text-white/30'} />
                       </div>
-                      <div className="text-center">
-                        <p className={`text-xs font-bold tracking-wider uppercase ${productForm.is_ready_product ? 'text-blue-400' : 'text-white/50'}`}>Birbaşa Stok</p>
-                        <p className="text-[9px] text-white/30 mt-0.5">cola, su, qablaşdırılmış</p>
+                      <div className="text-left">
+                        <p className={`text-[11px] font-bold tracking-wider uppercase ${productForm.is_ready_product ? 'text-blue-400' : 'text-white/50'}`}>Birbaşa Stok</p>
+                        <p className="text-[8px] text-white/30 truncate">Hazır məhsul</p>
                       </div>
-                      {productForm.is_ready_product && (
-                        <div className="absolute top-2 right-2 w-3 h-3 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]" />
-                      )}
                     </button>
                   </div>
                 </div>

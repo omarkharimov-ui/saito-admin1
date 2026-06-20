@@ -15,6 +15,7 @@ import { DeleteAllModal, DeleteProductModal, DeleteCategoryModal } from './compo
 import { ProductsLoader } from './components/ProductsLoader';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
+import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
 
 /* ─── Helpers ─── */
 const normalizeProductName = (s: string) => s.trim();
@@ -236,6 +237,8 @@ const ProductsPage = () => {
     } catch (error: any) { toast.error('Məlumatları yükləmək mümkün olmadı: ' + error.message, { id: 'action-toast' }); }
     finally { setLoading(false); }
   };
+
+  useCrossTableRefresh('products', ['recipes', 'ingredients'], fetchData);
 
   /* ─── Category handlers ─── */
   const toSlug = (s: string) => s.toLowerCase()

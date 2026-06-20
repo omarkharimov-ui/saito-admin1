@@ -515,9 +515,9 @@ export default function KitchenPage() {
     });
   }, []);
 
-  // Polling fallback (hər 8s) — realtime işləməsə də data təzə qalır
+  // Polling fallback (hər 30s) — realtime itirilərsə data təzə qalır
   useEffect(() => {
-    const id = setInterval(() => fetchOrdersRef.current(), 8_000);
+    const id = setInterval(() => fetchOrdersRef.current(), 30_000);
     return () => clearInterval(id);
   }, []);
 

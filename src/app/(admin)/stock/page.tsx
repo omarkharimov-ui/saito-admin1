@@ -292,11 +292,12 @@ export default function StockPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Real-time subscription — inventory_logs və ingredients dəyişikliklərini izlə
+  // Real-time subscription — inventory_logs, ingredients, orders
   useEffect(() => {
     const channel = createRealtimeChannel('stock-page')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => fetchData())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => fetchData())
       .subscribe();
     return () => { removeRealtimeChannel(channel); };
   }, [fetchData]);

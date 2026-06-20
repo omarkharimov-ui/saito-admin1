@@ -24,7 +24,7 @@ function getServiceClient() {
  *  2. inventory_logs-a order_consumption yaz
  *  3. Trigger avtomatik ingredients.current_stock yeniləyəcək
  */
-export async function deductStockForOrder(orderId: string): Promise<void> {
+export async function deductStockForOrder(orderId: string): Promise<{ deducted: number; ingredientIds: string[] }> {
   const supabase = getServiceClient();
 
   // 1. Sifarişin item-lərini çək (product tipi ilə birlikdə)
@@ -35,7 +35,7 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
 
   if (error || !items || items.length === 0) {
     console.error('[stockAutomation] Failed to fetch order items:', error);
-    return;
+    return { deducted: 0, ingredientIds: [] };
   }
 
   console.log('[stockAutomation] Order items:', JSON.stringify(items, null, 2));
@@ -108,15 +108,18 @@ export async function deductStockForOrder(orderId: string): Promise<void> {
 
   if (logs.length === 0) {
     console.log(`[stockAutomation] No stock to deduct for order ${orderId}`);
-    return;
+    return { deducted: 0, ingredientIds: [] };
   }
 
   // 3. inventory_logs-a insert et (trigger current_stock-u avtomatik yeniləyəcək)
+  const ingredientIds = [...new Set(logs.map(l => l.ingredient_id))];
   const { error: insertError } = await supabase.from('inventory_logs').insert(logs);
   if (insertError) {
     console.error('[stockAutomation] inventory_logs insert error:', insertError);
+    return { deducted: 0, ingredientIds: [] };
   } else {
     console.log(`[stockAutomation] ${logs.length} inventory log(s) written for order ${orderId}`);
+    return { deducted: logs.length, ingredientIds };
   }
 }
 

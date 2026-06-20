@@ -226,7 +226,10 @@ export function useOrders() {
 
       // 3. Avtomatik stok azaltma (recipes + inventory_logs)
       try {
-        await deductStockForOrder(order.id);
+        const result = await deductStockForOrder(order.id);
+        if (result.deducted > 0) {
+          toast.success(`🧾 ${result.deducted} ingredient stockdan çıxıldı`, { id: 'action-toast' });
+        }
       } catch (stockErr) {
         console.error('[handlePay] Stock deduction failed:', stockErr);
       }

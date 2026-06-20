@@ -296,6 +296,36 @@ export function ProductModal({
     });
   }, [open]);
 
+  // Recipe / cost info for recipe-based products
+  const [recipeInfo, setRecipeInfo] = useState<{ count: number; totalCost: number } | null>(null);
+  const [recipeLoading, setRecipeLoading] = useState(false);
+  useEffect(() => {
+    if (!open || !editingProduct || productForm.is_ready_product) {
+      setRecipeInfo(null);
+      return;
+    }
+    setRecipeLoading(true);
+    supabase
+      .from('recipes')
+      .select('ingredient_id, quantity_brutto')
+      .eq('menu_item_id', editingProduct.id)
+      .eq('is_ai_suggested', false)
+      .then(async ({ data }) => {
+        if (!data || data.length === 0) {
+          setRecipeInfo(null);
+          setRecipeLoading(false);
+          return;
+        }
+        const { data: ingData } = await supabase
+          .from('ingredients')
+          .select('id, average_cost_per_unit');
+        const costMap = new Map((ingData || []).map(i => [i.id, i.average_cost_per_unit || 0]));
+        const totalCost = data.reduce((sum, r) => sum + (costMap.get(r.ingredient_id) || 0) * (r.quantity_brutto || 0), 0);
+        setRecipeInfo({ count: data.length, totalCost });
+        setRecipeLoading(false);
+      });
+  }, [open, editingProduct, productForm.is_ready_product]);
+
   const resizeToBase64 = (file: File, maxPx = 256): Promise<string> =>
     new Promise((resolve, reject) => {
       const img = new Image();
@@ -746,6 +776,83 @@ export function ProductModal({
                 </AnimatePresence>
               </div>
 
+              {/* Recipe Info Card — only for recipe-based products */}
+              {!productForm.is_ready_product && (editingProduct || recipeInfo) && (
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
+                    <span className="w-4 h-px bg-[var(--theme-border)]" />
+                    RESEPT & MAYA DƏYƏRİ
+                    <span className="flex-1 h-px bg-[var(--theme-border)]" />
+                  </p>
+                  <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)' }}>
+                    {recipeLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-white/30">
+                        <Loader2 size={12} className="animate-spin" />
+                        Resept məlumatları yüklənir...
+                      </div>
+                    ) : recipeInfo ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-white/60">Respekt bağlıdır · {recipeInfo.count} inqrediyent</span>
+                          <span className="text-sm font-bold text-white tabular-nums">₼{recipeInfo.totalCost.toFixed(2)}</span>
+                        </div>
+                        {editingProduct && editingProduct.price > 0 && (
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-white/40">Satış qiyməti</span>
+                            <span className="text-white/70 tabular-nums">₼{editingProduct.price.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {editingProduct && editingProduct.price > 0 && recipeInfo.totalCost > 0 && (() => {
+                          const profit = editingProduct.price - recipeInfo.totalCost;
+                          const marginPct = (profit / editingProduct.price) * 100;
+                          return (
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-white/40">Marja</span>
+                              <span className={`tabular-nums font-semibold ${marginPct >= 30 ? 'text-emerald-400' : marginPct >= 15 ? 'text-gold' : marginPct > 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                                {marginPct >= 0 ? '+' : ''}{marginPct.toFixed(1)}% · {profit >= 0 ? '+' : ''}₼{profit.toFixed(2)}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                        {editingProduct && recipeInfo.totalCost > 0 && (() => {
+                          const minPrice = recipeInfo.totalCost * 2.5;
+                          const maxPrice = recipeInfo.totalCost * 3.5;
+                          const priceOk = editingProduct.price >= minPrice && editingProduct.price <= maxPrice;
+                          return (
+                            <div className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg ${
+                              priceOk ? 'text-emerald-400/70 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'
+                            }`}>
+                              {priceOk ? '✓ Qiymət tövsiyə olunan aralıqdadır' : '⚠ Qiymət tövsiyə olunan aralıqdan kənardır'}
+                              <span className="text-[9px] text-white/30 font-normal ml-auto">
+                                ₼{minPrice.toFixed(0)} – ₼{maxPrice.toFixed(0)}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                        <button
+                          type="button"
+                          onClick={() => window.location.href = `/admin/recipes?productId=${editingProduct?.id}`}
+                          className="text-[10px] text-gold/60 hover:text-gold underline underline-offset-2 transition-colors"
+                        >
+                          Resepti düzəliş et →
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-white/30">Resept bağlı deyil</span>
+                        <button
+                          type="button"
+                          onClick={() => window.location.href = `/admin/recipes?productId=${editingProduct?.id}`}
+                          className="text-[10px] text-gold/60 hover:text-gold underline underline-offset-2 transition-colors"
+                        >
+                          Resept yarat →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Group 5: Variants — Multi-Layered Selector */}
               <div>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
@@ -1043,6 +1150,61 @@ export function ProductModal({
                   </div>
                 )}
               </div>
+
+              {/* Recipe Info Card — Mobile */}
+              {!productForm.is_ready_product && (editingProduct || recipeInfo) && (
+                <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)' }}>
+                  {recipeLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-white/30">
+                      <Loader2 size={12} className="animate-spin" />
+                      Resept məlumatları yüklənir...
+                    </div>
+                  ) : recipeInfo ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-white/60">Respekt bağlıdır · {recipeInfo.count} inqrediyent</span>
+                        <span className="text-sm font-bold text-white tabular-nums">₼{recipeInfo.totalCost.toFixed(2)}</span>
+                      </div>
+                      {editingProduct && editingProduct.price > 0 && (
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-white/40">Satış qiyməti</span>
+                          <span className="text-white/70 tabular-nums">₼{editingProduct.price.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {editingProduct && editingProduct.price > 0 && recipeInfo.totalCost > 0 && (() => {
+                        const profit = editingProduct.price - recipeInfo.totalCost;
+                        const marginPct = (profit / editingProduct.price) * 100;
+                        return (
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-white/40">Marja</span>
+                            <span className={`tabular-nums font-semibold ${marginPct >= 30 ? 'text-emerald-400' : marginPct >= 15 ? 'text-gold' : marginPct > 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                              {marginPct >= 0 ? '+' : ''}{marginPct.toFixed(1)}% · {profit >= 0 ? '+' : ''}₼{profit.toFixed(2)}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                      <button
+                        type="button"
+                        onClick={() => window.location.href = `/admin/recipes?productId=${editingProduct?.id}`}
+                        className="text-[10px] text-gold/60 hover:text-gold underline underline-offset-2 transition-colors"
+                      >
+                        Resepti düzəliş et →
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-white/30">Resept bağlı deyil</span>
+                      <button
+                        type="button"
+                        onClick={() => window.location.href = `/admin/recipes?productId=${editingProduct?.id}`}
+                        className="text-[10px] text-gold/60 hover:text-gold underline underline-offset-2 transition-colors"
+                      >
+                        Resept yarat →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Variants */}
               <div className="space-y-2">

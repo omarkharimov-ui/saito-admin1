@@ -106,10 +106,22 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
 
   const totalCost = useMemo(() => rows.reduce((sum, r) => sum + r.cost, 0), [rows]);
+  const costPerServing = totalCost;
 
   const salePrice = selectedProduct?.price || 0;
   const profit = salePrice - totalCost;
   const marginPct = salePrice > 0 ? (profit / salePrice) * 100 : 0;
+
+  const suggestedMinPrice = totalCost * 2.5;   // 60% food cost → 40% margin
+  const suggestedMidPrice = totalCost * 3.0;   // 50% food cost → 50% margin (sweet spot)
+  const suggestedMaxPrice = totalCost * 3.5;   // 40% food cost → 60% margin
+  const minMarginPct = suggestedMinPrice > 0 ? ((suggestedMinPrice - totalCost) / suggestedMinPrice) * 100 : 0;
+  const midMarginPct = suggestedMidPrice > 0 ? ((suggestedMidPrice - totalCost) / suggestedMidPrice) * 100 : 0;
+  const maxMarginPct = suggestedMaxPrice > 0 ? ((suggestedMaxPrice - totalCost) / suggestedMaxPrice) * 100 : 0;
+
+  const priceSafe = salePrice >= suggestedMinPrice * 0.9 && salePrice <= suggestedMaxPrice * 1.1;
+  const priceUnderpriced = salePrice > 0 && salePrice < suggestedMinPrice * 0.9;
+  const priceOverpriced = salePrice > suggestedMaxPrice * 1.1;
 
   function calcBrutto(ingredientId: string, nettoQty: number, hotWastePct = 0): number {
     if (nettoQty <= 0) return 0;
@@ -372,32 +384,26 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                                   type="number" min="0" step="0.001"
                                   value={row.quantity || ''}
                                   onChange={e => updateRowQuantity(idx, parseFloat(e.target.value) || 0)}
-                                  placeholder="Netto"
-                                  className="w-20 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 text-right tabular-nums"
+                                  placeholder="Miqdar"
+                                  className="w-24 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 text-right tabular-nums"
                                 />
-                                <span className="text-[9px] text-white/25 w-10">netto</span>
-                                <input
-                                  type="number" min="0" step="0.01"
-                                  value={row.quantity_brutto || ''}
-                                  placeholder="Brutto"
-                                  className="w-20 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-sm text-white/60 placeholder:text-white/20 outline-none focus:border-amber-400/30 text-right tabular-nums"
-                                  readOnly
-                                />
-                                <span className="text-[9px] text-white/25 w-10">brutto</span>
-                                <input
-                                  type="number" min="0" max="99" step="1"
-                                  value={row.hot_waste_percentage || ''}
-                                  onChange={e => updateRowHotWaste(idx, parseFloat(e.target.value) || 0)}
-                                  placeholder="İsti%"
-                                  className="w-16 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1.5 text-xs text-white/60 placeholder:text-white/20 outline-none focus:border-rose-400/30 text-right tabular-nums"
-                                />
-                                <span className="text-[9px] text-white/25 w-12">isti%</span>
+                                <span className="text-[9px] text-white/25 w-6">{row.unit || 'vahid'}</span>
+                                {row.ingredient_id && row.quantity > 0 && (
+                                  <span className="text-[10px] text-white/35 tabular-nums ml-auto">
+                                    ₼{row.cost.toFixed(2)}
+                                    {coldPct > 0 && (
+                                      <span className="text-white/20 ml-1">
+                                        (brutto {row.quantity_brutto}{row.unit} · itki {coldPct}%)
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
                                 <button onClick={() => removeRow(idx)}
                                   className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all flex items-center justify-center flex-shrink-0">
                                   <Trash2 size={12} />
                                 </button>
                               </div>
-                              {coldPct > 0 && row.quantity > 0 && (
+                              {coldPct > 0 && row.quantity > 0 && !row.ingredient_id && (
                                 <p className="text-[9px] text-red-400/40 ml-1">
                                   soyuq itki {coldPct}% · brutto {row.quantity_brutto} {row.unit}
                                 </p>
@@ -413,13 +419,13 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                     <motion.div
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="rounded-xl p-4 space-y-2"
+                      className="rounded-xl p-4 space-y-3"
                       style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)' }}
                     >
                       <p className="text-[10px] font-bold uppercase tracking-wider text-gold/60">Maya Dəyəri Hesabatı</p>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-[var(--theme-text-secondary)]">Brutto Maya Dəyəri (cold waste daxil)</span>
+                        <span className="text-xs text-[var(--theme-text-secondary)]">Maya Dəyəri (porsiya başına)</span>
                         <motion.span
                           key={totalCost}
                           initial={{ scale: 1.3, color: '#D4AF37' }}
@@ -431,8 +437,43 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                         </motion.span>
                       </div>
 
+                      {/* Suggested price range */}
+                      {totalCost > 0 && (
+                        <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                          <p className="text-[9px] text-white/35 uppercase tracking-wider font-semibold">Tövsiyə Olunan Satış Qiyməti Aralığı</p>
+                          <div className="flex items-center justify-between">
+                            <div className="text-center">
+                              <p className="text-[9px] text-white/25">Min</p>
+                              <p className="text-sm font-bold text-white/70 tabular-nums">₼{suggestedMinPrice.toFixed(2)}</p>
+                              <p className="text-[8px] text-white/20">{minMarginPct.toFixed(0)}% marja</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-[9px] text-gold/60">İdeal</p>
+                              <p className="text-base font-black text-gold tabular-nums">₼{suggestedMidPrice.toFixed(2)}</p>
+                              <p className="text-[8px] text-gold/40">{midMarginPct.toFixed(0)}% marja</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-[9px] text-white/25">Max</p>
+                              <p className="text-sm font-bold text-white/70 tabular-nums">₼{suggestedMaxPrice.toFixed(2)}</p>
+                              <p className="text-[8px] text-white/20">{maxMarginPct.toFixed(0)}% marja</p>
+                            </div>
+                          </div>
+                          {selectedProduct && salePrice > 0 && (
+                            <div className={`flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded-lg text-[10px] font-bold ${
+                              priceSafe ? 'text-emerald-400/70 bg-emerald-500/10' :
+                              priceUnderpriced ? 'text-amber-400 bg-amber-500/10' :
+                              'text-red-400 bg-red-500/10'
+                            }`}>
+                              {priceSafe ? '✓ Cari qiymət təhlükəsiz aralıqdadır' :
+                               priceUnderpriced ? '⚠ Cari qiymət çox aşağıdır — marja riski' :
+                               '⚠ Cari qiymət çox yüksəkdir — tələb riski'}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {selectedProduct && salePrice > 0 && (
-                        <div className="grid grid-cols-2 gap-3 pt-2">
+                        <div className="grid grid-cols-2 gap-3">
                           <div className="px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
                             <p className="text-[9px] text-white/30 uppercase tracking-wider">Satış Qiyməti</p>
                             <p className="text-sm font-bold text-white/80 tabular-nums">₼{salePrice.toFixed(2)}</p>
@@ -448,7 +489,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                       )}
 
                       {selectedProduct && salePrice > 0 && (
-                        <div className="pt-2 space-y-1.5">
+                        <div className="space-y-1.5">
                           <div className="flex items-center justify-between text-[9px] text-white/30 uppercase tracking-wider">
                             <span>Mənfəət Marjı</span>
                             <span className="tabular-nums font-bold">{marginPct >= 0 ? '+' : ''}{marginPct.toFixed(1)}%</span>
@@ -494,9 +535,11 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                                 <span className="tabular-nums">₼{r.cost.toFixed(2)}</span>
                               </div>
                               <p className="text-[8px] text-white/15">
-                                netto {r.quantity} {r.unit}
+                                {r.quantity} {r.unit}
                                 {diff > 0 && ` → brutto ${r.quantity_brutto} ${r.unit} (+${diff} itki)`}
-                                {r.hot_waste_percentage > 0 && ` · bişmə itkisi ${r.hot_waste_percentage}%`}
+                                {ingredientMap.get(r.ingredient_id)?.cold_waste_percentage
+                                  ? ` · soyuq itki ${ingredientMap.get(r.ingredient_id)!.cold_waste_percentage}%`
+                                  : ''}
                               </p>
                             </div>
                           );

@@ -70,13 +70,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ═══ STOCK DEDUCTION ═══
+    let stockDeduction = { deducted: 0, ingredientIds: [] as string[] };
     try {
-      await deductStockForOrder(order_id);
+      stockDeduction = await deductStockForOrder(order_id);
     } catch (stockErr) {
       console.error('[pay] Stock deduction failed (non-fatal):', stockErr);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, stockDeduction });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

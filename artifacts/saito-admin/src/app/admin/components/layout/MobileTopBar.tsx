@@ -69,7 +69,7 @@ export default function MobileTopBar({ role }: { role: 'admin' | 'superadmin' | 
             {role === 'superadmin' ? t('superadmin') : t('admin')}
           </span>
         </p>
-        <Link href="/" className="text-base font-serif font-bold truncate block text-[var(--theme-text)]">
+        <Link href="/admin" className="text-base font-serif font-bold truncate block text-[var(--theme-text)]">
           Saito Admin
         </Link>
       </div>

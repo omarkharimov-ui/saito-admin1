@@ -178,7 +178,7 @@ const AdminHeaderInner = ({
 
                   {notifications.length > 0 && (
                     <Link
-                      href="/reservations"
+                      href="/admin/reservations"
                       onClick={() => setShowDropdown(false)}
                       className="block p-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] transition-colors bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]"
                     >

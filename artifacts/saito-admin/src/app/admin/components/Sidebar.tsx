@@ -53,7 +53,7 @@ const Sidebar = ({
 
         {/* Brand */}
         <div className="px-6 pt-6 pb-5">
-          <Link href="/" className="flex items-center group">
+          <Link href="/admin" className="flex items-center group">
             <span className="text-[11px] font-black tracking-[0.35em] leading-none uppercase text-[var(--theme-text)]">
               SAITO
             </span>

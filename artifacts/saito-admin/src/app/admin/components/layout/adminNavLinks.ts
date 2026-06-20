@@ -32,31 +32,31 @@ export function getAdminNavItems(
   counts: { pending: number; ready: number }
 ): AdminNavItem[] {
   return [
-    { id: 'dashboard', name: t('dashboard'), href: '/', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
+    { id: 'dashboard', name: t('dashboard'), href: '/admin', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
     {
       id: 'pos',
       name: 'POS',
-      href: '/pos',
+      href: '/admin/pos',
       icon: Monitor,
       roles: ['admin', 'superadmin'],
     },
     {
       id: 'reservations',
       name: t('reservations'),
-      href: '/reservations',
+      href: '/admin/reservations',
       icon: Calendar,
       roles: ['admin', 'superadmin'],
       badge: counts.pending,
     },
-    { id: 'products', name: t('products'), href: '/products', icon: ShoppingBag, roles: ['superadmin'] },
-    { id: 'combos', name: t('combos'), href: '/combos', icon: PackagePlus, roles: ['superadmin'] },
-    { id: 'campaigns', name: t('campaigns'), href: '/campaigns', icon: Percent, roles: ['admin', 'superadmin'] },
-    { id: 'stock', name: 'Stok', href: '/stock', icon: Warehouse, roles: ['superadmin'] },
-    { id: 'purchase-orders', name: 'Alış Sifarişləri', href: '/purchase-orders', icon: ShoppingCart, roles: ['superadmin'] },
-    { id: 'recipes', name: 'Reseptlər', href: '/recipes', icon: ScrollText, roles: ['superadmin'] },
-    { id: 'audit', name: 'Audit', href: '/audit', icon: ShieldAlert, roles: ['superadmin'] },
-    { id: 'stats', name: t('statistics'), href: '/stats', icon: BarChart3, roles: ['superadmin'] },
-    { id: 'settings', name: t('settings'), href: '/settings', icon: Settings, roles: ['superadmin'] }
+    { id: 'products', name: t('products'), href: '/admin/products', icon: ShoppingBag, roles: ['superadmin'] },
+    { id: 'combos', name: t('combos'), href: '/admin/combos', icon: PackagePlus, roles: ['superadmin'] },
+    { id: 'campaigns', name: t('campaigns'), href: '/admin/campaigns', icon: Percent, roles: ['admin', 'superadmin'] },
+    { id: 'stock', name: 'Stok', href: '/admin/stock', icon: Warehouse, roles: ['superadmin'] },
+    { id: 'purchase-orders', name: 'Alış Sifarişləri', href: '/admin/purchase-orders', icon: ShoppingCart, roles: ['superadmin'] },
+    { id: 'recipes', name: 'Reseptlər', href: '/admin/recipes', icon: ScrollText, roles: ['superadmin'] },
+    { id: 'audit', name: 'Audit', href: '/admin/audit', icon: ShieldAlert, roles: ['superadmin'] },
+    { id: 'stats', name: t('statistics'), href: '/admin/stats', icon: BarChart3, roles: ['superadmin'] },
+    { id: 'settings', name: t('settings'), href: '/admin/settings', icon: Settings, roles: ['superadmin'] }
   ];
 }
 

@@ -15,7 +15,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace('/');
+      if (data.session) router.replace('/admin');
     });
   }, [router]);
 
@@ -71,7 +71,7 @@ export default function LoginPage() {
     }
     
     localStorage.setItem('isLoggedIn', 'true');
-    router.replace('/');
+    router.replace('/admin');
   };
 
   return (

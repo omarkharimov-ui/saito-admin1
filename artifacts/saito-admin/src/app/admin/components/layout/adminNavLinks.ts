@@ -32,7 +32,7 @@ export function getAdminNavItems(
   counts: { pending: number; ready: number }
 ): AdminNavItem[] {
   return [
-    { id: 'dashboard', name: t('dashboard'), href: '/admin/pos', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
+    { id: 'dashboard', name: t('dashboard'), href: '/admin', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
     {
       id: 'pos',
       name: 'POS',

@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
     if (role !== 'kitchen' && !ADMIN_ROLES.has(role)) {
-      return NextResponse.redirect(new URL('/admin/pos', request.url));
+      return NextResponse.redirect(new URL('/admin', request.url));
     }
     return NextResponse.next();
   }
@@ -37,7 +37,8 @@ export async function middleware(request: NextRequest) {
   // ── Root redirection ────────────────────────────────────
   if (pathname === '/' || pathname === '/admin') {
     if (isLoggedIn && role && ADMIN_ROLES.has(role)) {
-      return NextResponse.redirect(new URL('/admin/pos', request.url));
+      if (pathname === '/admin') return NextResponse.next();
+      return NextResponse.redirect(new URL('/admin', request.url));
     }
     if (!isLoggedIn) {
        return NextResponse.redirect(new URL('/login', request.url));

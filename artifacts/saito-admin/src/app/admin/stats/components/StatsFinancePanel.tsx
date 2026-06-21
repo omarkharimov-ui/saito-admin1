@@ -55,7 +55,7 @@ function foodCostHealth(pct: number): { label: string; color: string; bg: string
 function FinCard({
   label, value, sub, icon, accent, big, delay = 0,
 }: {
-  label: string; value: string; sub?: string; icon: React.ReactNode;
+  label: string; value: string; sub?: React.ReactNode; icon: React.ReactNode;
   accent: string; big?: boolean; delay?: number;
 }) {
   return (

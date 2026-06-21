@@ -46,7 +46,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={t('search_products' as any)}
-          className={`w-full rounded-2xl pl-11 pr-10 py-3.5 text-sm outline-none transition-all ${lightMode ? 'bg-[#efeff4] border-none text-gray-900 placeholder:text-gray-400 focus:bg-[#e5e5ea]' : 'bg-white/[0.05] border-none text-white placeholder:text-white/10 focus:bg-white/[0.08]'}`}
+          className={`w-full rounded-2xl pl-11 pr-10 py-3.5 text-sm outline-none transition-all ${lightMode ? 'bg-[#efeff4] border-none text-gray-900 placeholder:text-gray-400 focus:bg-[#e5e5ea]' : 'bg-white/[0.08] border-none text-white placeholder:text-white/10 focus:bg-white/[0.12]'}`}
         />
         {search && (
           <button onClick={() => setSearch('')} className={`absolute right-4 top-1/2 -translate-y-1/2 ${lightMode ? 'text-gray-400' : 'text-white/20'}`}>
@@ -62,7 +62,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
           className={`relative flex-shrink-0 px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
             !categoryFilter
               ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-lg'
-              : 'bg-[#efeff4] dark:bg-white/[0.05] text-[#8e8e93] hover:bg-[#e5e5ea]'
+              : 'bg-[#efeff4] dark:bg-white/[0.08] text-[#8e8e93] hover:bg-[#e5e5ea] dark:hover:bg-white/[0.12]'
           }`}
         >
           {t('all' as any)}
@@ -76,7 +76,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
               className={`relative flex-shrink-0 px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
                 isActive
                   ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-lg'
-                  : 'bg-[#efeff4] dark:bg-white/[0.05] text-[#8e8e93] hover:bg-[#e5e5ea]'
+                  : 'bg-[#efeff4] dark:bg-white/[0.08] text-[#8e8e93] hover:bg-[#e5e5ea] dark:hover:bg-white/[0.12]'
               }`}
             >
               {c.name}
@@ -111,7 +111,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
                       key={product.id}
                       whileTap={{ scale: 0.96 }}
                       onClick={() => onAddProduct(product)}
-                      className="group relative flex flex-col rounded-[32px] bg-[#efeff4] dark:bg-white/[0.05] p-3 transition-all duration-300 hover:shadow-xl hover:bg-[#e5e5ea] dark:hover:bg-white/[0.08]"
+                      className="group relative flex flex-col rounded-[32px] bg-[#efeff4] dark:bg-white/[0.08] p-3 transition-all duration-300 hover:shadow-xl hover:bg-[#e5e5ea] dark:hover:bg-white/[0.12]"
                     >
                       {hasNoStock && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 rounded-[32px] backdrop-blur-[2px]">

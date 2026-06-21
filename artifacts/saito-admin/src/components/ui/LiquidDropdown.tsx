@@ -23,7 +23,6 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
   
   const activeLabel = options.find(o => o.id === activeId)?.label || 'Seçin';
 
-  // Apple-style Spring Physics
   const springConfig = {
     type: 'spring',
     stiffness: 400,
@@ -31,7 +30,6 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
     mass: 0.6
   } as const;
 
-  // Handle click outside to close
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -51,15 +49,18 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
         onPointerDown={() => setIsHolding(true)}
         onPointerUp={() => setIsHolding(false)}
         onPointerLeave={() => setIsHolding(false)}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
         animate={{
           scale: isHolding ? 0.96 : 1,
         }}
         transition={springConfig}
-        className={`relative flex items-center justify-between gap-3 px-6 py-2.5 rounded-full border cursor-pointer transition-all duration-500 z-30 min-w-[140px] ${
+        className={`relative flex items-center justify-between gap-3 px-6 py-2.5 rounded-full border cursor-pointer transition-all duration-500 z-30 min-w-[120px] ${
           isOpen 
             ? 'bg-white/15 dark:bg-white/10 backdrop-blur-2xl border-white/30 shadow-2xl' 
-            : 'bg-[#efeff4] dark:bg-white/[0.08] border-black/[0.03] dark:border-white/[0.1] shadow-sm hover:bg-[#e5e5ea]'
+            : 'bg-[#efeff4] dark:bg-white/[0.08] border-transparent dark:border-white/[0.1] shadow-sm hover:bg-[#e5e5ea]'
         }`}
       >
         <span className={`text-[11px] font-black uppercase tracking-[0.2em] pointer-events-none ${
@@ -69,7 +70,6 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
         </span>
         <ChevronDown size={14} className={`transition-transform duration-500 pointer-events-none ${isOpen ? 'rotate-180 text-gold' : 'text-[#8e8e93]'}`} />
 
-        {/* Liquid Hold Indicator */}
         {isHolding && (
           <motion.div
             layoutId="dropdown-liquid-glow"
@@ -109,8 +109,6 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
                 </button>
               ))}
             </div>
-            
-            {/* Specular Highlight */}
             <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-white/10 via-transparent to-transparent" />
           </motion.div>
         )}

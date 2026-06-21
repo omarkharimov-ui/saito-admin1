@@ -130,10 +130,10 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
           <thead>
             <tr className="bg-white/[0.02] border-b border-white/5">
               <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium">{t('stats_col_product')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">{t('stats_col_views')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">{t('stats_col_sales')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">{t('stats_col_conversion')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-right">{t('stats_col_revenue')}</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">Satış Qiyməti</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">Satış Sayı</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">Maya Dəyəri</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-right">Xalis Qazanc</th>
             </tr>
           </thead>
           <tbody>
@@ -141,45 +141,30 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
               <tr><td colSpan={5} className="p-20 text-center text-white/20 uppercase tracking-widest text-xs">{t('stats_no_sales')}</td></tr>
             ) : (
               filtered.map((p) => {
-                const convNum = Number(p.conversion);
-                const isGood = convNum >= 20;
+                const revenue = Number(p.revenue) || 0;
+                const sold = Number(p.sold) || 0;
+                const unitPrice = sold > 0 ? revenue / sold : 0;
+                const foodCost = Number(p.food_cost) || (revenue * 0.35);
+                const profit = revenue - foodCost;
+
                 return (
                   <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.01] transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-black border border-white/5 overflow-hidden rounded-lg flex items-center justify-center flex-shrink-0">
                           {p.image ? (
-                            <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                            <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-white/5 to-white/10 flex items-center justify-center">
-                              <span className="text-xs text-white/30">🍣</span>
-                            </div>
+                            <span className="text-xs text-white/30">🍣</span>
                           )}
                         </div>
                         <span className="font-bold">{p.name}</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-center">
-                      <div className="flex items-center justify-center gap-1 text-white/60 font-medium">
-                        {p.views}
-                        {p.views > 30 ? <TrendingUp size={12} className="text-green-400" /> : p.views < 5 ? <TrendingDown size={12} className="text-red-400" /> : null}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 text-center">
-                      <div className="flex items-center justify-center gap-1 text-white/60 font-medium">
-                        {p.sold}
-                        {p.sold > 10 ? <TrendingUp size={12} className="text-green-400" /> : null}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="w-24 h-2 bg-white/5 rounded-full overflow-hidden relative">
-                          <div className={`h-full rounded-full transition-all ${convNum >= 80 ? 'bg-gold shadow-[0_0_10px_rgba(212,175,55,0.7)]' : isGood ? 'bg-gold shadow-[0_0_6px_rgba(212,175,55,0.4)]' : 'bg-white/25'}`} style={{ width: `${Math.min(convNum * 2, 100)}%` }} />
-                        </div>
-                        <span className={`text-xs font-bold ${convNum >= 80 ? 'text-gold drop-shadow-[0_0_6px_rgba(212,175,55,0.8)]' : isGood ? 'text-gold' : (lightMode ? 'text-gray-600' : 'text-white/40')}`}>{p.conversion}%</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 text-right font-bold text-[var(--theme-text)]">₼ {Number(p.revenue).toFixed(2)}</td>
+                    <td className="px-8 py-5 text-center font-medium text-white/60">₼ {unitPrice.toFixed(2)}</td>
+                    <td className="px-8 py-5 text-center font-bold text-white">{sold}</td>
+                    <td className="px-8 py-5 text-center text-rose-400 font-medium">₼ {foodCost.toFixed(2)}</td>
+                    <td className="px-8 py-5 text-right font-black text-emerald-400">₼ {profit.toFixed(2)}</td>
                   </tr>
                 );
               })

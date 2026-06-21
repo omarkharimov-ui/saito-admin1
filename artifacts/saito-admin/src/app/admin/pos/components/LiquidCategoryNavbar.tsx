@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { motion, useMotionValue, useSpring, useTransform, animate, PanInfo } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform, animate, PanInfo, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Category {

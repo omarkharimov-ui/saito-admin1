@@ -85,11 +85,13 @@ export function TableCard({
 
   return (
     <motion.button
-      layout
-      whileHover={{ y: -2, transition: { duration: 0.12 } }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onTap}
-      className={`relative w-full flex flex-col rounded-2xl p-5 min-h-[130px] text-left transition-all duration-200 border ${lightMode ? cfg.lightBg : cfg.bg} ${lightMode ? (isGroupParent ? 'border-zinc-300' : cfg.lightBorder) : (isGroupParent ? 'border-zinc-700' : cfg.border)} ${isSelected ? (lightMode ? 'ring-2 ring-gray-900/20 shadow-md' : 'ring-2 ring-white/25 shadow-xl') : ''} ${isTransferSource ? 'opacity-70' : ''} ${isTransferTarget ? (lightMode ? 'bg-amber-50/60 shadow-md' : 'bg-white/[0.06] shadow-lg') : ''} ${lightMode ? 'shadow-sm hover:shadow-md' : cfg.glow} ${isMerged ? 'border-l-2 border-l-zinc-500/40' : ''} ${isOverdue ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}`}
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      className={`relative h-[120px] rounded-[24px] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 text-left transition-all duration-500 overflow-hidden shadow-sm hover:shadow-md
+        ${status === 'occupied' ? 'border-l-[6px] border-l-emerald-500' : 
+          status === 'dirty' ? 'border-l-[6px] border-l-orange-500' : 
+          status === 'reserved' ? 'border-l-[6px] border-l-blue-500' : 
+          'border-l-[6px] border-l-[var(--theme-text-muted)] opacity-60 hover:opacity-100'}`}
     >
       {/* Static subtle glow for waiting bill — no pulse */}
       {table.status === 'waiting_bill' && (

@@ -50,7 +50,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
     return (
     <motion.div
       {...motionProps}
-      className={`relative overflow-hidden rounded-[32px] border border-white/[0.08] bg-[#1c1c1e] p-6 shadow-2xl ${className}`}
+      className={`relative overflow-hidden rounded-[32px] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-6 shadow-xl dark:shadow-2xl ${className}`}
     >
         {children}
       </motion.div>

@@ -105,15 +105,11 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
                   const count = cartCounts[product.id] || 0;
                   const hasNoStock = outOfStock?.has(product.id);
                   return (
-                    <motion.button
-                      key={product.id}
-                      layout
-                      initial={false}
-                      whileHover={hasNoStock ? {} : { y: -2 }}
-                      whileTap={hasNoStock ? {} : { scale: 0.95 }}
-                      onClick={() => !hasNoStock && onAddProduct(product)}
-                      className={`relative rounded-xl border flex flex-col overflow-hidden transition-all bg-[var(--theme-surface-muted)] border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] shadow-sm hover:shadow-md ${hasNoStock ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
+    <motion.button
+      whileTap={{ scale: 0.97 }}
+      onClick={onClick}
+      className="group relative flex flex-col rounded-[24px] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-3 transition-all duration-300 shadow-sm hover:shadow-md border-l-[5px] border-l-gold"
+    >
                       {hasNoStock && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 rounded-xl">
                           <span className="text-[10px] font-bold text-white/80 bg-black/60 px-2 py-1 rounded-lg">Stok yoxdur</span>

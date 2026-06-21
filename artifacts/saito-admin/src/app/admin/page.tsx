@@ -17,16 +17,26 @@ function YojiAdvice() {
   useEffect(() => {
     const fetchAdvice = async () => {
       try {
-        const res = await fetch('/api/dashboard/stats');
+        const res = await fetch('/api/stats?timeFilter=month');
         const data = await res.json();
-        // Here we can use the static advice or fetched AI insights
-        setAdvice({
-          title: "Günün Strategiyası",
-          text: data.marginInsight?.marginPressure === 'healthy' 
-            ? "Mənfəət marjanız stabil qalır. Bu gün premium set menyuları önə çıxarmaq üçün əla fürsətdir."
-            : "Xərc təzyiqi hiss olunur. FC (Food Cost) optimallaşdırmasına diqqət yetirin.",
-          type: data.marginInsight?.marginPressure || 'growth'
-        });
+        
+        const isCritical = (data.netProfit < 0) || (data.totalWasteCost > (data.totalRevenue * 0.2));
+
+        if (isCritical) {
+          setAdvice({
+            title: "KRİTİK VƏZİYYƏT",
+            text: `Biznes təhlükədədir! Cari dövrdə ₼${Math.abs(data.netProfit).toLocaleString()} xalis ziyan və ₼${data.totalWasteCost.toLocaleString()} itki qeydə alınıb. Təcili tədbir görülməlidir!`,
+            type: 'critical'
+          });
+        } else {
+          setAdvice({
+            title: "Yoji Məsləhəti",
+            text: data.totalRevenue > 1000 
+              ? "Satışlar stabil gedir. Maya dəyərini nəzarətdə saxlayaraq mənfəəti artıra bilərsiniz."
+              : "Yeni kampaniyalarla müştəri axınını sürətləndirmək olar.",
+            type: 'growth'
+          });
+        }
       } catch {
         setAdvice({
           title: "Yoji-dən Mesaj",
@@ -40,24 +50,40 @@ function YojiAdvice() {
     fetchAdvice();
   }, []);
 
+  const isCritical = advice?.type === 'critical';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.2 }}
-      className="relative overflow-hidden rounded-3xl bg-card border border-white/[0.06] p-8 shadow-xl"
+      className={`relative overflow-hidden rounded-[40px] border p-8 shadow-2xl transition-all duration-700 ${
+        isCritical 
+          ? 'bg-rose-500/10 border-rose-500/30 shadow-rose-500/10' 
+          : 'bg-[#1c1c1e] border-white/[0.06] shadow-black/50'
+      }`}
     >
-      <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
-        <BrainCircuit size={120} className="text-gold" />
+      <div className="absolute top-0 right-0 p-8 opacity-[0.05]">
+        <BrainCircuit size={120} className={isCritical ? 'text-rose-500' : 'text-gold'} />
       </div>
+
+      {isCritical && (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(239,68,68,0.1),transparent_70%)] animate-pulse" />
+      )}
       
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center border border-gold/20">
-          <Lightbulb className="text-gold" size={24} />
+      <div className="flex items-center gap-5 mb-8">
+        <div className={`w-14 h-14 rounded-[20px] flex items-center justify-center border transition-all ${
+          isCritical ? 'bg-rose-500/20 border-rose-500/30' : 'bg-gold/10 border-gold/20'
+        }`}>
+          {isCritical ? <AlertTriangle className="text-rose-500" size={28} /> : <Lightbulb className="text-gold" size={28} />}
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white tracking-tight">Yoji Məsləhətləri</h3>
-          <p className="text-[10px] text-gold uppercase tracking-[0.3em]">AI Strategiya Analizi</p>
+          <h3 className={`text-xl font-black tracking-tight ${isCritical ? 'text-rose-400' : 'text-white'}`}>
+            {advice?.title}
+          </h3>
+          <p className={`text-[10px] font-bold uppercase tracking-[0.4em] ${isCritical ? 'text-rose-500/60' : 'text-gold/60'}`}>
+            {isCritical ? 'TƏCİLİ STRATEGİYA' : 'AI STRATEGİYA ANALİZİ'}
+          </p>
         </div>
       </div>
 
@@ -68,16 +94,20 @@ function YojiAdvice() {
             <div className="h-4 w-1/2 bg-white/5 rounded-full animate-pulse" />
           </motion.div>
         ) : (
-          <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <p className="text-[15px] text-white/75 leading-relaxed font-medium italic italic-serif">
+          <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            <p className={`text-lg leading-relaxed font-bold tracking-tight ${isCritical ? 'text-white' : 'text-white/80'}`}>
               "{advice?.text}"
             </p>
-            <div className="flex items-center gap-4 pt-2">
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[10px] font-bold text-white/40 uppercase tracking-widest">
-                <Zap size={10} className="text-gold" /> {advice?.title}
+            <div className="flex items-center gap-6 pt-2">
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[11px] font-black uppercase tracking-widest ${
+                isCritical ? 'bg-rose-500 text-white border-rose-400' : 'bg-white/[0.04] border-white/10 text-white/40'
+              }`}>
+                <Zap size={12} className={isCritical ? 'text-white' : 'text-gold'} /> {isCritical ? 'İMKANLARI ARAŞDIR' : advice?.title}
               </div>
-              <Link href="/admin/stats" className="text-[10px] font-bold text-gold/60 hover:text-gold uppercase tracking-widest transition-colors flex items-center gap-1">
-                Daha çox analiz <Sparkles size={10} />
+              <Link href="/admin/stats" className={`text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                isCritical ? 'text-rose-400 hover:text-rose-300' : 'text-gold/60 hover:text-gold'
+              }`}>
+                DƏRİN ANALİZ <Sparkles size={12} />
               </Link>
             </div>
           </motion.div>

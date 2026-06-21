@@ -287,7 +287,18 @@ export default function POSPage() {
         </AnimatePresence>
       </div>
 
-      <ActionSheet table={actionSheetTable} open={actionSheetOpen} onClose={() => setActionSheetOpen(false)} onAddOrder={() => { pos.selectTable(actionSheetTable!); setActionSheetOpen(false); }} onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable!.table_number]); pos.setActiveView('floor'); setActionSheetOpen(false); }} onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); pos.setActiveView('floor'); setActionSheetOpen(false); }} onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} />
+      <ActionSheet 
+        table={actionSheetTable} 
+        open={actionSheetOpen} 
+        onClose={() => setActionSheetOpen(false)} 
+        onAddOrder={() => { pos.selectTable(actionSheetTable!); setActionSheetOpen(false); }} 
+        onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable!.table_number]); pos.setActiveView('floor'); setActionSheetOpen(false); }} 
+        onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); pos.setActiveView('floor'); setActionSheetOpen(false); }} 
+        onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} 
+        onSplitBill={() => {}}
+        onPrint={() => {}}
+        onSaveDraft={() => {}}
+      />
       <ModifierSheet open={modifierOpen} productName={modifierProduct?.name || ''} productPrice={modifierProduct?.price || 0} onClose={() => setModifierOpen(false)} onConfirm={(m, n) => { pos.addToCart(modifierProduct!, m, n); setModifierOpen(false); }} />
     </div>
   );

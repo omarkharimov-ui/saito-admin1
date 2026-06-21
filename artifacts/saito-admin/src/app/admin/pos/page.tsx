@@ -12,7 +12,7 @@ import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import MobileModal from '@/components/ui/MobileModal';
-import { LiquidSwitcher } from '@/components/ui/LiquidSwitcher';
+import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
 import SimpleToaster from '@/app/admin/components/layout/SimpleToaster';
 import { supabase } from '@/lib/supabase';
@@ -409,9 +409,9 @@ export default function POSPage() {
                 <div className="flex items-center justify-between mb-4 gap-3">
                   <div className="flex items-center gap-3">
                     <h1 className="text-xl sm:text-2xl font-black tracking-tighter mr-2">POS</h1>
-                    {/* Liquid Floor Switcher */}
+                    {/* Liquid Floor Dropdown */}
                     {pos.floors.length > 0 && (
-                      <LiquidSwitcher 
+                      <LiquidDropdown 
                         options={pos.floors.map(f => ({ id: f.name, label: f.name }))}
                         activeId={selectedFloorName}
                         onChange={(id) => setSelectedFloor(id)}

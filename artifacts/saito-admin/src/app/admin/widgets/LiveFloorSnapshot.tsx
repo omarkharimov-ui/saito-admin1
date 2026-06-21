@@ -23,112 +23,52 @@ export default function LiveFloorSnapshot() {
     const fetchFloorStatus = async () => {
       setLoading(true);
       try {
-        // Get table count from settings
         const { data: settings, error: settingsError } = await supabase.from('settings').select('qr_table_count').maybeSingle();
-        if (settingsError) {
-          console.error("Error fetching settings:", settingsError);
-        }
         const count = settings?.qr_table_count || 12;
         setTableCount(count);
 
-        // Get active orders with table info
         const { data: orders, error: ordersError } = await supabase
           .from('orders')
           .select('table_number, status, kitchen_status, created_at, total_amount')
           .in('status', ['new', 'confirmed'])
           .order('created_at', { ascending: false });
 
-        if (ordersError) {
-          console.error("Error fetching orders:", ordersError);
-        }
-
-        // Build table status map
         const tableMap = new Map<number, TableStatus>();
-        
-        // Initialize all tables as empty
         for (let i = 1; i <= count; i++) {
           tableMap.set(i, { tableNumber: i, status: 'empty' });
         }
 
-        // Update based on orders, only if orders is a valid array
         if (Array.isArray(orders)) {
             orders.forEach(order => {
                 if (!order || !order.table_number) return;
-
                 const tableNum = order.table_number;
                 const existing = tableMap.get(tableNum);
                 let status: TableStatus['status'] = 'occupied';
-                
-                if (order.status === 'new') {
-                status = 'new';
-                } else if (order.kitchen_status === 'ready') {
-                status = 'payment_pending';
-                } else {
-                status = 'order_placed';
-                }
+                if (order.status === 'new') status = 'new';
+                else if (order.kitchen_status === 'ready') status = 'payment_pending';
+                else status = 'order_placed';
 
                 const waitTime = order.created_at ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000) : 0;
-
                 tableMap.set(tableNum, {
-                tableNumber: tableNum,
-                status,
-                orderCount: (existing?.orderCount || 0) + 1,
-                waitTime,
+                  tableNumber: tableNum,
+                  status,
+                  orderCount: (existing?.orderCount || 0) + 1,
+                  waitTime,
                 });
             });
         }
-
         setTables(Array.from(tableMap.values()));
       } catch (error) {
         console.error("An unexpected error occurred in fetchFloorStatus:", error);
-        // In case of a major error, set a default safe state
-        const defaultTables: TableStatus[] = [];
-        for (let i = 1; i <= tableCount; i++) {
-          defaultTables.push({ tableNumber: i, status: 'empty' });
-        }
-        setTables(defaultTables);
       } finally {
         setLoading(false);
       }
     };
 
     fetchFloorStatus();
-    const interval = setInterval(fetchFloorStatus, 15000); // 15s refresh
+    const interval = setInterval(fetchFloorStatus, 15000);
     return () => clearInterval(interval);
   }, []);
-
-  const getStatusColor = (status: TableStatus['status']) => {
-    switch (status) {
-      case 'empty': return 'bg-white/[0.03] text-white/30';
-      case 'new': return 'bg-emerald-500/10 text-emerald-400';
-      case 'order_placed': return 'bg-amber-500/10 text-amber-400';
-      case 'payment_pending': return 'bg-blue-500/10 text-blue-400';
-      case 'occupied': return 'bg-white/[0.06] text-white/50';
-      default: return 'bg-white/[0.03] text-white/30';
-    }
-  };
-
-  const getStatusIcon = (status: TableStatus['status']) => {
-    switch (status) {
-      case 'empty': return <Armchair size={14} />;
-      case 'new': return <Users size={14} />;
-      case 'order_placed': return <Utensils size={14} />;
-      case 'payment_pending': return <CheckCircle2 size={14} />;
-      case 'occupied': return <Clock size={14} />;
-      default: return <Armchair size={14} />;
-    }
-  };
-
-  const getStatusLabel = (status: TableStatus['status']) => {
-    switch (status) {
-      case 'empty': return t('empty');
-      case 'new': return t('new_guests');
-      case 'order_placed': return t('cooking');
-      case 'payment_pending': return t('payment_pending');
-      case 'occupied': return t('occupied');
-      default: return t('empty');
-    }
-  };
 
   const occupiedCount = tables.filter(t => t.status !== 'empty').length;
   const newCount = tables.filter(t => t.status === 'new').length;
@@ -139,51 +79,53 @@ export default function LiveFloorSnapshot() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl bg-[var(--theme-surface)] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)] border border-[var(--theme-border)]"
+      className="relative overflow-hidden rounded-[32px] bg-[var(--theme-surface)] p-8 shadow-[var(--theme-shadow)] border border-[var(--theme-border)]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[var(--theme-nested)] flex items-center justify-center shadow-[0_8px_24px_rgba(0,122,255,0.10)]">
-            <Armchair size={20} className="text-gold" />
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-[18px] bg-[var(--theme-bg)] flex items-center justify-center border border-[var(--theme-border)] shadow-sm text-gold">
+            <Armchair size={24} />
           </div>
           <div>
-            <h3 className="text-[var(--theme-text)] font-semibold">{t('live_floor')}</h3>
-            <p className="text-[var(--theme-text-muted)] text-xs">{t('real_time_tables')}</p>
+            <h3 className="text-lg font-black text-[var(--theme-text)] uppercase tracking-tight">{t('live_floor' as any)}</h3>
+            <p className="text-[var(--theme-text-muted)] text-[11px] font-bold uppercase tracking-widest">{t('real_time_tables' as any)}</p>
           </div>
         </div>
         
-        {/* Legend */}
-        <div className="hidden sm:flex items-center gap-3 text-[10px] text-[var(--theme-text-muted)]">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(0,208,132,0.12)] animate-pulse" />
-            {t('new')}
+        <div className="hidden sm:flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.1)]" />
+            {t('new' as any)}
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.12)]" />
-            {t('cooking')}
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.1)]" />
+            {t('cooking' as any)}
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_0_4px_rgba(0,122,255,0.12)]" />
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_0_4px_rgba(0,122,255,0.1)]" />
             DOLU
           </span>
         </div>
       </div>
 
-      {/* Compact Stats Row - No Table Grid */}
-      <div className="flex gap-3">
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
-          <p className="text-xl font-bold text-[var(--theme-text)]">{occupiedCount}<span className="text-[var(--theme-text-muted)] text-sm">/{tableCount}</span></p>
-          <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5">{t('occupied')}</p>
-        </div>
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
-          <p className="text-xl font-bold text-emerald-500">{newCount}</p>
-          <p className="text-[9px] text-emerald-500 uppercase tracking-wider mt-0.5">{t('new_arrivals')}</p>
-        </div>
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
-          <p className="text-xl font-bold text-amber-500">{cookingCount}</p>
-          <p className="text-[9px] text-amber-500 uppercase tracking-wider mt-0.5">{t('in_kitchen')}</p>
-        </div>
+      {/* Summary Grid */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: t('occupied' as any), value: occupiedCount, total: `/${tableCount}`, color: 'text-[var(--theme-text)]' },
+          { label: t('new_arrivals' as any), value: newCount, color: 'text-emerald-500' },
+          { label: t('in_kitchen' as any), value: cookingCount, color: 'text-amber-500' }
+        ].map((item, idx) => (
+          <div key={idx} className="p-6 rounded-[24px] bg-[var(--theme-bg)] border border-[var(--theme-border)] flex flex-col justify-between">
+            <div>
+               <p className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-widest mb-1">{item.label}</p>
+               <p className={`text-4xl font-black ${item.color}`}>
+                  {item.value}
+                  {item.total && <span className="text-sm font-bold text-[var(--theme-text-muted)] ml-1">{item.total}</span>}
+               </p>
+            </div>
+          </div>
+        ))}
       </div>
     </motion.div>
   );

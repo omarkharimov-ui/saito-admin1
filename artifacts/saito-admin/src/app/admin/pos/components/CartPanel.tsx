@@ -78,6 +78,7 @@ export function CartPanel({
 
   const total = cart.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
   const isEmpty = cart.items.length === 0;
+  const hasDraftItems = cart.items.some(item => !item.sentQuantity || item.quantity !== item.sentQuantity);
 
   const lossTotal = Array.from(selectedForLoss.entries()).reduce((sum, [idx, qty]) => {
     return sum + cart.items[idx].unit_price * qty;
@@ -186,16 +187,18 @@ export function CartPanel({
       {/* Cart Quick Actions Row */}
       {!isEmpty && (
         <div className={`flex items-center gap-2 pb-4 mb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
-          <button
-            onClick={onClearDraft}
-            className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
-              lightMode 
-                ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
-                : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
-            }`}
-          >
-            {t('clear')}
-          </button>
+          {hasDraftItems && (
+            <button
+              onClick={onClearDraft}
+              className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
+                lightMode 
+                  ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
+                  : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
+              }`}
+            >
+              {t('clear')}
+            </button>
+          )}
           <button
             onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
             className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${

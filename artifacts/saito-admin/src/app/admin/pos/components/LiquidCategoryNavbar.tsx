@@ -31,31 +31,31 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
         return (
           <button
             key={item.id ?? 'all'}
+            ref={el => { itemRefs.current[idx] = el; }}
             onClick={() => onChange(item.id)}
-            className="relative px-6 py-2 rounded-full transition-colors duration-300 flex-shrink-0 outline-none focus-visible:ring-0 group h-[40px] flex items-center justify-center"
+            className="relative px-6 rounded-full transition-colors duration-300 flex-shrink-0 outline-none focus-visible:ring-0 group h-[40px] flex items-center justify-center"
           >
             {isActive && (
               <motion.div
                 layoutId="active-pill"
                 transition={{
                   type: "spring",
-                  stiffness: 380,
+                  stiffness: 400,
                   damping: 30
                 }}
-                className={`absolute inset-0 z-0 rounded-full shadow-md ${
-                  lightMode ? 'bg-zinc-900' : 'bg-white'
-                }`}
+                className="absolute inset-[3px] z-0 rounded-full shadow-md bg-white dark:bg-white"
               />
             )}
             
             <span className={`relative z-10 text-[11px] font-black uppercase tracking-widest transition-colors duration-300 ${
               isActive 
-                ? (lightMode ? 'text-white' : 'text-black') 
+                ? 'text-black' 
                 : (lightMode ? 'text-zinc-500 hover:text-black' : 'text-white/40 hover:text-white')
             }`}>
               {item.name}
             </span>
           </button>
+
         );
       })}
     </div>

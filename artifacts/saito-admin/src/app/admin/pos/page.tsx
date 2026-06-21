@@ -17,10 +17,29 @@ import SimpleToaster from '@/app/admin/components/layout/SimpleToaster';
 import { supabase } from '@/lib/supabase';
 import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable, LossItem } from './types/shared';
 
+import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
+import { localStore } from '@/lib/sync/OfflineStore';
+
 export default function POSPage() {
   const { t } = useLanguage();
   const { lightMode, setLightMode } = useTheme();
   const pos = usePos();
+
+  // Initialize P2P Mesh Listener on Mount
+  useEffect(() => {
+    MeshBroadcaster.startListening();
+    
+    // Periodically sync local state with UI
+    const interval = setInterval(async () => {
+      const offlineTables = await localStore.getAllTables();
+      if (offlineTables.length > 0) {
+        // Here we could patch the 'pos.tables' state if needed
+        // but for now, let the Broadcaster handle the reconciliation
+      }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const [orderDelayMinutes, setOrderDelayMinutes] = useState(30);
   const [actionSheetOpen, setActionSheetOpen] = useState(false);

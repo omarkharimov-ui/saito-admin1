@@ -306,6 +306,38 @@ export function Modal({
   );
 }
 
+export function MetricCard({
+  label,
+  value,
+  trend,
+  context,
+  className = '',
+}: {
+  label: string;
+  value: string | number;
+  trend?: { direction: 'up' | 'down'; percentage: number };
+  context?: string;
+  className?: string;
+}) {
+  return (
+    <Card className={`flex flex-col gap-2 p-5 ${className}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{label}</span>
+        {trend && (
+          <div className={`flex items-center gap-1 text-[10px] font-black ${trend.direction === 'up' ? 'text-emerald-500' : 'text-rose-500'}`}>
+            <span>{trend.direction === 'up' ? '↑' : '↓'}</span>
+            <span>{trend.percentage}%</span>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col">
+        <span className="text-2xl font-black text-[var(--theme-text)]">{value}</span>
+        {context && <span className="text-[10px] font-bold text-[var(--theme-text-muted)] mt-0.5 opacity-60">{context}</span>}
+      </div>
+    </Card>
+  );
+}
+
 export function Badge({
   children,
   variant = 'default',
@@ -325,5 +357,28 @@ export function Badge({
     <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${variants[variant]}`}>
       {children}
     </span>
+  );
+}
+
+export function StatusIndicator({
+  status,
+  label,
+}: {
+  status: 'available' | 'occupied' | 'reserved' | 'bill' | 'alert';
+  label: string;
+}) {
+  const configs = {
+    available: 'bg-zinc-400',
+    occupied: 'bg-blue-500',
+    reserved: 'bg-amber-500',
+    bill: 'bg-emerald-500',
+    alert: 'bg-rose-500',
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`w-2 h-2 rounded-full ${configs[status] || configs.available}`} />
+      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{label}</span>
+    </div>
   );
 }

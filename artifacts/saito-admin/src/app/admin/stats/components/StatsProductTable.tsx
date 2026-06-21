@@ -147,7 +147,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
                 const revenue = Number(p.revenue) || 0;
                 const sold = Number(p.sold) || 0;
                 const unitPrice = sold > 0 ? revenue / sold : 0;
-                const foodCost = Number(p.food_cost) || (revenue * 0.35);
+                const foodCost = Number(p.food_cost) || 0;
                 const profit = revenue - foodCost;
 
                 return (

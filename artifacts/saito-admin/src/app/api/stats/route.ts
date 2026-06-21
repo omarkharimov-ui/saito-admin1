@@ -168,9 +168,9 @@ export async function GET(request: Request) {
         // Option B: Ready product (direct ingredient connection)
         unitFoodCost = ingCostMap.get(prod.direct_ingredient_id) || 0;
       } else {
-        // Option C: No data — we need a logical estimation based on current inventory average costs 
-        // to avoid 0 profit errors. Instead of static %, we use the avg category foodcost if possible.
-        unitFoodCost = unitRevenue * 0.30; // fallback to a conservative 30% for unknown items
+        // Option C: No data — strictly report 0 to avoid false financial reporting.
+        // The owner must configure recipes for these items.
+        unitFoodCost = 0;
       }
 
       const lineFoodCost = unitFoodCost * qty;

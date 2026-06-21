@@ -149,15 +149,13 @@ export function usePos() {
   }, []);
 
   const backToFloor = useCallback(() => {
-    const currentCart = cartRef.current;
-    if (currentCart?.items.length) {
-      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-      all[currentCart.table_number] = currentCart;
-      saveCache(POS_CART_KEY + '_all', all);
-    }
+    // We keep the cart state but just switch the view.
+    // The selectTable function will handle loading existing carts from state or cache.
     setSelectedTable(null);
     setActiveView('floor');
-    setCart(null);
+    // Do NOT setCart(null) here if we want to preserve the draft in memory
+    // However, if we want to ensure it reloads correctly on next table select:
+    setCart(null); 
   }, []);
 
   /* ── Cart Operations ── */

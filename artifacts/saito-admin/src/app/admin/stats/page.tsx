@@ -37,7 +37,7 @@ const StatsPage = () => {
     items: { name: string; quantity: number; price: number }[];
   }[]>([]);
   const [stats, setStats] = useState(() => {
-    const empty = {
+    return {
       totalRevenue: 0, totalOrders: 0, aov: 0, peakHour: '—', topProduct: '—',
       missedRevenue: 0, peakHours: [] as { hour: number; count: number }[],
       activeTables: 0, chartData: [] as any[], productPerformance: [] as any[],
@@ -48,15 +48,6 @@ const StatsPage = () => {
       totalFoodCost: 0, totalWasteCost: 0, grossProfit: 0, netProfit: 0,
       foodCostPct: 0, topProfitableItems: [] as any[], financeChartData: [] as any[],
     };
-    try {
-      const r = localStorage.getItem('saito_stats_cache_v4_today');
-      if (!r) return empty;
-      const parsed = JSON.parse(r);
-      if (!Array.isArray(parsed.peakHours)) return empty;
-      return parsed;
-    } catch {
-      return empty;
-    }
   });
 
   /* ─── AI state ─── */
@@ -198,22 +189,8 @@ const StatsPage = () => {
 
   /* ─── Data fetching ─── */
   const fetchDetailedStats = async (isStale?: () => boolean) => {
-    const cacheKey = `saito_stats_cache_v4_${timeFilter}`;
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        const firstDate = parsed.chartData?.[0]?.date ?? '';
-        const validDate = timeFilter === 'today' || String(firstDate).includes(' ');
-        if (Array.isArray(parsed.peakHours) && parsed.peakHours.length > 0 && validDate) {
-          setStats(parsed);
-          if (!isStale || !isStale()) setLoading(false);
-          return;
-        }
-        localStorage.removeItem(cacheKey);
-      }
-    } catch {}
     setLoading(true);
+    try {
     const start2 = Date.now();
     try {
       // API route istifadə edirik (RLS recursion-dan qaçmaq üçün)

@@ -54,72 +54,45 @@ function YojiAdvice() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.2 }}
-      className={`relative overflow-hidden rounded-[40px] border p-8 shadow-2xl transition-all duration-700 ${
+      className={`relative overflow-hidden rounded-[28px] border px-6 py-5 shadow-lg transition-all duration-500 ${
         isCritical 
-          ? 'bg-rose-500/10 border-rose-500/30 shadow-rose-500/10' 
-          : 'bg-[#1c1c1e] border-white/[0.06] shadow-black/50'
+          ? 'bg-rose-500/10 border-rose-500/20' 
+          : 'bg-[#1c1c1e] border-white/[0.06]'
       }`}
     >
-      <div className="absolute top-0 right-0 p-8 opacity-[0.05]">
-        <BrainCircuit size={120} className={isCritical ? 'text-rose-500' : 'text-gold'} />
+      <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none">
+        <BrainCircuit size={80} className={isCritical ? 'text-rose-500' : 'text-gold'} />
       </div>
 
-      {isCritical && (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(239,68,68,0.1),transparent_70%)] animate-pulse" />
-      )}
-      
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-5">
-          <div className={`w-14 h-14 rounded-[20px] flex items-center justify-center border transition-all duration-500 ${
-            isCritical ? 'bg-rose-500/20 border-rose-500/30' : 'bg-gold/10 border-gold/20'
-          }`}>
-            {isCritical ? <AlertTriangle className="text-rose-500" size={28} /> : <Lightbulb className="text-gold" size={28} />}
-          </div>
-          <div>
-            <h3 className={`text-xl font-black tracking-tight transition-colors duration-500 ${isCritical ? 'text-rose-400' : 'text-white'}`}>
+      <div className="flex items-center gap-4">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all ${
+          isCritical ? 'bg-rose-500/20 border-rose-500/30' : 'bg-gold/10 border-gold/20'
+        }`}>
+          {isCritical ? <AlertTriangle className="text-rose-500" size={20} /> : <Lightbulb className="text-gold" size={20} />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <h3 className={`text-sm font-black tracking-tight ${isCritical ? 'text-rose-400' : 'text-white'}`}>
               {advice?.title}
             </h3>
-            <p className={`text-[10px] font-bold uppercase tracking-[0.4em] transition-colors duration-500 ${isCritical ? 'text-rose-500/60' : 'text-gold/60'}`}>
-              {isCritical ? 'TƏCİLİ STRATEGİYA' : 'AI STRATEGİYA ANALİZİ'}
-            </p>
+            <span className={`text-[8px] font-black uppercase tracking-[0.3em] px-1.5 py-0.5 rounded-md ${
+                isCritical ? 'bg-rose-500/20 text-rose-500' : 'bg-gold/20 text-gold'
+            }`}>
+              AI
+            </span>
           </div>
+          <p className={`text-xs leading-relaxed font-medium line-clamp-2 ${isCritical ? 'text-white/90' : 'text-white/60'}`}>
+            {advice?.text}
+          </p>
         </div>
-        
-        {/* Deep Scan Button on Dashboard too */}
-        <Link href="/admin/stats" className="px-5 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5 hover:text-white transition-all flex items-center gap-2 group">
-           DEEP SCAN <Sparkles size={12} className="group-hover:text-gold transition-colors" />
+        <Link href="/admin/stats" className={`flex-shrink-0 text-[10px] font-black uppercase tracking-widest transition-all px-4 py-2 rounded-xl border ${
+            isCritical ? 'text-rose-400 border-rose-500/30 hover:bg-rose-500/10' : 'text-gold/60 border-gold/20 hover:bg-gold/10'
+        }`}>
+          DETALLAR
         </Link>
       </div>
-
-      <AnimatePresence mode="wait">
-        {loading ? (
-          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-            <div className="h-4 w-3/4 bg-white/5 rounded-full animate-pulse" />
-            <div className="h-4 w-1/2 bg-white/5 rounded-full animate-pulse" />
-          </motion.div>
-        ) : (
-          <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <p className={`text-lg leading-relaxed font-bold tracking-tight ${isCritical ? 'text-white' : 'text-white/80'}`}>
-              "{advice?.text}"
-            </p>
-            <div className="flex items-center gap-6 pt-2">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[11px] font-black uppercase tracking-widest ${
-                isCritical ? 'bg-rose-500 text-white border-rose-400' : 'bg-white/[0.04] border-white/10 text-white/40'
-              }`}>
-                <Zap size={12} className={isCritical ? 'text-white' : 'text-gold'} /> {isCritical ? 'İMKANLARI ARAŞDIR' : advice?.title}
-              </div>
-              <Link href="/admin/stats" className={`text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
-                isCritical ? 'text-rose-400 hover:text-rose-300' : 'text-gold/60 hover:text-gold'
-              }`}>
-                DƏRİN ANALİZ <Sparkles size={12} />
-              </Link>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }

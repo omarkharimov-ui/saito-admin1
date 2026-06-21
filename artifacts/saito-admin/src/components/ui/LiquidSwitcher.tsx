@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { 
   motion, 
   useMotionValue, 
@@ -25,56 +25,57 @@ export function LiquidSwitcher({ options, activeId, onChange }: LiquidSwitcherPr
   const [isHolding, setIsHolding] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // 1. Framer Motion Velocity Tracking
-  const x = useMotionValue(0);
-  const xVelocity = useVelocity(x);
+  // ─── MOTION INFRASTRUCTURE ───
+  // x position for drag tracking
+  const dragX = useMotionValue(0);
+  // Track current velocity
+  const xVelocity = useVelocity(dragX);
   
-  // 2. Dynamic ScaleX based on velocity (Elastic Stretch)
-  // Sürət artdıqca (sağa və ya sola) element 1.0-dan 1.25-ə qədər uzanır
-  const stretchScaleX = useTransform(xVelocity, [-2000, 0, 2000], [1.25, 1, 1.25]);
+  // 1. DYNAMIC STRETCH (Elastic Physics)
+  // Sürət artdıqca (max 3000px/s) elementin enini 1.0-dan 1.3-ə qədər dartırıq.
+  // Transform-origin sürət istiqamətinə görə dinamik dəyişəcək.
+  const stretchX = useTransform(xVelocity, [-3000, 0, 3000], [1.3, 1, 1.3]);
   
-  // Smooth out the scale transition
-  const smoothScaleX = useSpring(stretchScaleX, {
-    stiffness: 400,
-    damping: 30,
-    mass: 1
+  // useSpring makes the stretching fluid and non-linear
+  const springStretchX = useSpring(stretchX, {
+    stiffness: 450,
+    damping: 25,
+    mass: 0.5
   });
 
-  // 3. Apple-style Spring Physics for Snapping
+  // 2. WHATSAPP iOS SPRING PHYSICS (The "Bouncy Snap")
   const springConfig = {
     type: 'spring',
     stiffness: 400,
-    damping: 22, // Super axıcı və bouncy overshoot
-    mass: 0.8
+    damping: 24, // Perfect balance for overshoot
+    mass: 0.7
   } as const;
 
-  // Snapping logic
   const activeIndex = options.findIndex(opt => opt.id === activeId);
 
   const handleDragEnd = (event: any, info: any) => {
     setIsHolding(false);
     const offset = info.offset.x;
-    const threshold = 50;
+    const threshold = 40;
 
     if (Math.abs(offset) > threshold) {
       const direction = offset > 0 ? -1 : 1;
       const nextIndex = Math.max(0, Math.min(options.length - 1, activeIndex + direction));
       onChange(options[nextIndex].id);
     }
-    // Reset internal x to 0 for next drag
-    x.set(0);
+    dragX.set(0); // Reset for next interaction
   };
 
   return (
-    <div className="relative flex items-center justify-center py-4">
-      {/* Main Container (Rubber Squash Effect) */}
+    <div className="relative flex items-center justify-center py-6">
+      {/* ── PARENT CONTAINER: The Squash Effect ── */}
       <motion.div
         ref={containerRef}
         animate={{
-          scale: isHolding ? 0.95 : 1, // Parent scale down
+          scale: isHolding ? 0.95 : 1, // Parent scale down on interaction
         }}
         transition={springConfig}
-        className="relative flex items-center p-1 bg-[#efeff4] dark:bg-white/[0.05] rounded-full border border-black/[0.02] dark:border-white/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] select-none touch-none overflow-hidden"
+        className="relative flex items-center p-1 bg-[#efeff4] dark:bg-white/[0.05] rounded-full border border-black/[0.02] dark:border-white/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] select-none touch-none overflow-visible"
         onPointerDown={() => setIsHolding(true)}
         onPointerUp={() => setIsHolding(false)}
       >
@@ -84,57 +85,59 @@ export function LiquidSwitcher({ options, activeId, onChange }: LiquidSwitcherPr
           return (
             <button
               key={opt.id}
-              onClick={() => {
-                if (!isHolding) onChange(opt.id);
-              }}
-              className="relative px-8 py-2.5 min-w-[110px] flex items-center justify-center z-10 transition-colors duration-500"
+              onClick={() => { if (!isHolding) onChange(opt.id); }}
+              className="relative px-8 py-3 min-w-[120px] flex items-center justify-center z-10"
             >
-              {/* Text Label */}
-              <span className={`text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
-                isActive ? 'text-black dark:text-white' : 'text-[#8e8e93]'
+              {/* Text Label: High Contrast Inversion */}
+              <span className={`text-[12px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+                isActive ? 'text-black dark:text-white scale-105' : 'text-[#8e8e93] hover:text-[#636366]'
               }`}>
                 {opt.label}
               </span>
 
-              {/* Active Liquid Indicator */}
+              {/* ── CHILD INDICATOR: The Liquid Glass ── */}
               {isActive && (
                 <motion.div
-                  layoutId="active-liquid-pill"
+                  layoutId="active-pill-liquid"
                   drag="x"
-                  _dragX={x} // Link internal x to drag position for velocity tracking
+                  _dragX={dragX}
                   dragConstraints={containerRef}
-                  dragElastic={0.12}
+                  dragElastic={0.08}
                   onDragStart={() => setIsHolding(true)}
                   onDragEnd={handleDragEnd}
                   style={{
-                    scaleX: smoothScaleX, // Dynamic Velocity Stretch
+                    scaleX: springStretchX, // THE REAL-TIME VELOCITY STRETCH
                     transformOrigin: xVelocity.get() > 0 ? 'left center' : 'right center'
                   }}
                   className={`absolute inset-0 rounded-full z-[-1] overflow-hidden ${
                     isHolding 
-                      ? 'bg-white/50 dark:bg-white/10 backdrop-blur-xl' 
-                      : 'bg-white dark:bg-zinc-800 shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
+                      ? 'bg-white/50 dark:bg-white/10 backdrop-blur-2xl ring-1 ring-white/20' 
+                      : 'bg-white dark:bg-zinc-800 shadow-[0_3px_10px_rgba(0,0,0,0.12)]'
                   }`}
                   animate={{
-                    scaleY: isHolding ? 1.05 : 1, // Slight squash
+                    scaleY: isHolding ? 1.06 : 1, // Child squash inversion
                   }}
                   transition={springConfig}
                 >
-                  {/* Prismatic Refraction / Glossy Effect */}
+                  {/* ── PRISMATIC REFRACTION (The Glass Sparkle) ── */}
                   <AnimatePresence>
                     {isHolding && (
                       <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 rounded-full border border-white/40 shadow-[inset_0_0_12px_rgba(255,255,255,0.4)]"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="absolute inset-0"
                       >
-                        {/* Smooth light reflection */}
+                        {/* Edge Glow */}
+                        <div className="absolute inset-0 rounded-full border border-white/40 shadow-[inset_0_0_15px_rgba(255,255,255,0.5)]" />
+                        
+                        {/* Dynamic Reflection */}
                         <motion.div
                           animate={{ x: ['-100%', '200%'] }}
-                          transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
-                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-25deg]"
+                          transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-30deg]"
                         />
+
+                        {/* Liquid Rainbow Effect (Subtle) */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(56,189,248,0.1),transparent_70%)]" />
                       </motion.div>
                     )}
                   </AnimatePresence>

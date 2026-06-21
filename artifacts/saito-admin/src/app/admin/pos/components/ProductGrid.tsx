@@ -40,7 +40,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
   return (
     <div className="flex flex-col h-full">
       {/* Search Bar - Modern & Flat */}
-      <div className="relative mb-6">
+      <div className="relative mb-6 flex-shrink-0">
         <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           value={search} onChange={e => setSearch(e.target.value)}
@@ -50,7 +50,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
       </div>
 
       {/* Categories - Liquid Glass Segmented Control */}
-      <div className="mb-8">
+      <div className="mb-16 flex-shrink-0">
         <LiquidCategoryNavbar 
           categories={categories}
           activeId={categoryFilter}
@@ -60,7 +60,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
       </div>
 
       {/* Product List - Modern Card Design */}
-      <div className="flex-1 overflow-y-auto pr-1">
+      <div className="flex-1 overflow-y-auto pr-1 pt-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5">
           {filtered.map(product => {
             const name = (language === 'az' ? product.name_az : language === 'en' ? product.name_en : product.name_ru) || product.name;

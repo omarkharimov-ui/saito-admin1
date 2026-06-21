@@ -139,38 +139,38 @@ export function usePos() {
   }, []);
 
   const backToFloor = useCallback(() => {
-    // We discard changes by not saving to POS_CART_KEY_all
+    // 1. Get latest cart from ref
+    const currentCart = cartRef.current;
+    
+    // 2. Discard all draft changes (unsent items or increased quantities)
+    // We only persist the "sent" state of the cart
+    if (currentCart && currentCart.items.length > 0) {
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      
+      // Filter items to keep only what was already sent to kitchen
+      const confirmedItems = currentCart.items
+        .map(item => ({ 
+          ...item, 
+          quantity: item.sentQuantity || 0,
+          total_price: item.unit_price * (item.sentQuantity || 0)
+        }))
+        .filter(item => item.quantity > 0);
+
+      if (confirmedItems.length > 0) {
+        all[currentCart.table_number] = { ...currentCart, items: confirmedItems };
+        saveCache(POS_CART_KEY + '_all', all);
+      } else {
+        delete all[currentCart.table_number];
+        saveCache(POS_CART_KEY + '_all', all);
+      }
+    }
+    
+    // 3. Clear view state
     setSelectedTable(null);
     setActiveView('floor');
     setCart(null); 
     cartRef.current = null;
   }, []);
-
-  const saveCart = useCallback(() => {
-    const currentCart = cartRef.current;
-    if (!currentCart) return;
-    
-    // Save to the persistent "all tables" cache
-    const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-    all[currentCart.table_number] = currentCart;
-    saveCache(POS_CART_KEY + '_all', all);
-    
-    // Also save as the active global cart
-    saveCache(POS_CART_KEY, currentCart);
-    
-    toast.success('Səbət yadda saxlandı');
-    
-    // Return to floor after saving
-    setSelectedTable(null);
-    setActiveView('floor');
-    setCart(null);
-    cartRef.current = null;
-  }, []);
-
-  /* ── Order Operations ── */
-  const cartFingerprint = (items: PosCartItem[]) => items
-    .map(item => `${item.product_id}:${item.variant_id || 'base'}:${item.quantity}:${item.unit_price}:${item.special_notes || ''}:${(item.modifiers ?? []).map(m => m.id).sort().join(',')}`)
-    .join('|');
 
   const placeOrder = useCallback(async () => {
     const currentCart = cartRef.current;
@@ -222,11 +222,18 @@ export function usePos() {
 
       orderFingerprintRef.current[currentCart.table_number] = fingerprint;
 
-      // Mark all items as sent — keep cart on screen for further edits
-      setCart(prev => prev ? {
-        ...prev,
-        items: prev.items.map(item => ({ ...item, sentQuantity: item.quantity })),
-      } : null);
+      // Mark all items as sent
+      const updatedCart = {
+        ...currentCart,
+        items: currentCart.items.map(item => ({ ...item, sentQuantity: item.quantity })),
+      };
+
+      setCart(updatedCart);
+
+      // Save the confirmed state to persistent cache
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      all[currentCart.table_number] = updatedCart;
+      saveCache(POS_CART_KEY + '_all', all);
 
       fetchData();
     } catch (e: any) {

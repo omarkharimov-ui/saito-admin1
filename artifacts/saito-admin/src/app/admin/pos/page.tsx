@@ -265,7 +265,6 @@ export default function POSPage() {
               <div className={`w-full md:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
                   <CartPanel
                     cart={pos.cart} onUpdateQty={handleUpdateQty} onPlaceOrder={handlePlaceOrder} onClearDraft={pos.clearDrafts}
-                    onSave={pos.saveCart}
                     onBack={() => { setIsDirty(false); pos.backToFloor(); }}
                     orderButtonStatus={orderButtonStatus} isDirty={isDirty}
                     hasExistingOrder={pos.selectedTable?.status !== 'empty'}

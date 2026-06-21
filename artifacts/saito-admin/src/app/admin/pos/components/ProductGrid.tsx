@@ -50,12 +50,14 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
       </div>
 
       {/* Categories - Liquid Glass Segmented Control */}
-      <LiquidCategoryNavbar 
-        categories={categories}
-        activeId={categoryFilter}
-        onChange={setCategoryFilter}
-        allLabel={t('all' as any)}
-      />
+      <div className="mb-8">
+        <LiquidCategoryNavbar 
+          categories={categories}
+          activeId={categoryFilter}
+          onChange={setCategoryFilter}
+          allLabel={t('all' as any)}
+        />
+      </div>
 
       {/* Product List - Modern Card Design */}
       <div className="flex-1 overflow-y-auto pr-1">

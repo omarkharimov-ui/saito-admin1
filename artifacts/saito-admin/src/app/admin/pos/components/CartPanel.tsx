@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, Save } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -13,6 +13,7 @@ interface CartPanelProps {
   cart: PosCart | null;
   onUpdateQty: (index: number, delta: number) => void;
   onPlaceOrder: () => void;
+  onSave?: () => void;
   onClearDraft: () => void;
   onBack: () => void;
   orderButtonStatus: SendOrderButtonStatus;
@@ -24,7 +25,7 @@ interface CartPanelProps {
 }
 
 export function CartPanel({
-  cart, onUpdateQty, onPlaceOrder,
+  cart, onUpdateQty, onPlaceOrder, onSave,
   onClearDraft, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
 }: CartPanelProps) {
@@ -151,6 +152,19 @@ export function CartPanel({
             className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
             <ArrowLeft size={18} />
           </button>
+          
+          {isDirty && onSave && (
+            <motion.button 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={onSave}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+              title="Yadda saxla"
+            >
+              <Save size={18} />
+            </motion.button>
+          )}
+
           <div>
             <p className="text-lg font-bold text-[var(--theme-text)]">
               {mergedChildNumbers && mergedChildNumbers.length > 0 ? `${t('group_label')} ${cart.table_number}` : `${t('table_label')} ${cart.table_number}`}

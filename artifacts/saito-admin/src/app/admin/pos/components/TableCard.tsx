@@ -86,11 +86,11 @@ export function TableCard({
   return (
     <motion.button
       whileTap={{ scale: 0.96 }}
-      onClick={onClick}
+      onClick={onTap}
       className={`relative h-[120px] rounded-[24px] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 text-left transition-all duration-500 overflow-hidden shadow-sm hover:shadow-md
-        ${status === 'occupied' ? 'border-l-[6px] border-l-emerald-500' : 
-          status === 'dirty' ? 'border-l-[6px] border-l-orange-500' : 
-          status === 'reserved' ? 'border-l-[6px] border-l-blue-500' : 
+        ${table.status === 'occupied' ? 'border-l-[6px] border-l-emerald-500' : 
+          table.status === 'dirty' ? 'border-l-[6px] border-l-orange-500' : 
+          table.status === 'reserved' ? 'border-l-[6px] border-l-blue-500' : 
           'border-l-[6px] border-l-[var(--theme-text-muted)] opacity-60 hover:opacity-100'}`}
     >
       {/* Static subtle glow for waiting bill — no pulse */}

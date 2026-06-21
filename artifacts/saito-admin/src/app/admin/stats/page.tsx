@@ -207,7 +207,7 @@ const StatsPage = () => {
           </div>
         </div>
 
-        <div className="space-y-10">
+        <div className="space-y-10 w-full">
           <StatsTopCards
             totalRevenue={stats.totalRevenue}
             totalOrders={stats.totalOrders}
@@ -216,8 +216,6 @@ const StatsPage = () => {
             netProfit={stats.netProfit}
             foodCostPct={stats.foodCostPct}
           />
-          
-          <StatsRevenueChart chartData={stats.chartData} />
 
           <StatsSenseiPanel
             stats={stats}
@@ -242,24 +240,28 @@ const StatsPage = () => {
             orderItems={stats.productPerformance}
             senseiStatsAdvice={null}
           />
+          
+          <div className="grid grid-cols-1 gap-10">
+             <StatsRevenueChart chartData={stats.chartData} />
 
-          <StatsFinancePanel
-            totalRevenue={stats.totalRevenue}
-            totalFoodCost={stats.totalFoodCost}
-            totalWasteCost={stats.totalWasteCost}
-            grossProfit={stats.grossProfit}
-            netProfit={stats.netProfit}
-            foodCostPct={stats.foodCostPct}
-            topProfitableItems={stats.topProfitableItems}
-            financeChartData={stats.financeChartData}
-            loading={loading}
-          />
+             <StatsFinancePanel
+               totalRevenue={stats.totalRevenue}
+               totalFoodCost={stats.totalFoodCost}
+               totalWasteCost={stats.totalWasteCost}
+               grossProfit={stats.grossProfit}
+               netProfit={stats.netProfit}
+               foodCostPct={stats.foodCostPct}
+               topProfitableItems={stats.topProfitableItems}
+               financeChartData={stats.financeChartData}
+               loading={loading}
+             />
 
-          <StatsProductTable
-            productPerformance={stats.productPerformance}
-            categories={categories}
-            getCategoryTranslation={getCategoryTranslation}
-          />
+             <StatsProductTable
+               productPerformance={stats.productPerformance}
+               categories={categories}
+               getCategoryTranslation={getCategoryTranslation}
+             />
+          </div>
         </div>
       </div>
     </div>

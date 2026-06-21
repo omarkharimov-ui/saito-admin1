@@ -631,6 +631,23 @@ export default function StatsSenseiPanel({
 
   const renderAnalysis = () => {
     if (!aiAnalysis) return null;
+    
+    // Fallback: If no tags found, just show the whole text formatted cleanly
+    if (!/\[(v.ziyy.t|состояние|overview|risk|r.ski|risks|addim|d.ystr|action)\]/i.test(aiAnalysis)) {
+        return (
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-6 py-6">
+                <div className="flex items-center gap-3 mb-4">
+                    <Sparkles size={16} className="text-gold" />
+                    <span className="text-[10px] font-black tracking-[0.3em] uppercase text-gold/60">Saito AI Analizi</span>
+                </div>
+                <div className="text-[15px] text-white/80 leading-relaxed whitespace-pre-wrap">
+                    {hl(aiAnalysis)}
+                </div>
+            </motion.div>
+        );
+    }
+
     const parsed: Record<string, string[]> = { overview: [], risk: [], actions: [] };
     let active: keyof typeof parsed | null = null;
     aiAnalysis.split('\n').forEach(line => {

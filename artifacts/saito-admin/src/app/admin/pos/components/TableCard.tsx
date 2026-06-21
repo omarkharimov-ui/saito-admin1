@@ -87,7 +87,7 @@ export function TableCard({
     <motion.button
       whileTap={{ scale: 0.96 }}
       onClick={onTap}
-      className={`relative h-[120px] rounded-[24px] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 text-left transition-all duration-500 overflow-hidden shadow-sm hover:shadow-md
+      className={`relative h-[120px] rounded-[24px] bg-[var(--theme-surface)] p-5 text-left transition-all duration-500 overflow-hidden shadow-sm hover:shadow-md
         ${table.status === 'occupied' ? 'border-l-[6px] border-l-emerald-500' : 
           table.status === 'dirty' ? 'border-l-[6px] border-l-orange-500' : 
           table.status === 'reserved' ? 'border-l-[6px] border-l-blue-500' : 

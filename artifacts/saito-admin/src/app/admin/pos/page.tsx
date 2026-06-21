@@ -426,20 +426,20 @@ export default function POSPage() {
                                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                                 className="absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-xl origin-top-left"
                               >
-                                {pos.floors.map(f => (
-                                  <motion.button
-                                    key={f.name}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
-                                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                                      f.name === selectedFloorName
-                                        ? 'bg-[var(--theme-accent)] text-black'
-                                        : 'text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)]'
-                                    }`}>
-                                    {f.name}
-                                  </motion.button>
-                                ))}
+                                  {pos.floors.map(f => (
+                                    <motion.button
+                                      key={f.name}
+                                      whileHover={{ scale: 1.02 }}
+                                      whileTap={{ scale: 0.98 }}
+                                      onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
+                                      className={`w-full text-left px-4 py-3 rounded-lg text-sm font-bold transition-all ${
+                                        f.name === selectedFloorName
+                                          ? 'bg-gray-900 text-white'
+                                          : 'text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)]'
+                                      }`}>
+                                      {f.name}
+                                    </motion.button>
+                                  ))}
                               </motion.div>
                             </>
                           )}

@@ -108,7 +108,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
     <motion.button
       whileTap={{ scale: 0.97 }}
       onClick={() => onAddProduct(product)}
-      className="group relative flex flex-col rounded-[24px] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-3 transition-all duration-300 shadow-sm hover:shadow-md border-l-[5px] border-l-gold"
+      className="group relative flex flex-col rounded-[24px] bg-[var(--theme-surface)] p-3 transition-all duration-300 shadow-sm hover:shadow-md border-l-[5px] border-l-gold"
     >
                       {hasNoStock && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 rounded-xl">

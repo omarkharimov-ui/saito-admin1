@@ -172,6 +172,91 @@ export function usePos() {
     cartRef.current = null;
   }, []);
 
+  /* ── Cart Operations ── */
+  const addToCart = useCallback((product: PosProduct, modifiers?: PosModifierSelection[], notes?: string, variantId?: string) => {
+    const currentCart = cartRef.current;
+    if (!currentCart) return;
+    const langs = languageRef.current;
+    const key = `${product.id}__${variantId || 'base'}__${modifiers?.map(m => m.id).sort().join(',') || ''}`;
+    const existing = currentCart.items.find(i => {
+      const existingModifiers = (i.modifiers ?? []).map(m => m.id).sort().join(',');
+      const ek = `${i.product_id}__${i.variant_id || 'base'}__${existingModifiers}`;
+      return ek === key;
+    });
+
+    if (existing) {
+      setCart(prev => prev ? {
+        ...prev,
+        items: prev.items.map(i =>
+          i === existing ? { ...i, quantity: i.quantity + 1, total_price: i.unit_price * (i.quantity + 1) } : i
+        ),
+      } : null);
+    } else {
+      const unitPrice = modifiers?.reduce((s, m) => s + m.price, product.price) ?? product.price;
+      const localizedName = langs === 'az' ? product.name_az : langs === 'en' ? product.name_en : product.name_ru;
+      const newItem: PosCartItem = {
+        product_id: product.id,
+        product_name: localizedName || product.name,
+        product_image: product.image_url ?? null,
+        unit_price: unitPrice,
+        total_price: unitPrice,
+        quantity: 1,
+        modifiers: modifiers || [],
+        special_notes: notes || '',
+        variant_id: variantId,
+      };
+      setCart(prev => prev ? { ...prev, items: [...prev.items, newItem] } : null);
+    }
+    forceUpdate(n => n + 1);
+  }, []);
+
+  const updateCartItemQty = useCallback((index: number, delta: number) => {
+    setCart(prev => {
+      if (!prev) return null;
+      const items = [...prev.items];
+      const newQty = items[index].quantity + delta;
+      if (newQty <= 0) {
+        items.splice(index, 1);
+      } else {
+        items[index] = { ...items[index], quantity: newQty, total_price: items[index].unit_price * newQty };
+      }
+      return { ...prev, items };
+    });
+  }, []);
+
+  const removeCartItem = useCallback((index: number) => {
+    setCart(prev => prev ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : null);
+  }, []);
+
+  const clearCart = useCallback(() => {
+    const currentTable = selectedTable?.table_number ?? cartRef.current?.table_number;
+    
+    // Clear all state immediately
+    setCart(null);
+    cartRef.current = null;
+    
+    if (typeof currentTable === 'number') {
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      delete all[currentTable];
+      saveCache(POS_CART_KEY + '_all', all);
+      delete orderFingerprintRef.current[currentTable];
+    }
+    
+    saveCache(POS_CART_KEY, null);
+    
+    // Reset table status locally if needed
+    if (selectedTable) {
+      setSelectedTable({
+        ...selectedTable,
+        guest_count: 0,
+        total_amount: 0,
+        status: 'empty' as const,
+      });
+    }
+    
+    toast.success('Səbət təmizləndi');
+  }, [selectedTable]);
+
   /* ── Order Operations ── */
   const cartFingerprint = (items: any[]) => items
     .map(item => `${item.product_id}:${item.variant_id || 'base'}:${item.quantity}:${item.unit_price}:${item.special_notes || ''}:${(item.modifiers ?? []).map((m: any) => m.id).sort().join(',')}`)

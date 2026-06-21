@@ -133,22 +133,23 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
           <thead>
             <tr className="bg-white/[0.02] border-b border-white/5">
               <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium">{t('stats_col_product')}</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">Satış Qiyməti</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">Satış Sayı</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">Maya Dəyəri</th>
-              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-right">Xalis Qazanc</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-center">SATIŞ</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-right">DÖVRİYYƏ</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-right">MAYA</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-right">MARKUP</th>
+              <th className="px-8 py-5 text-[10px] uppercase tracking-[0.3em] text-[var(--theme-text-muted)] font-medium text-right">QAZANC</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={5} className="p-20 text-center text-white/20 uppercase tracking-widest text-xs">{t('stats_no_sales')}</td></tr>
+              <tr><td colSpan={6} className="p-20 text-center text-white/20 uppercase tracking-widest text-xs">{t('stats_no_sales')}</td></tr>
             ) : (
               filtered.map((p) => {
                 const revenue = Number(p.revenue) || 0;
                 const sold = Number(p.sold) || 0;
-                const unitPrice = sold > 0 ? revenue / sold : 0;
                 const foodCost = Number(p.food_cost) || 0;
                 const profit = revenue - foodCost;
+                const markup = foodCost > 0 ? Math.round(((revenue - foodCost) / foodCost) * 100) : 0;
 
                 return (
                   <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.01] transition-colors group">
@@ -164,10 +165,11 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
                         <span className="font-bold">{p.name}</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-center font-medium text-white/60">₼ {unitPrice.toFixed(2)}</td>
-                    <td className="px-8 py-5 text-center font-bold text-white">{sold}</td>
-                    <td className="px-8 py-5 text-center text-rose-400 font-medium">₼ {foodCost.toFixed(2)}</td>
-                    <td className="px-8 py-5 text-right font-black text-emerald-400">₼ {profit.toFixed(2)}</td>
+                    <td className="px-8 py-5 text-center font-bold text-white/60">{sold}</td>
+                    <td className="px-8 py-5 text-right font-medium text-white/80">₼ {revenue.toLocaleString()}</td>
+                    <td className="px-8 py-5 text-right text-[#D4AF37]/80 font-medium">₼ {foodCost.toLocaleString()}</td>
+                    <td className="px-8 py-5 text-right font-bold text-emerald-400/80">+{markup}%</td>
+                    <td className="px-8 py-5 text-right font-black text-emerald-400">₼ {profit.toLocaleString()}</td>
                   </tr>
                 );
               })

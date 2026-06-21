@@ -8,15 +8,30 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 interface ChartPoint {
   date: string;
   value: number;
+  net_profit?: number;
 }
 
 interface Props {
   chartData: ChartPoint[];
+  financeChartData?: any[];
   loading?: boolean;
 }
 
-const StatsRevenueChart = ({ chartData, loading }: Props) => {
+const StatsRevenueChart = ({ chartData, financeChartData, loading }: Props) => {
   const { t, language } = useLanguage();
+  
+  // Merge revenue and profit data for the chart
+  const combinedData = useMemo(() => {
+    return chartData.map(d => {
+        const financePoint = financeChartData?.find(f => f.date === d.date);
+        return {
+            ...d,
+            revenue: d.value,
+            net_profit: financePoint?.net_profit ?? 0
+        };
+    });
+  }, [chartData, financeChartData]);
+
   const isEmpty = !chartData || chartData.length === 0 || chartData.every(d => d.value === 0);
 
   const emptyMsg = language === 'az'
@@ -52,11 +67,15 @@ const StatsRevenueChart = ({ chartData, loading }: Props) => {
       ) : (
       <div className="h-[180px] md:h-[350px] w-full" style={{ willChange: 'transform' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+          <AreaChart data={combinedData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.18} />
                 <stop offset="100%" stopColor="#D4AF37" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#34d399" stopOpacity={0.18} />
+                <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid stroke="transparent" />
@@ -67,7 +86,7 @@ const StatsRevenueChart = ({ chartData, loading }: Props) => {
               tickLine={false}
               axisLine={false}
               dy={10}
-              interval={Math.max(0, Math.floor(chartData.length / 7) - 1)}
+              interval={Math.max(0, Math.floor(combinedData.length / 7) - 1)}
             />
             <YAxis
               stroke="transparent"
@@ -80,39 +99,14 @@ const StatsRevenueChart = ({ chartData, loading }: Props) => {
             />
             <Tooltip
               cursor={{ stroke: 'rgba(184,150,74,0.15)', strokeWidth: 1 }}
-              contentStyle={{ background: '#0f0f0f', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', fontSize: '12px', padding: '7px 12px', boxShadow: '0 4px 24px rgba(0,0,0,0.6)' }}
+              contentStyle={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', fontSize: '12px', padding: '7px 12px', boxShadow: '0 4px 24px rgba(0,0,0,0.6)' }}
               labelStyle={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 3 }}
-              itemStyle={{ color: '#D4AF37', fontWeight: 700 }}
-              formatter={(value) => [`₼${Number(value).toFixed(2)}`, '']}
+              itemStyle={{ fontWeight: 700 }}
+              formatter={(value, name) => [`₼${Number(value).toFixed(2)}`, name === 'revenue' ? 'Dövriyyə' : 'Təmiz Qazanc']}
               labelFormatter={(label) => label}
             />
-            <Area type="monotone" dataKey="value" stroke="#D4AF37" strokeWidth={2.5} fill="url(#colorValue)" fillOpacity={1} dot={false} activeDot={{ r: 4.5, fill: '#FFD700', stroke: 'rgba(212,175,55,0.35)', strokeWidth: 7 }} />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke="none"
-              fill="none"
-              legendType="none"
-              tooltipType="none"
-              dot={(props: any) => {
-                const peak = Math.max(...chartData.map((d) => d.value));
-                if (props.value !== peak) return <g key={props.index} />;
-                const { cx, cy } = props;
-                const r = 5;
-                const star = Array.from({ length: 10 }, (_, i) => {
-                  const angle = (i * Math.PI) / 5 - Math.PI / 2;
-                  const radius = i % 2 === 0 ? r : r * 0.42;
-                  return `${cx + radius * Math.cos(angle)},${cy + radius * Math.sin(angle)}`;
-                }).join(' ');
-                return (
-                  <g key={props.index}>
-                    <polygon points={star} fill="#C9A84C" opacity={0.9} />
-                    <circle cx={cx} cy={cy} r={10} fill="none" stroke="rgba(201,168,76,0.2)" strokeWidth={1} />
-                  </g>
-                );
-              }}
-              activeDot={false}
-            />
+            <Area type="monotone" dataKey="revenue" name="revenue" stroke="#D4AF37" strokeWidth={2.5} fill="url(#colorValue)" fillOpacity={1} dot={false} activeDot={{ r: 4.5, fill: '#FFD700', stroke: 'rgba(212,175,55,0.35)', strokeWidth: 7 }} />
+            <Area type="monotone" dataKey="net_profit" name="profit" stroke="#34d399" strokeWidth={2.5} fill="url(#colorProfit)" fillOpacity={1} dot={false} activeDot={{ r: 4.5, fill: '#34d399', stroke: 'rgba(52,211,153,0.35)', strokeWidth: 7 }} />
           </AreaChart>
         </ResponsiveContainer>
       </div>

@@ -242,7 +242,10 @@ const StatsPage = () => {
           />
           
           <div className="grid grid-cols-1 gap-10">
-             <StatsRevenueChart chartData={stats.chartData} />
+             <StatsRevenueChart 
+            chartData={stats.chartData} 
+            financeChartData={stats.financeChartData} 
+          />
 
              <StatsFinancePanel
                totalRevenue={stats.totalRevenue}

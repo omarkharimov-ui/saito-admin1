@@ -171,18 +171,18 @@ export default function LiveFloorSnapshot() {
       </div>
 
       {/* Compact Stats Row - No Table Grid */}
-      <div className="flex gap-3">
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
-          <p className="text-xl font-bold text-[var(--theme-text)]">{occupiedCount}<span className="text-[var(--theme-text-muted)] text-sm">/{tableCount}</span></p>
-          <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5">{t('occupied')}</p>
+      <div className="flex gap-4">
+        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)] border-l-[6px] border-l-blue-500">
+          <p className="text-xl font-black text-[var(--theme-text)]">{occupiedCount}<span className="text-[var(--theme-text-muted)] text-sm font-bold">/{tableCount}</span></p>
+          <p className="text-[10px] text-[var(--theme-text-muted)] font-black uppercase tracking-widest mt-1">{t('occupied' as any)}</p>
         </div>
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
-          <p className="text-xl font-bold text-emerald-500">{newCount}</p>
-          <p className="text-[9px] text-emerald-500 uppercase tracking-wider mt-0.5">{t('new_arrivals')}</p>
+        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)] border-l-[6px] border-l-emerald-500">
+          <p className="text-xl font-black text-emerald-500">{newCount}</p>
+          <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mt-1">{t('new_arrivals' as any)}</p>
         </div>
-        <div className="flex-1 p-3 rounded-2xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)]">
-          <p className="text-xl font-bold text-amber-500">{cookingCount}</p>
-          <p className="text-[9px] text-amber-500 uppercase tracking-wider mt-0.5">{t('in_kitchen')}</p>
+        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)] border-l-[6px] border-l-amber-500">
+          <p className="text-xl font-black text-amber-500">{cookingCount}</p>
+          <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest mt-1">{t('in_kitchen' as any)}</p>
         </div>
       </div>
     </motion.div>

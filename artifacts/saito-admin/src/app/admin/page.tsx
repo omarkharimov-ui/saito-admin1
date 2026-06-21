@@ -74,7 +74,7 @@ function YojiAdvice() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <h3 className={`text-sm font-black tracking-tight ${isCritical ? 'text-rose-400' : 'text-white'}`}>
+            <h3 className={`text-sm font-black tracking-tight ${isCritical ? 'text-rose-600' : 'text-[var(--theme-text)]'}`}>
               {advice?.title}
             </h3>
             <span className={`text-[8px] font-black uppercase tracking-[0.3em] px-1.5 py-0.5 rounded-md ${
@@ -83,12 +83,12 @@ function YojiAdvice() {
               AI
             </span>
           </div>
-          <p className={`text-xs leading-relaxed font-medium line-clamp-2 ${isCritical ? 'text-white/90' : 'text-white/60'}`}>
+          <p className={`text-xs leading-relaxed font-medium line-clamp-2 ${isCritical ? 'text-[var(--theme-text)] opacity-90' : 'text-[var(--theme-text-secondary)]'}`}>
             {advice?.text}
           </p>
         </div>
         <Link href="/admin/stats" className={`flex-shrink-0 text-[10px] font-black uppercase tracking-widest transition-all px-4 py-2 rounded-xl border ${
-            isCritical ? 'text-rose-400 border-rose-500/30 hover:bg-rose-500/10' : 'text-gold/60 border-gold/20 hover:bg-gold/10'
+            isCritical ? 'text-rose-600 border-rose-500/30 hover:bg-rose-500/10' : 'text-gold border-gold/20 hover:bg-gold/10'
         }`}>
           DETALLAR
         </Link>

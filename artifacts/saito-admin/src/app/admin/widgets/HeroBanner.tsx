@@ -247,7 +247,7 @@ export default function HeroBanner() {
           <div className="grid grid-cols-3">
             <div className="p-4">
               <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-[var(--theme-text-muted)] block mb-2 leading-relaxed">
-                {t('today_orders')}
+                {t('today_orders' as any)}
               </span>
               <div className="flex items-end gap-2 flex-wrap">
                 <AnimatePresence mode="wait">
@@ -265,7 +265,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
-                      className="font-serif font-bold text-2xl md:text-3xl text-white leading-none"
+                      className="font-serif font-bold text-2xl md:text-3xl text-[var(--theme-text)] leading-none"
                     >
                       {stats.todayOrders}
                     </motion.span>
@@ -276,7 +276,7 @@ export default function HeroBanner() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.15, duration: 0.2 }}
-                    className="text-[10px] font-medium text-emerald-400/70 mb-1"
+                    className="text-[10px] font-medium text-emerald-500/70 mb-1"
                   >
                     ↑
                   </motion.span>
@@ -285,8 +285,8 @@ export default function HeroBanner() {
             </div>
             
             <div className="p-4">
-              <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-white/30 block mb-2 leading-relaxed">
-                {t('active_tables')}
+              <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-[var(--theme-text-muted)] block mb-2 leading-relaxed">
+                {t('active_tables' as any)}
               </span>
               <div className="flex items-end gap-2">
                 <AnimatePresence mode="wait">
@@ -296,7 +296,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="block h-8 w-10 rounded-md bg-white/[0.05] animate-pulse"
+                      className="block h-8 w-10 rounded-md bg-[var(--theme-nested)] animate-pulse"
                     />
                   ) : (
                     <motion.span
@@ -304,7 +304,7 @@ export default function HeroBanner() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
-                      className="font-serif font-bold text-2xl md:text-3xl text-white leading-none"
+                      className="font-serif font-bold text-2xl md:text-3xl text-[var(--theme-text)] leading-none"
                     >
                       {stats.activeTables}
                     </motion.span>
@@ -315,7 +315,7 @@ export default function HeroBanner() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.15, duration: 0.2 }}
-                    className="text-[10px] font-medium text-emerald-400/70 mb-1"
+                    className="text-[10px] font-medium text-emerald-500/70 mb-1"
                   >
                     ↑
                   </motion.span>
@@ -324,8 +324,8 @@ export default function HeroBanner() {
             </div>
             
             <div className="p-4">
-              <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-white/30 block mb-2 leading-relaxed">
-                {t('todays_favorite')}
+              <span className="text-[9px] uppercase tracking-[0.3em] font-medium text-[var(--theme-text-muted)] block mb-2 leading-relaxed">
+                {t('todays_favorite' as any)}
               </span>
               <AnimatePresence mode="wait">
                 {loading ? (
@@ -334,7 +334,7 @@ export default function HeroBanner() {
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="block h-8 w-24 rounded-md bg-white/[0.05] animate-pulse"
+                    className="block h-8 w-24 rounded-md bg-[var(--theme-nested)] animate-pulse"
                   />
                 ) : (
                   <motion.span
@@ -342,7 +342,7 @@ export default function HeroBanner() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
-                    className="font-serif font-bold text-lg md:text-xl text-white truncate block leading-tight"
+                    className="font-serif font-bold text-lg md:text-xl text-[var(--theme-text)] truncate block leading-tight"
                   >
                     {stats.topProduct}
                   </motion.span>

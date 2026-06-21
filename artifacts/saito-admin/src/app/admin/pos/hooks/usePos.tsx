@@ -131,15 +131,12 @@ export function usePos() {
     setActiveView('order');
     const existing = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
     const saved = existing[table.table_number];
-    if (saved && table.status !== 'empty') {
+    
+    // If we have a saved cart with items, use it regardless of table status
+    // This allows "draft" carts to persist before the first order is placed
+    if (saved && (saved.items.length > 0 || table.status !== 'empty')) {
       setCart(saved);
     } else {
-      // Clean up stale cache entry for empty/paid tables
-      if (saved && table.status === 'empty') {
-        const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-        delete all[table.table_number];
-        saveCache(POS_CART_KEY + '_all', all);
-      }
       setCart({
         table_id: table.id,
         table_number: table.table_number,

@@ -194,11 +194,11 @@ export default function POSPage() {
   }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
 
   return (
-    <div ref={posRef} className="h-full w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)]">
-      <div className="flex-1 min-h-0 relative">
+    <div ref={posRef} className="h-screen w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden">
+      <div className="flex-1 min-h-0 relative overflow-hidden">
         <AnimatePresence mode="wait">
           {pos.activeView === 'floor' && (
-            <div key="floor" className={`h-full flex flex-col border ${lightMode ? 'border-zinc-200 bg-[#f8f8fa]' : 'border-white/[0.04] bg-[#070707]'} rounded-[40px] m-3 shadow-2xl relative`}>
+            <div key="floor" className={`h-full flex flex-col border ${lightMode ? 'border-zinc-200 bg-[#f8f8fa]' : 'border-white/[0.04] bg-[#070707]'} rounded-[40px] m-3 shadow-2xl relative overflow-hidden`}>
               <div className="flex-shrink-0 p-6 pb-2 relative z-[60]">
                 <div className="flex items-center justify-between mb-4 gap-4">
                   <div className="flex items-center gap-3">

@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
 import {
   Plus, Merge, Move, Split, CreditCard,
   Printer, Save, XCircle,
@@ -26,6 +27,18 @@ interface ActionSheetProps {
 export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft, onCancelTable }: ActionSheetProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [open]);
+
   if (!table) return null;
 
   const actions = [

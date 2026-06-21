@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Minus } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -44,6 +44,17 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
   const [selectedRemovals, setSelectedRemovals] = useState<string[]>([]);
   const [doneness, setDoneness] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [open]);
 
   const totalExtras = EXTRAS.filter(e => selectedExtras.includes(e.id)).reduce((s, e) => s + (e.price ?? 0), 0);
 

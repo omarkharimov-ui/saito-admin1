@@ -27,11 +27,11 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
       whileTap={{ scale: 0.98 }}
       onClick={onTap}
       className={`relative h-[180px] rounded-[32px] p-6 text-left transition-all duration-300 group overflow-hidden border-2
-        ${isSelected ? (lightMode ? 'bg-black border-black shadow-[0_20px_40px_rgba(0,0,0,0.3)] scale-[1.02]' : 'bg-white border-white shadow-[0_20px_40px_rgba(255,255,255,0.1)] scale-[1.02]') : 
+        ${isSelected ? (lightMode ? 'bg-white border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.1)] scale-[1.02]' : 'bg-zinc-900 border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.2)] scale-[1.02]') : 
           isTransferSource ? (lightMode ? 'bg-zinc-800 border-zinc-800 shadow-lg' : 'bg-zinc-100 border-zinc-100 shadow-lg') :
           isTransferTarget ? (lightMode ? 'bg-zinc-50 border-zinc-400 border-dashed shadow-md' : 'bg-white/5 border-white/20 border-dashed shadow-md') :
           isOccupied
-            ? lightMode ? 'bg-zinc-50 border-zinc-200 shadow-sm' : 'bg-white/[0.08] border-white/[0.1] shadow-md'
+            ? lightMode ? 'bg-zinc-50 border-emerald-500/50 shadow-sm' : 'bg-white/[0.08] border-emerald-500/50 shadow-md'
             : lightMode ? 'bg-white border-zinc-100 opacity-60' : 'bg-white/[0.03] border-white/[0.05] opacity-40'}
         hover:opacity-100 hover:scale-[1.01] hover:border-zinc-300 dark:hover:border-white/20`}
     >

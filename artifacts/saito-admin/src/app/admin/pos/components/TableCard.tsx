@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Clock, Users, Utensils, MoreVertical, GitMerge, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { MoreVertical, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
@@ -26,13 +26,16 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
     <div
       onClick={onTap}
       className={`relative h-[180px] rounded-[32px] p-6 text-left transition-all duration-300 group overflow-hidden border-2 cursor-pointer
-        ${isSelected ? (lightMode ? 'bg-white border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.1)]' : 'bg-zinc-900 border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.2)]') : 
-          isTransferSource ? (lightMode ? 'bg-zinc-800 border-zinc-800 shadow-lg' : 'bg-zinc-100 border-zinc-100 shadow-lg') :
-          isTransferTarget ? (lightMode ? 'bg-zinc-50 border-zinc-400 border-dashed shadow-md' : 'bg-white/5 border-white/20 border-dashed shadow-md') :
-          isOverdue ? 'border-rose-500 bg-rose-500/5 shadow-[0_0_20px_rgba(244,63,94,0.15)]' :
-          isOccupied
-            ? lightMode ? 'bg-white border-emerald-500/50 shadow-sm' : 'bg-zinc-900 border-emerald-500/50 shadow-md'
-            : lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm'}`}
+        ${isSelected 
+          ? (lightMode ? 'bg-white border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.1)]' : 'bg-zinc-900 border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.2)]') 
+          : isOverdue 
+            ? 'border-rose-500 bg-rose-500/5 shadow-[0_0_20px_rgba(244,63,94,0.15)]'
+            : isOccupied
+              ? (lightMode ? 'bg-white border-emerald-500/60 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-md')
+              : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
+        }
+        ${isTransferSource ? 'border-blue-500 bg-blue-500/5' : ''}
+        ${isTransferTarget ? 'border-zinc-400 border-dashed' : ''}`}
     >
       {/* Table Number - Top Left */}
       <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors ${isSelected || isTransferSource ? (lightMode ? 'text-emerald-600' : 'text-emerald-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
@@ -49,7 +52,7 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
         </button>
       </div>
 
-      {/* Delay Badge - Top Right (below action button) */}
+      {/* Delay Badge - Specific position to prevent layout shifts */}
       {isOverdue && (
         <div className="absolute top-14 right-6">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20">
@@ -61,7 +64,7 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
 
       {/* Status Badge - Fixed Center Position */}
       <div className="absolute top-[100px] left-0 right-0 flex justify-center">
-        <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full border border-black/5 dark:border-white/5">
+        <div className={`flex items-center gap-1.5 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full border border-black/5 dark:border-white/5 shadow-sm`}>
            <div className={`w-2 h-2 rounded-full ${
              isOccupied ? 'bg-emerald-500' : 
              table.status === 'dirty' ? 'bg-orange-500' : 
@@ -84,6 +87,5 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
         )}
       </div>
     </div>
-
   );
 }

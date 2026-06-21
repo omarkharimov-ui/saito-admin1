@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
@@ -18,14 +18,27 @@ interface LiquidCategoryNavbarProps {
 
 export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel }: LiquidCategoryNavbarProps) {
   const { lightMode } = useTheme();
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   
   const items = [{ id: null, name: allLabel }, ...categories];
+
+  // Auto-scroll active item into view
+  useEffect(() => {
+    const idx = items.findIndex(item => item.id === activeId);
+    if (idx !== -1 && itemRefs.current[idx]) {
+      itemRefs.current[idx]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    }
+  }, [activeId, items]);
   
   return (
-    <div className={`relative flex gap-1 items-center overflow-x-auto pb-4 mb-2 scrollbar-none no-scrollbar select-none py-2 px-2 rounded-full ${
+    <div className={`relative flex gap-1 items-center overflow-x-auto scrollbar-none no-scrollbar select-none py-1.5 px-1.5 rounded-full ${
       lightMode ? 'bg-zinc-100/80' : 'bg-white/5'
     }`}>
-      {items.map((item) => {
+      {items.map((item, idx) => {
         const isActive = activeId === item.id;
         
         return (
@@ -55,7 +68,6 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
               {item.name}
             </span>
           </button>
-
         );
       })}
     </div>

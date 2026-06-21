@@ -13,32 +13,66 @@
 /* ═══════════════════════════════════════════
    CRITICAL: FOUC Prevention - Render Blocking
    ═══════════════════════════════════════════ */
-:root {
-  --theme-bg: #0a0a0a;
-  --theme-surface: #0c0c0c;
-  --theme-surface-elevated: #141414;
-  --theme-surface-soft: #1a1a1a;
-  --theme-text: #ffffff;
-  --theme-text-secondary: rgba(255, 255, 255, 0.72);
-  --theme-text-muted: rgba(255, 255, 255, 0.5);
-  --theme-border: rgba(255, 255, 255, 0.08);
-  --theme-border-strong: rgba(255, 255, 255, 0.14);
-  --theme-shadow: 0 8px 40px rgba(0, 0, 0, 0.24);
-  --theme-panel: rgba(255, 255, 255, 0.04);
-  --theme-panel-strong: rgba(255, 255, 255, 0.08);
-  --theme-accent: #D4AF37;
-  --theme-accent-soft: rgba(212, 175, 55, 0.12);
-  --theme-accent-border: rgba(212, 175, 55, 0.28);
-  --theme-error-bg: #1a1111;
-  --theme-error-text: #fecaca;
-  --theme-warning-bg: #1a1200;
-  --theme-warning-text: #fbbf24;
-  --theme-info-bg: #0d1525;
-  --theme-info-text: #93c5fd;
-  --theme-blue: #60a5fa;
-  --theme-blue-soft: rgba(59, 130, 246, 0.15);
-  --theme-blue-border: rgba(59, 130, 246, 0.3);
-}
+  :root {
+    --background: #fdfdfd;
+    --foreground: #11181c;
+    --card: rgba(255, 255, 255, 0.8);
+    --card-foreground: #11181c;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: #d4af37;
+    --primary-foreground: 0 0% 98%;
+    --secondary: #f1f3f5;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: #f8f9fa;
+    --muted-foreground: #687076;
+    --accent: #f1f3f5;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: rgba(0, 0, 0, 0.06);
+    --input: 240 5.9% 90%;
+    --ring: #d4af37;
+    --radius: 1rem;
+    
+    /* Custom Saito Light Palette */
+    --theme-bg: #f8f9fa;
+    --theme-surface: rgba(255, 255, 255, 0.7);
+    --theme-surface-soft: rgba(0, 0, 0, 0.02);
+    --theme-border: rgba(0, 0, 0, 0.06);
+    --theme-text: #1a1c1e;
+    --theme-text-muted: #687076;
+  }
+
+  .dark {
+    --background: #050505;
+    --foreground: #ededed;
+    --card: rgba(20, 20, 20, 0.6);
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: #d4af37;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: rgba(255, 255, 255, 0.08);
+    --input: 240 3.7% 15.9%;
+    --ring: #d4af37;
+    
+    /* Custom Saito Dark Palette */
+    --theme-bg: #050505;
+    --theme-surface: rgba(28, 28, 30, 0.7);
+    --theme-surface-soft: rgba(255, 255, 255, 0.03);
+    --theme-border: rgba(255, 255, 255, 0.08);
+    --theme-text: #ededed;
+    --theme-text-muted: #a1a1a1;
+  }
 html { background-color: var(--theme-bg); }
 html[data-theme="light"] {
   --theme-bg: #f8f8fa;

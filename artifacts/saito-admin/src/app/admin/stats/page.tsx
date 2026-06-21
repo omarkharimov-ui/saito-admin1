@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-import { TrendingUp, BarChart3 } from 'lucide-react';
+import { TrendingUp, BarChart3, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import StatsTopCards from './components/StatsTopCards';
 import StatsAIForecast from './components/StatsAIForecast';
@@ -17,7 +17,6 @@ import StatsMobileView from './components/StatsMobileView';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
-import { StatSkeleton } from '@/components/SkeletonLoader';
 
 const interpolateTemplate = (template: string, variables: Record<string, string | number>): string =>
   template.replace(/\{(\w+)\}/g, (match, key) => String(variables[key] ?? match));
@@ -33,18 +32,11 @@ const StatsPage = () => {
   const [selectedCancellationReason, setSelectedCancellationReason] = useState<string | null>(null);
   const [cancellationDetails, setCancellationDetails] = useState<any[]>([]);
   
-  const [stats, setStats] = useState(() => {
-    return {
-      totalRevenue: 0, totalOrders: 0, aov: 0, peakHour: '—', topProduct: '—',
-      missedRevenue: 0, peakHours: [] as { hour: number; count: number }[],
-      activeTables: 0, chartData: [] as any[], productPerformance: [] as any[],
-      cancellationReasons: [] as { key: string; name: string; value: number; color: string }[],
-      tableChurn: null as any,
-      haloProducts: [] as any[],
-      cancelPeakHours: {} as Record<string, { hour: number; count: number }[]>,
-      totalFoodCost: 0, totalWasteCost: 0, grossProfit: 0, netProfit: 0,
-      foodCostPct: 0, topProfitableItems: [] as any[], financeChartData: [] as any[],
-    };
+  const [stats, setStats] = useState<any>({
+    totalRevenue: 0, totalOrders: 0, aov: 0, peakHour: '—', topProduct: '—',
+    missedRevenue: 0, peakHours: [], activeTables: 0, chartData: [], productPerformance: [],
+    cancellationReasons: [], totalFoodCost: 0, totalWasteCost: 0, grossProfit: 0, netProfit: 0,
+    foodCostPct: 0, topProfitableItems: [], financeChartData: [],
   });
 
   /* ─── AI state ─── */
@@ -64,11 +56,55 @@ const StatsPage = () => {
   const [workHours, setWorkHours] = useState<{ open: number; close: number } | null>(null);
   const [restaurantCity, setRestaurantCity] = useState<string>('Baku,AZ');
 
-  /* ─── Fetch categories ─── */
-  useEffect(() => {
-    supabase.from('categories').select('id, name, translations').order('name')
-      .then(({ data }) => { if (data) setCategories(data); });
-  }, []);
+  /* ─── Logic ─── */
+  const handleFetchAiAnalysis = async () => {
+    setAiLoading(true);
+    try {
+      const res = await fetch('/api/sensei/stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stats, timeFilter, language }),
+      });
+      const data = await res.json();
+      setAiAnalysis(data.analysis || null);
+      setAiDisplayed(data.analysis || null);
+    } catch {
+      setAiAnalysis('AI analysis temporarily unavailable.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleSendChat = async (msg: string) => {
+    if (!msg.trim() || chatLoading) return;
+    setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
+    setChatLoading(true);
+    try {
+      const res = await fetch('/api/sensei/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, stats }),
+      });
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: 'ai', text: data.reply || '...' }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'ai', text: '...' }]);
+    } finally { setChatLoading(false); }
+  };
+
+  const handleFetchWhatIf = async () => {
+    if (!whatIfProduct || whatIfLoading) return;
+    setWhatIfLoading(true);
+    try {
+      const res = await fetch('/api/sensei/whatif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: whatIfProduct, priceChange: whatIfChange, stats }),
+      });
+      const data = await res.json();
+      setWhatIfResult(data.result || null);
+    } catch { } finally { setWhatIfLoading(false); }
+  };
 
   const fetchDetailedStats = useCallback(async (isStale?: () => boolean) => {
     setLoading(true);
@@ -80,7 +116,6 @@ const StatsPage = () => {
       const { data: settingsData } = await supabase.from('settings').select('opening_hours, city, address').single();
       if (settingsData?.city) setRestaurantCity(settingsData.city.includes(',') ? settingsData.city : `${settingsData.city},AZ`);
 
-      // Format cancellation reasons
       const reasonColors: Record<string, string> = { delay: '#ef4444', wrong_order: '#f59e0b', customer_refused: '#8b5cf6', quality_issue: '#06b6d4', other: '#6b7280' };
       const reasonLabels: Record<string, string> = { customer_refused: t('reason_customer_refused'), quality_issue: t('reason_quality_issue'), delay: t('reason_delay'), wrong_order: t('reason_wrong_order'), other: t('reason_other') };
       const formattedReasons = (data.cancellationReasons || []).map((r: any) => ({
@@ -111,7 +146,7 @@ const StatsPage = () => {
         financeChartData: data.financeChartData ?? [],
       };
       
-      setStats(statsData as any);
+      setStats(statsData);
       setCancellationDetails(formattedReasons);
     } catch (err) { 
       console.error(err); 
@@ -119,6 +154,11 @@ const StatsPage = () => {
       if (!isStale || !isStale()) setLoading(false);
     }
   }, [timeFilter, t]);
+
+  useEffect(() => {
+    supabase.from('categories').select('id, name, translations').order('name')
+      .then(({ data }) => { if (data) setCategories(data); });
+  }, []);
 
   useEffect(() => {
     let stale = false;
@@ -130,24 +170,6 @@ const StatsPage = () => {
       .subscribe();
     return () => { stale = true; removeRealtimeChannel(ch); };
   }, [fetchDetailedStats]);
-
-  const handleFetchAiAnalysis = async () => {
-    setAiLoading(true);
-    try {
-      const res = await fetch('/api/sensei/stats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stats, timeFilter, language }),
-      });
-      const data = await res.json();
-      setAiAnalysis(data.analysis || null);
-      setAiDisplayed(data.analysis || null);
-    } catch {
-      setAiAnalysis('AI analysis temporarily unavailable.');
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   return (
     <div className="relative overflow-x-hidden">

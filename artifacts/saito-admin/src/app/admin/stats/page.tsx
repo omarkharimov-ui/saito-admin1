@@ -215,6 +215,8 @@ const StatsPage = () => {
             missedRevenue={stats.missedRevenue}
             netProfit={stats.netProfit}
             foodCostPct={stats.foodCostPct}
+            totalFoodCost={stats.totalFoodCost}
+            totalWasteCost={stats.totalWasteCost}
           />
 
           <StatsSenseiPanel

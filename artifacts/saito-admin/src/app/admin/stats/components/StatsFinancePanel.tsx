@@ -142,53 +142,13 @@ export default function StatsFinancePanel({
           <DollarSign size={17} className="text-[#D4AF37]" />
         </div>
         <div>
-          <h3 className="text-lg font-serif font-bold text-white leading-none">Maliyyə Analitikası</h3>
-          <p className="text-[10px] text-white/25 uppercase tracking-[0.2em] mt-0.5">Revenue · Food Cost · Net Profit</p>
+          <h3 className="text-lg font-serif font-bold text-white leading-none">Maliyyə Sağlamlığı</h3>
+          <p className="text-[10px] text-white/25 uppercase tracking-[0.2em] mt-0.5">Food Cost Health Analysis</p>
         </div>
       </div>
 
-      {/* ── 4 stat cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <FinCard
-          label="Dövriyyə" value={`₼${az(totalRevenue)}`}
-          sub={`${totalRevenue > 0 ? az(totalRevenue / Math.max(1, topProfitableItems.length), 2) : '0.00'} orta/məhsul`}
-          icon={<TrendingUp size={18} />} accent="text-[#D4AF37]/70"
-          delay={0}
-        />
-        <FinCard
-          label="Maya Dəyəri" value={`₼${az(totalFoodCost)}`}
-          sub={
-            foodCostPct > 0 ? (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${health.bg} border ${health.border} ${health.color}`}>
-                <Percent size={9} /> {az(foodCostPct, 1)}% — {health.label}
-              </span>
-            ) : null
-          }
-          icon={<BarChart2 size={18} />} accent="text-amber-400/70"
-          delay={0.06}
-        />
-        <FinCard
-          label="İtki Xərci" value={`₼${az(totalWasteCost)}`}
-          sub="bu dövrdə waste + adjustment"
-          icon={<AlertTriangle size={18} />} accent={totalWasteCost > 0 ? 'text-rose-400/70' : 'text-white/20'}
-          delay={0.12}
-        />
-        <FinCard
-          label="Təmiz Qazanc" value={`₼${az(netProfit)}`}
-          big
-          sub={markupOverall !== null
-            ? `Markup: +${markupOverall}% · Brutto ₼${az(grossProfit)}`
-            : `Brutto ₼${az(grossProfit)}`
-          }
-          icon={<DollarSign size={20} />}
-          accent={netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}
-          delay={0.18}
-        />
-      </div>
-
       {/* ── Food cost health bar ── */}
-      {foodCostPct > 0 && (
-        <motion.div
+      <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.22 }}
           className="rounded-2xl px-5 py-4"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}

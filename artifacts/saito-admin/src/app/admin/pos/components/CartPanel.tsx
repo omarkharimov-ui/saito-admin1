@@ -182,25 +182,7 @@ export function CartPanel({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {!isEmpty && (
-            <div className={`flex items-center rounded-xl p-0.5 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
-              <button
-                onClick={onClearDraft}
-                className="h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-red-600 hover:bg-red-500/10"
-              >
-                {t('clear')}
-              </button>
-              <div className={`w-[1px] h-4 ${lightMode ? 'bg-zinc-200' : 'bg-white/10'}`} />
-              <button
-                onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
-                className={`h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                  lossMode ? 'text-red-500 bg-red-500/10' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
-                }`}
-              >
-                {lossMode ? t('loss_mode_cancel') : t('loss_mode')}
-              </button>
-            </div>
-          )}
+          {/* Action buttons moved to footer */}
         </div>
       </div>
 
@@ -366,6 +348,45 @@ export function CartPanel({
             )}
             </AnimatePresence>
           </div>
+        )}
+
+        {/* Footer Actions: Clear & Loss */}
+        {!isEmpty && !lossMode && (
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onClearDraft}
+              className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                lightMode 
+                  ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
+                  : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
+              }`}
+            >
+              {t('clear')}
+            </button>
+            <button
+              onClick={() => { setLossMode(true); setLossReason('wrong_entry'); }}
+              className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                lightMode 
+                  ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900' 
+                  : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {t('loss_mode')}
+            </button>
+          </div>
+        )}
+
+        {lossMode && (
+           <button
+             onClick={exitLossMode}
+             className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+               lightMode 
+                 ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' 
+                 : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
+             }`}
+           >
+             {t('loss_mode_cancel')}
+           </button>
         )}
 
         <div className="w-full">

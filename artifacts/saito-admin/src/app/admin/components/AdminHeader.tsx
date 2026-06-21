@@ -8,6 +8,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLayout } from '../context/LayoutContext';
+import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 
 const AdminHeaderInner = ({
   role,
@@ -83,39 +84,16 @@ const AdminHeaderInner = ({
 
       <div className={`flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-7 transition-opacity duration-100 ${isModalOpen ? 'opacity-0 pointer-events-none' : ''}`}>
         {/* Language switcher */}
-        <div className="relative z-50">
-          <button
-            ref={langBtnRef}
-            type="button"
-            onClick={() => setLangOpen((v) => !v)}
-            className="h-10 px-4 rounded-[12px] flex items-center gap-2 transition-all select-none active:scale-[0.98] focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)] bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-[0_6px_18px_rgba(0,0,0,0.04)]"
-          >
-            <span className="text-[11px] font-black tracking-[0.18em] text-[var(--theme-text-secondary)]">{activeLang.label}</span>
-            <ChevronDown size={11} className={`transition-transform duration-150 ${langOpen ? 'rotate-180' : ''} text-[var(--theme-text-muted)]`} />
-          </button>
-
-          {mounted && langOpen
-            ? createPortal(
-                <div
-                  ref={langMenuRef}
-                  className="fixed z-[200] flex flex-col gap-1.5 min-w-[90px] rounded-[14px] border p-2 shadow-[0_18px_44px_rgba(0,0,0,0.12)] border-[var(--theme-border)] bg-[var(--theme-panel)] backdrop-blur-2xl"
-                  style={{ top: langMenuPos.top, right: langMenuPos.right, minWidth: 90 }}
-                >
-                  {otherLangs.map((lang) => (
-                    <button
-                      key={lang.code}
-                      type="button"
-                      onClick={() => handleLangChange(lang.code)}
-                      className="h-8 px-5 rounded-[12px] flex items-center justify-center w-full text-[10px] font-bold tracking-[0.18em] transition-colors bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]"
-                    >
-                      {lang.label}
-                    </button>
-                  ))}
-                </div>,
-                document.body
-              )
-            : null}
-        </div>
+        <LiquidDropdown 
+          options={[
+            { id: 'az', label: 'AZ' },
+            { id: 'en', label: 'EN' },
+            { id: 'ru', label: 'RU' }
+          ]}
+          activeId={language}
+          onChange={(id) => setLanguage(id as any)}
+          className="hidden sm:block"
+        />
 
         {/* Notifications */}
         <div className="relative">

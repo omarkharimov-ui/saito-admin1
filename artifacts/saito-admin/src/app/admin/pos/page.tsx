@@ -210,16 +210,6 @@ export default function POSPage() {
                         onChange={(id) => setSelectedFloor(id)}
                       />
                     )}
-                    <LiquidDropdown 
-                      options={[
-                        { id: 'az', label: 'AZ' },
-                        { id: 'en', label: 'EN' },
-                        { id: 'ru', label: 'RU' }
-                      ]}
-                      activeId={language}
-                      onChange={(id) => setLanguage(id as any)}
-                      className="hidden sm:block"
-                    />
                   </div>
                   <div className="flex items-center gap-3">
                     <button onClick={() => setLightMode(!lightMode)}

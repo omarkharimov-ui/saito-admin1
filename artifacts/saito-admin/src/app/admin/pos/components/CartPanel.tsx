@@ -144,7 +144,7 @@ export function CartPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0 pb-4 border-b border-[var(--theme-border)]">
+      <div className="flex items-center justify-between flex-shrink-0 pb-4">
         <div className="flex items-center gap-2">
           <button onClick={onBack}
             className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
@@ -181,10 +181,33 @@ export function CartPanel({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          {/* Action buttons moved to footer */}
-        </div>
       </div>
+
+      {/* Cart Quick Actions Row */}
+      {!isEmpty && (
+        <div className={`flex items-center gap-2 pb-4 mb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
+          <button
+            onClick={onClearDraft}
+            className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
+              lightMode 
+                ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
+                : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
+            }`}
+          >
+            {t('clear')}
+          </button>
+          <button
+            onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
+            className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
+              lossMode 
+                ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-white')
+                : (lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900' : 'bg-white/5 border-white/10 text-white/40 hover:text-white')
+            }`}
+          >
+            {lossMode ? t('loss_mode_cancel') : t('loss_mode')}
+          </button>
+        </div>
+      )}
 
       {/* Items — CSS opacity transitions only, no AnimatePresence to avoid blink */}
       <div className="flex-1 overflow-y-auto py-3 relative">
@@ -350,45 +373,7 @@ export function CartPanel({
           </div>
         )}
 
-        {/* Footer Actions: Clear & Loss */}
-        {!isEmpty && !lossMode && (
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={onClearDraft}
-              className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                lightMode 
-                  ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
-                  : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
-              }`}
-            >
-              {t('clear')}
-            </button>
-            <button
-              onClick={() => { setLossMode(true); setLossReason('wrong_entry'); }}
-              className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                lightMode 
-                  ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900' 
-                  : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {t('loss_mode')}
-            </button>
-          </div>
-        )}
-
-        {lossMode && (
-           <button
-             onClick={exitLossMode}
-             className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-               lightMode 
-                 ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' 
-                 : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
-             }`}
-           >
-             {t('loss_mode_cancel')}
-           </button>
-        )}
-
+        {/* Footer actions removed from here */}
         <div className="w-full">
           <SendOrderButton
             disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}

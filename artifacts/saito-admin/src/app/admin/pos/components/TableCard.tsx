@@ -29,7 +29,7 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
         ${isSelected 
           ? (lightMode ? 'bg-white border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.1)]' : 'bg-zinc-900 border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.2)]') 
           : isOverdue 
-            ? 'border-rose-500 bg-rose-500/5 shadow-[0_0_20px_rgba(244,63,94,0.15)]'
+            ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
             : isOccupied
               ? (lightMode ? 'bg-white border-emerald-500/60 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-md')
               : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')

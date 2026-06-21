@@ -35,7 +35,7 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
   }, [activeId, items]);
   
   return (
-    <div className={`relative flex gap-2 items-center overflow-x-auto scrollbar-none no-scrollbar select-none py-1.5 px-1.5 rounded-full ${
+    <div className={`relative flex gap-4 items-center overflow-x-auto scrollbar-none no-scrollbar select-none py-1.5 px-6 rounded-full ${
       lightMode ? 'bg-zinc-100/80' : 'bg-white/5'
     }`}>
       {items.map((item, idx) => {
@@ -46,7 +46,7 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
             key={item.id ?? 'all'}
             ref={el => { itemRefs.current[idx] = el; }}
             onClick={() => onChange(item.id)}
-            className="relative px-5 rounded-full transition-colors duration-300 flex-shrink-0 outline-none focus-visible:ring-0 group h-[40px] flex items-center justify-center min-w-[80px]"
+            className="relative px-4 rounded-full transition-colors duration-300 flex-shrink-0 outline-none focus-visible:ring-0 group h-[40px] flex items-center justify-center min-w-[100px]"
           >
             {isActive && (
               <motion.div

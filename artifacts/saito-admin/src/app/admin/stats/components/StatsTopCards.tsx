@@ -65,7 +65,7 @@ const StatsTopCards = ({ totalRevenue, totalOrders, aov, missedRevenue, netProfi
           {isProfit ? '' : '−'}₼ {fmt(Math.abs(netProfit))}
         </h3>
         <p className={`text-[10px] mt-1 font-semibold ${fcHealth.color}`}>
-          {foodCostPct > 0 ? `Food cost: ${foodCostPct.toFixed(1)}% · ${fcHealth.label}` : 'Resept yoxdur'}
+          {foodCostPct > 0 ? `Food cost: ${foodCostPct.toFixed(1)}% · ${fcHealth.label}` : ''}
         </p>
       </motion.div>
 

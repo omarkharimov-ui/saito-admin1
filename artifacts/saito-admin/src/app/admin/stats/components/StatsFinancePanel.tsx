@@ -43,7 +43,7 @@ const az = (n: number, dec = 2) =>
   Number(n).toLocaleString('az-AZ', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
 function foodCostHealth(pct: number): { label: string; color: string; bg: string; border: string } {
-  if (pct === 0)    return { label: 'Resept yoxdur', color: 'text-[var(--theme-text-muted)]', bg: 'bg-[var(--theme-surface-soft)]',       border: 'border-[var(--theme-border)]' };
+  if (pct === 0)    return { label: '', color: 'text-white/20', bg: 'bg-white/5', border: 'border-white/10' };
   if (pct <= 25)    return { label: 'Əla',            color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/25' };
   if (pct <= 32)    return { label: 'Normal',          color: 'text-[#D4AF37]',   bg: 'bg-amber-500/10',  border: 'border-amber-500/20' };
   if (pct <= 40)    return { label: 'Diqqət',          color: 'text-orange-400',  bg: 'bg-orange-500/10', border: 'border-orange-500/20' };
@@ -158,9 +158,11 @@ export default function StatsFinancePanel({
         <FinCard
           label="Maya Dəyəri" value={`₼${az(totalFoodCost)}`}
           sub={
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${health.bg} border ${health.border} ${health.color}`}>
-              <Percent size={9} /> {foodCostPct > 0 ? `${az(foodCostPct, 1)}% — ${health.label}` : 'Resept yoxdur'}
-            </span> as any
+            foodCostPct > 0 ? (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${health.bg} border ${health.border} ${health.color}`}>
+                <Percent size={9} /> {az(foodCostPct, 1)}% — {health.label}
+              </span>
+            ) : null
           }
           icon={<BarChart2 size={18} />} accent="text-amber-400/70"
           delay={0.06}

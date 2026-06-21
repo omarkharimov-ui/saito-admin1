@@ -535,7 +535,7 @@ export function usePos() {
     language, tables, floors, products, categories, loading,
     selectedTable, cart, activeView, orderHistory,
     selectTable, backToFloor,
-    addToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts, saveCart,
+    addToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts,
     placeOrder, closeBill, transferTable, mergeTables,
     setActiveView, setCart, setSelectedTable, setTables,
     fetchData,

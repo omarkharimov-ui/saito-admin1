@@ -24,15 +24,11 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
     <motion.button
       whileTap={{ scale: 0.96 }}
       onClick={onTap}
-      className={`relative h-[130px] rounded-[24px] p-5 text-left transition-all duration-300 shadow-sm hover:shadow-md group overflow-hidden
-        ${isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50' : 
-          isTransferSource ? 'ring-2 ring-blue-500 bg-blue-50' :
-          isTransferTarget ? 'ring-2 ring-gold bg-gold/5' :
-          'bg-[#f4f4f7] dark:bg-white/[0.08] hover:bg-[#ebebef] dark:hover:bg-white/[0.12]'}
-        ${table.status === 'occupied' ? 'border-l-[6px] border-l-emerald-500' : 
-          table.status === 'dirty' ? 'border-l-[6px] border-l-orange-500' : 
-          table.status === 'reserved' ? 'border-l-[6px] border-l-blue-500' : 
-          'border-l-[6px] border-l-zinc-300 dark:border-l-zinc-700'}`}
+      className={`relative h-[130px] rounded-[24px] p-5 text-left transition-all duration-300 shadow-sm hover:shadow-md group overflow-hidden border
+        ${isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50 border-emerald-200' : 
+          isTransferSource ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-200' :
+          isTransferTarget ? 'ring-2 ring-gold bg-gold/5 border-gold/20' :
+          'bg-[#f4f4f7] dark:bg-white/[0.08] hover:bg-[#ebebef] dark:hover:bg-white/[0.12] border-black/[0.05] dark:border-white/[0.05]'}`}
     >
       <div className="flex justify-between items-start mb-2">
         <span className={`text-2xl font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>

@@ -56,21 +56,21 @@ function YojiAdvice() {
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative overflow-hidden rounded-[28px] border px-6 py-5 shadow-lg transition-all duration-500 ${
+      className={`relative overflow-hidden rounded-[32px] border px-6 py-6 shadow-[var(--theme-shadow)] transition-all duration-500 ${
         isCritical 
-          ? 'bg-rose-500/10 border-rose-500/20' 
-          : 'bg-[#1c1c1e] border-white/[0.06]'
+          ? 'bg-rose-500/[0.03] border-rose-500/10' 
+          : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'
       }`}
     >
-      <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none">
-        <BrainCircuit size={80} className={isCritical ? 'text-rose-500' : 'text-gold'} />
+      <div className="absolute top-0 right-0 p-4 opacity-[0.02] pointer-events-none">
+        <BrainCircuit size={100} className={isCritical ? 'text-rose-500' : 'text-gold'} />
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all ${
-          isCritical ? 'bg-rose-500/20 border-rose-500/30' : 'bg-gold/10 border-gold/20'
+      <div className="flex items-center gap-6">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${
+          isCritical ? 'bg-rose-500/10 border-rose-500/20' : 'bg-gold/5 border-gold/15'
         }`}>
-          {isCritical ? <AlertTriangle className="text-rose-500" size={20} /> : <Lightbulb className="text-gold" size={20} />}
+          {isCritical ? <AlertTriangle className="text-rose-500" size={24} /> : <Lightbulb className="text-gold" size={24} />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">

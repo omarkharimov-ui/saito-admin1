@@ -20,20 +20,27 @@ function YojiAdvice() {
         const res = await fetch('/api/stats?timeFilter=month');
         const data = await res.json();
         
-        const isCritical = (data.netProfit < 0) || (data.totalWasteCost > (data.totalRevenue * 0.2));
+        const isCritical = (data.netProfit < -100000); // Yalnız çox ciddi ziyan olanda kritik göstər
 
         if (isCritical) {
           setAdvice({
             title: "KRİTİK VƏZİYYƏT",
-            text: `Biznes təhlükədədir! Cari dövrdə ₼${Math.abs(data.netProfit).toLocaleString()} xalis ziyan və ₼${data.totalWasteCost.toLocaleString()} itki qeydə alınıb. Təcili tədbir görülməlidir!`,
+            text: `Biznesdə ciddi maliyyə kənarlaşması var. Cari dövrdə ₼${Math.abs(data.netProfit).toLocaleString()} kəsir qeydə alınıb.`,
             type: 'critical'
           });
         } else {
+          const tips = [
+            "Saito bu gün stabil görünür. Müştəri məmnuniyyətinə fokuslanmağa davam edin.",
+            "VIP masalarda aktivlik müşahidə olunur. Xidmət keyfiyyətini yüksək saxlayın.",
+            "Axşam saatlarında sifariş axını arta bilər. Hazırlıqlı olun.",
+            "Yeni kampaniyalarla mənfəəti 15% artırmaq potensialınız var.",
+            "İşçi heyəti yaxşı performans göstərir. Kiçik bir təşəkkür motivasiyanı artırar."
+          ];
+          const randomTip = tips[Math.floor(Math.random() * tips.length)];
+          
           setAdvice({
-            title: "Yoji Məsləhəti",
-            text: data.totalRevenue > 1000 
-              ? "Satışlar stabil gedir. Maya dəyərini nəzarətdə saxlayaraq mənfəəti artıra bilərsiniz."
-              : "Yeni kampaniyalarla müştəri axınını sürətləndirmək olar.",
+            title: "Yoji-dən Mesaj",
+            text: randomTip,
             type: 'growth'
           });
         }

@@ -36,46 +36,55 @@ export async function POST(request: Request) {
     const peakHour = (stats.peakHours || []).sort((a: { count: number }, b: { count: number }) => b.count - a.count)[0];
 
     const systemPrompt = language === 'ru'
-      ? `Ты аналитик ресторана. Дай глубокий анализ данных за период «${periodLabel}». Используй структуру:
+      ? `Ты ИИ-стратег ресторана. Твоя задача — спасти бизнес от убытков и увеличить прибыль.
+        Если за период «${periodLabel}» чистая прибыль (netProfit) отрицательная или списания (totalWasteCost) превышают 20% выручки, начни с заголовка [КРИТИЧЕСКАЯ СИТУАЦИЯ] и пиши жестко и по делу.
+        Используй структуру:
 [состояние]
-(3-4 предложения о общей ситуации, выручке, трендах — с конкретными цифрами)
+(3-4 предложения о реальной финансовой ситуации, с акцентом на прибыли и убытках)
 [риски]
-(2-3 конкретных риска или слабых места)
+(2-3 конкретных причины, почему бизнес теряет деньги)
 [действия]
-1. Действие 1 [Тесир: высокий]
+1. Срочное действие 1 [Тесир: КРИТИЧЕСКИЙ]
 2. Действие 2 [Тесир: средний]
 3. Действие 3 [Тесир: низкий]
-Используй <<слово>> для выделения ключевых слов. Только структуру выше, без лишнего текста.`
+Используй <<слово>> для выделения ключевых терминов.`
       : language === 'en'
-      ? `You are a restaurant analytics expert. Give a deep analysis for the period «${periodLabel}». Use this structure:
+      ? `You are the restaurant's AI Strategist. Your goal is to save the business from losses and maximize profit.
+        If for the period «${periodLabel}» the net profit is negative or waste costs exceed 20% of revenue, start with [CRITICAL SITUATION] and be firm and direct.
+        Structure:
 [overview]
-(3-4 sentences about overall situation, revenue, trends — with specific numbers)
+(3-4 sentences on the real financial state, focusing on profit/loss and waste)
 [risks]
-(2-3 specific risks or weak points)
+(2-3 specific reasons why the business is bleeding money)
 [actions]
-1. Action 1 [Impact: high]
+1. Urgent Action 1 [Impact: CRITICAL]
 2. Action 2 [Impact: medium]
 3. Action 3 [Impact: low]
-Use <<word>> to highlight key terms. Only the structure above, no extra text.`
-      : `Sən restoran analitiki mütəxəssisisisnən. «${periodLabel}» dövrünün dərin analizini ver. Bu strukturu istifadə et:
+Use <<word>> to highlight key metrics.`
+      : `Sən restoranın AI Strateqisən. Məqsədin biznesi ziyandan xilas etmək və mənfəəti artırmaqdır.
+        Əgər «${periodLabel}» dövrü üçün təmiz mənfəət (netProfit) mənfidirsə və ya itki xərcləri (totalWasteCost) gəlirin 20%-ni keçirsə, analizi [KRİTİK VƏZİYYƏT] başlığı ilə başla və sərt, konkret danış.
+        Struktur:
 [vəziyyət]
-(3-4 cümlə — ümumi vəziyyət, gəlir, trendlər, konkret rəqəmlərlə)
+(3-4 cümlə real maliyyə vəziyyəti haqqında, mənfəət/ziyan və israfa fokuslanaraq)
 [risklər]
-(2-3 konkret risk və ya zəif nöqtə)
+(2-3 konkret səbəb — biznes niyə pul itirir?)
 [addımlar]
-1. Addım 1 [Təsir: yüksək]
+1. Təcili Addım 1 [Təsir: KRİTİK]
 2. Addım 2 [Təsir: orta]
 3. Addım 3 [Təsir: aşağı]
-Əsas sözləri <<söz>> formatında vurgula. Yalnız yuxarıdakı struktur, əlavə mətn olmadan.`;
+Əsas terminləri <<söz>> formatında vurgula.`;
 
     const userContent = JSON.stringify({
       period: periodLabel,
       totalOrders: stats.totalOrders,
       totalRevenue: stats.totalRevenue,
+      totalFoodCost: stats.totalFoodCost,
+      totalWasteCost: stats.totalWasteCost,
+      netProfit: stats.netProfit,
+      foodCostPct: stats.foodCostPct,
       aov: stats.aov,
-      cancelledRevenueLoss: stats.cancelledRevenueLoss,
+      cancelledRevenueLoss: stats.missedRevenue,
       topProducts,
-      topCategories,
       peakHour: peakHour ? `${peakHour.hour}:00 (${peakHour.count} orders)` : 'N/A',
       chartTrend: (stats.chartData || []).slice(-7).map((d: { date: string; revenue: number }) => `${d.date}: ₼${d.revenue?.toFixed(1)}`).join(', '),
     });

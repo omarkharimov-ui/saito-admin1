@@ -27,7 +27,7 @@ export function LiquidSwitcher({ options, activeId, onChange }: LiquidSwitcherPr
     stiffness: 350,
     damping: 25,
     mass: 0.8
-  };
+  } as const;
 
   // Drag logic
   const x = useMotionValue(0);

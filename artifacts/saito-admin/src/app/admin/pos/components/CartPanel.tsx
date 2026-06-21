@@ -181,29 +181,26 @@ export function CartPanel({
             </div>
           </div>
         </div>
-        <div className="flex items-center">
-          <button
-            onClick={onClearDraft}
-            style={{
-              opacity: lossMode ? 0 : 1,
-              marginRight: lossMode ? 0 : 8,
-              pointerEvents: lossMode ? 'none' as const : 'auto' as const,
-              display: isEmpty ? 'none' : undefined,
-            }}
-            className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] text-[var(--theme-text-secondary)] hover:text-red-600 hover:bg-red-500/10"
-          >
-            {t('clear')}
-          </button>
-          <button
-            onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
-            style={{
-              color: lossMode ? '#f87171' : 'var(--theme-text-secondary)',
-              display: isEmpty ? 'none' : undefined,
-            }}
-            className="h-10 px-3.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[var(--theme-surface-soft)]"
-          >
-            {lossMode ? t('loss_mode_cancel') : t('loss_mode')}
-          </button>
+        <div className="flex items-center gap-1">
+          {!isEmpty && (
+            <div className={`flex items-center rounded-xl p-0.5 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
+              <button
+                onClick={onClearDraft}
+                className="h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-red-600 hover:bg-red-500/10"
+              >
+                {t('clear')}
+              </button>
+              <div className={`w-[1px] h-4 ${lightMode ? 'bg-zinc-200' : 'bg-white/10'}`} />
+              <button
+                onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
+                className={`h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                  lossMode ? 'text-red-500 bg-red-500/10' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
+                }`}
+              >
+                {lossMode ? t('loss_mode_cancel') : t('loss_mode')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

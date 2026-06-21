@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Option {
   id: string;
@@ -17,8 +18,8 @@ interface LiquidDropdownProps {
 }
 
 export function LiquidDropdown({ options, activeId, onChange, className = '' }: LiquidDropdownProps) {
+  const { lightMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const [isHolding, setIsHolding] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const activeLabel = options.find(o => o.id === activeId)?.label || 'Seçin';
@@ -54,16 +55,18 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
         whileTap={{ scale: 0.98 }}
         className={`relative flex items-center justify-between gap-3 px-6 py-2.5 rounded-full border cursor-pointer transition-all duration-300 z-30 min-w-[120px] ${
           isOpen 
-            ? 'bg-zinc-900 text-white border-transparent shadow-xl' 
-            : 'bg-[#efeff4] dark:bg-white/[0.08] border-transparent dark:border-white/[0.1] shadow-sm hover:bg-zinc-200 dark:hover:bg-white/[0.12]'
+            ? lightMode ? 'bg-zinc-900 text-white border-transparent shadow-xl' : 'bg-white text-black border-transparent shadow-xl'
+            : lightMode ? 'bg-[#efeff4] border-transparent text-[#8e8e93] shadow-sm hover:bg-zinc-200' : 'bg-white/[0.08] border-white/[0.1] text-[#8e8e93] shadow-sm hover:bg-white/[0.15]'
         }`}
       >
         <span className={`text-[11px] font-black uppercase tracking-[0.2em] pointer-events-none ${
-          isOpen ? 'text-white' : 'text-[#8e8e93]'
+          isOpen ? (lightMode ? 'text-white' : 'text-black') : 'text-[#8e8e93]'
         }`}>
           {activeLabel}
         </span>
-        <ChevronDown size={14} className={`transition-transform duration-300 pointer-events-none ${isOpen ? 'rotate-180 text-white' : 'text-[#8e8e93]'}`} />
+        <ChevronDown size={14} className={`transition-transform duration-300 pointer-events-none ${isOpen ? 'rotate-180' : ''} ${
+          isOpen ? (lightMode ? 'text-white' : 'text-black') : 'text-[#8e8e93]'
+        }`} />
       </motion.div>
 
       {/* ── LIQUID MENU ── */}
@@ -74,7 +77,9 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
             animate={{ opacity: 1, y: 8, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, y: -5, scale: 0.92, filter: 'blur(10px)' }}
             transition={springConfig}
-            className="absolute top-full left-0 z-[100] min-w-[200px] p-1.5 bg-white/80 dark:bg-zinc-900/90 backdrop-blur-3xl rounded-[28px] border border-white/20 shadow-[0_24px_60px_rgba(0,0,0,0.25)] origin-top-left overflow-hidden"
+            className={`absolute top-full left-0 z-[100] min-w-[200px] p-1.5 backdrop-blur-3xl rounded-[28px] border shadow-[0_24px_60px_rgba(0,0,0,0.25)] origin-top-left overflow-hidden ${
+              lightMode ? 'bg-white/90 border-zinc-200' : 'bg-zinc-900/90 border-white/10'
+            }`}
           >
             <div className="space-y-1">
               {options.map((opt) => (
@@ -87,15 +92,14 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
                   }}
                   className={`w-full text-left px-5 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
                     activeId === opt.id
-                      ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-lg'
-                      : 'text-[#8e8e93] hover:bg-black/5 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'
+                      ? lightMode ? 'bg-zinc-900 text-white shadow-lg' : 'bg-white text-black shadow-lg'
+                      : lightMode ? 'text-[#8e8e93] hover:bg-zinc-100 hover:text-black' : 'text-white/40 hover:bg-white/5 hover:text-white'
                   }`}
                 >
                   {opt.label}
                 </button>
               ))}
             </div>
-            <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-white/10 via-transparent to-transparent" />
           </motion.div>
         )}
       </AnimatePresence>

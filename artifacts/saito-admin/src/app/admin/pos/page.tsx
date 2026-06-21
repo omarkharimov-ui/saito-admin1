@@ -201,8 +201,8 @@ export default function POSPage() {
             <div key="floor" className={`h-full flex flex-col border ${lightMode ? 'border-zinc-200 bg-[#f8f8fa]' : 'border-white/[0.04] bg-[#070707]'} rounded-[40px] m-3 shadow-2xl relative`}>
               <div className="flex-shrink-0 p-6 pb-2 relative z-[60]">
                 <div className="flex items-center justify-between mb-4 gap-4">
-                  <div className="flex items-center gap-4">
-                    <h1 className="text-3xl font-black tracking-tighter">POS</h1>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-black tracking-tighter mr-2">POS</h1>
                     {pos.floors.length > 0 && (
                       <LiquidDropdown 
                         options={pos.floors.map(f => ({ id: f.name, label: f.name }))}
@@ -210,8 +210,6 @@ export default function POSPage() {
                         onChange={(id) => setSelectedFloor(id)}
                       />
                     )}
-                  </div>
-                  <div className="flex items-center gap-3">
                     <LiquidDropdown 
                       options={[
                         { id: 'az', label: 'AZ' },
@@ -222,6 +220,8 @@ export default function POSPage() {
                       onChange={(id) => setLanguage(id as any)}
                       className="hidden sm:block"
                     />
+                  </div>
+                  <div className="flex items-center gap-3">
                     <button onClick={() => setLightMode(!lightMode)}
                       className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-black/[0.02] dark:border-white/[0.1] text-[#8e8e93] hover:text-black dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-white/[0.15] transition-all shadow-sm">
                       {lightMode ? <Moon size={20} /> : <Sun size={20} />}
@@ -235,6 +235,60 @@ export default function POSPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 pt-2">
+                <AnimatePresence>
+                  {(mergeMode || transferMode) && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -20 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      exit={{ opacity: 0, y: -20 }}
+                      className="mb-6 p-4 rounded-[24px] bg-zinc-900 text-white flex items-center justify-between shadow-xl"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                          {mergeMode ? <GitMerge size={20} /> : <Globe size={20} />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-black uppercase tracking-widest">
+                            {mergeMode ? 'Masaları Birləşdir' : 'Sifarişi Köçür'}
+                          </p>
+                          <p className="text-[10px] text-white/50 uppercase tracking-wider">
+                            {mergeMode 
+                              ? `${selectedForMerge.length} masa seçilib` 
+                              : transferSource ? (transferTarget ? `Masa ${transferSource} -> ${transferTarget}` : `Hədəf masa seçin...`) : 'Mənbə masa seçin...'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); }}
+                          className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all"
+                        >
+                          Ləğv Et
+                        </button>
+                        <button 
+                          disabled={mergeMode ? selectedForMerge.length < 2 : (!transferSource || !transferTarget)}
+                          onClick={async () => {
+                            if (mergeMode) {
+                              await pos.mergeTables(selectedForMerge);
+                              setMergeMode(false);
+                              setSelectedForMerge([]);
+                            } else {
+                              await pos.transferOrder(transferSource!, transferTarget!);
+                              setTransferMode(false);
+                              setTransferSource(null);
+                              setTransferTarget(null);
+                            }
+                            pos.fetchData();
+                          }}
+                          className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-black hover:bg-gray-200 transition-all disabled:opacity-50"
+                        >
+                          Təsdiqlə
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {activeFloor ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                     {(activeFloor.tables ?? []).filter(t => t.status !== 'merged').map(table => (

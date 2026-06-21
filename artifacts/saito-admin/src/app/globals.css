@@ -30,18 +30,19 @@
     --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: rgba(0, 0, 0, 0.06);
+    --border: rgba(0, 0, 0, 0.05);
     --input: 240 5.9% 90%;
     --ring: #d4af37;
-    --radius: 1rem;
+    --radius: 1.5rem;
     
-    /* Custom Saito Light Palette */
-    --theme-bg: #f8f9fa;
-    --theme-surface: rgba(255, 255, 255, 0.7);
-    --theme-surface-soft: rgba(0, 0, 0, 0.02);
-    --theme-border: rgba(0, 0, 0, 0.06);
-    --theme-text: #1a1c1e;
-    --theme-text-muted: #687076;
+    /* Custom Saito Light Palette - Ultra Clean */
+    --theme-bg: #f9f9fb;
+    --theme-surface: #ffffff;
+    --theme-surface-soft: #f4f4f7;
+    --theme-border: rgba(0, 0, 0, 0.04);
+    --theme-text: #0a0a0b;
+    --theme-text-muted: #8e8e93;
+    --premium-shadow: 0 10px 40px -10px rgba(0,0,0,0.04), 0 2px 4px -1px rgba(0,0,0,0.02);
   }
 
   .dark {

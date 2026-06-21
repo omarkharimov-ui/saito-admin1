@@ -114,16 +114,65 @@ function DashboardContent() {
   }
 
   return (
-    <div className="space-y-6 pb-20 max-w-[1400px] mx-auto">
-      {/* 1. Hero Stats */}
-      <HeroBanner />
+    <div className="space-y-8 pb-24 max-w-[1600px] mx-auto px-4 md:px-8 pt-4">
+      {/* Top Bar: Greeting + AI Pulse */}
+      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+        <div className="flex-shrink-0">
+           <YojiAdviceSmall />
+        </div>
+      </div>
 
-      {/* 2. Yoji Advice (Now Center/Main) */}
-      <YojiAdvice />
+      {/* Main Bento Grid */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* Left Column: Big Stats */}
+        <div className="col-span-12 lg:col-span-8 space-y-6">
+           <HeroBanner />
+        </div>
 
-      {/* 3. Live Floor Snapshot */}
-      <LiveFloorSnapshot />
+        {/* Right Column: Live Snapshot & Secondary Actions */}
+        <div className="col-span-12 lg:col-span-4 space-y-6">
+           <LiveFloorSnapshot />
+        </div>
+      </div>
     </div>
+  );
+}
+
+// Add a smaller, sleeker version of Yoji Advice for the top bar
+function YojiAdviceSmall() {
+  const [advice, setAdvice] = useState<any>(null);
+  const { t } = useLanguage();
+
+  useEffect(() => {
+    fetch('/api/stats?timeFilter=month')
+      .then(r => r.json())
+      .then(data => {
+        const isCritical = (data.netProfit < 0);
+        setAdvice({
+          text: isCritical ? "Kritik ziyan qeydə alınıb!" : "Saito-da hər şey stabil gedir.",
+          isCritical
+        });
+      }).catch(() => {});
+  }, []);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className={`flex items-center gap-3 px-5 py-2.5 rounded-full border backdrop-blur-md shadow-sm ${
+        advice?.isCritical ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-gold/5 border-gold/20 text-gold'
+      }`}
+    >
+      <div className="relative">
+        <Sparkles size={14} className="animate-pulse" />
+        <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-current rounded-full animate-ping" />
+      </div>
+      <span className="text-[11px] font-black uppercase tracking-widest opacity-80">YOJI AI:</span>
+      <span className="text-[12px] font-bold tracking-tight">{advice?.text || "Analiz edilir..."}</span>
+      <Link href="/admin/stats" className="ml-2 p-1 hover:bg-current/10 rounded-full transition-all">
+        <Zap size={12} />
+      </Link>
+    </motion.div>
   );
 }
 

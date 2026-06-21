@@ -308,8 +308,8 @@ const ReservationsPage = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 mb-0 md:mb-8">
         <div className="shrink-0 px-4 pt-5 pb-3 md:px-0 md:pt-0 md:pb-0 flex items-center justify-between md:block">
-          <h1 className="hidden md:block text-2xl md:text-3xl font-serif font-bold text-white mb-0 md:mb-1">{t('reservations')}</h1>
-          <p className="hidden md:block text-white/40 text-sm">{t('reservations_subtitle')}</p>
+          <h1 className="hidden md:block text-2xl md:text-3xl font-serif font-bold text-[var(--theme-text)] mb-0 md:mb-1">{t('reservations' as any)}</h1>
+          <p className="hidden md:block text-[var(--theme-text-muted)] text-sm">{t('reservations_subtitle' as any)}</p>
           {/* Search toggle — mobile only, lives in header */}
           <button
             onClick={() => setSearchOpen(v => !v)}

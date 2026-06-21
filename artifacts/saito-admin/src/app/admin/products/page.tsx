@@ -681,10 +681,10 @@ const ProductsPage = () => {
   /* ─── Render ─── */
   return (
     <PageTransition className="space-y-6 pb-24">
-      <GlassCard intensity="light" padding="lg">
-        <h2 className="text-3xl font-serif font-bold text-white tracking-tight mb-2">{t('products_title')}</h2>
-        <p className="text-white/40 text-xs uppercase tracking-[0.2em]">{t('products_subtitle')}</p>
-      </GlassCard>
+      <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[32px] p-10 shadow-[var(--theme-shadow)]">
+        <h2 className="text-3xl font-serif font-black text-[var(--theme-text)] tracking-tight mb-2 uppercase">{t('products_title' as any)}</h2>
+        <p className="text-[var(--theme-text-muted)] text-[11px] font-bold uppercase tracking-[0.2em]">{t('products_subtitle' as any)}</p>
+      </div>
 
       <GlassCard intensity="light" padding="md">
         <ProductTable

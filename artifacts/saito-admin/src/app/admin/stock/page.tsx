@@ -141,24 +141,24 @@ export default function StockPage() {
   };
 
   return (
-    <PageTransition className="min-h-screen bg-[#070707] text-white pb-24">
-      <div className="absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.12),transparent_42%),radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.06),transparent_30%)] pointer-events-none" />
+    <PageTransition className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] pb-24">
+      <div className="absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.08),transparent_42%)] pointer-events-none" />
       
       <div className="max-w-none mx-auto px-4 sm:px-6 pt-6 sm:pt-10 relative">
         <div className="space-y-6">
           
           {/* Hero Section */}
-          <section className="relative overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] px-8 py-8 backdrop-blur-2xl shadow-2xl">
+          <section className="relative overflow-hidden rounded-[32px] border border-[var(--theme-border)] bg-[var(--theme-surface)] px-8 py-8 shadow-[var(--theme-shadow)]">
             <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-gold uppercase">
+                <div className="inline-flex items-center gap-2 rounded-full border border-gold/10 bg-gold/5 px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-gold uppercase">
                   <Sparkles size={12} /> PRO INVENTORY
                 </div>
-                <h1 className="text-5xl font-black tracking-tighter text-white">Stok Paneli</h1>
+                <h1 className="text-5xl font-black tracking-tighter text-[var(--theme-text)]">Stok Paneli</h1>
                 <div className="flex gap-2">
-                  <button onClick={() => setViewMode('stock')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'stock' ? 'bg-white text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>Anbar</button>
-                  <button onClick={() => setViewMode('intelligence')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'intelligence' ? 'bg-gold text-black' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>Ağıllı Analiz</button>
-                  <button onClick={() => setViewMode('suppliers')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'suppliers' ? 'bg-blue-500 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>Tədarükçülər</button>
+                  <button onClick={() => setViewMode('stock')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'stock' ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white text-black') : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Anbar</button>
+                  <button onClick={() => setViewMode('intelligence')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'intelligence' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Ağıllı Analiz</button>
+                  <button onClick={() => setViewMode('suppliers')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'suppliers' ? 'bg-blue-500 text-white' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarükçülər</button>
                 </div>
               </div>
               <InventoryHealthCard stats={stats} loading={loading} />
@@ -167,28 +167,25 @@ export default function StockPage() {
 
           {viewMode === 'stock' && (
             <div className="grid grid-cols-1 gap-6 items-start">
-              {/* Main List - Now Full Width */}
               <div className="space-y-4">
-                <GlassCard padding="none" className="overflow-hidden border-white/[0.05]">
-                  {/* Search & Tabs instead of Dropdown */}
-                  <div className="p-4 border-b border-white/[0.05] flex flex-col md:flex-row items-center gap-4">
+                <div className="bg-[var(--theme-surface)] rounded-[32px] border border-[var(--theme-border)] shadow-[var(--theme-shadow)] overflow-hidden">
+                  <div className="p-6 border-b border-[var(--theme-border)] flex flex-col md:flex-row items-center gap-4 bg-[var(--theme-surface-soft)]/30">
                     <div className="relative flex-1 w-full">
-                      <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
+                      <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
                       <input 
                         value={search} onChange={e => setSearch(e.target.value)}
                         placeholder="Xammal axtar..." 
-                        className="w-full bg-white/[0.03] border border-white/[0.06] rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-white/20"
+                        className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-gold/30 text-[var(--theme-text)]"
                       />
                     </div>
-                    <div className="flex bg-white/[0.03] p-1 rounded-2xl border border-white/[0.06]">
-                      <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? 'bg-white text-black' : 'text-white/40'}`}>Hamısı</button>
-                      <button onClick={() => setFilter('critical')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'critical' ? 'bg-rose-500 text-white' : 'text-white/40'}`}>Kritik</button>
-                      <button onClick={() => setFilter('out_of_stock')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'out_of_stock' ? 'bg-red-600 text-white' : 'text-white/40'}`}>Bitənlər</button>
+                    <div className="flex bg-[var(--theme-bg)] p-1.5 rounded-2xl border border-[var(--theme-border)]">
+                      <button onClick={() => setFilter('all')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white text-black') : 'text-[var(--theme-text-muted)]'}`}>Hamısı</button>
+                      <button onClick={() => setFilter('critical')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'critical' ? 'bg-rose-500 text-white' : 'text-[var(--theme-text-muted)]'}`}>Kritik</button>
+                      <button onClick={() => setFilter('out_of_stock')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'out_of_stock' ? 'bg-red-600 text-white' : 'text-[var(--theme-text-muted)]'}`}>Bitənlər</button>
                     </div>
                   </div>
 
-                  {/* Table Header */}
-                  <div className="hidden md:grid grid-cols-12 px-6 py-3 bg-white/[0.02] border-b border-white/[0.05] text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
+                  <div className="hidden md:grid grid-cols-12 px-8 py-4 bg-[var(--theme-bg)] border-b border-[var(--theme-border)] text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em]">
                     <div className="col-span-4">Xammal Adı</div>
                     <div className="col-span-2 text-center">Birim Qiymət</div>
                     <div className="col-span-2 text-center">Mövcud Stok</div>
@@ -196,40 +193,39 @@ export default function StockPage() {
                     <div className="col-span-2 text-right">Əməliyyat</div>
                   </div>
 
-                  {/* List Rows */}
-                  <div className="divide-y divide-white/[0.03]">
+                  <div className="divide-y divide-[var(--theme-border)]">
                     {rows.map(row => {
                       const meta = getStatusMeta(row.status);
                       return (
                         <motion.div 
                           key={row.id} 
-                          className={`px-6 py-4 grid grid-cols-1 md:grid-cols-12 items-center transition-all hover:bg-white/[0.02] ${selectedRow?.id === row.id ? 'bg-gold/[0.03]' : ''}`}
+                          className={`px-8 py-5 grid grid-cols-1 md:grid-cols-12 items-center transition-all hover:bg-[var(--theme-surface-soft)]/50 ${selectedRow?.id === row.id ? 'bg-gold/5' : ''}`}
                         >
                           <div className="col-span-4 flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${meta.bg}`}>
-                              <Package size={20} className={meta.text} />
+                            <div className={`w-12 h-12 rounded-[18px] flex items-center justify-center ${meta.bg}`}>
+                              <Package size={22} className={meta.text} />
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-white/90">{row.name}</p>
-                              <p className="text-[10px] text-white/25 uppercase tracking-widest mt-1">{UNIT_LABELS[row.unit]}</p>
+                              <p className="text-sm font-black text-[var(--theme-text)]">{row.name}</p>
+                              <p className="text-[10px] text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">{UNIT_LABELS[row.unit]}</p>
                             </div>
                           </div>
                           <div className="col-span-2 text-center hidden md:block">
-                            <p className="text-sm font-bold text-white/60">₼{row.average_cost_per_unit.toFixed(2)}</p>
+                            <p className="text-sm font-bold text-[var(--theme-text-secondary)]">₼{row.average_cost_per_unit.toFixed(2)}</p>
                           </div>
                           <div className="col-span-2 text-center">
-                            <p className="text-lg font-black tabular-nums text-white">{row.current_stock.toFixed(1)}</p>
+                            <p className="text-lg font-black tabular-nums text-[var(--theme-text)]">{row.current_stock.toFixed(1)}</p>
                           </div>
                           <div className="col-span-2 flex justify-center">
                             <div className="w-24">
                               <StockStatusBar status={row.status} pct={Math.round(row.stock_ratio)} />
                             </div>
                           </div>
-                          <div className="col-span-2 flex justify-end gap-2">
-                             <button onClick={() => setSelectedRow(row)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/40 transition-all">
+                          <div className="col-span-2 flex justify-end gap-3">
+                             <button onClick={() => setSelectedRow(row)} className="p-2.5 rounded-xl bg-[var(--theme-bg)] hover:bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all shadow-sm">
                                <Pencil size={14} />
                              </button>
-                             <button onClick={() => { setSelectedRow(row); setModalMode('stock_in'); }} className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all">
+                             <button onClick={() => { setSelectedRow(row); setModalMode('stock_in'); }} className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 transition-all border border-emerald-500/20">
                                <Plus size={14} />
                              </button>
                           </div>
@@ -237,7 +233,7 @@ export default function StockPage() {
                       );
                     })}
                   </div>
-                </GlassCard>
+                </div>
               </div>
             </div>
           )},old_string:
@@ -245,20 +241,20 @@ export default function StockPage() {
           {viewMode === 'suppliers' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {suppliers.map(s => (
-                <GlassCard key={s.id} className="border-blue-500/10 hover:border-blue-500/30 transition-all group">
+                <div key={s.id} className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[32px] p-8 shadow-[var(--theme-shadow)] hover:border-blue-500/30 transition-all group">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
                       <Users size={24} />
                     </div>
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Tədarükçü</span>
+                    <span className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-widest">Tədarükçü</span>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-1">{s.name}</h3>
-                  <p className="text-sm text-white/40 mb-4">{s.contact_person || 'Məsul şəxs yoxdur'}</p>
-                  <div className="flex items-center justify-between pt-4 border-t border-white/[0.05]">
-                    <span className="text-xs font-mono text-white/30">{s.phone}</span>
-                    <button className="text-[10px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300">Ətraflı →</button>
+                  <h3 className="text-xl font-bold text-[var(--theme-text)] mb-1">{s.name}</h3>
+                  <p className="text-sm text-[var(--theme-text-muted)] mb-4">{s.contact_person || 'Məsul şəxs yoxdur'}</p>
+                  <div className="flex items-center justify-between pt-4 border-t border-[var(--theme-border)]">
+                    <span className="text-xs font-mono text-[var(--theme-text-muted)]">{s.phone}</span>
+                    <button className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:text-blue-400">Ətraflı →</button>
                   </div>
-                </GlassCard>
+                </div>
               ))}
             </div>
           )}
@@ -270,45 +266,45 @@ export default function StockPage() {
       <AnimatePresence>
         {modalMode && selectedRow && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setModalMode(null)} />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => setModalMode(null)} />
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md bg-[#0c0c0c] border border-white/[0.1] rounded-[40px] p-8 shadow-2xl"
+              className="relative w-full max-w-md bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[40px] p-10 shadow-2xl"
             >
               <div className="flex items-center gap-4 mb-8">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${modalMode === 'stock_in' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${modalMode === 'stock_in' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
                   {modalMode === 'stock_in' ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-white">{modalMode === 'stock_in' ? 'Stok Girişi' : 'İtki Qeydi'}</h2>
-                  <p className="text-xs text-white/30 uppercase tracking-widest mt-1">{selectedRow.name}</p>
+                  <h2 className="text-2xl font-black text-[var(--theme-text)]">{modalMode === 'stock_in' ? 'Stok Girişi' : 'İtki Qeydi'}</h2>
+                  <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">{selectedRow.name}</p>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] ml-2">Miqdar ({UNIT_LABELS[selectedRow.unit]})</label>
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Miqdar ({UNIT_LABELS[selectedRow.unit]})</label>
                   <input 
                     type="number" autoFocus value={qtyInput} onChange={e => setQtyInput(e.target.value)}
-                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-3xl px-6 py-4 text-2xl font-black text-white outline-none focus:border-gold/40"
+                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-3xl px-8 py-5 text-3xl font-black text-[var(--theme-text)] outline-none focus:border-gold/40 transition-all shadow-inner"
                     placeholder="0.0"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] ml-2">Qeyd (Səbəb)</label>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Qeyd (Səbəb)</label>
                   <input 
                     type="text" value={reasonInput} onChange={e => setReasonInput(e.target.value)}
-                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl px-6 py-3 text-sm text-white outline-none focus:border-white/20"
+                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-6 py-4 text-sm text-[var(--theme-text)] outline-none focus:border-gold/20 transition-all shadow-inner"
                     placeholder="Məs: Təzə mal gəldi"
                   />
                 </div>
 
-                <div className="flex gap-3 pt-4">
-                  <button onClick={() => setModalMode(null)} className="flex-1 py-4 rounded-3xl border border-white/[0.08] text-white/40 font-bold uppercase tracking-widest text-[10px]">Ləğv Et</button>
+                <div className="flex gap-4 pt-4">
+                  <button onClick={() => setModalMode(null)} className="flex-1 py-5 rounded-3xl border border-[var(--theme-border)] text-[var(--theme-text-muted)] font-black uppercase tracking-widest text-[10px] hover:bg-[var(--theme-bg)] transition-all">Ləğv Et</button>
                   <button 
                     onClick={() => handleAction(modalMode === 'stock_in' ? 'stock_in' : 'waste')} 
                     disabled={saving || !qtyInput}
-                    className={`flex-1 py-4 rounded-3xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 ${modalMode === 'stock_in' ? 'bg-emerald-500 text-black' : 'bg-rose-500 text-white'}`}
+                    className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${modalMode === 'stock_in' ? 'bg-gray-900 text-white hover:bg-black' : 'bg-rose-500 text-white hover:bg-rose-600'}`}
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     Təsdiqlə

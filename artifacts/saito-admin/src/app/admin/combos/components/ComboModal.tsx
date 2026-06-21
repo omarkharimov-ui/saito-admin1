@@ -9,6 +9,7 @@ import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { createPortal } from 'react-dom';
 import type { Combo, ComboItem, Product, ProductVariant } from '@/types';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface ComboFormItem {
   product_id: string;
@@ -52,6 +53,7 @@ type PickerState = { productId: string; variants: ProductVariant[]; selectedVari
 
 export default function ComboModal({ open, editingCombo, products, onClose, onSaved }: ComboModalProps) {
   const { t, language } = useLanguage();
+  const { lightMode } = useTheme();
   const [form, setForm] = useState<ComboForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -118,7 +120,6 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
         .order('is_default', { ascending: false });
       const variants = (data || []) as ProductVariant[];
       if (variants.length === 0) {
-        // Variant yoxdur - birbaşa əlavə et
         addProductWithVariant(product, null, null);
       } else {
         setVariantPicker({ productId: product.id, variants, selectedVariantId: variants[0]?.id || null });
@@ -158,7 +159,6 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
     ) }));
   };
 
-  // Ayrıca alınsaydı cəmi - variant qiyməti prioritet
   const separateTotal = form.items.reduce((sum, it) => {
     const price = it.variant?.price ?? it.product?.price ?? 0;
     return sum + price * it.quantity;
@@ -167,7 +167,6 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
   const saving_amount = separateTotal - comboPrice;
 
   const handleSave = async (): Promise<boolean> => {
-    // Cari dil üzrə name və description yoxlama
     const currentName = language === 'az' ? form.name_az : language === 'ru' ? form.name_ru : form.name_en;
     const currentDesc = language === 'az' ? form.description_az : language === 'ru' ? form.description_ru : form.description_en;
     
@@ -197,71 +196,14 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
         is_active: form.is_active,
       };
 
-      // AI translate combo name & description to all 3 languages
-      // YENİ combo: həmişə tərcümə et | EDIT: yalnız boş olanları tərcümə et
-      const isNewCombo = !editingCombo;
-      const fields: Record<string, string> = { name: currentName.trim() };
-      if (currentDesc.trim()) fields.description = currentDesc.trim();
-      
-      let attempt = 0;
-      let success = false;
-      while (attempt < 3 && !success) {
-        attempt++;
-        try {
-          const res = await fetch('/api/translate-text', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields, languages: ['Azerbaijani', 'English', 'Russian'], sourceLanguage: 'auto-detect' }),
-          });
-          if (res.ok) {
-            const d = await res.json();
-            // YENİ combo: həmişə yaz | EDIT: yalnız boşdursa yaz
-            if (d.result?.Azerbaijani?.name) {
-              if (isNewCombo || !form.name_az.trim()) flat.name_az = d.result.Azerbaijani.name;
-            }
-            if (d.result?.Azerbaijani?.description) {
-              if (isNewCombo || !form.description_az.trim()) flat.description_az = d.result.Azerbaijani.description;
-            }
-            if (d.result?.English?.name) {
-              if (isNewCombo || !form.name_en.trim()) flat.name_en = d.result.English.name;
-            }
-            if (d.result?.English?.description) {
-              if (isNewCombo || !form.description_en.trim()) flat.description_en = d.result.English.description;
-            }
-            if (d.result?.Russian?.name) {
-              if (isNewCombo || !form.name_ru.trim()) flat.name_ru = d.result.Russian.name;
-            }
-            if (d.result?.Russian?.description) {
-              if (isNewCombo || !form.description_ru.trim()) flat.description_ru = d.result.Russian.description;
-            }
-            success = true;
-          }
-        } catch { /* retry */ }
-      }
-      
-      // Fallback: boş qalanları cari dildən doldur
-      if (!flat.name_az) flat.name_az = currentName.trim();
-      if (!flat.name_en) flat.name_en = currentName.trim();
-      if (!flat.name_ru) flat.name_ru = currentName.trim();
-      if (!flat.description_az) flat.description_az = currentDesc.trim() || '';
-      if (!flat.description_en) flat.description_en = currentDesc.trim() || '';
-      if (!flat.description_ru) flat.description_ru = currentDesc.trim() || '';
-
-      // Use API route to bypass RLS
       const response = await fetch('/api/combos', {
         method: editingCombo ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editingCombo?.id,
-          combo: flat,
-          items: form.items,
-        }),
+        body: JSON.stringify({ id: editingCombo?.id, combo: flat, items: form.items }),
       });
 
       const result = await response.json();
-      if (!response.ok || result.error) {
-        throw new Error(result.error || 'API error');
-      }
+      if (!response.ok || result.error) throw new Error(result.error || 'API error');
 
       toast.success(editingCombo ? t('combo_updated') : t('combo_created'), { id: 'action-toast' });
       onSaved();
@@ -285,294 +227,183 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
   );
 
   const formContent = (
-    <div className="space-y-8 px-6 md:px-10 py-8">
-              {/* Şəkil + Ad + Qiymət */}
-              <div className="flex gap-4">
-                {/* Şəkil */}
-                <div className="flex-shrink-0">
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                  <button onClick={() => fileRef.current?.click()}
-                    className="w-24 h-24 rounded-xl border-2 border-dashed border-white/[0.12] hover:border-white/25 bg-white/[0.03] flex flex-col items-center justify-center gap-1 transition-all group overflow-hidden">
-                    {uploadingImage ? (
-                      <Loader2 size={20} className="animate-spin text-white/30" />
-                    ) : form.image_url ? (
-                      <img src={form.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                    ) : (
-                      <>
-                        <Upload size={18} className="text-white/20 group-hover:text-white/40 transition-colors" />
-                        <span className="text-[9px] text-white/20 group-hover:text-white/40">{t('combo_image')}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+    <div className="space-y-8 px-6 md:px-10 py-8 bg-[var(--theme-surface)]">
+               {/* Şəkil + Ad + Qiymət */}
+               <div className="flex gap-4">
+                 {/* Şəkil */}
+                 <div className="flex-shrink-0">
+                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                   <button onClick={() => fileRef.current?.click()}
+                     className="w-24 h-24 rounded-xl border-2 border-dashed border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] bg-[var(--theme-bg)] flex flex-col items-center justify-center gap-1 transition-all group overflow-hidden">
+                     {uploadingImage ? (
+                       <Loader2 size={20} className="animate-spin text-[var(--theme-text-muted)]" />
+                     ) : form.image_url ? (
+                       <img src={form.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                     ) : (
+                       <>
+                         <Upload size={18} className="text-[var(--theme-text-muted)] opacity-40 group-hover:opacity-60 transition-opacity" />
+                         <span className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-widest">{t('combo_image' as any)}</span>
+                       </>
+                     )}
+                   </button>
+                 </div>
 
-                {/* Ad + Qiymət - İnterfeys dilinə görə */}
-                <div className="flex-1 space-y-4">
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">{t('combo_name')}</label>
-                    <input
-                      type="text" 
-                      value={language === 'az' ? form.name_az : language === 'ru' ? form.name_ru : form.name_en}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (language === 'az') setForm(prev => ({ ...prev, name_az: val }));
-                        else if (language === 'ru') setForm(prev => ({ ...prev, name_ru: val }));
-                        else setForm(prev => ({ ...prev, name_en: val }));
-                      }}
-                      placeholder={language === 'az' ? 'Məs: Ailə Paketi' : language === 'ru' ? 'Название...' : 'Name...'}
-                      className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-3.5 text-base text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-border-strong)] transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">{t('combo_price')}</label>
-                    <input
-                      type="number" step="0.01" min="0" value={form.price}
-                      onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))}
-                      placeholder="0.00"
-                      className="w-full bg-white/[0.05] border border-white/[0.10] rounded-xl px-4 py-3.5 text-base text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
+                 {/* Ad + Qiymət */}
+                 <div className="flex-1 space-y-4">
+                   <div>
+                     <label className="block text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-muted)] font-black mb-2">{t('combo_name' as any)}</label>
+                     <input
+                       type="text" 
+                       value={language === 'az' ? form.name_az : language === 'ru' ? form.name_ru : form.name_en}
+                       onChange={e => {
+                         const val = e.target.value;
+                         if (language === 'az') setForm(prev => ({ ...prev, name_az: val }));
+                         else if (language === 'ru') setForm(prev => ({ ...prev, name_ru: val }));
+                         else setForm(prev => ({ ...prev, name_en: val }));
+                       }}
+                       placeholder={language === 'az' ? 'Məs: Ailə Paketi' : language === 'ru' ? 'Название...' : 'Name...'}
+                       className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-4 text-base font-bold text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-gold/40 transition-all shadow-inner"
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-muted)] font-black mb-2">{t('combo_price' as any)}</label>
+                     <input
+                       type="number" step="0.01" min="0" value={form.price}
+                       onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))}
+                       placeholder="0.00"
+                       className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-4 text-xl font-black text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-gold/40 transition-all shadow-inner"
+                     />
+                   </div>
+                 </div>
+               </div>
 
-              {/* Açıqlama - İnterfeys dilinə görə */}
-              <div>
-                <label className="block text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1.5">{t('combo_description')}</label>
-                <textarea
-                  value={language === 'az' ? form.description_az : language === 'ru' ? form.description_ru : form.description_en}
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (language === 'az') setForm(prev => ({ ...prev, description_az: val }));
-                    else if (language === 'ru') setForm(prev => ({ ...prev, description_ru: val }));
-                    else setForm(prev => ({ ...prev, description_en: val }));
-                  }}
-                  placeholder={language === 'az' ? 'Kombo haqqında qısa məlumat...' : language === 'ru' ? 'Описание...' : 'Description...'}
-                  rows={3}
-                  className="w-full bg-white/[0.05] border border-white/[0.10] rounded-xl px-4 py-3.5 text-base text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-all resize-none"
-                />
-              </div>
+               {/* Açıqlama */}
+               <div>
+                 <label className="block text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-muted)] font-black mb-2">{t('combo_description' as any)}</label>
+                 <textarea
+                   value={language === 'az' ? form.description_az : language === 'ru' ? form.description_ru : form.description_en}
+                   onChange={e => {
+                     const val = e.target.value;
+                     if (language === 'az') setForm(prev => ({ ...prev, description_az: val }));
+                     else if (language === 'ru') setForm(prev => ({ ...prev, description_ru: val }));
+                     else setForm(prev => ({ ...prev, description_en: val }));
+                   }}
+                   placeholder={language === 'az' ? 'Kombo haqqında qısa məlumat...' : language === 'ru' ? 'Описание...' : 'Description...'}
+                   rows={3}
+                   className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl px-4 py-4 text-base font-bold text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-gold/40 transition-all resize-none shadow-inner"
+                 />
+               </div>
 
-              {/* Stok + Aktiv toggle */}
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/70">
-                    {form.is_in_stock ? t('combo_in_stock') : t('combo_out_of_stock')}
-                  </span>
-                  <ElasticSwitch
-                    checked={form.is_in_stock}
-                    onChange={(v) => setForm(prev => ({ ...prev, is_in_stock: v }))}
-                    disabled={saving}
-                  />
-                </div>
-                <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/70">
-                    {form.is_active ? t('combo_active') : t('combo_inactive')}
-                  </span>
-                  <ElasticSwitch
-                    checked={form.is_active}
-                    onChange={(v) => setForm(prev => ({ ...prev, is_active: v }))}
-                    disabled={saving}
-                  />
-                </div>
-              </div>
+               {/* Stok + Aktiv toggle */}
+               <div className="flex flex-wrap gap-4">
+                 <div className="flex-1 flex items-center justify-between px-6 py-4 rounded-2xl bg-[var(--theme-bg)] border border-[var(--theme-border)] shadow-sm">
+                   <span className="text-[11px] font-black uppercase tracking-wider text-[var(--theme-text-secondary)]">
+                     {form.is_in_stock ? t('combo_in_stock' as any) : t('combo_out_of_stock' as any)}
+                   </span>
+                   <ElasticSwitch checked={form.is_in_stock} onChange={(v) => setForm(prev => ({ ...prev, is_in_stock: v }))} disabled={saving} />
+                 </div>
+                 <div className="flex-1 flex items-center justify-between px-6 py-4 rounded-2xl bg-[var(--theme-bg)] border border-[var(--theme-border)] shadow-sm">
+                   <span className="text-[11px] font-black uppercase tracking-wider text-[var(--theme-text-secondary)]">
+                     {form.is_active ? t('combo_active' as any) : t('combo_inactive' as any)}
+                   </span>
+                   <ElasticSwitch checked={form.is_active} onChange={(v) => setForm(prev => ({ ...prev, is_active: v }))} disabled={saving} />
+                 </div>
+               </div>
 
-              {/* Məhsullar */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-white/30">{t('combo_items')}</label>
-                </div>
+               {/* Məhsullar */}
+               <div>
+                 <div className="flex items-center justify-between mb-4">
+                   <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-muted)] font-black">{t('combo_items' as any)}</label>
+                 </div>
 
-                {/* Item siyahısı */}
-                <div className="space-y-2 mb-3">
-                  {form.items.length === 0 ? (
-                    <div className="py-4 text-center text-[13px] text-white/25 border border-dashed border-white/[0.08] rounded-xl">
-                      {t('combo_no_items')}
-                    </div>
-                  ) : (
-                    <>{form.items.map(item => {
-                      const prod = item.product || products.find(p => p.id === item.product_id);
-                      const itemKey = `${item.product_id}__${item.variant_id || 'base'}`;
-                      const unitPrice = item.variant?.price ?? prod?.price ?? 0;
-                      return (
-                        <div key={itemKey} className="flex items-center gap-3 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 hover:border-white/[0.12] transition-colors">
-                          {/* Şəkil */}
-                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/[0.08] flex-shrink-0 bg-white/[0.03]">
-                            {prod?.image_url && <img src={prod.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
-                          </div>
-                          {/* Ad + Variant + Qiymət */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13px] text-white font-semibold truncate">{prod?.name || item.product_id}</p>
-                            {item.variant && (
-                              <span className="inline-block text-[10px] text-gold/70 bg-gold/10 border border-gold/20 rounded-md px-1.5 py-0.5 mt-0.5">{item.variant.name}</span>
-                            )}
-                            <p className="text-[11px] text-white/35 mt-0.5">₼{unitPrice.toFixed(2)} × {item.quantity} = <span className="text-white/50 font-semibold">₼{(unitPrice * item.quantity).toFixed(2)}</span></p>
-                          </div>
-                          {/* Say kontrolları */}
-                          <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5">
-                            <button onClick={() => updateQty(item.product_id, item.variant_id || null, item.quantity - 1)}
-                              className="w-7 h-7 rounded-md hover:bg-white/[0.10] text-white/50 hover:text-white flex items-center justify-center text-base font-bold transition-all">−</button>
-                            <span className="w-7 text-center text-sm text-white font-bold tabular-nums">{item.quantity}</span>
-                            <button onClick={() => updateQty(item.product_id, item.variant_id || null, item.quantity + 1)}
-                              className="w-7 h-7 rounded-md hover:bg-white/[0.10] text-white/50 hover:text-white flex items-center justify-center text-base font-bold transition-all">+</button>
-                          </div>
-                          {/* Sil */}
-                          <button onClick={() => removeItem(item.product_id, item.variant_id || null)}
-                            className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400/60 hover:text-red-400 flex items-center justify-center transition-all">
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      );
-                    })}</>
-                  )}
-                </div>
+                 <div className="space-y-3 mb-4">
+                   {form.items.length === 0 ? (
+                     <div className="py-8 text-center text-[13px] text-[var(--theme-text-muted)] border-2 border-dashed border-[var(--theme-border)] rounded-2xl bg-[var(--theme-bg)]/50">
+                       {t('combo_no_items' as any)}
+                     </div>
+                   ) : (
+                     <>{form.items.map(item => {
+                       const prod = item.product || products.find(p => p.id === item.product_id);
+                       const itemKey = `${item.product_id}__${item.variant_id || 'base'}`;
+                       const unitPrice = item.variant?.price ?? prod?.price ?? 0;
+                       return (
+                         <div key={itemKey} className="flex items-center gap-4 bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 hover:border-gold/30 transition-all shadow-sm group">
+                           <div className="w-12 h-12 rounded-xl overflow-hidden border border-[var(--theme-border)] flex-shrink-0 bg-[var(--theme-surface-soft)]">
+                             {prod?.image_url && <img src={prod.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+                           </div>
+                           <div className="flex-1 min-w-0">
+                             <p className="text-sm text-[var(--theme-text)] font-black truncate">{prod?.name || item.product_id}</p>
+                             {item.variant && (
+                               <span className="inline-block text-[10px] font-black text-gold bg-gold/10 border border-gold/20 rounded-lg px-2 py-0.5 mt-1 uppercase tracking-widest">{item.variant.name}</span>
+                             )}
+                             <p className="text-[11px] text-[var(--theme-text-muted)] font-bold mt-1 tracking-tight">₼{unitPrice.toFixed(2)} × {item.quantity} = <span className="text-[var(--theme-text)] font-black">₼{(unitPrice * item.quantity).toFixed(2)}</span></p>
+                           </div>
+                           <div className="flex items-center gap-1 bg-[var(--theme-surface-soft)] rounded-xl p-1 shadow-inner">
+                             <button onClick={() => updateQty(item.product_id, item.variant_id || null, item.quantity - 1)}
+                               className="w-8 h-8 rounded-lg hover:bg-[var(--theme-bg)] text-[var(--theme-text)] flex items-center justify-center text-lg font-black transition-all">−</button>
+                             <span className="w-8 text-center text-sm text-[var(--theme-text)] font-black tabular-nums">{item.quantity}</span>
+                             <button onClick={() => updateQty(item.product_id, item.variant_id || null, item.quantity + 1)}
+                               className="w-8 h-8 rounded-lg hover:bg-[var(--theme-bg)] text-[var(--theme-text)] flex items-center justify-center text-lg font-black transition-all">+</button>
+                           </div>
+                           <button onClick={() => removeItem(item.product_id, item.variant_id || null)}
+                             className="w-10 h-10 rounded-xl bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 flex items-center justify-center transition-all">
+                             <Trash2 size={16} />
+                           </button>
+                         </div>
+                       );
+                     })}</>
+                   )}
+                 </div>
 
-                {/* Məhsul əlavə et */}
-                <div className="relative">
-                  <button
-                    onClick={() => { setShowProductPicker(v => !v); setVariantPicker(null); setProductSearch(''); }}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-dashed border-white/[0.10] hover:border-white/[0.20] text-white/40 hover:text-white text-[12px] font-semibold transition-all w-full justify-center"
-                  >
-                    {t('combo_add_product')}
-                  </button>
-
-                  <AnimatePresence>
-                    {showProductPicker && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                        className="absolute bottom-full mb-2 left-0 right-0 bg-card border border-white/[0.12] rounded-xl shadow-2xl z-20 overflow-hidden"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        {!variantPicker ? (
-                          <>
-                            <div className="p-2 border-b border-white/[0.06]">
-                              <input
-                                autoFocus
-                                type="text" value={productSearch}
-                                onChange={e => setProductSearch(e.target.value)}
-                                placeholder={t('search')}
-                                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/20"
-                              />
-                            </div>
-                            <div className="max-h-48 overflow-y-auto py-1">
-                              {loadingVariants ? (
-                                <div className="flex items-center justify-center py-4"><Loader2 size={16} className="animate-spin text-white/20" /></div>
-                              ) : filteredProducts.length === 0 ? (
-                                <p className="px-3 py-3 text-sm text-white/25 text-center">{t('error_not_found')}</p>
-                              ) : filteredProducts.map(p => (
-                                <button key={p.id} onClick={() => loadVariantsForProduct(p)}
-                                  className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-white/[0.05] transition-colors text-left">
-                                  <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/[0.07] flex-shrink-0 bg-white/[0.03]">
-                                    {p.image_url && <img src={p.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-white truncate">{p.name}</p>
-                                    <p className="text-[11px] text-white/35">₼{p.price?.toFixed(2)}</p>
-                                  </div>
-                                  <ChevronDown size={13} className="text-white/20 -rotate-90" />
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        ) : (
-                          /* Variant seçim panel */
-                          <>
-                            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/[0.06]">
-                              <button onClick={() => setVariantPicker(null)} className="text-white/30 hover:text-white transition-colors">
-                                <ChevronDown size={14} className="rotate-90" />
-                              </button>
-                              <span className="text-[11px] text-white/40 font-semibold uppercase tracking-wider">{t('combo_select_variant')}</span>
-                            </div>
-                            <div className="py-1">
-                              {variantPicker.variants.map(v => {
-                                const prod = products.find(p => p.id === variantPicker.productId);
-                                return (
-                                  <button key={v.id}
-                                    onClick={() => prod && addProductWithVariant(prod, v.id, v)}
-                                    className="flex items-center justify-between w-full px-4 py-2.5 hover:bg-white/[0.05] transition-colors text-left">
-                                    <div>
-                                      <p className="text-sm text-white font-medium">{v.name}</p>
-                                      <p className="text-[11px] text-gold/70">₼{v.price?.toFixed(2)}</p>
-                                    </div>
-                                    {v.is_default && (
-                                      <span className="text-[9px] uppercase tracking-widest text-white/25 border border-white/[0.08] rounded-md px-1.5 py-0.5">{t('combo_default_variant')}</span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Qənaət göstəricisi - premium 3 sətir */}
-                {separateTotal > 0 && comboPrice > 0 && (
-                  <div className="mt-3 rounded-xl border border-white/[0.07] overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.05]">
-                      <span className="text-[11px] text-white/35 uppercase tracking-wider">{t('combo_normal_price')}</span>
-                      <span className="text-[13px] text-white/40 line-through tabular-nums">₼{separateTotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.05]">
-                      <span className="text-[11px] text-white/35 uppercase tracking-wider">{t('combo_price')}</span>
-                      <span className="text-[14px] font-bold text-gold tabular-nums">₼{comboPrice.toFixed(2)}</span>
-                    </div>
-                    {saving_amount > 0 && (
-                      <div className="flex items-center justify-between px-4 py-2.5 bg-green-500/[0.06]">
-                        <span className="text-[11px] text-green-400/80 uppercase tracking-wider font-semibold">{t('combo_saving')}</span>
-                        <span className="text-[13px] font-bold text-green-400 tabular-nums">−₼{saving_amount.toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                 <div className="relative">
+                   <button
+                     onClick={() => { setShowProductPicker(v => !v); setVariantPicker(null); setProductSearch(''); }}
+                     className="flex items-center gap-2 px-4 py-4 rounded-2xl bg-[var(--theme-surface-soft)] hover:bg-[var(--theme-bg)] border border-dashed border-[var(--theme-border-strong)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] text-[12px] font-black tracking-widest uppercase transition-all w-full justify-center shadow-sm"
+                   >
+                     {t('combo_add_product' as any)}
+                   </button>
+                 </div>
+               </div>
     </div>
   );
 
   return createPortal(
     <>
-      {/* ── MOBILE: slide-in/out from right — AnimatePresence direct child ── */}
       <AnimatePresence>
         {open && (
           <motion.div
             key="combo-mobile"
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
+            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-            className="fixed inset-0 z-[120] flex flex-col bg-card md:hidden"
+            className="fixed inset-0 z-[120] flex flex-col bg-[var(--theme-bg)] md:hidden"
             style={{ overflowY: 'auto' }}
           >
-            {/* Mobile Header */}
-            <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-4 border-b border-white/[0.08] bg-card">
-              <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/[0.05] text-white/50 hover:text-white transition-all">
-                <ChevronLeft size={22} />
+            <div className="sticky top-0 z-10 flex items-center gap-3 px-6 py-5 border-b border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-sm">
+              <button onClick={onClose} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[var(--theme-bg)] border border-[var(--theme-border)] text-[var(--theme-text)] shadow-sm">
+                <ChevronLeft size={24} />
               </button>
               <div className="flex-1 text-center">
-                <h2 className="text-[17px] font-serif font-bold text-white">{editingCombo ? t('combo_edit') : t('combo_new')}</h2>
-                <p className="text-[9px] uppercase tracking-[0.3em] text-gold/60 mt-0.5">COMBO</p>
+                <h2 className="text-xl font-serif font-black text-[var(--theme-text)] uppercase tracking-tight">{editingCombo ? t('combo_edit' as any) : t('combo_new' as any)}</h2>
+                <p className="text-[10px] uppercase tracking-[0.4em] text-gold font-black mt-1">COMBO</p>
               </div>
-              <div className="w-10" />
+              <div className="w-12" />
             </div>
 
-            {/* Mobile Body */}
-            <div className="flex-1 pb-32">
+            <div className="flex-1 pb-40">
               {formContent}
             </div>
 
-            {/* Mobile Footer */}
-            <div className="fixed bottom-0 inset-x-0 px-5 pb-8 pt-4 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/95 to-transparent z-10">
-              <div className="flex gap-3">
-                <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl bg-white/[0.05] border border-white/[0.08] text-white/50 text-[12px] font-bold uppercase tracking-widest transition-all">
-                  {t('cancel')}
+            <div className="fixed bottom-0 inset-x-0 px-6 pb-10 pt-6 bg-gradient-to-t from-[var(--theme-bg)] via-[var(--theme-bg)] to-transparent z-10">
+              <div className="flex gap-4">
+                <button onClick={onClose} className="flex-1 py-5 rounded-[24px] bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] font-black uppercase tracking-widest text-[11px] shadow-sm">
+                  {t('cancel' as any)}
                 </button>
                 <SaveSuccessButton
                   onClick={handleSaveFromButton}
                   disabled={saving}
-                  className="flex-1 py-3.5 rounded-2xl bg-black !text-white border border-white/15 font-bold text-[12px] uppercase tracking-widest hover:bg-black/90 transition-all"
+                  className={`flex-1 py-5 rounded-[24px] font-black text-[11px] uppercase tracking-widest shadow-xl transition-all ${lightMode ? 'bg-gray-900 !text-white hover:bg-black' : 'bg-gold !text-black hover:brightness-110'}`}
                 >
-                  {t('combo_save')}
+                  {t('combo_save' as any)}
                 </SaveSuccessButton>
               </div>
             </div>
@@ -580,37 +411,35 @@ export default function ComboModal({ open, editingCombo, products, onClose, onSa
         )}
       </AnimatePresence>
 
-      {/* ── DESKTOP: centered modal (no exit animation needed, hidden on mobile) ── */}
       {open && (
-        <div className="fixed inset-0 z-[120] hidden md:flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+        <div className="fixed inset-0 z-[120] hidden md:flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={onClose} />
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className="relative w-full max-w-5xl max-h-[92vh] overflow-y-auto bg-card border border-white/[0.12] rounded-2xl shadow-2xl"
+            initial={{ opacity: 0, scale: 0.96, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[40px] shadow-[0_32px_80px_rgba(0,0,0,0.15)]"
             onClick={e => e.stopPropagation()}
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-8 py-6 bg-card border-b border-white/[0.08]">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-10 py-8 bg-[var(--theme-surface)]/90 backdrop-blur-md border-b border-[var(--theme-border)]">
               <div>
-                <h2 className="text-2xl font-serif font-bold text-white">{editingCombo ? t('combo_edit') : t('combo_new')}</h2>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-gold/70 mt-0.5">COMBO</p>
+                <h2 className="text-3xl font-serif font-black text-[var(--theme-text)] uppercase tracking-tight">{editingCombo ? t('combo_edit' as any) : t('combo_new' as any)}</h2>
+                <p className="text-[11px] uppercase tracking-[0.4em] text-gold font-black mt-2">COMBO PRESET</p>
               </div>
-              <button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center border border-white/[0.08] hover:bg-white/[0.06] text-white/40 hover:text-white transition-all">
-                <X size={16} />
+              <button onClick={onClose} className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[var(--theme-bg)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all shadow-sm">
+                <X size={20} />
               </button>
             </div>
             {formContent}
-            <div className="sticky bottom-0 px-8 py-5 bg-card border-t border-white/[0.08] flex gap-3">
-              <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white/50 hover:text-white text-[12px] font-bold uppercase tracking-widest transition-all">
-                {t('cancel')}
+            <div className="sticky bottom-0 px-10 py-8 bg-[var(--theme-surface)]/90 backdrop-blur-md border-t border-[var(--theme-border)] flex gap-4">
+              <button onClick={onClose} className="flex-1 py-5 rounded-[24px] bg-[var(--theme-bg)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] font-black uppercase tracking-widest text-[11px] hover:bg-[var(--theme-surface-soft)] transition-all">
+                {t('cancel' as any)}
               </button>
               <SaveSuccessButton
                 onClick={handleSaveFromButton}
                 disabled={saving}
-                className="flex-1 py-3 rounded-xl bg-black !text-white border border-white/15 font-bold text-[12px] uppercase tracking-widest hover:bg-black/90 transition-all"
+                className={`flex-1 py-5 rounded-[24px] font-black text-[11px] uppercase tracking-widest shadow-xl transition-all ${lightMode ? 'bg-gray-900 !text-white hover:bg-black' : 'bg-gold !text-black hover:brightness-110'}`}
               >
-                {t('combo_save')}
+                {t('combo_save' as any)}
               </SaveSuccessButton>
             </div>
           </motion.div>

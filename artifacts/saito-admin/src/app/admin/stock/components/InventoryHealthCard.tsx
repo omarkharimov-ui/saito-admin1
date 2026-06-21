@@ -24,8 +24,6 @@ function fmtCost(n: number) {
 }
 
 export function InventoryHealthCard({ stats, loading }: Props) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
   if (loading || !stats) {
     return <div className="h-[88px] rounded-2xl bg-white/5 animate-pulse" />;
   }
@@ -38,84 +36,62 @@ export function InventoryHealthCard({ stats, loading }: Props) {
   const outOfStockPct = total > 0 ? (out_of_stock / total) * 100 : 0;
 
   return (
-    <motion.div
-      layout // This prop enables the automatic layout animation
-      transition={spring}
-      className="relative rounded-2xl border border-white/10 bg-white/[0.07] p-4 overflow-hidden"
-    >
-      <motion.div layout transition={spring} className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-500/10">
-                <span className="font-bold text-white text-lg">{healthScore}</span>
+    <div className="relative rounded-3xl border border-white/[0.08] bg-[#1c1c1e] p-5 overflow-hidden w-full max-w-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                <span className="font-black text-emerald-400 text-xl">{healthScore}</span>
             </div>
             <div>
-                <h3 className="font-bold text-white">Inventory Health</h3>
-                <p className="text-xs text-white/50">
+                <h3 className="font-black text-white text-sm tracking-tight">Inventory Health</h3>
+                <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-0.5">
                     {normal} normal · {critical} kritik · {total} cəmi
                 </p>
             </div>
         </div>
-        <button onClick={() => setIsExpanded(!isExpanded)} className="flex items-center gap-1 text-xs font-semibold text-white/60 hover:text-white transition-colors">
-          Ətraflı
-          <motion.div animate={{ rotate: isExpanded ? 90 : 0 }} transition={{ duration: 0.2 }}>
-            <ChevronRight size={14} />
-          </motion.div>
-        </button>
-      </motion.div>
+      </div>
 
-      {/* Health Bar */}
-      <motion.div layout transition={spring} className="mt-3 h-2 w-full rounded-full bg-white/10 overflow-hidden flex">
+      {/* Health Bar with Live Animation */}
+      <div className="relative h-2.5 w-full rounded-full bg-white/5 overflow-hidden flex">
+        {/* Shimmer Effect */}
         <motion.div 
-            className="bg-emerald-500 h-full"
+          animate={{ x: ['-100%', '100%'] }}
+          transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.05] to-transparent z-10"
+        />
+        
+        <motion.div 
+            className="bg-emerald-500 h-full relative"
             initial={{ width: '0%' }}
-            animate={{ width: `${normalPct}%`, transition: { ...spring, delay: 0.2, duration: 0.5 }}}
+            animate={{ width: `${normalPct}%` }}
+            transition={{ type: 'spring', stiffness: 50, damping: 20 }}
          />
         <motion.div 
-            className="bg-amber-500 h-full"
+            className="bg-amber-500 h-full relative"
             initial={{ width: '0%' }}
-            animate={{ width: `${criticalPct}%`, transition: { ...spring, delay: 0.3, duration: 0.5 }}}
+            animate={{ width: `${criticalPct}%` }}
+            transition={{ type: 'spring', stiffness: 50, damping: 20 }}
         />
         <motion.div 
-            className="bg-red-500 h-full"
-            initial={{ width: `${outOfStockPct}%`, transition: { ...spring, delay: 0.4, duration: 0.5 }}}
+            className="bg-red-500 h-full relative"
+            initial={{ width: '0%' }}
+            animate={{ width: `${outOfStockPct}%` }}
+            transition={{ type: 'spring', stiffness: 50, damping: 20 }}
         />
-      </motion.div>
+      </div>
 
-      {/* Expanded Content */}
-      <AnimatePresence initial={false}>
-        {isExpanded && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0, transition: { ...spring, delay: 0.1 } }}
-            exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }}
-            className="mt-4 pt-4 border-t border-white/10"
-          >
-            <div className="grid grid-cols-4 gap-4 text-center">
-                <div>
-                    <p className="text-xs text-white/50">Normal</p>
-                    <p className="font-bold text-lg text-white mt-1">{normal}</p>
-                </div>
-                <div>
-                    <p className="text-xs text-white/50">Kritik</p>
-                    <p className="font-bold text-lg text-amber-400 mt-1">{critical}</p>
-                </div>
-                <div>
-                    <p className="text-xs text-white/50">Bitib</p>
-                    <p className="font-bold text-lg text-red-400 mt-1">{out_of_stock}</p>
-                </div>
-                <div>
-                    <p className="text-xs text-white/50">İtki</p>
-                    <p className="font-bold text-lg text-red-400 mt-1">₼{fmtCost(monthly_waste_cost)}</p>
-                </div>
-            </div>
-            {critical > 0 && (
-                 <div className="mt-4 text-center text-xs text-amber-400/80 bg-amber-500/10 p-2 rounded-lg">
-                    ⚠ {critical} xammal təcili diqqət tələb edir.
-                </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+      <div className="grid grid-cols-2 gap-4 mt-5 pt-4 border-t border-white/[0.05]">
+          <div className="flex flex-col">
+              <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Aylıq İtki</span>
+              <span className="text-sm font-bold text-rose-400 mt-1">₼{fmtCost(monthly_waste_cost)}</span>
+          </div>
+          <div className="flex flex-col items-end">
+              <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Status</span>
+              <span className={`text-[10px] font-black mt-1 px-2 py-0.5 rounded-lg ${healthScore > 80 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                {healthScore > 80 ? 'SAĞLAM' : 'RİSKLİ'}
+              </span>
+          </div>
+      </div>
+    </div>
   );
 }

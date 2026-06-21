@@ -11,10 +11,13 @@ interface ProductPerf {
   name: string;
   image?: string;
   category: string;
-  views: number;
   sold: number;
-  conversion: string | number;
-  revenue: string | number;
+  revenue: number;
+  food_cost?: number;
+  net_profit?: number;
+  price?: number;
+  views?: number;
+  conversion?: string | number;
 }
 
 interface Category {

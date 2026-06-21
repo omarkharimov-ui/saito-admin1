@@ -97,75 +97,75 @@ const DateWheelPicker: React.FC<{ day: string; month: string; year: string; onDa
   const months = MONTHS_LIST[language as keyof typeof MONTHS_LIST] || MONTHS_LIST.AZ;
   return (
     <div className="flex gap-2">
-      <WheelPicker value={day} options={DAYS} onChange={onDayChange} label="picker.day" />
-      <WheelPicker value={month} options={months} onChange={onMonthChange} label="picker.month" />
-      <WheelPicker value={year} options={YEARS} onChange={onYearChange} label="picker.year" />
-    </div>
-  );
-};
-
-const TimeWheelPicker: React.FC<{ hour: string; minute: string; onHourChange: (v: string) => void; onMinuteChange: (v: string) => void; }> = ({ hour, minute, onHourChange, onMinuteChange }) => {
-  return (
-    <div className="flex gap-2">
-      <WheelPicker value={hour} options={HOURS} onChange={onHourChange} label="picker.hour" />
-      <WheelPicker value={minute} options={MINUTES} onChange={onMinuteChange} label="picker.min" />
-    </div>
-  );
-};
-
-const Reservation = () => {
-  const { t, language } = useLanguage();
-  const months = MONTHS_LIST[language as keyof typeof MONTHS_LIST] || MONTHS_LIST.AZ;
-
-  const [formData, setFormData] = useState({ name: '', phone: '', guests: '2', manualGuests: '', notes: '' });
-  const [showManualGuests, setShowManualGuests] = useState(false);
-  const [dateParts, setDateParts] = useState({ day: String(new Date().getDate()).padStart(2, '0'), month: months[new Date().getMonth()], year: String(new Date().getFullYear()) });
-  const [timeParts, setTimeParts] = useState({ hour: '19', minute: '00' });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-
-  return (
-    <section id="reservation" className="py-32 px-4 md:px-20 bg-[var(--theme-bg)] relative overflow-hidden text-[var(--theme-text)]">
-      <div className="max-w-5xl mx-auto relative z-10">
-        <div className="text-center mb-16">
-          <span className="text-gold text-xs tracking-[0.5em] uppercase mb-4 block">{t('res.subtitle')}</span>
-          <h2 className="text-5xl md:text-6xl font-serif font-bold mb-6 tracking-tighter">{t('res.title')}</h2>
-          <p className="text-[var(--theme-text-muted)] max-w-lg mx-auto font-medium leading-relaxed opacity-80">{t('res.desc')}</p>
-        </div>
-
-        <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] p-8 md:p-12 shadow-2xl rounded-[40px] border-l-[10px] border-l-[#d4af37]">
-          {isSuccess ? (
-            <div className="py-20 text-center">
-              <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle2 size={40} className="text-emerald-500" /></div>
-              <h3 className="text-3xl font-serif font-bold mb-4">{t('res.success.title')}</h3>
-              <button onClick={() => setIsSuccess(false)} className="px-8 py-3 border border-gold text-gold text-xs tracking-widest uppercase font-black rounded-xl">{t('res.new')}</button>
-            </div>
-          ) : (
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-10">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="space-y-3">
-                  <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">{t('res.name')}</label>
-                  <input type="text" className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] px-6 py-5 rounded-2xl focus:border-gold outline-none text-[var(--theme-text)] font-bold transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">{t('res.phone')}</label>
-                  <input type="tel" className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] px-6 py-5 rounded-2xl focus:border-gold outline-none text-[var(--theme-text)] font-bold transition-all" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-                </div>
-                <div className="md:col-span-2 space-y-5">
-                   <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">Tarix və Saat</label>
-                   <DateWheelPicker day={dateParts.day} month={dateParts.month} year={dateParts.year} onDayChange={d => setDateParts({...dateParts, day: d})} onMonthChange={m => setDateParts({...dateParts, month: m})} onYearChange={y => setDateParts({...dateParts, year: y})} />
-                   <TimeWheelPicker hour={timeParts.hour} minute={timeParts.minute} onHourChange={h => setTimeParts({...timeParts, hour: h})} onMinuteChange={m => setTimeParts({...timeParts, minute: m})} />
-                </div>
-              </div>
-              <button className="w-full bg-gold text-black py-6 rounded-[24px] font-black text-xs tracking-[0.4em] uppercase transition-all shadow-xl hover:shadow-gold/20 active:scale-[0.98]">
-                {t('res.submit')}
-              </button>
-            </form>
-          )}
-        </div>
+        <WheelPicker value={day} options={DAYS} onChange={onDayChange} label="picker.day" />
+        <WheelPicker value={month} options={months} onChange={onMonthChange} label="picker.month" />
+        <WheelPicker value={year} options={YEARS} onChange={onYearChange} label="picker.year" />
       </div>
-    </section>
-  );
-};
+    );
+  };
+  
+  const TimeWheelPicker: React.FC<{ hour: string; minute: string; onHourChange: (v: string) => void; onMinuteChange: (v: string) => void; }> = ({ hour, minute, onHourChange, onMinuteChange }) => {
+    return (
+      <div className="flex gap-2">
+        <WheelPicker value={hour} options={HOURS} onChange={onHourChange} label="picker.hour" />
+        <WheelPicker value={minute} options={MINUTES} onChange={onMinuteChange} label="picker.min" />
+      </div>
+    );
+  };
+  
+  const Reservation = () => {
+    const { t, language } = useLanguage();
+    const months = MONTHS_LIST[language as keyof typeof MONTHS_LIST] || MONTHS_LIST.AZ;
+  
+    const [formData, setFormData] = useState({ name: '', phone: '', guests: '2', manualGuests: '', notes: '' });
+    const [showManualGuests, setShowManualGuests] = useState(false);
+    const [dateParts, setDateParts] = useState({ day: String(new Date().getDate()).padStart(2, '0'), month: months[new Date().getMonth()], year: String(new Date().getFullYear()) });
+    const [timeParts, setTimeParts] = useState({ hour: '19', minute: '00' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
+  
+    return (
+      <section id="reservation" className="py-32 px-4 md:px-20 bg-[var(--theme-bg)] relative overflow-hidden text-[var(--theme-text)]">
+        <div className="max-w-5xl mx-auto relative z-10">
+          <div className="text-center mb-16">
+            <span className="text-gold text-xs tracking-[0.5em] uppercase mb-4 block">{t('res.subtitle' as any)}</span>
+            <h2 className="text-5xl md:text-6xl font-serif font-bold mb-6 tracking-tighter">{t('res.title' as any)}</h2>
+            <p className="text-[var(--theme-text-muted)] max-w-lg mx-auto font-medium leading-relaxed opacity-80">{t('res.desc' as any)}</p>
+          </div>
+  
+          <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] p-8 md:p-12 shadow-2xl rounded-[40px] border-l-[10px] border-l-[#d4af37]">
+            {isSuccess ? (
+              <div className="py-20 text-center">
+                <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle2 size={40} className="text-emerald-500" /></div>
+                <h3 className="text-3xl font-serif font-bold mb-4">{t('res.success.title' as any)}</h3>
+                <button onClick={() => setIsSuccess(false)} className="px-8 py-3 border border-gold text-gold text-xs tracking-widest uppercase font-black rounded-xl">{t('res.new' as any)}</button>
+              </div>
+            ) : (
+              <form onSubmit={(e) => e.preventDefault()} className="space-y-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="space-y-3">
+                    <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">{t('res.name' as any)}</label>
+                    <input type="text" className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] px-6 py-5 rounded-2xl focus:border-gold outline-none text-[var(--theme-text)] font-bold transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">{t('res.phone' as any)}</label>
+                    <input type="tel" className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] px-6 py-5 rounded-2xl focus:border-gold outline-none text-[var(--theme-text)] font-bold transition-all" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                  </div>
+                  <div className="md:col-span-2 space-y-5">
+                     <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">Tarix və Saat</label>
+                     <DateWheelPicker day={dateParts.day} month={dateParts.month} year={dateParts.year} onDayChange={d => setDateParts({...dateParts, day: d})} onMonthChange={m => setDateParts({...dateParts, month: m})} onYearChange={y => setDateParts({...dateParts, year: y})} />
+                     <TimeWheelPicker hour={timeParts.hour} minute={timeParts.minute} onHourChange={h => setTimeParts({...timeParts, hour: h})} onMinuteChange={m => setTimeParts({...timeParts, minute: m})} />
+                  </div>
+                </div>
+                <button className="w-full bg-gold text-black py-6 rounded-[24px] font-black text-xs tracking-[0.4em] uppercase transition-all shadow-xl hover:shadow-gold/20 active:scale-[0.98]">
+                  {t('res.submit' as any)}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  };
 
 export default Reservation;

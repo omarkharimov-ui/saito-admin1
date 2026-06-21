@@ -154,12 +154,16 @@ const StatsPage = () => {
       <div className="lg:hidden">
         <StatsMobileView
           stats={stats}
+          forecast={forecast}
+          anomalies={anomalies}
           timeFilter={timeFilter}
           loading={loading}
           onTimeFilterChange={setTimeFilter}
           aiAnalysis={aiAnalysis}
           aiDisplayed={aiDisplayed}
           aiLoading={aiLoading}
+          aiClosing={aiClosing}
+          logoFlash={logoFlash}
           onFetchAiAnalysis={handleFetchAiAnalysis}
           onCloseAiAnalysis={() => setAiAnalysis(null)}
         />

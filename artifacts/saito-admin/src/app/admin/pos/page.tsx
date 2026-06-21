@@ -149,6 +149,22 @@ export default function POSPage() {
     pos.setActiveView('floor');
   }, [pos]);
 
+  const handleCloseBill = useCallback(async () => {
+    if (!payOrderId) return;
+    setOrderButtonStatus('loading');
+    const payment: PaymentInfo = {
+      method: payMethod === 'cash' ? 'cash' : 'card',
+      cash_amount: payMethod === 'cash' ? payAmount + payTip : 0,
+      card_amount: payMethod === 'card' ? payAmount + payTip : 0,
+      tip: payTip,
+    };
+    await pos.closeBill(payOrderId, payment);
+    setPaymentOpen(false);
+    setPayOrderId(null);
+    setOrderButtonStatus('success');
+    window.setTimeout(() => setOrderButtonStatus('idle'), 1400);
+  }, [payOrderId, payMethod, payAmount, payTip, pos]);
+
   const handleTableTap = useCallback(async (table: PosTable) => {
     if (mergeMode) {
       if (table.status === 'merged') return;
@@ -182,7 +198,7 @@ export default function POSPage() {
       <div className="flex-1 min-h-0 overflow-hidden relative">
         <AnimatePresence mode="wait">
           {pos.activeView === 'floor' && (
-            <div className={`h-full overflow-hidden flex flex-col border ${lightMode ? 'border-zinc-200 bg-white' : 'border-white/[0.04] bg-[#070707]'} rounded-[40px] m-3 shadow-2xl`}>
+            <div key="floor" className={`h-full overflow-hidden flex flex-col border ${lightMode ? 'border-zinc-200 bg-white' : 'border-white/[0.04] bg-[#070707]'} rounded-[40px] m-3 shadow-2xl`}>
               <div className="flex-shrink-0 p-6 pb-2">
                 <div className="flex items-center justify-between mb-4 gap-4">
                   <div className="flex items-center gap-4">
@@ -269,7 +285,7 @@ export default function POSPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Warning Modal (Fixed and rendered inside posRef for full screen visibility) ── */}
+        {/* ── Warning Modal ── */}
         <AnimatePresence>
           {warningOpen && (
             <div className="absolute inset-0 z-[1000] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">

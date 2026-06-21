@@ -204,8 +204,21 @@ const StatsPage = () => {
             aiLoading={aiLoading}
             aiClosing={aiClosing}
             logoFlash={logoFlash}
+            chatMessages={chatMessages}
+            chatLoading={chatLoading}
+            whatIfProduct={whatIfProduct}
+            whatIfChange={whatIfChange}
+            whatIfResult={whatIfResult}
+            whatIfLoading={whatIfLoading}
             onFetchAiAnalysis={handleFetchAiAnalysis}
             onCloseAiAnalysis={() => setAiAnalysis(null)}
+            onSendChat={handleSendChat}
+            onWhatIfProductChange={setWhatIfProduct}
+            onWhatIfChangeChange={setWhatIfChange}
+            onFetchWhatIf={handleFetchWhatIf}
+            restaurantCity={restaurantCity}
+            orderItems={stats.productPerformance}
+            senseiStatsAdvice={null}
           />
 
           <StatsFinancePanel

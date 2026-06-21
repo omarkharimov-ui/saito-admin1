@@ -12,6 +12,7 @@ import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import MobileModal from '@/components/ui/MobileModal';
+import { LiquidSwitcher } from '@/components/ui/LiquidSwitcher';
 import { toast } from '@/lib/toast';
 import SimpleToaster from '@/app/admin/components/layout/SimpleToaster';
 import { supabase } from '@/lib/supabase';
@@ -407,44 +408,14 @@ export default function POSPage() {
               <div className="flex-shrink-0 p-4 sm:p-5 pb-0">
                 <div className="flex items-center justify-between mb-4 gap-3">
                   <div className="flex items-center gap-3">
-                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight">POS</h1>
-                    {/* Floor dropdown */}
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tighter mr-2">POS</h1>
+                    {/* Liquid Floor Switcher */}
                     {pos.floors.length > 0 && (
-                      <div className="relative">
-                        <button onClick={() => setFloorDropdownOpen(!floorDropdownOpen)}
-                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:bg-[var(--theme-panel)] shadow-sm">
-                          {selectedFloorName} <ChevronDown size={14} className={`transition-transform ${floorDropdownOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        <AnimatePresence>
-                          {floorDropdownOpen && (
-                            <>
-                              <div className="fixed inset-0 z-10" onClick={() => setFloorDropdownOpen(false)} />
-                              <motion.div
-                                initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                className="absolute top-full left-0 mt-1 z-20 min-w-[160px] rounded-xl border p-1 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-xl origin-top-left"
-                              >
-                                  {pos.floors.map(f => (
-                                    <motion.button
-                                      key={f.name}
-                                      whileHover={{ scale: 1.02 }}
-                                      whileTap={{ scale: 0.98 }}
-                                      onClick={() => { setSelectedFloor(f.name); setFloorDropdownOpen(false); }}
-                                      className={`w-full text-left px-4 py-3 rounded-lg text-sm font-bold transition-all ${
-                                        f.name === selectedFloorName
-                                          ? 'bg-gray-900 text-white'
-                                          : 'text-[var(--theme-text-secondary)] hover:bg-[var(--theme-surface-soft)]'
-                                      }`}>
-                                      {f.name}
-                                    </motion.button>
-                                  ))}
-                              </motion.div>
-                            </>
-                          )}
-                        </AnimatePresence>
-                      </div>
+                      <LiquidSwitcher 
+                        options={pos.floors.map(f => ({ id: f.name, label: f.name }))}
+                        activeId={selectedFloorName}
+                        onChange={(id) => setSelectedFloor(id)}
+                      />
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">

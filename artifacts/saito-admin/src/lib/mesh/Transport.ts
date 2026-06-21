@@ -1,4 +1,4 @@
-import { TableState } from './types';
+import { TableState } from '../sync/types';
 
 /**
  * P2P Transport Interface

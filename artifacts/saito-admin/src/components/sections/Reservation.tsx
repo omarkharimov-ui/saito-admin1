@@ -56,7 +56,7 @@ const WheelPicker: React.FC<WheelPickerProps> = ({ value, options, onChange, lab
         className="w-full bg-[var(--theme-surface-soft)] backdrop-blur-md border-b border-gold/10 px-4 py-4 flex items-center justify-between outline-none transition-all hover:bg-[var(--theme-surface)] group rounded-xl"
       >
         <span className={`text-[13px] font-bold tracking-tight ${value ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)]'}`}>
-          {value || t(label || '')}
+          {value || t((label || '') as any)}
         </span>
         <ChevronDown size={14} className={`text-gold/40 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>

@@ -172,6 +172,11 @@ export function usePos() {
     cartRef.current = null;
   }, []);
 
+  /* ── Order Operations ── */
+  const cartFingerprint = (items: any[]) => items
+    .map(item => `${item.product_id}:${item.variant_id || 'base'}:${item.quantity}:${item.unit_price}:${item.special_notes || ''}:${(item.modifiers ?? []).map((m: any) => m.id).sort().join(',')}`)
+    .join('|');
+
   const placeOrder = useCallback(async () => {
     const currentCart = cartRef.current;
     if (!currentCart || currentCart.items.length === 0) return;

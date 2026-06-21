@@ -273,7 +273,7 @@ export default function POSPage() {
                               setMergeMode(false);
                               setSelectedForMerge([]);
                             } else {
-                              await pos.transferOrder(transferSource!, transferTarget!);
+                              await pos.transferTable(transferSource!, transferTarget!);
                               setTransferMode(false);
                               setTransferSource(null);
                               setTransferTarget(null);

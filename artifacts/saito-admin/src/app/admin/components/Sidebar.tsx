@@ -94,7 +94,7 @@ const Sidebar = ({
       style={{ width: 290 }}
     >
       {/* iOS 27 Vision Pro Container */}
-      <div className="mx-5 my-5 flex-1 flex flex-col overflow-hidden rounded-[44px] border border-white/[0.08] bg-[#121212] backdrop-blur-[60px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.9)] relative">
+      <div className="mx-5 my-5 flex-1 flex flex-col overflow-hidden rounded-[44px] border border-[var(--theme-border)] bg-[var(--theme-surface)] backdrop-blur-[60px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.1)] dark:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.9)] relative">
         
         {/* Navigation */}
         <nav className="flex-1 px-5 space-y-1.5 overflow-y-auto scrollbar-none py-2">
@@ -113,18 +113,18 @@ const Sidebar = ({
                   onClick={onClose}
                   className={`group relative flex items-center gap-4 px-5 py-4 rounded-[24px] transition-all duration-500 ${
                     isActive 
-                      ? 'bg-[#1c1c1e] border border-white/[0.05] shadow-[0_15px_35px_-10px_rgba(0,0,0,0.6)]' 
-                      : 'hover:bg-white/[0.03]'
+                      ? 'bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] shadow-[0_15px_35px_-10px_rgba(0,0,0,0.05)] dark:shadow-[0_15px_35px_-10px_rgba(0,0,0,0.6)]' 
+                      : 'hover:bg-[var(--theme-surface-soft)]'
                   }`}
                 >
-                  <div className={`relative flex items-center justify-center transition-all duration-500 ${isActive ? 'text-white' : 'text-white/25 group-hover:text-white/60'}`}>
+                  <div className={`relative flex items-center justify-center transition-all duration-500 ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text)]'}`}>
                     <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                     {isActive && (
                       <motion.div layoutId="active-glow" className="absolute inset-0 blur-xl bg-gold/20 -z-10" />
                     )}
                   </div>
 
-                  <span className={`flex-1 text-[12px] font-bold tracking-[0.2em] uppercase transition-all duration-500 ${isActive ? 'text-white' : 'text-white/20 group-hover:text-white/60'}`}>
+                  <span className={`flex-1 text-[12px] font-bold tracking-[0.2em] uppercase transition-all duration-500 ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text)]'}`}>
                     {link.name}
                   </span>
 

@@ -631,15 +631,15 @@ export function TableStatusGrid({
                               const gNum = gIdx + 1;
                               return (
                                 <span className={`${isCompact ? 'text-[8px]' : 'text-[11px]'} font-black tracking-wide leading-none whitespace-nowrap`} style={{ background: 'linear-gradient(135deg,#D4AF37,#F5D67B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                                  {t('group_label_short') || t('group_label')} {gNum}
+                                   {t('group_label_short' as any) || t('group_label' as any)} {gNum}
                                 </span>
                               );
                             })()}
                             {/* Kitchen status + time */}
                             <span className={`inline-flex items-center gap-1 ${isCompact ? 'text-[7px]' : 'text-[10px]'} font-bold tracking-tight text-white`}>
-                              {kitchenStatus === 'ready' ? t('grid_status_ready')
-                                : (kitchenStatus === 'cooking' || kitchenStatus === 'preparing') ? t('grid_status_preparing')
-                                : t('grid_status_pending')}
+                              {kitchenStatus === 'ready' ? t('grid_status_ready' as any)
+                                : (kitchenStatus === 'cooking' || kitchenStatus === 'preparing') ? t('grid_status_preparing' as any)
+                                : t('grid_status_pending' as any)}
                               {ageMin > 0 && <span>• {ageMin}d</span>}
                             </span>
                           </span>

@@ -259,7 +259,7 @@ export default function POSPage() {
               <div className={`w-full md:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
                   <CartPanel
                     cart={pos.cart} onUpdateQty={handleUpdateQty} onPlaceOrder={handlePlaceOrder} onClearDraft={pos.clearDrafts}
-                    onBack={() => isDirty ? setWarningOpen(true) : pos.backToFloor()}
+                    onBack={() => { pos.clearCart(); setIsDirty(false); pos.backToFloor(); }}
                     orderButtonStatus={orderButtonStatus} isDirty={isDirty}
                     hasExistingOrder={pos.selectedTable?.status !== 'empty'}
                     onUpdateGuests={(delta) => {
@@ -279,22 +279,7 @@ export default function POSPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Warning Modal ── */}
-        <AnimatePresence>
-          {warningOpen && (
-            <div className="absolute inset-0 z-[1000] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
-              <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative w-full max-w-sm bg-[var(--theme-surface)] rounded-[40px] p-10 text-center shadow-[0_32px_80px_rgba(0,0,0,0.3)] border border-white/10">
-                <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle size={40} className="text-rose-500" /></div>
-                <h3 className="text-xl font-black mb-3">Yazılmamış dəyişikliklər var</h3>
-                <p className="text-sm text-[#8e8e93] leading-relaxed mb-8">Masanı tərk etsən, səbət və qonaq sayı silinəcək.</p>
-                <div className="flex gap-4">
-                  <button onClick={() => setWarningOpen(false)} className="flex-1 py-4 rounded-2xl bg-[#efeff4] dark:bg-white/[0.1] text-[#8e8e93] font-black uppercase tracking-widest text-[10px] border border-transparent dark:border-white/5 shadow-sm">Ləğv Et</button>
-                  <button onClick={() => { pos.clearCart(); setIsDirty(false); setWarningOpen(false); pos.backToFloor(); }} className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg ${lightMode ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}>Sil və Çıx</button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+        {/* Warning Modal removed as requested */}
       </div>
 
       <ActionSheet 

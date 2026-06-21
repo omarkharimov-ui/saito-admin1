@@ -187,9 +187,9 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
       {/* ── KPI ROW ── */}
       <div className="grid grid-cols-3 gap-2 px-4 mt-4">
         {[
-          { label: t('stats_total_orders'), value: stats.totalOrders || 0, color: 'text-white' },
-          { label: t('stats_aov_label'), value: `₼${(stats.aov || 0).toFixed(1)}`, color: 'text-white' },
-          { label: t('stats_cancelled_loss'), value: `₼${(stats.missedRevenue || 0).toFixed(0)}`, color: 'text-red-400' },
+          { label: t('stats_total_orders' as any), value: stats.totalOrders || 0, color: 'text-white' },
+          { label: t('stats_aov_label' as any), value: `₼${(stats.aov || 0).toFixed(1)}`, color: 'text-white' },
+          { label: t('stats_cancelled_loss' as any), value: `₼${(stats.missedRevenue || 0).toFixed(0)}`, color: 'text-red-400' },
         ].map((k, i) => (
           <motion.div key={k.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
             className="bg-white/[0.04] border border-white/[0.06] rounded-2xl px-3 py-3">

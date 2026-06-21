@@ -22,16 +22,18 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
 
   return (
     <motion.button
-      whileTap={{ scale: 0.96 }}
+      whileTap={{ scale: 0.98 }}
       onClick={onTap}
-      className={`relative h-[130px] rounded-[24px] p-5 text-left transition-all duration-300 shadow-sm hover:shadow-md group overflow-hidden border
-        ${isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50 border-emerald-200' : 
-          isTransferSource ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-200' :
-          isTransferTarget ? 'ring-2 ring-gold bg-gold/5 border-gold/20' :
-          'bg-[#f4f4f7] dark:bg-white/[0.08] hover:bg-[#ebebef] dark:hover:bg-white/[0.12] border-black/[0.05] dark:border-white/[0.05]'}`}
+      className={`relative h-[180px] rounded-[32px] p-6 text-left transition-all duration-300 group overflow-hidden border-2
+        ${isSelected ? 'ring-4 ring-emerald-500/20 bg-emerald-50 border-emerald-500 shadow-lg' : 
+          isTransferSource ? 'ring-4 ring-blue-500/20 bg-blue-50 border-blue-500 shadow-lg' :
+          isTransferTarget ? 'ring-4 ring-amber-500/20 bg-amber-50 border-amber-500 shadow-lg' :
+          lightMode 
+            ? 'bg-white border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-gray-200' 
+            : 'bg-white/[0.05] border-white/[0.05] hover:bg-white/[0.08] hover:border-white/[0.1]'}`}
     >
-      <div className="flex justify-between items-start mb-2">
-        <span className={`text-2xl font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+      <div className="flex justify-between items-start mb-4">
+        <span className={`text-4xl font-black tracking-tighter ${lightMode ? 'text-gray-900' : 'text-white'}`}>
           {table.table_number}
         </span>
         <button 

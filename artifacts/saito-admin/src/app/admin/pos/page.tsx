@@ -198,8 +198,8 @@ export default function POSPage() {
       <div className="flex-1 min-h-0 overflow-hidden relative">
         <AnimatePresence mode="wait">
           {pos.activeView === 'floor' && (
-            <div key="floor" className={`h-full overflow-hidden flex flex-col border ${lightMode ? 'border-zinc-200 bg-white' : 'border-white/[0.04] bg-[#070707]'} rounded-[40px] m-3 shadow-2xl`}>
-              <div className="flex-shrink-0 p-6 pb-2">
+            <div key="floor" className={`h-full flex flex-col border ${lightMode ? 'border-zinc-200 bg-[#f8f8fa]' : 'border-white/[0.04] bg-[#070707]'} rounded-[40px] m-3 shadow-2xl relative`}>
+              <div className="flex-shrink-0 p-6 pb-2 relative z-50">
                 <div className="flex items-center justify-between mb-4 gap-4">
                   <div className="flex items-center gap-4">
                     <h1 className="text-3xl font-black tracking-tighter">POS</h1>
@@ -236,7 +236,7 @@ export default function POSPage() {
 
               <div className="flex-1 overflow-y-auto p-6 pt-2">
                 {activeFloor ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                     {(activeFloor.tables ?? []).filter(t => t.status !== 'merged').map(table => (
                       <TableCard
                         key={table.table_number}

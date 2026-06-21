@@ -12,7 +12,7 @@ export default function PosError({ error, reset }: { error: Error & { digest?: s
       <p className="text-sm text-[var(--theme-text-muted)] mb-6 max-w-md">
         {process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred.'}
       </p>
-      <button onClick={reset} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-gold/10 border border-gold/20 text-gold hover:brightness-110 transition-all">
+      <button onClick={reset} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-zinc-900 text-white shadow-lg hover:bg-black transition-all">
         <RefreshCw size={15} /> Try Again
       </button>
     </div>

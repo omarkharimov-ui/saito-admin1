@@ -84,7 +84,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className={`text-lg font-bold ${lightMode ? 'text-gray-900' : 'text-white'}`}>{productName}</p>
-                  <p className={`text-sm font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{productPrice.toFixed(2)} ₼</p>
+                  <p className={`text-sm font-black ${lightMode ? 'text-gray-900' : 'text-white/60'}`}>{productPrice.toFixed(2)} ₼</p>
                 </div>
                 <button onClick={onClose} className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
                   <X size={18} />
@@ -120,7 +120,7 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                         key={e.id}
                         onClick={() => setSelectedExtras(prev => sel ? prev.filter(x => x !== e.id) : [...prev, e.id])}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all border ${
-                          sel ? (lightMode ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-gold/10 border-gold/25 text-gold') : lightMode ? 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100' : 'bg-white/[0.03] border-white/[0.06] text-white/60'
+                          sel ? (lightMode ? 'bg-zinc-900 border-zinc-900 text-white shadow-sm' : 'bg-white border-white text-black') : lightMode ? 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100' : 'bg-white/[0.03] border-white/[0.06] text-white/60'
                         }`}
                       >
                         <span>{e.name}</span>
@@ -161,17 +161,18 @@ export function ModifierSheet({ open, productName, productPrice, onClose, onConf
                 />
               </div>
 
-              {/* Total + Confirm */}
+               {/* Total + Confirm */}
               <div className={`flex items-center gap-3 pt-3 border-t ${lightMode ? 'border-gray-200' : 'border-white/[0.06]'}`}>
                 <div className="flex-1">
                   <p className={`text-xs ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>Cəmi</p>
-                  <p className={`text-lg font-black ${lightMode ? 'text-amber-700' : 'text-gold'}`}>{(productPrice + totalExtras).toFixed(2)} ₼</p>
+                  <p className={`text-lg font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>{(productPrice + totalExtras).toFixed(2)} ₼</p>
                 </div>
                 <button onClick={handleConfirm}
-                  className={`px-6 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all ${lightMode ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/25 hover:bg-amber-700' : 'bg-gold text-black shadow-lg shadow-gold/25 hover:bg-yellow-400'}`}>
+                  className={`px-6 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all ${lightMode ? 'bg-zinc-900 text-white shadow-lg shadow-black/25 hover:bg-black' : 'bg-white text-black shadow-lg shadow-white/10 hover:bg-gray-200'}`}>
                   <Plus size={16} className="inline mr-1" /> Əlavə et
                 </button>
               </div>
+
             </div>
           </motion.div>
         </>

@@ -44,7 +44,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
     >
       {/* Dirty dot */}
       {isDirty && !isLoading && !isSuccess && !isError && (
-        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
       )}
 
       <AnimatePresence mode="wait" initial={false}>

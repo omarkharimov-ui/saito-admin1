@@ -50,25 +50,26 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
         onPointerUp={() => setIsHolding(false)}
         onPointerLeave={() => setIsHolding(false)}
         onClick={(e) => {
+          e.preventDefault();
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
         animate={{
-          scale: isHolding ? 0.96 : 1,
+          scale: isHolding ? 0.98 : 1,
         }}
         transition={springConfig}
-        className={`relative flex items-center justify-between gap-3 px-6 py-2.5 rounded-full border cursor-pointer transition-all duration-500 z-30 min-w-[120px] ${
+        className={`relative flex items-center justify-between gap-3 px-6 py-2.5 rounded-full border cursor-pointer transition-all duration-300 z-30 min-w-[120px] ${
           isOpen 
-            ? 'bg-white/15 dark:bg-white/10 backdrop-blur-2xl border-white/30 shadow-2xl' 
+            ? 'bg-gray-900 text-white border-transparent shadow-xl' 
             : 'bg-[#efeff4] dark:bg-white/[0.08] border-transparent dark:border-white/[0.1] shadow-sm hover:bg-[#e5e5ea]'
         }`}
       >
         <span className={`text-[11px] font-black uppercase tracking-[0.2em] pointer-events-none ${
-          isOpen ? 'text-black dark:text-white' : 'text-[#8e8e93]'
+          isOpen ? 'text-white' : 'text-[#8e8e93]'
         }`}>
           {activeLabel}
         </span>
-        <ChevronDown size={14} className={`transition-transform duration-500 pointer-events-none ${isOpen ? 'rotate-180 text-gold' : 'text-[#8e8e93]'}`} />
+        <ChevronDown size={14} className={`transition-transform duration-300 pointer-events-none ${isOpen ? 'rotate-180 text-white' : 'text-[#8e8e93]'}`} />
 
         {isHolding && (
           <motion.div

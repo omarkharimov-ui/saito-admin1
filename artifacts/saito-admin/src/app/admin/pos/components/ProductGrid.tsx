@@ -48,13 +48,13 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
         />
       </div>
 
-      {/* Categories - Clean Gold Active State */}
+      {/* Categories - Clean Black Active State */}
       <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-none">
         <button
           onClick={() => setCategoryFilter(null)}
           className={`px-6 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${
             !categoryFilter
-              ? 'bg-gold text-black shadow-lg shadow-gold/20'
+              ? 'bg-zinc-900 text-white shadow-lg shadow-black/20'
               : 'bg-[#f4f4f7] dark:bg-white/[0.08] text-[#8e8e93] hover:bg-gray-200 dark:hover:bg-white/[0.12]'
           }`}
         >
@@ -68,7 +68,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
               onClick={() => setCategoryFilter(isActive ? null : c.id)}
               className={`px-6 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
                 isActive
-                  ? 'bg-gold text-black shadow-lg shadow-gold/20'
+                  ? 'bg-zinc-900 text-white shadow-lg shadow-black/20'
                   : 'bg-[#f4f4f7] dark:bg-white/[0.08] text-[#8e8e93] hover:bg-gray-200 dark:hover:bg-white/[0.12]'
               }`}
             >
@@ -106,10 +106,10 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
                 </div>
                 <div className="pt-4 px-1">
                   <p className={`text-sm font-bold truncate leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{name}</p>
-                  <p className="text-sm font-black mt-2 text-gold">₼ {product.price.toFixed(2)}</p>
+                  <p className={`text-sm font-black mt-2 ${lightMode ? 'text-gray-900' : 'text-white/60'}`}>₼ {product.price.toFixed(2)}</p>
                 </div>
                 {count > 0 && (
-                  <div className="absolute top-2 right-2 w-7 h-7 rounded-full text-[11px] font-black flex items-center justify-center shadow-xl bg-gold text-black border-2 border-white dark:border-zinc-900">
+                  <div className="absolute top-2 right-2 w-7 h-7 rounded-full text-[11px] font-black flex items-center justify-center shadow-xl bg-zinc-900 text-white border-2 border-white dark:border-zinc-900">
                     {count}
                   </div>
                 )}

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
 import type { PosProduct } from '../types/shared';
 
 export type Product = PosProduct;
@@ -48,35 +49,13 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
         />
       </div>
 
-      {/* Categories - Clean Black Active State */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-none">
-        <button
-          onClick={() => setCategoryFilter(null)}
-          className={`px-6 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${
-            !categoryFilter
-              ? 'bg-zinc-900 text-white shadow-lg shadow-black/20'
-              : 'bg-[#f4f4f7] dark:bg-white/[0.08] text-[#8e8e93] hover:bg-gray-200 dark:hover:bg-white/[0.12]'
-          }`}
-        >
-          {t('all' as any)}
-        </button>
-        {categories.map(c => {
-          const isActive = categoryFilter === c.id;
-          return (
-            <button
-              key={c.id}
-              onClick={() => setCategoryFilter(isActive ? null : c.id)}
-              className={`px-6 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
-                isActive
-                  ? 'bg-zinc-900 text-white shadow-lg shadow-black/20'
-                  : 'bg-[#f4f4f7] dark:bg-white/[0.08] text-[#8e8e93] hover:bg-gray-200 dark:hover:bg-white/[0.12]'
-              }`}
-            >
-              {c.name}
-            </button>
-          );
-        })}
-      </div>
+      {/* Categories - Liquid Glass Segmented Control */}
+      <LiquidCategoryNavbar 
+        categories={categories}
+        activeId={categoryFilter}
+        onChange={setCategoryFilter}
+        allLabel={t('all' as any)}
+      />
 
       {/* Product List - Modern Card Design */}
       <div className="flex-1 overflow-y-auto pr-1">

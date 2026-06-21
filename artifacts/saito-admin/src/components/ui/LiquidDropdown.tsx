@@ -46,22 +46,16 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
     <div ref={dropdownRef} className={`relative select-none ${className}`}>
       {/* ── TRIGGER PILL ── */}
       <motion.div
-        onPointerDown={() => setIsHolding(true)}
-        onPointerUp={() => setIsHolding(false)}
-        onPointerLeave={() => setIsHolding(false)}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        animate={{
-          scale: isHolding ? 0.98 : 1,
-        }}
-        transition={springConfig}
+        whileTap={{ scale: 0.98 }}
         className={`relative flex items-center justify-between gap-3 px-6 py-2.5 rounded-full border cursor-pointer transition-all duration-300 z-30 min-w-[120px] ${
           isOpen 
-            ? 'bg-gray-900 text-white border-transparent shadow-xl' 
-            : 'bg-[#efeff4] dark:bg-white/[0.08] border-transparent dark:border-white/[0.1] shadow-sm hover:bg-[#e5e5ea]'
+            ? 'bg-zinc-900 text-white border-transparent shadow-xl' 
+            : 'bg-[#efeff4] dark:bg-white/[0.08] border-transparent dark:border-white/[0.1] shadow-sm hover:bg-zinc-200 dark:hover:bg-white/[0.12]'
         }`}
       >
         <span className={`text-[11px] font-black uppercase tracking-[0.2em] pointer-events-none ${
@@ -70,15 +64,6 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
           {activeLabel}
         </span>
         <ChevronDown size={14} className={`transition-transform duration-300 pointer-events-none ${isOpen ? 'rotate-180 text-white' : 'text-[#8e8e93]'}`} />
-
-        {isHolding && (
-          <motion.div
-            layoutId="dropdown-liquid-glow"
-            className="absolute inset-0 rounded-full bg-white/30 backdrop-blur-3xl ring-1 ring-white/50 z-[-1]"
-            animate={{ scale: 1.1 }}
-            transition={springConfig}
-          />
-        )}
       </motion.div>
 
       {/* ── LIQUID MENU ── */}

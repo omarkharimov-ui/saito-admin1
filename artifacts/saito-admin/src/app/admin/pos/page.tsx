@@ -194,12 +194,12 @@ export default function POSPage() {
   }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
 
   return (
-    <div ref={posRef} className="h-full w-full overflow-hidden flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)]">
-      <div className="flex-1 min-h-0 overflow-hidden relative">
+    <div ref={posRef} className="h-full w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)]">
+      <div className="flex-1 min-h-0 relative">
         <AnimatePresence mode="wait">
           {pos.activeView === 'floor' && (
             <div key="floor" className={`h-full flex flex-col border ${lightMode ? 'border-zinc-200 bg-[#f8f8fa]' : 'border-white/[0.04] bg-[#070707]'} rounded-[40px] m-3 shadow-2xl relative`}>
-              <div className="flex-shrink-0 p-6 pb-2 relative z-50">
+              <div className="flex-shrink-0 p-6 pb-2 relative z-[60]">
                 <div className="flex items-center justify-between mb-4 gap-4">
                   <div className="flex items-center gap-4">
                     <h1 className="text-3xl font-black tracking-tighter">POS</h1>
@@ -223,11 +223,11 @@ export default function POSPage() {
                       className="hidden sm:block"
                     />
                     <button onClick={() => setLightMode(!lightMode)}
-                      className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-black/[0.02] dark:border-white/[0.1] text-[#8e8e93] hover:text-black dark:hover:text-white transition-all shadow-sm">
+                      className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-black/[0.02] dark:border-white/[0.1] text-[#8e8e93] hover:text-black dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-white/[0.15] transition-all shadow-sm">
                       {lightMode ? <Moon size={20} /> : <Sun size={20} />}
                     </button>
                     <button onClick={toggleFullscreen}
-                      className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-black/[0.02] dark:border-white/[0.1] text-[#8e8e93] hover:text-black dark:hover:text-white transition-all shadow-sm">
+                      className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-black/[0.02] dark:border-white/[0.1] text-[#8e8e93] hover:text-black dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-white/[0.15] transition-all shadow-sm">
                       {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
                     </button>
                   </div>

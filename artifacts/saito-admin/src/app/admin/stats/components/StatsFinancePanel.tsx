@@ -50,8 +50,6 @@ function foodCostHealth(pct: number): { label: string; color: string; bg: string
   return              { label: 'Kritik',          color: 'text-red-400',     bg: 'bg-red-500/10',    border: 'border-red-500/25' };
 }
 
-// ─── Stat Card ─────────────────────────────────────────────────────────────────
-
 function FinCard({
   label, value, sub, icon, accent, big, delay = 0,
 }: {
@@ -66,30 +64,24 @@ function FinCard({
       className="relative overflow-hidden rounded-2xl p-5 flex flex-col gap-3"
       style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
     >
-      {big && (
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at 80% 20%,#D4AF37,transparent 60%)' }} />
-      )}
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/30">{label}</span>
         <span className={accent}>{icon}</span>
       </div>
       <div>
         <p className={`${big ? 'text-4xl' : 'text-2xl'} font-black tabular-nums leading-none`}>{value}</p>
-        {sub && <p className="text-[11px] text-white/35 mt-1.5">{sub}</p>}
+        {sub && <div className="mt-1.5">{sub}</div>}
       </div>
     </motion.div>
   );
 }
-
-// ─── Custom Tooltip ───────────────────────────────────────────────────────────
 
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl px-3 py-2.5 text-xs shadow-xl"
       style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}>
-      <p className="text-[var(--theme-text-secondary)] mb-1.5 font-semibold">{label}</p>
+      <p className="text-white/50 mb-1.5 font-semibold">{label}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} style={{ color: p.color }} className="font-bold">
           {p.name}: ₼{az(p.value)}
@@ -99,20 +91,13 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
 export default function StatsFinancePanel({
   totalRevenue, totalFoodCost, totalWasteCost,
   grossProfit, netProfit, foodCostPct,
   topProfitableItems, financeChartData, loading,
 }: Props) {
-  const { lightMode } = useTheme();
   const health = foodCostHealth(foodCostPct);
-  const markupOverall = totalFoodCost > 0
-    ? Math.round(((totalRevenue - totalFoodCost) / totalFoodCost) * 100)
-    : null;
-
-  // Enrich chart with net profit line (use real per-period data if available, else proportional estimate)
+  
   const chartEnriched = financeChartData.map(d => ({
     ...d,
     net_profit: d.net_profit ?? (totalRevenue > 0
@@ -121,21 +106,11 @@ export default function StatsFinancePanel({
   }));
 
   if (loading) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-6 w-48 rounded-xl bg-[var(--theme-surface-soft)]" />
-        <div className="grid grid-cols-4 gap-3">
-          {[0,1,2,3].map(i => <div key={i} className="h-32 rounded-2xl bg-white/[0.03]" />)}
-        </div>
-        <div className="h-64 rounded-2xl bg-white/[0.03]" />
-      </div>
-    );
+    return <div className="space-y-4 h-64 rounded-2xl bg-white/[0.03] animate-pulse" />;
   }
 
   return (
     <div className="space-y-6">
-
-      {/* ── Section header ── */}
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{ background: 'linear-gradient(135deg,#1e1600,#140f00)', border: '1px solid rgba(212,175,55,0.2)' }}>
@@ -147,18 +122,17 @@ export default function StatsFinancePanel({
         </div>
       </div>
 
-      {/* ── Food cost health bar ── */}
-      <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.22 }}
+      {foodCostPct > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="rounded-2xl px-5 py-4"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
         >
           <div className="flex items-center justify-between mb-2.5">
-            <span className="text-[11px] font-bold text-[var(--theme-text-muted)] uppercase tracking-wider">Food Cost %</span>
+            <span className="text-[11px] font-bold text-white/30 uppercase tracking-wider">Food Cost %</span>
             <span className={`text-[11px] font-bold ${health.color}`}>{health.label} — ideal: 25–35%</span>
           </div>
           <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden">
-            {/* Reference zones */}
             <div className="absolute inset-y-0 left-0 w-[25%] bg-emerald-500/20 rounded-full" />
             <div className="absolute inset-y-0 left-[25%] w-[10%] bg-amber-400/20" />
             <div className="absolute inset-y-0 left-[35%] w-[5%] bg-orange-400/20" />
@@ -179,10 +153,9 @@ export default function StatsFinancePanel({
         </motion.div>
       )}
 
-      {/* ── Revenue vs Net Profit Area Chart ── */}
       {chartEnriched.length > 1 && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl p-5"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
         >
@@ -222,23 +195,20 @@ export default function StatsFinancePanel({
         </motion.div>
       )}
 
-      {/* ── Top Profitable Items ── */}
       {topProfitableItems.length > 0 && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl overflow-hidden"
           style={{ border: '1px solid rgba(255,255,255,0.06)' }}
         >
-          {/* Header */}
           <div className="flex items-center gap-2.5 px-5 py-4"
             style={{ background: 'rgba(255,255,255,0.018)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <Award size={15} className="text-[#D4AF37]/70" />
-            <p className="text-[11px] font-bold text-[var(--theme-text-muted)] uppercase tracking-widest">
+            <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest">
               Ən Çox Qazandıran Yeməklər
             </p>
           </div>
 
-          {/* Table head */}
           <div
             className="grid gap-3 px-5 py-2.5 text-[10px] font-bold tracking-[0.14em] uppercase text-white/20"
             style={{ gridTemplateColumns: '1fr 70px 90px 90px 80px 90px' }}
@@ -268,53 +238,28 @@ export default function StatsFinancePanel({
                   borderTop: '1px solid rgba(255,255,255,0.04)',
                 }}
               >
-                {/* Rank + Name */}
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black flex-shrink-0"
                     style={{ background: i < 3 ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.04)', color: i < 3 ? '#D4AF37' : 'rgba(255,255,255,0.2)' }}>
                     {i + 1}
                   </span>
-                  <span className="text-sm font-semibold truncate">{item.name}</span>
+                  <span className="text-sm font-semibold truncate text-white/80">{item.name}</span>
                 </div>
 
-                {/* Sold */}
                 <span className="text-center text-sm text-white/50 tabular-nums font-semibold">{item.sold}</span>
-
-                {/* Revenue */}
                 <span className="text-right text-sm text-white/70 tabular-nums">₼{az(item.revenue)}</span>
-
-                {/* Food Cost */}
                 <span className="text-right text-sm text-amber-400/70 tabular-nums">
                   {item.food_cost > 0 ? `₼${az(item.food_cost)}` : <span className="text-white/20">—</span>}
                 </span>
-
-                {/* Markup */}
                 <span className={`text-right text-sm tabular-nums font-bold ${markupColor}`}>
                   {item.markup_pct !== null ? `+${item.markup_pct}%` : '—'}
                 </span>
-
-                {/* Net Profit */}
                 <span className={`text-right text-sm tabular-nums font-black ${isLoss ? 'text-red-400' : 'text-emerald-400'}`}>
                   {isLoss ? '−' : '+'}₼{az(Math.abs(item.net_profit))}
                 </span>
               </div>
             );
           })}
-        </motion.div>
-      )}
-
-      {/* Empty state — no recipes configured */}
-      {topProfitableItems.length === 0 && totalRevenue > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-          className="rounded-2xl px-6 py-8 text-center"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
-        >
-          <Award size={32} className="mx-auto mb-3 text-white/10" />
-          <p className="text-sm font-semibold text-white/30">Resept məlumatı tapılmadı</p>
-          <p className="text-xs text-white/20 mt-1">
-            Məhsullar üçün <code className="text-[#D4AF37]/60">recipes</code> cədvəlinə inqredientlər əlavə edin
-          </p>
         </motion.div>
       )}
     </div>

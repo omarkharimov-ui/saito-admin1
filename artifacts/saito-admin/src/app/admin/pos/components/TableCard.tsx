@@ -80,33 +80,3 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
     </motion.button>
   );
 }
-
-
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-1.5">
-           <div className={`w-1.5 h-1.5 rounded-full ${
-             table.status === 'occupied' ? (isSelected || isTransferSource ? 'bg-emerald-400' : 'bg-emerald-500') : 
-             table.status === 'dirty' ? 'bg-orange-500' : 
-             table.status === 'reserved' ? 'bg-blue-500' : 
-             (isSelected || isTransferSource ? 'bg-white/30' : 'bg-zinc-400')
-           }`} />
-           <span className={`text-[10px] font-black uppercase tracking-widest ${isSelected || isTransferSource ? (lightMode ? 'text-white/60' : 'text-black/60') : (lightMode ? 'text-gray-500' : 'text-white/40')}`}>
-             {table.status === 'occupied' ? t('occupied' as any) : 
-              table.status === 'dirty' ? 'dirty' : 
-              table.status === 'reserved' ? 'reserved' : 
-              t('empty' as any)}
-           </span>
-        </div>
-        {table.total_amount > 0 && (
-          <p className={`text-sm font-black mt-1 ${isSelected || isTransferSource ? (lightMode ? 'text-emerald-400' : 'text-emerald-700') : 'text-emerald-600'}`}>₼{table.total_amount.toFixed(2)}</p>
-        )}
-      </div>
-
-      {isOverdue && (
-        <div className="absolute top-2 right-10">
-          <AlertTriangle size={14} className="text-orange-500 animate-pulse" />
-        </div>
-      )}
-    </motion.button>
-  );
-}

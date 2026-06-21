@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   motion, 
   useMotionValue, 
@@ -23,32 +23,22 @@ interface LiquidSwitcherProps {
 
 export function LiquidSwitcher({ options, activeId, onChange }: LiquidSwitcherProps) {
   const [isHolding, setIsHolding] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   
-  // ─── MOTION INFRASTRUCTURE ───
-  // x position for drag tracking
+  // ─── MOTION DATA ───
   const dragX = useMotionValue(0);
-  // Track current velocity
   const xVelocity = useVelocity(dragX);
   
-  // 1. DYNAMIC STRETCH (Elastic Physics)
-  // Sürət artdıqca (max 3000px/s) elementin enini 1.0-dan 1.3-ə qədər dartırıq.
-  // Transform-origin sürət istiqamətinə görə dinamik dəyişəcək.
-  const stretchX = useTransform(xVelocity, [-3000, 0, 3000], [1.3, 1, 1.3]);
-  
-  // useSpring makes the stretching fluid and non-linear
-  const springStretchX = useSpring(stretchX, {
-    stiffness: 450,
-    damping: 25,
-    mass: 0.5
-  });
+  // 1. ELASTIC STRETCH (The "Liquid Tail" Effect)
+  // Barmağın sürətinə görə pill-in enini (scaleX) 1.0-dan 1.35-ə qədər dartırıq.
+  const stretchX = useTransform(xVelocity, [-3000, 0, 3000], [1.35, 1, 1.35]);
+  const smoothStretchX = useSpring(stretchX, { stiffness: 500, damping: 30 });
 
-  // 2. WHATSAPP iOS SPRING PHYSICS (The "Bouncy Snap")
+  // 2. iOS WHATSAPP SPRING (The Bouncy Snap)
   const springConfig = {
     type: 'spring',
     stiffness: 400,
-    damping: 24, // Perfect balance for overshoot
-    mass: 0.7
+    damping: 26,
+    mass: 0.6
   } as const;
 
   const activeIndex = options.findIndex(opt => opt.id === activeId);
@@ -56,29 +46,20 @@ export function LiquidSwitcher({ options, activeId, onChange }: LiquidSwitcherPr
   const handleDragEnd = (event: any, info: any) => {
     setIsHolding(false);
     const offset = info.offset.x;
-    const threshold = 40;
+    const threshold = 45;
 
     if (Math.abs(offset) > threshold) {
       const direction = offset > 0 ? -1 : 1;
       const nextIndex = Math.max(0, Math.min(options.length - 1, activeIndex + direction));
       onChange(options[nextIndex].id);
     }
-    dragX.set(0); // Reset for next interaction
+    dragX.set(0);
   };
 
   return (
     <div className="relative flex items-center justify-center py-6">
-      {/* ── PARENT CONTAINER: The Squash Effect ── */}
-      <motion.div
-        ref={containerRef}
-        animate={{
-          scale: isHolding ? 0.95 : 1, // Parent scale down on interaction
-        }}
-        transition={springConfig}
-        className="relative flex items-center p-1 bg-[#efeff4] dark:bg-white/[0.05] rounded-full border border-black/[0.02] dark:border-white/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] select-none touch-none overflow-visible"
-        onPointerDown={() => setIsHolding(true)}
-        onPointerUp={() => setIsHolding(false)}
-      >
+      {/* ── STATIC BACKGROUND PILL (Arxadakı Kapsul - Terpənmir) ── */}
+      <div className="relative flex items-center p-1 bg-[#efeff4] dark:bg-white/[0.05] rounded-full border border-black/[0.03] dark:border-white/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] select-none touch-none overflow-visible">
         {options.map((opt) => {
           const isActive = activeId === opt.id;
           
@@ -86,58 +67,54 @@ export function LiquidSwitcher({ options, activeId, onChange }: LiquidSwitcherPr
             <button
               key={opt.id}
               onClick={() => { if (!isHolding) onChange(opt.id); }}
-              className="relative px-8 py-3 min-w-[120px] flex items-center justify-center z-10"
+              className="relative px-8 py-3 min-w-[125px] flex items-center justify-center z-10"
             >
-              {/* Text Label: High Contrast Inversion */}
-              <span className={`text-[12px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
-                isActive ? 'text-black dark:text-white scale-105' : 'text-[#8e8e93] hover:text-[#636366]'
+              {/* Text Label: Dynamic Color Swap */}
+              <span className={`text-[12px] font-black uppercase tracking-[0.2em] transition-all duration-300 z-20 ${
+                isActive ? 'text-black dark:text-white' : 'text-[#8e8e93]'
               }`}>
                 {opt.label}
               </span>
 
-              {/* ── CHILD INDICATOR: The Liquid Glass ── */}
+              {/* ── THE LIQUID GLASS INDICATOR (Aktiv pill canlanır) ── */}
               {isActive && (
                 <motion.div
-                  layoutId="active-pill-liquid"
+                  layoutId="whatsapp-pill-liquid"
                   drag="x"
                   _dragX={dragX}
-                  dragConstraints={containerRef}
-                  dragElastic={0.08}
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.06}
                   onDragStart={() => setIsHolding(true)}
                   onDragEnd={handleDragEnd}
                   style={{
-                    scaleX: springStretchX, // THE REAL-TIME VELOCITY STRETCH
+                    scaleX: smoothStretchX, // THE VELOCITY STRETCH
                     transformOrigin: xVelocity.get() > 0 ? 'left center' : 'right center'
                   }}
-                  className={`absolute inset-0 rounded-full z-[-1] overflow-hidden ${
+                  className={`absolute inset-0 rounded-full z-10 overflow-hidden pointer-events-auto ${
                     isHolding 
-                      ? 'bg-white/50 dark:bg-white/10 backdrop-blur-2xl ring-1 ring-white/20' 
-                      : 'bg-white dark:bg-zinc-800 shadow-[0_3px_10px_rgba(0,0,0,0.12)]'
+                      ? 'bg-white/60 dark:bg-white/15 backdrop-blur-2xl ring-1 ring-white/40 shadow-2xl' 
+                      : 'bg-white dark:bg-zinc-800 shadow-[0_3px_12px_rgba(0,0,0,0.1)]'
                   }`}
                   animate={{
-                    scaleY: isHolding ? 1.06 : 1, // Child squash inversion
+                    scale: isHolding ? 1.12 : 1, // Tutanda böyüyür (iOS 18 style)
                   }}
                   transition={springConfig}
                 >
-                  {/* ── PRISMATIC REFRACTION (The Glass Sparkle) ── */}
+                  {/* Prismatic Reflection (İşıq qırılması) */}
                   <AnimatePresence>
                     {isHolding && (
                       <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="absolute inset-0"
                       >
-                        {/* Edge Glow */}
-                        <div className="absolute inset-0 rounded-full border border-white/40 shadow-[inset_0_0_15px_rgba(255,255,255,0.5)]" />
-                        
-                        {/* Dynamic Reflection */}
+                        {/* Shimmer line */}
                         <motion.div
-                          animate={{ x: ['-100%', '200%'] }}
-                          transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
-                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-30deg]"
+                          animate={{ x: ['-100%', '250%'] }}
+                          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-[-30deg]"
                         />
-
-                        {/* Liquid Rainbow Effect (Subtle) */}
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(56,189,248,0.1),transparent_70%)]" />
+                        {/* High Glow Border */}
+                        <div className="absolute inset-0 rounded-full border border-white/60 shadow-[inset_0_0_15px_rgba(255,255,255,0.6)]" />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -146,7 +123,7 @@ export function LiquidSwitcher({ options, activeId, onChange }: LiquidSwitcherPr
             </button>
           );
         })}
-      </motion.div>
+      </div>
     </div>
   );
 }

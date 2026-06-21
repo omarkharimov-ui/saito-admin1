@@ -71,20 +71,27 @@ function YojiAdvice() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(239,68,68,0.1),transparent_70%)] animate-pulse" />
       )}
       
-      <div className="flex items-center gap-5 mb-8">
-        <div className={`w-14 h-14 rounded-[20px] flex items-center justify-center border transition-all ${
-          isCritical ? 'bg-rose-500/20 border-rose-500/30' : 'bg-gold/10 border-gold/20'
-        }`}>
-          {isCritical ? <AlertTriangle className="text-rose-500" size={28} /> : <Lightbulb className="text-gold" size={28} />}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-5">
+          <div className={`w-14 h-14 rounded-[20px] flex items-center justify-center border transition-all duration-500 ${
+            isCritical ? 'bg-rose-500/20 border-rose-500/30' : 'bg-gold/10 border-gold/20'
+          }`}>
+            {isCritical ? <AlertTriangle className="text-rose-500" size={28} /> : <Lightbulb className="text-gold" size={28} />}
+          </div>
+          <div>
+            <h3 className={`text-xl font-black tracking-tight transition-colors duration-500 ${isCritical ? 'text-rose-400' : 'text-white'}`}>
+              {advice?.title}
+            </h3>
+            <p className={`text-[10px] font-bold uppercase tracking-[0.4em] transition-colors duration-500 ${isCritical ? 'text-rose-500/60' : 'text-gold/60'}`}>
+              {isCritical ? 'TƏCİLİ STRATEGİYA' : 'AI STRATEGİYA ANALİZİ'}
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className={`text-xl font-black tracking-tight ${isCritical ? 'text-rose-400' : 'text-white'}`}>
-            {advice?.title}
-          </h3>
-          <p className={`text-[10px] font-bold uppercase tracking-[0.4em] ${isCritical ? 'text-rose-500/60' : 'text-gold/60'}`}>
-            {isCritical ? 'TƏCİLİ STRATEGİYA' : 'AI STRATEGİYA ANALİZİ'}
-          </p>
-        </div>
+        
+        {/* Deep Scan Button on Dashboard too */}
+        <Link href="/admin/stats" className="px-5 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5 hover:text-white transition-all flex items-center gap-2 group">
+           DEEP SCAN <Sparkles size={12} className="group-hover:text-gold transition-colors" />
+        </Link>
       </div>
 
       <AnimatePresence mode="wait">

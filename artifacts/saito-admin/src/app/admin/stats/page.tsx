@@ -197,6 +197,17 @@ const StatsPage = () => {
           
           <StatsRevenueChart chartData={stats.chartData} />
 
+          <StatsSenseiPanel
+            stats={stats}
+            aiAnalysis={aiAnalysis}
+            aiDisplayed={aiDisplayed}
+            aiLoading={aiLoading}
+            aiClosing={aiClosing}
+            logoFlash={logoFlash}
+            onFetchAiAnalysis={handleFetchAiAnalysis}
+            onCloseAiAnalysis={() => setAiAnalysis(null)}
+          />
+
           <StatsFinancePanel
             totalRevenue={stats.totalRevenue}
             totalFoodCost={stats.totalFoodCost}

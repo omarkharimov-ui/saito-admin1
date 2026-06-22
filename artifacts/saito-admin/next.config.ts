@@ -12,6 +12,7 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 });
 
 const nextConfig: NextConfig = {
+  turbopack: {},
   productionBrowserSourceMaps: false,
   allowedDevOrigins: ["*.pike.replit.dev", "*.replit.dev"],
   env: {

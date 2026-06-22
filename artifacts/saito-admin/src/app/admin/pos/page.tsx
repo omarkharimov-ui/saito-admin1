@@ -208,6 +208,11 @@ export default function POSPage() {
       return;
     }
     if (splitMode) {
+      const parent = selectedForSplit[0];
+      if (table.table_number !== parent && table.merged_into_table !== parent) {
+        toast.error("Yalnız bu qrupa aid masaları seçə bilərsiniz");
+        return;
+      }
       if (selectedForSplit.includes(table.table_number)) {
         setSelectedForSplit(prev => prev.filter(n => n !== table.table_number));
       } else {
@@ -278,7 +283,13 @@ export default function POSPage() {
                 {activeFloor ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                     {(activeFloor.tables ?? [])
-                      .filter(t => t.status !== 'merged')
+                      .filter(t => {
+                        if (splitMode) {
+                          const parent = selectedForSplit[0];
+                          return t.status !== 'merged' || t.merged_into_table === parent || t.table_number === parent;
+                        }
+                        return t.status !== 'merged';
+                      })
                       .sort((a, b) => a.table_number - b.table_number)
                       .map(table => (
                         <TableCard

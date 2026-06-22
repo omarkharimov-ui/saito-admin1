@@ -25,7 +25,7 @@ const ReservationsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
   const [timeFilter, setTimeFilter] = useState<'today' | 'future' | 'archive'>('today');
-  const [selectedRes, setSelectedRes] = useState<(Reservation & { visitCount: number }) | null>(null);
+  const [selectedRes, setSelectedRes] = useState<(Reservation & { visitCount?: number }) | null>(null);
   const [archiveSelectionMode, setArchiveSelectionMode] = useState(false);
   const [selectedArchiveIds, setSelectedArchiveIds] = useState<string[]>([]);
   const [confirmDeleteReservation, setConfirmDeleteReservation] = useState<{ id: string; guest: string } | null>(null);

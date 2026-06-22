@@ -1,14 +1,14 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle, XCircle, Calendar, Users, Phone, Clock, Gift, CakeSlice, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Calendar, Users, Phone, Clock, Gift, CakeSlice, Trash2, Star, UserPlus, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { Reservation } from '@/types';
 
 interface Props {
-  res: Reservation;
+  res: Reservation & { visitCount?: number };
   timeFilter: 'today' | 'future' | 'archive';
   statusBadge: (status: string) => React.ReactNode;
   onUpdateStatus: (id: string, status: 'confirmed' | 'cancelled') => void;
@@ -16,235 +16,130 @@ interface Props {
   selectionMode?: boolean;
   selected?: boolean;
   onToggleSelection?: (id: string) => void;
+  onSelect: (res: Reservation & { visitCount?: number }) => void;
 }
 
-const getNoteIcon = (note: string) => {
-  const n = note.toLowerCase();
-  if (n.includes('ad gün') || n.includes('ad gun') || n.includes('birthday') || n.includes('tort') || n.includes('cake')) return CakeSlice;
-  if (n.includes('hədiyy') || n.includes('hediyy') || n.includes('gift') || n.includes('surprise')) return Gift;
-  return null;
+const maskPhone = (phone: string) => {
+  const clean = phone.replace(/\D/g, '');
+  if (clean.length < 4) return phone;
+  const last4 = clean.slice(-4);
+  const part1 = last4.slice(0, 2);
+  const part2 = last4.slice(2);
+  return `+994 •••• •• ${part1} ${part2}`;
 };
 
-const isTomorrowDate = (date: string) => {
-  const resDate = new Date(date);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  const dayAfter = new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000);
-  return resDate >= tomorrow && resDate < dayAfter;
+const getGuestTag = (count: number, t: any) => {
+  if (count > 5) return { label: 'VIP', icon: Star, color: 'bg-gold/10 text-gold border-gold/30 shadow-[0_0_12px_rgba(212,175,55,0.2)]' };
+  if (count > 1) return { label: 'Regular', icon: Zap, color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
+  return { label: 'Yeni', icon: UserPlus, color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
 };
 
-export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete, selectionMode, selected, onToggleSelection }: Props) => {
+export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete, selectionMode, selected, onToggleSelection, onSelect }: Props) => {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
-  const isTomorrow = isTomorrowDate(res.date);
-  const NoteIcon = res.note ? getNoteIcon(res.note) : null;
+  const tag = getGuestTag(res.visitCount || 1, t);
 
   return (
     <motion.tr
-      layout
-      initial={false}
-      animate={{ opacity: 1 }}
-      key={res.id}
-      onClick={selectionMode ? () => onToggleSelection?.(res.id) : undefined}
-      className={`hover:bg-white/[0.02] transition-all duration-300 ${selectionMode ? 'cursor-pointer' : ''} ${selected ? 'bg-white/[0.05] ring-1 ring-gold/30' : ''}`}
+      layoutId={`res-card-${res.id}`}
+      onClick={() => selectionMode ? onToggleSelection?.(res.id) : onSelect(res)}
+      className={`group transition-all duration-300 border-b ${lightMode ? 'border-zinc-100 hover:bg-zinc-50/50' : 'border-white/[0.04] hover:bg-white/[0.02]'} ${selectionMode ? 'cursor-pointer' : 'cursor-zoom-in'} ${selected ? 'bg-white/[0.05]' : ''}`}
     >
       <td className="px-6 py-5">
-        <div className="flex items-start gap-3">
-          {selectionMode && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onToggleSelection?.(res.id); }}
-              className="flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-all mt-1"
-              style={{ background: selected ? '#007AFF' : (lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.06)'), border: selected ? '2px solid #007AFF' : (lightMode ? '2px solid #d1d5db' : '2px solid rgba(255,255,255,0.2)') }}
-              aria-pressed={selected}
-            >
-              {selected && (
-                <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                  <path d="M1.5 4.5L4 7L9.5 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
-            </button>
-          )}
-          <div className="flex flex-col">
+        <div className="flex items-start gap-4">
+          <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-white font-medium">{res.name}</span>
-              {isTomorrow && (
-                <span className="relative inline-flex items-center text-[9px] font-bold text-gold bg-gold/10 px-1.5 py-0.5 rounded ml-1 ring-1 ring-gold/40">
-                  {t('tomorrow').toUpperCase()}
-                </span>
-              )}
+              <span className={`font-bold text-[15px] tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{res.name}</span>
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest transition-all ${tag.color}`}>
+                <tag.icon size={10} strokeWidth={3} />
+                {tag.label}
+              </span>
             </div>
-            <div className="flex items-center gap-2 text-white/40 text-xs mt-1">
-              <Phone size={12} /> {res.phone}
-            </div>
+            <span className={`text-[11px] font-medium mt-1 tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+              {maskPhone(res.phone)}
+            </span>
           </div>
         </div>
       </td>
       <td className="px-6 py-5">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-white/70 text-xs">
-            <Calendar size={12} className="text-white/30" />
-            {new Date(res.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          <div className={`flex items-center gap-2 text-[12px] font-bold ${lightMode ? 'text-zinc-600' : 'text-white/70'}`}>
+            <Calendar size={13} className="opacity-30" />
+            {new Date(res.date).toLocaleDateString('az-AZ', { day: 'numeric', month: 'short', year: 'numeric' })}
           </div>
-          <div className="flex items-center gap-2 text-white/40 text-xs">
-            <Clock size={12} /> {res.time}
+          <div className={`flex items-center gap-2 text-[11px] font-medium opacity-50 ${lightMode ? 'text-zinc-500' : 'text-white'}`}>
+            <Clock size={13} className="opacity-30" /> {res.time}
           </div>
         </div>
       </td>
       <td className="px-6 py-5 text-center">
-        <div className="inline-flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg text-white text-sm">
-          <Users size={14} /> {res.guests}
-        </div>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black ${lightMode ? 'bg-zinc-100 text-zinc-900' : 'bg-white/5 text-white'}`}>
+          <Users size={14} className="opacity-30" /> {res.guests}
+        </span>
       </td>
       <td className="px-6 py-5">{statusBadge(res.status)}</td>
       <td className="px-6 py-5">
-        {res.note ? (
-          <div className="flex items-start gap-2 max-w-[200px]">
-            {NoteIcon && <NoteIcon size={14} className="text-gold/60 shrink-0 mt-1" />}
-            <span className="text-white/40 text-xs italic truncate" title={res.note}>{res.note}</span>
-          </div>
-        ) : <span className="text-white/10 text-xs">-</span>}
+        <p className={`text-[11px] italic truncate max-w-[180px] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+          {res.note || '—'}
+        </p>
       </td>
-      {timeFilter !== 'archive' && <td className="px-6 py-5 text-right">
-        {selectionMode ? (
-          <div className="inline-flex items-center justify-end gap-2 text-xs text-white/50">
-            <span className={selected ? 'text-white' : 'text-white/40'}>
-              {selected ? t('selected_items') : t('tap_to_select')}
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-center justify-end gap-3 md:gap-4">
+      {timeFilter !== 'archive' && (
+        <td className="px-6 py-5 text-right" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             {res.status === 'pending' && (
-              <>
-                <button onClick={() => onUpdateStatus(res.id, 'confirmed')} className="p-2.5 inline-flex items-center justify-center text-green-400/70 bg-green-500/[0.07] hover:bg-green-500/[0.12] hover:text-green-300 border border-green-500/[0.12] hover:border-green-500/25 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('confirm')}>
-                  <CheckCircle size={17} />
-                </button>
-                <button onClick={() => onUpdateStatus(res.id, 'cancelled')} className="p-2.5 inline-flex items-center justify-center text-red-400/70 bg-red-500/[0.07] hover:bg-red-500/[0.12] hover:text-red-300 border border-red-500/[0.12] hover:border-red-500/25 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('cancel')}>
-                  <XCircle size={17} />
-                </button>
-              </>
+              <button onClick={() => onUpdateStatus(res.id, 'confirmed')} className="p-2.5 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"><CheckCircle size={18} /></button>
             )}
-            {res.status === 'confirmed' && (
-              <>
-                <button onClick={() => onUpdateStatus(res.id, 'cancelled')} className="p-2.5 inline-flex items-center justify-center text-red-400/70 bg-red-500/[0.07] hover:bg-red-500/[0.12] hover:text-red-300 border border-red-500/[0.12] hover:border-red-500/25 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('cancel')}>
-                  <XCircle size={17} />
-                </button>
-                <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 inline-flex items-center justify-center text-white/25 hover:text-red-400 bg-white/[0.04] hover:bg-red-500/[0.08] border border-white/[0.07] hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('delete')}>
-                  <Trash2 size={16} />
-                </button>
-              </>
-            )}
-            {res.status === 'cancelled' && (
-              <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 inline-flex items-center justify-center text-white/25 hover:text-red-400 bg-white/[0.04] hover:bg-red-500/[0.08] border border-white/[0.07] hover:border-red-500/20 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" title={t('delete')}>
-                <Trash2 size={16} />
-              </button>
-            )}
+            <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18} /></button>
           </div>
-        )}
-      </td>}
+        </td>
+      )}
     </motion.tr>
   );
 };
 
-export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete, selectionMode, selected, onToggleSelection }: Props) => {
+export const ReservationCard = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete, selectionMode, selected, onToggleSelection, onSelect }: Props) => {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
-  const isTomorrow = isTomorrowDate(res.date);
-  const NoteIcon = res.note ? getNoteIcon(res.note) : null;
-  const dateStr = new Date(res.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const tag = getGuestTag(res.visitCount || 1, t);
 
   return (
     <motion.div
-      key={res.id}
-      initial={false}
-      animate={{ opacity: 1 }}
-      onClick={selectionMode ? () => onToggleSelection?.(res.id) : undefined}
-      className={`border-b border-white/[0.05] px-4 py-4 transition-colors ${selectionMode ? 'cursor-pointer hover:bg-white/[0.03]' : ''} ${selected ? 'bg-white/[0.04]' : ''}`}
+      layoutId={`res-card-${res.id}`}
+      onClick={() => selectionMode ? onToggleSelection?.(res.id) : onSelect(res)}
+      className={`p-5 rounded-3xl border transition-all ${lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-white/[0.02] border-white/[0.05]'} ${selected ? 'ring-2 ring-blue-500' : ''}`}
     >
-      {/* Top row: name + status badge */}
-      <div className="flex items-start justify-between mb-2.5">
-        <div className="flex items-center gap-2">
-          {selectionMode && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onToggleSelection?.(res.id); }}
-              className="flex-shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center transition-all"
-              style={{ background: selected ? '#007AFF' : (lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.06)'), border: selected ? '2px solid #007AFF' : (lightMode ? '2px solid #d1d5db' : '2px solid rgba(255,255,255,0.2)') }}
-              aria-pressed={selected}
-            >
-              {selected && (
-                <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                  <path d="M1.5 4.5L4 7L9.5 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
-            </button>
-          )}
-          <span className="text-white font-medium text-[15px] tracking-tight">{res.name}</span>
-          {isTomorrow && (
-            <span className="text-[8px] font-bold text-gold bg-gold/10 px-1.5 py-0.5 rounded tracking-widest uppercase ring-1 ring-gold/30">
-              {t('tomorrow')}
-            </span>
-          )}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-bold text-lg tracking-tight">{res.name}</span>
+            <span className={`px-1.5 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest ${tag.color}`}>{tag.label}</span>
+          </div>
+          <span className="text-xs opacity-40 font-medium">{maskPhone(res.phone)}</span>
         </div>
         {statusBadge(res.status)}
       </div>
-
-      {/* Meta row */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/45 mb-2">
-        <span className="flex items-center gap-1"><Phone size={10} className="text-white/25" />{res.phone}</span>
-        <span className="text-white/15">·</span>
-        <span className="flex items-center gap-1"><Calendar size={10} className="text-white/25" />{dateStr}</span>
-        <span className="text-white/15">·</span>
-        <span className="flex items-center gap-1"><Clock size={10} className="text-white/25" />{res.time}</span>
-        <span className="text-white/15">·</span>
-        <span className="flex items-center gap-1"><Users size={10} className="text-white/25" />{res.guests} {t('guests')}</span>
-      </div>
-
-      {/* Note */}
-      {res.note && (
-        <p className="text-[11px] text-white/50 italic flex items-center gap-1.5 mb-2">
-          {NoteIcon && <NoteIcon size={11} className="text-gold/50 shrink-0" />}
-          {res.note}
-        </p>
-      )}
-
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-2 pt-2">
-        {selectionMode ? (
-          <div className="inline-flex items-center gap-2 text-[11px] text-white/50">
-            <span className={selected ? 'text-white' : 'text-white/40'}>
-              {selected ? t('selected_items') : t('tap_to_select')}
-            </span>
+      
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className={`p-3 rounded-2xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+          <span className="text-[9px] uppercase tracking-widest opacity-40 font-black block mb-1">Tarix & Saat</span>
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <Clock size={12} className="text-blue-500" /> {res.time} · {new Date(res.date).toLocaleDateString('az-AZ', { day: 'numeric', month: 'short' })}
           </div>
-        ) : (
-          <>
-            {res.status === 'pending' && timeFilter !== 'archive' && (
-              <>
-                <button onClick={() => onUpdateStatus(res.id, 'confirmed')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-green-400 border border-green-500/20 hover:bg-green-500/10 rounded-lg transition-colors">
-                  <CheckCircle size={13} />{t('confirm')}
-                </button>
-                <button onClick={() => onUpdateStatus(res.id, 'cancelled')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-red-400 border border-red-500/20 hover:bg-red-500/10 rounded-lg transition-colors">
-                  <XCircle size={13} />{t('cancel')}
-                </button>
-              </>
-            )}
-            {res.status === 'confirmed' && timeFilter !== 'archive' && (
-              <button onClick={() => onUpdateStatus(res.id, 'cancelled')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-red-400 border border-red-500/20 hover:bg-red-500/10 rounded-lg transition-colors">
-                <XCircle size={13} />{t('cancel')}
-              </button>
-            )}
-            {(res.status === 'cancelled' || res.status === 'confirmed') && timeFilter !== 'archive' && (
-              <button onClick={() => onDelete(res.id, res.name)}
-                className="w-7 h-7 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/[0.08]">
-                <XCircle size={13} />
-              </button>
-            )}
-          </>
-        )}
+        </div>
+        <div className={`p-3 rounded-2xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+          <span className="text-[9px] uppercase tracking-widest opacity-40 font-black block mb-1">Qonaq Sayı</span>
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <Users size={12} className="text-blue-500" /> {res.guests} Nəfər
+          </div>
+        </div>
       </div>
+
+      {!selectionMode && (
+        <div className="flex gap-2 pt-2 border-t border-white/5">
+          <button className="flex-1 py-3 rounded-xl bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">Detallar</button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(res.id, res.name); }} className="p-3 rounded-xl bg-red-500/10 text-red-500"><Trash2 size={16} /></button>
+        </div>
+      )}
     </motion.div>
   );
 };

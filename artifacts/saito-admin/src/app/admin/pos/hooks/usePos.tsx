@@ -55,44 +55,6 @@ export function usePos() {
   // Keep cartRef in sync
   cartRef.current = cart;
 
-  /* ── Background Sync ── */
-  const syncOfflineLogs = useCallback(async () => {
-    if (!navigator.onLine) return;
-    
-    const unsynced = await localStore.getUnsyncedLogs();
-    if (unsynced.length === 0) return;
-
-    console.log(`[Sync] Attempting to sync ${unsynced.length} offline actions...`);
-
-    for (const log of unsynced) {
-      try {
-        if (log.type === 'ORDER_NEW') {
-          const res = await fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(log.data),
-          });
-          if (res.ok) await localStore.markAsSynced(log.timestamp);
-        }
-        // Add other sync types here (payments, status updates)
-      } catch (e) {
-        console.error('[Sync] Failed to sync log:', log, e);
-      }
-    }
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    const handler = () => syncOfflineLogs();
-    window.addEventListener('online', handler);
-    // Periodically check every 30s
-    const interval = setInterval(syncOfflineLogs, 30000);
-    return () => {
-      window.removeEventListener('online', handler);
-      clearInterval(interval);
-    };
-  }, [syncOfflineLogs]);
-
   /* ── Data Fetching ── */
   const fetchData = useCallback(async () => {
     try {
@@ -149,6 +111,44 @@ export function usePos() {
       setLoading(false);
     }
   }, []);
+
+  /* ── Background Sync ── */
+  const syncOfflineLogs = useCallback(async () => {
+    if (!navigator.onLine) return;
+    
+    const unsynced = await localStore.getUnsyncedLogs();
+    if (unsynced.length === 0) return;
+
+    console.log(`[Sync] Attempting to sync ${unsynced.length} offline actions...`);
+
+    for (const log of unsynced) {
+      try {
+        if (log.type === 'ORDER_NEW') {
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(log.data),
+          });
+          if (res.ok) await localStore.markAsSynced(log.timestamp);
+        }
+        // Add other sync types here (payments, status updates)
+      } catch (e) {
+        console.error('[Sync] Failed to sync log:', log, e);
+      }
+    }
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const handler = () => syncOfflineLogs();
+    window.addEventListener('online', handler);
+    // Periodically check every 30s
+    const interval = setInterval(syncOfflineLogs, 30000);
+    return () => {
+      window.removeEventListener('online', handler);
+      clearInterval(interval);
+    };
+  }, [syncOfflineLogs]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

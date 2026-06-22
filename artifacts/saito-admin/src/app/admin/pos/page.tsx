@@ -283,13 +283,7 @@ export default function POSPage() {
                 {activeFloor ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                     {(activeFloor.tables ?? [])
-                      .filter(t => {
-                        if (splitMode) {
-                          const parent = selectedForSplit[0];
-                          return t.status !== 'merged' || t.merged_into_table === parent || t.table_number === parent;
-                        }
-                        return t.status !== 'merged';
-                      })
+                      .filter(t => t.status !== 'merged')
                       .sort((a, b) => a.table_number - b.table_number)
                       .map(table => (
                         <TableCard
@@ -366,14 +360,43 @@ export default function POSPage() {
       <ActionSheet 
         table={actionSheetTable} 
         open={actionSheetOpen} 
-        onClose={() => setActionSheetOpen(false)} 
+        onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} 
         onAddOrder={() => { pos.selectTable(actionSheetTable!); setActionSheetOpen(false); }} 
         onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable!.table_number]); pos.setActiveView('floor'); setActionSheetOpen(false); }} 
         onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); pos.setActiveView('floor'); setActionSheetOpen(false); }} 
         onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} 
-        onSplitBill={() => { setSplitMode(true); setSelectedForSplit([actionSheetTable!.table_number]); pos.setActiveView('floor'); setActionSheetOpen(false); }} 
+        onSplitBill={() => { setSplitMode(true); setSelectedForSplit([actionSheetTable!.table_number]); }} 
         onPrint={() => {}}
         onSaveDraft={() => {}}
+        splitMode={splitMode}
+        allTables={pos.tables}
+        selectedForSplit={selectedForSplit}
+        onToggleSplit={(num) => {
+          if (selectedForSplit.includes(num)) {
+            setSelectedForSplit(prev => prev.filter(n => n !== num));
+          } else {
+            setSelectedForSplit(prev => [...prev, num]);
+          }
+        }}
+        onConfirmSplit={async () => {
+          const toSplit = selectedForSplit.filter(n => n !== selectedForSplit[0]);
+          if (toSplit.length === 0) { toast.error("Ayırmaq üçün ən azı bir masa seçin"); return; }
+          try {
+            const res = await fetch('/api/orders/split', { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ table_numbers: toSplit }) 
+            });
+            if (!res.ok) throw new Error("Ayırma xətası");
+            toast.success("Masalar ayrıldı");
+            setSplitMode(false);
+            setSelectedForSplit([]);
+            setActionSheetOpen(false);
+            pos.fetchData();
+          } catch (e: any) {
+            toast.error(e.message);
+          }
+        }}
       />
       <ModifierSheet open={modifierOpen} productName={modifierProduct?.name || ''} productPrice={modifierProduct?.price || 0} onClose={() => setModifierOpen(false)} onConfirm={(m, n) => { pos.addToCart(modifierProduct!, m, n); setModifierOpen(false); }} />
       
@@ -392,82 +415,23 @@ export default function POSPage() {
         />
       )}
 
-      {/* Selection Mode Bar (Morphing target) */}
+      {/* Undo Notification */}
       <AnimatePresence>
-        {(mergeMode || splitMode || transferMode) && (
+        {pos.lastUndo && (
           <motion.div 
-            layoutId="action-sheet-morph"
-            initial={{ y: 100, opacity: 0, scale: 0.9 }}
+            initial={{ y: 50, opacity: 0, scale: 0.9 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 100, opacity: 0, scale: 0.9 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-4 p-5 rounded-[2.5rem] bg-zinc-900/90 dark:bg-white/95 backdrop-blur-3xl border border-white/10 dark:border-black/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] w-[90%] max-w-lg"
+            exit={{ y: 50, opacity: 0, scale: 0.9 }}
+            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 px-6 py-3.5 rounded-2xl bg-[#D4AF37] text-black shadow-[0_15px_40px_rgba(212,175,55,0.4)] border border-white/20"
           >
-            <div className="flex items-center justify-between px-2">
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 dark:text-black/30 mb-0.5">
-                  {mergeMode ? 'Birləşdir' : splitMode ? 'Masaları Ayır' : 'Masayı Köçür'}
-                </span>
-                <span className="text-sm font-black text-white dark:text-black">
-                  {splitMode ? `Masa ${selectedForSplit[0]} qrupundan seçin` : `${mergeMode ? selectedForMerge.length : (transferSource ? 1 : 0)} masa seçildi`}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => { setMergeMode(false); setSplitMode(false); setTransferMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
-                  className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/10 dark:bg-black/10 text-white/60 dark:text-black/60 hover:bg-rose-500/20 hover:text-rose-500 transition-all"
-                >
-                  Ləğv Et
-                </button>
-                <button 
-                  onClick={async () => {
-                    if (mergeMode) { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }
-                    else if (splitMode) {
-                       // Sən dediyin: Seçilən masaları (ana masadan başqa) ayırırıq
-                       const toSplit = selectedForSplit.filter(n => n !== selectedForSplit[0]);
-                       if (toSplit.length === 0) { toast.error("Ayırmaq üçün ən azı bir masa seçin"); return; }
-                       await fetch('/api/orders/split', { method: 'POST', body: JSON.stringify({ table_numbers: toSplit }) });
-                       setSplitMode(false); setSelectedForSplit([]); pos.fetchData();
-                    }
-                    else if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }
-                  }}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all ${
-                    lightMode ? 'bg-white text-black' : 'bg-black text-white'
-                  }`}
-                >
-                  Təsdiqlə
-                </button>
-              </div>
-            </div>
-
-            {/* Split Mode - Merged Tables List */}
-            {splitMode && (
-              <div className="flex flex-wrap gap-2 px-2 pt-2 border-t border-white/10 dark:border-black/5">
-                {pos.tables
-                  .filter(t => t.merged_into_table === selectedForSplit[0])
-                  .map(t => (
-                    <button
-                      key={t.table_number}
-                      onClick={() => {
-                        if (selectedForSplit.includes(t.table_number)) {
-                          setSelectedForSplit(prev => prev.filter(n => n !== t.table_number));
-                        } else {
-                          setSelectedForSplit(prev => [...prev, t.table_number]);
-                        }
-                      }}
-                      className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all ${
-                        selectedForSplit.includes(t.table_number)
-                          ? 'bg-blue-500 border-blue-500 text-white'
-                          : 'bg-white/5 dark:bg-black/5 border-white/10 dark:border-black/10 text-white/60 dark:text-black/60'
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedForSplit.includes(t.table_number) ? 'bg-white border-white' : 'border-current opacity-30'}`}>
-                        {selectedForSplit.includes(t.table_number) && <Check size={10} className="text-blue-500" strokeWidth={4} />}
-                      </div>
-                      <span className="text-xs font-black">MASA {t.table_number}</span>
-                    </button>
-                  ))}
-              </div>
-            )}
+            <div className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Əməliyyat Uğurla İcra Edildi</span>
+            <button 
+              onClick={() => pos.performUndo()}
+              className="px-4 py-2 rounded-xl bg-black text-white text-[9px] font-black uppercase tracking-widest hover:bg-black/80 transition-all shadow-md active:scale-95"
+            >
+              Geri Al
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

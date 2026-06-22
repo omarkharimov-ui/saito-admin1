@@ -437,7 +437,13 @@ export default function POSPage() {
         <ReceiptModal
           order={payOrder}
           onClose={() => setPaymentOpen(false)}
-          getProductName={(it) => (language === 'az' ? it.products?.name_az : language === 'en' ? it.products?.name_en : it.products?.name_ru) || it.products?.name || ''}
+          getProductName={(it) => {
+            const p = it.products as any;
+            if (!p) return '';
+            const transName = p.translations?.[language]?.name;
+            if (transName) return transName;
+            return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || '';
+          }}
           onPay={handleCloseBill}
         />
       )}

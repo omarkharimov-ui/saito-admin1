@@ -227,6 +227,49 @@ export default function POSPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
+                    <AnimatePresence>
+                      {(mergeMode || transferMode) && (
+                        <motion.div 
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20 }}
+                          className="flex items-center gap-2 mr-4"
+                        >
+                          <button 
+                            onClick={() => {
+                              setMergeMode(false);
+                              setTransferMode(false);
+                              setSelectedForMerge([]);
+                              setTransferSource(null);
+                              setTransferTarget(null);
+                            }}
+                            className="px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 transition-all"
+                          >
+                            Ləğv Et
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if (mergeMode) {
+                                await pos.mergeTables(selectedForMerge);
+                                setMergeMode(false);
+                                setSelectedForMerge([]);
+                              } else {
+                                if (transferSource && transferTarget) {
+                                  await pos.transferTable(transferSource, transferTarget);
+                                  setTransferMode(false);
+                                  setTransferSource(null);
+                                  setTransferTarget(null);
+                                }
+                              }
+                            }}
+                            className="px-8 py-2.5 rounded-full text-xs font-black uppercase tracking-widest bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all"
+                          >
+                            Təsdiqlə
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     <button onClick={() => setLightMode(!lightMode)}
                       className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white hover:bg-[#e5e5ea] dark:hover:bg-white/[0.15] transition-all shadow-sm">
                       {lightMode ? <Moon size={20} /> : <Sun size={20} />}
@@ -268,11 +311,17 @@ export default function POSPage() {
           )}
 
           {pos.activeView === 'order' && pos.selectedTable && (
-            <motion.div key="order" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="h-full flex flex-col md:flex-row overflow-hidden bg-[var(--theme-bg)]">
-              <div className="flex-1 h-full min-w-0 p-6 flex flex-col">
+            <motion.div 
+              key="order" 
+              initial={{ opacity: 0, scale: 0.98 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              exit={{ opacity: 0, scale: 0.98 }} 
+              className="h-full flex flex-col md:flex-row overflow-hidden bg-[var(--theme-bg)] max-w-full"
+            >
+              <div className="flex-1 h-full min-w-0 p-6 flex flex-col overflow-hidden">
                 <ProductGrid products={pos.products} categories={pos.categories} onAddProduct={handleAddProduct} cartCounts={cartCounts} outOfStock={outOfStock} />
               </div>
-              <div className={`w-full md:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
+              <div className={`w-full md:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
                   <CartPanel
                     cart={pos.cart} onUpdateQty={handleUpdateQty} onPlaceOrder={handlePlaceOrder} onClearDraft={pos.clearDrafts}
                     onBack={() => { setIsDirty(false); pos.backToFloor(); }}

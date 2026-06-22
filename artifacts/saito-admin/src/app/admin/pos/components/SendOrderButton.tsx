@@ -29,8 +29,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
   const isCompact = isLoading || isSuccess || isError;
 
   return (
-    <motion.button
-      whileTap={{ scale: 0.98 }}
+    <button
       disabled={disabled}
       onClick={onClick}
       className={`
@@ -100,6 +99,6 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
           </motion.span>
         )}
       </AnimatePresence>
-    </motion.button>
+    </button>
   );
 }

@@ -143,11 +143,11 @@ const ReservationsPage = () => {
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-3">
                       <h2 className="text-4xl font-black tracking-tighter">{selectedRes.name}</h2>
-                      {selectedRes.visitCount > 5 && <span className="px-3 py-1 rounded-full bg-gold/10 text-gold border border-gold/30 text-[10px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(212,175,55,0.3)]">VIP MÜŞTƏRİ</span>}
+                      {(selectedRes.visitCount ?? 0) > 5 && <span className="px-3 py-1 rounded-full bg-gold/10 text-gold border border-gold/30 text-[10px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(212,175,55,0.3)]">VIP MÜŞTƏRİ</span>}
                     </div>
                     <div className="flex items-center gap-4 text-sm font-medium opacity-50 uppercase tracking-widest">
                        <span className="flex items-center gap-1.5"><Phone size={14} className="text-blue-500" /> {selectedRes.phone}</span>
-                       <span className="flex items-center gap-1.5"><Star size={14} className="text-blue-500" /> {selectedRes.visitCount} Ziyarət</span>
+                       <span className="flex items-center gap-1.5"><Star size={14} className="text-blue-500" /> {selectedRes.visitCount ?? 1} Ziyarət</span>
                     </div>
                   </div>
                   <div className={`p-6 rounded-[2rem] flex flex-col items-center justify-center ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>

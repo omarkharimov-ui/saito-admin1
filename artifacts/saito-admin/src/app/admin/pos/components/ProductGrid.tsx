@@ -45,7 +45,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder={t('search_products' as any)}
-          className={`w-full rounded-[20px] pl-12 pr-4 py-4 text-sm outline-none transition-all ${lightMode ? 'bg-[#f4f4f7] text-gray-900 focus:bg-gray-100' : 'bg-white/[0.08] text-white focus:bg-white/[0.12]'}`}
+          className={`w-full rounded-[20px] pl-12 pr-4 py-4 text-sm outline-none transition-all ${lightMode ? 'bg-[#efeff4] text-gray-900 focus:bg-[#e5e5ea]' : 'bg-white/[0.08] text-white focus:bg-white/[0.12]'}`}
         />
       </div>
 

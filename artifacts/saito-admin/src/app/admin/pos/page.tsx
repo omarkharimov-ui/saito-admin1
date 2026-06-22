@@ -219,11 +219,11 @@ export default function POSPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <button onClick={() => setLightMode(!lightMode)}
-                      className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-black/[0.02] dark:border-white/[0.1] text-[#8e8e93] hover:text-black dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-white/[0.15] transition-all shadow-sm">
+                      className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white hover:bg-[#e5e5ea] dark:hover:bg-white/[0.15] transition-all shadow-sm">
                       {lightMode ? <Moon size={20} /> : <Sun size={20} />}
                     </button>
                     <button onClick={toggleFullscreen}
-                      className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-black/[0.02] dark:border-white/[0.1] text-[#8e8e93] hover:text-black dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-white/[0.15] transition-all shadow-sm">
+                      className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white hover:bg-[#e5e5ea] dark:hover:bg-white/[0.15] transition-all shadow-sm">
                       {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
                     </button>
                   </div>

@@ -31,7 +31,7 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
           : isOverdue 
             ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
             : isOccupied
-              ? (lightMode ? 'bg-white border-emerald-500/60 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-md')
+              ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-md')
               : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
         }
         ${isTransferSource ? 'border-blue-500 bg-blue-500/5' : ''}
@@ -63,15 +63,17 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
       )}
 
       {/* Status Badge - Fixed Center Position */}
-      <div className="absolute top-[100px] left-0 right-0 flex justify-center">
-        <div className={`flex items-center gap-1.5 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full border border-black/5 dark:border-white/5 shadow-sm`}>
+      <div className="absolute top-[92px] left-0 right-0 flex justify-center">
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm ${
+          lightMode ? 'bg-[#efeff4] border-zinc-200' : 'bg-black/5 border-black/5 dark:bg-white/5 dark:border-white/5'
+        }`}>
            <div className={`w-2 h-2 rounded-full ${
              isOccupied ? 'bg-emerald-500' : 
              table.status === 'dirty' ? 'bg-orange-500' : 
              table.status === 'reserved' ? 'bg-blue-500' : 
-             'bg-zinc-400'
+             lightMode ? 'bg-zinc-400' : 'bg-zinc-400'
            }`} />
-           <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-gray-500' : 'text-white/60'}`}>
+           <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
              {isOccupied ? t('occupied' as any) : 
               table.status === 'dirty' ? 'dirty' : 
               table.status === 'reserved' ? 'reserved' : 

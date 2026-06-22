@@ -36,7 +36,7 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
   
   return (
     <div className={`relative flex gap-4 items-center overflow-x-auto scrollbar-none no-scrollbar select-none py-1.5 px-6 rounded-full ${
-      lightMode ? 'bg-zinc-100/80' : 'bg-white/5'
+      lightMode ? 'bg-[#efeff4]' : 'bg-white/5'
     }`}>
       {items.map((item, idx) => {
         const isActive = activeId === item.id;
@@ -56,14 +56,14 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
                   stiffness: 400,
                   damping: 30
                 }}
-                className="absolute inset-[3px] z-0 rounded-full shadow-md bg-white dark:bg-white"
+                className={`absolute inset-[3px] z-0 rounded-full shadow-md ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
               />
             )}
             
             <span className={`relative z-10 text-[11px] font-black uppercase tracking-widest transition-colors duration-300 whitespace-nowrap ${
               isActive 
-                ? 'text-black' 
-                : (lightMode ? 'text-zinc-500 hover:text-black' : 'text-white/40 hover:text-white')
+                ? (lightMode ? 'text-white' : 'text-black') 
+                : (lightMode ? 'text-zinc-500 hover:text-zinc-900' : 'text-white/40 hover:text-white')
             }`}>
               {item.name}
             </span>

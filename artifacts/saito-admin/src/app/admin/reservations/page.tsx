@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
+import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { Reservation } from '@/types';
-import { X, Users, Phone, Clock, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, ArrowRight } from 'lucide-react';
+import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, ArrowRight, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
+import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import ReservationFilters from './components/ReservationFilters';
@@ -16,21 +18,57 @@ import { DeleteReservationModal, ClearArchiveModal } from './components/Reservat
 const ReservationsPage = () => {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
+  const { refreshPendingCount, clearNotifications } = useNotifications();
   
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
+  /* ─── State (Restored from 6c2f7aa) ─── */
+  const [reservations, setReservations] = useState<Reservation[]>(() => {
+    try { const r = localStorage.getItem('saito_reservations_cache'); return r ? JSON.parse(r) : []; } catch { return []; }
+  });
+  const [loading, setLoading] = useState(() => {
+    try { return !localStorage.getItem('saito_reservations_cache'); } catch { return true; }
+  });
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
   const [timeFilter, setTimeFilter] = useState<'today' | 'future' | 'archive'>('today');
   const [selectedRes, setSelectedRes] = useState<any | null>(null);
-  
   const [availableTables, setTables] = useState<any[]>([]);
   const [selectingTable, setSelectingTable] = useState(false);
+
   const [archiveSelectionMode, setArchiveSelectionMode] = useState(false);
   const [selectedArchiveIds, setSelectedArchiveIds] = useState<string[]>([]);
   const [confirmDeleteReservation, setConfirmDeleteReservation] = useState<{ id: string; guest: string } | null>(null);
   const [confirmClearArchiveModal, setConfirmClearArchiveModal] = useState(false);
 
+  /* ─── Realtime & Data Fetching (Restored from 6c2f7aa) ─── */
+  const fetchAll = async () => {
+    try {
+      const res = await fetch('/api/reservations');
+      if (!res.ok) throw new Error('API xətası');
+      const data = await res.json();
+      setReservations(data.reservations || []);
+      localStorage.setItem('saito_reservations_cache', JSON.stringify(data.reservations || []));
+      const { data: tData } = await supabase.from('table_floors').select('*');
+      setTables(tData || []);
+    } catch (error: any) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAll();
+    clearNotifications();
+
+    const channel = createRealtimeChannel('reservations_page_main')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => fetchAll())
+      .subscribe();
+
+    return () => { removeRealtimeChannel(channel); };
+  }, []);
+
+  /* ─── Logic ─── */
   const resWithData = useMemo(() => {
     const counts: Record<string, number> = {};
     reservations.forEach(r => { counts[r.phone] = (counts[r.phone] || 0) + 1; });
@@ -40,38 +78,6 @@ const ReservationsPage = () => {
       preOrderItems: r.note?.toLowerCase().includes('preorder') ? [{ name: 'Saito Special Roll', quantity: 1, price: 24 }] : [] 
     }));
   }, [reservations]);
-
-  const fetchAll = async () => {
-    try {
-      const res = await fetch('/api/reservations');
-      const data = await res.json();
-      setReservations(data.reservations || []);
-      const { data: t } = await supabase.from('table_floors').select('*');
-      setTables(t || []);
-    } catch (error) {
-      toast.error('Məlumat alınmadı');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchAll(); }, []);
-
-  const updateStatus = async (id: string, status: 'confirmed' | 'cancelled') => {
-    const { error } = await supabase.from('reservations').update({ status }).eq('id', id);
-    if (!error) {
-      toast.success(status === 'confirmed' ? 'Təsdiqləndi' : 'Ləğv edildi');
-      fetchAll();
-    }
-  };
-
-  const getAIInsight = (res: any) => {
-    const note = (res.note || "").toLowerCase();
-    if (note.includes('allergiya')) return `DİQQƏT: Qonağın allergiyası var, mətbəxi məlumatlandırın!`;
-    if (res.visitCount > 5) return `Bu qonaq daimi müştəridir. Adətən lüks masaları və Saito Special Roll sevir.`;
-    if (res.visitCount === 1) return `Bu qonağın ilk ziyarətidir. Masaya xoş gəldiniz ikramı təklif oluna bilər.`;
-    return `Bu qonaq adətən Saito Special Roll sifariş edir və pəncərə kənarındakı masaları sevir.`;
-  };
 
   const filteredReservations = useMemo(() => {
     return resWithData.filter(res => {
@@ -89,28 +95,46 @@ const ReservationsPage = () => {
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [resWithData, searchQuery, statusFilter, timeFilter]);
 
-  return (
-    <div className="p-4 md:p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black tracking-tighter">Rezervasiyalar</h1>
-        <p className="opacity-40 text-[10px] font-black uppercase tracking-widest mt-1">Real-vaxt idarəetmə və müştəri analizi</p>
-      </div>
+  const updateStatus = async (id: string, status: 'confirmed' | 'cancelled') => {
+    const { error } = await supabase.from('reservations').update({ status }).eq('id', id);
+    if (!error) toast.success('Status yeniləndi');
+  };
 
-      <ReservationFilters 
-        timeFilter={timeFilter} statusFilter={statusFilter} searchQuery={searchQuery}
-        todayPendingCount={resWithData.filter(r => r.status === 'pending').length}
-        futurePendingCount={0} searchOpen={true} archiveSelectionMode={archiveSelectionMode}
-        selectedArchiveCount={selectedArchiveIds.length} totalArchiveCount={filteredReservations.length}
-        onTimeFilter={setTimeFilter} onStatusFilter={setStatusFilter} onSearch={setSearchQuery}
-        onStartArchiveSelection={() => setArchiveSelectionMode(true)}
-        onDeleteSelectedArchive={() => setConfirmClearArchiveModal(true)}
-        onCancelArchiveSelection={() => setArchiveSelectionMode(false)}
-        onSelectAll={() => {}}
-      />
+  const getAIInsight = (res: any) => {
+    const note = (res.note || "").toLowerCase();
+    if (note.includes('allergiya')) return `DİQQƏT: Qonağın allergiyası var, mətbəxi məlumatlandırın!`;
+    if (res.visitCount > 5) return `Bu qonaq daimi müştəridir. Adətən lüks masaları və Saito Special Roll sevir.`;
+    if (res.visitCount === 1) return `Bu qonağın ilk ziyarətidir. Masaya xoş gəldiniz ikramı təklif oluna bilər.`;
+    return `Bu qonaq adətən Saito Special Roll sifariş edir və pəncərə kənarındakı masaları sevir.`;
+  };
+
+  return (
+    <div className="relative p-4 md:p-8 max-w-full">
+      <div className="flex flex-col gap-6 mb-8">
+        <div>
+          <h1 className="text-3xl font-black tracking-tighter text-[var(--theme-text)]">Rezervasiyalar</h1>
+          <p className="opacity-40 text-[10px] font-black uppercase tracking-widest mt-1">Real-vaxt idarəetmə və müştəri analizi</p>
+        </div>
+        
+        <ReservationFilters 
+          timeFilter={timeFilter} statusFilter={statusFilter} searchQuery={searchQuery}
+          todayPendingCount={resWithData.filter(r => {
+            const d = new Date(r.date); const t = new Date(); t.setHours(0,0,0,0);
+            return d.getTime() === t.getTime() && r.status === 'pending';
+          }).length}
+          futurePendingCount={0} searchOpen={true} archiveSelectionMode={archiveSelectionMode}
+          selectedArchiveCount={selectedArchiveIds.length} totalArchiveCount={filteredReservations.length}
+          onTimeFilter={setTimeFilter} onStatusFilter={setStatusFilter} onSearch={setSearchQuery}
+          onStartArchiveSelection={() => setArchiveSelectionMode(true)}
+          onDeleteSelectedArchive={() => setConfirmClearArchiveModal(true)}
+          onCancelArchiveSelection={() => setArchiveSelectionMode(false)}
+          onSelectAll={() => {}}
+        />
+      </div>
 
       {loading ? <TableSkeleton rows={6} /> : (
         <div className="mt-8">
-          <div className={`rounded-[2.5rem] border overflow-hidden shadow-2xl ${lightMode ? 'bg-white border-zinc-100 shadow-zinc-200/50' : 'bg-white/[0.02] border-white/[0.05] shadow-black/40'}`}>
+          <div className={`hidden md:block rounded-[2.5rem] border overflow-hidden shadow-2xl ${lightMode ? 'bg-white border-zinc-100 shadow-zinc-200/50' : 'bg-[#0f0f0f] border-white/5 shadow-black/40'}`}>
             <table className="w-full text-left">
               <thead className="opacity-40 text-[10px] font-black uppercase tracking-widest bg-black/5">
                 <tr>
@@ -125,19 +149,26 @@ const ReservationsPage = () => {
               <tbody>
                 {filteredReservations.map(res => (
                   <ReservationTableRow 
-                    key={res.id} res={res} timeFilter={timeFilter}
-                    onSelect={setSelectedRes}
-                    statusBadge={(s) => <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s === 'confirmed' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'}`}>{s}</span>}
+                    key={res.id} res={res} timeFilter={timeFilter} onSelect={setSelectedRes}
+                    statusBadge={(s) => <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s === 'confirmed' ? 'bg-green-500/10 text-green-500 border-green-500/20' : s === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>{s}</span>}
                     onUpdateStatus={updateStatus} onDelete={() => {}}
                   />
                 ))}
               </tbody>
             </table>
           </div>
+          
+          <div className="md:hidden space-y-4">
+             {filteredReservations.map(res => (
+               <ReservationCard key={res.id} res={res} timeFilter={timeFilter} onSelect={setSelectedRes} statusBadge={(s) => <span className="px-2 py-1 rounded-full text-[9px] bg-white/10 uppercase font-black">{s}</span>} onUpdateStatus={updateStatus} onDelete={() => {}} />
+             ))}
+          </div>
+          
+          {filteredReservations.length === 0 && <div className="py-20 text-center opacity-20 font-black uppercase tracking-widest text-sm">Məlumat tapılmadı</div>}
         </div>
       )}
 
-      {/* THE LUXURY MORPHING MODAL - RESTORED */}
+      {/* THE LUXURY MORPHING MODAL */}
       <AnimatePresence>
         {selectedRes && (
           <>
@@ -155,7 +186,7 @@ const ReservationsPage = () => {
                     <h2 className="text-4xl font-black tracking-tighter">{selectedRes.name}</h2>
                     <div className="flex items-center gap-4 text-xs font-black opacity-50 uppercase tracking-widest">
                        <span className="flex items-center gap-1.5"><Phone size={14} className="text-blue-500" /> {selectedRes.phone}</span>
-                       <span className="flex items-center gap-1.5"><Star size={14} className="text-blue-500" /> {selectedRes.visitCount} Ziyarət</span>
+                       <span className="flex items-center gap-1.5"><Star size={14} className="text-blue-500" /> {selectedRes.visitCount || 1} Ziyarət</span>
                     </div>
                   </div>
                   <div className={`p-6 rounded-[2.5rem] flex flex-col items-center justify-center ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
@@ -196,7 +227,7 @@ const ReservationsPage = () => {
                               <span className="text-sm">{it.quantity}x {it.name}</span>
                               <span className="text-xs opacity-50">{it.price.toFixed(2)} ₼</span>
                            </div>
-                         )) : <span className="font-bold">Yoxdur</span>}
+                         )) : <span className="font-bold text-xs opacity-30 italic">Yoxdur</span>}
                          {selectedRes.preOrderItems && selectedRes.preOrderItems.length > 0 && (
                             <div className="flex items-center justify-between border-t border-white/5 pt-3">
                                <span className="text-sm font-bold opacity-50 uppercase tracking-widest text-[10px]">Cəmi</span>
@@ -211,7 +242,7 @@ const ReservationsPage = () => {
                    <button onClick={() => { updateStatus(selectedRes.id, 'confirmed'); setSelectedRes(null); }} className="flex-[2] py-5 rounded-[2rem] bg-green-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
                       <CheckCircle size={20} /> Rezervi Təsdiqlə
                    </button>
-                   <button onClick={() => setSelectedRes(null)} className="flex-1 py-5 rounded-[2rem] bg-white/5 border border-white/10 font-black uppercase tracking-widest hover:brightness-125 transition-all">Bağla</button>
+                   <button onClick={() => setSelectedRes(null)} className="flex-1 py-5 rounded-[2rem] bg-white/5 border border-white/10 font-black uppercase tracking-widest">Bağla</button>
                 </motion.div>
 
                 <motion.div layout="position" className="p-6 rounded-[2.5rem] bg-blue-500/5 border border-blue-500/10 flex items-start gap-4">

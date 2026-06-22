@@ -10,7 +10,8 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import ReservationFilters from './components/ReservationFilters';
 import { TableSkeleton } from '@/components/SkeletonLoader';
-import { ReservationTableRow } from './components/ReservationRow';
+import { ReservationTableRow, ReservationCard } from './components/ReservationRow';
+import { DeleteReservationModal, ClearArchiveModal } from './components/ReservationModals';
 
 export default function ReservationsPage() {
   const { t, language } = useLanguage();

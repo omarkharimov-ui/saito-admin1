@@ -37,7 +37,7 @@ interface ActionSheetProps {
   onConfirmTransfer?: () => void;
 }
 
-const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } as const;
+const morphTransition = { type: "spring", stiffness: 350, damping: 30, mass: 1 } as const;
 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft, onCancelTable,
@@ -71,92 +71,116 @@ export function ActionSheet({
   return (
     <AnimatePresence>
       {currentView !== 'none' && (
-        <div key="root-wrapper" className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none pb-8">
-          {/* Backdrop - No blur, just subtle darkening */}
+        <div key="global-pos-wrapper" className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none pb-8 md:pl-[280px]">
+          {/* Backdrop with fade-only animation */}
           {(currentView === 'actions' || currentView === 'split') && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30"
+              className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/40 backdrop-blur-[2px]"
               onClick={onClose}
             />
           )}
 
-          {/* SINGLE MORPHING CAPSULE */}
+          {/* THE ANTI-DISTORTION MORPHING KAPSUL */}
           <motion.div
             layout
             layoutId="pos-hybrid-kapsul"
+            transition={morphTransition}
             initial={{ opacity: 0, y: 100 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 100 }}
-            transition={fastTransition}
-            className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_25px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl border ${
-              lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
+            // We use consistent rounded corners to prevent the "oval/ellips" distortion
+            className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.3)] border ${
+              lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
             } ${
               (currentView === 'merge' || currentView === 'transfer') 
-                ? 'rounded-full px-6 py-3 min-w-[320px] max-w-md' 
+                ? 'rounded-[2rem] px-6 py-4 min-w-[340px] max-w-md' 
                 : 'rounded-[2.5rem] p-7 w-[90%] max-w-md'
             }`}
           >
-            <AnimatePresence mode="wait">
-              {currentView === 'actions' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="view-actions">
-                  <div className="text-center mb-6">
-                    <p className="text-2xl font-black tracking-tighter mb-1 leading-none">Masa {table?.table_number}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">{isOccupied ? `${table?.guest_count} Qonaq · ${table?.total_amount.toFixed(2)} ₼` : 'Boş Masa'}</p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {visibleActions.map((action) => (
-                      <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, merge: onMerge, transfer: onTransfer, split: onSplitBill, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
-                        className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
-                        <action.icon size={22} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase">{action.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Bağla</button>
-                </motion.div>
-              )}
-
-              {currentView === 'split' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="view-split" className="flex flex-col gap-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">Masaları Ayır</span>
-                       <span className="text-xl font-black tracking-tighter">Masa {table?.table_number} Qrupu</span>
+            {/* Inner content with layout="position" to prevent squishing */}
+            <motion.div layout="position" className="w-full">
+              <AnimatePresence mode="wait">
+                {currentView === 'actions' && (
+                  <motion.div 
+                    key="ui-actions"
+                    initial={{ opacity: 0, scale: 0.95 }} 
+                    animate={{ opacity: 1, scale: 1 }} 
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <div className="text-center mb-6">
+                      <p className="text-2xl font-black tracking-tighter mb-1 leading-none">Masa {table?.table_number}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">{isOccupied ? `${table?.guest_count} Qonaq · ${table?.total_amount.toFixed(2)} ₼` : 'Boş Masa'}</p>
                     </div>
-                    <button onClick={onClose} className="p-2 text-rose-500 hover:scale-110 transition-transform"><XCircle size={24} /></button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2.5 max-h-[220px] overflow-y-auto pr-1">
-                    {mergedChildren.map(child => (
-                      <button key={child.table_number} onClick={() => onToggleSplit?.(child.table_number)}
-                        className={`flex items-center gap-3 p-4 rounded-[1.2rem] border transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-500/20 scale-[1.02]' : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/5'}`}>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-20'}`}>
-                          {selectedForSplit?.includes(child.table_number) && <Check size={10} className="text-blue-500" strokeWidth={4} />}
-                        </div>
-                        <span className="text-sm font-black">Masa {child.table_number}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-3 mt-1">
-                     <button onClick={onClose} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black bg-[var(--theme-surface-soft)]">Ləğv Et</button>
-                     <button onClick={onConfirmSplit} className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black shadow-xl ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>Seçilənləri Ayır</button>
-                  </div>
-                </motion.div>
-              )}
+                    <div className="grid grid-cols-3 gap-3">
+                      {visibleActions.map((action) => (
+                        <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, merge: onMerge, transfer: onTransfer, split: onSplitBill, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
+                          className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
+                          <action.icon size={22} strokeWidth={2.5} />
+                          <span className="text-[9px] font-black tracking-widest uppercase">{action.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Bağla</button>
+                  </motion.div>
+                )}
 
-              {(currentView === 'merge' || currentView === 'transfer') && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="view-bar" className="flex items-center gap-5 w-full">
-                  <div className="flex flex-col mr-auto min-w-[140px]">
-                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">{mergeMode ? 'Masaları Birləşdir' : 'Masayı Köçür'}</span>
-                    <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{mergeMode ? `${selectedForMerge?.length} masa seçildi` : (transferSource ? (transferTarget ? `Hədəf: Masa ${transferTarget}` : `Hədəf masanı seçin`) : 'Mənbə masanı seçin')}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><X size={18} strokeWidth={3} /></button>
-                    <button onClick={mergeMode ? onConfirmMerge : onConfirmTransfer} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all`}>Təsdiqlə</button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                {currentView === 'split' && (
+                  <motion.div 
+                    key="ui-split"
+                    initial={{ opacity: 0, scale: 0.95 }} 
+                    animate={{ opacity: 1, scale: 1 }} 
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex flex-col gap-5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                         <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">Masaları Ayır</span>
+                         <span className="text-xl font-black tracking-tighter">Masa {table?.table_number} Qrupu</span>
+                      </div>
+                      <button onClick={onClose} className="p-2 text-rose-500 hover:scale-110 transition-transform"><XCircle size={24} /></button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5 max-h-[220px] overflow-y-auto pr-1">
+                      {mergedChildren.map(child => (
+                        <button key={child.table_number} onClick={() => onToggleSplit?.(child.table_number)}
+                          className={`flex items-center gap-3 p-4 rounded-[1.2rem] border transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-blue-500 border-blue-500 text-white shadow-lg' : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/5'}`}>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-20'}`}>
+                            {selectedForSplit?.includes(child.table_number) && <Check size={10} className="text-blue-500" strokeWidth={4} />}
+                          </div>
+                          <span className="text-sm font-black">Masa {child.table_number}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-3 mt-1">
+                       <button onClick={onClose} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black bg-[var(--theme-surface-soft)]">Ləğv Et</button>
+                       <button onClick={onConfirmSplit} className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black shadow-xl ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>Seçilənləri Ayır</button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {(currentView === 'merge' || currentView === 'transfer') && (
+                  <motion.div 
+                    key="ui-bar"
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.1 }}
+                    className="flex items-center gap-5 w-full"
+                  >
+                    <div className="flex flex-col mr-auto min-w-[140px]">
+                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">{mergeMode ? 'Masaları Birləşdir' : 'Masayı Köçür'}</span>
+                      <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{mergeMode ? `${selectedForMerge?.length} masa seçildi` : (transferSource ? (transferTarget ? `Hədəf: Masa ${transferTarget}` : `Hədəf masanı seçin`) : 'Mənbə masanı seçin')}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><X size={18} strokeWidth={3} /></button>
+                      <button onClick={mergeMode ? onConfirmMerge : onConfirmTransfer} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all`}>Təsdiqlə</button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </motion.div>
         </div>
       )}

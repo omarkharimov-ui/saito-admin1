@@ -429,6 +429,7 @@ export default function POSPage() {
         onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} 
         onSplitBill={() => { setSplitMode(true); setSelectedForSplit([actionSheetTable!.table_number]); pos.setActiveView('floor'); setActionSheetOpen(false); }} 
         onPrint={() => {}}
+        onSaveDraft={() => {}}
       />
       <ModifierSheet open={modifierOpen} productName={modifierProduct?.name || ''} productPrice={modifierProduct?.price || 0} onClose={() => setModifierOpen(false)} onConfirm={(m, n) => { pos.addToCart(modifierProduct!, m, n); setModifierOpen(false); }} />
       

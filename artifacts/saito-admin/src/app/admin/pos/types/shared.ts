@@ -54,6 +54,7 @@ export interface PosTable {
   sort_order?: number | null;
   has_pending?: boolean;
   oldest_pending_at?: string | null;
+  kitchen_status?: string | null;
 }
 
 export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'merged' | string;

@@ -93,7 +93,7 @@ export default function POSPage() {
           // If kitchen hasn't accepted ANY orders for this table, it's 'not_accepted'
           // If there are orders in 'preparing' but still overdue, it's 'preparing'
           // We can use t.kitchen_status which often reflects the most urgent state
-          if (t.kitchen_status === 'pending' || !t.kitchen_status) {
+          if (t.kitchen_status === 'pending' || t.kitchen_status === 'new' || !t.kitchen_status) {
             map.set(t.table_number, 'not_accepted');
           } else {
             map.set(t.table_number, 'preparing');

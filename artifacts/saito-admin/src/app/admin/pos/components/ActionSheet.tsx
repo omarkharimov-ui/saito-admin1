@@ -64,6 +64,9 @@ export function ActionSheet({
   const visibleActions = actions.filter(a => a.visible);
   const mergedChildren = splitMode && allTables ? allTables.filter(t => t.merged_into_table === table.table_number) : [];
 
+  // Split mode is handled internally, but for Merge/Transfer we close and morph to the Bar in page.tsx
+  const isMorphingOut = !splitMode && open === false; 
+
   return (
     <AnimatePresence>
       {open && (
@@ -75,11 +78,8 @@ export function ActionSheet({
           />
           <motion.div
             layout
-            layoutId="action-sheet-morph-container"
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 45 }}
+            layoutId="pos-modal-kapsul"
+            transition={{ type: "spring", stiffness: 320, damping: 30 }}
             className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8 pointer-events-none"
           >
             <div className="max-w-md mx-auto pointer-events-auto">
@@ -89,9 +89,8 @@ export function ActionSheet({
               >
                 {!splitMode ? (
                   <motion.div 
-                    layout
-                    key="main-content"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
                   >
                     <div className="text-center mb-5">
                       <p className="text-2xl font-black text-[var(--theme-text)] tracking-tighter">Masa {table.table_number}</p>
@@ -137,8 +136,6 @@ export function ActionSheet({
                   </motion.div>
                 ) : (
                   <motion.div 
-                    layout
-                    key="split-content"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     className="flex flex-col gap-4"
                   >

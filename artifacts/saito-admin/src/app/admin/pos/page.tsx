@@ -419,40 +419,47 @@ export default function POSPage() {
       <AnimatePresence>
         {(mergeMode || transferMode) && (
           <motion.div 
-            layoutId="action-sheet-morph-container"
+            layout
+            layoutId="pos-modal-kapsul"
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 45 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-[2rem] bg-zinc-900/90 dark:bg-white/95 backdrop-blur-3xl border border-white/10 dark:border-black/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] min-w-[320px] max-w-md w-auto"
+            transition={{ type: "spring", stiffness: 320, damping: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-[2rem] bg-zinc-900/90 dark:bg-white/95 backdrop-blur-3xl border border-white/10 dark:border-black/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] min-w-[320px] max-w-md w-auto pointer-events-auto"
           >
-            <div className="flex flex-col mr-auto">
-              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40 dark:text-black/30 mb-0.5">
-                {mergeMode ? 'Masaları Birləşdir' : 'Masayı Köçür'}
-              </span>
-              <span className="text-xs font-black text-white dark:text-black tracking-tight">
-                {mergeMode ? `${selectedForMerge.length} masa seçildi` : (transferSource ? (transferTarget ? `Hədəf: Masa ${transferTarget}` : `Hədəf masanı seçin`) : 'Mənbə masanı seçin')}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); }}
-                className="px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white/10 dark:bg-black/10 text-white/60 dark:text-black/60 hover:bg-rose-500/20 hover:text-rose-500 transition-all"
-              >
-                Ləğv Et
-              </button>
-              <button 
-                onClick={async () => {
-                  if (mergeMode) { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }
-                  else if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }
-                }}
-                className={`px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all ${
-                  lightMode ? 'bg-white text-black' : 'bg-black text-white'
-                }`}
-              >
-                Təsdiqlə
-              </button>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="flex items-center gap-3 w-full"
+            >
+              <div className="flex flex-col mr-auto">
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40 dark:text-black/30 mb-0.5">
+                  {mergeMode ? 'Masaları Birləşdir' : 'Masayı Köçür'}
+                </span>
+                <span className="text-xs font-black text-white dark:text-black tracking-tight">
+                  {mergeMode ? `${selectedForMerge.length} masa seçildi` : (transferSource ? (transferTarget ? `Hədəf: Masa ${transferTarget}` : `Hədəf masanı seçin`) : 'Mənbə masanı seçin')}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); }}
+                  className="px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white/10 dark:bg-black/10 text-white/60 dark:text-black/60 hover:bg-rose-500/20 hover:text-rose-500 transition-all"
+                >
+                  Ləğv Et
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (mergeMode) { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }
+                    else if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }
+                  }}
+                  className={`px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all ${
+                    lightMode ? 'bg-white text-black' : 'bg-black text-white'
+                  }`}
+                >
+                  Təsdiqlə
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

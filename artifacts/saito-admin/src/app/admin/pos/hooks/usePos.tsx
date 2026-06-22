@@ -57,8 +57,8 @@ export function usePos() {
   const fetchData = useCallback(async () => {
     try {
       const [tablesRes, productsRes] = await Promise.all([
-        fetch('/api/pos/tables'),
-        fetch('/api/pos/products'),
+        fetch('/api/pos/tables').catch(() => ({ ok: false })),
+        fetch('/api/pos/products').catch(() => ({ ok: false })),
       ]);
 
       let newTables: PosTable[] = [];
@@ -66,24 +66,45 @@ export function usePos() {
       let newProducts: PosProduct[] = [];
       let newCategories: { id: string; name: string }[] = [];
 
-      if (tablesRes.ok) {
-        const data = await tablesRes.json();
+      if (tablesRes && 'ok' in tablesRes && tablesRes.ok) {
+        const data = await (tablesRes as Response).json();
         newTables = data.tables || [];
         newFloors = data.floors || [];
         setTables(newTables);
         setFloors(newFloors);
       }
-      if (productsRes.ok) {
-        const data = await productsRes.json();
+      
+      if (productsRes && 'ok' in productsRes && productsRes.ok) {
+        const data = await (productsRes as Response).json();
         newProducts = data.products || [];
         newCategories = data.categories || [];
         setProducts(newProducts);
         setCategories(newCategories);
       }
 
-      saveCache(POS_DATA_KEY, { tables: newTables, floors: newFloors, products: newProducts, categories: newCategories });
+      // If we got valid data, save to cache
+      if (newTables.length > 0 || newProducts.length > 0) {
+        saveCache(POS_DATA_KEY, { tables: newTables, floors: newFloors, products: newProducts, categories: newCategories });
+      } else {
+        // If fetch failed or returned empty (offline), try to load from cache immediately
+        const cachedData = loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[] } | null>(POS_DATA_KEY, null);
+        if (cachedData) {
+          setTables(cachedData.tables);
+          setFloors(cachedData.floors);
+          setProducts(cachedData.products);
+          setCategories(cachedData.categories);
+        }
+      }
     } catch (e) {
       console.error('POS fetch error:', e);
+      // Fallback to cache on any error
+      const cachedData = loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[] } | null>(POS_DATA_KEY, null);
+      if (cachedData) {
+        setTables(cachedData.tables);
+        setFloors(cachedData.floors);
+        setProducts(cachedData.products);
+        setCategories(cachedData.categories);
+      }
     } finally {
       setLoading(false);
     }

@@ -592,22 +592,34 @@ export default function KitchenPage() {
   const fetchOrdersRef = useRef<() => Promise<void>>(async () => {});
 
   const fetchOrders = useCallback(async () => {
-    // keep ref always pointing to latest version
-    // (handles the case where subscription useEffect runs before ref-sync useEffect)
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        order_items(
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
           *,
-          products(image_url, translations)
-        )
-      `)
-      .gt('table_number', 0)
-      .not('status', 'eq', 'paid')
-      .order('created_at', { ascending: false });
+          order_items(
+            *,
+            products(image_url, translations)
+          )
+        `)
+        .gt('table_number', 0)
+        .not('status', 'eq', 'paid')
+        .order('created_at', { ascending: false });
 
-    if (!error && data) applyData(data, languageRef.current);
+      if (!error && data) {
+        applyData(data, languageRef.current);
+        // Cache for offline use
+        localStorage.setItem('saito_kitchen_data', JSON.stringify(data));
+      } else if (error) {
+        throw error;
+      }
+    } catch (err) {
+      console.warn('Kitchen fetch error, loading from cache:', err);
+      const cached = localStorage.getItem('saito_kitchen_data');
+      if (cached) {
+        applyData(JSON.parse(cached), languageRef.current);
+      }
+    }
   }, [applyData]);
 
   // keep ref in sync — also assign immediately after creation

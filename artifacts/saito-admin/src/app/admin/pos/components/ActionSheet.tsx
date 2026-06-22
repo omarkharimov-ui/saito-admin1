@@ -85,6 +85,9 @@ export function ActionSheet({
           <motion.div
             layout
             layoutId="pos-hybrid-kapsul"
+            initial={{ opacity: 0, y: 60 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
             transition={fastTransition}
             className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.2)] backdrop-blur-3xl border mb-8 ${
               lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'

@@ -5,6 +5,7 @@ import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
+import { localStore } from '@/lib/sync/OfflineStore';
 import type {
   PosProduct,
   PosTable,

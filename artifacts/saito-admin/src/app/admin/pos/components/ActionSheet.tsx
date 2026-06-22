@@ -37,7 +37,7 @@ interface ActionSheetProps {
   onConfirmTransfer?: () => void;
 }
 
-const fastTransition = { type: "spring", stiffness: 500, damping: 42, mass: 0.8 };
+const fastTransition = { type: "spring", stiffness: 500, damping: 42, mass: 0.8 } as const;
 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft, onCancelTable,

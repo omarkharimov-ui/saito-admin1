@@ -43,7 +43,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
             : status === 'error'
               ? 'bg-rose-500 text-white'
               : isDirty 
-                ? 'bg-[#D4AF37] text-black shadow-[0_12px_40px_rgba(212,175,55,0.25)]' 
+                ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5') 
                 : 'bg-zinc-800 text-white/40'
         }
         ${className}

@@ -262,7 +262,9 @@ export default function POSPage() {
                                 }
                               }
                             }}
-                            className="px-8 py-2.5 rounded-full text-xs font-black uppercase tracking-widest bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all"
+                            className={`px-8 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
+                              lightMode ? 'bg-zinc-900 text-white shadow-lg' : 'bg-white text-black shadow-lg'
+                            }`}
                           >
                             Təsdiqlə
                           </button>
@@ -316,9 +318,9 @@ export default function POSPage() {
               initial={{ opacity: 0, scale: 0.98 }} 
               animate={{ opacity: 1, scale: 1 }} 
               exit={{ opacity: 0, scale: 0.98 }} 
-              className="h-full flex flex-col md:flex-row overflow-hidden bg-[var(--theme-bg)] max-w-full"
+              className="h-full w-full flex flex-col md:flex-row overflow-hidden bg-[var(--theme-bg)]"
             >
-              <div className="flex-1 h-full min-w-0 p-6 flex flex-col overflow-hidden">
+              <div className="flex-1 min-w-0 h-full p-6 flex flex-col overflow-hidden">
                 <ProductGrid products={pos.products} categories={pos.categories} onAddProduct={handleAddProduct} cartCounts={cartCounts} outOfStock={outOfStock} />
               </div>
               <div className={`w-full md:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>

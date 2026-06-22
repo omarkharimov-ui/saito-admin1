@@ -151,35 +151,4 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
     </motion.div>
   );
 }
-        </div>
-      )}
 
-      {/* Status Badge - Fixed Center Position */}
-      <div className="absolute top-[92px] left-0 right-0 flex justify-center">
-        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm ${
-          lightMode ? 'bg-[#efeff4] border-zinc-200' : 'bg-black/5 border-black/5 dark:bg-white/5 dark:border-white/5'
-        }`}>
-           <div className={`w-2 h-2 rounded-full ${
-             isOccupied ? 'bg-emerald-500' : 
-             table.status === 'dirty' ? 'bg-orange-500' : 
-             table.status === 'reserved' ? 'bg-blue-500' : 
-             lightMode ? 'bg-zinc-400' : 'bg-zinc-400'
-           }`} />
-           <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
-             {isOccupied ? t('occupied' as any) : 
-              table.status === 'dirty' ? 'dirty' : 
-              table.status === 'reserved' ? 'reserved' : 
-              t('empty' as any)}
-           </span>
-        </div>
-      </div>
-
-      {/* Price - Bottom Left */}
-      <div className="absolute bottom-6 left-6">
-        {table.total_amount > 0 && (
-          <p className={`text-xl font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{table.total_amount.toFixed(2)}</p>
-        )}
-      </div>
-    </motion.div>
-  );
-}

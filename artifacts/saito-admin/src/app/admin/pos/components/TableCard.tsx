@@ -90,7 +90,7 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
         </span>
 
         {/* Guest Count - Below Table Number */}
-        {isOccupied && table.guest_count > 0 && (
+        {isOccupied && (table.guest_count ?? 0) > 0 && (
           <div className="absolute top-[72px] left-6 flex items-center gap-1 opacity-60">
             <Users size={12} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
             <span className={`text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>{table.guest_count}</span>

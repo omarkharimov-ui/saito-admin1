@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle, Globe, GitMerge } from 'lucide-react';
+import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle, Globe, GitMerge, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
@@ -396,42 +396,78 @@ export default function POSPage() {
       <AnimatePresence>
         {(mergeMode || splitMode || transferMode) && (
           <motion.div 
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-[2.5rem] bg-zinc-900/90 dark:bg-white/95 backdrop-blur-3xl border border-white/10 dark:border-black/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] min-w-[320px] sm:min-w-[400px]"
+            layoutId="action-sheet-morph"
+            initial={{ y: 100, opacity: 0, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 100, opacity: 0, scale: 0.9 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-4 p-5 rounded-[2.5rem] bg-zinc-900/90 dark:bg-white/95 backdrop-blur-3xl border border-white/10 dark:border-black/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] w-[90%] max-w-lg"
           >
-            <div className="flex flex-col mr-auto">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 dark:text-black/30 mb-0.5">
-                {mergeMode ? 'Birləşdir' : splitMode ? 'Masaları Ayır' : 'Masayı Köçür'}
-              </span>
-              <span className="text-sm font-black text-white dark:text-black">
-                {mergeMode ? `${selectedForMerge.length} masa seçildi` : splitMode ? `${selectedForSplit.length} masa seçildi` : (transferSource ? (transferTarget ? `Hədəf: Masa ${transferTarget}` : `Hədəf masanı seçin`) : 'Mənbə masanı seçin')}
-              </span>
+            <div className="flex items-center justify-between px-2">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 dark:text-black/30 mb-0.5">
+                  {mergeMode ? 'Birləşdir' : splitMode ? 'Masaları Ayır' : 'Masayı Köçür'}
+                </span>
+                <span className="text-sm font-black text-white dark:text-black">
+                  {splitMode ? `Masa ${selectedForSplit[0]} qrupundan seçin` : `${mergeMode ? selectedForMerge.length : (transferSource ? 1 : 0)} masa seçildi`}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => { setMergeMode(false); setSplitMode(false); setTransferMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
+                  className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/10 dark:bg-black/10 text-white/60 dark:text-black/60 hover:bg-rose-500/20 hover:text-rose-500 transition-all"
+                >
+                  Ləğv Et
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (mergeMode) { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }
+                    else if (splitMode) {
+                       // Sən dediyin: Seçilən masaları (ana masadan başqa) ayırırıq
+                       const toSplit = selectedForSplit.filter(n => n !== selectedForSplit[0]);
+                       if (toSplit.length === 0) { toast.error("Ayırmaq üçün ən azı bir masa seçin"); return; }
+                       await fetch('/api/orders/split', { method: 'POST', body: JSON.stringify({ table_numbers: toSplit }) });
+                       setSplitMode(false); setSelectedForSplit([]); pos.fetchData();
+                    }
+                    else if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }
+                  }}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all ${
+                    lightMode ? 'bg-white text-black' : 'bg-black text-white'
+                  }`}
+                >
+                  Təsdiqlə
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => { setMergeMode(false); setSplitMode(false); setTransferMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
-                className="px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all"
-              >
-                Ləğv Et
-              </button>
-              <button 
-                onClick={async () => {
-                  if (mergeMode) { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }
-                  else if (splitMode) {
-                     await fetch('/api/orders/split', { method: 'POST', body: JSON.stringify({ table_numbers: selectedForSplit }) });
-                     setSplitMode(false); setSelectedForSplit([]); pos.fetchData();
-                  }
-                  else if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }
-                }}
-                className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all ${
-                  lightMode ? 'bg-white text-black' : 'bg-black text-white'
-                }`}
-              >
-                Təsdiqlə
-              </button>
-            </div>
+
+            {/* Split Mode - Merged Tables List */}
+            {splitMode && (
+              <div className="flex flex-wrap gap-2 px-2 pt-2 border-t border-white/10 dark:border-black/5">
+                {pos.tables
+                  .filter(t => t.merged_into_table === selectedForSplit[0])
+                  .map(t => (
+                    <button
+                      key={t.table_number}
+                      onClick={() => {
+                        if (selectedForSplit.includes(t.table_number)) {
+                          setSelectedForSplit(prev => prev.filter(n => n !== t.table_number));
+                        } else {
+                          setSelectedForSplit(prev => [...prev, t.table_number]);
+                        }
+                      }}
+                      className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all ${
+                        selectedForSplit.includes(t.table_number)
+                          ? 'bg-blue-500 border-blue-500 text-white'
+                          : 'bg-white/5 dark:bg-black/5 border-white/10 dark:border-black/10 text-white/60 dark:text-black/60'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedForSplit.includes(t.table_number) ? 'bg-white border-white' : 'border-current opacity-30'}`}>
+                        {selectedForSplit.includes(t.table_number) && <Check size={10} className="text-blue-500" strokeWidth={4} />}
+                      </div>
+                      <span className="text-xs font-black">MASA {t.table_number}</span>
+                    </button>
+                  ))}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

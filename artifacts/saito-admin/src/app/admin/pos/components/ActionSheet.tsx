@@ -74,6 +74,7 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
             onClick={onClose}
           />
           <motion.div
+            layoutId="action-sheet-morph"
             initial={{ opacity: 0, y: 100, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 60, scale: 0.95 }}

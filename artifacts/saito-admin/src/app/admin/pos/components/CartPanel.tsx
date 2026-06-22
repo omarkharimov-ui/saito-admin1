@@ -223,18 +223,25 @@ export function CartPanel({
             <p className="text-sm font-medium">{t('add_items_hint')}</p>
           </div>
         </div>
-        <div
+        <motion.div
+          layout
           className="transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 0 : 1 }}
         >
-          {cart.items.map((item, idx) => {
-            const isChecked = selectedForLoss.has(idx);
-            const lossQty = selectedForLoss.get(idx) ?? 0;
-            return (
-              <div
-                key={`${item.product_id}__${idx}`}
-                className={`mb-2 flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-300 ${confirming && isChecked ? 'opacity-0 scale-95' : ''} ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`}`}
-              >
+          <AnimatePresence mode="popLayout">
+            {cart.items.map((item, idx) => {
+              const isChecked = selectedForLoss.has(idx);
+              const lossQty = selectedForLoss.get(idx) ?? 0;
+              return (
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5, x: 50 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30, mass: 0.8 }}
+                  key={`${item.product_id}__${idx}`}
+                  className={`mb-2 flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-300 ${confirming && isChecked ? 'opacity-0 scale-95' : ''} ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`}`}
+                >
                 {lossMode && (
                   <button onClick={() => toggleLossSelection(idx)}
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${
@@ -279,10 +286,11 @@ export function CartPanel({
                     </div>
                   )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
       </div>
 
       {/* Footer */}

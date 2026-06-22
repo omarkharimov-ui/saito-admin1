@@ -40,35 +40,55 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
   return (
     <div className="flex flex-col h-full">
       {/* Search Bar - Modern & Flat */}
-      <div className="relative mb-6 flex-shrink-0">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
+      <motion.div 
+        layout
+        className="relative mb-6 flex-shrink-0"
+      >
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+        <motion.input
+          whileFocus={{ scale: 1.01, boxShadow: lightMode ? "0 4px 20px rgba(0,0,0,0.05)" : "0 4px 20px rgba(255,255,255,0.02)" }}
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder={t('search_products' as any)}
-          className={`w-full rounded-[20px] pl-12 pr-4 py-4 text-sm outline-none transition-all ${lightMode ? 'bg-[#efeff4] text-gray-900 focus:bg-[#e5e5ea]' : 'bg-white/[0.08] text-white focus:bg-white/[0.12]'}`}
+          className={`w-full rounded-[20px] pl-12 pr-4 py-4 text-sm outline-none transition-all relative z-0 ${lightMode ? 'bg-[#efeff4] text-gray-900 focus:bg-[#e5e5ea]' : 'bg-white/[0.08] text-white focus:bg-white/[0.12]'}`}
         />
-      </div>
+      </motion.div>
 
       {/* Categories - Liquid Glass Segmented Control */}
-      <div className="mb-16 flex-shrink-0">
+      <motion.div layout className="mb-16 flex-shrink-0">
         <LiquidCategoryNavbar 
           categories={categories}
           activeId={categoryFilter}
           onChange={setCategoryFilter}
           allLabel={t('all' as any)}
         />
-      </div>
+      </motion.div>
 
       {/* Product List - Modern Card Design */}
-      <div className="flex-1 overflow-y-auto pr-1 pt-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filtered.map(product => {
+      <motion.div 
+        layout
+        className="flex-1 overflow-y-auto pr-1 pt-6"
+      >
+        <motion.div 
+          layout
+          className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5"
+        >
+          {filtered.map((product, idx) => {
             const name = (language === 'az' ? product.name_az : language === 'en' ? product.name_en : product.name_ru) || product.name;
             const count = cartCounts[product.id] || 0;
             const hasNoStock = outOfStock?.has(product.id);
             return (
               <motion.button
                 key={product.id}
+                layout
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ 
+                  type: 'spring', 
+                  stiffness: 300, 
+                  damping: 25,
+                  delay: idx * 0.03 
+                }}
+                whileHover={{ y: -5, scale: 1.02 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => onAddProduct(product)}
                 className="group relative flex flex-col rounded-[28px] bg-[#f4f4f7] dark:bg-white/[0.08] p-4 transition-all duration-300 hover:shadow-xl hover:bg-[#ebebef] dark:hover:bg-white/[0.12]"
@@ -97,8 +117,8 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
               </motion.button>
             );
           })}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

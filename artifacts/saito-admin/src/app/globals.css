@@ -128,6 +128,16 @@ html[data-theme="dark"] {
 }
 body { background-color: var(--theme-bg); color: var(--theme-text); }
 
+/* Hide scrollbars globally but keep functionality */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+*::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
+}
+
+
 @import "tailwindcss";
 @import "../styles/foundation.css";
 @import "../styles/surfaces.css";

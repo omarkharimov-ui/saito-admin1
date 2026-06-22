@@ -50,7 +50,7 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
       </div>
 
       {/* Categories - Liquid Glass Segmented Control */}
-      <div className="mb-16 flex-shrink-0">
+      <div className="mb-4 flex-shrink-0">
         <LiquidCategoryNavbar 
           categories={categories}
           activeId={categoryFilter}

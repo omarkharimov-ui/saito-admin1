@@ -25,11 +25,8 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
   const isOccupied = table.status === 'occupied' || table.total_amount > 0;
 
   return (
-    <motion.div
+    <div
       onClick={onTap}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
       className={`relative h-[180px] rounded-[32px] p-6 text-left transition-all duration-300 group overflow-hidden border-2 cursor-pointer
         ${isSelected 
           ? (lightMode ? 'bg-white border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.1)]' : 'bg-zinc-900 border-emerald-500 shadow-[0_20px_40px_rgba(16,185,129,0.2)]') 
@@ -107,7 +104,7 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
           <p className={`text-xl font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{table.total_amount.toFixed(2)}</p>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 

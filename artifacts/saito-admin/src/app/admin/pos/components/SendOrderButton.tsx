@@ -30,17 +30,25 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
 
   return (
     <motion.button
-      type="button"
-      onClick={handleClick}
-      disabled={disabled || isLoading}
-      whileTap={{ scale: 0.97 }}
-      layout
-      transition={{ type: 'spring', stiffness: 400, damping: 28, mass: 0.8 }}
-      className={`relative overflow-hidden font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${className} ${
-        variant === 'loss'
-          ? 'bg-red-600/15 border border-red-500/25 text-red-300'
-          : 'bg-neutral-900 text-white active:bg-neutral-800'
-      } ${isCompact ? 'h-[50px] w-[50px] rounded-full mx-auto' : 'h-[50px] px-7 rounded-2xl'}`}
+      whileTap={{ scale: 0.98 }}
+      disabled={disabled}
+      onClick={onClick}
+      className={`
+        relative h-[72px] rounded-[24px] font-black uppercase tracking-[0.2em] text-[13px]
+        flex items-center justify-center gap-3 transition-all duration-300
+        ${status === 'loading' ? 'cursor-wait' : 'cursor-pointer'}
+        ${variant === 'loss' 
+          ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/20' 
+          : status === 'success'
+            ? 'bg-emerald-500 text-white'
+            : status === 'error'
+              ? 'bg-rose-500 text-white'
+              : isDirty 
+                ? 'bg-[#D4AF37] text-black shadow-[0_12px_40px_rgba(212,175,55,0.25)]' 
+                : 'bg-zinc-800 text-white/40'
+        }
+        ${className}
+      `}
     >
       {/* Dirty dot */}
       {isDirty && !isLoading && !isSuccess && !isError && (

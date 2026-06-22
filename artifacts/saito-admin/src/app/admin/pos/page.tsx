@@ -231,7 +231,7 @@ export default function POSPage() {
     }
     if (table.status === 'merged') return;
     pos.selectTable(table);
-  }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
+  }, [mergeMode, selectedForMerge, splitMode, selectedForSplit, transferMode, transferSource, transferTarget, pos]);
 
   return (
     <div ref={posRef} className={`h-screen w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden ${(actionSheetOpen || modifierOpen) ? 'no-scroll' : ''}`}>
@@ -258,76 +258,8 @@ export default function POSPage() {
                     )}
                   </div>
                     <div className="flex items-center gap-3">
-                      <AnimatePresence>
-                        {pos.lastUndo && (
-                          <motion.button
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            onClick={() => pos.performUndo()}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#D4AF37] text-black shadow-lg"
-                          >
-                            Geri Al
-                          </motion.button>
-                        )}
-                      </AnimatePresence>
 
-                    <AnimatePresence>
-                      {(mergeMode || transferMode || splitMode) && (
-                        <motion.div 
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 20 }}
-                          className="flex items-center gap-2 mr-4"
-                        >
-                          <button 
-                            onClick={() => {
-                              setMergeMode(false);
-                              setTransferMode(false);
-                              setSplitMode(false);
-                              setSelectedForMerge([]);
-                              setSelectedForSplit([]);
-                              setTransferSource(null);
-                              setTransferTarget(null);
-                            }}
-                            className="px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 transition-all"
-                          >
-                            Ləğv Et
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              if (mergeMode) {
-                                await pos.mergeTables(selectedForMerge);
-                                setMergeMode(false);
-                                setSelectedForMerge([]);
-                              } else if (splitMode) {
-                                // Split logic: separating selected tables from a group
-                                // Assuming we have an API for this
-                                await fetch('/api/orders/split', { 
-                                  method: 'POST', 
-                                  body: JSON.stringify({ table_numbers: selectedForSplit }) 
-                                });
-                                setSplitMode(false);
-                                setSelectedForSplit([]);
-                                pos.fetchData();
-                              } else {
-                                if (transferSource && transferTarget) {
-                                  await pos.transferTable(transferSource, transferTarget);
-                                  setTransferMode(false);
-                                  setTransferSource(null);
-                                  setTransferTarget(null);
-                                }
-                              }
-                            }}
-                            className={`px-8 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
-                              lightMode ? 'bg-zinc-900 text-white shadow-lg' : 'bg-white text-black shadow-lg'
-                            }`}
-                          >
-                            Təsdiqlə
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+
 
 
                     <button onClick={() => setLightMode(!lightMode)}
@@ -354,7 +286,8 @@ export default function POSPage() {
                           table={table}
                           onTap={() => handleTableTap(table)}
                           onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }}
-                          isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
+                          isSelected={(mergeMode && selectedForMerge.includes(table.table_number)) || (splitMode && selectedForSplit.includes(table.table_number))}
+                          selectionMode={mergeMode || splitMode || transferMode}
                           isTransferSource={transferMode && transferSource === table.table_number}
                           isTransferTarget={transferMode && transferTarget === table.table_number}
                           isOverdue={overdueTables.has(table.table_number)}
@@ -447,6 +380,72 @@ export default function POSPage() {
           onPay={handleCloseBill}
         />
       )}
+
+      {/* Selection Mode Bar (Morphing target) */}
+      <AnimatePresence>
+        {(mergeMode || splitMode || transferMode) && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-[2.5rem] bg-zinc-900/90 dark:bg-white/95 backdrop-blur-3xl border border-white/10 dark:border-black/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] min-w-[320px] sm:min-w-[400px]"
+          >
+            <div className="flex flex-col mr-auto">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 dark:text-black/30 mb-0.5">
+                {mergeMode ? 'Birləşdir' : splitMode ? 'Masaları Ayır' : 'Masayı Köçür'}
+              </span>
+              <span className="text-sm font-black text-white dark:text-black">
+                {mergeMode ? `${selectedForMerge.length} masa seçildi` : splitMode ? `${selectedForSplit.length} masa seçildi` : (transferSource ? (transferTarget ? `Hədəf: Masa ${transferTarget}` : `Hədəf masanı seçin`) : 'Mənbə masanı seçin')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => { setMergeMode(false); setSplitMode(false); setTransferMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
+                className="px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all"
+              >
+                Ləğv Et
+              </button>
+              <button 
+                onClick={async () => {
+                  if (mergeMode) { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }
+                  else if (splitMode) {
+                     await fetch('/api/orders/split', { method: 'POST', body: JSON.stringify({ table_numbers: selectedForSplit }) });
+                     setSplitMode(false); setSelectedForSplit([]); pos.fetchData();
+                  }
+                  else if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }
+                }}
+                className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all ${
+                  lightMode ? 'bg-white text-black' : 'bg-black text-white'
+                }`}
+              >
+                Təsdiqlə
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Undo Notification */}
+      <AnimatePresence>
+        {pos.lastUndo && (
+          <motion.div 
+            initial={{ y: 50, opacity: 0, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 50, opacity: 0, scale: 0.9 }}
+            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 px-6 py-3.5 rounded-2xl bg-[#D4AF37] text-black shadow-[0_15px_40px_rgba(212,175,55,0.4)] border border-white/20"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Əməliyyat Uğurla İcra Edildi</span>
+            <button 
+              onClick={() => pos.performUndo()}
+              className="px-4 py-2 rounded-xl bg-black text-white text-[9px] font-black uppercase tracking-widest hover:bg-black/80 transition-all shadow-md active:scale-95"
+            >
+              Geri Al
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { MoreVertical, AlertTriangle, Users } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MoreVertical, AlertTriangle, Users, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
@@ -11,6 +11,7 @@ interface TableCardProps {
   onTap: () => void;
   onAction: () => void;
   isSelected?: boolean;
+  selectionMode?: boolean; // New prop to handle split/merge/transfer visibility
   isTransferSource?: boolean;
   isTransferTarget?: boolean;
   isOverdue?: boolean;
@@ -18,7 +19,7 @@ interface TableCardProps {
   index?: number;
 }
 
-export function TableCard({ table, onTap, onAction, isSelected, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0 }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0 }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
 
@@ -54,14 +55,30 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
         )}
       </div>
 
-      {/* Action Button - Top Right */}
+      {/* Action Button / Selection Tick - Top Right */}
       <div className="absolute top-4 right-4">
-        <button 
-          onClick={(e) => { e.stopPropagation(); onAction(); }}
-          className={`p-2 rounded-full transition-colors hover:bg-black/5 dark:hover:bg-white/10`}
-        >
-          <MoreVertical size={20} className={isSelected || isTransferSource ? (lightMode ? 'text-emerald-600/40' : 'text-emerald-400/40') : (lightMode ? 'text-gray-400' : 'text-white/40')} />
-        </button>
+        {selectionMode ? (
+          <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+            isSelected 
+              ? 'bg-blue-500 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' 
+              : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')
+          }`}>
+            <AnimatePresence>
+              {isSelected && (
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                  <Check size={18} className="text-white" strokeWidth={3} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onAction(); }}
+            className={`p-2 rounded-full transition-colors hover:bg-black/5 dark:hover:bg-white/10`}
+          >
+            <MoreVertical size={20} className={isSelected || isTransferSource ? (lightMode ? 'text-emerald-600/40' : 'text-emerald-400/40') : (lightMode ? 'text-gray-400' : 'text-white/40')} />
+          </button>
+        )}
       </div>
 
       {/* Delay Badge - Specific position to prevent layout shifts */}

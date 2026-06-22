@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MoreVertical, AlertTriangle } from 'lucide-react';
+import { MoreVertical, AlertTriangle, Users } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
@@ -14,9 +14,10 @@ interface TableCardProps {
   isTransferSource?: boolean;
   isTransferTarget?: boolean;
   isOverdue?: boolean;
+  overdueType?: 'not_accepted' | 'preparing';
 }
 
-export function TableCard({ table, onTap, onAction, isSelected, isTransferSource, isTransferTarget, isOverdue }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, isSelected, isTransferSource, isTransferTarget, isOverdue, overdueType }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
 
@@ -42,6 +43,14 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
         {table.table_number}
       </span>
 
+      {/* Guest Count - Below Table Number */}
+      {isOccupied && table.guest_count > 0 && (
+        <div className="absolute top-[72px] left-6 flex items-center gap-1 opacity-60">
+          <Users size={12} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
+          <span className={`text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>{table.guest_count}</span>
+        </div>
+      )}
+
       {/* Action Button - Top Right */}
       <div className="absolute top-4 right-4">
         <button 
@@ -55,9 +64,13 @@ export function TableCard({ table, onTap, onAction, isSelected, isTransferSource
       {/* Delay Badge - Specific position to prevent layout shifts */}
       {isOverdue && (
         <div className="absolute top-14 right-6">
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20">
-            <AlertTriangle size={12} className="text-rose-500 animate-pulse" />
-            <span className="text-[8px] font-black text-rose-600 uppercase tracking-tighter">Gecikmə</span>
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20">
+              <AlertTriangle size={12} className="text-rose-500 animate-pulse" />
+              <span className="text-[8px] font-black text-rose-600 uppercase tracking-tighter">
+                {overdueType === 'not_accepted' ? 'Qəbul Gözləyir' : 'Hazırlanma Gecikir'}
+              </span>
+            </div>
           </motion.div>
         </div>
       )}

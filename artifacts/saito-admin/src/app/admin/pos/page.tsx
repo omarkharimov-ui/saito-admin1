@@ -81,18 +81,27 @@ export default function POSPage() {
 
   const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
 
-  const overdueTableNumbers = useMemo(() => {
+  const overdueTables = useMemo(() => {
     const now = Date.now();
     const cutoff = orderDelayMinutes * 60 * 1000;
-    const set = new Set<number>();
+    const map = new Map<number, 'not_accepted' | 'preparing'>();
     const tables = activeFloor?.tables ?? [];
     for (const t of tables) {
       if (t.has_pending && t.oldest_pending_at) {
         const elapsed = now - new Date(t.oldest_pending_at).getTime();
-        if (elapsed > cutoff) set.add(t.table_number);
+        if (elapsed > cutoff) {
+          // If kitchen hasn't accepted ANY orders for this table, it's 'not_accepted'
+          // If there are orders in 'preparing' but still overdue, it's 'preparing'
+          // We can use t.kitchen_status which often reflects the most urgent state
+          if (t.kitchen_status === 'pending' || !t.kitchen_status) {
+            map.set(t.table_number, 'not_accepted');
+          } else {
+            map.set(t.table_number, 'preparing');
+          }
+        }
       }
     }
-    return set;
+    return map;
   }, [activeFloor?.tables, orderDelayMinutes]);
 
   const cartCounts: Record<string, number> = {};
@@ -245,7 +254,8 @@ export default function POSPage() {
                           isSelected={mergeMode && selectedForMerge.includes(table.table_number)}
                           isTransferSource={transferMode && transferSource === table.table_number}
                           isTransferTarget={transferMode && transferTarget === table.table_number}
-                          isOverdue={overdueTableNumbers.has(table.table_number)}
+                          isOverdue={overdueTables.has(table.table_number)}
+                          overdueType={overdueTables.get(table.table_number)}
                         />
                       ))}
                   </div>
@@ -271,8 +281,20 @@ export default function POSPage() {
                     onUpdateGuests={(delta) => {
                       const c = pos.cart; if (!c) return;
                       const newCount = Math.max(1, c.guest_count + delta);
+                      
+                      // 1. Sync local cart state
                       pos.setCart({ ...c, guest_count: newCount });
-                      supabase.from('tables').update({ guest_count: newCount }).eq('table_number', c.table_number);
+                      
+                      // 2. Sync global tables state (for immediate TableCard update)
+                      pos.setTables(prev => prev.map(t => 
+                        t.table_number === c.table_number ? { ...t, guest_count: newCount } : t
+                      ));
+
+                      // 3. Persist to DB immediately
+                      supabase.from('tables').update({ guest_count: newCount }).eq('table_number', c.table_number).then(() => {
+                        // Optionally re-fetch to ensure consistency
+                        // pos.fetchData(); 
+                      });
                     }}
                     mergedChildNumbers={(pos.selectedTable?.merged_orders as any[])?.map(m => m.table_number) ?? []}
                     onRecordLoss={async (items, reason) => {

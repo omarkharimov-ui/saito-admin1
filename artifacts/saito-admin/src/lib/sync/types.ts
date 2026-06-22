@@ -8,8 +8,9 @@ export interface TableState {
 }
 
 export interface SyncPayload {
-  type: 'TABLE_UPDATE' | 'ORDER_FINALIZE' | 'STOCK_ADJUST';
-  data: TableState;
+  type: 'TABLE_UPDATE' | 'ORDER_NEW' | 'ORDER_STATUS_UPDATE' | 'STOCK_ADJUST';
+  data: any;
   timestamp: number;
   originDeviceId: string;
+  synced?: boolean;
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
 import type {
   PosProduct,
   PosTable,
@@ -52,6 +53,44 @@ export function usePos() {
 
   // Keep cartRef in sync
   cartRef.current = cart;
+
+  /* ── Background Sync ── */
+  const syncOfflineLogs = useCallback(async () => {
+    if (!navigator.onLine) return;
+    
+    const unsynced = await localStore.getUnsyncedLogs();
+    if (unsynced.length === 0) return;
+
+    console.log(`[Sync] Attempting to sync ${unsynced.length} offline actions...`);
+
+    for (const log of unsynced) {
+      try {
+        if (log.type === 'ORDER_NEW') {
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(log.data),
+          });
+          if (res.ok) await localStore.markAsSynced(log.timestamp);
+        }
+        // Add other sync types here (payments, status updates)
+      } catch (e) {
+        console.error('[Sync] Failed to sync log:', log, e);
+      }
+    }
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const handler = () => syncOfflineLogs();
+    window.addEventListener('online', handler);
+    // Periodically check every 30s
+    const interval = setInterval(syncOfflineLogs, 30000);
+    return () => {
+      window.removeEventListener('online', handler);
+      clearInterval(interval);
+    };
+  }, [syncOfflineLogs]);
 
   /* ── Data Fetching ── */
   const fetchData = useCallback(async () => {
@@ -311,6 +350,22 @@ export function usePos() {
       }));
 
       const totalAmount = orderItems.reduce((s, i) => s + i.total_price, 0);
+
+      const orderPayload = {
+        id: `offline-${Date.now()}`,
+        table_number: currentCart.table_number,
+        total_amount: totalAmount,
+        status: 'confirmed',
+        order_type: currentCart.order_type,
+        guest_count: currentCart.guest_count,
+        customer_note: currentCart.notes || null,
+        items: orderItems,
+        source: 'pos',
+        created_at: new Date().toISOString(),
+      };
+
+      // Broadcast to local mesh immediately (Offline sync)
+      MeshBroadcaster.sendOrder(orderPayload);
 
       const res = await fetch('/api/orders', {
         method: 'POST',

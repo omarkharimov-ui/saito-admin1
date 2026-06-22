@@ -60,6 +60,56 @@ class OfflineStore {
       request.onsuccess = () => res(request.result);
     });
   }
+  /**
+   * Push a new action to the unsynced transaction log
+   */
+  async pushToLog(action: any): Promise<void> {
+    const db = await this.initDB();
+    const tx = db.transaction('logs', 'readwrite');
+    const store = tx.objectStore('logs');
+    store.put({
+      ...action,
+      timestamp: Date.now(),
+      synced: false
+    });
+    return new Promise((res) => { tx.oncomplete = () => res(); });
+  }
+
+  /**
+   * Get all unsynced actions
+   */
+  async getUnsyncedLogs(): Promise<any[]> {
+    const db = await this.initDB();
+    const tx = db.transaction('logs', 'readonly');
+    const store = tx.objectStore('logs');
+    const request = store.getAll();
+    
+    return new Promise((res) => {
+      request.onsuccess = () => {
+        const allLogs = request.result || [];
+        res(allLogs.filter(l => !l.synced));
+      };
+    });
+  }
+
+  /**
+   * Mark an action as synced
+   */
+  async markAsSynced(timestamp: number): Promise<void> {
+    const db = await this.initDB();
+    const tx = db.transaction('logs', 'readwrite');
+    const store = tx.objectStore('logs');
+    
+    const request = store.get(timestamp);
+    request.onsuccess = () => {
+      const data = request.result;
+      if (data) {
+        data.synced = true;
+        store.put(data);
+      }
+    };
+    return new Promise((res) => { tx.oncomplete = () => res(); });
+  }
 }
 
 export const localStore = new OfflineStore();

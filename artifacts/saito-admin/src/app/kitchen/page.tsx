@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast, { useToaster } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
+import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
 import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
@@ -627,7 +628,29 @@ export default function KitchenPage() {
   useEffect(() => { fetchOrdersRef.current = fetchOrders; }, [fetchOrders]);
 
   // ── Initial fetch — guaranteed with latest reference
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { 
+    fetchOrders(); 
+    
+    // Start listening for Mesh (Offline) orders
+    MeshBroadcaster.startListening((rawOrder) => {
+      const mapped = mapRawOrder({
+        ...rawOrder,
+        order_items: rawOrder.items.map((it: any) => ({
+          ...it,
+          prepared_quantity: 0,
+          kitchen_status: 'pending'
+        }))
+      }, languageRef.current);
+      
+      setOrders(prev => {
+        // Prevent duplicates
+        if (prev.some(o => o.id === mapped.id)) return prev;
+        return [mapped, ...prev];
+      });
+      
+      if (soundOnRef.current) playNewOrderSound();
+    });
+  }, [fetchOrders]);
 
   // ── Supabase Realtime subscription — with debounce for CPU relief
   useEffect(() => {

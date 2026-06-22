@@ -26,9 +26,21 @@ export class MeshBroadcaster {
   }
 
   /**
+   * Broadcasts a new order to the kitchen peers.
+   */
+  static async sendOrder(order: any) {
+    const payload = {
+      type: 'ORDER_NEW',
+      data: order,
+      timestamp: Date.now()
+    };
+    await MeshBridge.send(payload);
+  }
+
+  /**
    * Listens for incoming updates from the mesh and reconciles with local storage.
    */
-  static async startListening() {
+  static async startListening(onOrderReceived?: (order: any) => void) {
     if (typeof window === 'undefined') return;
     
     const bc = new BroadcastChannel('saito_mesh_sim');
@@ -38,6 +50,9 @@ export class MeshBroadcaster {
         // Automatically merges with local state via CRDT logic inside saveTableState
         await localStore.saveTableState(data as TableState);
         console.log(`[Mesh] Reconciled Table ${data.id} from peer`);
+      }
+      if (type === 'ORDER_NEW' && onOrderReceived) {
+        onOrderReceived(data);
       }
     };
   }

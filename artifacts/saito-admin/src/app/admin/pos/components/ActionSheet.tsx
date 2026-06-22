@@ -45,7 +45,7 @@ export function ActionSheet({ table, open, onClose, onAddOrder, onMerge, onTrans
     { id: 'add_order', icon: Plus, label: t('add_items') },
     { id: 'merge', icon: Merge, label: t('merge_tables') },
     { id: 'transfer', icon: Move, label: t('move_table') },
-    { id: 'split', icon: Split, label: t('split_label') },
+    { id: 'split', icon: Split, label: 'Masaları Ayır' },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill') },
     { id: 'cancel_table', icon: XCircle, label: t('cancel_table_btn') },
     { id: 'print', icon: Printer, label: `${t('print')} · soon` },

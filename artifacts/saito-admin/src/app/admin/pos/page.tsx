@@ -11,6 +11,7 @@ import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
+import { ReceiptModal } from '../orders/components/ReceiptModal';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
 import SimpleToaster from '@/app/admin/components/layout/SimpleToaster';
@@ -44,6 +45,8 @@ export default function POSPage() {
   const [isDirty, setIsDirty] = useState(false);
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
+  const [splitMode, setSplitMode] = useState(false);
+  const [selectedForSplit, setSelectedForSplit] = useState<number[]>([]);
   const [transferMode, setTransferMode] = useState(false);
   const [transferSource, setTransferSource] = useState<number | null>(null);
   const [transferTarget, setTransferTarget] = useState<number | null>(null);
@@ -52,9 +55,19 @@ export default function POSPage() {
   const [outOfStock, setOutOfStock] = useState<Set<string>>(new Set());
   const posRef = useRef<HTMLDivElement>(null);
   const [warningOpen, setWarningOpen] = useState(false);
+  const [canUndo, setUndoData] = useState<{ action: string; data: any; message: string } | null>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (e.detail?.action) setUndoData(e.detail);
+    };
+    window.addEventListener('saito_pos_undo_available', handler);
+    return () => window.removeEventListener('saito_pos_undo_available', handler);
+  }, []);
 
   /* ── Payment / Loss ── */
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [payOrder, setPayOrder] = useState<any>(null);
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
   const [payTableNumber, setPayTableNumber] = useState<number>(0);
   const [payAmount, setPayAmount] = useState(0);
@@ -148,24 +161,34 @@ export default function POSPage() {
     }
   }, [pos]);
 
-  const openPayment = useCallback((tableNumber: number, amount: number, orderIds: string[]) => {
+  const openPayment = useCallback(async (tableNumber: number, amount: number, orderIds: string[]) => {
+    const orderId = orderIds[0];
+    if (!orderId) return;
+
+    // Fetch full order data for the receipt
+    const { data: orderData } = await supabase
+      .from('orders')
+      .select('*, order_items(*, products(name, name_az, name_en, name_ru))')
+      .eq('id', orderId)
+      .single();
+
+    setPayOrder(orderData);
     setPayTableNumber(tableNumber);
     setPayAmount(amount);
-    setPayOrderId(orderIds[0] || null);
+    setPayOrderId(orderId);
     setPayMethod('card');
     setPayTip(0);
     setPaymentOpen(true);
-    pos.setActiveView('floor');
   }, [pos]);
 
-  const handleCloseBill = useCallback(async () => {
+  const handleCloseBill = useCallback(async (method?: string, tip?: number) => {
     if (!payOrderId) return;
     setOrderButtonStatus('loading');
     const payment: PaymentInfo = {
-      method: payMethod === 'cash' ? 'cash' : 'card',
-      cash_amount: payMethod === 'cash' ? payAmount + payTip : 0,
-      card_amount: payMethod === 'card' ? payAmount + payTip : 0,
-      tip: payTip,
+      method: (method as any) || (payMethod === 'cash' ? 'cash' : 'card'),
+      cash_amount: (method === 'cash' ? payAmount + (tip || 0) : 0),
+      card_amount: (method === 'card' ? payAmount + (tip || 0) : 0),
+      tip: tip || payTip,
     };
     await pos.closeBill(payOrderId, payment);
     setPaymentOpen(false);
@@ -181,6 +204,14 @@ export default function POSPage() {
         setSelectedForMerge(prev => prev.filter(n => n !== table.table_number));
       } else {
         setSelectedForMerge(prev => [...prev, table.table_number]);
+      }
+      return;
+    }
+    if (splitMode) {
+      if (selectedForSplit.includes(table.table_number)) {
+        setSelectedForSplit(prev => prev.filter(n => n !== table.table_number));
+      } else {
+        setSelectedForSplit(prev => [...prev, table.table_number]);
       }
       return;
     }
@@ -226,9 +257,23 @@ export default function POSPage() {
                       />
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3">
+                      <AnimatePresence>
+                        {pos.lastUndo && (
+                          <motion.button
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            onClick={() => pos.performUndo()}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#D4AF37] text-black shadow-lg"
+                          >
+                            Geri Al
+                          </motion.button>
+                        )}
+                      </AnimatePresence>
+
                     <AnimatePresence>
-                      {(mergeMode || transferMode) && (
+                      {(mergeMode || transferMode || splitMode) && (
                         <motion.div 
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -239,7 +284,9 @@ export default function POSPage() {
                             onClick={() => {
                               setMergeMode(false);
                               setTransferMode(false);
+                              setSplitMode(false);
                               setSelectedForMerge([]);
+                              setSelectedForSplit([]);
                               setTransferSource(null);
                               setTransferTarget(null);
                             }}
@@ -253,6 +300,16 @@ export default function POSPage() {
                                 await pos.mergeTables(selectedForMerge);
                                 setMergeMode(false);
                                 setSelectedForMerge([]);
+                              } else if (splitMode) {
+                                // Split logic: separating selected tables from a group
+                                // Assuming we have an API for this
+                                await fetch('/api/orders/split', { 
+                                  method: 'POST', 
+                                  body: JSON.stringify({ table_numbers: selectedForSplit }) 
+                                });
+                                setSplitMode(false);
+                                setSelectedForSplit([]);
+                                pos.fetchData();
                               } else {
                                 if (transferSource && transferTarget) {
                                   await pos.transferTable(transferSource, transferTarget);
@@ -271,6 +328,7 @@ export default function POSPage() {
                         </motion.div>
                       )}
                     </AnimatePresence>
+
 
                     <button onClick={() => setLightMode(!lightMode)}
                       className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white hover:bg-[#e5e5ea] dark:hover:bg-white/[0.15] transition-all shadow-sm">
@@ -369,11 +427,19 @@ export default function POSPage() {
         onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable!.table_number]); pos.setActiveView('floor'); setActionSheetOpen(false); }} 
         onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); pos.setActiveView('floor'); setActionSheetOpen(false); }} 
         onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} 
-        onSplitBill={() => {}}
+        onSplitBill={() => { setSplitMode(true); setSelectedForSplit([actionSheetTable!.table_number]); pos.setActiveView('floor'); setActionSheetOpen(false); }} 
         onPrint={() => {}}
-        onSaveDraft={() => {}}
       />
       <ModifierSheet open={modifierOpen} productName={modifierProduct?.name || ''} productPrice={modifierProduct?.price || 0} onClose={() => setModifierOpen(false)} onConfirm={(m, n) => { pos.addToCart(modifierProduct!, m, n); setModifierOpen(false); }} />
+      
+      {paymentOpen && payOrder && (
+        <ReceiptModal
+          order={payOrder}
+          onClose={() => setPaymentOpen(false)}
+          getProductName={(it) => (language === 'az' ? it.products?.name_az : language === 'en' ? it.products?.name_en : it.products?.name_ru) || it.products?.name || ''}
+          onPay={handleCloseBill}
+        />
+      )}
     </div>
   );
 }

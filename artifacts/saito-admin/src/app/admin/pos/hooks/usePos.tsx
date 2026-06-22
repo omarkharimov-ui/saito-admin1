@@ -46,6 +46,7 @@ export function usePos() {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>(cached?.categories || []);
   const [loading, setLoading] = useState(!cached);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
+  const [lastUndo, setLastUndo] = useState<{ action: string; data: any; message: string } | null>(null);
   const [cart, setCart] = useState<PosCart | null>(null);
   const cartRef = useRef<PosCart | null>(null);
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
@@ -493,9 +494,12 @@ export function usePos() {
   const undoStackRef = useRef<{ action: string; data: any; message: string }[]>([]);
 
   const showUndo = useCallback((undoAction: string, undoData: any, message: string) => {
-    undoStackRef.current.push({ action: undoAction, data: undoData, message });
+    const item = { action: undoAction, data: undoData, message };
+    undoStackRef.current.push(item);
+    setLastUndo(item);
     const timeout = setTimeout(() => {
       undoStackRef.current = undoStackRef.current.filter(u => u.data !== undoData);
+      setLastUndo(prev => prev?.data === undoData ? null : prev);
     }, 10000);
     toast(
       (t: any) => (
@@ -608,10 +612,28 @@ export function usePos() {
     }
   }, [fetchData, showUndo]);
 
+  const performUndo = useCallback(async () => {
+    const log = lastUndo;
+    if (!log) return;
+    try {
+      const res = await fetch('/api/orders/undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: log.action, data: log.data }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast.success('Geri alındı');
+      setLastUndo(null);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Geri alma xətası');
+    }
+  }, [lastUndo, fetchData]);
+
   return {
     language, tables, floors, products, categories, loading,
-    selectedTable, cart, activeView, orderHistory,
-    selectTable, backToFloor,
+    selectedTable, cart, activeView, orderHistory, lastUndo,
+    selectTable, backToFloor, performUndo,
     addToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts,
     placeOrder, closeBill, transferTable, mergeTables,
     setActiveView, setCart, setSelectedTable, setTables,

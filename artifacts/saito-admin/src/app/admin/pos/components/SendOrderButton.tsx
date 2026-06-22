@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, Loader2, Send } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 
 export type SendOrderButtonStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -18,6 +19,7 @@ interface SendOrderButtonProps {
 
 export function SendOrderButton({ disabled = false, status, onClick, label, variant = 'send', isDirty = false, className = '' }: SendOrderButtonProps) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const handleClick = async () => {
     if (disabled || status === 'loading') return;
     await Promise.resolve(onClick());

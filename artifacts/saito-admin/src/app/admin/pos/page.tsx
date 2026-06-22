@@ -415,23 +415,43 @@ export default function POSPage() {
         />
       )}
 
-      {/* Undo Notification */}
+      {/* Selection Mode Bar for Merge/Transfer */}
       <AnimatePresence>
-        {pos.lastUndo && (
+        {(mergeMode || transferMode) && (
           <motion.div 
-            initial={{ y: 50, opacity: 0, scale: 0.9 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 50, opacity: 0, scale: 0.9 }}
-            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 px-6 py-3.5 rounded-2xl bg-[#D4AF37] text-black shadow-[0_15px_40px_rgba(212,175,55,0.4)] border border-white/20"
+            layoutId="action-sheet-container"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-[2.5rem] bg-zinc-900/90 dark:bg-white/95 backdrop-blur-3xl border border-white/10 dark:border-black/5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] min-w-[320px] sm:min-w-[400px]"
           >
-            <div className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Əməliyyat Uğurla İcra Edildi</span>
-            <button 
-              onClick={() => pos.performUndo()}
-              className="px-4 py-2 rounded-xl bg-black text-white text-[9px] font-black uppercase tracking-widest hover:bg-black/80 transition-all shadow-md active:scale-95"
-            >
-              Geri Al
-            </button>
+            <div className="flex flex-col mr-auto">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 dark:text-black/30 mb-0.5">
+                {mergeMode ? 'Masaları Birləşdir' : 'Masayı Köçür'}
+              </span>
+              <span className="text-sm font-black text-white dark:text-black">
+                {mergeMode ? `${selectedForMerge.length} masa seçildi` : (transferSource ? (transferTarget ? `Hədəf: Masa ${transferTarget}` : `Hədəf masanı seçin`) : 'Mənbə masanı seçin')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); }}
+                className="px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-white/10 dark:bg-black/10 text-white dark:text-black hover:bg-rose-500/20 hover:text-rose-500 transition-all"
+              >
+                Ləğv Et
+              </button>
+              <button 
+                onClick={async () => {
+                  if (mergeMode) { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }
+                  else if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }
+                }}
+                className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all ${
+                  lightMode ? 'bg-white text-black' : 'bg-black text-white'
+                }`}
+              >
+                Təsdiqlə
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -456,6 +476,7 @@ export default function POSPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
 
     </div>
   );

@@ -10,87 +10,72 @@ const headers = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { table_number } = await request.json();
-    if (!table_number) {
-      return NextResponse.json({ error: 'table_number required' }, { status: 400 });
+    const { table_number, table_numbers } = await request.json();
+    
+    // table_numbers is the array of tables we want to SEPARATE from the group
+    const targetTables = table_numbers || (table_number ? [table_number] : []);
+    
+    if (targetTables.length === 0) {
+      return NextResponse.json({ error: 'table_number or table_numbers required' }, { status: 400 });
     }
 
-    // Find primary order on this table (no merged_into set)
-    const parentRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${table_number}&status=neq.paid&merged_into=is.null&select=id,total_amount,guest_count`,
-      { headers }
-    );
-    if (!parentRes.ok) {
-      const errText = await parentRes.text();
-      return NextResponse.json({ error: `Fetch failed: ${errText}` }, { status: 500 });
-    }
-    const parentOrders: { id: string; total_amount: number; guest_count: number }[] = await parentRes.json();
-    const primaryOrder = parentOrders?.[0];
+    // Process each selected table to unmerge it
+    for (const tableNum of targetTables) {
+        // 1. Clear table-level merged_into_table
+        await fetch(
+          `${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tableNum}`,
+          {
+            method: 'PATCH',
+            headers: { ...headers, 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ merged_into_table: null }),
+          }
+        );
 
-    // Find child orders (merged_into = primary order id) across all tables
-    let children: { id: string; table_number: number; total_amount: number; merged_into: string }[] = [];
-    if (primaryOrder) {
-      const childRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/orders?merged_into=eq.${primaryOrder.id}&status=neq.paid&select=id,table_number,total_amount,merged_into`,
-        { headers }
-      );
-      if (childRes.ok) {
-        children = await childRes.json();
-      }
-    }
+        // 2. Find and unmerge orders for this specific table
+        const orderRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${tableNum}&status=neq.paid&select=id,total_amount,merged_into`,
+          { headers }
+        );
+        
+        if (orderRes.ok) {
+            const orders = await orderRes.json();
+            for (const order of orders) {
+                if (order.merged_into) {
+                    // This was a child order, separate it
+                    const parentId = order.merged_into;
+                    
+                    // a) Clear merged_into
+                    await fetch(
+                      `${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`,
+                      {
+                        method: 'PATCH',
+                        headers: { ...headers, 'Prefer': 'return=minimal' },
+                        body: JSON.stringify({ merged_into: null }),
+                      }
+                    );
 
-    // Also find table-level merged children
-    const mergedTablesRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/table_floors?merged_into_table=eq.${table_number}&select=table_number`,
-      { headers }
-    );
-    const mergedTables: { table_number: number }[] = mergedTablesRes.ok ? await mergedTablesRes.json() : [];
-    const mergedTableNums = new Set(mergedTables.map(t => t.table_number));
-
-    if (!children.length && mergedTableNums.size === 0) {
-      return NextResponse.json({ error: 'No merged tables found to split' }, { status: 400 });
-    }
-
-    // Unmerge orders — just clear merged_into, don't move tables
-    for (const child of children) {
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/orders?id=eq.${child.id}`,
-        {
-          method: 'PATCH',
-          headers: { ...headers, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ merged_into: null }),
+                    // b) Subtract from parent order total
+                    const parentRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${parentId}&select=total_amount`, { headers });
+                    if (parentRes.ok) {
+                        const parent = await parentRes.json();
+                        if (parent?.[0]) {
+                            const newTotal = Math.max(0, Number(parent[0].total_amount || 0) - Number(order.total_amount || 0));
+                            await fetch(
+                                `${SUPABASE_URL}/rest/v1/orders?id=eq.${parentId}`,
+                                {
+                                  method: 'PATCH',
+                                  headers: { ...headers, 'Prefer': 'return=minimal' },
+                                  body: JSON.stringify({ total_amount: newTotal }),
+                                }
+                            );
+                        }
+                    }
+                }
+            }
         }
-      );
     }
 
-    // Clear table-level merged_into_table on child table_floors
-    for (const tableNum of mergedTableNums) {
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tableNum}`,
-        {
-          method: 'PATCH',
-          headers: { ...headers, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ merged_into_table: null }),
-        }
-      );
-    }
-
-    // Recalculate primary order total (subtract moved orders)
-    if (primaryOrder) {
-      const childTotal = children.reduce((s, c) => s + Number(c.total_amount || 0), 0);
-      const newTotal = Math.max(0, Number(primaryOrder.total_amount || 0) - childTotal);
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/orders?id=eq.${primaryOrder.id}`,
-        {
-          method: 'PATCH',
-          headers: { ...headers, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ total_amount: newTotal }),
-        }
-      );
-    }
-
-    const unmergedCount = children.length + mergedTableNums.size;
-    return NextResponse.json({ success: true, split_count: unmergedCount });
+    return NextResponse.json({ success: true, split_count: targetTables.length });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

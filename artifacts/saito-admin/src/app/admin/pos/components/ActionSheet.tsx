@@ -63,11 +63,10 @@ export function ActionSheet({
   ];
 
   const visibleActions = actions.filter(a => a.visible);
-
   const mergedChildren = splitMode && allTables ? allTables.filter(t => t.merged_into_table === table.table_number) : [];
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {open && (
         <>
           <motion.div
@@ -77,28 +76,34 @@ export function ActionSheet({
           />
           <motion.div
             layout
-            layoutId="action-sheet-morph"
-            initial={{ opacity: 0, y: 100, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 60, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-            className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-8 pointer-events-none"
+            layoutId="action-sheet-container"
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+            className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-10 pointer-events-none"
           >
             <div className="max-w-lg mx-auto pointer-events-auto">
-              <div className={`flex justify-center mb-3`}>
-                <div className={`w-10 h-1 rounded-full ${lightMode ? 'bg-gray-300' : 'bg-white/20'}`} />
+              <div className="flex justify-center mb-3">
+                <div className={`w-10 h-1.5 rounded-full ${lightMode ? 'bg-gray-300' : 'bg-white/20'}`} />
               </div>
 
               <motion.div 
                 layout
-                className="rounded-[2.5rem] border p-6 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-2xl backdrop-blur-xl"
+                className="rounded-[3rem] border p-7 bg-[var(--theme-panel)] border-[var(--theme-border)] shadow-[0_30px_60px_rgba(0,0,0,0.4)] backdrop-blur-3xl overflow-hidden"
               >
                 {!splitMode ? (
-                  <>
-                    <div className="text-center mb-6">
-                      <p className="text-3xl font-black text-[var(--theme-text)] tracking-tighter">{t('table_label')} {table.table_number}</p>
-                      <p className="text-sm mt-0.5 text-[var(--theme-text-secondary)] font-medium">
-                        {isOccupied ? `${table.guest_count} ${t('guest')} · ${table.total_amount.toFixed(2)} ₼` : t('empty')}
+                  <motion.div 
+                    key="main-menu"
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="text-center mb-8">
+                      <p className="text-4xl font-black text-[var(--theme-text)] tracking-tighter leading-none mb-1">Masa {table.table_number}</p>
+                      <p className="text-sm text-[var(--theme-text-secondary)] font-bold uppercase tracking-widest opacity-60">
+                        {isOccupied ? `${table.guest_count} Qonaq · ${table.total_amount.toFixed(2)} ₼` : 'Boş Masa'}
                       </p>
                     </div>
 
@@ -108,8 +113,8 @@ export function ActionSheet({
                         return (
                           <motion.button
                             key={action.id}
-                            whileHover={{ scale: 1.04 }}
-                            whileTap={{ scale: 0.96 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => {
                               const fn = {
                                 add_order: onAddOrder,
@@ -121,61 +126,71 @@ export function ActionSheet({
                               }[action.id as string];
                               if (fn) fn();
                             }}
-                            className={`flex flex-col items-center gap-2 p-4 rounded-[1.5rem] border transition-all ${
+                            className={`flex flex-col items-center justify-center gap-2.5 aspect-square rounded-[2rem] border transition-all ${
                               lightMode
-                                ? 'bg-zinc-100 border-zinc-200'
-                                : 'bg-zinc-800/40 border-zinc-700/30'
-                            } shadow-sm hover:brightness-110`}
+                                ? 'bg-zinc-100 border-zinc-200 text-zinc-600'
+                                : 'bg-white/5 border-white/5 text-zinc-300'
+                            } hover:brightness-110 active:brightness-90`}
                           >
-                            <Icon size={22} className={`${lightMode ? 'text-zinc-600' : 'text-zinc-300'}`} />
-                            <span className="text-[10px] font-black tracking-wider uppercase text-[var(--theme-text-secondary)] text-center leading-tight">{action.label}</span>
+                            <Icon size={24} strokeWidth={2.5} />
+                            <span className="text-[10px] font-black tracking-widest uppercase text-center leading-none">{action.label}</span>
                           </motion.button>
                         );
                       })}
                     </div>
                     
-                    <button onClick={onClose} className="w-full mt-4 py-4 rounded-[1.5rem] text-sm font-bold transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:brightness-95 shadow-sm">
-                      {t('close')}
+                    <button onClick={onClose} className="w-full mt-5 py-4.5 rounded-[1.8rem] text-sm font-black uppercase tracking-widest transition-all bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:brightness-95 active:scale-[0.98]">
+                      Bağla
                     </button>
-                  </>
+                  </motion.div>
                 ) : (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-5">
+                  <motion.div 
+                    key="split-menu"
+                    initial={{ opacity: 0, x: 20 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-6"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
-                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-secondary)] opacity-50">Masaları Ayır</span>
-                         <span className="text-xl font-black text-[var(--theme-text)] tracking-tight">Masa {table.table_number} Qrupundan Seçin</span>
+                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">Masaları Ayır</span>
+                         <span className="text-2xl font-black text-[var(--theme-text)] tracking-tighter">Ayırmaq üçün masaları seçin</span>
                       </div>
-                      <button onClick={onClose} className="p-2 rounded-full bg-rose-500/10 text-rose-500"><XCircle size={24} /></button>
+                      <button onClick={() => onClose()} className="p-3 rounded-full bg-rose-500/10 text-rose-500 hover:scale-110 transition-transform"><XCircle size={26} /></button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      {mergedChildren.map(child => (
+                    <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                      {mergedChildren.length > 0 ? mergedChildren.map(child => (
                         <button
                           key={child.table_number}
                           onClick={() => onToggleSplit?.(child.table_number)}
-                          className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${
+                          className={`flex items-center gap-4 p-5 rounded-3xl border transition-all duration-300 ${
                             selectedForSplit?.includes(child.table_number)
-                              ? 'bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-500/20'
-                              : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-400'
+                              ? 'bg-blue-500 border-blue-500 text-white shadow-[0_10px_25px_rgba(59,130,246,0.3)] scale-[1.02]'
+                              : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500' : 'bg-white/5 border-white/5 text-zinc-400'
                           }`}
                         >
-                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${selectedForSplit?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-30'}`}>
-                            {selectedForSplit?.includes(child.table_number) && <Check size={12} className="text-blue-500" strokeWidth={4} />}
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-20'}`}>
+                            {selectedForSplit?.includes(child.table_number) && <Check size={14} className="text-blue-500" strokeWidth={4} />}
                           </div>
-                          <span className="text-sm font-black tracking-tight">MASA {child.table_number}</span>
+                          <span className="text-base font-black tracking-tight">Masa {child.table_number}</span>
                         </button>
-                      ))}
+                      )) : (
+                        <div className="col-span-2 py-10 text-center opacity-40 font-bold uppercase tracking-widest text-xs">Seçilə bilən masa yoxdur</div>
+                      )}
                     </div>
 
                     <div className="flex gap-3">
-                       <button onClick={onClose} className="flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)]">Ləğv Et</button>
+                       <button onClick={() => onClose()} className="flex-1 py-4.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:brightness-95 active:scale-[0.98]">Ləğv Et</button>
                        <button 
                          onClick={onConfirmSplit}
-                         className={`flex-[2] py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl transition-all ${
+                         disabled={!selectedForSplit || selectedForSplit.filter(n => n !== table.table_number).length === 0}
+                         className={`flex-[2.5] py-4.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest shadow-2xl transition-all disabled:opacity-30 disabled:grayscale ${
                            lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'
-                         }`}
+                         } hover:scale-[1.02] active:scale-[0.98]`}
                        >
-                         Seçilənləri Ayır
+                         Seçilənləri Ayır ({selectedForSplit ? selectedForSplit.filter(n => n !== table.table_number).length : 0})
                        </button>
                     </div>
                   </motion.div>

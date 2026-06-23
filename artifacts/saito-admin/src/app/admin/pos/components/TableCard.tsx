@@ -7,11 +7,11 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
 
 interface TableCardProps {
-  table: PosTable;
+  table: PosTable & { reservation_name?: string; reservation_time?: string };
   onTap: () => void;
   onAction: () => void;
   isSelected?: boolean;
-  selectionMode?: boolean; // New prop to handle split/merge/transfer visibility
+  selectionMode?: boolean;
   isTransferSource?: boolean;
   isTransferTarget?: boolean;
   isOverdue?: boolean;
@@ -24,6 +24,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   const { lightMode } = useTheme();
 
   const isOccupied = table.status === 'occupied' || table.total_amount > 0;
+  const isReserved = table.status === 'reserved';
 
   return (
     <div
@@ -31,20 +32,32 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       className={`relative h-[180px] rounded-[32px] p-6 text-left transition-all duration-300 group overflow-hidden border-2 cursor-pointer
         ${isSelected 
           ? (lightMode ? 'bg-white border-blue-500 shadow-[0_20px_40px_rgba(59,130,246,0.1)] scale-[1.02]' : 'bg-zinc-900 border-blue-500 shadow-[0_20px_40px_rgba(59,130,246,0.2)] scale-[1.02]') 
-          : isOverdue 
-            ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
-            : isOccupied
-              ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-md')
-              : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
+          : isReserved
+            ? 'border-amber-500 bg-amber-500/5'
+            : isOverdue 
+              ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
+              : isOccupied
+                ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-md')
+                : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
         }
         ${isTransferSource ? 'border-blue-500 bg-blue-500/5 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : ''}
         ${isTransferTarget ? 'border-zinc-400 border-dashed animate-pulse' : ''}`}
     >
       <div>
         {/* Table Number - Top Left */}
-        <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors ${isSelected || isTransferSource ? (lightMode ? 'text-blue-600' : 'text-blue-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
+        <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors ${isSelected || isTransferSource || isReserved ? (lightMode ? 'text-amber-600' : 'text-amber-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
           {table.table_number}
         </span>
+
+        {/* Reservation Info */}
+        {isReserved && (
+          <div className="absolute top-[70px] left-6 flex flex-col">
+            <span className="text-[10px] font-black uppercase text-amber-500/70 tracking-widest mb-0.5">BRON EDİLİB</span>
+            <span className="text-sm font-black text-[var(--theme-text)] truncate max-w-[120px] leading-tight">{table.reservation_name}</span>
+            <span className="text-[10px] font-bold opacity-40 mt-0.5">{table.reservation_time}</span>
+          </div>
+        )}
+      </div>
 
         {/* Guest Count - Below Table Number */}
         {isOccupied && (table.guest_count ?? 0) > 0 && (

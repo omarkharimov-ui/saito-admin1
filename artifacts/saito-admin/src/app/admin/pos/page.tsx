@@ -87,6 +87,22 @@ export default function POSPage() {
     fetch('/api/stock-check').then(r => r.json()).then(d => setOutOfStock(new Set(d.outOfStock || []))).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    // Check for incoming pre-order from reservations
+    const contextStr = localStorage.getItem('saito_preorder_context');
+    if (contextStr) {
+      const ctx = JSON.parse(contextStr);
+      localStorage.removeItem('saito_preorder_context');
+      
+      // Auto-setup POS for this reservation
+      const table = pos.tables.find(t => t.id === ctx.tableIds[0]);
+      if (table) {
+        pos.selectTable(table);
+        toast.success(`${ctx.guestName} üçün öncədən sifariş yığılır`);
+      }
+    }
+  }, [pos.tables]);
+
   const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
   const overdueTables = useMemo(() => {
     const now = Date.now();

@@ -25,13 +25,12 @@ export default function ReservationsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
   const [timeFilter, setTimeFilter] = useState<'today' | 'future' | 'archive'>('today');
   
-  // Modal State: 'main' | 'tables' 
   const [selectedRes, setSelectedRes] = useState<any | null>(null);
   const [modalView, setModalView] = useState<'main' | 'tables'>('main');
   
   const [tables, setTables] = useState<any[]>([]);
   const [floors, setFloors] = useState<any[]>([]);
-  const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
+  const [selectedFloorName, setSelectedFloorName] = useState<string | null>(null);
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
 
   /* ─── Data Fetching ─── */
@@ -40,12 +39,20 @@ export default function ReservationsPage() {
       const { data: resData } = await supabase.from('reservations').select('*').order('date', { ascending: true });
       setReservations(resData || []);
       
-      const { data: fData } = await supabase.from('floors').select('*').order('sort_order', { ascending: true });
-      setFloors(fData || []);
-      if (fData?.length && !selectedFloorId) setSelectedFloorId(fData[0].id);
-
       const { data: tData } = await supabase.from('table_floors').select('*');
       setTables(tData || []);
+
+      // If 'floors' table doesn't exist, we extract floor names from table_floors
+      const { data: fData, error: fError } = await supabase.from('floors').select('*').order('sort_order', { ascending: true });
+      if (!fError && fData) {
+        setFloors(fData);
+        if (fData.length) setSelectedFloorName(fData[0].name);
+      } else {
+        // Fallback: group by floor_name from table_floors
+        const uniqueFloors = Array.from(new Set((tData || []).map(t => t.floor_name || 'Zal 1')));
+        setFloors(uniqueFloors.map(name => ({ id: name, name })));
+        if (uniqueFloors.length) setSelectedFloorName(uniqueFloors[0]);
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -72,12 +79,9 @@ export default function ReservationsPage() {
   const getAIKitchenGuidance = (res: any) => {
     const items = res.pre_order_items || [];
     if (items.length === 0) return "Bu qonaq hələ öncədən sifariş daxil etməyib.";
-    
-    // Logic: Sort by preparation time
     const sorted = [...items].sort((a, b) => (b.prep_time_min || 15) - (a.prep_time_min || 15));
     const maxPrep = sorted[0]?.prep_time_min || 15;
-    
-    return `AI Kitchen Timeline: Müştəri ${res.time}-da çatacaq. Mətbəx ən geci ${maxPrep} dəqiqə əvvəl (${res.time.split(':')[0]}:${Number(res.time.split(':')[1]) - maxPrep}) hazırlığa başlamalıdır. Servis sırası: Soyuqlar -> Suşilər -> Ana Yeməklər.`;
+    return `AI Kitchen Timeline: Müştəri ${res.time}-da çatacaq. Mətbəx ${maxPrep} dəqiqə əvvəl hazırlığa başlamalıdır.`;
   };
 
   const resWithData = useMemo(() => {
@@ -108,7 +112,6 @@ export default function ReservationsPage() {
     }).eq('id', selectedRes.id);
 
     if (!error) {
-      // Sync POS: Mark all selected tables as RESERVED with guest name
       await Promise.all(selectedTableIds.map(id => 
         supabase.from('table_floors').update({ 
           status: 'reserved',
@@ -127,30 +130,23 @@ export default function ReservationsPage() {
 
   const goToPOSPreOrder = () => {
     if (selectedTableIds.length === 0) return toast.error("Əvvəlcə masanı təyin edin");
-    
-    // Store context for POS page to auto-open preorder mode
     localStorage.setItem('saito_pos_preorder_context', JSON.stringify({
       resId: selectedRes.id,
       tableIds: selectedTableIds,
       guestName: selectedRes.name,
       tablesLabel: selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).join(' + ')
     }));
-    
     window.location.href = '/admin/pos';
   };
 
   return (
     <div className="relative p-4 md:p-8 max-w-full min-h-screen">
       <div className="flex flex-col gap-6 mb-10">
-        <div>
-          <h1 className="text-4xl font-black tracking-tighter">Rezervasiyalar</h1>
-          <p className="opacity-40 text-[10px] font-black uppercase tracking-widest mt-1">Senior İdarəetmə Paneli</p>
-        </div>
-        
+        <h1 className="text-4xl font-black tracking-tighter">Rezervasiyalar</h1>
         <ReservationFilters 
           timeFilter={timeFilter} statusFilter={statusFilter} searchQuery={searchQuery}
           onTimeFilter={setTimeFilter} onStatusFilter={setStatusFilter} onSearch={setSearchQuery}
-          todayPendingCount={resWithData.filter(r => r.status === 'pending').length}
+          todayPendingCount={filteredReservations.filter(r => r.status === 'pending').length}
           futurePendingCount={0} searchOpen={true} archiveSelectionMode={false}
           selectedArchiveCount={0} totalArchiveCount={0} onStartArchiveSelection={() => {}} onDeleteSelectedArchive={() => {}} onCancelArchiveSelection={() => {}} onSelectAll={() => {}}
         />
@@ -172,11 +168,7 @@ export default function ReservationsPage() {
               {filteredReservations.map(res => (
                 <ReservationTableRow 
                   key={res.id} res={res} timeFilter={timeFilter} 
-                  onSelect={(r) => { 
-                    setSelectedRes(r); 
-                    setModalView('main');
-                    setSelectedTableIds(r.table_ids || []);
-                  }}
+                  onSelect={(r) => { setSelectedRes(r); setModalView('main'); setSelectedTableIds(r.table_ids || []); }}
                   statusBadge={(s) => <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s === 'confirmed' ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>{s}</span>}
                   onUpdateStatus={() => {}} onDelete={() => {}}
                 />
@@ -211,7 +203,6 @@ export default function ReservationsPage() {
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                             {/* Capsule Morph: Table Selection */}
                              <motion.div layout onClick={() => setModalView('tables')} className={`p-7 rounded-[2.5rem] border cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-lg ${lightMode ? 'bg-zinc-50/50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                                 <div className="flex items-center justify-between mb-5 uppercase tracking-widest text-[10px] opacity-40 font-black">
                                    <span><TableIcon size={14} className="inline mr-2" /> Masa Seçimi & Merge</span>
@@ -228,7 +219,6 @@ export default function ReservationsPage() {
                                 </div>
                              </motion.div>
 
-                             {/* Capsule Morph: Pre-Order */}
                              <motion.div layout onClick={goToPOSPreOrder} className={`p-7 rounded-[2.5rem] border cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-lg ${lightMode ? 'bg-zinc-50/50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                                 <div className="flex items-center justify-between mb-5 uppercase tracking-widest text-[10px] opacity-40 font-black">
                                    <span><ShoppingBag size={14} className="inline mr-2" /> Öncədən Sifariş</span>
@@ -258,11 +248,10 @@ export default function ReservationsPage() {
                              </div>
                           </div>
 
-                          {/* AI Insight Card */}
                           <div className="mt-8 p-7 rounded-[2.5rem] bg-blue-500/5 border border-blue-500/10 flex items-start gap-5">
                              <Zap size={24} className="text-blue-500 shrink-0 mt-1" />
                              <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-500 opacity-60">Saito AI Smart Kitchen Assistant</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-500 opacity-60">Saito AI Smart Assistant</span>
                                 <p className="text-[14px] font-bold leading-relaxed tracking-tight">{getAIKitchenGuidance(selectedRes)}</p>
                              </div>
                           </div>
@@ -282,12 +271,12 @@ export default function ReservationsPage() {
 
                        <div className="flex gap-2 overflow-x-auto pb-4 custom-scrollbar">
                           {floors.map(f => (
-                             <button key={f.id} onClick={() => setSelectedFloorId(f.id)} className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedFloorId === f.id ? 'bg-blue-500 text-white shadow-lg' : 'bg-white/5 opacity-50 hover:opacity-100'}`}>{f.name}</button>
+                             <button key={f.id} onClick={() => setSelectedFloorName(f.name)} className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${selectedFloorName === f.name ? 'bg-blue-500 text-white shadow-lg' : 'bg-white/5 opacity-50 hover:opacity-100'}`}>{f.name}</button>
                           ))}
                        </div>
 
                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
-                          {tables.filter(t => t.floor_id === selectedFloorId).map(t => (
+                          {tables.filter(t => t.floor_name === selectedFloorName || (!t.floor_name && selectedFloorName === 'Zal 1')).map(t => (
                              <button key={t.id} disabled={t.status !== 'empty'} onClick={() => {
                                 if (selectedTableIds.includes(t.id)) setSelectedTableIds(p => p.filter(id => id !== t.id));
                                 else setSelectedTableIds(p => [...p, t.id]);

@@ -11,7 +11,8 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import ReservationFilters from './components/ReservationFilters';
 import { TableSkeleton } from '@/components/SkeletonLoader';
-import { ReservationTableRow } from './components/ReservationRow';
+import { ReservationTableRow, ReservationCard } from './components/ReservationRow';
+import { DeleteReservationModal, ClearArchiveModal } from './components/ReservationModals';
 
 export default function ReservationsPage() {
   const { t, language } = useLanguage();
@@ -25,6 +26,7 @@ export default function ReservationsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
   const [timeFilter, setTimeFilter] = useState<'today' | 'future' | 'archive'>('today');
   
+  // Modal State: 'main' | 'tables' 
   const [selectedRes, setSelectedRes] = useState<any | null>(null);
   const [modalView, setModalView] = useState<'main' | 'tables'>('main');
   
@@ -32,6 +34,12 @@ export default function ReservationsPage() {
   const [floors, setFloors] = useState<any[]>([]);
   const [selectedFloorName, setSelectedFloorName] = useState<string | null>(null);
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
+
+  const [archiveSelectionMode, setArchiveSelectionMode] = useState(false);
+  const [selectedArchiveIds, setSelectedArchiveIds] = useState<string[]>([]);
+  const [confirmDeleteReservation, setConfirmDeleteReservation] = useState<{ id: string; guest: string } | null>(null);
+  const [confirmClearArchiveModal, setConfirmClearArchiveModal] = useState(false);
+  const [clearingArchive, setClearingArchive] = useState(false);
 
   /* ─── Data Fetching ─── */
   const fetchData = async () => {
@@ -42,16 +50,15 @@ export default function ReservationsPage() {
       const { data: tData } = await supabase.from('table_floors').select('*');
       setTables(tData || []);
 
-      // If 'floors' table doesn't exist, we extract floor names from table_floors
+      // Safe Floor Detection: Check floors table, fallback to table_floors grouping
       const { data: fData, error: fError } = await supabase.from('floors').select('*').order('sort_order', { ascending: true });
-      if (!fError && fData) {
+      if (!fError && fData && fData.length > 0) {
         setFloors(fData);
-        if (fData.length) setSelectedFloorName(fData[0].name);
+        if (!selectedFloorName) setSelectedFloorName(fData[0].name);
       } else {
-        // Fallback: group by floor_name from table_floors
         const uniqueFloors = Array.from(new Set((tData || []).map(t => t.floor_name || 'Zal 1')));
         setFloors(uniqueFloors.map(name => ({ id: name, name })));
-        if (uniqueFloors.length) setSelectedFloorName(uniqueFloors[0]);
+        if (!selectedFloorName && uniqueFloors.length > 0) setSelectedFloorName(uniqueFloors[0]);
       }
     } catch (error) {
       console.error(error);
@@ -81,7 +88,7 @@ export default function ReservationsPage() {
     if (items.length === 0) return "Bu qonaq hələ öncədən sifariş daxil etməyib.";
     const sorted = [...items].sort((a, b) => (b.prep_time_min || 15) - (a.prep_time_min || 15));
     const maxPrep = sorted[0]?.prep_time_min || 15;
-    return `AI Kitchen Timeline: Müştəri ${res.time}-da çatacaq. Mətbəx ${maxPrep} dəqiqə əvvəl hazırlığa başlamalıdır.`;
+    return `AI Kitchen Timeline: Müştəri ${res.time}-da çatacaq. Mətbəx ${maxPrep} dəqiqə əvvəl hazırlığa başlamalıdır. Servis: Soyuqlar -> İstilər.`;
   };
 
   const resWithData = useMemo(() => {
@@ -130,12 +137,14 @@ export default function ReservationsPage() {
 
   const goToPOSPreOrder = () => {
     if (selectedTableIds.length === 0) return toast.error("Əvvəlcə masanı təyin edin");
+    
     localStorage.setItem('saito_pos_preorder_context', JSON.stringify({
       resId: selectedRes.id,
       tableIds: selectedTableIds,
       guestName: selectedRes.name,
       tablesLabel: selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).join(' + ')
     }));
+    
     window.location.href = '/admin/pos';
   };
 
@@ -153,14 +162,14 @@ export default function ReservationsPage() {
       </div>
 
       {loading ? <TableSkeleton rows={8} /> : (
-        <div className={`rounded-[3rem] border overflow-hidden shadow-2xl ${lightMode ? 'bg-white border-zinc-100' : 'bg-[#0f0f0f] border-white/5 shadow-black/40'}`}>
+        <div className={`rounded-[3rem] border overflow-hidden shadow-2xl ${lightMode ? 'bg-white border-zinc-100 shadow-zinc-200/50' : 'bg-[#0f0f0f] border-white/5 shadow-black/40'}`}>
           <table className="w-full text-left">
             <thead className="opacity-30 text-[10px] font-black uppercase tracking-widest bg-black/5">
               <tr>
-                <th className="px-8 py-5">Qonaq</th>
-                <th className="px-8 py-5">Tarix & Saat</th>
-                <th className="px-8 py-5 text-center">Nəfər</th>
-                <th className="px-8 py-5">Status</th>
+                <th className="px-8 py-5 text-zinc-500">Qonaq</th>
+                <th className="px-8 py-5 text-zinc-500">Tarix & Saat</th>
+                <th className="px-8 py-5 text-center text-zinc-500">Nəfər</th>
+                <th className="px-8 py-5 text-zinc-500">Status</th>
                 <th className="px-8 py-5 text-right"></th>
               </tr>
             </thead>

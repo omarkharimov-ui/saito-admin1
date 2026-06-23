@@ -19,14 +19,12 @@ export default function ReservationsPage() {
   const { lightMode } = useTheme();
   const { clearNotifications } = useNotifications();
   
-  /* ─── State ─── */
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
   const [timeFilter, setTimeFilter] = useState<'today' | 'future' | 'archive'>('today');
   
-  // Modal State: 'main' | 'tables' 
   const [selectedRes, setSelectedRes] = useState<any | null>(null);
   const [modalView, setModalView] = useState<'main' | 'tables'>('main');
   
@@ -41,24 +39,20 @@ export default function ReservationsPage() {
   const [confirmClearArchiveModal, setConfirmClearArchiveModal] = useState(false);
   const [clearingArchive, setClearingArchive] = useState(false);
 
-  /* ─── Data Fetching ─── */
   const fetchData = async () => {
     try {
       const { data: resData } = await supabase.from('reservations').select('*').order('date', { ascending: true });
-      setReservations(resData || []);
-      
       const { data: tData } = await supabase.from('table_floors').select('*');
+      
+      setReservations(resData || []);
       setTables(tData || []);
 
-      // Safe Floor Detection: Check floors table, fallback to table_floors grouping
-      const { data: fData, error: fError } = await supabase.from('floors').select('*').order('sort_order', { ascending: true });
-      if (!fError && fData && fData.length > 0) {
-        setFloors(fData);
-        if (!selectedFloorName) setSelectedFloorName(fData[0].name);
-      } else {
-        const uniqueFloors = Array.from(new Set((tData || []).map(t => t.floor_name || 'Zal 1')));
-        setFloors(uniqueFloors.map(name => ({ id: name, name })));
-        if (!selectedFloorName && uniqueFloors.length > 0) setSelectedFloorName(uniqueFloors[0]);
+      const uniqueFloors = Array.from(new Set((tData || []).map(t => t.floor_name || 'Zal 1')));
+      const floorObjects = uniqueFloors.map(name => ({ id: name, name }));
+      setFloors(floorObjects);
+      
+      if (!selectedFloorName && uniqueFloors.length > 0) {
+        setSelectedFloorName(uniqueFloors[0]);
       }
     } catch (error) {
       console.error(error);
@@ -72,7 +66,6 @@ export default function ReservationsPage() {
     clearNotifications();
   }, []);
 
-  /* ─── AI & Logic ─── */
   const calculateTimeLeft = (resTime: string) => {
     if (!resTime) return '00:00';
     const now = new Date();
@@ -81,14 +74,6 @@ export default function ReservationsPage() {
     const diff = target.getTime() - now.getTime();
     if (diff < 0) return 'Gəlib';
     return `${Math.floor(diff / 60000)} Dəq`;
-  };
-
-  const getAIKitchenGuidance = (res: any) => {
-    const items = res.pre_order_items || [];
-    if (items.length === 0) return "Bu qonaq hələ öncədən sifariş daxil etməyib.";
-    const sorted = [...items].sort((a, b) => (b.prep_time_min || 15) - (a.prep_time_min || 15));
-    const maxPrep = sorted[0]?.prep_time_min || 15;
-    return `AI Kitchen Timeline: Müştəri ${res.time}-da çatacaq. Mətbəx ${maxPrep} dəqiqə əvvəl hazırlığa başlamalıdır. Servis: Soyuqlar -> İstilər.`;
   };
 
   const resWithData = useMemo(() => {
@@ -109,27 +94,19 @@ export default function ReservationsPage() {
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [resWithData, searchQuery, statusFilter, timeFilter]);
 
-  /* ─── Senior POS Integration Actions ─── */
   const handleConfirmReservation = async () => {
     if (selectedTableIds.length === 0) return toast.error("Zəhmət olmasa masa seçin");
-    
-    const { error } = await supabase.from('reservations').update({ 
-      status: 'confirmed', 
-      table_ids: selectedTableIds 
-    }).eq('id', selectedRes.id);
-
+    const { error } = await supabase.from('reservations').update({ status: 'confirmed', table_ids: selectedTableIds }).eq('id', selectedRes.id);
     if (!error) {
       await Promise.all(selectedTableIds.map(id => 
         supabase.from('table_floors').update({ 
           status: 'reserved',
-          reservation_id: selectedRes.id,
           reservation_name: selectedRes.name,
           reservation_time: selectedRes.time,
           guest_count: selectedRes.guests
         }).eq('id', id)
       ));
-      
-      toast.success(`${selectedRes.name} üçün masalar POS-da bron edildi!`);
+      toast.success("Rezervasiya və POS sinxronizasiya edildi");
       setSelectedRes(null);
       fetchData();
     }
@@ -137,14 +114,12 @@ export default function ReservationsPage() {
 
   const goToPOSPreOrder = () => {
     if (selectedTableIds.length === 0) return toast.error("Əvvəlcə masanı təyin edin");
-    
     localStorage.setItem('saito_pos_preorder_context', JSON.stringify({
       resId: selectedRes.id,
       tableIds: selectedTableIds,
       guestName: selectedRes.name,
       tablesLabel: selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).join(' + ')
     }));
-    
     window.location.href = '/admin/pos';
   };
 
@@ -156,8 +131,12 @@ export default function ReservationsPage() {
           timeFilter={timeFilter} statusFilter={statusFilter} searchQuery={searchQuery}
           onTimeFilter={setTimeFilter} onStatusFilter={setStatusFilter} onSearch={setSearchQuery}
           todayPendingCount={filteredReservations.filter(r => r.status === 'pending').length}
-          futurePendingCount={0} searchOpen={true} archiveSelectionMode={false}
-          selectedArchiveCount={0} totalArchiveCount={0} onStartArchiveSelection={() => {}} onDeleteSelectedArchive={() => {}} onCancelArchiveSelection={() => {}} onSelectAll={() => {}}
+          futurePendingCount={0} searchOpen={true} archiveSelectionMode={archiveSelectionMode}
+          selectedArchiveCount={selectedArchiveIds.length} totalArchiveCount={filteredReservations.length}
+          onStartArchiveSelection={() => setArchiveSelectionMode(true)}
+          onDeleteSelectedArchive={() => setConfirmClearArchiveModal(true)}
+          onCancelArchiveSelection={() => setArchiveSelectionMode(false)}
+          onSelectAll={() => {}}
         />
       </div>
 
@@ -166,10 +145,10 @@ export default function ReservationsPage() {
           <table className="w-full text-left">
             <thead className="opacity-30 text-[10px] font-black uppercase tracking-widest bg-black/5">
               <tr>
-                <th className="px-8 py-5 text-zinc-500">Qonaq</th>
-                <th className="px-8 py-5 text-zinc-500">Tarix & Saat</th>
-                <th className="px-8 py-5 text-center text-zinc-500">Nəfər</th>
-                <th className="px-8 py-5 text-zinc-500">Status</th>
+                <th className="px-8 py-5">Qonaq</th>
+                <th className="px-8 py-5">Tarix & Saat</th>
+                <th className="px-8 py-5 text-center">Nəfər</th>
+                <th className="px-8 py-5">Status</th>
                 <th className="px-8 py-5 text-right"></th>
               </tr>
             </thead>
@@ -187,7 +166,6 @@ export default function ReservationsPage() {
         </div>
       )}
 
-      {/* LIQUID GLASS MORPHING MODAL */}
       <AnimatePresence>
         {selectedRes && (
           <>
@@ -256,14 +234,6 @@ export default function ReservationsPage() {
                                 </div>
                              </div>
                           </div>
-
-                          <div className="mt-8 p-7 rounded-[2.5rem] bg-blue-500/5 border border-blue-500/10 flex items-start gap-5">
-                             <Zap size={24} className="text-blue-500 shrink-0 mt-1" />
-                             <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-500 opacity-60">Saito AI Smart Assistant</span>
-                                <p className="text-[14px] font-bold leading-relaxed tracking-tight">{getAIKitchenGuidance(selectedRes)}</p>
-                             </div>
-                          </div>
                        </motion.div>
                     </motion.div>
                   )}
@@ -286,24 +256,14 @@ export default function ReservationsPage() {
 
                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
                           {tables
-                            .filter(t => (t.floor_name === selectedFloorName || (!t.floor_name && selectedFloorName === 'Zal 1')) && t.status === 'empty')
+                            .filter(t => t.floor_name === selectedFloorName || (!t.floor_name && (selectedFloorName === 'Zal 1' || selectedFloorName === floors[0]?.name)))
+                            .filter(t => t.status === 'empty' || selectedTableIds.includes(t.id))
                             .map(t => (
-                             <button 
-                               key={t.id} 
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 if (selectedTableIds.includes(t.id)) {
-                                   setSelectedTableIds(prev => prev.filter(id => id !== t.id));
-                                 } else {
-                                   setSelectedTableIds(prev => [...prev, t.id]);
-                                 }
-                               }} 
-                               className={`aspect-square rounded-[2rem] border-2 flex flex-col items-center justify-center gap-1 transition-all duration-300 ${
-                                 selectedTableIds.includes(t.id) 
-                                   ? 'bg-blue-500 border-blue-500 text-white shadow-[0_10px_30px_rgba(59,130,246,0.4)] scale-105' 
-                                   : lightMode ? 'bg-white border-zinc-200 text-zinc-900 hover:border-blue-500/50' : 'bg-white/5 border-white/10 text-white hover:border-blue-500/50'
-                               }`}
-                             >
+                             <button key={t.id} onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedTableIds.includes(t.id)) setSelectedTableIds(p => p.filter(id => id !== t.id));
+                                else setSelectedTableIds(p => [...p, t.id]);
+                             }} className={`aspect-square rounded-[2rem] border-3 flex flex-col items-center justify-center gap-1 transition-all ${selectedTableIds.includes(t.id) ? 'bg-blue-500 border-blue-500 text-white shadow-2xl scale-105' : 'bg-white/5 border-white/10 hover:border-blue-500/40'}`}>
                                 <span className="text-2xl font-black">{t.table_number}</span>
                                 <span className="text-[8px] font-black uppercase opacity-60">BOŞ</span>
                              </button>

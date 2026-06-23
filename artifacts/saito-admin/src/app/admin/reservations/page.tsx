@@ -285,13 +285,27 @@ export default function ReservationsPage() {
                        </div>
 
                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
-                          {tables.filter(t => t.floor_name === selectedFloorName || (!t.floor_name && selectedFloorName === 'Zal 1')).map(t => (
-                             <button key={t.id} disabled={t.status !== 'empty'} onClick={() => {
-                                if (selectedTableIds.includes(t.id)) setSelectedTableIds(p => p.filter(id => id !== t.id));
-                                else setSelectedTableIds(p => [...p, t.id]);
-                             }} className={`aspect-square rounded-[2rem] border-3 flex flex-col items-center justify-center gap-1 transition-all ${selectedTableIds.includes(t.id) ? 'bg-blue-500 border-blue-500 text-white shadow-2xl scale-105' : t.status === 'empty' ? 'bg-white/5 border-white/10 hover:border-blue-500/40' : 'opacity-20 cursor-not-allowed grayscale'}`}>
+                          {tables
+                            .filter(t => (t.floor_name === selectedFloorName || (!t.floor_name && selectedFloorName === 'Zal 1')) && t.status === 'empty')
+                            .map(t => (
+                             <button 
+                               key={t.id} 
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 if (selectedTableIds.includes(t.id)) {
+                                   setSelectedTableIds(prev => prev.filter(id => id !== t.id));
+                                 } else {
+                                   setSelectedTableIds(prev => [...prev, t.id]);
+                                 }
+                               }} 
+                               className={`aspect-square rounded-[2rem] border-2 flex flex-col items-center justify-center gap-1 transition-all duration-300 ${
+                                 selectedTableIds.includes(t.id) 
+                                   ? 'bg-blue-500 border-blue-500 text-white shadow-[0_10px_30px_rgba(59,130,246,0.4)] scale-105' 
+                                   : lightMode ? 'bg-white border-zinc-200 text-zinc-900 hover:border-blue-500/50' : 'bg-white/5 border-white/10 text-white hover:border-blue-500/50'
+                               }`}
+                             >
                                 <span className="text-2xl font-black">{t.table_number}</span>
-                                <span className="text-[8px] font-black uppercase opacity-60">{t.status}</span>
+                                <span className="text-[8px] font-black uppercase opacity-60">BOŞ</span>
                              </button>
                           ))}
                        </div>

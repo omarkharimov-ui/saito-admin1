@@ -311,7 +311,7 @@ export default function ReservationsPage() {
                                    <span className="text-xs font-black opacity-40">{p.price} ₼</span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                   <button onClick={() => setPreOrderItems(p => p.filter(i => i.id !== p.id))} className="p-2.5 rounded-xl bg-red-500/10 text-red-500"><Trash2 size={20} /></button>
+                                   <button onClick={() => setPreOrderItems(items => items.filter(i => i.id !== p.id))} className="p-2.5 rounded-xl bg-red-500/10 text-red-500"><Trash2 size={20} /></button>
                                    <button onClick={() => setPreOrderItems(prev => [...prev, p])} className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all"><Plus size={20} /></button>
                                 </div>
                              </div>

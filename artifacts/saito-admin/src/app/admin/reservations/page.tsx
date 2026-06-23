@@ -19,6 +19,7 @@ export default function ReservationsPage() {
   const { lightMode } = useTheme();
   const { clearNotifications } = useNotifications();
   
+  /* ─── State ─── */
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,7 +31,7 @@ export default function ReservationsPage() {
   
   const [tables, setTables] = useState<any[]>([]);
   const [floors, setFloors] = useState<any[]>([]);
-  const [selectedFloorName, setSelectedFloorName] = useState<string | null>(null);
+  const [selectedFloorName, setSelectedFloorName] = useState<string>('');
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
 
   const [archiveSelectionMode, setArchiveSelectionMode] = useState(false);
@@ -39,20 +40,22 @@ export default function ReservationsPage() {
   const [confirmClearArchiveModal, setConfirmClearArchiveModal] = useState(false);
   const [clearingArchive, setClearingArchive] = useState(false);
 
+  /* ─── Data Fetching ─── */
   const fetchData = async () => {
     try {
       const { data: resData } = await supabase.from('reservations').select('*').order('date', { ascending: true });
       const { data: tData } = await supabase.from('table_floors').select('*');
       
       setReservations(resData || []);
-      setTables(tData || []);
+      const allTables = tData || [];
+      setTables(allTables);
 
-      const uniqueFloors = Array.from(new Set((tData || []).map(t => t.floor_name || 'Zal 1')));
-      const floorObjects = uniqueFloors.map(name => ({ id: name, name }));
-      setFloors(floorObjects);
+      // Extract unique floor names and ensure they exist
+      const uniqueFloorNames = Array.from(new Set(allTables.map(t => t.floor_name || 'Zal 1')));
+      setFloors(uniqueFloorNames.map(name => ({ id: name, name })));
       
-      if (!selectedFloorName && uniqueFloors.length > 0) {
-        setSelectedFloorName(uniqueFloors[0]);
+      if (!selectedFloorName && uniqueFloorNames.length > 0) {
+        setSelectedFloorName(uniqueFloorNames[0]);
       }
     } catch (error) {
       console.error(error);
@@ -66,6 +69,7 @@ export default function ReservationsPage() {
     clearNotifications();
   }, []);
 
+  /* ─── Logic ─── */
   const calculateTimeLeft = (resTime: string) => {
     if (!resTime) return '00:00';
     const now = new Date();
@@ -94,19 +98,27 @@ export default function ReservationsPage() {
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [resWithData, searchQuery, statusFilter, timeFilter]);
 
+  /* ─── Actions ─── */
   const handleConfirmReservation = async () => {
     if (selectedTableIds.length === 0) return toast.error("Zəhmət olmasa masa seçin");
-    const { error } = await supabase.from('reservations').update({ status: 'confirmed', table_ids: selectedTableIds }).eq('id', selectedRes.id);
+    
+    const { error } = await supabase.from('reservations').update({ 
+      status: 'confirmed', 
+      table_ids: selectedTableIds 
+    }).eq('id', selectedRes.id);
+
     if (!error) {
       await Promise.all(selectedTableIds.map(id => 
         supabase.from('table_floors').update({ 
           status: 'reserved',
+          reservation_id: selectedRes.id,
           reservation_name: selectedRes.name,
           reservation_time: selectedRes.time,
           guest_count: selectedRes.guests
         }).eq('id', id)
       ));
-      toast.success("Rezervasiya və POS sinxronizasiya edildi");
+      
+      toast.success(`${selectedRes.name} üçün masalar bron edildi!`);
       setSelectedRes(null);
       fetchData();
     }
@@ -158,7 +170,7 @@ export default function ReservationsPage() {
                   key={res.id} res={res} timeFilter={timeFilter} 
                   onSelect={(r) => { setSelectedRes(r); setModalView('main'); setSelectedTableIds(r.table_ids || []); }}
                   statusBadge={(s) => <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s === 'confirmed' ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>{s}</span>}
-                  onUpdateStatus={() => {}} onDelete={() => {}}
+                  onUpdateStatus={updateStatus} onDelete={() => {}}
                 />
               ))}
             </tbody>
@@ -166,6 +178,7 @@ export default function ReservationsPage() {
         </div>
       )}
 
+      {/* LIQUID GLASS MORPHING MODAL */}
       <AnimatePresence>
         {selectedRes && (
           <>
@@ -256,8 +269,12 @@ export default function ReservationsPage() {
 
                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
                           {tables
-                            .filter(t => t.floor_name === selectedFloorName || (!t.floor_name && (selectedFloorName === 'Zal 1' || selectedFloorName === floors[0]?.name)))
-                            .filter(t => t.status === 'empty' || selectedTableIds.includes(t.id))
+                            .filter(t => {
+                               // Robust filter: if no floor name matches, show all in the current selected view
+                               if (!selectedFloorName) return true;
+                               return (t.floor_name || 'Zal 1') === selectedFloorName;
+                            })
+                            .filter(t => !t.status || t.status === 'empty' || selectedTableIds.includes(t.id))
                             .map(t => (
                              <button key={t.id} onClick={(e) => {
                                 e.stopPropagation();

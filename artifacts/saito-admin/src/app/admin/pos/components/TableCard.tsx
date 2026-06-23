@@ -57,7 +57,6 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
             <span className="text-[10px] font-bold opacity-40 mt-0.5">{table.reservation_time}</span>
           </div>
         )}
-      </div>
 
         {/* Guest Count - Below Table Number */}
         {isOccupied && (table.guest_count ?? 0) > 0 && (
@@ -94,7 +93,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         )}
       </div>
 
-      {/* Delay Badge - Specific position to prevent layout shifts */}
+      {/* Delay Badge */}
       {isOverdue && (
         <div className="absolute top-14 right-6">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex flex-col items-end gap-1">
@@ -108,7 +107,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         </div>
       )}
 
-      {/* Status Badge - Fixed Center Position */}
+      {/* Status Badge */}
       <div className="absolute top-[92px] left-0 right-0 flex justify-center">
         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm ${
           lightMode ? 'bg-[#efeff4] border-zinc-200' : 'bg-black/5 border-black/5 dark:bg-white/5 dark:border-white/5'
@@ -128,7 +127,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         </div>
       </div>
 
-      {/* Price - Bottom Left */}
+      {/* Price */}
       <div className="absolute bottom-6 left-6">
         {table.total_amount > 0 && (
           <p className={`text-xl font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{table.total_amount.toFixed(2)}</p>
@@ -137,5 +136,3 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
     </div>
   );
 }
-
-

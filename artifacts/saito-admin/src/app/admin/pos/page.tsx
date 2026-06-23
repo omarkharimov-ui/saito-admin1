@@ -103,6 +103,21 @@ export default function POSPage() {
     }
   }, [pos.tables]);
 
+  useEffect(() => {
+    // Check for incoming pre-order context from reservations page
+    const preorderStr = localStorage.getItem('saito_pos_preorder_context');
+    if (preorderStr && pos.tables.length > 0) {
+      const ctx = JSON.parse(preorderStr);
+      localStorage.removeItem('saito_pos_preorder_context');
+      
+      const targetTable = pos.tables.find(t => t.id === ctx.tableIds[0]);
+      if (targetTable) {
+        pos.selectTable(targetTable);
+        toast.success(`${ctx.guestName} üçün öncədən sifariş daxil edilir (Masa: ${ctx.tablesLabel})`);
+      }
+    }
+  }, [pos.tables]);
+
   const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
   const overdueTables = useMemo(() => {
     const now = Date.now();

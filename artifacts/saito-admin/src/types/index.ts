@@ -122,4 +122,22 @@ export interface Reservation {
   status: 'pending' | 'confirmed' | 'cancelled' | 'expired';
   note?: string;
   created_at: string;
+  table_number?: number | null;
+  table_ids?: string[] | null;
+  pre_order_items?: PreOrderItem[] | null;
+  pre_order_total?: number | null;
+  kitchen_scheduled_at?: string | null;
+}
+
+export interface PreOrderItem {
+  id?: string;
+  product_id: string;
+  product_name: string;
+  product_image?: string | null;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  modifiers?: { id: string; name: string; price: number; quantity: number }[];
+  special_notes?: string;
+  course?: string;
 }

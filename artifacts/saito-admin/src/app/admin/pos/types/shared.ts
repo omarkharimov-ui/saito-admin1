@@ -57,7 +57,7 @@ export interface PosTable {
   kitchen_status?: string | null;
 }
 
-export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'merged' | string;
+export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'merged' | 'reserved' | string;
 
 export interface FloorConfig {
   id: string;

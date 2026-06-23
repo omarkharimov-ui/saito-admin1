@@ -186,6 +186,7 @@ export default function ReservationsPage() {
                   onSelect={(r) => { setSelectedRes(r); setModalView('main'); setSelectedTableIds(r.table_ids || []); }}
                   statusBadge={(s) => <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s === 'confirmed' ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>{s}</span>}
                   onUpdateStatus={updateStatus} onDelete={() => {}}
+                  onHandle={(r) => { setSelectedRes(r); setModalView('tables'); setSelectedTableIds(r.table_ids || []); }}
                 />
               ))}
             </tbody>

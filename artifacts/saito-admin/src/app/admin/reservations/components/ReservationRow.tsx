@@ -14,6 +14,7 @@ interface Props {
   onUpdateStatus: (id: string, status: 'confirmed' | 'cancelled') => void;
   onDelete: (id: string, name: string) => void;
   onSelect: (res: any) => void;
+  onHandle?: (res: any) => void;
 }
 
 const maskPhone = (phone: string) => {
@@ -29,7 +30,7 @@ const getGuestTag = (count: number) => {
   return { label: 'Yeni', icon: UserPlus, color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
 };
 
-export const ReservationTableRow = ({ res, statusBadge, onUpdateStatus, onDelete, onSelect }: Props) => {
+export const ReservationTableRow = ({ res, statusBadge, onUpdateStatus, onDelete, onSelect, onHandle }: Props) => {
   const { lightMode } = useTheme();
   const tag = getGuestTag(res.visitCount || 1);
 
@@ -79,6 +80,11 @@ export const ReservationTableRow = ({ res, statusBadge, onUpdateStatus, onDelete
       </td>
       <td className="px-8 py-6 text-right">
         <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+           {res.status === 'pending' && onHandle && (
+             <button onClick={() => onHandle(res)} className="px-3 py-2.5 rounded-xl bg-amber-500/15 text-amber-400 hover:bg-amber-500 hover:text-white transition-all shadow-lg shadow-amber-500/5 text-xs font-bold flex items-center gap-1.5">
+               Bron et
+             </button>
+           )}
            {res.status === 'pending' && (
              <button onClick={() => onUpdateStatus(res.id, 'confirmed')} className="p-2.5 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5"><CheckCircle size={18} /></button>
            )}
@@ -89,7 +95,7 @@ export const ReservationTableRow = ({ res, statusBadge, onUpdateStatus, onDelete
   );
 };
 
-export const ReservationCard = ({ res, statusBadge, onUpdateStatus, onDelete, onSelect }: Props) => {
+export const ReservationCard = ({ res, statusBadge, onUpdateStatus, onDelete, onSelect, onHandle }: Props) => {
   const { lightMode } = useTheme();
   const tag = getGuestTag(res.visitCount || 1);
 

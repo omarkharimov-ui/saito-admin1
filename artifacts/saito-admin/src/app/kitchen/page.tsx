@@ -9,6 +9,7 @@ import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
 import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
+import { KitchenAIScheduler } from './components/KitchenAIScheduler';
 import { az } from '@/lib/i18n/locales/az';
 import { en } from '@/lib/i18n/locales/en';
 import { ru } from '@/lib/i18n/locales/ru';
@@ -1058,7 +1059,7 @@ export default function KitchenPage() {
       </AnimatePresence>
 
       {/* ── Header ── */}
-      <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <header className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
             <ChefHat size={22} className="text-[#D4AF37]" />
@@ -1066,6 +1067,10 @@ export default function KitchenPage() {
           <div>
             <h1 suppressHydrationWarning className="text-xl font-black text-white/90 leading-none tracking-wide">{t.kitchen_panel || 'Mətbəx'}</h1>
             <p suppressHydrationWarning className="text-sm text-white/30 mt-1">{activeOrders.length} aktiv · {readyOrders.length} hazır</p>
+          </div>
+          {/* AI Scheduler */}
+          <div className="hidden md:block">
+            <KitchenAIScheduler />
           </div>
         </div>
 

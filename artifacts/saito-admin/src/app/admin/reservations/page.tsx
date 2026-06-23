@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Reservation } from '@/types';
-import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, ArrowRight, Clock, ChevronLeft, Plus, Trash2, LayoutGrid, MapPin } from 'lucide-react';
+import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, ArrowRight, Clock, ChevronLeft, Plus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useNotifications } from '../context/NotificationContext';
@@ -50,7 +50,6 @@ export default function ReservationsPage() {
       const allTables = tData || [];
       setTables(allTables);
 
-      // Extract unique floor names and ensure they exist
       const uniqueFloorNames = Array.from(new Set(allTables.map(t => t.floor_name || 'Zal 1')));
       setFloors(uniqueFloorNames.map(name => ({ id: name, name })));
       
@@ -69,37 +68,17 @@ export default function ReservationsPage() {
     clearNotifications();
   }, []);
 
-  /* ─── Logic ─── */
-  const calculateTimeLeft = (resTime: string) => {
-    if (!resTime) return '00:00';
-    const now = new Date();
-    const [h, m] = resTime.split(':').map(Number);
-    const target = new Date(); target.setHours(h, m, 0);
-    const diff = target.getTime() - now.getTime();
-    if (diff < 0) return 'Gəlib';
-    return `${Math.floor(diff / 60000)} Dəq`;
+  /* ─── Actions ─── */
+  const updateStatus = async (id: string, status: 'confirmed' | 'cancelled') => {
+    const { error } = await supabase.from('reservations').update({ status }).eq('id', id);
+    if (!error) {
+      toast.success('Status yeniləndi');
+      fetchData();
+    }
   };
 
-  const resWithData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    reservations.forEach(r => { counts[r.phone] = (counts[r.phone] || 0) + 1; });
-    return reservations.map(r => ({ ...r, visitCount: counts[r.phone] || 1 }));
-  }, [reservations]);
-
-  const filteredReservations = useMemo(() => {
-    return resWithData.filter(res => {
-      const matchesSearch = res.name.toLowerCase().includes(searchQuery.toLowerCase()) || res.phone.includes(searchQuery);
-      const matchesStatus = statusFilter === 'all' || res.status === statusFilter;
-      const resDate = new Date(res.date);
-      const today = new Date(); today.setHours(0,0,0,0);
-      if (timeFilter === 'today') return matchesSearch && matchesStatus && resDate.getTime() === today.getTime();
-      if (timeFilter === 'future') return matchesSearch && matchesStatus && resDate > today;
-      return matchesSearch && matchesStatus && (resDate < today || res.status === 'cancelled');
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [resWithData, searchQuery, statusFilter, timeFilter]);
-
-  /* ─── Actions ─── */
   const handleConfirmReservation = async () => {
+    if (!selectedRes) return;
     if (selectedTableIds.length === 0) return toast.error("Zəhmət olmasa masa seçin");
     
     const { error } = await supabase.from('reservations').update({ 
@@ -123,6 +102,41 @@ export default function ReservationsPage() {
       fetchData();
     }
   };
+
+  /* ─── Logic ─── */
+  const calculateTimeLeft = (resTime: string) => {
+    if (!resTime) return '00:00';
+    const now = new Date();
+    const [h, m] = resTime.split(':').map(Number);
+    const target = new Date(); target.setHours(h, m, 0);
+    const diff = target.getTime() - now.getTime();
+    if (diff < 0) return 'Gəlib';
+    return `${Math.floor(diff / 60000)} Dəq`;
+  };
+
+  const getAIKitchenGuidance = (res: any) => {
+    const items = res.pre_order_items || [];
+    if (items.length === 0) return "Bu qonaq hələ öncədən sifariş daxil etməyib.";
+    return "AI Kitchen Timeline: Müştəri üçün hazırlıq planı aktivdir.";
+  };
+
+  const resWithData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    reservations.forEach(r => { counts[r.phone] = (counts[r.phone] || 0) + 1; });
+    return reservations.map(r => ({ ...r, visitCount: counts[r.phone] || 1 }));
+  }, [reservations]);
+
+  const filteredReservations = useMemo(() => {
+    return resWithData.filter(res => {
+      const matchesSearch = res.name.toLowerCase().includes(searchQuery.toLowerCase()) || res.phone.includes(searchQuery);
+      const matchesStatus = statusFilter === 'all' || res.status === statusFilter;
+      const resDate = new Date(res.date);
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (timeFilter === 'today') return matchesSearch && matchesStatus && resDate.getTime() === today.getTime();
+      if (timeFilter === 'future') return matchesSearch && matchesStatus && resDate > today;
+      return matchesSearch && matchesStatus && (resDate < today || res.status === 'cancelled');
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [resWithData, searchQuery, statusFilter, timeFilter]);
 
   const goToPOSPreOrder = () => {
     if (selectedTableIds.length === 0) return toast.error("Əvvəlcə masanı təyin edin");
@@ -157,10 +171,11 @@ export default function ReservationsPage() {
           <table className="w-full text-left">
             <thead className="opacity-30 text-[10px] font-black uppercase tracking-widest bg-black/5">
               <tr>
-                <th className="px-8 py-5">Qonaq</th>
-                <th className="px-8 py-5">Tarix & Saat</th>
-                <th className="px-8 py-5 text-center">Nəfər</th>
-                <th className="px-8 py-5">Status</th>
+                <th className="px-8 py-5 text-zinc-500">Qonaq</th>
+                <th className="px-8 py-5 text-zinc-500">Tarix & Saat</th>
+                <th className="px-8 py-5 text-center text-zinc-500">Nəfər</th>
+                <th className="px-8 py-5 text-zinc-500">Status</th>
+                <th className="px-8 py-5 text-zinc-500">Qeyd</th>
                 <th className="px-8 py-5 text-right"></th>
               </tr>
             </thead>
@@ -178,7 +193,6 @@ export default function ReservationsPage() {
         </div>
       )}
 
-      {/* LIQUID GLASS MORPHING MODAL */}
       <AnimatePresence>
         {selectedRes && (
           <>
@@ -269,11 +283,7 @@ export default function ReservationsPage() {
 
                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
                           {tables
-                            .filter(t => {
-                               // Robust filter: if no floor name matches, show all in the current selected view
-                               if (!selectedFloorName) return true;
-                               return (t.floor_name || 'Zal 1') === selectedFloorName;
-                            })
+                            .filter(t => (t.floor_name || 'Zal 1') === selectedFloorName)
                             .filter(t => !t.status || t.status === 'empty' || selectedTableIds.includes(t.id))
                             .map(t => (
                              <button key={t.id} onClick={(e) => {

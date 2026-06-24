@@ -7,7 +7,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
 
 interface TableCardProps {
-  table: PosTable & { reservation_name?: string; reservation_time?: string };
+  table: PosTable;
   onTap: () => void;
   onAction: () => void;
   isSelected?: boolean;

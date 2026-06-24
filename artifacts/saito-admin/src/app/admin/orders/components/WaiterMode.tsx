@@ -230,6 +230,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<RecipeIng[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
+  const [tableStatuses, setTableStatuses] = useState<any[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tableCount, setTableCount] = useState(30);
   const [loading, setLoading] = useState(true);
@@ -265,6 +266,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       setIngredients((ir.data || []) as Ingredient[]);
       setRecipes((rr.data || []) as RecipeIng[]);
       setOrders((or.data || []) as OrderData[]);
+      setTableStatuses(or.data && (or.data as any).tableStatuses ? (or.data as any).tableStatuses : []);
       setCategories((cr.data || []) as Category[]);
       const tc = Number((sr.data as any)?.[0]?.qr_table_count);
       if (tc >= 1) setTableCount(tc);
@@ -390,16 +392,19 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
         <div className="flex gap-2 px-3 pb-2 overflow-x-auto">
           {Array.from({ length: tableCount }, (_, i) => i + 1).map(n => {
             const o = orders.find(x => x.table_number === n && x.status !== 'paid');
+            const dbStatus = tableStatuses.find(ts => ts.table_number === n);
+            const isReserved = dbStatus?.status === 'reserved' || o?.kitchen_status === 'reserved';
             const s = selTable === n;
             const r = o?.kitchen_status === 'ready';
             return (
               <button key={n} onClick={() => { setSelTable(s ? null : n); setShowCart(false); }}
                 className={`relative flex-shrink-0 w-14 h-14 rounded-xl text-sm font-bold transition-all ${
                   s ? 'bg-white text-black shadow-md' :
+                  isReserved ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' :
                   o ? (r ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/12 text-rose-400 border border-rose-500/20') :
                   'bg-white/[0.04] text-white/30'
                 }`}
-              >{n}{o && <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${r ? 'bg-emerald-400' : 'bg-rose-400'}`} />}</button>
+              >{n}{o && <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${r ? 'bg-emerald-400' : 'bg-rose-400'}`} />}{!o && isReserved && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-indigo-400" />}</button>
             );
           })}
         </div>

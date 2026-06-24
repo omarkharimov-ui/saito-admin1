@@ -16,32 +16,23 @@ export async function GET() {
       return NextResponse.json({ error: 'Missing Supabase configuration. Restart the dev server after creating .env.local' }, { status: 500 });
     }
 
-    const [ordersRes, itemsRes, tablesRes] = await Promise.all([
+    const [ordersRes, itemsRes, tablesRes, floorsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*,products(image_url,name_az,name_en,name_ru,translations)`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/settings?select=qr_table_count,opening_hours&limit=1`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=table_number,status,reservation_name,reservation_time`, { headers }),
     ]);
 
-    if (!ordersRes.ok) {
-      const errText = await ordersRes.text();
-      console.error('[API /orders] ordersRes error:', ordersRes.status, errText);
-      return NextResponse.json({ error: `orders fetch failed: ${ordersRes.status}` }, { status: 500 });
-    }
-    if (!itemsRes.ok) {
-      const errText = await itemsRes.text();
-      console.error('[API /orders] itemsRes error:', itemsRes.status, errText);
-      return NextResponse.json({ error: `order_items fetch failed: ${itemsRes.status}` }, { status: 500 });
-    }
-    if (!tablesRes.ok) {
-      const errText = await tablesRes.text();
-      console.error('[API /orders] tablesRes error:', tablesRes.status, errText);
-      return NextResponse.json({ error: `settings fetch failed: ${tablesRes.status}` }, { status: 500 });
+    if (!ordersRes.ok || !itemsRes.ok || !tablesRes.ok || !floorsRes.ok) {
+      console.error('[API /orders] Fetch error');
+      return NextResponse.json({ error: 'Data fetch failed' }, { status: 500 });
     }
 
-    const [orders, orderItems, settings] = await Promise.all([
+    const [orders, orderItems, settings, tableFloors] = await Promise.all([
       ordersRes.json(),
       itemsRes.json(),
       tablesRes.json(),
+      floorsRes.json(),
     ]);
 
     return NextResponse.json({
@@ -50,6 +41,7 @@ export async function GET() {
       tableCount: settings?.[0]?.qr_table_count ?? null,
       delayThreshold: 20,
       openingHours: settings?.[0]?.opening_hours || '09:00-23:00',
+      tableStatuses: tableFloors || [],
     });
   } catch (error: any) {
     console.error('[API /orders] Catch error:', error);

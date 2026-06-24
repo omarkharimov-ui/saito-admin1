@@ -136,6 +136,7 @@ function TableTooltip({
 export interface TableStatusGridProps {
   orders: Order[];
   allOrders: Order[];
+  tableStatuses?: { table_number: number; status: string; reservation_name?: string; reservation_time?: string }[];
   onTableClick: (order: Order) => void;
   onClearTable: (tableNum: number) => Promise<void>;
   onEmptyTableClick: (tableNum: number) => void;
@@ -154,7 +155,7 @@ export interface TableStatusGridProps {
 }
 
 export function TableStatusGrid({
-  orders, allOrders, onTableClick, onEmptyTableClick, tableCount,
+  orders, allOrders, tableStatuses = [], onTableClick, onEmptyTableClick, tableCount,
   tableFilter, setTableFilter, loading, t, delayThreshold,
   onMergeTables, onMoveTable, onEmptyMerge, onAddEmptyTable, onDragStateChange, isCompact,
 }: TableStatusGridProps) {
@@ -285,6 +286,7 @@ export function TableStatusGrid({
 
   const getTableStatus = useCallback((num: number) => {
     const tableOrders = ordersByTable.get(num) ?? [];
+    const dbStatus = tableStatuses.find(ts => ts.table_number === num);
     
     // Child table (merged into another) — hide as empty
     // Only consider as child if order has valid merged_into and is not paid
@@ -299,12 +301,15 @@ export function TableStatusGrid({
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     if (active.length === 0) {
+      if (dbStatus?.status === 'reserved') {
+        return { status: 'reserved', order: { table_number: num, is_draft: true } as any };
+      }
       return { status: 'empty', order: null };
     }
 
     const latest = active[0];
     return { status: latest.status, order: latest };
-  }, [ordersByTable]);
+  }, [ordersByTable, tableStatuses]);
 
   const handleDragEnd    = useCallback((e: DragEndEvent) => {
     const sourceNum = Number(e.active.id);
@@ -521,7 +526,7 @@ export function TableStatusGrid({
                     isDraggable={!isEmpty ? !!order : true}
                     isDropTarget={isDragTarget}
                     isDragging={isDraggingThis}
-                    onClick={() => isEmpty ? onEmptyTableClick(num) : order && onTableClick(order)}
+                    onClick={() => isEmpty && !isReserved ? onEmptyTableClick(num) : (order ? onTableClick(order) : undefined)}
                     onMouseEnter={!isEmpty && order ? (e) => handleTableMouseEnter(order, e) : undefined}
                     onMouseMove={!isEmpty && order ? handleTableMouseMove : undefined}
                     onMouseLeave={handleTableMouseLeave}

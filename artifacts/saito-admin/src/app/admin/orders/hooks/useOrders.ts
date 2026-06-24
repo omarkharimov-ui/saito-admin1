@@ -35,6 +35,7 @@ export function useOrders() {
       return raw ? (JSON.parse(raw) as Order[]) : [];
     } catch { return []; }
   });
+  const [tableStatuses, setTableStatuses] = useState<any[]>([]);
 
   const [loading, setLoading]             = useState(true);
   const [tableCount, setTableCount]       = useState<number>(() => {
@@ -83,6 +84,7 @@ export function useOrders() {
       }));
       
       setOrders(ordersWithItems);
+      if (data.tableStatuses) setTableStatuses(data.tableStatuses);
       if (data.tableCount > 0) setTableCount(data.tableCount);
       setDelayThreshold(data.delayThreshold || 20);
       setOpeningHours(data.openingHours || '09:00-23:00');
@@ -498,5 +500,6 @@ export function useOrders() {
     handleCreateMergedEmptyOrder,
     handleStartPreparing,
     handleMarkReady,
+    tableStatuses,
   };
 }

@@ -23,8 +23,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   const { t } = useLanguage();
   const { lightMode } = useTheme();
 
-  const isReserved = table.status === 'reserved' || table.has_pending && table.total_amount > 0 && table.status === 'reserved';
-  const isReserved = table.status === 'reserved' || (table as any).is_draft || table.kitchen_status === 'reserved';
+  const isReserved = table.status === 'reserved' || (table as any).is_draft || table.kitchen_status === 'reserved' || (table.has_pending && table.status === 'reserved');
   const isOccupied = (table.status === 'occupied' || table.total_amount > 0) && !isReserved;
 
   return (

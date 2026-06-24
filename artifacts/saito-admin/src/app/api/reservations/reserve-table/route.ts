@@ -12,10 +12,25 @@ const headers = {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { reservation_id, table_number, table_ids, guest_count, pre_order_items, schedule_minutes_before } = body;
+    const { reservation_id, table_ids, guest_count, pre_order_items, schedule_minutes_before } = body;
+    let { table_number } = body;
 
-    if (!reservation_id || !table_number) {
-      return NextResponse.json({ error: 'reservation_id and table_number are required' }, { status: 400 });
+    if (!reservation_id) {
+      return NextResponse.json({ error: 'reservation_id is required' }, { status: 400 });
+    }
+
+    // table_number verilmeyibse, table_ids-den birinci masanin table_number-ini al
+    if (!table_number && table_ids && table_ids.length > 0) {
+      const tRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/table_floors?select=table_number&id=eq.${table_ids[0]}`,
+        { headers }
+      );
+      const tData = await tRes.json();
+      table_number = tData?.[0]?.table_number;
+    }
+
+    if (!table_number) {
+      return NextResponse.json({ error: 'table_number could not be resolved' }, { status: 400 });
     }
 
     const totalAmount = (pre_order_items || []).reduce(
@@ -24,13 +39,26 @@ export async function POST(request: Request) {
     );
 
     // 1. Update tables to reserved status
-    const tablesToUpdate = table_ids || [table_number];
-    for (const tn of tablesToUpdate) {
-      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tn}`, {
+    // table_ids varsa id ile, yoxsa table_number ile update et
+    if (table_ids && table_ids.length > 0) {
+      for (const tid of table_ids) {
+        await fetch(`${SUPABASE_URL}/rest/v1/table_floors?id=eq.${tid}`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({
+            status: 'reserved',
+            reservation_id,
+            guest_count: guest_count || null,
+          }),
+        });
+      }
+    } else {
+      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${table_number}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({
           status: 'reserved',
+          reservation_id,
           guest_count: guest_count || null,
         }),
       });

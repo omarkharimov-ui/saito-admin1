@@ -485,8 +485,9 @@ export function TableStatusGrid({
                 const { status, order } = getTableStatus(num);
                 const isEmpty     = status === 'empty';
                 const kitchenStatus  = order?.kitchen_status || 'pending';
-                const isNew       = status === 'new' || (status === 'confirmed' && kitchenStatus === 'pending' && !order?.kitchen_accepted_at);
-                const isConfirmed = status === 'confirmed' && !isNew;
+                const isReserved  = order?.is_draft || kitchenStatus === 'reserved';
+                const isNew       = (status === 'new' || (status === 'confirmed' && kitchenStatus === 'pending' && !order?.kitchen_accepted_at)) && !isReserved;
+                const isConfirmed = status === 'confirmed' && !isNew && !isReserved;
 
                 const ageBase        = order?.kitchen_accepted_at ?? null;
                 const ageMin         = ageBase ? getOrderAgeMinutes(ageBase) : 0;
@@ -497,9 +498,9 @@ export function TableStatusGrid({
                   : [];
                 const isMerged = mergedFromNums.length > 0;
 
-                const glowColor = 'rgba(255,255,255,0.2)';
+                const glowColor = isReserved ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.2)';
 
-                const isOverdue      = !isNew && kitchenStatus !== 'ready' && !!order?.kitchen_accepted_at && ageMin >= delayThreshold;
+                const isOverdue      = !isNew && !isReserved && kitchenStatus !== 'ready' && !!order?.kitchen_accepted_at && ageMin >= delayThreshold;
                 const isReadyFlash   = kitchenStatus === 'ready';
                 const isDragTarget   = overNum === num && draggingNum !== null && draggingNum !== num;
                 const isDraggingThis = draggingNum === num;
@@ -529,11 +530,11 @@ export function TableStatusGrid({
                       boxShadow: '0 0 28px rgba(212,175,55,0.7), 0 0 0 2px rgba(212,175,55,0.55)',
                       transform: 'scale(1.08)',
                       transition: 'box-shadow 0.15s ease, transform 0.15s ease',
-                    } : (isNew || isConfirmed) ? {
+                    } : (isNew || isConfirmed || isReserved) ? {
                       boxShadow: (isDragTarget
-                        ? `0 0 32px rgba(245,158,11,0.7), 0 0 0 2px rgba(245,158,11,0.5), 0 0 16px ${glowColor}`
+                        ? `${isReserved ? '0 0 32px rgba(99,102,241,0.7), 0 0 0 2px rgba(99,102,241,0.5)' : '0 0 32px rgba(245,158,11,0.7), 0 0 0 2px rgba(245,158,11,0.5)'}, 0 0 16px ${glowColor}`
                         : isMerged
-                          ? '0 0 12px rgba(245,158,11,0.2), 0 0 0 1px rgba(245,158,11,0.25)'
+                          ? isReserved ? '0 0 12px rgba(99,102,241,0.2), 0 0 0 1px rgba(99,102,241,0.25)' : '0 0 12px rgba(245,158,11,0.2), 0 0 0 1px rgba(245,158,11,0.25)'
                           : '0 0 16px ' + glowColor) + ', inset 0 1px 0 rgba(255,255,255,0.05)',
                       ...(isDragTarget ? { transform: 'scale(1.1)' } : {}),
                     } : undefined}
@@ -542,6 +543,7 @@ export function TableStatusGrid({
                       ${isEmpty && isDragTarget && !isGhostChained ? 'rounded-2xl text-gold/60 bg-gold/[0.06] border border-gold/50' : ''}
                       ${isGhostChained ? 'rounded-2xl text-gold/80 bg-gold/[0.08] border border-gold/40' : ''}
                       ${(isNew || isConfirmed) ? `rounded-2xl bg-white/[0.10] text-white border border-white transition-all duration-200 active:scale-90` : ''}
+                      ${isReserved ? `rounded-2xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 transition-all duration-200 active:scale-90` : ''}
                       ${!isEmpty && (isReadyFlash || isOverdue) ? 'animate-ring-breathe' : ''}
 
                       ${isMerged ? 'self-stretch' : 'aspect-square'}
@@ -587,14 +589,14 @@ export function TableStatusGrid({
                       );
                     })()}
                     {/* SVG status ring */}
-                    {(isNew || isConfirmed) && (() => {
+                    {(isNew || isConfirmed || isReserved) && (() => {
                       const vw = 56;
                       const vh = 56;
                       const w  = vw - 3;
                       const h  = vh - 3;
                       const rx = 13;
-                      const c1 = '#ffffff';
-                      const c2 = 'rgba(255,255,255,0.5)';
+                      const c1 = isReserved ? '#818cf8' : '#ffffff';
+                      const c2 = isReserved ? 'rgba(129,140,248,0.5)' : 'rgba(255,255,255,0.5)';
                       return (
                         <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${vw} ${vh}`} preserveAspectRatio="none">
                           <defs>
@@ -603,10 +605,10 @@ export function TableStatusGrid({
                               <stop offset="100%" stopColor={c2} stopOpacity="0.5" />
                             </linearGradient>
                           </defs>
-                          <rect x="1.5" y="1.5" width={w} height={h} rx={rx} ry={rx} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1.5" />
+                          <rect x="1.5" y="1.5" width={w} height={h} rx={rx} ry={rx} fill="none" stroke={isReserved ? "rgba(129,140,248,0.1)" : "rgba(255,255,255,0.04)"} strokeWidth="1.5" />
                           <rect x="1.5" y="1.5" width={w} height={h} rx={rx} ry={rx} fill="none"
-                            stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round"
-                            style={{ filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.4))' }}
+                            stroke={isReserved ? "rgba(129,140,248,0.7)" : "rgba(255,255,255,0.7)"} strokeWidth="1.5" strokeLinecap="round"
+                            style={{ filter: `drop-shadow(0 0 6px ${isReserved ? "rgba(129,140,248,0.4)" : "rgba(255,255,255,0.4)"})` }}
                           />
                         </svg>
                       );
@@ -621,6 +623,9 @@ export function TableStatusGrid({
                       </span>
                     ) : (
                       <span className="relative z-10 flex flex-col items-center leading-none gap-0.5">
+                        {isReserved && (
+                          <span className="text-[7px] font-black uppercase tracking-[0.1em] text-indigo-300/80 mb-0.5">{t('reserved' as any) || 'RESERVED'}</span>
+                        )}
                         {isMerged ? (
                           <span className="flex flex-col items-center gap-0.5">
                             {(() => {

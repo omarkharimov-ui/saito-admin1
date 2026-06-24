@@ -24,7 +24,7 @@ export interface Order {
   table_number: number | null;
   total_amount: number;
   status: 'new' | 'confirmed' | 'paid';
-  kitchen_status: 'pending' | 'cooking' | 'preparing' | 'ready' | 'cancelled' | null;
+  kitchen_status: 'pending' | 'cooking' | 'preparing' | 'ready' | 'cancelled' | 'reserved' | null;
   kitchen_accepted_at: string | null;
   kitchen_ready_at: string | null;
   created_at: string;
@@ -38,6 +38,20 @@ export interface Order {
   customer_id?: string | null;
   guest_count?: number;
   tip_amount?: number;
+  is_draft?: boolean;
+  reservation_id?: string | null;
+}
+
+export interface Reservation {
+  id: string;
+  customer_name: string;
+  phone: string | null;
+  table_number: number;
+  guest_count: number;
+  reservation_time: string;
+  status: 'pending' | 'confirmed' | 'seated' | 'cancelled';
+  notes: string | null;
+  created_at: string;
 }
 
 export interface TableFloor {

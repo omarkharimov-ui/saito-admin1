@@ -948,8 +948,8 @@ export const OrderModal = ({
                       className="flex items-center gap-2"
                     >
                       <CheckCircle size={15} />
-                      {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}
-                      {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && t('save_changes')}
+                      {order.status === 'new' && (hasDraft || addItems.length > 0) && (order.is_draft ? (t('reserve_action' as any) || 'Bron etmək') : t('confirm_changes'))}
+                      {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && (order.is_draft ? (t('update_reservation' as any) || 'Rezervasiyanı yenilə') : t('save_changes'))}
                     </motion.span>
                   )}
                 </motion.button>
@@ -1182,8 +1182,8 @@ export const OrderModal = ({
                     >
                       <CheckCircle size={15} />
                       {order.status === 'new' && !hasDraft && addItems.length === 0 && t('confirm_order')}
-                      {order.status === 'new' && (hasDraft || addItems.length > 0) && t('confirm_changes')}
-                      {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && t('save_changes')}
+                      {order.status === 'new' && (hasDraft || addItems.length > 0) && (order.is_draft ? (t('reserve_action' as any) || 'Bron etmək') : t('confirm_changes'))}
+                      {order.status === 'confirmed' && (hasDraft || addItems.length > 0) && (order.is_draft ? (t('update_reservation' as any) || 'Rezervasiyanı yenilə') : t('save_changes'))}
                     </motion.span>
                   )}
                 </motion.button>

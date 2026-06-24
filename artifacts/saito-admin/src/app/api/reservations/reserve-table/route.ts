@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { groqChat, parseJsonFromText } from '@/lib/groq';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -79,7 +80,22 @@ export async function POST(request: Request) {
     // 2. Kitchen schedule hesabla (pre-order varsa)
     let kitchen_scheduled_at = null;
     if (pre_order_items && pre_order_items.length > 0) {
-      const minutesBefore = schedule_minutes_before ?? 30;
+      let minutesBefore = schedule_minutes_before;
+      
+      if (!minutesBefore) {
+        // AI-dan hazırlıq vaxtı təxminini al
+        try {
+          const itemNames = pre_order_items.map((i: any) => `${i.quantity}x ${i.product_name}`).join(', ');
+          const systemPrompt = `Restoran mətbəx köməkçisisən. Bu yeməklərin hamısının eyni vaxtda hazır olması üçün hazırlığa nə qədər vaxt (dəqiqə ilə) qabaqcadan başlanılmalıdır? Yalnız JSON: {"minutes": number}`;
+          const userPrompt = `Yeməklər: ${itemNames}`;
+          const aiResponse = await groqChat(systemPrompt, userPrompt);
+          const result = parseJsonFromText<{ minutes: number }>(aiResponse);
+          minutesBefore = result?.minutes || 30;
+        } catch (e) {
+          minutesBefore = 30;
+        }
+      }
+
       if (reservation.date && reservation.time) {
         const [hours, minutes] = reservation.time.split(':').map(Number);
         const reservationDate = new Date(reservation.date);

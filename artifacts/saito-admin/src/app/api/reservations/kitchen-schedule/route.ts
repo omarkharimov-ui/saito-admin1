@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { groqChat, parseJsonFromText } from '@/lib/groq';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -36,32 +37,29 @@ export async function GET() {
       return r.time >= nowTime;
     });
 
-    const suggestions = [
-      ...(Array.isArray(reservations) ? reservations : []).map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        guests: r.guests,
-        date: r.date,
-        time: r.time,
-        table_number: r.table_number,
-        pre_order_items: typeof r.pre_order_items === 'string' ? JSON.parse(r.pre_order_items) : r.pre_order_items,
-        pre_order_total: r.pre_order_total,
-        type: 'tomorrow' as const,
-        suggestion: suggestPrepTime(r.time, r.pre_order_items),
-      })),
-      ...upcomingToday.map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        guests: r.guests,
-        date: r.date,
-        time: r.time,
-        table_number: r.table_number,
-        pre_order_items: typeof r.pre_order_items === 'string' ? JSON.parse(r.pre_order_items) : r.pre_order_items,
-        pre_order_total: r.pre_order_total,
-        type: 'today' as const,
-        suggestion: suggestPrepTime(r.time, r.pre_order_items),
-      })),
+    const allReservations = [
+      ...(Array.isArray(reservations) ? reservations.map((r: any) => ({ ...r, type: 'tomorrow' })) : []),
+      ...upcomingToday.map((r: any) => ({ ...r, type: 'today' }))
     ];
+
+    const suggestions = [];
+
+    for (const r of allReservations) {
+      const items = typeof r.pre_order_items === 'string' ? JSON.parse(r.pre_order_items) : r.pre_order_items;
+      const suggestion = await suggestPrepTime(r.time, items, r.kitchen_scheduled_at);
+      suggestions.push({
+        id: r.id,
+        name: r.name,
+        guests: r.guests,
+        date: r.date,
+        time: r.time,
+        table_number: r.table_number,
+        pre_order_items: items,
+        pre_order_total: r.pre_order_total,
+        type: r.type,
+        suggestion: suggestion,
+      });
+    }
 
     return NextResponse.json({ suggestions });
   } catch (error: any) {
@@ -151,7 +149,7 @@ export async function POST(request: Request) {
   }
 }
 
-function suggestPrepTime(time: string, preOrderItems: any): { prepare_at: string; ready_by: string; minutes_before: number; item_count: number } {
+async function suggestPrepTime(time: string, preOrderItems: any, existingScheduledAt?: string): Promise<{ prepare_at: string; ready_by: string; minutes_before: number; item_count: number }> {
   const [hours, minutes] = time.split(':').map(Number);
   const reservationDate = new Date();
   reservationDate.setHours(hours, minutes, 0, 0);
@@ -159,7 +157,24 @@ function suggestPrepTime(time: string, preOrderItems: any): { prepare_at: string
   const items = typeof preOrderItems === 'string' ? JSON.parse(preOrderItems) : (preOrderItems || []);
   const itemCount = (items || []).reduce((sum: number, i: any) => sum + (i.quantity || 0), 0);
 
-  const estimatedPrepMinutes = Math.min(Math.max(itemCount * 5, 15), 120);
+  let estimatedPrepMinutes = 30;
+
+  if (existingScheduledAt) {
+    const scheduledDate = new Date(existingScheduledAt);
+    estimatedPrepMinutes = Math.round((reservationDate.getTime() - scheduledDate.getTime()) / 60000);
+  } else if (items.length > 0) {
+    try {
+      const itemNames = items.map((i: any) => `${i.quantity}x ${i.product_name}`).join(', ');
+      const systemPrompt = `Sən restoran mətbəx köməkçisisən. Bu yeməklərin hamısının eyni vaxtda hazır olması üçün hazırlığa nə qədər vaxt (dəqiqə ilə) qabaqcadan başlanılmalıdır? Yalnız JSON formatında cavab ver: {"minutes": number}`;
+      const userPrompt = `Yeməklər: ${itemNames}`;
+      const aiResponse = await groqChat(systemPrompt, userPrompt);
+      const result = parseJsonFromText<{ minutes: number }>(aiResponse);
+      estimatedPrepMinutes = result?.minutes || 30;
+    } catch (e) {
+      estimatedPrepMinutes = 30;
+    }
+  }
+
   const prepareAt = new Date(reservationDate.getTime() - estimatedPrepMinutes * 60 * 1000);
 
   return {

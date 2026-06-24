@@ -19,6 +19,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'reservation_id is required' }, { status: 400 });
     }
 
+    // 0. Rezervasiya məlumatlarını çək (name, time, date, guests)
+    const resRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/reservations?select=id,name,time,date,guests&id=eq.${reservation_id}`,
+      { headers }
+    );
+    const resData = await resRes.json();
+    const reservation = resData?.[0];
+    if (!reservation) {
+      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
+    }
+
     // table_number verilmeyibse, table_ids-den birinci masanin table_number-ini al
     if (!table_number && table_ids && table_ids.length > 0) {
       const tRes = await fetch(
@@ -38,52 +49,48 @@ export async function POST(request: Request) {
       0
     );
 
-    // 1. Update tables to reserved status
-    // table_ids varsa id ile, yoxsa table_number ile update et
+    // 1. table_floors-u update et — reservation_name, reservation_time, reservation_id dahil
+    const tableFloorPatch = {
+      status: 'reserved',
+      reservation_id,
+      reservation_name: reservation.name,
+      reservation_time: reservation.time,
+      guest_count: guest_count ?? reservation.guests ?? null,
+    };
+
     if (table_ids && table_ids.length > 0) {
+      // UUID id-ləri ilə update
       for (const tid of table_ids) {
         await fetch(`${SUPABASE_URL}/rest/v1/table_floors?id=eq.${tid}`, {
           method: 'PATCH',
           headers,
-          body: JSON.stringify({
-            status: 'reserved',
-            reservation_id,
-            guest_count: guest_count || null,
-          }),
+          body: JSON.stringify(tableFloorPatch),
         });
       }
     } else {
+      // table_number ilə update
       await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${table_number}`, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({
-          status: 'reserved',
-          reservation_id,
-          guest_count: guest_count || null,
-        }),
+        body: JSON.stringify(tableFloorPatch),
       });
     }
 
-    // 2. Calculate kitchen schedule if pre-order exists
+    // 2. Kitchen schedule hesabla (pre-order varsa)
     let kitchen_scheduled_at = null;
-    if (pre_order_items && pre_order_items.length > 0 && schedule_minutes_before) {
-      const resRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/reservations?select=date,time&id=eq.${reservation_id}`,
-        { headers }
-      );
-      const resData = await resRes.json();
-      const reservation = resData?.[0];
-      if (reservation?.date && reservation?.time) {
+    if (pre_order_items && pre_order_items.length > 0) {
+      const minutesBefore = schedule_minutes_before ?? 30;
+      if (reservation.date && reservation.time) {
         const [hours, minutes] = reservation.time.split(':').map(Number);
         const reservationDate = new Date(reservation.date);
         reservationDate.setHours(hours, minutes, 0, 0);
         kitchen_scheduled_at = new Date(
-          reservationDate.getTime() - schedule_minutes_before * 60 * 1000
+          reservationDate.getTime() - minutesBefore * 60 * 1000
         ).toISOString();
       }
     }
 
-    // 3. Update reservation with table and pre-order info
+    // 3. Rezervasiyanı update et
     await fetch(`${SUPABASE_URL}/rest/v1/reservations?id=eq.${reservation_id}`, {
       method: 'PATCH',
       headers,
@@ -97,7 +104,7 @@ export async function POST(request: Request) {
       }),
     });
 
-    // 4. If pre-order exists, create order record in reserved state
+    // 4. Pre-order varsa order yarat
     if (pre_order_items && pre_order_items.length > 0) {
       const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
         method: 'POST',
@@ -108,7 +115,7 @@ export async function POST(request: Request) {
           status: 'new',
           kitchen_status: 'reserved',
           order_type: 'dine_in',
-          guest_count: guest_count || null,
+          guest_count: guest_count ?? reservation.guests ?? null,
           customer_note: 'Öncədən sifariş (rezerv)',
           source: 'reservation',
           reservation_id,
@@ -147,7 +154,7 @@ export async function POST(request: Request) {
             table_number,
             order_id: orderId || null,
             scheduled_at: kitchen_scheduled_at,
-            guest_count: guest_count || null,
+            guest_count: guest_count ?? reservation.guests ?? null,
             status: 'pending',
           }),
         });

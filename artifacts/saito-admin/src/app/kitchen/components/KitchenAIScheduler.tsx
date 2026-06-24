@@ -50,6 +50,76 @@ export function KitchenAIScheduler() {
     return () => clearInterval(interval);
   }, [fetchSchedule]);
 
+  // ── AVTOMATIK TETIKLEYICI: prepare_at vaxti catanda mətbəxə bildiriş göndər ──
+  useEffect(() => {
+    if (suggestions.length === 0) return;
+
+    const checkAndAutoTrigger = () => {
+      const now = new Date();
+      const nowHHMM = now.toTimeString().slice(0, 5); // "HH:MM"
+
+      suggestions.forEach(suggestion => {
+        // Yalniz bugunun sifarisleri ucun avtomatik tetikle
+        if (suggestion.type !== 'today') return;
+        // Artiq gonderilib mi yoxla
+        const alreadySentKey = `kitchen_auto_sent_${suggestion.id}`;
+        if (sessionStorage.getItem(alreadySentKey)) return;
+
+        const prepareAt = suggestion.suggestion.prepare_at; // "HH:MM"
+        if (nowHHMM >= prepareAt) {
+          // Vaxti catdi - avtomatik hazirlamaga basla
+          sessionStorage.setItem(alreadySentKey, '1');
+          handleStartPreparing(suggestion);
+          // Mətbəxe xüsusi bildiriş göndər
+          toast.custom((_t: any) => (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              style={{
+                background: 'linear-gradient(135deg,#0a1f0a,#051005)',
+                border: '1px solid rgba(34,197,94,0.4)',
+                borderRadius: 18, padding: '14px 18px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+                minWidth: 260, pointerEvents: 'auto'
+              }}
+              className="flex items-center gap-3"
+            >
+              <CookingPot size={20} className="text-green-400 flex-shrink-0" />
+              <div>
+                <p className="font-black text-sm text-green-300">AI: Hazırlamağa başlayın!</p>
+                <p className="text-xs text-white/50">
+                  {suggestion.name} — Masa {suggestion.table_number} — Saat {suggestion.time}
+                </p>
+              </div>
+            </motion.div>
+          ), { duration: 10000 });
+
+          // Ses bildirisi
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            [440, 550, 660].forEach((freq, i) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.frequency.value = freq;
+              gain.gain.setValueAtTime(0.25, ctx.currentTime + i * 0.15);
+              gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.4);
+              osc.start(ctx.currentTime + i * 0.15);
+              osc.stop(ctx.currentTime + i * 0.15 + 0.4);
+            });
+          } catch {}
+        }
+      });
+    };
+
+    // Hər 30 saniyəde bir yoxla
+    checkAndAutoTrigger();
+    const autoTimer = setInterval(checkAndAutoTrigger, 30_000);
+    return () => clearInterval(autoTimer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestions]);
+
   const handleStartPreparing = async (suggestion: ScheduleSuggestion) => {
     setSending(suggestion.id);
     try {

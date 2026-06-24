@@ -71,6 +71,17 @@ export default function POSPage() {
   const [payMethod, setPayMethod] = useState<'cash' | 'card'>('card');
   const [payTip, setPayTip] = useState(0);
 
+  // Rezervasiya konteksti: rezervasiyadan POS-a kecid zamani saxlanilir
+  const [reservationCtx, setReservationCtx] = useState<{
+    resId: string;
+    tableIds: string[];
+    guestName: string;
+    tablesLabel: string;
+  } | null>(null);
+
+  // Bron edilmis masa detali: POS-da bron masaya basilanda acilir (read-only)
+  const [reservedTableDetail, setReservedTableDetail] = useState<PosTable | null>(null);
+
   const selectedFloorName = selectedFloor || pos.floors[0]?.name || '';
 
   useEffect(() => {
@@ -113,7 +124,9 @@ export default function POSPage() {
       const targetTable = pos.tables.find(t => t.id === ctx.tableIds[0]);
       if (targetTable) {
         pos.selectTable(targetTable);
-        toast.success(`${ctx.guestName} üçün öncədən sifariş daxil edilir (Masa: ${ctx.tablesLabel})`);
+        // Rezervasiya kontekstini saxla - CartPanel bron rejiminde acilsin
+        setReservationCtx(ctx);
+        toast.success(`${ctx.guestName} ucun onceden sifaris daxil edilir (Masa: ${ctx.tablesLabel})`);
       }
     }
   }, [pos.tables]);
@@ -153,6 +166,45 @@ export default function POSPage() {
   }, [pos.cart]);
 
   const handlePlaceOrder = useCallback(async () => {
+    // Eger rezervasiya rejimindeyiksə, reserve-table API-ni cagir
+    if (reservationCtx) {
+      setOrderButtonStatus('loading');
+      try {
+        const cartItems = pos.cart?.items ?? [];
+        const preOrderItems = cartItems.map(item => ({
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          modifiers: item.modifiers ?? [],
+          special_notes: item.special_notes || null,
+        }));
+        const res = await fetch('/api/reservations/reserve-table', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reservation_id: reservationCtx.resId,
+            table_ids: reservationCtx.tableIds,
+            pre_order_items: preOrderItems,
+            guest_count: pos.cart?.guest_count ?? 0,
+          }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Bron xetasi');
+        toast.success(`${reservationCtx.guestName} ucun masa bron edildi!`);
+        setReservationCtx(null);
+        setOrderButtonStatus('success');
+        setIsDirty(false);
+        window.setTimeout(() => setOrderButtonStatus('idle'), 1400);
+        pos.backToFloor();
+        pos.fetchData();
+      } catch (e: any) {
+        toast.error(e.message || 'Bron zamani xeta bas verdi');
+        setOrderButtonStatus('error');
+        window.setTimeout(() => setOrderButtonStatus('idle'), 1600);
+      }
+      return;
+    }
+    // Normal POS sifarisi
     setOrderButtonStatus('loading');
     try {
       await pos.placeOrder();
@@ -163,7 +215,7 @@ export default function POSPage() {
       setOrderButtonStatus('error');
       window.setTimeout(() => setOrderButtonStatus('idle'), 1600);
     }
-  }, [pos]);
+  }, [pos, reservationCtx]);
 
   const openPayment = useCallback(async (tableNumber: number, amount: number, orderIds: string[]) => {
     const orderId = orderIds[0];
@@ -205,6 +257,11 @@ export default function POSPage() {
       return;
     }
     if (table.status === 'merged') return;
+    // Bron edilmis masaya basilanda detail modal ac, normal order view-e kecme
+    if (table.status === 'reserved') {
+      setReservedTableDetail(table);
+      return;
+    }
     pos.selectTable(table);
   }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
 
@@ -248,7 +305,21 @@ export default function POSPage() {
                 <ProductGrid products={pos.products} categories={pos.categories} onAddProduct={handleAddProduct} cartCounts={cartCounts} outOfStock={outOfStock} />
               </div>
               <div className={`w-full md:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
-                  <CartPanel cart={pos.cart} onUpdateQty={handleUpdateQty} onPlaceOrder={handlePlaceOrder} onClearDraft={pos.clearDrafts} onBack={() => { setIsDirty(false); pos.backToFloor(); }} orderButtonStatus={orderButtonStatus} isDirty={isDirty} hasExistingOrder={pos.selectedTable?.status !== 'empty'} onUpdateGuests={(d) => { const c = pos.cart; if (!c) return; const n = Math.max(1, c.guest_count + d); pos.setCart({ ...c, guest_count: n }); pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t)); supabase.from('tables').update({ guest_count: n }).eq('table_number', c.table_number).then(() => {}); }} onRecordLoss={async (items, reason) => { await fetch('/api/finance/loss', { method: 'POST', body: JSON.stringify({ table_number: pos.selectedTable?.table_number, reason, items, source: 'pos' }) }); toast.success(`İtki qeyd edildi`); pos.fetchData(); }} />
+                  <CartPanel
+                    cart={pos.cart}
+                    onUpdateQty={handleUpdateQty}
+                    onPlaceOrder={handlePlaceOrder}
+                    onClearDraft={pos.clearDrafts}
+                    onBack={() => { setIsDirty(false); setReservationCtx(null); pos.backToFloor(); }}
+                    orderButtonStatus={orderButtonStatus}
+                    isDirty={isDirty}
+                    hasExistingOrder={pos.selectedTable?.status !== 'empty'}
+                    isReservationMode={!!reservationCtx}
+                    reservationId={reservationCtx?.resId}
+                    guestName={reservationCtx?.guestName}
+                    onUpdateGuests={(d) => { const c = pos.cart; if (!c) return; const n = Math.max(1, c.guest_count + d); pos.setCart({ ...c, guest_count: n }); pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t)); supabase.from('tables').update({ guest_count: n }).eq('table_number', c.table_number).then(() => {}); }}
+                    onRecordLoss={async (items, reason) => { await fetch('/api/finance/loss', { method: 'POST', body: JSON.stringify({ table_number: pos.selectedTable?.table_number, reason, items, source: 'pos' }) }); toast.success(`Itki qeyd edildi`); pos.fetchData(); }}
+                  />
               </div>
             </motion.div>
           )}
@@ -274,6 +345,95 @@ export default function POSPage() {
             <div className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-widest">Əməliyyat Uğurla İcra Edildi</span>
             <button onClick={() => pos.performUndo()} className="px-4 py-2 rounded-xl bg-black text-white text-[9px] font-black uppercase tracking-widest hover:bg-black/80 transition-all shadow-md active:scale-95">Geri Al</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── BRON EDİLMİŞ MASA DETALI MODALI ── */}
+      <AnimatePresence>
+        {reservedTableDetail && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setReservedTableDetail(null)}
+          >
+            <motion.div
+              initial={{ y: 60, scale: 0.95 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 60, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              className={`w-full max-w-md rounded-[2.5rem] p-8 flex flex-col gap-6 ${
+                lightMode ? 'bg-white border border-zinc-200 shadow-2xl' : 'bg-[#111] border border-white/10 shadow-2xl'
+              }`}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-500 border border-amber-500/20">
+                      BRON EDİLİB
+                    </span>
+                  </div>
+                  <h2 className="text-4xl font-black tracking-tighter">
+                    Masa {reservedTableDetail.table_number}
+                  </h2>
+                  {reservedTableDetail.reservation_name && (
+                    <p className="text-lg font-bold opacity-60 mt-1">{reservedTableDetail.reservation_name}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setReservedTableDetail(null)}
+                  className={`p-3 rounded-2xl transition-all ${
+                    lightMode ? 'bg-zinc-100 hover:bg-zinc-200' : 'bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Details */}
+              <div className={`grid grid-cols-2 gap-4`}>
+                {reservedTableDetail.reservation_time && (
+                  <div className={`p-4 rounded-2xl ${
+                    lightMode ? 'bg-zinc-50 border border-zinc-100' : 'bg-white/5 border border-white/5'
+                  }`}>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Saat</p>
+                    <p className="text-2xl font-black">{reservedTableDetail.reservation_time}</p>
+                  </div>
+                )}
+                {(reservedTableDetail.guest_count ?? 0) > 0 && (
+                  <div className={`p-4 rounded-2xl ${
+                    lightMode ? 'bg-zinc-50 border border-zinc-100' : 'bg-white/5 border border-white/5'
+                  }`}>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Qonaq</p>
+                    <p className="text-2xl font-black">{reservedTableDetail.guest_count} nəfər</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Info note */}
+              <div className={`p-4 rounded-2xl flex items-center gap-3 ${
+                lightMode ? 'bg-amber-50 border border-amber-100' : 'bg-amber-500/10 border border-amber-500/20'
+              }`}>
+                <AlertTriangle size={18} className="text-amber-500 flex-shrink-0" />
+                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  Bu masa bron edilib. Ofisiant gəlişi gözləyir. Sifariş rezervasiyadan daxil edilib.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setReservedTableDetail(null)}
+                className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
+                  lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-700' : 'bg-white text-black hover:bg-white/90'
+                }`}
+              >
+                Bağla
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

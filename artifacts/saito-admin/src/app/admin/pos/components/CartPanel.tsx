@@ -21,12 +21,17 @@ interface CartPanelProps {
   onRecordLoss?: (items: LossItem[], reason: string) => Promise<void>;
   hasExistingOrder?: boolean;
   isDirty?: boolean;
+  /** Rezervasiya rejimi: true olduqda button "Bron Et" kimi gorunur, metbexe gondermek olmur */
+  isReservationMode?: boolean;
+  reservationId?: string;
+  guestName?: string;
 }
 
 export function CartPanel({
   cart, onUpdateQty, onPlaceOrder,
   onClearDraft, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
+  isReservationMode = false, reservationId, guestName,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -383,7 +388,7 @@ export function CartPanel({
             disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
             status={lossMode ? 'idle' : orderButtonStatus}
             variant={lossMode ? 'loss' : 'send'}
-            label={lossMode ? t('loss_confirm') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))}
+            label={lossMode ? t('loss_confirm') : (isReservationMode ? `${guestName ? guestName + ' — ' : ''}Bron Et` : (hasExistingOrder ? t('resend') : t('send_to_kitchen')))}
             onClick={lossMode ? confirmLoss : onPlaceOrder}
             isDirty={isDirty}
             className="w-full"

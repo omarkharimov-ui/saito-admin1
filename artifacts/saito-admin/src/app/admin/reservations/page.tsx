@@ -79,27 +79,36 @@ export default function ReservationsPage() {
 
   const handleConfirmReservation = async () => {
     if (!selectedRes) return;
-    if (selectedTableIds.length === 0) return toast.error("Zəhmət olmasa masa seçin");
-    
-    const { error } = await supabase.from('reservations').update({ 
-      status: 'confirmed', 
-      table_ids: selectedTableIds 
-    }).eq('id', selectedRes.id);
+    if (selectedTableIds.length === 0) return toast.error("Zehmet olmasa masa secin");
 
-    if (!error) {
-      await Promise.all(selectedTableIds.map(id => 
-        supabase.from('table_floors').update({ 
-          status: 'reserved',
+    try {
+      // reserve-table API-ni cagir: status, table_floors, kitchen_schedule hamisi burada
+      const res = await fetch('/api/reservations/reserve-table', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           reservation_id: selectedRes.id,
-          reservation_name: selectedRes.name,
-          reservation_time: selectedRes.time,
-          guest_count: selectedRes.guests
-        }).eq('id', id)
-      ));
-      
-      toast.success(`${selectedRes.name} üçün masalar bron edildi!`);
+          table_ids: selectedTableIds,
+          // Eger artiq pre_order_items varsa onlari da gonder
+          pre_order_items: selectedRes.pre_order_items
+            ? (typeof selectedRes.pre_order_items === 'string'
+                ? JSON.parse(selectedRes.pre_order_items)
+                : selectedRes.pre_order_items)
+            : [],
+          guest_count: selectedRes.guests ?? 0,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Bron xetasi');
+      }
+
+      toast.success(`${selectedRes.name} ucun masalar bron edildi!`);
       setSelectedRes(null);
       fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Xeta bas verdi');
     }
   };
 

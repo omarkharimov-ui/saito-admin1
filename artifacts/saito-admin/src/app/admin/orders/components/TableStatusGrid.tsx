@@ -402,7 +402,8 @@ export function TableStatusGrid({
         return true; // all / empty tab-da göstər
       }
 
-      const { status } = getTableStatus(num);
+      const res = getTableStatus(num);
+      const status = res?.status || 'empty';
       if (tableFilter === 'active' && status === 'empty') return false;
       if (tableFilter === 'empty' && status !== 'empty') return false;
 

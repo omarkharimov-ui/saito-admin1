@@ -55,6 +55,10 @@ export interface PosTable {
   has_pending?: boolean;
   oldest_pending_at?: string | null;
   kitchen_status?: string | null;
+  // Rezervasiya sahələri
+  reservation_id?: string | null;
+  reservation_name?: string | null;
+  reservation_time?: string | null;
 }
 
 export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'merged' | 'reserved' | string;

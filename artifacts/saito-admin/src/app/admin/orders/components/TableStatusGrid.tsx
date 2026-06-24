@@ -302,13 +302,15 @@ export function TableStatusGrid({
 
     if (active.length === 0) {
       if (dbStatus?.status === 'reserved') {
-        return { status: 'reserved', order: { table_number: num, is_draft: true } as any };
+        return { status: 'reserved', order: { table_number: num, is_draft: true, reservation_name: dbStatus.reservation_name, reservation_time: dbStatus.reservation_time } as any };
       }
       return { status: 'empty', order: null };
     }
 
     const latest = active[0];
-    return { status: latest.status, order: latest };
+    if (latest.kitchen_status === 'reserved' || (latest as any).is_draft || dbStatus?.status === 'reserved') {
+      return { status: 'reserved', order: latest };
+    }
   }, [ordersByTable, tableStatuses]);
 
   const handleDragEnd    = useCallback((e: DragEndEvent) => {

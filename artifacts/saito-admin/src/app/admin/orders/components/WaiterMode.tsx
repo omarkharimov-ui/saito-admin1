@@ -16,7 +16,7 @@ interface Product { id: string; name: string; name_az?: string; name_en?: string
 interface RecipeIng { menu_item_id: string; ingredient_id: string; quantity_required: number; quantity_brutto: number | null; }
 interface Ingredient { id: string; current_stock: number; }
 interface OrderItem { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; }
-interface OrderData { id: string; table_number: number; total_amount: number; status: string; kitchen_status: string | null; created_at: string; order_items?: OrderItem[]; }
+interface OrderData { id: string; table_number: number; total_amount: number; status: string; kitchen_status: string | null; created_at: string; order_items?: OrderItem[]; is_draft?: boolean; }
 interface Category { id: string; name: string; }
 interface CartItem { product: Product; qty: number; }
 
@@ -393,7 +393,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
           {Array.from({ length: tableCount }, (_, i) => i + 1).map(n => {
             const o = orders.find(x => x.table_number === n && x.status !== 'paid');
             const dbStatus = tableStatuses.find(ts => ts.table_number === n);
-            const isReserved = dbStatus?.status === 'reserved' || o?.kitchen_status === 'reserved';
+            const isReserved = dbStatus?.status === 'reserved' || o?.kitchen_status === 'reserved' || o?.is_draft;
             const s = selTable === n;
             const r = o?.kitchen_status === 'ready';
             return (

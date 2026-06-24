@@ -22,7 +22,7 @@ export async function GET() {
   try {
     const [floorsRes, ordersRes, reservationsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into&status=neq.paid&order=created_at.desc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into,is_draft&status=neq.paid&order=created_at.desc`, { headers }),
       // Fetch today's confirmed reservations to mark tables as reserved
       fetch(`${SUPABASE_URL}/rest/v1/reservations?select=id,table_number,table_ids,name,time,guests,status,date&status=eq.confirmed&date=eq.${new Date().toISOString().split('T')[0]}`, { headers }),
     ]);
@@ -129,6 +129,9 @@ export async function GET() {
 
       const oldestOrder = activeOrders.length > 0 ? activeOrders[activeOrders.length - 1] : null;
 
+      // Check if any active order is a draft or has reserved status
+      const isReservedOrder = activeOrders.some(o => (o as any).is_draft || o.kitchen_status === 'reserved');
+
       // Check if table has merged_into_table set (table-level merge, even without orders)
       const tableLevelMergedInto = f.merged_into_table || null;
 
@@ -155,6 +158,7 @@ export async function GET() {
 
       let status: string;
       if (isMergedChild) status = 'merged';
+      else if (isReservedOrder || f.status === 'reserved' || activeOrders.some(o => (o as any).is_draft)) status = 'reserved';
       else if (activeOrders.length === 0 && tableChildren.length === 0 && !reservedTables[f.table_number]) status = 'empty';
       else if (activeOrders.length === 0 && tableChildren.length > 0) {
         // Parent is empty but has merged children → inherit status from children
@@ -196,7 +200,7 @@ export async function GET() {
       // For parent tables, include child totals
       // Override with reserved status if table has an active reservation today
       const reservedInfo = reservedTables[f.table_number];
-      if (reservedInfo && activeOrders.length === 0) {
+      if (reservedInfo && (activeOrders.length === 0 || isReservedOrder)) {
         status = 'reserved';
       }
 
@@ -213,8 +217,8 @@ export async function GET() {
         sort_order: f.sort_order,
         status,
         guest_count: guestCount + childGuests,
-        reservation_name: status === 'reserved' ? reservedInfo?.name : undefined,
-        reservation_time: status === 'reserved' ? reservedInfo?.time : undefined,
+        reservation_name: status === 'reserved' ? (reservedInfo?.name || f.reservation_name) : undefined,
+        reservation_time: status === 'reserved' ? (reservedInfo?.time || f.reservation_time) : undefined,
         opened_at: oldestOrder?.created_at || null,
         total_amount: totalAmount + childTotal,
         order_count: allMerged ? 0 : activeOrders.length,

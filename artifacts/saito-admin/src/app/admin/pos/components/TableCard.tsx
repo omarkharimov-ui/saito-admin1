@@ -23,8 +23,9 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   const { t } = useLanguage();
   const { lightMode } = useTheme();
 
-  const isOccupied = table.status === 'occupied' || table.total_amount > 0;
-  const isReserved = table.status === 'reserved';
+  const isReserved = table.status === 'reserved' || table.has_pending && table.total_amount > 0 && table.status === 'reserved';
+  const isReserved = table.status === 'reserved' || (table as any).is_draft || table.kitchen_status === 'reserved';
+  const isOccupied = (table.status === 'occupied' || table.total_amount > 0) && !isReserved;
 
   return (
     <div
@@ -33,7 +34,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         ${isSelected 
           ? (lightMode ? 'bg-white border-blue-500 shadow-[0_20px_40px_rgba(59,130,246,0.1)] scale-[1.02]' : 'bg-zinc-900 border-blue-500 shadow-[0_20px_40px_rgba(59,130,246,0.2)] scale-[1.02]') 
           : isReserved
-            ? 'border-amber-500 bg-amber-500/5'
+            ? (lightMode ? 'bg-indigo-50 border-indigo-500 shadow-sm' : 'bg-indigo-500/10 border-indigo-500 shadow-md')
             : isOverdue 
               ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
               : isOccupied
@@ -45,15 +46,15 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
     >
       <div>
         {/* Table Number - Top Left */}
-        <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors ${isSelected || isTransferSource || isReserved ? (lightMode ? 'text-amber-600' : 'text-amber-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
+        <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors ${isSelected || isTransferSource || isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
           {table.table_number}
         </span>
 
         {/* Reservation Info */}
         {isReserved && (
           <div className="absolute top-[70px] left-6 flex flex-col">
-            <span className="text-[10px] font-black uppercase text-amber-500/70 tracking-widest mb-0.5">BRON EDİLİB</span>
-            <span className="text-sm font-black text-[var(--theme-text)] truncate max-w-[120px] leading-tight">{table.reservation_name}</span>
+            <span className="text-[10px] font-black uppercase text-indigo-500 tracking-widest mb-0.5">BRON EDİLİB</span>
+            <span className="text-sm font-black text-[var(--theme-text)] truncate max-w-[120px] leading-tight">{table.reservation_name || 'Rezervasiya'}</span>
             <span className="text-[10px] font-bold opacity-40 mt-0.5">{table.reservation_time}</span>
           </div>
         )}
@@ -112,18 +113,19 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm ${
           lightMode ? 'bg-[#efeff4] border-zinc-200' : 'bg-black/5 border-black/5 dark:bg-white/5 dark:border-white/5'
         }`}>
-           <div className={`w-2 h-2 rounded-full ${
-             isOccupied ? 'bg-emerald-500' : 
-             table.status === 'dirty' ? 'bg-orange-500' : 
-             table.status === 'reserved' ? 'bg-blue-500' : 
-             lightMode ? 'bg-zinc-400' : 'bg-zinc-400'
-           }`} />
-           <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
-             {isOccupied ? t('occupied' as any) : 
-              table.status === 'dirty' ? 'dirty' : 
-              table.status === 'reserved' ? 'reserved' : 
-              t('empty' as any)}
-           </span>
+            <div className={`w-2 h-2 rounded-full ${
+              isOccupied ? 'bg-emerald-500' : 
+              table.status === 'dirty' ? 'bg-orange-500' : 
+              isReserved ? 'bg-indigo-500' : 
+              lightMode ? 'bg-zinc-400' : 'bg-zinc-400'
+            }`} />
+            <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
+              {isOccupied ? t('occupied' as any) : 
+               table.status === 'dirty' ? 'dirty' : 
+               isReserved ? 'reserved' : 
+               t('empty' as any)}
+            </span>
+
         </div>
       </div>
 

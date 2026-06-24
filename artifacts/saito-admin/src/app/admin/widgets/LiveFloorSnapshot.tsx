@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 
 interface TableStatus {
   tableNumber: number;
-  status: 'empty' | 'occupied' | 'new' | 'order_placed' | 'payment_pending';
+  status: 'empty' | 'occupied' | 'new' | 'order_placed' | 'payment_pending' | 'reserved';
   orderCount?: number;
   waitTime?: number;
 }
@@ -34,7 +34,7 @@ export default function LiveFloorSnapshot() {
         // Get active orders with table info
         const { data: orders, error: ordersError } = await supabase
           .from('orders')
-          .select('table_number, status, kitchen_status, created_at, total_amount')
+          .select('table_number, status, kitchen_status, created_at, total_amount, is_draft')
           .in('status', ['new', 'confirmed'])
           .order('created_at', { ascending: false });
 
@@ -42,12 +42,20 @@ export default function LiveFloorSnapshot() {
           console.error("Error fetching orders:", ordersError);
         }
 
+        // Get table floor statuses (reserved backup)
+        const { data: floorData } = await supabase.from('table_floors').select('table_number, status');
+        const floorStatusMap: Record<number, string> = {};
+        if (Array.isArray(floorData)) {
+          floorData.forEach(f => { floorStatusMap[f.table_number] = f.status; });
+        }
+
         // Build table status map
         const tableMap = new Map<number, TableStatus>();
         
         // Initialize all tables as empty
         for (let i = 1; i <= count; i++) {
-          tableMap.set(i, { tableNumber: i, status: 'empty' });
+          const dbStatus = floorStatusMap[i];
+          tableMap.set(i, { tableNumber: i, status: dbStatus === 'reserved' ? 'reserved' : 'empty' });
         }
 
         // Update based on orders, only if orders is a valid array
@@ -59,12 +67,14 @@ export default function LiveFloorSnapshot() {
                 const existing = tableMap.get(tableNum);
                 let status: TableStatus['status'] = 'occupied';
                 
-                if (order.status === 'new') {
-                status = 'new';
+                if (order.is_draft || order.kitchen_status === 'reserved') {
+                  status = 'reserved';
+                } else if (order.status === 'new') {
+                  status = 'new';
                 } else if (order.kitchen_status === 'ready') {
-                status = 'payment_pending';
+                  status = 'payment_pending';
                 } else {
-                status = 'order_placed';
+                  status = 'order_placed';
                 }
 
                 const waitTime = order.created_at ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000) : 0;
@@ -100,6 +110,7 @@ export default function LiveFloorSnapshot() {
   const getStatusColor = (status: TableStatus['status']) => {
     switch (status) {
       case 'empty': return 'bg-white/[0.03] text-white/30';
+      case 'reserved': return 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30';
       case 'new': return 'bg-emerald-500/10 text-emerald-400';
       case 'order_placed': return 'bg-amber-500/10 text-amber-400';
       case 'payment_pending': return 'bg-blue-500/10 text-blue-400';
@@ -122,6 +133,7 @@ export default function LiveFloorSnapshot() {
   const getStatusLabel = (status: TableStatus['status']) => {
     switch (status) {
       case 'empty': return t('empty');
+      case 'reserved': return 'Bron edilib';
       case 'new': return t('new_guests');
       case 'order_placed': return t('cooking');
       case 'payment_pending': return t('payment_pending');

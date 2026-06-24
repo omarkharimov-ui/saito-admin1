@@ -37,17 +37,40 @@ export async function GET() {
 
     // Build a map of table_number → reservation info for today
     const reservedTables: Record<number, { name: string; time: string; guests: number }> = {};
+    // Also build a UUID id → table_number lookup from floors data
+    const idToTableNumber: Record<string, number> = {};
+    if (Array.isArray(floors)) {
+      for (const f of floors) {
+        if (f.id && f.table_number != null) {
+          idToTableNumber[f.id] = f.table_number;
+        }
+      }
+    }
     if (Array.isArray(todayReservations)) {
       for (const r of todayReservations) {
+        // table_number field — direct number
         if (r.table_number != null) {
           reservedTables[r.table_number] = { name: r.name, time: r.time, guests: r.guests };
         }
+        // table_ids — can be array of UUIDs (table_floors.id) OR array of table_numbers
         if (r.table_ids) {
           try {
             const ids = typeof r.table_ids === 'string' ? JSON.parse(r.table_ids) : r.table_ids;
             if (Array.isArray(ids)) {
-              ids.forEach((tn: number) => {
-                if (tn !== r.table_number) reservedTables[tn] = { name: r.name, time: r.time, guests: r.guests };
+              ids.forEach((idOrNum: string | number) => {
+                // If it looks like a UUID, resolve to table_number via floors lookup
+                if (typeof idOrNum === 'string' && idOrNum.includes('-')) {
+                  const tn = idToTableNumber[idOrNum];
+                  if (tn != null) {
+                    reservedTables[tn] = { name: r.name, time: r.time, guests: r.guests };
+                  }
+                } else {
+                  // It's already a table_number
+                  const tn = Number(idOrNum);
+                  if (!isNaN(tn)) {
+                    reservedTables[tn] = { name: r.name, time: r.time, guests: r.guests };
+                  }
+                }
               });
             }
           } catch {}

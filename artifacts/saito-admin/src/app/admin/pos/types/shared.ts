@@ -58,6 +58,7 @@ export interface PosTable {
   // Rezervasiya sahələri
   reservation_id?: string | null;
   reservation_name?: string | null;
+  reservation_phone?: string | null;
   reservation_time?: string | null;
 }
 

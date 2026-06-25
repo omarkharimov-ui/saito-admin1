@@ -40,14 +40,19 @@ export async function GET() {
     const orderResIds = orders.map((o: Order) => o.reservation_id).filter(Boolean);
     const uniqueResIds = Array.from(new Set([...floorResIds, ...orderResIds]));
 
-    // 3. BROAD FETCH (Baku Timezone Fixed)
-    const todayBaku = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Baku' });
+    // 3. BROAD FETCH (Dynamic Timezone Support)
+    // Fetch timezone from settings, default to Asia/Baku if not set
+    const settingsRes = await fetch(`${SUPABASE_URL}/rest/v1/settings?select=timezone&id=eq.1`, { headers });
+    const settingsData = await settingsRes.json();
+    const restaurantTimezone = settingsData?.[0]?.timezone || 'Asia/Baku';
+
+    const todayLocal = new Date().toLocaleDateString('en-CA', { timeZone: restaurantTimezone });
     
     let resUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,phone,time,guests,status,date`;
     if (uniqueResIds.length > 0) {
-      resUrl += `&or=(id.in.(${uniqueResIds.join(',')}),and(status.eq.confirmed,date.eq.${todayBaku}))`;
+      resUrl += `&or=(id.in.(${uniqueResIds.join(',')}),and(status.eq.confirmed,date.eq.${todayLocal}))`;
     } else {
-      resUrl += `&status=eq.confirmed&date=eq.${todayBaku}`;
+      resUrl += `&status=eq.confirmed&date=eq.${todayLocal}`;
     }
 
     // 4. Map orders by table

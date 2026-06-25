@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 import type {
   InventoryDashboardData,
   InventoryStatusRow,
@@ -18,6 +19,9 @@ function svc() {
 // GET /api/inventory — full dashboard data + low stock alerts
 export async function GET() {
   try {
+    const auth = await requireAuth(['admin', 'superadmin']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     const supabase = svc();
 
     const { data: items, error } = await supabase
@@ -61,6 +65,9 @@ export async function GET() {
 // POST /api/inventory — create new ingredient
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAuth(['admin', 'superadmin']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     const supabase = svc();
     const body: CreateIngredientPayload = await req.json();
 
@@ -93,6 +100,9 @@ export async function POST(req: NextRequest) {
 // DELETE /api/inventory?id=xxx
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = await requireAuth(['admin', 'superadmin']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     const supabase = svc();
     const id = req.nextUrl.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

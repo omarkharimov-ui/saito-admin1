@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -11,6 +12,9 @@ const headers = {
 // Bütün sifarişləri gətir
 export async function GET() {
   try {
+    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
       console.error('[API /orders] Missing env vars:', { SUPABASE_URL: !!SUPABASE_URL, SERVICE_ROLE_KEY: !!SERVICE_ROLE_KEY });
       return NextResponse.json({ error: 'Missing Supabase configuration. Restart the dev server after creating .env.local' }, { status: 500 });
@@ -52,8 +56,16 @@ export async function GET() {
 // Sifariş yarat (order + order_items), güncəl, sil
 export async function POST(request: Request) {
   try {
+    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     const body = await request.json();
     const { action, data, id } = body;
+
+    // Kitchen can only perform 'update' action
+    if (auth.role === 'kitchen' && action !== 'update') {
+      return NextResponse.json({ error: 'Kitchen can only update order status' }, { status: 403 });
+    }
 
     // ── Update / Delete ──
     if (action === 'update' || action === 'delete') {

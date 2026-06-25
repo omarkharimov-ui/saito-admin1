@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 
 // REST API helper
 async function supabaseRestApi(endpoint: string, method: 'GET' | 'POST' | 'PATCH' = 'GET', body?: any) {
@@ -30,6 +31,9 @@ async function supabaseRestApi(endpoint: string, method: 'GET' | 'POST' | 'PATCH
 
 export async function GET() {
   try {
+    const auth = await requireAuth(['superadmin']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     const data = await supabaseRestApi('settings?select=smtp_host,smtp_port,smtp_user,smtp_pass,smtp_from_name&limit=1');
     return NextResponse.json(data?.[0] || {});
   } catch (e: any) {
@@ -40,6 +44,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAuth(['superadmin']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     const smtp = await req.json();
     
     await supabaseRestApi('settings', 'POST', {

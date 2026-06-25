@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -9,6 +10,9 @@ const headers = {
 
 export async function GET() {
   try {
+    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     const [productsRes, categoriesRes] = await Promise.all([
       fetch(
         `${SUPABASE_URL}/rest/v1/products?select=*,category:category_id(name,name_az,name_en,name_ru)&order=created_at.desc`,

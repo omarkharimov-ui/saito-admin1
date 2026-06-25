@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -10,6 +11,9 @@ const headers = {
 
 export async function GET() {
   try {
+    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     const [reservationsRes, ordersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/reservations?select=*&order=date.desc,time.desc`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=table_number,status&status=in.(new,confirmed,paid)`, { headers }),
@@ -31,6 +35,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
     const body = await request.json();
     const { action, data, id } = body;
 

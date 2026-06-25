@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 /**
  * Creates a server-side Supabase client.
@@ -53,8 +54,23 @@ export async function validateAuth(requiredRoles?: string[]) {
   if (!profile) return { authenticated: false, error: 'Profile not found', status: 403 };
 
   if (requiredRoles && !requiredRoles.includes(profile.role)) {
-    return { authenticated: false, error: 'Forbidden', status: 403, role: profile.role };
+    return { authenticated: false, error: 'Forbidden: Insufficient permissions', status: 403, role: profile.role };
   }
 
   return { authenticated: true, user: session.user, role: profile.role };
 }
+
+/**
+ * Higher-order helper for API routes to enforce role requirements.
+ */
+export async function requireAuth(requiredRoles?: string[]) {
+  const auth = await validateAuth(requiredRoles);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { error: auth.error },
+      { status: auth.status }
+    );
+  }
+  return auth;
+}
+

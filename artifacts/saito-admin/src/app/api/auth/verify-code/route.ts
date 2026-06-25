@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 
 function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
@@ -12,12 +13,15 @@ function getAdminClient() {
 const verificationCodes = new Map<string, { code: string; expires: number }>();
 
 export async function POST(req: NextRequest) {
-  const adminClient = getAdminClient();
-  if (!adminClient) {
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  }
-  
   try {
+    const auth = await requireAuth(['superadmin']);
+    if (!auth.authenticated) return auth as unknown as NextResponse;
+
+    const adminClient = getAdminClient();
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+    
     const { email, code, password, userRole, permissions } = await req.json();
     
     if (!email || !code || !password) {

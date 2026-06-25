@@ -490,7 +490,9 @@ export function TableStatusGrid({
               {visibleTables.filter(num => !selectedFloor || floorAssignments.get(num) === selectedFloor || !floorAssignments.has(num)).map((num) => {
                 if (mergedTableNums.has(num)) return null;
 
-                const { status, order } = getTableStatus(num);
+                const res = getTableStatus(num);
+                const status = res?.status || 'empty';
+                const order = res?.order || null;
                 const isEmpty     = status === 'empty';
                 const kitchenStatus  = order?.kitchen_status || 'pending';
                 const isReserved  = order?.is_draft || kitchenStatus === 'reserved';

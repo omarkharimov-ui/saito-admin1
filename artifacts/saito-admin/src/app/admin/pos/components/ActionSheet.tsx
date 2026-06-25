@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect } from 'react';
 import {
   Plus, Merge, Move, Split, CreditCard,
-  Printer, Save, XCircle, Check, X
+  Printer, Save, XCircle, Check, X, Trash2
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

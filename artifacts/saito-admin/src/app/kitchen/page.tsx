@@ -97,6 +97,7 @@ interface Order {
   customer_note?: string;
   status: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
   is_rush?: boolean;
+  is_draft?: boolean;
   merged_from_tables?: number[];
 }
 

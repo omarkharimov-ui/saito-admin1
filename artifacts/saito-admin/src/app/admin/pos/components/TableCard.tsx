@@ -53,7 +53,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       {isReserved && (
         <div className="absolute top-[76px] left-6 right-6 flex flex-col gap-0.5">
           <span className={`text-lg font-bold truncate leading-tight ${lightMode ? 'text-indigo-950' : 'text-white'}`}>
-            {table.reservation_name || (table as any).customer_name || (table as any).reservation_phone || 'Customer'}
+            {table.reservation_name || (table as any).customer_name || table.reservation_phone || (table as any).reservation_phone || table.reservation_id?.slice(0, 8) || 'Guest'}
           </span>
           
           <div className="flex items-center gap-3 opacity-60">

@@ -16,26 +16,37 @@ interface Order {
   created_at: string;
   kitchen_status: string | null;
   merged_into?: string | null;
+  is_draft?: boolean;
 }
 
 export async function GET() {
   try {
-    const [floorsRes, ordersRes, reservationsRes] = await Promise.all([
+    const [floorsRes, ordersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into,is_draft&status=neq.paid&order=created_at.desc`, { headers }),
-      // Fetch today's confirmed reservations
-      fetch(`${SUPABASE_URL}/rest/v1/reservations?select=id,table_number,table_ids,name,customer_name,phone,time,guests,status,date&status=eq.confirmed&date=eq.${new Date().toISOString().split('T')[0]}`, { headers }),
     ]);
 
     if (!floorsRes.ok || !ordersRes.ok) {
-      return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to fetch initial data' }, { status: 500 });
     }
 
     const floors = await floorsRes.json();
     const orders: Order[] = await ordersRes.json();
+
+    // 1. Robust Reservation Fetching
+    const explicitResIds = Array.from(new Set(floors.map((f: any) => f.reservation_id).filter(Boolean)));
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    let resUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,table_number,table_ids,name,customer_name,phone,time,guests,status,date`;
+    if (explicitResIds.length > 0) {
+      resUrl += `&or=(id.in.(${explicitResIds.map(id => `"${id}"`).join(',')}),and(status.eq.confirmed,date.eq.${todayStr}))`;
+    } else {
+      resUrl += `&status=eq.confirmed&date=eq.${todayStr}`;
+    }
+
+    const reservationsRes = await fetch(resUrl, { headers });
     const todayReservations = reservationsRes.ok ? await reservationsRes.json() : [];
 
-    // DEFINTIVE MAPPING: reservation_id -> full reservation object
     const reservationMap: Record<string, any> = {};
     if (Array.isArray(todayReservations)) {
       todayReservations.forEach(r => {
@@ -43,7 +54,6 @@ export async function GET() {
       });
     }
 
-    // Build a map of table_number → reservation info for today (for tables without explicit ID in table_floors)
     const reservedTablesByNum: Record<number, any> = {};
     const idToTableNumber: Record<string, number> = {};
     if (Array.isArray(floors)) {
@@ -54,21 +64,14 @@ export async function GET() {
 
     if (Array.isArray(todayReservations)) {
       for (const r of todayReservations) {
-        if (r.table_number != null) {
-          reservedTablesByNum[r.table_number] = r;
-        }
+        if (r.table_number != null) reservedTablesByNum[r.table_number] = r;
         if (r.table_ids) {
           try {
             const ids = typeof r.table_ids === 'string' ? JSON.parse(r.table_ids) : r.table_ids;
             if (Array.isArray(ids)) {
               ids.forEach((idOrNum: string | number) => {
-                if (typeof idOrNum === 'string' && idOrNum.includes('-')) {
-                  const tn = idToTableNumber[idOrNum];
-                  if (tn != null) reservedTablesByNum[tn] = r;
-                } else {
-                  const tn = Number(idOrNum);
-                  if (!isNaN(tn)) reservedTablesByNum[tn] = r;
-                }
+                const tn = typeof idOrNum === 'string' && idOrNum.includes('-') ? idToTableNumber[idOrNum] : Number(idOrNum);
+                if (tn != null && !isNaN(tn)) reservedTablesByNum[tn] = r;
               });
             }
           } catch {}
@@ -76,6 +79,7 @@ export async function GET() {
       }
     }
 
+    // 2. Orders Mapping
     const ordersByTable: Record<number, Order[]> = {};
     for (const o of orders) {
       if (o.table_number == null) continue;
@@ -83,8 +87,6 @@ export async function GET() {
       ordersByTable[o.table_number].push(o);
     }
 
-    // Build merge parent → children maps
-    // Order-level: orders whose merged_into points to a parent order
     const parentMap: Record<string, { id: string; table_number: number }[]> = {};
     for (const o of orders) {
       if (o.merged_into) {
@@ -92,7 +94,7 @@ export async function GET() {
         parentMap[o.merged_into].push({ id: o.id, table_number: o.table_number });
       }
     }
-    // Table-level: tables whose merged_into_table points to a parent table
+
     const parentTableMap: Record<number, number[]> = {};
     for (const f of floors) {
       if (f.merged_into_table) {
@@ -103,54 +105,46 @@ export async function GET() {
     }
 
     const floorMap: Record<string, { name: string; tables: any[] }> = {};
+    const childOrderIds = new Set<string>(orders.filter(o => o.merged_into).map(o => o.id));
 
-    // First pass: detect which order IDs are children (merged_into set)
-    const childOrderIds = new Set<string>();
-    for (const o of orders) {
-      if (o.merged_into) childOrderIds.add(o.id);
-    }
-
+    // 3. Process Tables
     for (const f of floors) {
       const fn = f.floor_name || 'Main';
       if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [] };
+      
       const tableOrders = ordersByTable[f.table_number] || [];
       const activeOrders = tableOrders.filter(o => o.status !== 'paid' && o.status !== 'cancelled');
       const hasCooking = activeOrders.some(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing');
       const hasWaitingBill = activeOrders.some(o => o.kitchen_status === 'ready');
-
-      // Pending = not yet accepted by kitchen
       const pendingOrders = activeOrders.filter(o => o.kitchen_status === 'pending' || o.kitchen_status == null);
-      const hasPending = pendingOrders.length > 0;
-      const oldestPendingAt = pendingOrders.length > 0
-        ? pendingOrders.reduce((a, b) => new Date(a.created_at) < new Date(b.created_at) ? a : b).created_at
-        : null;
+      const oldestOrder = activeOrders.length > 0 ? activeOrders.reduce((a, b) => new Date(a.created_at) < new Date(b.created_at) ? a : b) : null;
 
-      // Find the definitive reservation object for this table
       const resById = f.reservation_id ? reservationMap[f.reservation_id] : null;
       const resByNum = reservedTablesByNum[f.table_number];
       const definitiveRes = resById || resByNum;
 
+      const isMergedChild = f.merged_into_table != null;
+      const isReservedOrder = activeOrders.some(o => o.is_draft || o.kitchen_status === 'reserved');
+      
       let status: string;
       if (isMergedChild) status = 'merged';
-      else if (isReservedOrder || f.status === 'reserved' || activeOrders.some(o => (o as any).is_draft)) status = 'reserved';
-      else if (activeOrders.length === 0 && tableChildren.length === 0 && !definitiveRes) status = 'empty';
-      else if (activeOrders.length === 0 && tableChildren.length > 0) {
-        status = 'active';
-      } else if (hasWaitingBill) status = 'waiting_bill';
+      else if (isReservedOrder || f.status === 'reserved') status = 'reserved';
+      else if (activeOrders.length === 0 && !definitiveRes) status = 'empty';
+      else if (hasWaitingBill) status = 'waiting_bill';
       else if (hasCooking) status = 'cooking';
       else status = 'active';
 
-      // Override with reserved status if table has an active reservation today
-      if (definitiveRes && (activeOrders.length === 0 || isReservedOrder)) {
-        status = 'reserved';
-      }
+      if (definitiveRes && (activeOrders.length === 0 || isReservedOrder)) status = 'reserved';
 
-      const totalAmount = allMerged ? 0 : activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-      let guestCount = allMerged ? 0 : (activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0));
+      // Aggregate children data
+      const tableChildren = parentTableMap[f.table_number] || [];
+      const childTotal = tableChildren.reduce((sum, tn) => sum + (ordersByTable[tn] || []).reduce((s, o) => s + (childOrderIds.has(o.id) ? 0 : Number(o.total_amount || 0)), 0), 0);
+      const childGuests = tableChildren.reduce((sum, tn) => sum + (ordersByTable[tn] || []).reduce((s, o) => s + (childOrderIds.has(o.id) ? 0 : (o.guest_count || 0)), 0), 0);
+
+      const totalAmount = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+      let guestCount = activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0);
       
-      if (status === 'reserved' && definitiveRes) {
-        guestCount = definitiveRes.guests || guestCount;
-      }
+      if (status === 'reserved' && definitiveRes) guestCount = definitiveRes.guests || guestCount;
 
       floorMap[fn].tables.push({
         id: f.id,
@@ -159,19 +153,17 @@ export async function GET() {
         sort_order: f.sort_order,
         status,
         guest_count: guestCount + childGuests,
-        // PASS FULL IDENTITY
-        reservation_id: definitiveRes?.id,
-        reservation_name: definitiveRes?.customer_name || definitiveRes?.name || definitiveRes?.phone || definitiveRes?.id?.slice(0, 8),
-        reservation_phone: definitiveRes?.phone,
-        reservation_time: definitiveRes?.time,
+        reservation_id: definitiveRes?.id || f.reservation_id,
+        reservation_name: definitiveRes?.customer_name || definitiveRes?.name || f.reservation_name || definitiveRes?.phone || f.reservation_phone || definitiveRes?.id?.slice(0, 8),
+        reservation_phone: definitiveRes?.phone || f.reservation_phone,
+        reservation_time: definitiveRes?.time || f.reservation_time,
         opened_at: oldestOrder?.created_at || null,
         total_amount: totalAmount + childTotal,
-        order_count: allMerged ? 0 : activeOrders.length,
-        order_ids: allMerged ? [] : activeOrders.map(o => o.id),
-        merged_orders: mergedOrders.length > 0 ? mergedOrders : undefined,
-        merged_into_table: mergedIntoTable,
-        has_pending: hasPending,
-        oldest_pending_at: oldestPendingAt,
+        order_count: activeOrders.length,
+        order_ids: activeOrders.map(o => o.id),
+        merged_into_table: f.merged_into_table,
+        has_pending: pendingOrders.length > 0,
+        oldest_pending_at: pendingOrders.length > 0 ? pendingOrders.reduce((a, b) => new Date(a.created_at) < new Date(b.created_at) ? a : b).created_at : null,
       });
     }
 
@@ -180,9 +172,7 @@ export async function GET() {
       tables: f.tables.sort((a: any, b: any) => a.sort_order - b.sort_order),
     }));
 
-    const allTables = floorsArr.flatMap(f => f.tables);
-
-    return NextResponse.json({ tables: allTables, floors: floorsArr }, {
+    return NextResponse.json({ tables: floorsArr.flatMap(f => f.tables), floors: floorsArr }, {
       headers: { 'Cache-Control': 'no-store, must-revalidate' },
     });
   } catch (error: any) {

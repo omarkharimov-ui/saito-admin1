@@ -20,9 +20,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'reservation_id is required' }, { status: 400 });
     }
 
-    // 0. Rezervasiya məlumatlarını çək (name, time, date, guests)
+    // 0. Rezervasiya məlumatlarını çək (name, customer_name, phone, time, date, guests)
     const resRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/reservations?select=id,name,time,date,guests&id=eq.${reservation_id}`,
+      `${SUPABASE_URL}/rest/v1/reservations?select=id,name,customer_name,phone,time,date,guests&id=eq.${reservation_id}`,
       { headers }
     );
     const resData = await resRes.json();
@@ -54,7 +54,8 @@ export async function POST(request: Request) {
     const tableFloorPatch = {
       status: 'reserved',
       reservation_id,
-      reservation_name: reservation.name,
+      reservation_name: reservation.customer_name || reservation.name || reservation.phone || 'Guest',
+      reservation_phone: reservation.phone,
       reservation_time: reservation.time,
       guest_count: guest_count ?? reservation.guests ?? null,
     };

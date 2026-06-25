@@ -55,7 +55,18 @@ export async function GET() {
       resUrl += `&status=eq.confirmed&date=eq.${todayLocal}`;
     }
 
-    // 4. Map orders by table
+    // 4. EXECUTE FETCH AND BUILD MAP
+    const reservationsRes = await fetch(resUrl, { headers });
+    const reservationData = reservationsRes.ok ? await reservationsRes.json() : [];
+
+    const reservationMap: Record<string, any> = {};
+    if (Array.isArray(reservationData)) {
+      reservationData.forEach(r => {
+        reservationMap[r.id] = r;
+      });
+    }
+
+    // 5. Map orders by table
     const ordersByTable: Record<number, Order[]> = {};
     for (const o of orders) {
       if (o.table_number == null) continue;

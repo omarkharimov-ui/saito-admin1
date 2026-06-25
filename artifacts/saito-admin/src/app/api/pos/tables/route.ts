@@ -35,25 +35,19 @@ export async function GET() {
     const floors = await floorsRes.json();
     const orders: Order[] = await ordersRes.json();
 
-    // 2. Identify all UNIQUE reservation IDs currently active on tables or orders
+    // 2. Identify all UNIQUE reservation IDs currently active
     const floorResIds = floors.map((f: any) => f.reservation_id).filter(Boolean);
     const orderResIds = orders.map((o: Order) => o.reservation_id).filter(Boolean);
     const uniqueResIds = Array.from(new Set([...floorResIds, ...orderResIds]));
 
-    // 3. DIRECTLY FETCH these reservations from the 'reservations' table
-    // No date filters, no status filters - just get the data for these specific IDs
-    let reservationMap: Record<string, any> = {};
+    // 3. BROAD FETCH (Baku Timezone Fixed)
+    const todayBaku = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Baku' });
+    
+    let resUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,phone,time,guests,status,date`;
     if (uniqueResIds.length > 0) {
-      const resUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,phone,time,guests,status,date&id=in.(${uniqueResIds.join(',')})`;
-      const resDataRes = await fetch(resUrl, { headers });
-      if (resDataRes.ok) {
-        const resData = await resDataRes.json();
-        if (Array.isArray(resData)) {
-          resData.forEach(r => {
-            reservationMap[r.id] = r;
-          });
-        }
-      }
+      resUrl += `&or=(id.in.(${uniqueResIds.join(',')}),and(status.eq.confirmed,date.eq.${todayBaku}))`;
+    } else {
+      resUrl += `&status=eq.confirmed&date=eq.${todayBaku}`;
     }
 
     // 4. Map orders by table

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreVertical, AlertTriangle, Users, Check } from 'lucide-react';
+import { MoreVertical, AlertTriangle, Users, Check, Clock } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
@@ -33,7 +33,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         ${isSelected 
           ? (lightMode ? 'bg-white border-blue-500 shadow-[0_20px_40px_rgba(59,130,246,0.1)] scale-[1.02]' : 'bg-zinc-900 border-blue-500 shadow-[0_20px_40px_rgba(59,130,246,0.2)] scale-[1.02]') 
           : isReserved
-            ? (lightMode ? 'bg-indigo-50 border-indigo-500 shadow-sm' : 'bg-indigo-500/10 border-indigo-500 shadow-md')
+            ? (lightMode ? 'bg-indigo-50/50 border-indigo-200' : 'bg-indigo-500/5 border-indigo-500/30')
             : isOverdue 
               ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
               : isOccupied
@@ -43,101 +43,75 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         ${isTransferSource ? 'border-blue-500 bg-blue-500/5 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : ''}
         ${isTransferTarget ? 'border-zinc-400 border-dashed animate-pulse' : ''}`}
     >
-      <div>
-        {/* Table Number - Top Left */}
-        <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors ${isSelected || isTransferSource || isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
-          {table.table_number}
-        </span>
+      {/* 1. PRIMARY: Table Identifier */}
+      <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors 
+        ${isSelected || isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
+        {table.table_number}
+      </span>
 
-        {/* Reservation Info */}
-        {isReserved && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
-            <span className="text-[10px] font-black uppercase text-indigo-500 tracking-[0.3em] mb-2">BRON EDİLİB</span>
-            <span className="text-lg font-black text-white leading-tight mb-1">
-              {table.reservation_name || (table as any).customer_name || 'Müştəri Adı'}
-            </span>
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-xs font-bold text-indigo-400">{(table as any).reservation_phone || (table as any).phone}</span>
-              <span className="text-xs font-black text-white/30">{table.reservation_time}</span>
+      {/* 2. SECONDARY & TERTIARY: Reservation Identity */}
+      {isReserved && (
+        <div className="absolute top-[76px] left-6 right-6 flex flex-col gap-0.5">
+          <span className={`text-lg font-bold truncate leading-tight ${lightMode ? 'text-indigo-950' : 'text-white'}`}>
+            {table.reservation_name || (table as any).customer_name || 'Müştəri'}
+          </span>
+          
+          <div className="flex items-center gap-3 opacity-60">
+            <div className="flex items-center gap-1">
+              <Clock size={12} className="text-indigo-400" />
+              <span className="text-xs font-bold tabular-nums">{table.reservation_time}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Users size={12} className="text-indigo-400" />
+              <span className="text-xs font-bold tabular-nums">{table.guest_count}</span>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
+      {/* Standard Occupied Metadata (Fallback) */}
+      {!isReserved && isOccupied && (table.guest_count ?? 0) > 0 && (
+        <div className="absolute top-[72px] left-6 flex items-center gap-1 opacity-60">
+          <Users size={12} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
+          <span className={`text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>{table.guest_count}</span>
+        </div>
+      )}
 
-        {/* Guest Count - Below Table Number */}
-        {isOccupied && (table.guest_count ?? 0) > 0 && (
-          <div className="absolute top-[72px] left-6 flex items-center gap-1 opacity-60">
-            <Users size={12} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
-            <span className={`text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>{table.guest_count}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Action Button / Selection Tick - Top Right */}
+      {/* 3. ACTION ICON */}
       <div className="absolute top-4 right-4">
         {selectionMode ? (
           <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-            isSelected 
-              ? 'bg-blue-500 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' 
-              : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')
+            isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')
           }`}>
-            <AnimatePresence>
-              {isSelected && (
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                  <Check size={18} className="text-white" strokeWidth={3} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <AnimatePresence>{isSelected && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}><Check size={18} className="text-white" strokeWidth={3} /></motion.div>}</AnimatePresence>
           </div>
         ) : (
-          <button 
-            onClick={(e) => { e.stopPropagation(); onAction(); }}
-            className={`p-2 rounded-full transition-colors hover:bg-black/5 dark:hover:bg-white/10`}
-          >
-            <MoreVertical size={20} className={isSelected || isTransferSource ? (lightMode ? 'text-emerald-600/40' : 'text-emerald-400/40') : (lightMode ? 'text-gray-400' : 'text-white/40')} />
+          <button onClick={(e) => { e.stopPropagation(); onAction(); }} className="p-2 rounded-full transition-colors hover:bg-white/10">
+            <MoreVertical size={20} className="text-white/20 group-hover:text-white/40" />
           </button>
         )}
       </div>
 
-      {/* Delay Badge */}
-      {isOverdue && (
-        <div className="absolute top-14 right-6">
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20">
-              <AlertTriangle size={12} className="text-rose-500 animate-pulse" />
-              <span className="text-[8px] font-black text-rose-600 uppercase tracking-tighter">
-                {overdueType === 'not_accepted' ? 'Qəbul Gözləyir' : 'Hazırlanma Gecikir'}
-              </span>
-            </div>
-          </motion.div>
+      {/* 4. QUATERNARY: Lifecycle Status (Bottom Anchored) */}
+      <div className="absolute bottom-4 left-0 right-0 px-6 flex items-center justify-between">
+        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest
+          ${isReserved 
+            ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' 
+            : isOccupied 
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
+              : 'bg-white/5 border-white/5 text-white/30'}`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${isReserved ? 'bg-indigo-400' : isOccupied ? 'bg-emerald-500' : 'bg-white/20'}`} />
+          {isReserved ? 'Reserved' : isOccupied ? t('occupied' as any) : t('empty' as any)}
         </div>
-      )}
 
-      {/* Status Badge */}
-      {!isReserved && (
-        <div className="absolute top-[92px] left-0 right-0 flex justify-center">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm ${
-            lightMode ? 'bg-[#efeff4] border-zinc-200' : 'bg-black/5 border-black/5 dark:bg-white/5 dark:border-white/5'
-          }`}>
-              <div className={`w-2 h-2 rounded-full ${
-                isOccupied ? 'bg-emerald-500' : 
-                table.status === 'dirty' ? 'bg-orange-500' : 
-                lightMode ? 'bg-zinc-400' : 'bg-zinc-400'
-              }`} />
-              <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
-                {isOccupied ? t('occupied' as any) : 
-                 table.status === 'dirty' ? 'dirty' : 
-                 t('empty' as any)}
-              </span>
-          </div>
+        {/* Dynamic Context (Price or Phone) */}
+        <div className="text-right">
+          {isReserved ? (
+            <span className="text-[10px] font-bold text-white/20 tabular-nums">{(table as any).reservation_phone || ''}</span>
+          ) : table.total_amount > 0 ? (
+            <p className={`text-lg font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{table.total_amount.toFixed(2)}</p>
+          ) : null}
         </div>
-      )}
-
-      {/* Price */}
-      <div className="absolute bottom-6 left-6">
-        {!isReserved && table.total_amount > 0 && (
-          <p className={`text-xl font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{table.total_amount.toFixed(2)}</p>
-        )}
       </div>
     </div>
   );

@@ -697,7 +697,8 @@ export function TableStatusGrid({
             >
               {(() => {
                 if (!draggingNum) return null;
-                const { order: dOrder } = getTableStatus(draggingNum);
+                const dRes = getTableStatus(draggingNum);
+                const dOrder = dRes?.order || null;
                 const dAgeMin       = dOrder?.kitchen_accepted_at ? getOrderAgeMinutes(dOrder.kitchen_accepted_at) : 0;
                 const dKitchen      = dOrder?.kitchen_status || 'pending';
                 const dIsNew        = dOrder?.status === 'new';

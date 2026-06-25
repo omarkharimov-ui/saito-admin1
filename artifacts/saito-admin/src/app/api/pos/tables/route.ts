@@ -35,20 +35,27 @@ export async function GET() {
     const orders: Order[] = await ordersRes.json();
     const todayReservations = reservationsRes.ok ? await reservationsRes.json() : [];
 
-    // Build a map of table_number → reservation info for today
-    const reservedTables: Record<number, { name: string; phone: string; time: string; guests: number }> = {};
+    // DEFINTIVE MAPPING: reservation_id -> full reservation object
+    const reservationMap: Record<string, any> = {};
+    if (Array.isArray(todayReservations)) {
+      todayReservations.forEach(r => {
+        reservationMap[r.id] = r;
+      });
+    }
+
+    // Build a map of table_number → reservation info for today (for tables without explicit ID in table_floors)
+    const reservedTablesByNum: Record<number, any> = {};
     const idToTableNumber: Record<string, number> = {};
     if (Array.isArray(floors)) {
       for (const f of floors) {
         if (f.id && f.table_number != null) idToTableNumber[f.id] = f.table_number;
       }
     }
+
     if (Array.isArray(todayReservations)) {
       for (const r of todayReservations) {
-        const cName = r.customer_name || r.name || 'Qonaq';
-        const cPhone = r.phone || '';
         if (r.table_number != null) {
-          reservedTables[r.table_number] = { name: cName, phone: cPhone, time: r.time, guests: r.guests };
+          reservedTablesByNum[r.table_number] = r;
         }
         if (r.table_ids) {
           try {
@@ -57,10 +64,10 @@ export async function GET() {
               ids.forEach((idOrNum: string | number) => {
                 if (typeof idOrNum === 'string' && idOrNum.includes('-')) {
                   const tn = idToTableNumber[idOrNum];
-                  if (tn != null) reservedTables[tn] = { name: cName, phone: cPhone, time: r.time, guests: r.guests };
+                  if (tn != null) reservedTablesByNum[tn] = r;
                 } else {
                   const tn = Number(idOrNum);
-                  if (!isNaN(tn)) reservedTables[tn] = { name: cName, phone: cPhone, time: r.time, guests: r.guests };
+                  if (!isNaN(tn)) reservedTablesByNum[tn] = r;
                 }
               });
             }
@@ -118,87 +125,31 @@ export async function GET() {
         ? pendingOrders.reduce((a, b) => new Date(a.created_at) < new Date(b.created_at) ? a : b).created_at
         : null;
 
-      const oldestOrder = activeOrders.length > 0 ? activeOrders[activeOrders.length - 1] : null;
-
-      // Check if any active order is a draft or has reserved status
-      const isReservedOrder = activeOrders.some(o => (o as any).is_draft || o.kitchen_status === 'reserved');
-
-      // Check if table has merged_into_table set (table-level merge, even without orders)
-      const tableLevelMergedInto = f.merged_into_table || null;
-
-      // Check if all active orders on this table are child orders (merged into another)
-      const allMerged = activeOrders.length > 0 && activeOrders.every(o => childOrderIds.has(o.id));
-
-      // Determine if this table is a merged child (either via orders or via table-level tracking)
-      const isMergedChild = allMerged || (tableLevelMergedInto != null && activeOrders.length === 0);
-
-      // Find parent table number
-      let mergedIntoTable: number | null = null;
-      if (allMerged) {
-        const parentId = activeOrders[0]?.merged_into;
-        if (parentId) {
-          const parentOrder = orders.find(o => o.id === parentId);
-          if (parentOrder) mergedIntoTable = parentOrder.table_number;
-        }
-      } else if (tableLevelMergedInto != null && activeOrders.length === 0) {
-        mergedIntoTable = tableLevelMergedInto;
-      }
-
-      // Determine if this table has table-level merged children
-      const tableChildren = parentTableMap[f.table_number] || [];
+      // Find the definitive reservation object for this table
+      const resById = f.reservation_id ? reservationMap[f.reservation_id] : null;
+      const resByNum = reservedTablesByNum[f.table_number];
+      const definitiveRes = resById || resByNum;
 
       let status: string;
       if (isMergedChild) status = 'merged';
       else if (isReservedOrder || f.status === 'reserved' || activeOrders.some(o => (o as any).is_draft)) status = 'reserved';
-      else if (activeOrders.length === 0 && tableChildren.length === 0 && !reservedTables[f.table_number]) status = 'empty';
+      else if (activeOrders.length === 0 && tableChildren.length === 0 && !definitiveRes) status = 'empty';
       else if (activeOrders.length === 0 && tableChildren.length > 0) {
-        // Parent is empty but has merged children → inherit status from children
         status = 'active';
       } else if (hasWaitingBill) status = 'waiting_bill';
       else if (hasCooking) status = 'cooking';
       else status = 'active';
 
-      // Skip table_number 0 (placeholder rows for empty floors)
-      if (f.table_number === 0) continue;
-
-      // Collect merged children for this table (orders whose merged_into points to an order on THIS table)
-      const mergedOrders: { id: string; table_number: number }[] = [];
-      let childTotal = 0;
-      let childGuests = 0;
-      for (const o of activeOrders) {
-        const children = parentMap[o.id];
-        if (children) {
-          mergedOrders.push(...children);
-          for (const child of children) {
-            const childOrder = orders.find(or => or.id === child.id);
-            if (childOrder) {
-              childTotal += Number(childOrder.total_amount || 0);
-              childGuests += Number(childOrder.guest_count || 0);
-            }
-          }
-        }
-      }
-      // Also include table-level children (tables with merged_into_table pointing to this table)
-      for (const childTableNum of tableChildren) {
-        // Check if not already included via order-level merge
-        const alreadyIncluded = mergedOrders.some(m => m.table_number === childTableNum);
-        if (!alreadyIncluded) {
-          mergedOrders.push({ id: `table_${childTableNum}`, table_number: childTableNum });
-        }
-      }
-
-      // For merged (child) tables, only show table number and merged indicator
-      // For parent tables, include child totals
       // Override with reserved status if table has an active reservation today
-      const reservedInfo = reservedTables[f.table_number];
-      if (reservedInfo && (activeOrders.length === 0 || isReservedOrder)) {
+      if (definitiveRes && (activeOrders.length === 0 || isReservedOrder)) {
         status = 'reserved';
       }
 
       const totalAmount = allMerged ? 0 : activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
       let guestCount = allMerged ? 0 : (activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0));
-      if (status === 'reserved' && reservedInfo) {
-        guestCount = reservedInfo.guests;
+      
+      if (status === 'reserved' && definitiveRes) {
+        guestCount = definitiveRes.guests || guestCount;
       }
 
       floorMap[fn].tables.push({
@@ -208,9 +159,11 @@ export async function GET() {
         sort_order: f.sort_order,
         status,
         guest_count: guestCount + childGuests,
-        reservation_name: status === 'reserved' ? (reservedInfo?.name || f.reservation_name) : undefined,
-        reservation_phone: status === 'reserved' ? (reservedInfo?.phone || f.reservation_phone) : undefined,
-        reservation_time: status === 'reserved' ? (reservedInfo?.time || f.reservation_time) : undefined,
+        // PASS FULL IDENTITY
+        reservation_id: definitiveRes?.id,
+        reservation_name: definitiveRes?.customer_name || definitiveRes?.name || definitiveRes?.phone || definitiveRes?.id?.slice(0, 8),
+        reservation_phone: definitiveRes?.phone,
+        reservation_time: definitiveRes?.time,
         opened_at: oldestOrder?.created_at || null,
         total_amount: totalAmount + childTotal,
         order_count: allMerged ? 0 : activeOrders.length,

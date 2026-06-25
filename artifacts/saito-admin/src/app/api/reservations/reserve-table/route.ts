@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       }),
     });
 
-    // 4. MÜTLƏQ Order yarat (Yemək olmasa belə, POS-da reserved görsənməsi üçün)
+    // 4. MÜTLƏQ Draft Order yarat (Masa 'reserved' statusunda qalması üçün)
     const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
       method: 'POST',
       headers: { ...headers, 'Prefer': 'return=representation' },
@@ -129,12 +129,12 @@ export async function POST(request: Request) {
         table_number,
         total_amount: totalAmount || 0,
         status: 'new',
-        kitchen_status: 'reserved',
+        kitchen_status: 'reserved', // Mətbəxdə hələ görünmür, yalnız planda var
         order_type: 'dine_in',
         guest_count: guest_count ?? reservation.guests ?? 2,
-        customer_note: 'Öncədən sifariş (rezerv)',
+        customer_note: 'Öncədən sifariş (Bron)',
         reservation_id,
-        is_draft: true, // POS bunu dərhal bənövşəyi göstərəcək
+        is_draft: true, // POS-da bənövşəyi qalması üçün açar
         created_at: new Date().toISOString(),
       }),
     });

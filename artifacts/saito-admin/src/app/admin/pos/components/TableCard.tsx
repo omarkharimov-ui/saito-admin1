@@ -53,8 +53,8 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         {isReserved && (
           <div className="absolute top-[70px] left-6 flex flex-col">
             <span className="text-[10px] font-black uppercase text-indigo-500 tracking-widest mb-0.5">BRON EDİLİB</span>
-            <span className="text-sm font-black text-[var(--theme-text)] truncate max-w-[120px] leading-tight">{table.reservation_name || 'Rezervasiya'}</span>
-            <span className="text-[10px] font-bold opacity-40 mt-0.5">{table.reservation_time}</span>
+            <span className="text-sm font-black text-[var(--theme-text)] truncate max-w-[120px] leading-tight">{table.reservation_name}</span>
+            <span className="text-[10px] font-bold opacity-60 mt-0.5">{table.reservation_time}</span>
           </div>
         )}
 
@@ -130,7 +130,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
 
       {/* Price */}
       <div className="absolute bottom-6 left-6">
-        {table.total_amount > 0 && (
+        {!isReserved && table.total_amount > 0 && (
           <p className={`text-xl font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{table.total_amount.toFixed(2)}</p>
         )}
       </div>

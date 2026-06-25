@@ -120,66 +120,66 @@ export async function POST(request: Request) {
       }),
     });
 
-    // 4. Pre-order varsa order yarat
-    if (pre_order_items && pre_order_items.length > 0) {
-      const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          table_number,
-          total_amount: totalAmount,
-          status: 'new',
-          kitchen_status: 'reserved',
-          order_type: 'dine_in',
-          guest_count: guest_count ?? reservation.guests ?? null,
-          customer_note: 'Öncədən sifariş (rezerv)',
-          source: 'reservation',
-          reservation_id,
-          created_at: new Date().toISOString(),
-        }),
-      });
-      const orderData = await orderRes.json();
-      const orderId = Array.isArray(orderData) ? orderData[0]?.id : orderData?.id;
+    // 4. MÜTLƏQ Order yarat (Yemək olmasa belə, POS-da reserved görsənməsi üçün)
+    const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
+      method: 'POST',
+      headers: { ...headers, 'Prefer': 'return=representation' },
+      body: JSON.stringify({
+        table_number,
+        total_amount: totalAmount || 0,
+        status: 'new',
+        kitchen_status: 'reserved',
+        order_type: 'dine_in',
+        guest_count: guest_count ?? reservation.guests ?? 2,
+        customer_note: 'Öncədən sifariş (rezerv)',
+        reservation_id,
+        is_draft: true, // POS bunu dərhal bənövşəyi göstərəcək
+        created_at: new Date().toISOString(),
+      }),
+    });
+    
+    const orderData = await orderRes.json();
+    const orderId = Array.isArray(orderData) ? orderData[0]?.id : orderData?.id;
 
-      if (orderId) {
-        for (const item of pre_order_items) {
-          await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              order_id: orderId,
-              product_id: item.product_id,
-              product_name: item.product_name,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              total_price: item.unit_price * item.quantity,
-              modifiers: item.modifiers ? JSON.stringify(item.modifiers) : null,
-              special_notes: item.special_notes || null,
-              kitchen_status: 'reserved',
-            }),
-          });
-        }
-      }
-
-      if (kitchen_scheduled_at) {
-        await fetch(`${SUPABASE_URL}/rest/v1/kitchen_schedule`, {
+    if (orderId && pre_order_items && pre_order_items.length > 0) {
+      for (const item of pre_order_items) {
+        await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            reservation_id,
-            table_number,
-            order_id: orderId || null,
-            scheduled_at: kitchen_scheduled_at,
-            guest_count: guest_count ?? reservation.guests ?? null,
-            status: 'pending',
+            order_id: orderId,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.unit_price * item.quantity,
+            modifiers: item.modifiers ? JSON.stringify(item.modifiers) : null,
+            special_notes: item.special_notes || null,
+            kitchen_status: 'reserved',
           }),
         });
       }
     }
 
+    if (orderId && kitchen_scheduled_at) {
+      await fetch(`${SUPABASE_URL}/rest/v1/kitchen_schedule`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          reservation_id,
+          table_number,
+          order_id: orderId,
+          scheduled_at: kitchen_scheduled_at,
+          guest_count: guest_count ?? reservation.guests ?? 2,
+          status: 'pending',
+        }),
+      });
+    }
+
     return NextResponse.json({
       success: true,
       table_number,
+      order_id: orderId,
       kitchen_scheduled_at,
     });
   } catch (error: any) {

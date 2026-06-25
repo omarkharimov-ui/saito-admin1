@@ -51,12 +51,14 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
 
         {/* Reservation Info */}
         {isReserved && (
-          <div className="absolute top-[70px] left-6 flex flex-col">
-            <span className="text-[10px] font-black uppercase text-indigo-500 tracking-widest mb-0.5">BRON EDİLİB</span>
-            <span className="text-sm font-black text-[var(--theme-text)] truncate max-w-[150px] leading-tight">{table.reservation_name || 'Qonaq'}</span>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] font-bold text-indigo-400/80">{(table as any).reservation_phone}</span>
-              <span className="text-[10px] font-black text-white/40">{table.reservation_time}</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+            <span className="text-[10px] font-black uppercase text-indigo-500 tracking-[0.3em] mb-2">BRON EDİLİB</span>
+            <span className="text-lg font-black text-white leading-tight mb-1">
+              {table.reservation_name || (table as any).customer_name || 'Müştəri Adı'}
+            </span>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-xs font-bold text-indigo-400">{(table as any).reservation_phone || (table as any).phone}</span>
+              <span className="text-xs font-black text-white/30">{table.reservation_time}</span>
             </div>
           </div>
         )}
@@ -112,25 +114,24 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       )}
 
       {/* Status Badge */}
-      <div className="absolute top-[92px] left-0 right-0 flex justify-center">
-        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm ${
-          lightMode ? 'bg-[#efeff4] border-zinc-200' : 'bg-black/5 border-black/5 dark:bg-white/5 dark:border-white/5'
-        }`}>
-            <div className={`w-2 h-2 rounded-full ${
-              isOccupied ? 'bg-emerald-500' : 
-              table.status === 'dirty' ? 'bg-orange-500' : 
-              isReserved ? 'bg-indigo-500' : 
-              lightMode ? 'bg-zinc-400' : 'bg-zinc-400'
-            }`} />
-            <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
-              {isOccupied ? t('occupied' as any) : 
-               table.status === 'dirty' ? 'dirty' : 
-               isReserved ? 'reserved' : 
-               t('empty' as any)}
-            </span>
-
+      {!isReserved && (
+        <div className="absolute top-[92px] left-0 right-0 flex justify-center">
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm ${
+            lightMode ? 'bg-[#efeff4] border-zinc-200' : 'bg-black/5 border-black/5 dark:bg-white/5 dark:border-white/5'
+          }`}>
+              <div className={`w-2 h-2 rounded-full ${
+                isOccupied ? 'bg-emerald-500' : 
+                table.status === 'dirty' ? 'bg-orange-500' : 
+                lightMode ? 'bg-zinc-400' : 'bg-zinc-400'
+              }`} />
+              <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
+                {isOccupied ? t('occupied' as any) : 
+                 table.status === 'dirty' ? 'dirty' : 
+                 t('empty' as any)}
+              </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Price */}
       <div className="absolute bottom-6 left-6">

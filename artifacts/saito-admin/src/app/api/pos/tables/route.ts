@@ -34,23 +34,27 @@ export async function GET() {
     const floors = await floorsRes.json();
     const orders: Order[] = await ordersRes.json();
 
-    // 1. Collect ALL possible Reservation IDs to fetch them live
-    const resIdsFromFloors = floors.map((f: any) => f.reservation_id).filter(Boolean);
-    const resIdsFromOrders = orders.map((o: Order) => o.reservation_id).filter(Boolean);
-    const allResIds = Array.from(new Set([...resIdsFromFloors, ...resIdsFromOrders]));
+    // 1. BROAD RESERVATION FETCH (To handle Timezone shifts)
+    // Fetch yesterday, today, and tomorrow to be 100% sure we don't miss anything due to UTC/Baku diff
+    const dateRange = [
+      new Date(Date.now() - 86400000).toISOString().split('T')[0],
+      new Date().toISOString().split('T')[0],
+      new Date(Date.now() + 86400000).toISOString().split('T')[0]
+    ];
     
-    const todayStr = new Date().toISOString().split('T')[0];
-    
-    // Construct a bulletproof reservation query
+    // Also collect explicit IDs from floors and orders
+    const explicitIds = Array.from(new Set([
+      ...floors.map((f: any) => f.reservation_id).filter(Boolean),
+      ...orders.map((o: Order) => o.reservation_id).filter(Boolean)
+    ]));
+
     let resUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,table_number,table_ids,name,customer_name,phone,time,guests,status,date`;
     
-    if (allResIds.length > 0) {
-      // UUID values in 'in' filter should NOT be quoted inside the parentheses for PostgREST in most cases, 
-      // but let's use the most compatible format.
-      const idList = allResIds.join(',');
-      resUrl += `&or=(id.in.(${idList}),and(status.eq.confirmed,date.eq.${todayStr}))`;
+    if (explicitIds.length > 0) {
+      // Use OR to get explicit IDs OR anything in our date range
+      resUrl += `&or=(id.in.(${explicitIds.join(',')}),and(status.eq.confirmed,date.in.(${dateRange.join(',')})))`;
     } else {
-      resUrl += `&status=eq.confirmed&date=eq.${todayStr}`;
+      resUrl += `&status=eq.confirmed&date=in.(${dateRange.join(',')})`;
     }
 
     const reservationsRes = await fetch(resUrl, { headers });
@@ -63,7 +67,7 @@ export async function GET() {
       });
     }
 
-    // Backup mapping by table number for today
+    // Build map by table number for quick lookup
     const reservedTablesByNum: Record<number, any> = {};
     const idToTableNumber: Record<string, number> = {};
     if (Array.isArray(floors)) {
@@ -74,20 +78,17 @@ export async function GET() {
 
     if (Array.isArray(reservationData)) {
       for (const r of reservationData) {
-        // Only map by number if it's for today to avoid showing future reservations prematurely
-        if (r.date === todayStr) {
-          if (r.table_number != null) reservedTablesByNum[r.table_number] = r;
-          if (r.table_ids) {
-            try {
-              const ids = typeof r.table_ids === 'string' ? JSON.parse(r.table_ids) : r.table_ids;
-              if (Array.isArray(ids)) {
-                ids.forEach((idOrNum: string | number) => {
-                  const tn = typeof idOrNum === 'string' && idOrNum.includes('-') ? idToTableNumber[idOrNum] : Number(idOrNum);
-                  if (tn != null && !isNaN(tn)) reservedTablesByNum[tn] = r;
-                });
-              }
-            } catch {}
-          }
+        if (r.table_number != null) reservedTablesByNum[r.table_number] = r;
+        if (r.table_ids) {
+          try {
+            const ids = typeof r.table_ids === 'string' ? JSON.parse(r.table_ids) : r.table_ids;
+            if (Array.isArray(ids)) {
+              ids.forEach((idOrNum: string | number) => {
+                const tn = typeof idOrNum === 'string' && idOrNum.includes('-') ? idToTableNumber[idOrNum] : Number(idOrNum);
+                if (tn != null && !isNaN(tn)) reservedTablesByNum[tn] = r;
+              });
+            }
+          } catch {}
         }
       }
     }
@@ -111,7 +112,7 @@ export async function GET() {
     const floorMap: Record<string, { name: string; tables: any[] }> = {};
     const childOrderIds = new Set<string>(orders.filter(o => o.merged_into).map(o => o.id));
 
-    // 3. Process Tables with aggressive data resolution
+    // 3. Final Table Processing
     for (const f of floors) {
       const fn = f.floor_name || 'Main';
       if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [] };
@@ -123,10 +124,8 @@ export async function GET() {
       const pendingOrders = activeOrders.filter(o => o.kitchen_status === 'pending' || o.kitchen_status == null);
       const oldestOrder = activeOrders.length > 0 ? activeOrders.reduce((a, b) => new Date(a.created_at) < new Date(b.created_at) ? a : b) : null;
 
-      // RESOLVE DEFINITIVE RESERVATION
-      // Priority 1: reservation_id from active draft order
+      // RESOLVE IDENTITY (Strict Priority)
       const orderResId = activeOrders.find(o => o.reservation_id)?.reservation_id;
-      // Priority 2: reservation_id from table_floors record
       const floorResId = f.reservation_id;
       
       const resById = (orderResId || floorResId) ? reservationMap[orderResId || floorResId] : null;
@@ -144,7 +143,7 @@ export async function GET() {
       else if (hasCooking) status = 'cooking';
       else status = 'active';
 
-      // Aggregate children data
+      // Aggregate children
       const tableChildren = parentTableMap[f.table_number] || [];
       const childTotal = tableChildren.reduce((sum, tn) => sum + (ordersByTable[tn] || []).reduce((s, o) => s + (childOrderIds.has(o.id) ? 0 : Number(o.total_amount || 0)), 0), 0);
       const childGuests = tableChildren.reduce((sum, tn) => sum + (ordersByTable[tn] || []).reduce((s, o) => s + (childOrderIds.has(o.id) ? 0 : (o.guest_count || 0)), 0), 0);
@@ -152,9 +151,7 @@ export async function GET() {
       const totalAmount = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
       let guestCount = activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0);
       
-      if (status === 'reserved' && definitiveRes) {
-        guestCount = definitiveRes.guests || guestCount;
-      }
+      if (status === 'reserved' && definitiveRes) guestCount = definitiveRes.guests || guestCount;
 
       floorMap[fn].tables.push({
         id: f.id,
@@ -163,7 +160,7 @@ export async function GET() {
         sort_order: f.sort_order,
         status,
         guest_count: guestCount + childGuests,
-        // DYNAMIC IDENTITY (No more generic "Guest" fallback in API)
+        // DYNAMIC IDENTITY (Always prefer live names/time)
         reservation_id: definitiveRes?.id || orderResId || floorResId,
         reservation_name: definitiveRes?.customer_name || definitiveRes?.name || f.reservation_name || definitiveRes?.phone || f.reservation_phone || null,
         reservation_phone: definitiveRes?.phone || f.reservation_phone,

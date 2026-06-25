@@ -57,10 +57,12 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
           </span>
           
           <div className="flex items-center gap-3 opacity-60">
-            <div className="flex items-center gap-1">
-              <Clock size={12} className="text-indigo-400" />
-              <span className="text-xs font-bold tabular-nums">{table.reservation_time}</span>
-            </div>
+            {table.reservation_time && (
+              <div className="flex items-center gap-1">
+                <Clock size={12} className="text-indigo-400" />
+                <span className="text-xs font-bold tabular-nums">{table.reservation_time}</span>
+              </div>
+            )}
             <div className="flex items-center gap-1">
               <Users size={12} className="text-indigo-400" />
               <span className="text-xs font-bold tabular-nums">{table.guest_count}</span>

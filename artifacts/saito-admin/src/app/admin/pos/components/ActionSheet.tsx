@@ -63,7 +63,7 @@ export function ActionSheet({
     { id: 'transfer', icon: Move, label: t('move_table'), visible: true },
     { id: 'split', icon: Split, label: 'Masaları Ayır', visible: isMerged },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
-    { id: 'cancel_table', icon: XCircle, label: t('cancel_table_btn'), visible: isOccupied },
+    { id: 'cancel_table', icon: Trash2, label: 'Masanı Təmizlə', visible: isOccupied || table?.status === 'reserved' },
   ];
 
   const visibleActions = actions.filter(a => a.visible);

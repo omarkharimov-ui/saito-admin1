@@ -327,7 +327,7 @@ export default function POSPage() {
       </div>
 
       <ActionSheet 
-        table={actionSheetTable} open={actionSheetOpen} onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} onAddOrder={() => { pos.selectTable(actionSheetTable!); setActionSheetOpen(false); }} onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable!.table_number]); setActionSheetOpen(false); }} onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); setActionSheetOpen(false); }} onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} onSplitBill={() => { setSplitMode(true); setSelectedForSplit([actionSheetTable!.table_number]); }} onPrint={() => {}} onSaveDraft={() => {}}
+        table={actionSheetTable} open={actionSheetOpen} onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} onAddOrder={() => { pos.selectTable(actionSheetTable!); setActionSheetOpen(false); }} onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable!.table_number]); setActionSheetOpen(false); }} onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); setActionSheetOpen(false); }} onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} onSplitBill={() => { setSplitMode(true); setSelectedForSplit([actionSheetTable!.table_number]); }} onPrint={() => {}} onSaveDraft={() => {}} onCancelTable={() => { if (actionSheetTable) { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); } }}
         mergeMode={mergeMode} transferMode={transferMode} splitMode={splitMode} allTables={pos.tables} selectedForMerge={selectedForMerge} selectedForSplit={selectedForSplit} transferSource={transferSource} transferTarget={transferTarget}
         onToggleSplit={(n) => { if (selectedForSplit.includes(n)) setSelectedForSplit(p => p.filter(x => x !== n)); else setSelectedForSplit(p => [...p, n]); }}
         onConfirmSplit={async () => { const toSplit = selectedForSplit.filter(n => n !== selectedForSplit[0]); if (toSplit.length === 0) { toast.error("Ayırmaq üçün ən azı bir masa seçin"); return; } try { const res = await fetch('/api/orders/split', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table_numbers: toSplit }) }); if (!res.ok) throw new Error("Ayırma xətası"); toast.success("Masalar ayrıldı"); setSplitMode(false); setSelectedForSplit([]); setActionSheetOpen(false); pos.fetchData(); } catch (e: any) { toast.error(e.message); } }}
@@ -403,6 +403,16 @@ export default function POSPage() {
                   }`}>
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Saat</p>
                     <p className="text-2xl font-black">{reservedTableDetail.reservation_time}</p>
+                    {(() => {
+                      const [h, m] = reservedTableDetail.reservation_time.split(':').map(Number);
+                      const now = new Date();
+                      const resTime = new Date();
+                      resTime.setHours(h, m, 0);
+                      const diff = Math.floor((resTime.getTime() - now.getTime()) / 60000);
+                      if (diff > 0) return <p className="text-[10px] font-bold text-amber-500 mt-1 uppercase tracking-tighter">{diff} dəqiqə qalıb</p>;
+                      if (diff < 0) return <p className="text-[10px] font-bold text-rose-500 mt-1 uppercase tracking-tighter">Gecikir</p>;
+                      return null;
+                    })()}
                   </div>
                 )}
                 {(reservedTableDetail.guest_count ?? 0) > 0 && (

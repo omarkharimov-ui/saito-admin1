@@ -112,15 +112,26 @@ export default function ReservationsPage() {
     }
   };
 
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   /* ─── Logic ─── */
   const calculateTimeLeft = (resTime: string) => {
-    if (!resTime) return '00:00';
-    const now = new Date();
+    if (!resTime) return '--:--';
     const [h, m] = resTime.split(':').map(Number);
-    const target = new Date(); target.setHours(h, m, 0);
-    const diff = target.getTime() - now.getTime();
-    if (diff < 0) return 'Gəlib';
-    return `${Math.floor(diff / 60000)} Dəq`;
+    const target = new Date(currentTime); target.setHours(h, m, 0, 0);
+    const diff = target.getTime() - currentTime.getTime();
+    if (diff < 0) {
+        if (Math.abs(diff) < 1800000) return 'Gecikir'; // 30 deqiqeye qeder
+        return 'Vaxtı keçib';
+    }
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getAIKitchenGuidance = (res: any) => {
@@ -216,9 +227,9 @@ export default function ReservationsPage() {
               <div className="p-10 relative overflow-y-auto max-h-[90vh] custom-scrollbar">
                 <button onClick={() => setSelectedRes(null)} className="absolute top-8 right-10 p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors"><X size={24} /></button>
 
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="popLayout" initial={false}>
                   {modalView === 'main' && (
-                    <motion.div key="main-view" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="flex flex-col gap-8">
+                    <motion.div key="main-view" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2 }} className="flex flex-col gap-8">
                        <motion.div layout="position">
                           <h2 className="text-5xl font-black tracking-tighter mb-2 leading-none">{selectedRes.name}</h2>
                           <div className="flex gap-4 text-xs font-black opacity-40 uppercase tracking-widest mb-10">

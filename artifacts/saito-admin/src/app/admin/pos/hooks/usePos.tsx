@@ -439,6 +439,29 @@ export function usePos() {
     });
   }, []);
 
+  /* ── Table Operations ── */
+  const dismissTable = useCallback(async (tableNumber: number) => {
+    try {
+      const res = await fetch(`/api/orders/dismiss`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: tableNumber }),
+      });
+      if (!res.ok) throw new Error("Masanı təmizləmək mümkün olmadı");
+      
+      // Local state cleanup
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      delete all[tableNumber];
+      saveCache(POS_CART_KEY + '_all', all);
+      delete orderFingerprintRef.current[tableNumber];
+      
+      toast.success(`Masa ${tableNumber} təmizləndi`);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }, [fetchData]);
+
   /* ── Billing ── */
   const closeBill = useCallback(async (orderId: string, payment: PaymentInfo) => {
     try {
@@ -635,7 +658,7 @@ export function usePos() {
     selectedTable, cart, activeView, orderHistory, lastUndo,
     selectTable, backToFloor, performUndo,
     addToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts,
-    placeOrder, closeBill, transferTable, mergeTables,
+    placeOrder, closeBill, transferTable, mergeTables, dismissTable,
     setActiveView, setCart, setSelectedTable, setTables,
     fetchData,
   };

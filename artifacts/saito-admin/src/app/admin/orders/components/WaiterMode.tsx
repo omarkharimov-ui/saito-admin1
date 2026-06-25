@@ -374,7 +374,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-hidden select-none">
+    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-hidden select-none h-screen max-h-screen">
 
       {/* ─── HEADER ─── */}
       <div className="flex-shrink-0 border-b border-white/[0.06] bg-[#0c0c0c]">
@@ -433,8 +433,8 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* ─── MAIN CONTENT ─── */}
-      <div className="flex-1 flex min-h-0">
-        <div className={`flex-1 overflow-y-auto px-3 pb-4 ${showCart ? 'hidden lg:block' : ''}`}>
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        <div className={`flex-1 overflow-y-auto px-3 pb-4 scrollbar-hide ${showCart ? 'hidden lg:block' : ''}`}>
           {!selTable ? (
             <div className="flex flex-col items-center justify-center h-full text-white/15">
               <Utensils size={48} className="mb-3 opacity-30" />

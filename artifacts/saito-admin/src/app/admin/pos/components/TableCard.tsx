@@ -53,10 +53,14 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         {isReserved && (
           <div className="absolute top-[70px] left-6 flex flex-col">
             <span className="text-[10px] font-black uppercase text-indigo-500 tracking-widest mb-0.5">BRON EDİLİB</span>
-            <span className="text-sm font-black text-[var(--theme-text)] truncate max-w-[120px] leading-tight">{table.reservation_name}</span>
-            <span className="text-[10px] font-bold opacity-60 mt-0.5">{table.reservation_time}</span>
+            <span className="text-sm font-black text-[var(--theme-text)] truncate max-w-[150px] leading-tight">{table.reservation_name || 'Qonaq'}</span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-bold text-indigo-400/80">{(table as any).reservation_phone}</span>
+              <span className="text-[10px] font-black text-white/40">{table.reservation_time}</span>
+            </div>
           </div>
         )}
+
 
         {/* Guest Count - Below Table Number */}
         {isOccupied && (table.guest_count ?? 0) > 0 && (

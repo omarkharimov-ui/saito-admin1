@@ -23,8 +23,8 @@ export async function GET() {
     const [floorsRes, ordersRes, reservationsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into,is_draft&status=neq.paid&order=created_at.desc`, { headers }),
-      // Fetch today's confirmed reservations to mark tables as reserved
-      fetch(`${SUPABASE_URL}/rest/v1/reservations?select=id,table_number,table_ids,name,time,guests,status,date&status=eq.confirmed&date=eq.${new Date().toISOString().split('T')[0]}`, { headers }),
+      // Fetch today's confirmed reservations
+      fetch(`${SUPABASE_URL}/rest/v1/reservations?select=id,table_number,table_ids,name,customer_name,phone,time,guests,status,date&status=eq.confirmed&date=eq.${new Date().toISOString().split('T')[0]}`, { headers }),
     ]);
 
     if (!floorsRes.ok || !ordersRes.ok) {
@@ -36,40 +36,31 @@ export async function GET() {
     const todayReservations = reservationsRes.ok ? await reservationsRes.json() : [];
 
     // Build a map of table_number → reservation info for today
-    const reservedTables: Record<number, { name: string; time: string; guests: number }> = {};
-    // Also build a UUID id → table_number lookup from floors data
+    const reservedTables: Record<number, { name: string; phone: string; time: string; guests: number }> = {};
     const idToTableNumber: Record<string, number> = {};
     if (Array.isArray(floors)) {
       for (const f of floors) {
-        if (f.id && f.table_number != null) {
-          idToTableNumber[f.id] = f.table_number;
-        }
+        if (f.id && f.table_number != null) idToTableNumber[f.id] = f.table_number;
       }
     }
     if (Array.isArray(todayReservations)) {
       for (const r of todayReservations) {
-        // table_number field — direct number
+        const cName = r.customer_name || r.name || 'Qonaq';
+        const cPhone = r.phone || '';
         if (r.table_number != null) {
-          reservedTables[r.table_number] = { name: r.name, time: r.time, guests: r.guests };
+          reservedTables[r.table_number] = { name: cName, phone: cPhone, time: r.time, guests: r.guests };
         }
-        // table_ids — can be array of UUIDs (table_floors.id) OR array of table_numbers
         if (r.table_ids) {
           try {
             const ids = typeof r.table_ids === 'string' ? JSON.parse(r.table_ids) : r.table_ids;
             if (Array.isArray(ids)) {
               ids.forEach((idOrNum: string | number) => {
-                // If it looks like a UUID, resolve to table_number via floors lookup
                 if (typeof idOrNum === 'string' && idOrNum.includes('-')) {
                   const tn = idToTableNumber[idOrNum];
-                  if (tn != null) {
-                    reservedTables[tn] = { name: r.name, time: r.time, guests: r.guests };
-                  }
+                  if (tn != null) reservedTables[tn] = { name: cName, phone: cPhone, time: r.time, guests: r.guests };
                 } else {
-                  // It's already a table_number
                   const tn = Number(idOrNum);
-                  if (!isNaN(tn)) {
-                    reservedTables[tn] = { name: r.name, time: r.time, guests: r.guests };
-                  }
+                  if (!isNaN(tn)) reservedTables[tn] = { name: cName, phone: cPhone, time: r.time, guests: r.guests };
                 }
               });
             }
@@ -218,6 +209,7 @@ export async function GET() {
         status,
         guest_count: guestCount + childGuests,
         reservation_name: status === 'reserved' ? (reservedInfo?.name || f.reservation_name) : undefined,
+        reservation_phone: status === 'reserved' ? (reservedInfo?.phone || f.reservation_phone) : undefined,
         reservation_time: status === 'reserved' ? (reservedInfo?.time || f.reservation_time) : undefined,
         opened_at: oldestOrder?.created_at || null,
         total_amount: totalAmount + childTotal,

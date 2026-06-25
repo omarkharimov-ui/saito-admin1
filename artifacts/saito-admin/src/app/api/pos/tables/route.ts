@@ -17,13 +17,14 @@ interface Order {
   kitchen_status: string | null;
   merged_into?: string | null;
   is_draft?: boolean;
+  reservation_id?: string | null;
 }
 
 export async function GET() {
   try {
     const [floorsRes, ordersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into,is_draft&status=neq.paid&order=created_at.desc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into,is_draft,reservation_id&status=neq.paid&order=created_at.desc`, { headers }),
     ]);
 
     if (!floorsRes.ok || !ordersRes.ok) {
@@ -33,27 +34,36 @@ export async function GET() {
     const floors = await floorsRes.json();
     const orders: Order[] = await ordersRes.json();
 
-    // 1. Robust Reservation Fetching
-    const explicitResIds = Array.from(new Set(floors.map((f: any) => f.reservation_id).filter(Boolean)));
+    // 1. Collect ALL possible Reservation IDs to fetch them live
+    const resIdsFromFloors = floors.map((f: any) => f.reservation_id).filter(Boolean);
+    const resIdsFromOrders = orders.map((o: Order) => o.reservation_id).filter(Boolean);
+    const allResIds = Array.from(new Set([...resIdsFromFloors, ...resIdsFromOrders]));
+    
     const todayStr = new Date().toISOString().split('T')[0];
     
+    // Construct a bulletproof reservation query
     let resUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,table_number,table_ids,name,customer_name,phone,time,guests,status,date`;
-    if (explicitResIds.length > 0) {
-      resUrl += `&or=(id.in.(${explicitResIds.map(id => `"${id}"`).join(',')}),and(status.eq.confirmed,date.eq.${todayStr}))`;
+    
+    if (allResIds.length > 0) {
+      // UUID values in 'in' filter should NOT be quoted inside the parentheses for PostgREST in most cases, 
+      // but let's use the most compatible format.
+      const idList = allResIds.join(',');
+      resUrl += `&or=(id.in.(${idList}),and(status.eq.confirmed,date.eq.${todayStr}))`;
     } else {
       resUrl += `&status=eq.confirmed&date=eq.${todayStr}`;
     }
 
     const reservationsRes = await fetch(resUrl, { headers });
-    const todayReservations = reservationsRes.ok ? await reservationsRes.json() : [];
+    const reservationData = reservationsRes.ok ? await reservationsRes.json() : [];
 
     const reservationMap: Record<string, any> = {};
-    if (Array.isArray(todayReservations)) {
-      todayReservations.forEach(r => {
+    if (Array.isArray(reservationData)) {
+      reservationData.forEach(r => {
         reservationMap[r.id] = r;
       });
     }
 
+    // Backup mapping by table number for today
     const reservedTablesByNum: Record<number, any> = {};
     const idToTableNumber: Record<string, number> = {};
     if (Array.isArray(floors)) {
@@ -62,37 +72,31 @@ export async function GET() {
       }
     }
 
-    if (Array.isArray(todayReservations)) {
-      for (const r of todayReservations) {
-        if (r.table_number != null) reservedTablesByNum[r.table_number] = r;
-        if (r.table_ids) {
-          try {
-            const ids = typeof r.table_ids === 'string' ? JSON.parse(r.table_ids) : r.table_ids;
-            if (Array.isArray(ids)) {
-              ids.forEach((idOrNum: string | number) => {
-                const tn = typeof idOrNum === 'string' && idOrNum.includes('-') ? idToTableNumber[idOrNum] : Number(idOrNum);
-                if (tn != null && !isNaN(tn)) reservedTablesByNum[tn] = r;
-              });
-            }
-          } catch {}
+    if (Array.isArray(reservationData)) {
+      for (const r of reservationData) {
+        // Only map by number if it's for today to avoid showing future reservations prematurely
+        if (r.date === todayStr) {
+          if (r.table_number != null) reservedTablesByNum[r.table_number] = r;
+          if (r.table_ids) {
+            try {
+              const ids = typeof r.table_ids === 'string' ? JSON.parse(r.table_ids) : r.table_ids;
+              if (Array.isArray(ids)) {
+                ids.forEach((idOrNum: string | number) => {
+                  const tn = typeof idOrNum === 'string' && idOrNum.includes('-') ? idToTableNumber[idOrNum] : Number(idOrNum);
+                  if (tn != null && !isNaN(tn)) reservedTablesByNum[tn] = r;
+                });
+              }
+            } catch {}
+          }
         }
       }
     }
 
-    // 2. Orders Mapping
     const ordersByTable: Record<number, Order[]> = {};
     for (const o of orders) {
       if (o.table_number == null) continue;
       if (!ordersByTable[o.table_number]) ordersByTable[o.table_number] = [];
       ordersByTable[o.table_number].push(o);
-    }
-
-    const parentMap: Record<string, { id: string; table_number: number }[]> = {};
-    for (const o of orders) {
-      if (o.merged_into) {
-        if (!parentMap[o.merged_into]) parentMap[o.merged_into] = [];
-        parentMap[o.merged_into].push({ id: o.id, table_number: o.table_number });
-      }
     }
 
     const parentTableMap: Record<number, number[]> = {};
@@ -107,7 +111,7 @@ export async function GET() {
     const floorMap: Record<string, { name: string; tables: any[] }> = {};
     const childOrderIds = new Set<string>(orders.filter(o => o.merged_into).map(o => o.id));
 
-    // 3. Process Tables
+    // 3. Process Tables with aggressive data resolution
     for (const f of floors) {
       const fn = f.floor_name || 'Main';
       if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [] };
@@ -119,7 +123,13 @@ export async function GET() {
       const pendingOrders = activeOrders.filter(o => o.kitchen_status === 'pending' || o.kitchen_status == null);
       const oldestOrder = activeOrders.length > 0 ? activeOrders.reduce((a, b) => new Date(a.created_at) < new Date(b.created_at) ? a : b) : null;
 
-      const resById = f.reservation_id ? reservationMap[f.reservation_id] : null;
+      // RESOLVE DEFINITIVE RESERVATION
+      // Priority 1: reservation_id from active draft order
+      const orderResId = activeOrders.find(o => o.reservation_id)?.reservation_id;
+      // Priority 2: reservation_id from table_floors record
+      const floorResId = f.reservation_id;
+      
+      const resById = (orderResId || floorResId) ? reservationMap[orderResId || floorResId] : null;
       const resByNum = reservedTablesByNum[f.table_number];
       const definitiveRes = resById || resByNum;
 
@@ -128,13 +138,11 @@ export async function GET() {
       
       let status: string;
       if (isMergedChild) status = 'merged';
-      else if (isReservedOrder || f.status === 'reserved') status = 'reserved';
-      else if (activeOrders.length === 0 && !definitiveRes) status = 'empty';
+      else if (isReservedOrder || f.status === 'reserved' || definitiveRes) status = 'reserved';
+      else if (activeOrders.length === 0) status = 'empty';
       else if (hasWaitingBill) status = 'waiting_bill';
       else if (hasCooking) status = 'cooking';
       else status = 'active';
-
-      if (definitiveRes && (activeOrders.length === 0 || isReservedOrder)) status = 'reserved';
 
       // Aggregate children data
       const tableChildren = parentTableMap[f.table_number] || [];
@@ -144,7 +152,9 @@ export async function GET() {
       const totalAmount = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
       let guestCount = activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0);
       
-      if (status === 'reserved' && definitiveRes) guestCount = definitiveRes.guests || guestCount;
+      if (status === 'reserved' && definitiveRes) {
+        guestCount = definitiveRes.guests || guestCount;
+      }
 
       floorMap[fn].tables.push({
         id: f.id,
@@ -153,8 +163,9 @@ export async function GET() {
         sort_order: f.sort_order,
         status,
         guest_count: guestCount + childGuests,
-        reservation_id: definitiveRes?.id || f.reservation_id,
-        reservation_name: definitiveRes?.customer_name || definitiveRes?.name || f.reservation_name || definitiveRes?.phone || f.reservation_phone || definitiveRes?.id?.slice(0, 8),
+        // DYNAMIC IDENTITY (No more generic "Guest" fallback in API)
+        reservation_id: definitiveRes?.id || orderResId || floorResId,
+        reservation_name: definitiveRes?.customer_name || definitiveRes?.name || f.reservation_name || definitiveRes?.phone || f.reservation_phone || null,
         reservation_phone: definitiveRes?.phone || f.reservation_phone,
         reservation_time: definitiveRes?.time || f.reservation_time,
         opened_at: oldestOrder?.created_at || null,

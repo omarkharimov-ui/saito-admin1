@@ -374,7 +374,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-x-hidden overflow-y-hidden select-none h-screen max-h-screen w-full max-w-full">
+    <div className="absolute inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-x-hidden overflow-y-hidden select-none h-full w-full">
 
       {/* ─── HEADER ─── */}
       <div className="flex-shrink-0 border-b border-white/[0.06] bg-[#0c0c0c]">

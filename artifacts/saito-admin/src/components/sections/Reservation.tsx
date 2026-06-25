@@ -123,6 +123,54 @@ const DateWheelPicker: React.FC<{ day: string; month: string; year: string; onDa
     const [timeParts, setTimeParts] = useState({ hour: '19', minute: '00' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (isSubmitting) return;
+
+      const { name, phone, guests } = formData;
+      if (!name || !phone || !guests) {
+        setError(t('res.error.missing' as any) || 'Please fill in all fields');
+        return;
+      }
+
+      setIsSubmitting(true);
+      setError(null);
+
+      // Convert date parts to ISO date string (YYYY-MM-DD)
+      const monthIndex = months.indexOf(dateParts.month);
+      const formattedDate = `${dateParts.year}-${String(monthIndex + 1).padStart(2, '0')}-${dateParts.day}`;
+      const formattedTime = `${timeParts.hour}:${timeParts.minute}`;
+
+      try {
+        const response = await fetch('/api/public/reservations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_name: name,
+            phone,
+            date: formattedDate,
+            time: formattedTime,
+            guests,
+            notes: formData.notes
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Something went wrong');
+        }
+
+        setIsSuccess(true);
+        setFormData({ name: '', phone: '', guests: '2', manualGuests: '', notes: '' });
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
   
     return (
       <section id="reservation" className="py-32 px-4 md:px-20 bg-[var(--theme-bg)] relative overflow-hidden text-[var(--theme-text)]">
@@ -141,7 +189,16 @@ const DateWheelPicker: React.FC<{ day: string; month: string; year: string; onDa
                 <button onClick={() => setIsSuccess(false)} className="px-8 py-3 border border-gold text-gold text-xs tracking-widest uppercase font-black rounded-xl">{t('res.new' as any)}</button>
               </div>
             ) : (
-              <form onSubmit={(e) => e.preventDefault()} className="space-y-10">
+              <form onSubmit={handleSubmit} className="space-y-10">
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-sm font-bold"
+                  >
+                    {error}
+                  </motion.div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-3">
                     <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] font-black">{t('res.name' as any)}</label>
@@ -157,8 +214,26 @@ const DateWheelPicker: React.FC<{ day: string; month: string; year: string; onDa
                      <TimeWheelPicker hour={timeParts.hour} minute={timeParts.minute} onHourChange={h => setTimeParts({...timeParts, hour: h})} onMinuteChange={m => setTimeParts({...timeParts, minute: m})} />
                   </div>
                 </div>
-                <button className="w-full bg-gold text-black py-6 rounded-[24px] font-black text-xs tracking-[0.4em] uppercase transition-all shadow-xl hover:shadow-gold/20 active:scale-[0.98]">
-                  {t('res.submit' as any)}
+                <button 
+                  disabled={isSubmitting}
+                  className="w-full bg-gold text-black py-6 rounded-[24px] font-black text-xs tracking-[0.4em] uppercase transition-all shadow-xl hover:shadow-gold/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Clock size={20} />
+                      </motion.div>
+                      {t('res.submitting' as any) || 'GÖNDƏRİLİR...'}
+                    </>
+                  ) : (
+                    <>
+                      <Send size={18} />
+                      {t('res.submit' as any)}
+                    </>
+                  )}
                 </button>
               </form>
             )}

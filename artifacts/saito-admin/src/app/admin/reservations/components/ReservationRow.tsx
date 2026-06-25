@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle, Calendar, Users, Phone, Clock, Trash2, Star, UserPlus, Zap } from 'lucide-react';
+import { CheckCircle, Calendar, Users, Phone, Clock, Trash2, Star, UserPlus, Zap, Edit2, ShoppingBag } from 'lucide-react';
+
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -11,13 +12,17 @@ interface Props {
   res: Reservation & { visitCount?: number };
   timeFilter: 'today' | 'future' | 'archive';
   statusBadge: (status: string) => React.ReactNode;
-  onUpdateStatus: (id: string, status: 'confirmed' | 'cancelled') => void;
+  onUpdateStatus: (id: string, status: string) => void;
+  onEdit: (res: any) => void;
   onDelete: (id: string, name: string) => void;
+  onArchive: (id: string) => void;
+  onRestore: (id: string) => void;
   onSelect: (res: any) => void;
   onHandle?: (res: any) => void;
 }
 
 const maskPhone = (phone: string) => {
+  if (!phone) return '—';
   const clean = phone.replace(/\D/g, '');
   if (clean.length < 4) return phone;
   const last4 = clean.slice(-4);
@@ -30,7 +35,7 @@ const getGuestTag = (count: number) => {
   return { label: 'Yeni', icon: UserPlus, color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
 };
 
-export const ReservationTableRow = ({ res, statusBadge, onUpdateStatus, onDelete, onSelect, onHandle }: Props) => {
+export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete, onArchive, onRestore, onSelect, onHandle }: Props) => {
   const { lightMode } = useTheme();
   const tag = getGuestTag(res.visitCount || 1);
 
@@ -47,7 +52,7 @@ export const ReservationTableRow = ({ res, statusBadge, onUpdateStatus, onDelete
       <td className="px-8 py-6">
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className={`font-bold text-[15px] ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{res.name}</span>
+            <span className={`font-bold text-[15px] ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{res.name || res.customer_name}</span>
             <span className={`px-1.5 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest ${tag.color}`}>
               {tag.label}
             </span>
@@ -75,7 +80,7 @@ export const ReservationTableRow = ({ res, statusBadge, onUpdateStatus, onDelete
       <td className="px-8 py-6">{statusBadge(res.status)}</td>
       <td className="px-8 py-6">
         <p className={`text-[11px] italic truncate max-w-[150px] ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-          {res.note || '—'}
+          {res.notes || res.note || '—'}
         </p>
       </td>
       <td className="px-8 py-6 text-right">
@@ -86,14 +91,28 @@ export const ReservationTableRow = ({ res, statusBadge, onUpdateStatus, onDelete
              </button>
            )}
            {res.status === 'pending' && (
-             <button onClick={() => onUpdateStatus(res.id, 'confirmed')} className="p-2.5 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5"><CheckCircle size={18} /></button>
+             <button title="Təsdiqlə" onClick={() => onUpdateStatus(res.id, 'confirmed')} className="p-2.5 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5"><CheckCircle size={18} /></button>
            )}
-           <button onClick={() => onDelete(res.id, res.name)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-500/5"><Trash2 size={18} /></button>
+           {res.status === 'confirmed' && (
+             <button title="Gəldi" onClick={() => onUpdateStatus(res.id, 'checked_in')} className="px-3 py-2.5 rounded-xl bg-blue-500/15 text-blue-400 hover:bg-blue-500 hover:text-white transition-all shadow-lg text-xs font-bold">Gəldi</button>
+           )}
+           {res.status === 'checked_in' && (
+             <button title="Tamamla" onClick={() => onUpdateStatus(res.id, 'completed')} className="px-3 py-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all shadow-lg text-xs font-bold">Tamamla</button>
+           )}
+           <button title="Redaktə et" onClick={() => onEdit(res)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all shadow-lg shadow-black/5"><Edit2 size={18} /></button>
+           
+           {timeFilter === 'archive' ? (
+             <button title="Bərpa et" onClick={() => onRestore(res.id)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all shadow-lg shadow-black/5"><Zap size={18} /></button>
+           ) : (
+             <button title="Arxivlə" onClick={() => onArchive(res.id)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all shadow-lg shadow-black/5"><ShoppingBag size={18} /></button>
+           )}
+           <button title="Sil" onClick={() => onDelete(res.id, res.name || res.customer_name)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-500/5"><Trash2 size={18} /></button>
         </div>
       </td>
     </motion.tr>
   );
 };
+
 
 export const ReservationCard = ({ res, statusBadge, onUpdateStatus, onDelete, onSelect, onHandle }: Props) => {
   const { lightMode } = useTheme();

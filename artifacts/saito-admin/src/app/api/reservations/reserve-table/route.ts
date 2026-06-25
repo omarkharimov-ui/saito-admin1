@@ -20,9 +20,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'reservation_id is required' }, { status: 400 });
     }
 
-    // 0. Rezervasiya məlumatlarını çək (name, customer_name, phone, time, date, guests)
+    // 0. Rezervasiya məlumatlarını çək
     const resRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/reservations?select=id,name,customer_name,phone,time,date,guests&id=eq.${reservation_id}`,
+      `${SUPABASE_URL}/rest/v1/reservations?select=*&id=eq.${reservation_id}`,
       { headers }
     );
     const resData = await resRes.json();
@@ -31,7 +31,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
     }
 
-    // table_number verilmeyibse, table_ids-den birinci masanin table_number-ini al
+    // 1. Double Booking Check
+    const checkUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,time&date=eq.${reservation.date}&status=eq.confirmed`;
+    const checkRes = await fetch(checkUrl, { headers });
+    const existing = await checkRes.json();
+
+    const requestedTime = new Date(`1970-01-01T${reservation.time}:00`).getTime();
+    const buffer = 2 * 60 * 60 * 1000; // 2 hours
+
+    const conflict = existing.find((res: any) => {
+      if (res.id === reservation_id) return false;
+      const resTime = new Date(`1970-01-01T${res.time}:00`).getTime();
+      const isOverlapping = Math.abs(requestedTime - resTime) < buffer;
+      const existingTables = typeof res.table_ids === 'string' ? JSON.parse(res.table_ids) : (res.table_ids || []);
+      const requestedTables = table_ids;
+      const hasTableConflict = requestedTables.some((tId: string) => existingTables.includes(tId));
+      return isOverlapping && hasTableConflict;
+    });
+
+    if (conflict) {
+      return NextResponse.json({ 
+        error: `Masa artıq ${conflict.name} tərəfindən saat ${conflict.time}-da rezerv edilib.` 
+      }, { status: 409 });
+    }
+
+    // 2. Resolve table_number if missing
     if (!table_number && table_ids && table_ids.length > 0) {
       const tRes = await fetch(
         `${SUPABASE_URL}/rest/v1/table_floors?select=table_number&id=eq.${table_ids[0]}`,
@@ -50,70 +74,41 @@ export async function POST(request: Request) {
       0
     );
 
-    // 1. table_floors-u update et — reservation_name, reservation_time, reservation_id dahil
+    // 3. Update table_floors
     const tableFloorPatch = {
       status: 'reserved',
       reservation_id,
-      reservation_name: reservation.customer_name || reservation.name || reservation.phone || 'Guest',
+      reservation_name: reservation.customer_name || reservation.name || 'Guest',
       reservation_phone: reservation.phone,
       reservation_time: reservation.time,
       guest_count: guest_count ?? reservation.guests ?? null,
     };
 
-    if (table_ids && table_ids.length > 0) {
-      // UUID id-ləri ilə update
-      for (const tid of table_ids) {
-        await fetch(`${SUPABASE_URL}/rest/v1/table_floors?id=eq.${tid}`, {
-          method: 'PATCH',
-          headers,
-          body: JSON.stringify(tableFloorPatch),
-        });
-      }
-    } else {
-      // table_number ilə update
-      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+    for (const tid of table_ids) {
+      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?id=eq.${tid}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify(tableFloorPatch),
       });
     }
 
-    // 2. Kitchen schedule hesabla (pre-order varsa)
+    // 4. Kitchen schedule logic (Optional but kept)
     let kitchen_scheduled_at = null;
     if (pre_order_items && pre_order_items.length > 0) {
-      let minutesBefore = schedule_minutes_before;
-      
-      if (!minutesBefore) {
-        // AI-dan hazırlıq vaxtı təxminini al
-        try {
-          const itemNames = pre_order_items.map((i: any) => `${i.quantity}x ${i.product_name}`).join(', ');
-          const systemPrompt = `Restoran mətbəx köməkçisisən. Bu yeməklərin hamısının eyni vaxtda hazır olması üçün hazırlığa nə qədər vaxt (dəqiqə ilə) qabaqcadan başlanılmalıdır? Yalnız JSON: {"minutes": number}`;
-          const userPrompt = `Yeməklər: ${itemNames}`;
-          const aiResponse = await groqChat(systemPrompt, userPrompt);
-          const result = parseJsonFromText<{ minutes: number }>(aiResponse);
-          minutesBefore = result?.minutes || 30;
-        } catch (e) {
-          minutesBefore = 30;
-        }
-      }
-
-      if (reservation.date && reservation.time) {
-        const [hours, minutes] = reservation.time.split(':').map(Number);
-        const reservationDate = new Date(reservation.date);
-        reservationDate.setHours(hours, minutes, 0, 0);
-        kitchen_scheduled_at = new Date(
-          reservationDate.getTime() - minutesBefore * 60 * 1000
-        ).toISOString();
-      }
+      let minutesBefore = schedule_minutes_before || 30;
+      const [hours, minutes] = reservation.time.split(':').map(Number);
+      const reservationDate = new Date(reservation.date);
+      reservationDate.setHours(hours, minutes, 0, 0);
+      kitchen_scheduled_at = new Date(reservationDate.getTime() - minutesBefore * 60 * 1000).toISOString();
     }
 
-    // 3. Rezervasiyanı update et
+    // 5. Update Reservation
     await fetch(`${SUPABASE_URL}/rest/v1/reservations?id=eq.${reservation_id}`, {
       method: 'PATCH',
       headers,
       body: JSON.stringify({
         table_number,
-        table_ids: table_ids ? JSON.stringify(table_ids) : JSON.stringify([table_number]),
+        table_ids: JSON.stringify(table_ids),
         pre_order_items: pre_order_items ? JSON.stringify(pre_order_items) : null,
         pre_order_total: totalAmount || null,
         kitchen_scheduled_at,
@@ -121,66 +116,9 @@ export async function POST(request: Request) {
       }),
     });
 
-    // 4. MÜTLƏQ Draft Order yarat (Masa 'reserved' statusunda qalması üçün)
-    const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
-      method: 'POST',
-      headers: { ...headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify({
-        table_number,
-        total_amount: totalAmount || 0,
-        status: 'new',
-        kitchen_status: 'reserved', // Mətbəxdə hələ görünmür, yalnız planda var
-        order_type: 'dine_in',
-        guest_count: guest_count ?? reservation.guests ?? 2,
-        customer_note: 'Öncədən sifariş (Bron)',
-        reservation_id,
-        is_draft: true, // POS-da bənövşəyi qalması üçün açar
-        created_at: new Date().toISOString(),
-      }),
-    });
-    
-    const orderData = await orderRes.json();
-    const orderId = Array.isArray(orderData) ? orderData[0]?.id : orderData?.id;
-
-    if (orderId && pre_order_items && pre_order_items.length > 0) {
-      for (const item of pre_order_items) {
-        await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            order_id: orderId,
-            product_id: item.product_id,
-            product_name: item.product_name,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.unit_price * item.quantity,
-            modifiers: item.modifiers ? JSON.stringify(item.modifiers) : null,
-            special_notes: item.special_notes || null,
-            kitchen_status: 'reserved',
-          }),
-        });
-      }
-    }
-
-    if (orderId && kitchen_scheduled_at) {
-      await fetch(`${SUPABASE_URL}/rest/v1/kitchen_schedule`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          reservation_id,
-          table_number,
-          order_id: orderId,
-          scheduled_at: kitchen_scheduled_at,
-          guest_count: guest_count ?? reservation.guests ?? 2,
-          status: 'pending',
-        }),
-      });
-    }
-
     return NextResponse.json({
       success: true,
       table_number,
-      order_id: orderId,
       kitchen_scheduled_at,
     });
   } catch (error: any) {

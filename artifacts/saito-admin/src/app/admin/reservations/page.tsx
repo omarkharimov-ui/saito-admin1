@@ -12,7 +12,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import ReservationFilters from './components/ReservationFilters';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { ReservationTableRow, ReservationCard } from './components/ReservationRow';
-import { DeleteReservationModal, ClearArchiveModal } from './components/ReservationModals';
+import { DeleteReservationModal, ClearArchiveModal, UpsertReservationModal } from './components/ReservationModals';
 
 export default function ReservationsPage() {
   const { t, language } = useLanguage();
@@ -40,13 +40,22 @@ export default function ReservationsPage() {
   const [confirmClearArchiveModal, setConfirmClearArchiveModal] = useState(false);
   const [clearingArchive, setClearingArchive] = useState(false);
 
+  // New states for CRUD
+  const [upsertModalOpen, setUpsertModalOpen] = useState(false);
+  const [editingReservation, setEditingReservation] = useState<any | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
   /* ─── Data Fetching ─── */
   const fetchData = async () => {
     try {
-      const { data: resData } = await supabase.from('reservations').select('*').order('date', { ascending: true });
-      const { data: tData } = await supabase.from('table_floors').select('*');
+      const res = await fetch('/api/reservations');
+      const data = await res.json();
       
-      setReservations(resData || []);
+      if (data.reservations) {
+        setReservations(data.reservations);
+      }
+      
+      const { data: tData } = await supabase.from('table_floors').select('*');
       const allTables = tData || [];
       setTables(allTables);
 
@@ -69,21 +78,134 @@ export default function ReservationsPage() {
   }, []);
 
   /* ─── Actions ─── */
-  const updateStatus = async (id: string, status: 'confirmed' | 'cancelled') => {
-    const { error } = await supabase.from('reservations').update({ status }).eq('id', id);
-    if (!error) {
-      toast.success('Status yeniləndi');
+  const handleUpsert = async (formData: any) => {
+    setActionLoading(true);
+    try {
+      const body = {
+        action: editingReservation ? 'update' : 'create',
+        id: editingReservation?.id,
+        data: {
+          ...formData,
+          name: formData.customer_name,
+          status: editingReservation?.status || 'pending'
+        }
+      };
+
+      const res = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Operation failed');
+
+      toast.success(editingReservation ? 'Rezervasiya yeniləndi' : 'Yeni rezervasiya yaradıldı');
+      setUpsertModalOpen(false);
+      setEditingReservation(null);
       fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const updateStatus = async (id: string, status: string) => {
+    try {
+      const { data: resData } = await supabase.from('reservations').select('*').eq('id', id).single();
+      if (!resData) throw new Error('Reservation not found');
+
+      const { error } = await supabase.from('reservations').update({ status }).eq('id', id);
+      if (error) throw error;
+
+      // Sync Table Status
+      if (resData.table_ids) {
+        const tableIds = typeof resData.table_ids === 'string' ? JSON.parse(resData.table_ids) : resData.table_ids;
+        
+        let tableStatus = 'empty';
+        if (status === 'confirmed') tableStatus = 'reserved';
+        if (status === 'checked_in') tableStatus = 'occupied';
+        if (status === 'completed' || status === 'cancelled' || status === 'no_show') tableStatus = 'empty';
+
+        for (const tId of tableIds) {
+          await supabase.from('table_floors').update({ 
+            status: tableStatus,
+            reservation_id: (tableStatus === 'empty') ? null : id,
+            reservation_name: (tableStatus === 'empty') ? null : (resData.customer_name || resData.name),
+            reservation_time: (tableStatus === 'empty') ? null : resData.time
+          }).eq('id', tId);
+        }
+      }
+
+      toast.success(`Status: ${status}`);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+
+  const handleDelete = async () => {
+    if (!confirmDeleteReservation) return;
+    try {
+      const res = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: confirmDeleteReservation.id }),
+      });
+      if (!res.ok) throw new Error('Silinmə zamanı xəta');
+      toast.success('Rezervasiya silindi');
+      setConfirmDeleteReservation(null);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleArchive = async (id: string) => {
+    try {
+      const res = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'archive', id }),
+      });
+      if (!res.ok) throw new Error('Arxivləmə zamanı xəta');
+      toast.success('Rezervasiya arxivləndi');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleRestore = async (id: string) => {
+    try {
+      const res = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore', id }),
+      });
+      if (!res.ok) throw new Error('Bərpa zamanı xəta');
+      toast.success('Rezervasiya bərpa edildi');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
     }
   };
 
   const handleConfirmReservation = async () => {
     if (!selectedRes) return;
-    if (selectedTableIds.length === 0) return toast.error("Zehmet olmasa masa secin");
+    if (selectedTableIds.length === 0) return toast.error("Zəhmət olmasa masa seçin");
+
+    // Capacity validation (Assuming average 4 guests per table if capacity field missing)
+    const totalCapacity = selectedTableIds.length * 4; 
+    if (selectedRes.guests > totalCapacity) {
+      return toast.error(`Seçilmiş ${selectedTableIds.length} masa ${selectedRes.guests} nəfər üçün yetərli deyil.`);
+    }
 
     try {
-      // reserve-table API-ni cagir: status, table_floors, kitchen_schedule hamisi burada
       const res = await fetch('/api/reservations/reserve-table', {
+
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -120,13 +242,15 @@ export default function ReservationsPage() {
   }, []);
 
   /* ─── Logic ─── */
-  const calculateTimeLeft = (resTime: string) => {
+  const calculateTimeLeft = (resTime: string, resDate: string) => {
     if (!resTime) return '--:--';
     const [h, m] = resTime.split(':').map(Number);
-    const target = new Date(currentTime); target.setHours(h, m, 0, 0);
+    const target = new Date(resDate); 
+    target.setHours(h, m, 0, 0);
+    
     const diff = target.getTime() - currentTime.getTime();
     if (diff < 0) {
-        if (Math.abs(diff) < 1800000) return 'Gecikir'; // 30 deqiqeye qeder
+        if (Math.abs(diff) < 1800000) return 'Gecikir';
         return 'Vaxtı keçib';
     }
     const mins = Math.floor(diff / 60000);
@@ -134,29 +258,27 @@ export default function ReservationsPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getAIKitchenGuidance = (res: any) => {
-    const items = res.pre_order_items || [];
-    if (items.length === 0) return "Bu qonaq hələ öncədən sifariş daxil etməyib.";
-    return "AI Kitchen Timeline: Müştəri üçün hazırlıq planı aktivdir.";
-  };
-
-  const resWithData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    reservations.forEach(r => { counts[r.phone] = (counts[r.phone] || 0) + 1; });
-    return reservations.map(r => ({ ...r, visitCount: counts[r.phone] || 1 }));
-  }, [reservations]);
-
   const filteredReservations = useMemo(() => {
-    return resWithData.filter(res => {
-      const matchesSearch = res.name.toLowerCase().includes(searchQuery.toLowerCase()) || res.phone.includes(searchQuery);
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    return reservations.filter(res => {
+      const matchesSearch = (res.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            (res.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            (res.phone || '').includes(searchQuery);
+      
       const matchesStatus = statusFilter === 'all' || res.status === statusFilter;
-      const resDate = new Date(res.date);
-      const today = new Date(); today.setHours(0,0,0,0);
-      if (timeFilter === 'today') return matchesSearch && matchesStatus && resDate.getTime() === today.getTime();
-      if (timeFilter === 'future') return matchesSearch && matchesStatus && resDate > today;
-      return matchesSearch && matchesStatus && (resDate < today || res.status === 'cancelled');
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [resWithData, searchQuery, statusFilter, timeFilter]);
+      
+      if (timeFilter === 'today') return matchesSearch && matchesStatus && res.date === todayStr && res.status !== 'archived' && res.status !== 'cancelled';
+      if (timeFilter === 'future') return matchesSearch && matchesStatus && res.date > todayStr && res.status !== 'archived';
+      if (timeFilter === 'archive') return matchesSearch && matchesStatus && (res.status === 'archived' || res.status === 'cancelled' || res.date < todayStr);
+      
+      return matchesSearch && matchesStatus;
+    }).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.time.localeCompare(b.time);
+    });
+  }, [reservations, searchQuery, statusFilter, timeFilter]);
+
 
   const goToPOSPreOrder = () => {
     if (selectedTableIds.length === 0) return toast.error("Əvvəlcə masanı təyin edin");
@@ -172,7 +294,15 @@ export default function ReservationsPage() {
   return (
     <div className="relative p-4 md:p-8 max-w-full min-h-screen">
       <div className="flex flex-col gap-6 mb-10">
-        <h1 className="text-4xl font-black tracking-tighter">Rezervasiyalar</h1>
+        <div className="flex items-center justify-between">
+           <h1 className="text-4xl font-black tracking-tighter">Rezervasiyalar</h1>
+           <button 
+             onClick={() => { setEditingReservation(null); setUpsertModalOpen(true); }}
+             className="flex items-center gap-2 px-6 py-4 bg-gold text-black text-sm font-bold rounded-[2rem] hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-gold/10"
+           >
+             <Plus size={18} /> Yeni Rezervasiya
+           </button>
+        </div>
         <ReservationFilters 
           timeFilter={timeFilter} statusFilter={statusFilter} searchQuery={searchQuery}
           onTimeFilter={setTimeFilter} onStatusFilter={setStatusFilter} onSearch={setSearchQuery}
@@ -204,8 +334,23 @@ export default function ReservationsPage() {
                 <ReservationTableRow 
                   key={res.id} res={res} timeFilter={timeFilter} 
                   onSelect={(r) => { setSelectedRes(r); setModalView('main'); setSelectedTableIds(r.table_ids || []); }}
-                  statusBadge={(s) => <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s === 'confirmed' ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>{s}</span>}
-                  onUpdateStatus={updateStatus} onDelete={() => {}}
+                  statusBadge={(s) => {
+                    const colors: Record<string, string> = {
+                      pending: 'bg-amber-500/10 text-amber-500',
+                      confirmed: 'bg-green-500/10 text-green-500',
+                      checked_in: 'bg-blue-500/10 text-blue-400',
+                      completed: 'bg-emerald-500/10 text-emerald-400',
+                      cancelled: 'bg-red-500/10 text-red-500',
+                      no_show: 'bg-zinc-500/10 text-zinc-500',
+                      archived: 'bg-zinc-500/10 text-zinc-400'
+                    };
+                    return <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colors[s] || 'bg-zinc-500/10 text-zinc-500'}`}>{s.replace('_', ' ')}</span>
+                  }}
+                  onUpdateStatus={updateStatus} 
+                  onEdit={(r) => { setEditingReservation(r); setUpsertModalOpen(true); }}
+                  onDelete={(id, guest) => setConfirmDeleteReservation({ id, guest })}
+                  onArchive={handleArchive}
+                  onRestore={handleRestore}
                   onHandle={(r) => { setSelectedRes(r); setModalView('tables'); setSelectedTableIds(r.table_ids || []); }}
                 />
               ))}
@@ -213,6 +358,7 @@ export default function ReservationsPage() {
           </table>
         </div>
       )}
+
 
       <AnimatePresence>
         {selectedRes && (
@@ -274,13 +420,14 @@ export default function ReservationsPage() {
                                 <button onClick={() => setSelectedRes(null)} className="flex-1 py-6 rounded-[2.2rem] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-[var(--theme-text-muted)]">Bağla</button>
                              </div>
                              
-                             <div className={`p-6 rounded-[2.5rem] flex items-center justify-center gap-4 ${lightMode ? 'bg-zinc-50/50' : 'bg-white/5'}`}>
-                                <Timer size={28} className="text-blue-500 animate-pulse" />
-                                <div className="flex flex-col">
-                                   <span className="text-[9px] font-black uppercase opacity-40 leading-none mb-1">Bron Vaxtına Qalıb</span>
-                                   <span className="text-2xl font-black tracking-tighter leading-none">{calculateTimeLeft(selectedRes.time)}</span>
-                                </div>
-                             </div>
+                              <div className={`p-6 rounded-[2.5rem] flex items-center justify-center gap-4 ${lightMode ? 'bg-zinc-50/50' : 'bg-white/5'}`}>
+                                 <Timer size={28} className="text-blue-500 animate-pulse" />
+                                 <div className="flex flex-col">
+                                    <span className="text-[9px] font-black uppercase opacity-40 leading-none mb-1">Bron Vaxtına Qalıb</span>
+                                    <span className="text-2xl font-black tracking-tighter leading-none">{calculateTimeLeft(selectedRes.time, selectedRes.date)}</span>
+                                 </div>
+                              </div>
+
                           </div>
                        </motion.div>
                     </motion.div>
@@ -327,8 +474,44 @@ export default function ReservationsPage() {
         )}
       </AnimatePresence>
 
-      <DeleteReservationModal reservation={confirmDeleteReservation} onConfirm={() => {}} onCancel={() => setConfirmDeleteReservation(null)} />
-      <ClearArchiveModal open={confirmClearArchiveModal} clearing={clearingArchive} onConfirm={() => {}} onCancel={() => setConfirmClearArchiveModal(false)} title={t('delete_selected')} description={t('archive_delete_confirm')} />
+      <UpsertReservationModal 
+        open={upsertModalOpen} 
+        onClose={() => { setUpsertModalOpen(false); setEditingReservation(null); }} 
+        onSave={handleUpsert} 
+        initialData={editingReservation} 
+        loading={actionLoading} 
+      />
+
+      <DeleteReservationModal 
+        reservation={confirmDeleteReservation} 
+        onConfirm={handleDelete} 
+        onCancel={() => setConfirmDeleteReservation(null)} 
+      />
+      
+      <ClearArchiveModal 
+        open={confirmClearArchiveModal} 
+        clearing={clearingArchive} 
+        onConfirm={async () => {
+          // Logic for clearing all archive or selected
+          setClearingArchive(true);
+          try {
+             // Permanent delete of cancelled/archived
+             const { error } = await supabase.from('reservations').delete().in('status', ['cancelled', 'archived']);
+             if (error) throw error;
+             toast.success('Arxiv təmizləndi');
+             fetchData();
+          } catch (e: any) {
+             toast.error(e.message);
+          } finally {
+             setClearingArchive(false);
+             setConfirmClearArchiveModal(false);
+          }
+        }} 
+        onCancel={() => setConfirmClearArchiveModal(false)} 
+        title={t('delete_selected')} 
+        description={t('archive_delete_confirm')} 
+      />
     </div>
   );
 }
+

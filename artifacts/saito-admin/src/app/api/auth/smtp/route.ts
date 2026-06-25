@@ -45,7 +45,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(['superadmin']);
-    if (!auth.authenticated) return auth as unknown as NextResponse;
+    if (auth instanceof NextResponse) return auth;
 
     const smtp = await req.json();
     

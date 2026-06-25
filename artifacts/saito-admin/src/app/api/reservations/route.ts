@@ -36,7 +36,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (!auth.authenticated) return auth as unknown as NextResponse;
+    if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
     const { action, data, id } = body;

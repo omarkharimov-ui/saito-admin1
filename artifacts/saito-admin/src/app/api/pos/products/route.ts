@@ -11,7 +11,7 @@ const headers = {
 export async function GET() {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (!auth.authenticated) return auth as unknown as NextResponse;
+    if (auth instanceof NextResponse) return auth;
 
     const [productsRes, categoriesRes] = await Promise.all([
       fetch(

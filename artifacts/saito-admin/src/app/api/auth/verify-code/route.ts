@@ -15,7 +15,7 @@ const verificationCodes = new Map<string, { code: string; expires: number }>();
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(['superadmin']);
-    if (!auth.authenticated) return auth as unknown as NextResponse;
+    if (auth instanceof NextResponse) return auth;
 
     const adminClient = getAdminClient();
     if (!adminClient) {

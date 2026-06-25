@@ -62,8 +62,9 @@ export async function validateAuth(requiredRoles?: string[]) {
 
 /**
  * Higher-order helper for API routes to enforce role requirements.
+ * Returns either the auth object or a NextResponse (which should be returned immediately).
  */
-export async function requireAuth(requiredRoles?: string[]) {
+export async function requireAuth(requiredRoles?: string[]): Promise<any> {
   const auth = await validateAuth(requiredRoles);
   if (!auth.authenticated) {
     return NextResponse.json(

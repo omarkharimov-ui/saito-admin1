@@ -24,24 +24,13 @@ export function useAdminAuth() {
 
   useEffect(() => {
     const check = async () => {
-      const storedRole = localStorage.getItem('saito_admin_role') as 'admin' | 'superadmin' | null;
-      if (storedRole) {
-        setRole(storedRole);
-        setIsAuthenticated(true);
-      }
-
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         try {
-          const res = await fetch('/api/auth/users');
+          const res = await fetch('/api/auth/me'); // Server-side role check
           if (res.ok) {
-            const users = await res.json();
-            const me = users.find((u: { id: string }) => u.id === session.user.id);
-
-            if (me?.role === 'admin' || me?.role === 'superadmin') {
-              if (storedRole !== me.role) {
-                localStorage.setItem('saito_admin_role', me.role);
-              }
+            const me = await res.json();
+            if (['admin', 'superadmin', 'kitchen', 'cashier'].includes(me.role)) {
               setRole(me.role);
               setIsAuthenticated(true);
               setAuthChecked(true);
@@ -51,21 +40,9 @@ export function useAdminAuth() {
         } catch { /* network error — fall through */ }
       }
 
-      localStorage.removeItem('saito_admin_role');
       setIsAuthenticated(false);
       setRole(null);
       setAuthChecked(true);
-
-      try {
-        const res = await fetch('/api/auth/users');
-        if (res.ok) {
-          const users = await res.json();
-          if (users.length === 0) {
-            setNeedsSetup(true);
-            router.push('/admin?needsSetup=true');
-          }
-        }
-      } catch { /* silent */ }
     };
     check();
   }, [router]);
@@ -75,50 +52,28 @@ export function useAdminAuth() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
       });
-      const data = await res.json();
 
-      if (!res.ok) {
-        setErrorMsg(data.error === 'Invalid login credentials' ? 'E-poçt və ya şifrə yanlışdır' : data.error || 'Xəta baş verdi');
+      if (error) {
+        setErrorMsg(error.message === 'Invalid login credentials' ? 'E-poçt və ya şifrə yanlışdır' : error.message || 'Xəta baş verdi');
         setLoading(false);
         return;
       }
 
-      if (!data.user) {
-        setErrorMsg('Xəta baş verdi');
-        setLoading(false);
-        return;
-      }
-      
-      const userRole = data.user.role;
-
-      if (userRole === 'kitchen') {
-        await applySupabaseSession(data.session);
-        document.cookie = `saito_role=kitchen; Path=/; Max-Age=86400; SameSite=Lax; ${window.location.protocol === 'https:' ? 'Secure' : ''}`;
-        localStorage.setItem('saito_admin_role', 'kitchen');
-        window.location.href = '/kitchen';
-        return;
-      }
-
-      if (userRole === 'admin' || userRole === 'superadmin') {
-        const sessionOk = await applySupabaseSession(data.session);
-        if (!sessionOk) {
-          setErrorMsg('Sessiya saxlanmadı. Yenidən cəhd edin.');
-          setLoading(false);
-          return;
-        }
-
-        document.cookie = `saito_role=${userRole}; Path=/; Max-Age=86400; SameSite=Lax; ${window.location.protocol === 'https:' ? 'Secure' : ''}`;
-        localStorage.setItem('saito_admin_role', userRole);
-
-        setRole(userRole);
-        setWelcomeEmail(data.user.email || '');
-        setShowWelcome(true);
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const me = await res.json();
+        setRole(me.role);
         setIsAuthenticated(true);
+        if (me.role === 'kitchen') {
+          window.location.href = '/kitchen';
+        } else {
+          setWelcomeEmail(data.user?.email || '');
+          setShowWelcome(true);
+        }
       }
     } catch {
       setErrorMsg('Şəbəkə xətası');
@@ -129,8 +84,6 @@ export function useAdminAuth() {
   };
 
   const handleLogout = useCallback(async () => {
-    localStorage.removeItem('saito_admin_role');
-    document.cookie = 'saito_role=; Path=/; Max-Age=0';
     await supabase.auth.signOut();
     window.location.replace('/');
   }, []);

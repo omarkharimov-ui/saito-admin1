@@ -98,7 +98,7 @@ export default function ReservationsPage() {
 
       for (const res of expiredRes) {
         await updateStatus(res.id, 'no_show');
-        toast.info(`${res.name} gəlmədiyi üçün masalar boşaldıldı`, { id: `expire-${res.id}` });
+        toast.success(`${res.name} gəlmədiyi üçün masalar boşaldıldı`, { id: `expire-${res.id}` });
       }
     };
 

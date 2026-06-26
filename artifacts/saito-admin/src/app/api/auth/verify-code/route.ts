@@ -9,6 +9,10 @@ function getAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
+function generatePin(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(['superadmin']);
@@ -19,13 +23,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
-    const { email, code, password, userRole, permissions } = await req.json();
+    const { email, code, userRole } = await req.json();
 
-    if (!email || !code || !password) {
-      return NextResponse.json({ error: 'Email, code, and password required' }, { status: 400 });
+    if (!email || !code) {
+      return NextResponse.json({ error: 'Email and code required' }, { status: 400 });
     }
 
-    // Verify code from DB (shared across all server instances)
+    // Verify code from DB
     const { data: stored } = await adminClient
       .from('verification_codes')
       .select('code, expires')
@@ -39,31 +43,28 @@ export async function POST(req: NextRequest) {
     // Clear used code
     await adminClient.from('verification_codes').delete().eq('email', email);
 
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
-
-    if (authError) throw authError;
-    if (!authData.user) throw new Error('User creation failed');
+    // Generate a unique 4-digit PIN
+    let pin = generatePin();
+    let existing = await adminClient.from('admin_users').select('id').eq('pin', pin).maybeSingle();
+    while (existing?.data) {
+      pin = generatePin();
+      existing = await adminClient.from('admin_users').select('id').eq('pin', pin).maybeSingle();
+    }
 
     const { error: insertError } = await adminClient
       .from('admin_users')
       .insert({
-        id: authData.user.id,
-        email,
+        email: email || null,
         role: userRole || 'admin',
         is_active: true,
-        permissions: permissions || [],
+        pin,
       });
 
     if (insertError) {
-      await adminClient.auth.admin.deleteUser(authData.user.id);
       throw insertError;
     }
 
-    return NextResponse.json({ success: true, id: authData.user.id });
+    return NextResponse.json({ success: true, pin });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Failed to create user' }, { status: 500 });
   }

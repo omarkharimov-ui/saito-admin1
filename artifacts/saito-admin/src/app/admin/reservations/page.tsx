@@ -77,6 +77,35 @@ export default function ReservationsPage() {
     clearNotifications();
   }, []);
 
+  /* ─── Auto-Release Expired Reservations (Task 8) ─── */
+  useEffect(() => {
+    const checkExpired = async () => {
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      
+      const expiredRes = reservations.filter(res => 
+        res.status === 'confirmed' && 
+        res.date === todayStr &&
+        res.time && 
+        (() => {
+          const [h, m] = res.time.split(':').map(Number);
+          const resTime = new Date();
+          resTime.setHours(h, m, 0);
+          const diff = (now.getTime() - resTime.getTime()) / 60000;
+          return diff > 30; // 30 dəqiqə gecikənlər
+        })()
+      );
+
+      for (const res of expiredRes) {
+        await updateStatus(res.id, 'no_show');
+        toast.info(`${res.name} gəlmədiyi üçün masalar boşaldıldı`, { id: `expire-${res.id}` });
+      }
+    };
+
+    const interval = setInterval(checkExpired, 60000);
+    return () => clearInterval(interval);
+  }, [reservations]);
+
   /* ─── Actions ─── */
   const handleUpsert = async (formData: any) => {
     setActionLoading(true);

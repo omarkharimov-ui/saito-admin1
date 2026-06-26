@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect } from 'react';
 import {
   Plus, Merge, Move, Split, CreditCard,
-  Printer, Save, XCircle, Check, X, Trash2
+  Printer, Save, XCircle, Check, X, Trash2, GitMerge
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -17,7 +17,8 @@ interface ActionSheetProps {
   onAddOrder: () => void;
   onMerge: () => void;
   onTransfer: () => void;
-  onSplitBill: () => void;
+  onUnmerge: () => void;
+  onBillSplit: () => void;
   onCloseBill: () => void;
   onPrint: () => void;
   onSaveDraft: () => void;
@@ -40,7 +41,7 @@ interface ActionSheetProps {
 const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } as const;
 
 export function ActionSheet({ 
-  table, open, onClose, onAddOrder, onMerge, onTransfer, onSplitBill, onCloseBill, onPrint, onSaveDraft, onCancelTable,
+  table, open, onClose, onAddOrder, onMerge, onTransfer, onUnmerge, onBillSplit, onCloseBill, onPrint, onSaveDraft, onCancelTable,
   mergeMode, transferMode, splitMode, allTables, selectedForMerge, selectedForSplit, transferSource, transferTarget,
   onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, onConfirmTransfer
 }: ActionSheetProps) {
@@ -61,7 +62,8 @@ export function ActionSheet({
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
     { id: 'merge', icon: Merge, label: t('merge_tables'), visible: true },
     { id: 'transfer', icon: Move, label: t('move_table'), visible: true },
-    { id: 'split', icon: Split, label: 'Masaları Ayır', visible: isMerged },
+    { id: 'unmerge', icon: GitMerge, label: 'Masaları Ayır', visible: isMerged },
+    { id: 'bill_split', icon: Split, label: 'Hesabı Böl', visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'cancel_table', icon: Trash2, label: 'Masanı Təmizlə', visible: isOccupied || table?.status === 'reserved' },
   ];
@@ -73,7 +75,7 @@ export function ActionSheet({
   return (
     <AnimatePresence>
       {currentView !== 'none' && (
-        <div key="global-pos-root" className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none pb-10">
+        <div key="global-pos-root" className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none pb-10">
           {/* Backdrop */}
           {(currentView === 'actions' || currentView === 'split') && (
             <motion.div
@@ -108,10 +110,10 @@ export function ActionSheet({
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     {visibleActions.map((action) => (
-                      <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, merge: onMerge, transfer: onTransfer, split: onSplitBill, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
+                      <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, merge: onMerge, transfer: onTransfer, unmerge: onUnmerge, bill_split: onBillSplit, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
                         className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
                         <action.icon size={22} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase">{action.label}</span>
+                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
                       </button>
                     ))}
                   </div>

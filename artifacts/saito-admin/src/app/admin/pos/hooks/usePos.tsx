@@ -44,6 +44,9 @@ export function usePos() {
   const [floors, setFloors] = useState<FloorConfig[]>(cached?.floors || []);
   const [products, setProducts] = useState<PosProduct[]>(cached?.products || []);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>(cached?.categories || []);
+  const [ingredients, setIngredients] = useState<any[]>([]);
+  const [recipes, setRecipes] = useState<any[]>([]);
+  const [variants, setVariants] = useState<any[]>([]);
   const [loading, setLoading] = useState(!cached);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<{ action: string; data: any; message: string } | null>(null);
@@ -83,6 +86,9 @@ export function usePos() {
         newCategories = data.categories || [];
         setProducts(newProducts);
         setCategories(newCategories);
+        if (data.ingredients) setIngredients(data.ingredients);
+        if (data.recipes) setRecipes(data.recipes);
+        if (data.variants) setVariants(data.variants);
       }
 
       // If we got valid data, save to cache
@@ -200,16 +206,45 @@ export function usePos() {
     }
   }, []);
 
+  const checkStock = useCallback((productId: string, qty: number = 1): boolean => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return true;
+
+    // 1. Direct ingredient check
+    const directIngId = (product as any).direct_ingredient_id;
+    if (directIngId) {
+      const ing = ingredients.find(i => i.id === directIngId);
+      if (ing && ing.current_stock < qty) {
+        toast.error(`"${ing.name}" tükənib. Stok: ${ing.current_stock}`);
+        return false;
+      }
+    }
+
+    // 2. Recipe check
+    const productRecipes = recipes.filter(r => r.product_id === productId);
+    if (productRecipes.length > 0) {
+      for (const r of productRecipes) {
+        const ing = ingredients.find(i => i.id === r.ingredient_id);
+        if (ing && ing.current_stock < (r.quantity_required * qty)) {
+          toast.error(`"${ing.name}" kifayət qədər yoxdur. Lazımdır: ${r.quantity_required * qty}, Stok: ${ing.current_stock}`);
+          return false;
+        }
+      }
+    }
+    return true;
+  }, [products, ingredients, recipes]);
+
   const backToFloor = useCallback(() => {
     // 1. Get latest cart from ref
     const currentCart = cartRef.current;
     
-    // 2. Discard all draft changes (unsent items or increased quantities)
-    // We only persist the "sent" state of the cart
+    // 2. Task 14: Confirm if unsaved changes exist
+    const hasUnsaved = currentCart?.items.some(it => !it.sentQuantity || it.quantity !== it.sentQuantity);
+    if (hasUnsaved && !confirm('Yadda saxlanılmamış dəyişikliklər silinəcək. Davam edək?')) return;
+
+    // 3. Discard draft changes
     if (currentCart && currentCart.items.length > 0) {
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-      
-      // Filter items to keep only what was already sent to kitchen
       const confirmedItems = currentCart.items
         .map(item => ({ 
           ...item, 
@@ -227,7 +262,6 @@ export function usePos() {
       }
     }
     
-    // 3. Clear view state
     setSelectedTable(null);
     setActiveView('floor');
     setCart(null); 
@@ -236,6 +270,9 @@ export function usePos() {
 
   /* ── Cart Operations ── */
   const addToCart = useCallback((product: PosProduct, modifiers?: PosModifierSelection[], notes?: string, variantId?: string) => {
+    // Task 4: Stock check
+    if (!checkStock(product.id, 1)) return;
+
     const currentCart = cartRef.current;
     if (!currentCart) return;
     const langs = languageRef.current;
@@ -247,6 +284,7 @@ export function usePos() {
     });
 
     if (existing) {
+      if (!checkStock(product.id, existing.quantity + 1)) return;
       setCart(prev => prev ? {
         ...prev,
         items: prev.items.map(i =>
@@ -270,13 +308,18 @@ export function usePos() {
       setCart(prev => prev ? { ...prev, items: [...prev.items, newItem] } : null);
     }
     forceUpdate(n => n + 1);
-  }, []);
+  }, [checkStock]);
 
   const updateCartItemQty = useCallback((index: number, delta: number) => {
     setCart(prev => {
       if (!prev) return null;
       const items = [...prev.items];
-      const newQty = items[index].quantity + delta;
+      const item = items[index];
+      const newQty = item.quantity + delta;
+      
+      // Stock check on increase
+      if (delta > 0 && !checkStock(item.product_id, newQty)) return prev;
+
       if (newQty <= 0) {
         items.splice(index, 1);
       } else {
@@ -284,7 +327,7 @@ export function usePos() {
       }
       return { ...prev, items };
     });
-  }, []);
+  }, [checkStock]);
 
   const removeCartItem = useCallback((index: number) => {
     setCart(prev => prev ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : null);

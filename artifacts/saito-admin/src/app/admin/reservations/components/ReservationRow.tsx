@@ -105,9 +105,12 @@ export const ReservationTableRow = ({
            {res.status === 'pending' && (
              <button title="Təsdiqlə" onClick={() => onUpdateStatus(res.id, 'confirmed')} className="p-2.5 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5"><CheckCircle size={18} /></button>
            )}
-           {res.status === 'confirmed' && (
-             <button title="Gəldi" onClick={() => onUpdateStatus(res.id, 'checked_in')} className="px-3 py-2.5 rounded-xl bg-blue-500/15 text-blue-400 hover:bg-blue-500 hover:text-white transition-all shadow-lg text-xs font-bold">Gəldi</button>
-           )}
+            {res.status === 'confirmed' && (
+              <div className="flex gap-1.5">
+                <button title="Gəldi" onClick={() => onUpdateStatus(res.id, 'checked_in')} className="px-3 py-2.5 rounded-xl bg-blue-500/15 text-blue-400 hover:bg-blue-500 hover:text-white transition-all shadow-lg text-xs font-bold whitespace-nowrap">Gəldi</button>
+                <button title="Gəlmədi" onClick={() => onUpdateStatus(res.id, 'no_show')} className="px-3 py-2.5 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all text-xs font-bold whitespace-nowrap">Gəlmədi</button>
+              </div>
+            )}
            {res.status === 'checked_in' && (
              <button title="Tamamla" onClick={() => onUpdateStatus(res.id, 'completed')} className="px-3 py-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all shadow-lg text-xs font-bold">Tamamla</button>
            )}

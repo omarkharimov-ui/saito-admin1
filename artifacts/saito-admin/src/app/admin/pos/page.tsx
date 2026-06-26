@@ -64,6 +64,8 @@ export default function POSPage() {
   }, []);
 
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [billSplitOpen, setBillSplitOpen] = useState(false);
+  const [billSplitItems, setBillSplitItems] = useState<any[]>([]);
   const [payOrder, setPayOrder] = useState<any>(null);
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
   const [payTableNumber, setPayTableNumber] = useState<number>(0);
@@ -133,11 +135,20 @@ export default function POSPage() {
 
   const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
   const overdueTables = useMemo(() => {
-    const now = Date.now();
-    const cutoff = orderDelayMinutes * 60 * 1000;
-    const map = new Map<number, 'not_accepted' | 'preparing'>();
-    return map; // Simplified for now
-  }, [orderDelayMinutes]);
+    const map = new Map<number, boolean>();
+    const now = new Date();
+    const threshold = orderDelayMinutes || 20;
+
+    for (const table of pos.tables) {
+      if (table.status === 'occupied' && table.lastOrderTime) {
+        const diff = (now.getTime() - new Date(table.lastOrderTime).getTime()) / 60000;
+        if (diff > threshold) {
+          map.set(table.table_number, true);
+        }
+      }
+    }
+    return map;
+  }, [pos.tables, orderDelayMinutes]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -327,7 +338,17 @@ export default function POSPage() {
       </div>
 
       <ActionSheet 
-        table={actionSheetTable} open={actionSheetOpen} onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} onAddOrder={() => { pos.selectTable(actionSheetTable!); setActionSheetOpen(false); }} onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable!.table_number]); setActionSheetOpen(false); }} onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); setActionSheetOpen(false); }} onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} onSplitBill={() => { setSplitMode(true); setSelectedForSplit([actionSheetTable!.table_number]); }} onPrint={() => {}} onSaveDraft={() => {}} onCancelTable={() => { if (actionSheetTable) { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); } }}
+        table={actionSheetTable} open={actionSheetOpen} onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} onAddOrder={() => { pos.selectTable(actionSheetTable!); setActionSheetOpen(false); }} onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable!.table_number]); setActionSheetOpen(false); }} onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); setActionSheetOpen(false); }} onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} 
+        onUnmerge={() => { setSplitMode(true); setSelectedForSplit([actionSheetTable!.table_number]); }}
+        onBillSplit={async () => { 
+          if (!actionSheetTable?.order_ids?.[0]) return;
+          const { data } = await supabase.from('order_items').select('*').eq('order_id', actionSheetTable.order_ids[0]);
+          setBillSplitItems(data || []);
+          setPayOrderId(actionSheetTable.order_ids[0]);
+          setBillSplitOpen(true);
+          setActionSheetOpen(false);
+        }}
+        onPrint={() => window.print()} onSaveDraft={() => {}} onCancelTable={() => { if (actionSheetTable) { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); } }}
         mergeMode={mergeMode} transferMode={transferMode} splitMode={splitMode} allTables={pos.tables} selectedForMerge={selectedForMerge} selectedForSplit={selectedForSplit} transferSource={transferSource} transferTarget={transferTarget}
         onToggleSplit={(n) => { if (selectedForSplit.includes(n)) setSelectedForSplit(p => p.filter(x => x !== n)); else setSelectedForSplit(p => [...p, n]); }}
         onConfirmSplit={async () => { const toSplit = selectedForSplit.filter(n => n !== selectedForSplit[0]); if (toSplit.length === 0) { toast.error("Ayırmaq üçün ən azı bir masa seçin"); return; } try { const res = await fetch('/api/orders/split', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table_numbers: toSplit }) }); if (!res.ok) throw new Error("Ayırma xətası"); toast.success("Masalar ayrıldı"); setSplitMode(false); setSelectedForSplit([]); setActionSheetOpen(false); pos.fetchData(); } catch (e: any) { toast.error(e.message); } }}
@@ -335,7 +356,21 @@ export default function POSPage() {
         onConfirmMerge={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
         onConfirmTransfer={async () => { if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); } }}
       />
-      <ModifierSheet open={modifierOpen} productName={modifierProduct?.name || ''} productPrice={modifierProduct?.price || 0} onClose={() => setModifierOpen(false)} onConfirm={(m, n) => { pos.addToCart(modifierProduct!, m, n); setModifierOpen(false); }} />
+      <ModifierSheet 
+        open={modifierOpen} 
+        productName={modifierProduct?.name || ''} 
+        productPrice={modifierProduct?.price || 0} 
+        variants={(pos as any).variants?.filter((v: any) => v.product_id === modifierProduct?.id)}
+        onClose={() => setModifierOpen(false)} 
+        onConfirm={(m, n, vId) => { pos.addToCart(modifierProduct!, m, n, vId); setModifierOpen(false); }} 
+      />
+      <BillSplitModal 
+        open={billSplitOpen} 
+        orderId={payOrderId || ''} 
+        items={billSplitItems} 
+        onClose={() => setBillSplitOpen(false)} 
+        onSuccess={() => { pos.fetchData(); }} 
+      />
       {paymentOpen && payOrder && (
         <ReceiptModal order={payOrder} onClose={() => setPaymentOpen(false)} getProductName={(it) => { const p = it.products as any; if (!p) return ''; const transName = p.translations?.[language]?.name; if (transName) return transName; return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || ''; }} onPay={handleCloseBill} />
       )}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft } from 'lucide-react';
+import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { AnimatedTabs } from '../components/ui/MotionControls';
 import { supabase } from '@/lib/supabase';
@@ -15,13 +15,14 @@ import UsersTab from './tabs/UsersTab';
 import ReceiptTab from './tabs/ReceiptTab';
 import FloorsTab from './tabs/FloorsTab';
 
-type Tab = 'general' | 'staff' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'users' | 'floors';
+type Tab = 'general' | 'staff' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'users' | 'floors' | 'hours';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
 const TAB_DEFS: TabDef[] = [
   { key: 'general',   labelKey: 'tab_general',   icon: <Store size={20} />,       desc: 'Restoran məlumatları' },
   { key: 'staff',     labelKey: 'tab_staff',     icon: <Users size={20} />,       desc: 'İşçilər və icazələr' },
+  { key: 'hours',     labelKey: 'tab_hours' as any, icon: <Clock size={20} />,     desc: 'İş saatları' },
   { key: 'qr',        labelKey: 'tab_qr',        icon: <QrCode size={20} />,      desc: 'QR kod və masa linki' },
   { key: 'analytics', labelKey: 'tab_analytics', icon: <BrainCircuit size={20} />,desc: 'Statistika parametrləri' },
   { key: 'kitchen',   labelKey: 'tab_kitchen',   icon: <Timer size={20} />,       desc: 'Mətbəx ayarları' },
@@ -41,6 +42,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
     <>
       {tab === 'general'   && <GeneralTab initialData={settingsData} />}
       {tab === 'staff'     && <StaffTab />}
+      {tab === 'hours'     && <HoursTab />}
       {tab === 'qr'        && <QRTab initialData={settingsData} />}
       {tab === 'analytics' && <AnalyticsTab initialData={settingsData} />}
       {tab === 'kitchen'   && <KitchenTab initialData={settingsData} />}
@@ -114,10 +116,9 @@ const SettingsPage = () => {
           ))}
         </div>
 
-        {/* Mobile slide-in detail panel - ani açılma, hamburgerden yuksek z-index */}
+        {/* Mobile slide-in detail panel */}
         {mobileTab && (
           <div className="fixed inset-0 z-[9999] flex flex-col bg-[var(--theme-surface)]">
-            {/* Panel header - hamburgeri örtmək üçün extra top padding */}
             <div className="sticky top-0 z-10 flex items-center gap-3 px-4 pt-16 pb-4 border-b border-[var(--theme-border)] bg-[var(--theme-surface)]">
               <button
                 onClick={() => setMobileTab(null)}
@@ -134,7 +135,6 @@ const SettingsPage = () => {
               <div className="w-10" />
             </div>
 
-            {/* Panel content */}
             <div className="flex-1 px-4 py-6 pb-16 overflow-y-auto">
               <TabContent tab={mobileTab} settingsData={settingsData} isSuperadmin={isSuperadmin} />
             </div>
@@ -142,7 +142,7 @@ const SettingsPage = () => {
         )}
       </div>
 
-      {/* ── DESKTOP layout — unchanged ── */}
+      {/* ── DESKTOP layout ── */}
       <div className="hidden lg:block space-y-8">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-gold/10 text-gold rounded-2xl">
@@ -154,7 +154,7 @@ const SettingsPage = () => {
           </div>
         </div>
 
-<AnimatedTabs
+        <AnimatedTabs
           className="w-full overflow-x-auto"
           activeKey={tab}
           onChange={(key) => setTab(key as Tab)}

@@ -200,7 +200,9 @@ export async function POST(req: Request) {
         });
       }
 
-      await supabase.from('products').update({ has_active_recipe: true }).eq('id', product.id);
+      // Task 10: AI suggestions should not auto-activate the product recipe.
+      // The has_active_recipe will only be set to true when the admin approves the suggestion via /api/recipes/approve.
+      // await supabase.from('products').update({ has_active_recipe: true }).eq('id', product.id);
     }
 
     return NextResponse.json({ suggestions, count: suggestions.length });

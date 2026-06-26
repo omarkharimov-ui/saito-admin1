@@ -187,10 +187,10 @@ const CampaignsPage = () => {
       const allExpired = [...expired, ...expiredHappyHours];
 
       for (const camp of allExpired) {
-        await fetch('/api/campaigns', {
-          method: 'POST',
+        await fetch(`/api/campaigns?id=${camp.id}`, {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'deactivate', id: camp.id })
+          body: JSON.stringify({ status: 'inactive' })
         });
       }
 

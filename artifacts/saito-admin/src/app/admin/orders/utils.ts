@@ -8,6 +8,7 @@ export const getStatusConfig = (t: (k: any) => string): Record<Order['status'], 
   new:       { label: t('status_new'),       color: 'text-yellow-400 bg-yellow-400/10',  border: 'border-yellow-400/30' },
   confirmed: { label: t('status_confirmed'), color: 'text-emerald-400 bg-emerald-400/10', border: 'border-emerald-400/30' },
   paid:      { label: t('status_paid'),      color: 'text-green-400  bg-green-400/10',   border: 'border-green-400/30'  },
+  cancelled: { label: t('status_cancelled' as any) || 'Ləğv edilib', color: 'text-rose-400 bg-rose-400/10', border: 'border-rose-400/30' },
 });
 
 export const getKitchenStatusConfig = (kitchenStatus: Order['kitchen_status'], ageMin: number, t?: (k: string) => string) => {

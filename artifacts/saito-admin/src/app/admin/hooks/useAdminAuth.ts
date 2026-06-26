@@ -1,16 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export function useAdminAuth() {
   const { t } = useLanguage();
   const router = useRouter();
   
-  // Müvəqqəti olaraq hamını birbaşa superadmin kimi daxil edirik
+  // Müvəqqəti olaraq hamını birbaşa superadmin kimi daxil edirik (tip xətalarının qarşısını almaq üçün rolları məhdudlaşdırırıq)
   const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [role, setRole] = useState<'admin' | 'superadmin' | 'kitchen' | 'cashier'>('superadmin');
+  const [role, setRole] = useState<'admin' | 'superadmin' | 'kitchen'>('superadmin');
   const [authChecked, setAuthChecked] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

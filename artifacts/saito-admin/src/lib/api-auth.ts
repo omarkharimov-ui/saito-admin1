@@ -25,6 +25,15 @@ export async function validateAuth(requiredRoles?: string[]) {
 
   if (!session) return { authenticated: false, error: 'Invalid session', status: 401 };
 
+  // Get user email from admin_users
+  const { data: user } = await supabase
+    .from('admin_users')
+    .select('email')
+    .eq('id', session.user_id)
+    .maybeSingle();
+
+  if (!session) return { authenticated: false, error: 'Invalid session', status: 401 };
+
   if (new Date(session.expires_at).getTime() < Date.now()) {
     await supabase.from('sessions').delete().eq('token', token);
     return { authenticated: false, error: 'Session expired', status: 401 };
@@ -34,7 +43,11 @@ export async function validateAuth(requiredRoles?: string[]) {
     return { authenticated: false, error: 'Forbidden', status: 403, role: session.role };
   }
 
-  return { authenticated: true, user: { id: session.user_id }, role: session.role };
+  return {
+    authenticated: true,
+    user: { id: session.user_id, email: user?.email || null },
+    role: session.role,
+  };
 }
 
 export async function requireAuth(requiredRoles?: string[]): Promise<any> {

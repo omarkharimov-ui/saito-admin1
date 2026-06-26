@@ -66,7 +66,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   if (!auth.isAuthenticated) {
-    return <AdminAuthScreen {...auth} />;
+    return <AdminAuthScreen />;
   }
 
   return (

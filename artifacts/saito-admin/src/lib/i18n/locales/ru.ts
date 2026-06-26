@@ -70,6 +70,22 @@ export const ru: TranslationMap = {
   back: 'Назад',
   next: 'Вперед',
 
+  // New Reservations keys
+  edit_reservation: 'Редактировать бронирование',
+  new_reservation: 'Новое бронирование',
+  guests_count: 'Количество гостей',
+  'res.subtitle': 'Бронирование стола',
+  'res.title': 'Забронируйте стол прямо сейчас',
+  'res.desc': 'Легко забронируйте стол через Saito Admin. Ваш стол будет готов к вашему приходу.',
+  'res.success.title': 'Бронирование принято!',
+  'res.new': 'НОВОЕ БРОНИРОВАНИЕ',
+  'res.error.missing': 'Пожалуйста, заполните все поля',
+  'res.name': 'Имя и фамилия',
+  'res.phone': 'Номер телефона',
+  'res.submit': 'ЗАБРОНИРОВАТЬ',
+  'res.submitting': 'ОТПРАВКА...',
+  'res.notes': 'Заметки',
+
   // Time
   january: 'Январь',
   february: 'Февраль',

@@ -70,6 +70,22 @@ export const en: TranslationMap = {
   back: 'Back',
   next: 'Next',
 
+  // New Reservations keys
+  edit_reservation: 'Edit Reservation',
+  new_reservation: 'New Reservation',
+  guests_count: 'Guest Count',
+  'res.subtitle': 'Table Reservation',
+  'res.title': 'Book your table now',
+  'res.desc': 'Easily book a table through Saito Admin. Your selected table will be ready for you.',
+  'res.success.title': 'Reservation received!',
+  'res.new': 'NEW RESERVATION',
+  'res.error.missing': 'Please fill in all fields',
+  'res.name': 'Full Name',
+  'res.phone': 'Phone Number',
+  'res.submit': 'BOOK NOW',
+  'res.submitting': 'SUBMITTING...',
+  'res.notes': 'Notes',
+
   // Time
   january: 'January',
   february: 'February',

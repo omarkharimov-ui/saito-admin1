@@ -119,7 +119,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
         <form onSubmit={handleSubmit} className="space-y-5 py-2">
           <div className="space-y-2">
             <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold flex items-center gap-2">
-              <User size={12} /> {t('res.name' as any)}
+              <User size={12} /> {t('res.name')}
             </label>
             <input
               required
@@ -132,7 +132,7 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
 
           <div className="space-y-2">
             <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold flex items-center gap-2">
-              <Phone size={12} /> {t('res.phone' as any)}
+              <Phone size={12} /> {t('res.phone')}
             </label>
             <input
               required

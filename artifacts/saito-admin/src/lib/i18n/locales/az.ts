@@ -66,6 +66,22 @@ export const az = {
   back: 'Geri',
   next: 'İrəli',
 
+  // New Reservations keys
+  edit_reservation: 'Rezervasiyanı redaktə et',
+  new_reservation: 'Yeni Rezervasiya',
+  guests_count: 'Qonaq sayı',
+  'res.subtitle': 'Masa rezervasiyası',
+  'res.title': 'Masada yerinizi indidən bron edin',
+  'res.desc': 'Saito Admin vasitəsilə asanlıqla rezervasiya edin. Seçdiyiniz masa sizin üçün hazır olacaq.',
+  'res.success.title': 'Rezervasiyanız qəbul edildi!',
+  'res.new': 'YENİ REZERVASİYA',
+  'res.error.missing': 'Zəhmət olmasa bütün xanaları doldurun',
+  'res.name': 'Ad və Soyad',
+  'res.phone': 'Telefon nömrəsi',
+  'res.submit': 'REZERVASİYA ET',
+  'res.submitting': 'GÖNDƏRİLİR...',
+  'res.notes': 'Qeydlər',
+
   // Time
   january: 'yanvar',
   february: 'fevral',

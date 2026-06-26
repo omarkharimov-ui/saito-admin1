@@ -517,7 +517,6 @@ export const en: TranslationMap = {
   notifications: 'Notifications',
   mark_all_read: 'Mark all as read',
   new_order_notification: 'New order!',
-  new_reservation: 'New reservation',
   reservation_cancelled_notif: 'Reservation cancelled',
   low_stock_alert: 'Low stock alert',
 

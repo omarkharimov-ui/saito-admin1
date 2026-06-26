@@ -538,7 +538,6 @@ export const ru: TranslationMap = {
   notifications: 'Уведомления',
   mark_all_read: 'Отметить все как прочитанные',
   new_order_notification: 'Новый заказ!',
-  new_reservation: 'Новое бронирование',
   reservation_cancelled_notif: 'Бронирование отменено',
   low_stock_alert: 'Предупреждение о низком запасе',
 

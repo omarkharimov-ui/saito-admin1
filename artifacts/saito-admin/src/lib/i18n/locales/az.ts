@@ -513,7 +513,6 @@ export const az = {
   notifications: 'Bildirişlər',
   mark_all_read: 'Hamısını oxundu işarələ',
   new_order_notification: 'Yeni sifariş!',
-  new_reservation: 'Yeni rezervasiya',
   reservation_cancelled_notif: 'Rezervasiya ləğv edildi',
   low_stock_alert: 'Stok xəbərdarlığı',
 

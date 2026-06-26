@@ -115,18 +115,21 @@ export interface Combo {
 export interface Reservation {
   id: string;
   name: string;
+  customer_name?: string;
   phone: string;
   guests: number;
   date: string;
   time: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'expired';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'checked_in' | 'completed' | 'no_show' | 'archived' | 'expired';
   note?: string;
+  notes?: string;
   created_at: string;
   table_number?: number | null;
   table_ids?: string[] | null;
   pre_order_items?: PreOrderItem[] | null;
   pre_order_total?: number | null;
   kitchen_scheduled_at?: string | null;
+  visitCount?: number;
 }
 
 export interface PreOrderItem {

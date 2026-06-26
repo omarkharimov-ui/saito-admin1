@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Product, Category, Campaign } from '@/types';
@@ -564,4 +564,10 @@ const CampaignsPage = () => {
   );
 };
 
-export default CampaignsPage;
+export default function Page() {
+  return (
+    <Suspense fallback={<CampaignsSkeleton />}>
+      <CampaignsPage />
+    </Suspense>
+  );
+}

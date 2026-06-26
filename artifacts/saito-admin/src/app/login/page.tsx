@@ -24,54 +24,64 @@ export default function LoginPage() {
     if (!email.trim() || !password.trim()) return;
     setLoading(true);
     
-    // 1. Auth ilə login
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
-      email: email.trim(), 
-      password 
-    });
-    
-    if (authError || !authData.user) {
-      toast.error('E-poçt və ya şifrə yanlışdır', {
-        style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)', fontWeight: 600 },
+    try {
+      // 1. Auth ilə login
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
+        email: email.trim(), 
+        password 
       });
-      setLoading(false);
-      return;
-    }
-    
-    // 2. YOXLA: Bu user admin_users cədvəlində varmı?
-    const { data: adminData, error: adminError } = await supabase
-      .from('admin_users')
-      .select('id, role, email')
-      .ilike('email', email.trim())
-      .maybeSingle();
-    
-    
-    if (!adminData || !['admin', 'superadmin', 'kitchen'].includes(adminData.role)) {
-      toast.error('İSTİFADƏÇİ TAPILMADI', {
-        style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)', fontWeight: 600 },
-      });
-      setLoading(false);
-      return;
-    }
-    
-    // 3. ID-lər fərqlidirsə admin_users cədvəlini yenilə
-    if (adminData.id !== authData.user.id) {
-      await supabase
+      
+      if (authError || !authData.user) {
+        toast.error('E-poçt və ya şifrə yanlışdır', {
+          style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)', fontWeight: 600 },
+        });
+        return;
+      }
+      
+      // 2. YOXLA: Bu user admin_users cədvəlində varmı?
+      const { data: adminData, error: adminError } = await supabase
         .from('admin_users')
-        .update({ id: authData.user.id })
-        .eq('email', email.trim());
+        .select('id, role, email')
+        .ilike('email', email.trim())
+        .maybeSingle();
+      
+      if (adminError) {
+        console.error('Admin check error:', adminError);
+        toast.error('Giriş yoxlanışı zamanı xəta baş verdi');
+        return;
+      }
+      
+      if (!adminData || !['admin', 'superadmin', 'kitchen', 'cashier'].includes(adminData.role)) {
+        toast.error('Giriş icazəniz yoxdur', {
+          style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)', fontWeight: 600 },
+        });
+        return;
+      }
+      
+      // 3. ID-lər fərqlidirsə admin_users cədvəlini yenilə
+      if (adminData.id !== authData.user.id) {
+        await supabase
+          .from('admin_users')
+          .update({ id: authData.user.id })
+          .eq('email', email.trim());
+      }
+      
+      document.cookie = `saito_role=${adminData.role}; path=/; max-age=86400`;
+      document.cookie = 'isLoggedIn=true; path=/; max-age=86400';
+      
+      if (adminData.role === 'kitchen') {
+        window.location.href = '/kitchen';
+        return;
+      }
+      
+      localStorage.setItem('isLoggedIn', 'true');
+      router.replace('/admin');
+    } catch (err) {
+      console.error('Login error:', err);
+      toast.error('Gözlənilməz xəta baş verdi');
+    } finally {
+      setLoading(false);
     }
-    
-    document.cookie = `saito_role=${adminData.role}; path=/; max-age=86400`;
-    document.cookie = 'isLoggedIn=true; path=/; max-age=86400';
-    
-    if (adminData.role === 'kitchen') {
-      window.location.href = '/kitchen';
-      return;
-    }
-    
-    localStorage.setItem('isLoggedIn', 'true');
-    router.replace('/admin');
   };
 
   return (

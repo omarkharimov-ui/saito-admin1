@@ -3,151 +3,166 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
-import { Loader2, Zap } from 'lucide-react';
+import { Loader2, Zap, Delete } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LoginPage() {
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [pin, setPin] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // 3 rəqəm tamamlanan kimi login-i başlat
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace('/admin');
-    });
-  }, [router]);
+    if (pin.length === 3) {
+      handleLogin(pin);
+    }
+  }, [pin]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
+  const handleLogin = async (inputPin: string) => {
     setLoading(true);
-    
+    const email = `${inputPin}@saito.az`; // Arxa planda email formatına çeviririk
+    const password = inputPin; // Şifrə də PIN ilə eyni götürülür
+
     try {
-      // 1. Auth ilə login
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
-        email: email.trim(), 
-        password 
+      // 1. Supabase Auth Login
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
-      
+
       if (authError || !authData.user) {
-        toast.error('E-poçt və ya şifrə yanlışdır', {
+        toast.error('Giriş kodu yanlışdır', {
           style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)', fontWeight: 600 },
         });
+        setPin(''); // PIN-i sıfırla
         return;
       }
-      
-      // 2. YOXLA: Bu user admin_users cədvəlində varmı?
-      const { data: adminData, error: adminError } = await supabase
+
+      // 2. Rolu və icazələri yoxla
+      const { data: adminData } = await supabase
         .from('admin_users')
-        .select('id, role, email')
-        .ilike('email', email.trim())
+        .select('role')
+        .ilike('email', email)
         .maybeSingle();
-      
-      if (adminError) {
-        console.error('Admin check error:', adminError);
-        toast.error('Giriş yoxlanışı zamanı xəta baş verdi');
+
+      if (!adminData) {
+        toast.error('Bu kod üçün icazə tapılmadı');
+        setPin('');
         return;
       }
-      
-      if (!adminData || !['admin', 'superadmin', 'kitchen', 'cashier'].includes(adminData.role)) {
-        toast.error('Giriş icazəniz yoxdur', {
-          style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)', fontWeight: 600 },
-        });
-        return;
-      }
-      
-      // 3. ID-lər fərqlidirsə admin_users cədvəlini yenilə
-      if (adminData.id !== authData.user.id) {
-        await supabase
-          .from('admin_users')
-          .update({ id: authData.user.id })
-          .eq('email', email.trim());
-      }
-      
+
+      // 3. Cookies və Yönləndirmə
       document.cookie = `saito_role=${adminData.role}; path=/; max-age=86400`;
       document.cookie = 'isLoggedIn=true; path=/; max-age=86400';
-      
+      localStorage.setItem('isLoggedIn', 'true');
+
       if (adminData.role === 'kitchen') {
         window.location.href = '/kitchen';
-        return;
+      } else {
+        router.replace('/admin');
       }
-      
-      localStorage.setItem('isLoggedIn', 'true');
-      router.replace('/admin');
     } catch (err) {
-      console.error('Login error:', err);
-      toast.error('Gözlənilməz xəta baş verdi');
+      toast.error('Giriş zamanı xəta baş verdi');
+      setPin('');
     } finally {
       setLoading(false);
     }
   };
 
+  const addDigit = (digit: string) => {
+    if (pin.length < 3 && !loading) {
+      setPin(prev => prev + digit);
+    }
+  };
+
+  const removeDigit = () => {
+    if (!loading) setPin(prev => prev.slice(0, -1));
+  };
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 overflow-hidden"
+      className="min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden"
       style={{ background: 'radial-gradient(ellipse at 50% 0%, #1a1200 0%, #0a0a0a 60%)' }}
     >
-      {/* ambient glow */}
+      {/* Ambient glow */}
       <div className="pointer-events-none fixed inset-0 flex items-start justify-center">
         <div style={{ width: 600, height: 300, background: 'radial-gradient(ellipse, rgba(212,175,55,0.08) 0%, transparent 70%)', marginTop: -80 }} />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-        className="w-full max-w-sm relative z-10"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-xs relative z-10 flex flex-col items-center"
       >
         {/* Logo */}
-        <div className="flex flex-col items-center mb-10">
+        <div className="flex flex-col items-center mb-12">
           <div className="w-16 h-16 rounded-[22px] flex items-center justify-center mb-5"
             style={{ background: 'linear-gradient(135deg,#2a1f00,#1a1200)', border: '1px solid rgba(212,175,55,0.25)', boxShadow: '0 8px 32px rgba(212,175,55,0.12)' }}>
             <Zap size={28} className="text-[#D4AF37]" />
           </div>
-          <h1 className="text-[32px] font-serif font-bold text-white tracking-tight mb-1">Saito Admin</h1>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-white/25">Elegance in Management</p>
+          <h1 className="text-2xl font-serif font-bold text-white tracking-tight">Saito Sushi</h1>
+          <p className="text-[9px] uppercase tracking-[0.4em] text-white/25 mt-1">Elegance in Management</p>
         </div>
 
-        {/* Form */}
-        <form noValidate onSubmit={handleLogin} className="space-y-3">
-          <input
-            type="email"
-            autoComplete="email"
-            placeholder="E-poçt ünvanı"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="w-full px-5 py-4 rounded-2xl text-white placeholder:text-white/20 outline-none transition-all"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: 16 }}
-            onFocus={e => { e.currentTarget.style.border = '1px solid rgba(212,175,55,0.35)'; }}
-            onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)'; }}
-          />
-          <input
-            type="password"
-            autoComplete="current-password"
-            placeholder="••••••••••"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="w-full px-5 py-4 rounded-2xl text-white placeholder:text-white/20 outline-none transition-all"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: 16 }}
-            onFocus={e => { e.currentTarget.style.border = '1px solid rgba(212,175,55,0.35)'; }}
-            onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)'; }}
-          />
+        {/* PIN Indicators */}
+        <div className="flex gap-4 mb-12">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${
+                pin.length > i 
+                  ? 'bg-gold border-gold scale-110 shadow-[0_0_15px_rgba(212,175,55,0.5)]' 
+                  : 'bg-transparent border-white/10'
+              }`}
+            />
+          ))}
+        </div>
 
+        {/* Numeric Keypad */}
+        <div className="grid grid-cols-3 gap-4 w-full px-4">
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+            <button
+              key={digit}
+              onClick={() => addDigit(digit)}
+              disabled={loading}
+              className="aspect-square rounded-2xl flex items-center justify-center text-xl font-bold text-white/80 transition-all active:scale-90 hover:bg-white/5 border border-white/5"
+              style={{ background: 'rgba(255,255,255,0.03)' }}
+            >
+              {digit}
+            </button>
+          ))}
+          <div className="flex items-center justify-center">
+            {/* Boşluq */}
+          </div>
           <button
-            type="submit"
-            className="w-full py-4 rounded-2xl text-sm font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 mt-1"
-            style={{ background: 'linear-gradient(135deg,#B8960C,#D4AF37)', color: '#0a0a0a' }}
+            onClick={() => addDigit('0')}
+            disabled={loading}
+            className="aspect-square rounded-2xl flex items-center justify-center text-xl font-bold text-white/80 transition-all active:scale-90 hover:bg-white/5 border border-white/5"
+            style={{ background: 'rgba(255,255,255,0.03)' }}
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <><Zap size={14} /> Daxil ol</>}
+            0
           </button>
-        </form>
+          <button
+            onClick={removeDigit}
+            disabled={loading}
+            className="aspect-square rounded-2xl flex items-center justify-center text-white/40 transition-all active:scale-90 hover:bg-white/5"
+          >
+            <Delete size={20} />
+          </button>
+        </div>
 
-        <p className="text-center text-[10px] text-white/15 uppercase tracking-[0.25em] mt-10">
-          Saito Sushi © 2026
-        </p>
+        {loading && (
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <Loader2 className="animate-spin text-gold" size={24} />
+            <p className="text-[10px] text-gold/50 uppercase tracking-widest font-bold">Yoxlanılır...</p>
+          </div>
+        )}
       </motion.div>
+
+      <p className="fixed bottom-8 text-[10px] text-white/10 uppercase tracking-[0.3em]">
+        Saito Sushi © 2026
+      </p>
     </div>
   );
 }

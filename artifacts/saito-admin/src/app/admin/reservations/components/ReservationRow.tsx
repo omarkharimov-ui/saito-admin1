@@ -35,7 +35,18 @@ const getGuestTag = (count: number) => {
   return { label: 'Yeni', icon: UserPlus, color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
 };
 
-export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStatus, onDelete, onArchive, onRestore, onSelect, onHandle }: Props) => {
+export const ReservationTableRow = ({ 
+  res, 
+  timeFilter, 
+  statusBadge, 
+  onUpdateStatus, 
+  onEdit, 
+  onDelete, 
+  onArchive, 
+  onRestore, 
+  onSelect, 
+  onHandle 
+}: Props) => {
   const { lightMode } = useTheme();
   const tag = getGuestTag(res.visitCount || 1);
 
@@ -114,7 +125,11 @@ export const ReservationTableRow = ({ res, timeFilter, statusBadge, onUpdateStat
 };
 
 
-export const ReservationCard = ({ res, statusBadge, onUpdateStatus, onDelete, onSelect, onHandle }: Props) => {
+export const ReservationCard = ({ 
+  res, 
+  statusBadge, 
+  onSelect, 
+}: Partial<Props> & { res: any, statusBadge: any, onSelect: any }) => {
   const { lightMode } = useTheme();
   const tag = getGuestTag(res.visitCount || 1);
 
@@ -131,7 +146,7 @@ export const ReservationCard = ({ res, statusBadge, onUpdateStatus, onDelete, on
       <div className="flex items-start justify-between mb-4">
         <div className="flex flex-col">
           <div className="flex items-center gap-2 mb-1">
-            <span className={`font-bold text-lg ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{res.name}</span>
+            <span className={`font-bold text-lg ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{res.name || res.customer_name}</span>
             <span className={`px-1.5 py-0.5 rounded border text-[8px] font-black uppercase ${tag.color}`}>{tag.label}</span>
           </div>
           <span className={`text-xs font-medium ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{maskPhone(res.phone)}</span>

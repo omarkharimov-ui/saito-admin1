@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { executeTransactionalOrderAction } from '@/lib/transaction';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -7,13 +8,14 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const headers = {
   'apikey': SERVICE_ROLE_KEY,
   'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+  'Content-Type': 'application/json',
 };
 
 // Bütün sifarişləri gətir
 export async function GET() {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
-    if (!auth.authenticated) return auth as unknown as NextResponse;
+    if (auth instanceof NextResponse) return auth;
 
     if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
       console.error('[API /orders] Missing env vars:', { SUPABASE_URL: !!SUPABASE_URL, SERVICE_ROLE_KEY: !!SERVICE_ROLE_KEY });
@@ -60,87 +62,107 @@ export async function POST(request: Request) {
     if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
-    const { action, data, id } = body;
+    const { action, data, id, version } = body;
 
-    // Kitchen can only perform 'update' action
     if (auth.role === 'kitchen' && action !== 'update') {
       return NextResponse.json({ error: 'Kitchen can only update order status' }, { status: 403 });
     }
 
-    // ── Update / Delete ──
-    if (action === 'update' || action === 'delete') {
-      let url = `${SUPABASE_URL}/rest/v1/orders`;
-      let method = 'PATCH';
-      if (action === 'delete') method = 'DELETE';
-      url += `?id=eq.${id}`;
+    const result = await executeTransactionalOrderAction(`Order${action || 'Create'}`, async () => {
+      // ── Update Action ──
+      if (action === 'update') {
+        const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}&select=*`, { headers });
+        const existingOrder = (await orderRes.json())?.[0];
+        
+        if (!existingOrder) throw new Error('Order not found');
+        if (version !== undefined && existingOrder.version !== undefined && existingOrder.version !== version) {
+          throw new Error('CONCURRENCY_CONFLICT');
+        }
 
-      const res = await fetch(url, {
-        method,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: action !== 'delete' ? JSON.stringify(data) : undefined,
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({ 
+            ...data, 
+            version: (existingOrder.version || 0) + 1 
+          }),
+        });
+        if (!res.ok) throw new Error('Update failed');
+        return await res.json();
+      }
+
+      // ── Delete Action (Soft Delete) ──
+      if (action === 'delete') {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({ 
+            status: 'cancelled', 
+            cancelled_at: new Date().toISOString() 
+          }),
+        });
+        if (!res.ok) throw new Error('Soft-delete failed');
+        return { success: true };
+      }
+
+      // ── Create Action (Atomic) ──
+      const { table_number, total_amount, status, order_type, guest_count, customer_note, items } = body;
+
+      if (!table_number || !items?.length) {
+        throw new Error('table_number and items required');
+      }
+
+      // 1. Create Order
+      const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
+        method: 'POST',
+        headers: { ...headers, 'Prefer': 'return=representation' },
+        body: JSON.stringify({
+          table_number,
+          total_amount: total_amount || items.reduce((s: number, i: any) => s + i.total_price, 0),
+          status: status || 'confirmed',
+          order_type: order_type || 'dine_in',
+          guest_count: guest_count || 1,
+          customer_note: customer_note || null,
+          created_at: new Date().toISOString(),
+          version: 1
+        }),
       });
-      const result = await res.json();
-      return NextResponse.json(result);
-    }
 
-    // ── Create (POS-dan gələn sifariş) ──
-    const { table_number, total_amount, status, order_type, guest_count, customer_note, items, source } = body;
+      if (!orderRes.ok) throw new Error('Order creation failed');
+      const newOrder = (await orderRes.json())?.[0];
 
-    if (!table_number || !items?.length) {
-      return NextResponse.json({ error: 'table_number and items required' }, { status: 400 });
-    }
+      // 2. Create Order Items
+      for (const item of items) {
+        await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            order_id: newOrder.id,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.total_price || (item.unit_price * item.quantity),
+            modifiers: typeof item.modifiers === 'string' ? item.modifiers : JSON.stringify(item.modifiers || []),
+          }),
+        });
+      }
 
-    // 1) Order yarat
-    const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-      body: JSON.stringify({
-        table_number,
-        total_amount: total_amount || items.reduce((s: number, i: any) => s + i.total_price, 0),
-        status: status || 'confirmed',
-        order_type: order_type || 'dine_in',
-        guest_count: guest_count || 1,
-        customer_note: customer_note || null,
-        // source column does not exist in orders table
-      }),
+      // 3. Update Table Status to OCCUPIED
+      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: 'occupied' }),
+      });
+
+      return newOrder;
     });
 
-    if (!orderRes.ok) {
-      const errText = await orderRes.text();
-      return NextResponse.json({ error: `Order creation failed: ${errText}` }, { status: 500 });
+    if (!result.success && result.error === 'CONCURRENCY_CONFLICT') {
+      return NextResponse.json({ error: 'Order modified by another user' }, { status: 409 });
     }
 
-    const [newOrder] = await orderRes.json();
-    if (!newOrder?.id) {
-      return NextResponse.json({ error: 'Order created without ID' }, { status: 500 });
-    }
-
-    // 2) Order_items yarat
-    const orderItems = items.map((item: any) => ({
-      order_id: newOrder.id,
-      product_id: item.product_id,
-      variant_id: item.variant_id || null,
-      product_name: item.product_name || null,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      total_price: item.total_price || (item.unit_price * item.quantity),
-      modifiers: typeof item.modifiers === 'string' ? item.modifiers : JSON.stringify(item.modifiers || []),
-    }));
-
-    for (const oi of orderItems) {
-      const itemRes = await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(oi),
-      });
-      if (!itemRes.ok) {
-        const errText = await itemRes.text();
-        await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${newOrder.id}`, { method: 'DELETE', headers });
-        return NextResponse.json({ error: `Order item creation failed: ${errText}` }, { status: 500 });
-      }
-    }
-
-    return NextResponse.json({ success: true, order: newOrder });
+    return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

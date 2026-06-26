@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { executeTransactionalOrderAction } from '@/lib/transaction';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -16,127 +17,79 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'action and data required' }, { status: 400 });
     }
 
-    switch (action) {
-      case 'merge': {
-        // data: { sourceOrders, sourceTableNumbers, targetTable }
-        // Undo merge: clear merged_into on source orders, clear merged_into_table on source table_floors, recalc parent total
-        const { sourceOrders, sourceTableNumbers, targetTable } = data;
+    const result = await executeTransactionalOrderAction(`Undo${action}`, async () => {
+      switch (action) {
+        case 'merge': {
+          const { sourceOrders, sourceTableNumbers, targetTable } = data;
 
-        // Clear table-level merged_into_table on source tables
-        if (sourceTableNumbers?.length) {
-          for (const tableNum of sourceTableNumbers) {
-            await fetch(
-              `${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tableNum}`,
-              {
+          if (sourceTableNumbers?.length) {
+            for (const tableNum of sourceTableNumbers) {
+              await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
                 method: 'PATCH',
-                headers: { ...headers, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ merged_into_table: null }),
-              }
-            );
-          }
-        }
-
-        // Clear order-level merged_into on source orders
-        if (sourceOrders?.length) {
-          // Find parent order on target table to update its total
-          const parentRes = await fetch(
-            `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&select=id,total_amount`,
-            { headers }
-          );
-          const parentOrders = await parentRes.json();
-          const parentOrder = Array.isArray(parentOrders) ? parentOrders[0] : null;
-
-          for (const src of sourceOrders) {
-            await fetch(
-              `${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`,
-              {
-                method: 'PATCH',
-                headers: { ...headers, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ merged_into: null }),
-              }
-            );
-          }
-
-          // Subtract child totals from parent
-          if (parentOrder) {
-            const childTotal = sourceOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
-            const newTotal = Math.max(0, Number(parentOrder.total_amount || 0) - childTotal);
-            await fetch(
-              `${SUPABASE_URL}/rest/v1/orders?id=eq.${parentOrder.id}`,
-              {
-                method: 'PATCH',
-                headers: { ...headers, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ total_amount: newTotal }),
-              }
-            );
-          }
-        }
-
-        return NextResponse.json({ success: true });
-      }
-
-      case 'split': {
-        // data: { childOrderIds, parentId, originalTable, childTables }
-        // Undo split: move children back to parent table, set merged_into
-        const { childOrderIds, parentId, originalTable } = data;
-        if (!childOrderIds?.length || !parentId) {
-          return NextResponse.json({ error: 'Invalid undo data' }, { status: 400 });
-        }
-        for (const cid of childOrderIds) {
-          await fetch(
-            `${SUPABASE_URL}/rest/v1/orders?id=eq.${cid}`,
-            {
-              method: 'PATCH',
-              headers: { ...headers, 'Prefer': 'return=minimal' },
-              body: JSON.stringify({
-                table_number: originalTable,
-                merged_into: parentId,
-              }),
+                headers,
+                body: JSON.stringify({ status: 'occupied', merged_into_table: null }),
+              });
             }
-          );
-        }
-        // Recalculate parent total
-        const ordersRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/orders?or=(${[parentId, ...childOrderIds].map(id => `id.eq.${id}`).join(',')})&select=id,total_amount`,
-          { headers }
-        );
-        const orders = await ordersRes.json();
-        const total = orders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
-        await fetch(
-          `${SUPABASE_URL}/rest/v1/orders?id=eq.${parentId}`,
-          {
-            method: 'PATCH',
-            headers: { ...headers, 'Prefer': 'return=minimal' },
-            body: JSON.stringify({ total_amount: total }),
           }
-        );
-        return NextResponse.json({ success: true });
-      }
 
-      case 'transfer': {
-        // data: { orderIds, fromTable, toTable }
-        // Undo transfer: move orders back to fromTable
-        const { orderIds, fromTable } = data;
-        if (!orderIds?.length) {
-          return NextResponse.json({ error: 'No orders to undo' }, { status: 400 });
+          if (sourceOrders?.length) {
+            const parentRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&select=*`, { headers });
+            const parentOrder = (await parentRes.json())?.[0];
+
+            for (const src of sourceOrders) {
+              await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ merged_into: null, version: (src.version || 0) + 1 }),
+              });
+            }
+
+            if (parentOrder) {
+              const childTotal = sourceOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
+              const newTotal = Math.max(0, Number(parentOrder.total_amount || 0) - childTotal);
+              await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${parentOrder.id}`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ total_amount: newTotal, version: (parentOrder.version || 0) + 1 }),
+              });
+            }
+          }
+          break;
         }
-        for (const oid of orderIds) {
-          await fetch(
-            `${SUPABASE_URL}/rest/v1/orders?id=eq.${oid}`,
-            {
+
+        case 'transfer': {
+          const { orderIds, fromTable, toTable } = data;
+          for (const oid of orderIds) {
+            await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${oid}`, {
               method: 'PATCH',
-              headers: { ...headers, 'Prefer': 'return=minimal' },
+              headers,
               body: JSON.stringify({ table_number: fromTable }),
-            }
-          );
+            });
+          }
+          
+          await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${fromTable}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ status: 'occupied' }),
+          });
+          
+          await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${toTable}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ status: 'available' }),
+          });
+          break;
         }
-        return NextResponse.json({ success: true });
-      }
 
-      default:
-        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
-    }
+        default:
+          throw new Error(`Unknown action: ${action}`);
+      }
+      return { action, success: true };
+    });
+
+    return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

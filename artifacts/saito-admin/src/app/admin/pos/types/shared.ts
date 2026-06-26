@@ -47,6 +47,7 @@ export interface PosTable {
   merged_orders?: unknown[] | null;
   merged_into_table?: number | null;
   last_activity_at?: string | null;
+  lastOrderTime?: string | null;
   opened_at?: string | null;
   order_count?: number | null;
   order_ids?: string[];

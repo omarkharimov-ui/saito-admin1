@@ -43,15 +43,19 @@ export async function executeTransactionalOrderAction<T>(
  * Maintained for backward compatibility.
  */
 export async function withTransaction(
-  steps: { name: string; execute: () => Promise<void>; rollback: () => Promise<void> }[]
-): Promise<void> {
+  steps: { name: string; execute: () => Promise<any>; rollback: () => Promise<void> }[]
+): Promise<{ success: boolean; results: any[] }> {
   const completedSteps: number[] = [];
+  const results: any[] = [];
+  
   try {
     for (let i = 0; i < steps.length; i++) {
       console.log(`[Transaction] Step ${i + 1}/${steps.length}: ${steps[i].name}`);
-      await steps[i].execute();
+      const res = await steps[i].execute();
+      results.push(res);
       completedSteps.push(i);
     }
+    return { success: true, results };
   } catch (error) {
     console.error('[Transaction] FAILED. Rolling back completed steps...');
     for (const idx of completedSteps.reverse()) {

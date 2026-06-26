@@ -49,6 +49,7 @@ export const ReservationTableRow = ({
 }: Props) => {
   const { lightMode } = useTheme();
   const tag = getGuestTag(res.visitCount || 1);
+  const displayName = res.name || res.customer_name || 'Qonaq';
 
   return (
     <motion.tr
@@ -63,7 +64,7 @@ export const ReservationTableRow = ({
       <td className="px-8 py-6">
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className={`font-bold text-[15px] ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{res.name || res.customer_name}</span>
+            <span className={`font-bold text-[15px] ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{displayName}</span>
             <span className={`px-1.5 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest ${tag.color}`}>
               {tag.label}
             </span>
@@ -117,7 +118,7 @@ export const ReservationTableRow = ({
            ) : (
              <button title="Arxivlə" onClick={() => onArchive(res.id)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all shadow-lg shadow-black/5"><ShoppingBag size={18} /></button>
            )}
-           <button title="Sil" onClick={() => onDelete(res.id, res.name || res.customer_name)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-500/5"><Trash2 size={18} /></button>
+           <button title="Sil" onClick={() => onDelete(res.id, displayName)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-500/5"><Trash2 size={18} /></button>
         </div>
       </td>
     </motion.tr>
@@ -129,9 +130,10 @@ export const ReservationCard = ({
   res, 
   statusBadge, 
   onSelect, 
-}: Partial<Props> & { res: any, statusBadge: any, onSelect: any }) => {
+}: any) => {
   const { lightMode } = useTheme();
   const tag = getGuestTag(res.visitCount || 1);
+  const displayName = res.name || res.customer_name || 'Qonaq';
 
   return (
     <motion.div
@@ -146,7 +148,7 @@ export const ReservationCard = ({
       <div className="flex items-start justify-between mb-4">
         <div className="flex flex-col">
           <div className="flex items-center gap-2 mb-1">
-            <span className={`font-bold text-lg ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{res.name || res.customer_name}</span>
+            <span className={`font-bold text-lg ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{displayName}</span>
             <span className={`px-1.5 py-0.5 rounded border text-[8px] font-black uppercase ${tag.color}`}>{tag.label}</span>
           </div>
           <span className={`text-xs font-medium ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{maskPhone(res.phone)}</span>

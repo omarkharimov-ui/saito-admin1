@@ -10,7 +10,7 @@ export function useAdminAuth() {
   
   // Müvəqqəti olaraq hamını birbaşa superadmin kimi daxil edirik (tip xətalarının qarşısını almaq üçün rolları məhdudlaşdırırıq)
   const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [role, setRole] = useState<'admin' | 'superadmin' | 'kitchen'>('superadmin');
+  const [role, setRole] = useState<'admin' | 'superadmin' | null>('superadmin');
   const [authChecked, setAuthChecked] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

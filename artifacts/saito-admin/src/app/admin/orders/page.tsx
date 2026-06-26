@@ -5,7 +5,7 @@ import { useOrders } from './hooks/useOrders';
 import { ActiveOrderCard, ArchiveOrderCard } from './components/OrderCard';
 import { OrderModal } from './components/OrderModal';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { Search, Filter, ShoppingBag, Clock, History, Calendar } from 'lucide-react';
+import { Search, Filter, ShoppingBag, Clock, History, Calendar, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OrdersSkeleton } from './components/OrdersSkeleton';
 

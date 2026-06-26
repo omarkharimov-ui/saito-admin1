@@ -12,6 +12,7 @@ import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { ReceiptModal } from '../orders/components/ReceiptModal';
+import { BillSplitModal } from './components/BillSplitModal';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
 import SimpleToaster from '@/app/admin/components/layout/SimpleToaster';

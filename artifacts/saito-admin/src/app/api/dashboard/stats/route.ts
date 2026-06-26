@@ -70,7 +70,6 @@ export async function GET() {
       const itemRecipe = recipeMap.get(pid);
       
       if (itemRecipe && itemRecipe.length > 0) {
-        // Calculate based on recipe + waste factor
         const unitFoodCost = itemRecipe.reduce((s, ri) => {
           const ing = ingCostMap.get(ri.ingredient_id);
           if (!ing) return s;
@@ -78,9 +77,11 @@ export async function GET() {
           return s + (ri.quantity_required * ing.cost * wasteMultiplier);
         }, 0);
         dailyFoodCost += unitFoodCost * qty;
-      } else {
-        // Fallback: If no recipe, assume 35% COGS to avoid fake high profits
-        dailyFoodCost += itemRevenue * 0.35;
+      } else if (ingredients?.length) {
+        // Data-driven: use average ingredient cost across all ingredients
+        const avgIngCost = Array.from(ingCostMap.values()).reduce((a, b) => a + b.cost, 0) / ingCostMap.size;
+        const unitPrice = itemRevenue / (qty || 1);
+        dailyFoodCost += Math.min(avgIngCost, unitPrice * 0.5) * qty;
       }
     });
 

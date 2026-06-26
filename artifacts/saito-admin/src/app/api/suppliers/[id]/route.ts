@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 import type { Supplier } from '@/types/inventory';
 
 function svc() {
@@ -28,12 +29,20 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth(['admin', 'superadmin']);
+    if (!auth.authenticated) return auth;
+
     const { id } = await params;
     const body = await request.json();
+    const allowedFields = ['name', 'contact_name', 'email', 'phone', 'address', 'category', 'notes', 'payment_terms'];
+    const update: Record<string, any> = {};
+    for (const key of allowedFields) {
+      if (key in body) update[key] = body[key];
+    }
     const supabase = svc();
     const { data, error } = await supabase
       .from('suppliers')
-      .update(body)
+      .update(update)
       .eq('id', id)
       .select()
       .single();

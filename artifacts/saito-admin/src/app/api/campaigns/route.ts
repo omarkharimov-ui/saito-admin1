@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const supabase = await createAuthClient();
 
-    // Task 2: Action deactivate handling to prevent garbage INSERT
     if (body.action === 'deactivate') {
       const { error } = await supabase
         .from('campaigns')
@@ -61,11 +60,16 @@ export async function PATCH(req: NextRequest) {
     const url = new URL(req.url);
     const id = url.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
-    
+
     const body = await req.json();
+    const allowedFields = ['name', 'description', 'type', 'status', 'discount_percent', 'discount_amount', 'start_date', 'end_date', 'min_order_amount', 'max_discount_amount', 'code', 'is_active'];
+    const update: Record<string, any> = {};
+    for (const key of allowedFields) {
+      if (key in body) update[key] = body[key];
+    }
+
     const supabase = await createAuthClient();
-    
-    const { error } = await supabase.from('campaigns').update(body).eq('id', id);
+    const { error } = await supabase.from('campaigns').update(update).eq('id', id);
     if (error) throw error;
     
     return NextResponse.json({ success: true });

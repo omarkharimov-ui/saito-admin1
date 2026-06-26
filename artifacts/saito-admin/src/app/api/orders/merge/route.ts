@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 import { executeTransactionalOrderAction } from '@/lib/transaction';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -11,6 +12,9 @@ const headers = {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    if (auth instanceof NextResponse) return auth;
+
     const { table_numbers, version } = await request.json();
 
     if (!table_numbers || table_numbers.length < 2) {

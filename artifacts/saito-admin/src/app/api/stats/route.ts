@@ -57,6 +57,7 @@ export async function GET(request: Request) {
       recipesRes,
       ingredientsRes,
       wasteLogsRes,
+      activeOrdersRes,
     ] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,total_amount,created_at,status,table_number&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
       fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, { headers: H }),
@@ -66,9 +67,10 @@ export async function GET(request: Request) {
       fetch(`${SUPABASE_URL}/rest/v1/recipes?select=menu_item_id,ingredient_id,quantity_required`, { headers: H }),
       fetch(`${SUPABASE_URL}/rest/v1/ingredients?select=id,average_cost_per_unit`, { headers: H }),
       fetch(`${SUPABASE_URL}/rest/v1/inventory_logs?select=quantity,cost_per_unit,ingredient_id&type=in.(waste,adjustment)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=table_number&status=in.(new,confirmed)`, { headers: H }),
     ]);
 
-    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs] = await Promise.all([
+    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders] = await Promise.all([
       ordersRes.json(),
       orderItemsRes.json(),
       productsRes.json(),
@@ -77,6 +79,7 @@ export async function GET(request: Request) {
       recipesRes.json(),
       ingredientsRes.json(),
       wasteLogsRes.json(),
+      activeOrdersRes.json(),
     ]);
 
     // Calculate stats
@@ -168,15 +171,25 @@ export async function GET(request: Request) {
         // Option B: Ready product
         unitFoodCost = ingCostMap.get(prod.direct_ingredient_id) || 0;
       } else {
-        /**
-         * DİNAMİK FALLBACK: 
-         * Əgər resept yoxdursa, rəqəmlərin eyni görünməməsi üçün 
-         * bazadakı mövcud inqrediyentlərin orta qiymət trendinə əsaslanan 
-         * məntiqli bir maya dəyəri (foodcost) tətbiq edirik. 
-         * Bu, hardcoded 35% deyil, bazadakı dataya əsaslanan dinamik rəqəmdir.
-         */
-        const avgIngPrice = Array.from(ingCostMap.values()).reduce((a,b) => a+b, 0) / (ingCostMap.size || 1);
-        unitFoodCost = avgIngPrice > 0 ? (unitRevenue * 0.28) : (unitRevenue * 0.32);
+        // Data-driven fallback: use average ingredient cost from same category
+        const catId = prod?.category?.id || prod?.category_id;
+        const catProducts = Array.isArray(products) ? products.filter((p: any) => (p.category?.id || p.category_id) === catId) : [];
+        let categoryAvgCost = 0;
+        let categoryAvgPrice = 0;
+        for (const cp of catProducts) {
+          const cpRecipe = recipeMap.get(cp.id);
+          if (cpRecipe && cpRecipe.length > 0) {
+            const cost = cpRecipe.reduce((s, ri) => s + ri.quantity_required * (ingCostMap.get(ri.ingredient_id) || 0), 0);
+            categoryAvgCost += cost;
+          } else if (cp.direct_ingredient_id) {
+            categoryAvgCost += ingCostMap.get(cp.direct_ingredient_id) || 0;
+          }
+          categoryAvgPrice += Number(cp.price) || 0;
+        }
+        const n = catProducts.length || 1;
+        const avgCostForCat = categoryAvgCost / n;
+        const avgPriceForCat = categoryAvgPrice / n;
+        unitFoodCost = avgCostForCat > 0 ? avgCostForCat : (avgPriceForCat > 0 ? unitRevenue * (avgCostForCat / avgPriceForCat) : ingCostMap.get(prod?.direct_ingredient_id) || 0);
       }
 
       const lineFoodCost = unitFoodCost * qty;
@@ -290,6 +303,8 @@ export async function GET(request: Request) {
     });
     const chartData = Object.entries(dateValueMap).map(([date, value]) => ({ date, value }));
 
+    const activeTables = new Set(Array.isArray(activeOrders) ? activeOrders.map((o: any) => o.table_number).filter(Boolean) : []).size;
+
     const topProduct = productPerformance[0]?.name || '\u2014';
     const topPeakHour = peakHours[0];
     const peakHour = topPeakHour
@@ -299,6 +314,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       totalRevenue,
       totalOrders,
+      activeTables,
       aov,
       missedRevenue,
       peakHours,

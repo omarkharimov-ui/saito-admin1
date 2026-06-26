@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 import { executeTransactionalOrderAction } from '@/lib/transaction';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -19,6 +20,9 @@ const headers = {
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    if (auth instanceof NextResponse) return auth;
+
     const { original_order_id, items_to_split, version } = await request.json();
 
     if (!original_order_id || !items_to_split || items_to_split.length === 0) {
@@ -81,8 +85,25 @@ export async function POST(request: NextRequest) {
           }),
         });
 
-        // And we MUST deduct/update quantity from original items in a real DB
-        // But since we are simulating, we'll assume the frontend handled selection.
+        // Deduct quantity from original item
+        const itemRes = await fetch(`${SUPABASE_URL}/rest/v1/order_items?order_id=eq.${original_order_id}&product_id=eq.${item.product_id}&select=id,quantity`, { headers });
+        const origItems = await itemRes.json();
+        if (Array.isArray(origItems) && origItems.length > 0) {
+          const origItem = origItems[0];
+          const newQty = Math.max(0, (Number(origItem.quantity) || 0) - (Number(item.quantity) || 0));
+          if (newQty > 0) {
+            await fetch(`${SUPABASE_URL}/rest/v1/order_items?id=eq.${origItem.id}`, {
+              method: 'PATCH',
+              headers,
+              body: JSON.stringify({ quantity: newQty }),
+            });
+          } else {
+            await fetch(`${SUPABASE_URL}/rest/v1/order_items?id=eq.${origItem.id}`, {
+              method: 'DELETE',
+              headers,
+            });
+          }
+        }
       }
 
       // 6. Update Original Order Total

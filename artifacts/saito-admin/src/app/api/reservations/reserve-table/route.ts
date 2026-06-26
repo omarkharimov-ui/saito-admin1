@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 import { groqChat, parseJsonFromText } from '@/lib/groq';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -10,8 +11,11 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const { reservation_id, table_ids, guest_count, pre_order_items, schedule_minutes_before } = body;
     let { table_number } = body;

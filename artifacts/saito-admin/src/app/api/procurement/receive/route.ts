@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         }));
         if (ocrData.supplierName || ocrData.invoiceNumber || ocrData.totalAmount) {
           const { data: inv } = await supabase.from('invoices').insert({
-            supplier_id: po.supplier_id,
+            supplier_id: po.supplier_id || null,
             purchase_order_id: po.id,
             invoice_number: ocrData.invoiceNumber || `OCR-${Date.now()}`,
             total_amount: ocrData.totalAmount || 0,
@@ -96,26 +96,26 @@ export async function POST(request: NextRequest) {
       });
       const matchData = await matchRes.json();
 
-      if (matchData.match && matchData.match.confidence >= 0.7) {
+      if (matchData?.match?.confidence >= 0.7) {
         const ing = (ingredients || []).find(i => i.id === matchData.match.id);
         const stockBefore = ing?.current_stock || 0;
         oldIngredientSnapshots[matchData.match.id] = stockBefore;
         autoStockUpdates.push({
           ingredient_id: matchData.match.id,
-          quantity: item.quantity,
-          cost_per_unit: item.unit_cost,
+          quantity: item.quantity || 0,
+          cost_per_unit: item.unit_cost || 0,
           stock_before: stockBefore,
         });
       } else {
         reviews.push({
           purchase_order_id: po.id,
           invoice_id: invoice?.id || null,
-          product_name: item.product_name,
-          quantity: item.quantity,
-          unit: item.unit,
-          unit_cost: item.unit_cost,
-          suggested_ingredient_id: matchData.match?.id || null,
-          match_confidence: matchData.match?.confidence || null,
+          product_name: item.product_name || 'Unknown',
+          quantity: item.quantity || 0,
+          unit: item.unit || 'piece',
+          unit_cost: item.unit_cost || 0,
+          suggested_ingredient_id: matchData?.match?.id || null,
+          match_confidence: matchData?.match?.confidence || null,
           status: 'pending',
         });
       }
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
               type: 'stock_in',
               quantity: upd.quantity,
               cost_per_unit: upd.cost_per_unit,
-              reason: `Auto-receive from PO ${po.order_number}`,
+              reason: `Auto-receive from PO ${po.order_number || po.id.slice(0, 8)}`,
               order_id: po.id,
             });
           }
@@ -182,7 +182,8 @@ export async function POST(request: NextRequest) {
           for (const item of invoiceItems) {
             const existing = poItemMap.get(item.product_name.toLowerCase().trim());
             if (existing) {
-              const receivedQty = Math.min(item.quantity, (oldItemReceived[existing.id] || 0) + item.quantity);
+              const itemQty = item.quantity || 0;
+            const receivedQty = Math.min(itemQty, (oldItemReceived[existing.id] || 0) + itemQty);
               await supabase.from('purchase_order_items').update({ received_quantity: receivedQty }).eq('id', existing.id);
             }
           }

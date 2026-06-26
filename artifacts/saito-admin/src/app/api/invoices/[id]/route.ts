@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 import { canTransitionInvoice } from '@/types/inventory';
 import type { InvoiceStatus } from '@/types/inventory';
 
@@ -31,6 +32,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth(['admin', 'superadmin']);
+    if (!auth.authenticated) return auth;
+
     const { id } = await params;
     const supabase = svc();
     const body = await request.json();
@@ -49,7 +53,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
-    const { error } = await supabase.from('invoices').update(body).eq('id', id);
+    const allowedFields = ['status', 'notes', 'due_date', 'invoice_date', 'invoice_number'];
+    const update: Record<string, any> = {};
+    for (const key of allowedFields) {
+      if (key in body) update[key] = body[key];
+    }
+
+    const { error } = await supabase.from('invoices').update(update).eq('id', id);
     if (error) throw error;
 
     const { data: invoice } = await supabase

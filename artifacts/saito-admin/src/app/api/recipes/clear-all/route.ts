@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -9,14 +10,22 @@ function svc() {
   );
 }
 
-export async function POST() {
-  const supabase = svc();
+export async function POST(req: NextRequest) {
+  try {
+    const auth = await requireAuth(['superadmin']);
+    if (!auth.authenticated) return auth;
 
-  const { error } = await supabase.from('recipes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const supabase = svc();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { error } = await supabase.from('recipes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    console.error('[ClearAll Recipes] Error:', e.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true });
 }

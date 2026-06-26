@@ -71,20 +71,20 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <NotificationProvider>
-      {auth.showWelcome && auth.role && (
+      {auth.showWelcome && auth.role && auth.role !== 'cashier' && (
         <WelcomeScreen
-          role={auth.role}
+          role={auth.role as 'superadmin' | 'admin' | 'kitchen'}
           email={auth.welcomeEmail}
           onDismiss={() => auth.setShowWelcome(false)}
         />
       )}
 
       {isMobile ? (
-        <AdminMobileShell role={auth.role} onLogout={auth.handleLogout}>
+        <AdminMobileShell role={auth.role as 'admin' | 'superadmin' | null} onLogout={auth.handleLogout}>
           {children}
         </AdminMobileShell>
       ) : (
-        <AdminDesktopShell role={auth.role}>{children}</AdminDesktopShell>
+        <AdminDesktopShell role={auth.role as 'admin' | 'superadmin' | null}>{children}</AdminDesktopShell>
       )}
     </NotificationProvider>
   );

@@ -52,11 +52,7 @@ export default function LoginPage() {
         return;
       }
 
-      // 3. Cookies və Yönləndirmə
-      document.cookie = `saito_role=${adminData.role}; path=/; max-age=86400`;
-      document.cookie = 'isLoggedIn=true; path=/; max-age=86400';
-      localStorage.setItem('isLoggedIn', 'true');
-
+      // 3. Yönləndirmə (supabase session cookie-ni avtomatik idarə edir)
       if (adminData.role === 'kitchen') {
         window.location.href = '/kitchen';
       } else {

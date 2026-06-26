@@ -55,7 +55,8 @@ export default function AdminOrdersPage() {
       }
 
       // Time filter (ödənilmiş sifarişlər üçün daha vacibdir)
-      if (order.status === 'paid' || order.status === 'cancelled') {
+      const isArchive = order.status === ('paid' as any) || order.status === ('cancelled' as any);
+      if (isArchive) {
         const date = new Date(order.created_at);
         const now = new Date();
         if (timeFilter === 'today') {

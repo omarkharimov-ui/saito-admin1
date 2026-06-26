@@ -23,7 +23,7 @@ export interface Order {
   customer_note: string | null;
   table_number: number | null;
   total_amount: number;
-  status: 'new' | 'confirmed' | 'paid';
+  status: 'new' | 'confirmed' | 'paid' | 'cancelled';
   kitchen_status: 'pending' | 'cooking' | 'preparing' | 'ready' | 'cancelled' | 'reserved' | null;
   kitchen_accepted_at: string | null;
   kitchen_ready_at: string | null;

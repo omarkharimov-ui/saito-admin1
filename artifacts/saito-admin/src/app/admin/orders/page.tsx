@@ -7,7 +7,7 @@ import { OrderModal } from './components/OrderModal';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Search, Filter, ShoppingBag, Clock, History, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import OrdersSkeleton from './components/OrdersSkeleton';
+import { OrdersSkeleton } from './components/OrdersSkeleton';
 
 type FilterStatus = 'all' | 'new' | 'confirmed' | 'ready' | 'paid' | 'cancelled';
 type TimeFilter = 'today' | 'week' | 'month';

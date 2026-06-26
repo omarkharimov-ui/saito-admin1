@@ -30,15 +30,55 @@ export async function executeTransactionalOrderAction<T>(
   console.log(`[OrderEngine] Executing ${actionName}...`);
   
   try {
-    // In a real Supabase setup, we would use a PostgreSQL function (RPC) 
-    // to guarantee database-level atomicity. Since we are running in Next.js,
-    // we implement careful sequential checks and manual rollbacks where possible.
     const result = await businessLogic();
-    
     return { success: true, data: result };
   } catch (error: any) {
     console.error(`[OrderEngine] ${actionName} FAILED:`, error.message);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * LEGACY TRANSACTION WRAPPER (Used by Inventory/Procurement)
+ * Maintained for backward compatibility.
+ */
+export async function withTransaction(
+  steps: { name: string; execute: () => Promise<void>; rollback: () => Promise<void> }[]
+): Promise<void> {
+  const completedSteps: number[] = [];
+  try {
+    for (let i = 0; i < steps.length; i++) {
+      console.log(`[Transaction] Step ${i + 1}/${steps.length}: ${steps[i].name}`);
+      await steps[i].execute();
+      completedSteps.push(i);
+    }
+  } catch (error) {
+    console.error('[Transaction] FAILED. Rolling back completed steps...');
+    for (const idx of completedSteps.reverse()) {
+      try {
+        console.log(`[Transaction] Rolling back: ${steps[idx].name}`);
+        await steps[idx].rollback();
+      } catch (rbError) {
+        console.error(`[Transaction] Rollback failed for ${steps[idx].name}:`, rbError);
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Transaction Logging (Used by Inventory/Procurement)
+ */
+export async function createTransactionLog(action: string, status: 'completed' | 'failed' | 'pending', details?: string): Promise<void> {
+  try {
+    await supabase.from('transaction_logs').insert({
+      action,
+      status,
+      details,
+      created_at: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('[TransactionLog] Failed to log:', e);
   }
 }
 

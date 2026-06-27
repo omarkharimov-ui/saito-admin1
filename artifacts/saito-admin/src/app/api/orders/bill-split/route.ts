@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
           }),
         });
 
-        // Deduct quantity from original item
-        const itemRes = await fetch(`${SUPABASE_URL}/rest/v1/order_items?order_id=eq.${original_order_id}&product_id=eq.${item.product_id}&select=id,quantity`, { headers });
+        // Deduct quantity from original item by order_items.id
+        const itemRes = await fetch(`${SUPABASE_URL}/rest/v1/order_items?id=eq.${item.id}&select=id,quantity`, { headers });
         const origItems = await itemRes.json();
         if (Array.isArray(origItems) && origItems.length > 0) {
           const origItem = origItems[0];

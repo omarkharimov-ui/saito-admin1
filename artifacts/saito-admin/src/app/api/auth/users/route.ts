@@ -21,7 +21,7 @@ export async function GET() {
   const supabase = svc();
   const { data } = await supabase
     .from('admin_users')
-    .select('id, email, role, is_active, created_at')
+    .select('id, role, is_active, created_at')
     .order('created_at', { ascending: false });
 
   return NextResponse.json(data || []);

@@ -23,26 +23,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { email, role } = await req.json();
-
-    if (!email || !email.includes('@') || !role) {
-      return NextResponse.json({ error: 'Email and role required' }, { status: 400 });
-    }
+    const { role } = await req.json();
 
     const validRoles = ['admin', 'kitchen', 'cashier'];
-    if (!validRoles.includes(role)) {
-      return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
-    }
-
-    // Check existing
-    const { data: existing } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (existing) {
-      return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
+    if (!role || !validRoles.includes(role)) {
+      return NextResponse.json({ error: 'Valid role required' }, { status: 400 });
     }
 
     // Generate unique PIN
@@ -55,11 +40,11 @@ export async function POST(req: NextRequest) {
 
     const { error: insertError } = await supabase
       .from('admin_users')
-      .insert({ email, role, is_active: true, pin });
+      .insert({ role, is_active: true, pin });
 
     if (insertError) throw insertError;
 
-    return NextResponse.json({ success: true, pin });
+    return NextResponse.json({ success: true, pin, role });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Failed to create user' }, { status: 500 });
   }

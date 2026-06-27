@@ -6,7 +6,7 @@ import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type AdminRole = 'superadmin' | 'admin' | 'kitchen' | 'cashier';
-type AdminUser = { id: string; email: string; role: AdminRole; is_active: boolean; created_at: string };
+type AdminUser = { id: string; role: AdminRole; is_active: boolean; created_at: string };
 
 const ROLE_CONFIG: Record<AdminRole, { label: string; icon: React.ReactNode; color: string }> = {
   superadmin: { label: 'Superadmin', icon: <ShieldCheck size={11} />, color: 'text-gold bg-gold/10 border-gold/25' },
@@ -22,7 +22,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
   const [users, setUsers]       = useState<AdminUser[]>([]);
   const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm]         = useState({ email: '', role: 'admin' as AdminRole });
+  const [form, setForm]         = useState({ role: 'admin' as AdminRole });
   const [saving, setSaving]     = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newPin, setNewPin]     = useState<string | null>(null);
@@ -42,13 +42,12 @@ const UsersTab = ({ role }: { role?: string | null }) => {
 
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.email.trim()) { toast.error('Email tələb olunur', { id: 'action-toast' }); return; }
     setSaving(true);
     setNewPin(null);
     const res = await fetch('/api/auth/send-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: form.email.trim().toLowerCase(), role: form.role }),
+      body: JSON.stringify({ role: form.role }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -132,25 +131,17 @@ const UsersTab = ({ role }: { role?: string | null }) => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold block">{t('users_email')}</label>
-                  <input type="email" autoComplete="off" placeholder="admin@saito.az"
-                    value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                    className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-accent-border)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all" />
-                </div>
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold block">{t('users_role')}</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {(['admin', 'kitchen', 'cashier'] as AdminRole[]).map(r => (
-                      <button key={r} type="button" onClick={() => setForm({ ...form, role: r })}
-                        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                          form.role === r ? ROLE_CONFIG[r].color + ' border-current' : 'text-[var(--theme-text-secondary)] border-[var(--theme-border)] hover:border-[var(--theme-border-strong)]'
-                        }`}>
-                        {ROLE_CONFIG[r].icon} {ROLE_CONFIG[r].label}
-                      </button>
-                    ))}
-                  </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold block">{t('users_role')}</label>
+                <div className="flex gap-2 flex-wrap">
+                  {(['admin', 'kitchen', 'cashier'] as AdminRole[]).map(r => (
+                    <button key={r} type="button" onClick={() => setForm({ ...form, role: r })}
+                      className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                        form.role === r ? ROLE_CONFIG[r].color + ' border-current' : 'text-[var(--theme-text-secondary)] border-[var(--theme-border)] hover:border-[var(--theme-border-strong)]'
+                      }`}>
+                      {ROLE_CONFIG[r].icon} {ROLE_CONFIG[r].label}
+                    </button>
+                  ))}
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-1 border-t border-[var(--theme-border)]">
@@ -183,7 +174,7 @@ const UsersTab = ({ role }: { role?: string | null }) => {
               <React.Fragment key={u.id}>
                 <div className="px-6 py-4 flex items-center gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[var(--theme-text)] truncate">{u.email}</p>
+                    <p className="text-sm font-semibold text-[var(--theme-text)] truncate">#{u.id.slice(0, 8)}</p>
                     <p className="text-[10px] text-[var(--theme-text-secondary)] mt-0.5">
                       {new Date(u.created_at).toLocaleDateString('az-AZ')}
                     </p>

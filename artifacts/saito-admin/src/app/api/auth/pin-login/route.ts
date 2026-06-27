@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     const { data: user } = await supabase
       .from('admin_users')
-      .select('id, role, email')
+      .select('id, role')
       .eq('pin', pin)
       .eq('is_active', true)
       .maybeSingle();

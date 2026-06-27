@@ -11,7 +11,6 @@ export async function GET() {
 
     return NextResponse.json({
       id: auth.user?.id,
-      email: auth.user?.email,
       role: auth.role,
     });
   } catch (error: any) {

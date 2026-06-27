@@ -47,7 +47,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'analytics' && <AnalyticsTab initialData={settingsData} />}
       {tab === 'kitchen'   && <KitchenTab initialData={settingsData} />}
       {tab === 'receipt'   && <ReceiptTab initialData={settingsData} />}
-      {tab === 'users'     && isSuperadmin && <UsersTab role={getCookieRole()} />}
+      {tab === 'users'     && isSuperadmin && <UsersTab />}
       {tab === 'floors'    && <FloorsTab />}
     </>
   );

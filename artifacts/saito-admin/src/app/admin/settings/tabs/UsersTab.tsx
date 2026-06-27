@@ -15,9 +15,8 @@ const ROLE_CONFIG: Record<AdminRole, { label: string; icon: React.ReactNode; col
   cashier:    { label: 'Kassir',    icon: <UserCog size={11} />,     color: 'text-purple-400 bg-purple-400/10 border-purple-400/25' },
 };
 
-const UsersTab = ({ role }: { role?: string | null }) => {
+const UsersTab = () => {
   const { t } = useLanguage();
-  const isSuperadmin = role === 'superadmin';
 
   const [users, setUsers]       = useState<AdminUser[]>([]);
   const [loading, setLoading]   = useState(true);

@@ -1,58 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { createClient } from '@supabase/supabase-js';
+
+function svc() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(['superadmin']);
   if (!auth.authenticated) return auth;
 
   try {
-    const { targetEmail, newPassword } = await req.json();
+    const { userId, newPin } = await req.json();
 
-    if (!targetEmail || !newPassword || newPassword.length < 6) {
-      return NextResponse.json({ error: 'Email and password (min 6 chars) required' }, { status: 400 });
+    if (!userId || !newPin) {
+      return NextResponse.json({ error: 'userId and newPin required' }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: 'Missing Supabase credentials' }, { status: 500 });
+    if (!/^\d{4}$/.test(newPin)) {
+      return NextResponse.json({ error: 'PIN must be 4 digits' }, { status: 400 });
     }
 
-    const listRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-      headers: {
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`,
-      },
-    });
+    const supabase = svc();
 
-    if (!listRes.ok) throw new Error('Failed to list users');
+    // Check PIN uniqueness
+    const { data: existing } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('pin', newPin)
+      .neq('id', userId)
+      .maybeSingle();
 
-    const users = await listRes.json();
-    const user = users.users.find((u: any) => u.email === targetEmail);
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (existing) {
+      return NextResponse.json({ error: 'PIN already in use by another user' }, { status: 400 });
     }
 
-    const updateRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${user.id}`, {
-      method: 'PUT',
-      headers: {
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ password: newPassword }),
-    });
+    const { error } = await supabase
+      .from('admin_users')
+      .update({ pin: newPin })
+      .eq('id', userId);
 
-    if (!updateRes.ok) {
-      const error = await updateRes.text();
-      throw new Error(`Failed to update: ${error}`);
-    }
+    if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    console.error('[ChangePassword API] Error:', e.message);
-    return NextResponse.json({ error: e.message || 'Failed to change password' }, { status: 500 });
+    return NextResponse.json({ error: e.message || 'Failed to change PIN' }, { status: 500 });
   }
 }

@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { groqChat, parseJsonFromText } from '@/lib/groq';
+import { validateAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await request.json();
     const changePercent = Number(body.changePercent) || 0;

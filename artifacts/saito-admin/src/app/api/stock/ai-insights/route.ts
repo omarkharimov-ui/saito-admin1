@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import type { AIInsight } from '@/types/inventory';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -13,6 +14,11 @@ function svc() {
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 export async function GET() {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const insights: AIInsight[] = [];

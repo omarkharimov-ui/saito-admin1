@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ConsumptionTrend } from '@/types/inventory';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -11,6 +12,11 @@ function svc() {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const { searchParams } = new URL(request.url);

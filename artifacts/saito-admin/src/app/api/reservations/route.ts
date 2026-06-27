@@ -13,9 +13,8 @@ const headers = {
 export async function GET() {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
-    // Fetch reservations and orders
     const [reservationsRes, ordersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/reservations?select=*&order=date.desc,time.desc`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=table_number,status&status=in.(new,confirmed,paid)`, { headers }),
@@ -24,7 +23,6 @@ export async function GET() {
     const reservations = await reservationsRes.json();
     const orders = await ordersRes.json();
 
-    // Calculate real visit counts from reservations table
     const phoneVisits: Record<string, number> = {};
     (reservations || []).forEach((r: any) => {
       if (r.phone) {
@@ -49,12 +47,11 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const body = await request.json();
     const { action, data, id } = body;
 
-    // 1. Double Booking Protection (for create/update)
     if (action === 'create' || (action === 'update' && (data?.date || data?.time || data?.table_ids))) {
       const date = data?.date || body.date;
       const time = data?.time || body.time;
@@ -93,7 +90,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Handle Actions
     let url = `${SUPABASE_URL}/rest/v1/reservations`;
     let method = 'POST';
     let payload = data || body;

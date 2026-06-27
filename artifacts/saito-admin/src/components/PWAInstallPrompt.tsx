@@ -62,7 +62,6 @@ export default function PWAInstallPrompt() {
       localStorage.setItem('pwa-installed', 'true');
       toast.success('Uğurla! Tətbiq ana ekrana əlavə edildi!', {
         duration: 4000,
-        icon: '🎉',
       });
     };
 
@@ -79,7 +78,6 @@ export default function PWAInstallPrompt() {
     if (!deferredPrompt) {
       // Fallback for browsers that don't support beforeinstallprompt
       toast('Tətbiqi əlavə etmək üçün brauzerinizin menyusundan "Ana ekrana əlavə et" seçin.', {
-        icon: '📱',
         duration: 5000,
       });
       return;
@@ -107,7 +105,6 @@ export default function PWAInstallPrompt() {
         // Show success notification
         toast.success('Tətbiq uğurla ana ekrana əlavə edildi!', {
           duration: 4000,
-          icon: '🎉',
         });
       } else {
         // User dismissed the install prompt
@@ -124,12 +121,10 @@ export default function PWAInstallPrompt() {
       if (error instanceof Error) {
         if (error.message.includes('User cancelled')) {
           toast('Quraşdırma ləğv edildi.', {
-            icon: '📱',
             duration: 3000,
           });
         } else if (error.message.includes('not supported')) {
           toast('Bu cihaz PWA quraşdırmasını dəstəkləmir.', {
-            icon: '⚠️',
             duration: 4000,
           });
         } else {

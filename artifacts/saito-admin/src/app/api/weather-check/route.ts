@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const url = new URL(req.url);
     const city = url.searchParams.get('city') || 'Baku';

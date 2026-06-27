@@ -39,7 +39,6 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = svc();
 
-  // Delete sessions first
   await supabase.from('sessions').delete().eq('user_id', id);
 
   const { error } = await supabase.from('admin_users').delete().eq('id', id);

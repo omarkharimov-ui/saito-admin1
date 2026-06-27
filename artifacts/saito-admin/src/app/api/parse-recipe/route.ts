@@ -2,23 +2,24 @@ import { NextResponse } from 'next/server';
 import { groqChat } from '@/lib/groq';
 import { createClient } from '@supabase/supabase-js';
 import type { NormalizedRecipeIngredient } from '@/types/recipes';
+import { validateAuth } from '@/lib/api-auth';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+function svc() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 export const runtime = 'nodejs';
 
-/**
- * AI Recipe Document Parser
- * PDF, Word və ya TXT formatında gələn resept sənədini parse edir.
- *
- * Body (multipart/form-data): { file: File, productId: string }
- * Body (json): { text: string, productId: string }
- */
 export async function POST(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     let text = '';
     let productId = '';
@@ -51,14 +52,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'productId required' }, { status: 400 });
     }
 
-    // 1. DB-dəki ingredient-ləri çək
+    const supabase = svc();
     const { data: dbIngredients } = await supabase
       .from('ingredients')
       .select('id, name, unit');
 
     const ingredientNames = (dbIngredients || []).map((i: any) => `${i.name} (${i.unit})`).join(', ');
 
-    // 2. Groq AI ilə resept mətnini parse et
     const aiResponse = await groqChat(
       `Sən bir restoran resept parserisən. Sənə verilən resept mətnindən xəmmal adlarını və miqdarlarını çıxarır və JSON olaraq qaytarırsan.
 
@@ -70,7 +70,6 @@ Yalnız mövcud xəmmallardan istifadə et. Yalnız JSON qaytar, başqa heç nə
       { maxTokens: 1200, temperature: 0.2 }
     );
 
-    // 3. JSON parse et
     let recipeData: { recipe?: { ingredientName: string; quantity: number; unit: string }[] } = {};
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -83,7 +82,6 @@ Yalnız mövcud xəmmallardan istifadə et. Yalnız JSON qaytar, başqa heç nə
       return NextResponse.json({ error: 'Resept tapılmadı' }, { status: 422 });
     }
 
-    // 4. Ingredient-ləri DB-dəki ID-lərlə match et
     const matchedRecipe: NormalizedRecipeIngredient[] = [];
     for (const r of recipeData.recipe) {
       const matched = (dbIngredients || []).find(
@@ -103,14 +101,12 @@ Yalnız mövcud xəmmallardan istifadə et. Yalnız JSON qaytar, başqa heç nə
       return NextResponse.json({ error: 'Heç bir xəmmal match edilmədi', parsed: recipeData.recipe }, { status: 422 });
     }
 
-    // 5. Köhnə AI reseptləri sil
     await supabase
       .from('recipes')
       .delete()
       .eq('menu_item_id', productId)
       .eq('is_ai_suggested', true);
 
-    // 6. Yeni AI reseptini yaz
     for (const r of matchedRecipe) {
       await supabase.from('recipes').insert({
         menu_item_id: productId,
@@ -120,7 +116,6 @@ Yalnız mövcud xəmmallardan istifadə et. Yalnız JSON qaytar, başqa heç nə
       });
     }
 
-    // 7. Product-u AI reseptli et
     await supabase
       .from('products')
       .update({ has_active_recipe: true })

@@ -4,7 +4,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth(['admin', 'superadmin', 'cashier']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const url = new URL(req.url);
     const type = url.searchParams.get('type');
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(['admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const body = await req.json();
     const supabase = await createAuthClient();
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const auth = await requireAuth(['admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const url = new URL(req.url);
     const id = url.searchParams.get('id');
@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const auth = await requireAuth(['admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const url = new URL(req.url);
     const id = url.searchParams.get('id');

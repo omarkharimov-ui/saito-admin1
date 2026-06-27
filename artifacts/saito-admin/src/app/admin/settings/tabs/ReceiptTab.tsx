@@ -95,7 +95,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
               placeholder={t('receipt_title_placeholder')}
               onChange={e => setCfg({ ...cfg, receipt_title: e.target.value })}
             />
-            {titleEmpty && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1"><span>⚠</span> Bu sahə boş qala bilməz</p>}
+            {titleEmpty && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1"><span> </span> Bu sahə boş qala bilməz</p>}
             {!titleEmpty && <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('receipt_title_hint')}</p>}
           </div>
 
@@ -110,7 +110,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
               onChange={e => setCfg({ ...cfg, receipt_currency: e.target.value })}
               style={{ fontFamily: 'inherit' }}
             />
-            {currencyEmpty && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1"><span>⚠</span> Bu sahə boş qala bilməz</p>}
+            {currencyEmpty && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1"><span> </span> Bu sahə boş qala bilməz</p>}
             {!currencyEmpty && <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('receipt_currency_hint')}</p>}
           </div>
         </div>

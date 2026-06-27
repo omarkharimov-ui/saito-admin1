@@ -74,7 +74,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       {auth.showWelcome && auth.role && auth.role !== 'cashier' && (
         <WelcomeScreen
           role={auth.role as 'superadmin' | 'admin' | 'kitchen'}
-          email={auth.welcomeEmail}
           onDismiss={() => auth.setShowWelcome(false)}
         />
       )}

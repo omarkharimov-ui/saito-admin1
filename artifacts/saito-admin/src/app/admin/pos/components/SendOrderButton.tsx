@@ -85,7 +85,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
             exit={{ opacity: 0, scale: 0.4 }}
             transition={{ duration: 0.15 }}
           >
-            <span className="text-xl leading-none text-red-400">✕</span>
+            <span className="text-xl leading-none text-red-400">×</span>
           </motion.span>
         ) : (
           <motion.span

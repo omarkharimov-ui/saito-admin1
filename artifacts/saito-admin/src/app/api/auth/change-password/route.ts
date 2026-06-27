@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
 
     const supabase = svc();
 
-    // Check PIN uniqueness
     const { data: existing } = await supabase
       .from('admin_users')
       .select('id')

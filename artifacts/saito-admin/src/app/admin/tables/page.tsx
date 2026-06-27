@@ -176,7 +176,7 @@ const TablesPage = () => {
           <h1 className="text-3xl font-serif font-bold text-white mb-1">QR Kodlar</h1>
           <p className="text-white/40 text-sm">Masalar üçün QR kodları idarə edin.</p>
           <p className="text-gold/60 text-xs mt-1">
-            ℹ️ Masa sayı dəyişəndə Orders səhifəsindəki masa şəbəkəsi də avtomatik yenilənir
+            Masa sayı dəyişəndə Orders səhifəsindəki masa şəbəkəsi də avtomatik yenilənir
           </p>
         </div>
         <div className="flex flex-col md:flex-row items-start md:items-center gap-3">

@@ -459,9 +459,9 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                               priceUnderpriced ? 'text-amber-400 bg-amber-500/10' :
                               'text-red-400 bg-red-500/10'
                             }`}>
-                              {priceSafe ? '✓ Cari qiymət təhlükəsiz aralıqdadır' :
-                               priceUnderpriced ? '⚠ Cari qiymət çox aşağıdır — marja riski' :
-                               '⚠ Cari qiymət çox yüksəkdir — tələb riski'}
+                              {priceSafe ? 'Cari qiymət təhlükəsiz aralıqdadır' :
+                               priceUnderpriced ? 'Cari qiymət çox aşağıdır — marja riski' :
+                               'Cari qiymət çox yüksəkdir — tələb riski'}
                             </div>
                           )}
                         </div>

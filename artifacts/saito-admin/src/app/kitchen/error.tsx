@@ -7,7 +7,7 @@ export default function KitchenError({ error, reset }: { error: Error & { digest
   return (
     <div className="h-full w-full flex items-center justify-center bg-black">
       <div className="max-w-sm text-center space-y-4 p-6">
-        <p className="text-4xl">⚠️</p>
+        <p className="text-4xl"> </p>
         <p className="text-lg font-bold text-white/80">Panel xətası</p>
         <p className="text-sm text-white/40">{error.message || 'Gözlənilməz xəta baş verdi'}</p>
         <button onClick={reset}

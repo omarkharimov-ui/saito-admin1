@@ -13,7 +13,7 @@ const headers = {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const { table_numbers, version } = await request.json();
 
@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
       const targetTable = table_numbers[0];
       const restTables = table_numbers.slice(1);
 
-      // 1. Get primary order on target table
       const targetOrdersRes = await fetch(
         `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&status=neq.cancelled&select=*`,
         { headers }
@@ -33,7 +32,6 @@ export async function POST(request: NextRequest) {
       const targetOrders = await targetOrdersRes.json();
       let primaryOrder = targetOrders?.[0];
 
-      // 2. Get orders on other tables
       const sourceOrders: any[] = [];
       for (const tNum of restTables) {
         const res = await fetch(
@@ -48,7 +46,6 @@ export async function POST(request: NextRequest) {
         throw new Error('No active orders to merge');
       }
 
-      // 3. Create primary order if none exists
       if (!primaryOrder && sourceOrders.length > 0) {
         primaryOrder = sourceOrders[0];
         // The first order found becomes the primary one on the target table
@@ -69,7 +66,6 @@ export async function POST(request: NextRequest) {
       let extraTotal = 0;
       let extraGuests = 0;
 
-      // 4. Merge source orders into primary
       for (const src of sourceOrders) {
         extraTotal += Number(src.total_amount || 0);
         extraGuests += Number(src.guest_count || 0);
@@ -85,7 +81,6 @@ export async function POST(request: NextRequest) {
         if (!mergeRes.ok) throw new Error(`Failed to merge order ${src.id}`);
       }
 
-      // 5. Update Primary Order Totals
       const finalUpdateRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${primaryOrder.id}`, {
         method: 'PATCH',
         headers,
@@ -97,7 +92,6 @@ export async function POST(request: NextRequest) {
       });
       if (!finalUpdateRes.ok) throw new Error('Failed to update primary order totals');
 
-      // 6. Update Table States
       for (const tNum of restTables) {
         await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tNum}`, {
           method: 'PATCH',

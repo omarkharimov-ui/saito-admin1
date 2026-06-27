@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import type { PriceAnomaly } from '@/types/inventory';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -11,6 +12,11 @@ function svc() {
 }
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { id } = await params;
     const supabase = svc();

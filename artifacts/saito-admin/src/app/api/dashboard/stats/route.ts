@@ -1,11 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 import { calculateCalibrationSuggestions, calculateMarginInsight } from '@/lib/stockAnalytics';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 export async function GET() {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -41,11 +46,9 @@ export async function GET() {
         .in('status', ['critical', 'out_of_stock']),
     ]);
 
-    // ── Revenue ──────────────────────────────────────────────────────────
     const dailyRevenue = paidToday?.reduce((s, o) => s + (Number(o.total_amount) || 0), 0) ?? 0;
     const activeTables = new Set(activeOrders?.map((o: any) => o.table_number).filter(Boolean)).size;
 
-    // ── Finance metrics ───────────────────────────────────────────────────
     const ingCostMap = new Map<string, { cost: number; waste: number }>();
     (ingredients ?? []).forEach((ing: any) => 
       ingCostMap.set(ing.id, { 
@@ -94,7 +97,6 @@ export async function GET() {
     const dailyNetProfit = dailyRevenue - dailyFoodCost - dailyWasteCost;
     const foodCostPct = dailyRevenue > 0 ? (dailyFoodCost / dailyRevenue) * 100 : 0;
 
-    // ── Rest of the stats ─────────────────────────────────────────────────
     const productCounts: Record<string, number> = {};
     (todayItems ?? []).forEach((item: any) => {
       const name = item.product_name || 'Naməlum';

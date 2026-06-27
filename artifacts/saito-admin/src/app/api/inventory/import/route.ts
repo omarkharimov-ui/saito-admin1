@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { InventoryImportPayload } from '@/types/recipes';
 import { normalizeToStorage } from '@/types/inventory';
+import { validateAuth } from '@/lib/api-auth';
 
 const UNIT_MAP: Record<string, string> = {
   g: 'gram', gram: 'gram', grams: 'gram',
@@ -15,6 +16,11 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export async function POST(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const payload = (await request.json()) as InventoryImportPayload;
 

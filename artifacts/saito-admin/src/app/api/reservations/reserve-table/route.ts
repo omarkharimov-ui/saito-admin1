@@ -14,7 +14,7 @@ const headers = {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const body = await request.json();
     const { reservation_id, table_ids, guest_count, pre_order_items, schedule_minutes_before } = body;
@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'reservation_id is required' }, { status: 400 });
     }
 
-    // 0. Rezervasiya məlumatlarını çək
     const resRes = await fetch(
       `${SUPABASE_URL}/rest/v1/reservations?select=*&id=eq.${reservation_id}`,
       { headers }
@@ -35,7 +34,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
     }
 
-    // 1. Double Booking Check
     const checkUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,time&date=eq.${reservation.date}&status=eq.confirmed`;
     const checkRes = await fetch(checkUrl, { headers });
     const existing = await checkRes.json();
@@ -59,7 +57,6 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
-    // 2. Resolve table_number if missing
     if (!table_number && table_ids && table_ids.length > 0) {
       const tRes = await fetch(
         `${SUPABASE_URL}/rest/v1/table_floors?select=table_number&id=eq.${table_ids[0]}`,
@@ -78,7 +75,6 @@ export async function POST(request: NextRequest) {
       0
     );
 
-    // 3. Update table_floors
     const tableFloorPatch = {
       status: 'reserved',
       reservation_id,
@@ -106,7 +102,6 @@ export async function POST(request: NextRequest) {
       kitchen_scheduled_at = new Date(reservationDate.getTime() - minutesBefore * 60 * 1000).toISOString();
     }
 
-    // 5. Update Reservation
     await fetch(`${SUPABASE_URL}/rest/v1/reservations?id=eq.${reservation_id}`, {
       method: 'PATCH',
       headers,

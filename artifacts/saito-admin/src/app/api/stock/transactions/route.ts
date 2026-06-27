@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 export type StockTransactionType = 'manual_entry' | 'sale' | 'waste';
 
@@ -20,6 +21,11 @@ function getServiceClient() {
 
 // GET /api/stock/transactions?ingredientId=xxx
 export async function GET(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = getServiceClient();
     const ingredientId = req.nextUrl.searchParams.get('ingredientId');
@@ -42,6 +48,11 @@ export async function GET(req: NextRequest) {
 
 // POST /api/stock/transactions
 export async function POST(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = getServiceClient();
     const body: CreateTransactionPayload = await req.json();

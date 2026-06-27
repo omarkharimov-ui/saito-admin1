@@ -319,7 +319,7 @@ export default function PurchaseOrdersPage() {
             </p>
             {!search && (
               <div className="mt-4 space-y-2 text-xs text-[var(--theme-text-muted)]">
-                <p>📍 "Yeni Sifariş" düyməsi ilə ilk satınalma sifarişini yaradın</p>
+                <p>"Yeni Sifariş" düyməsi ilə ilk satınalma sifarişini yaradın</p>
               </div>
             )}
           </GlassCard>

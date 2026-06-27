@@ -454,29 +454,29 @@ export default function StatsSenseiPanel({
     if (!correlatorData) return null;
 
     const condMeta: Record<string, { emoji: string; color: string; border: string; bg: string; glow: string }> = {
-      rain:   { emoji: '🌧️', color: 'text-white/60', border: 'border-white/[0.08]', bg: 'rgba(255,255,255,0.02)', glow: 'transparent' },
-      storm:  { emoji: '⛈️', color: 'text-white/60', border: 'border-white/[0.08]', bg: 'rgba(255,255,255,0.02)', glow: 'transparent' },
-      snow:   { emoji: '❄️', color: 'text-white/60', border: 'border-white/[0.08]', bg: 'rgba(255,255,255,0.02)', glow: 'transparent' },
-      windy:  { emoji: '💨', color: 'text-white/60', border: 'border-white/[0.08]', bg: 'rgba(255,255,255,0.02)', glow: 'transparent' },
-      clear:  { emoji: '☀️', color: 'text-gold/70',  border: 'border-gold/[0.15]',  bg: 'rgba(212,175,55,0.03)', glow: 'rgba(212,175,55,0.08)' },
-      cloudy: { emoji: '☁️', color: 'text-white/50', border: 'border-white/[0.06]', bg: 'rgba(255,255,255,0.015)', glow: 'transparent' },
+      rain:   { emoji: 'rain_icon', color: 'text-white/60', border: 'border-white/[0.08]', bg: 'rgba(255,255,255,0.02)', glow: 'transparent' },
+      storm:  { emoji: 'storm_icon', color: 'text-white/60', border: 'border-white/[0.08]', bg: 'rgba(255,255,255,0.02)', glow: 'transparent' },
+      snow:   { emoji: 'snow_icon', color: 'text-white/60', border: 'border-white/[0.08]', bg: 'rgba(255,255,255,0.02)', glow: 'transparent' },
+      windy:  { emoji: 'windy_icon', color: 'text-white/60', border: 'border-white/[0.08]', bg: 'rgba(255,255,255,0.02)', glow: 'transparent' },
+      clear:  { emoji: 'clear_icon', color: 'text-gold/70',  border: 'border-gold/[0.15]',  bg: 'rgba(212,175,55,0.03)', glow: 'rgba(212,175,55,0.08)' },
+      cloudy: { emoji: 'cloudy_icon', color: 'text-white/50', border: 'border-white/[0.06]', bg: 'rgba(255,255,255,0.015)', glow: 'transparent' },
     };
 
     // Bayram adına görə emoji seç
     function eventEmoji(name: string): string {
       const n = name.toLowerCase();
-      if (/qələbə|victory|победа|9 may|may 9/.test(n)) return '🎖️';
-      if (/respublika|republic|республика/.test(n)) return '🇦🇿';
-      if (/novruz|nevruz/.test(n)) return '🌸';
-      if (/müstəqillik|independence|независимост/.test(n)) return '🏛️';
-      if (/qadın|women|женщин/.test(n)) return '🌹';
-      if (/konstitusiya|constitution|конституц/.test(n)) return '📜';
-      if (/qurtuluş|salvation|спасен/.test(n)) return '⚔️';
-      if (/silahlı|armed|вооруж/.test(n)) return '🎗️';
-      if (/dirçəliş|revival|возрожд/.test(n)) return '🕯️';
-      if (/həmrəylik|solidarity|солидарн/.test(n)) return '🤝';
-      if (/yeni il|new year|новый год/.test(n)) return '🎉';
-      return '🏅';
+      if (/qələbə|victory|победа|9 may|may 9/.test(n)) return '';
+      if (/respublika|republic|республика/.test(n)) return '';
+      if (/novruz|nevruz/.test(n)) return '';
+      if (/müstəqillik|independence|независимост/.test(n)) return '';
+      if (/qadın|women|женщин/.test(n)) return '';
+      if (/konstitusiya|constitution|конституц/.test(n)) return '';
+      if (/qurtuluş|salvation|спасен/.test(n)) return '';
+      if (/silahlı|armed|вооруж/.test(n)) return '';
+      if (/dirçəliş|revival|возрожд/.test(n)) return '';
+      if (/həmrəylik|solidarity|солидарн/.test(n)) return '';
+      if (/yeni il|new year|новый год/.test(n)) return '';
+      return '';
     }
 
     // Days until
@@ -526,7 +526,6 @@ export default function StatsSenseiPanel({
           <div className={`grid gap-2 ${sortedEvents.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {sortedEvents.map((ev, i) => {
               const days = daysUntil(ev.date);
-              const emoji = eventEmoji(ev.name);
               const isHigh = ev.impact === 'high';
               const isMed  = ev.impact === 'medium';
               const isToday = days === 0;
@@ -668,7 +667,7 @@ export default function StatsSenseiPanel({
     const todayWeather = correlatorData?.weatherForecast?.[0];
     if (todayWeather) {
       const cond = todayWeather.condition;
-      const wIcon = cond === 'rain' || cond === 'storm' ? '🌧️' : cond === 'snow' ? '❄️' : cond === 'clear' ? '☀️' : cond === 'windy' ? '💨' : '☁️';
+      const wIcon = cond === 'rain' || cond === 'storm' ? 'rain_icon' : cond === 'snow' ? 'snow_icon' : cond === 'clear' ? 'clear_icon' : cond === 'windy' ? 'windy_icon' : 'cloudy_icon';
       const wTipMap: Record<string, { az: string; en: string; ru: string }> = {
         rain:   { az: 'Yağış günü — delivery kampaniyası başladın, çatdırılma endirim kodu göndərin.', en: 'Rainy day — launch a delivery promo, send discount codes for delivery.', ru: 'Дождь — запустите промо на доставку, отправьте скидочные коды.' },
         storm:  { az: 'Fırtına var — personala əvvəlcədən xəbər verin, menyu sadələşdirin.', en: 'Storm ahead — alert staff early, simplify menu for the day.', ru: 'Шторм — предупредите персонал, упростите меню на день.' },
@@ -711,7 +710,7 @@ export default function StatsSenseiPanel({
       ];
       const accent = isHigh ? '#f59e0b' : '#a78bfa';
       weatherEventTips.push({
-        icon: days <= 1 ? '🎉' : '📅',
+        icon: days <= 1 ? 'urgent' : 'event',
         title: `${ev.name} · ${ev.date.slice(5).replace('-', '/')}`,
         tip: language === 'az' ? evTips[0].az : language === 'ru' ? evTips[0].ru : evTips[0].en,
         accent,
@@ -780,7 +779,7 @@ export default function StatsSenseiPanel({
               {weatherEventTips.map((tip, i) => (
                 <div key={i} className="flex items-start gap-3.5 px-5 py-3.5">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${tip.accent}18` }}>
-                  {tip.icon === '🌧️' ? <CloudRain size={14} style={{ color: tip.accent }} /> : tip.icon === '⛈️' ? <CloudRain size={14} style={{ color: tip.accent }} /> : tip.icon === '❄️' ? <Thermometer size={14} style={{ color: tip.accent }} /> : tip.icon === '☀️' ? <Sun size={14} style={{ color: tip.accent }} /> : tip.icon === '�' ? <Wind size={14} style={{ color: tip.accent }} /> : tip.icon === '🎉' ? <Star size={14} style={{ color: tip.accent }} /> : <CalendarDays size={14} style={{ color: tip.accent }} />}
+                  {tip.icon === 'rain_icon' || tip.icon === 'storm_icon' ? <CloudRain size={14} style={{ color: tip.accent }} /> : tip.icon === 'snow_icon' ? <Thermometer size={14} style={{ color: tip.accent }} /> : tip.icon === 'clear_icon' ? <Sun size={14} style={{ color: tip.accent }} /> : tip.icon === 'windy_icon' ? <Wind size={14} style={{ color: tip.accent }} /> : tip.icon === 'urgent' ? <Star size={14} style={{ color: tip.accent }} /> : <CalendarDays size={14} style={{ color: tip.accent }} />}
                 </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-semibold text-[var(--theme-text-muted)] mb-0.5 truncate">{tip.title}</p>
@@ -938,7 +937,7 @@ export default function StatsSenseiPanel({
                     <div className="flex flex-col gap-3 pt-2">
                       {/* Robot greeting bubbles */}
                       {[
-                        language === 'az' ? 'Salam! 👋 Mən Saito AI-yəm.' : language === 'ru' ? 'Привет! 👋 Я Saito AI.' : 'Hi there! 👋 I\'m Saito AI.',
+                        language === 'az' ? 'Salam! Mən Saito AI-yəm.' : language === 'ru' ? 'Привет! Я Saito AI.' : 'Hi there! I\'m Saito AI.',
                         language === 'az' ? 'Satışlar, sifarişlər, məhsullar, kateqoriyalar — istədiklərin haqqında hər şeyi bilə bilərəm.' : language === 'ru' ? 'Я знаю всё о твоих продажах, заказах, товарах и категориях.' : 'I know all about your sales, orders, products and categories.',
                         language === 'az' ? 'Nə soruşmaq istəyirsən?' : language === 'ru' ? 'Чем могу помочь?' : 'What would you like to know?',
                       ].map((msg, i) => (

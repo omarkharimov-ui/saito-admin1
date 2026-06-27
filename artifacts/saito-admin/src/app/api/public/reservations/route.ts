@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+  'apikey': ANON_KEY,
+  'Authorization': `Bearer ${ANON_KEY}`,
   'Content-Type': 'application/json',
 };
 
@@ -14,12 +14,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { customer_name, phone, date, time, guests, notes } = body;
 
-    // 1. Validation
     if (!customer_name || !phone || !date || !time || !guests) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // 2. Double booking protection (Basic check for the same time and date)
     // In a real production system, this would check table availability specifically.
     // For now, we'll check if there's already a reservation for the same customer/phone at the same time to prevent duplicates.
     const checkRes = await fetch(
@@ -31,7 +29,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'A reservation already exists for this time and phone number.' }, { status: 409 });
     }
 
-    // 3. Create reservation
     const res = await fetch(`${SUPABASE_URL}/rest/v1/reservations`, {
       method: 'POST',
       headers: { ...headers, 'Prefer': 'return=representation' },

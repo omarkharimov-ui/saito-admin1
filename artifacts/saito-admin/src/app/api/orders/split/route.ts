@@ -10,20 +10,10 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-/**
- * PRODUCTION-GRADE TABLE UNMERGE
- * 
- * Requirements:
- * - transaction
- * - rollback
- * - guest count unmerge
- * - financial total recalc
- * - table state update
- */
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const { table_numbers } = await request.json();
     
@@ -33,7 +23,6 @@ export async function POST(request: NextRequest) {
 
     const result = await executeTransactionalOrderAction('TableUnmerge', async () => {
       for (const tableNum of table_numbers) {
-        // 1. Clear table-level merge link
         await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
           method: 'PATCH',
           headers,
@@ -43,7 +32,6 @@ export async function POST(request: NextRequest) {
           }),
         });
 
-        // 2. Find and unmerge orders for this specific table
         const orderRes = await fetch(
           `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${tableNum}&status=neq.paid&status=neq.cancelled&select=*`,
           { headers }
@@ -55,7 +43,6 @@ export async function POST(request: NextRequest) {
             if (order.merged_into) {
               const parentId = order.merged_into;
               
-              // a) Clear merged_into
               await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`, {
                 method: 'PATCH',
                 headers,
@@ -65,7 +52,6 @@ export async function POST(request: NextRequest) {
                 }),
               });
 
-              // b) Subtract from parent order total and guest count
               const parentRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${parentId}&select=*`, { headers });
               const parent = (await parentRes.json())?.[0];
               

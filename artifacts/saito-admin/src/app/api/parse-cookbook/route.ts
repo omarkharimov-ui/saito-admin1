@@ -2,12 +2,15 @@ import { NextResponse } from 'next/server';
 import { groqChat } from '@/lib/groq';
 import { createClient } from '@supabase/supabase-js';
 import type { NormalizedRecipeIngredient, NormalizedRecipeSuggestion } from '@/types/recipes';
+import { validateAuth } from '@/lib/api-auth';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+function svc() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 export const runtime = 'nodejs';
 
@@ -17,6 +20,11 @@ export const runtime = 'nodejs';
  * Hər reseptə uyğun məhsul və xəmmalları təklif edir.
  */
 export async function POST(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     let text = '';
 
@@ -40,7 +48,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'PDF or text required' }, { status: 400 });
     }
 
-    // DB-dəki məlumatları çək
+    const supabase = svc();
     const [{ data: dbIngredients }, { data: dbProducts }] = await Promise.all([
       supabase.from('ingredients').select('id, name, unit'),
       supabase.from('products').select('id, name, name_az, name_en, name_ru'),

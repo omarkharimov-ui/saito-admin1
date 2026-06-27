@@ -512,9 +512,9 @@ function SuppliersSection() {
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-white/90 truncate">{s.name}</div>
                   <div className="mt-1 text-[11px] text-white/30 space-y-0.5">
-                    {s.contact_person && <div> 👤 {s.contact_person}</div>}
-                    {s.phone && <div> 📞 {s.phone}</div>}
-                    {s.email && <div> ✉️ {s.email}</div>}
+                    {s.contact_person && <div> {s.contact_person}</div>}
+                    {s.phone && <div> {s.phone}</div>}
+                    {s.email && <div> {s.email}</div>}
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
@@ -611,11 +611,11 @@ function SuppliersSection() {
               </div>
             </div>
             <div className="space-y-1.5 text-xs text-white/40">
-              {detailSupplier.contact_person && <div>👤 {detailSupplier.contact_person}</div>}
-              {detailSupplier.phone && <div>📞 {detailSupplier.phone}</div>}
-              {detailSupplier.email && <div>✉️ {detailSupplier.email}</div>}
-              {detailSupplier.address && <div>📍 {detailSupplier.address}</div>}
-              {detailSupplier.tax_id && <div>🏛️ VÖEN: {detailSupplier.tax_id}</div>}
+              {detailSupplier.contact_person && <div>{detailSupplier.contact_person}</div>}
+              {detailSupplier.phone && <div>{detailSupplier.phone}</div>}
+              {detailSupplier.email && <div>{detailSupplier.email}</div>}
+              {detailSupplier.address && <div>{detailSupplier.address}</div>}
+              {detailSupplier.tax_id && <div>VÖEN: {detailSupplier.tax_id}</div>}
               {detailSupplier.notes && <div className="mt-2 p-2 rounded-lg bg-white/[0.03] text-white/50">{detailSupplier.notes}</div>}
             </div>
             <div className="flex gap-2 mt-5 justify-end">

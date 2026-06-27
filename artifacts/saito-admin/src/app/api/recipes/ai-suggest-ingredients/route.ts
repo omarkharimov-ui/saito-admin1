@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { groqChat, parseJsonFromText } from '@/lib/groq';
 import type { NormalizedRecipeIngredient } from '@/types/recipes';
+import { validateAuth } from '@/lib/api-auth';
 
 interface SuggestionResponse {
   recipe: NormalizedRecipeIngredient[];

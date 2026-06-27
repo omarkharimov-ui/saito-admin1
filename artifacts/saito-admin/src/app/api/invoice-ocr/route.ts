@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 export async function POST(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { imageUrl, language } = await request.json();
 

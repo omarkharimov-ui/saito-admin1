@@ -12,7 +12,6 @@ export function useAdminAuth() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [welcomeEmail, setWelcomeEmail] = useState('');
 
   useEffect(() => {
     const check = async () => {
@@ -46,7 +45,7 @@ export function useAdminAuth() {
   return {
     isAuthenticated, role, authChecked,
     loading, errorMsg,
-    showWelcome, setShowWelcome, welcomeEmail,
+    showWelcome, setShowWelcome,
     handleLogout,
   };
 }

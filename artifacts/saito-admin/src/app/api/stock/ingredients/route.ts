@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 function getServiceClient() {
   return createClient(
@@ -10,6 +11,11 @@ function getServiceClient() {
 }
 
 export async function GET() {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = getServiceClient();
     const { data, error } = await supabase
@@ -24,6 +30,11 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = getServiceClient();
     const { name, unit, min_limit } = await req.json();
@@ -43,6 +54,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = getServiceClient();
     const id = req.nextUrl.searchParams.get('id');

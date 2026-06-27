@@ -30,9 +30,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'PIN yanlışdır' }, { status: 401 });
     }
 
-    // Generate session token
     const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 saat
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     await supabase.from('sessions').insert({
       token,

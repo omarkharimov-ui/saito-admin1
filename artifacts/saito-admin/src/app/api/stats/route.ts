@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export async function GET(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const timeFilter = searchParams.get('timeFilter') || 'today';
 
-    // Calculate date range
     const now = new Date();
     let isoStartDate: string;
     let isoEndDate: string = now.toISOString();
@@ -47,7 +51,6 @@ export async function GET(request: Request) {
 
     const H = { 'apikey': SERVICE_ROLE_KEY, 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` };
 
-    // Fetch all data in parallel
     const [
       ordersRes,
       orderItemsRes,
@@ -82,12 +85,10 @@ export async function GET(request: Request) {
       activeOrdersRes.json(),
     ]);
 
-    // Calculate stats
     const totalRevenue = orders?.reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0) || 0;
     const totalOrders = orders?.length || 0;
     const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    // Peak hours
     const hourMap: Record<number, number> = {};
     orders?.forEach((o: any) => {
       const h = new Date(o.created_at).getHours();
@@ -98,7 +99,7 @@ export async function GET(request: Request) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
 
-    // Product performance
+
     const productMap = new Map();
     orderItems?.forEach((item: any) => {
       const pid = item.product_id;
@@ -126,14 +127,11 @@ export async function GET(request: Request) {
       };
     }).sort((a: any, b: any) => b.revenue - a.revenue) || [];
 
-    // ── Finance Metrics ────────────────────────────────────────────────────────
-    // Build ingredient cost map: ingredientId → average_cost_per_unit
     const ingCostMap = new Map<string, number>();
     (Array.isArray(ingredients) ? ingredients : []).forEach((ing: any) => {
       ingCostMap.set(ing.id, Number(ing.average_cost_per_unit) || 0);
     });
 
-    // Build recipe map: productId → [{ingredient_id, quantity_required}]
     const recipeMap = new Map<string, { ingredient_id: string; quantity_required: number }[]>();
     (Array.isArray(recipes) ? recipes : []).forEach((r: any) => {
       const list = recipeMap.get(r.menu_item_id) || [];
@@ -141,13 +139,11 @@ export async function GET(request: Request) {
       recipeMap.set(r.menu_item_id, list);
     });
 
-    // Build product metadata map for quick lookup
     const productMeta = new Map<string, any>();
     (Array.isArray(products) ? products : []).forEach((p: any) => {
       productMeta.set(p.id, p);
     });
 
-    // Calculate food cost per sold item
     let totalFoodCost = 0;
     const profitByProduct = new Map<string, { name: string; sold: number; revenue: number; food_cost: number }>();
 
@@ -163,12 +159,10 @@ export async function GET(request: Request) {
       let unitFoodCost = 0;
       
       if (recipeIngredients.length > 0) {
-        // Option A: Use Recipe
         unitFoodCost = recipeIngredients.reduce((sum, ri) => {
           return sum + ri.quantity_required * (ingCostMap.get(ri.ingredient_id) || 0);
         }, 0);
       } else if (prod?.is_ready_product && prod?.direct_ingredient_id) {
-        // Option B: Ready product
         unitFoodCost = ingCostMap.get(prod.direct_ingredient_id) || 0;
       } else {
         // Data-driven fallback: use average ingredient cost from same category
@@ -212,7 +206,6 @@ export async function GET(request: Request) {
     const netProfit = grossProfit - totalWasteCost;
     const foodCostPct = totalRevenue > 0 ? (totalFoodCost / totalRevenue) * 100 : 0;
 
-    // Top profitable items: sorted by (revenue - food_cost) desc
     const topProfitableItems = Array.from(profitByProduct.entries())
       .map(([pid, d]) => ({
         id: pid,
@@ -227,7 +220,6 @@ export async function GET(request: Request) {
       .sort((a, b) => b.net_profit - a.net_profit)
       .slice(0, 10);
 
-    // Chart data: revenue vs profit per period
     const profitDateMap: Record<string, { revenue: number; profit: number }> = {};
     (Array.isArray(orders) ? orders : []).forEach((o: any) => {
       const d = new Date(o.created_at);
@@ -238,7 +230,6 @@ export async function GET(request: Request) {
       profitDateMap[key].revenue += Number(o.total_amount) || 0;
     });
 
-    // Track food cost per period
     (Array.isArray(orderItems) ? orderItems : []).forEach((item: any) => {
       const orderDate = item.order?.created_at;
       if (!orderDate) return;
@@ -257,7 +248,6 @@ export async function GET(request: Request) {
       profitDateMap[key].profit -= lineFoodCost;
     });
 
-    // Add waste cost per period (proportional)
     (Array.isArray(wasteLogs) ? wasteLogs : []).forEach((log: any) => {
       const d = new Date(log.created_at);
       const key = timeFilter === 'today'
@@ -275,7 +265,6 @@ export async function GET(request: Request) {
       net_profit: Math.round((v.revenue + v.profit) * 100) / 100,
     }));
 
-    // Cancellation reasons
     const cancellationMap: Record<string, { count: number; amount: number }> = {};
     cancelledOrders?.forEach((c: any) => {
       const reason = c.reason || 'unknown';
@@ -292,7 +281,6 @@ export async function GET(request: Request) {
 
     const missedRevenue = cancelledOrders?.reduce((s: number, c: any) => s + (Number(c.total_amount) || 0), 0) || 0;
 
-    // Format chartData as {date, value} for revenue chart
     const dateValueMap: Record<string, number> = {};
     orders?.forEach((o: any) => {
       const d = new Date(o.created_at);

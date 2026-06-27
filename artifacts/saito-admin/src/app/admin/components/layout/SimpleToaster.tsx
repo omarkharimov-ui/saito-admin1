@@ -49,7 +49,7 @@ export default function SimpleToaster() {
                   </svg>
                 )}
                 {t.type === 'error' && (
-                  <span style={{ color: '#f87171', fontSize: 14 }}>✕</span>
+                  <span style={{ color: '#f87171', fontSize: 14 }}>×</span>
                 )}
                 <span>
                   {typeof t.message === 'function'

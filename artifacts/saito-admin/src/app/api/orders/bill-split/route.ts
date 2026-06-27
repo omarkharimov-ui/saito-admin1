@@ -10,18 +10,10 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-/**
- * PRODUCTION-GRADE BILL SPLIT
- * 
- * Logic:
- * 1. Move selected items from original order to a new 'child' order.
- * 2. Recalculate totals for both orders.
- * 3. Ensure consistency and rollback on failure.
- */
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const { original_order_id, items_to_split, version } = await request.json();
 
@@ -30,23 +22,19 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await executeTransactionalOrderAction('BillSplit', async () => {
-      // 1. Fetch original order
       const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${original_order_id}&select=*`, { headers });
       const originalOrder = (await orderRes.json())?.[0];
 
       if (!originalOrder) throw new Error('Original order not found');
       if (originalOrder.status === 'paid') throw new Error('Cannot split a paid order');
 
-      // 2. Concurrency Check
       if (version !== undefined && originalOrder.version !== undefined && originalOrder.version !== version) {
         throw new Error('CONCURRENCY_CONFLICT');
       }
 
-      // 3. Calculate split total
       const splitTotal = items_to_split.reduce((sum: number, item: any) => sum + (Number(item.unit_price) * Number(item.quantity)), 0);
       const newOriginalTotal = Math.max(0, Number(originalOrder.total_amount) - splitTotal);
 
-      // 4. Create NEW Order (The split portion)
       const newOrderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
         method: 'POST',
         headers: { ...headers, 'Prefer': 'return=representation' },
@@ -66,10 +54,7 @@ export async function POST(request: NextRequest) {
       if (!newOrderRes.ok) throw new Error('Failed to create split order');
       const newOrder = (await newOrderRes.json())?.[0];
 
-      // 5. Move/Create Items for the new order
       for (const item of items_to_split) {
-        // Here we ideally update existing order_items table_id or create new ones
-        // For simplicity and integrity, we'll create new ones linked to newOrder.id
         await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
           method: 'POST',
           headers,
@@ -85,7 +70,6 @@ export async function POST(request: NextRequest) {
           }),
         });
 
-        // Deduct quantity from original item by order_items.id
         const itemRes = await fetch(`${SUPABASE_URL}/rest/v1/order_items?id=eq.${item.id}&select=id,quantity`, { headers });
         const origItems = await itemRes.json();
         if (Array.isArray(origItems) && origItems.length > 0) {
@@ -106,7 +90,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 6. Update Original Order Total
       const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${original_order_id}`, {
         method: 'PATCH',
         headers,

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -10,6 +11,11 @@ function svc() {
 }
 
 export async function GET(req: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const url = new URL(req.url);
@@ -19,7 +25,6 @@ export async function GET(req: Request) {
 
     const events: any[] = [];
 
-    // 1. Inventory logs
     if (type === 'all' || type === 'stock') {
       const { data: logs } = await supabase
         .from('inventory_logs')
@@ -58,7 +63,6 @@ export async function GET(req: Request) {
       }
     }
 
-    // 2. Order items
     if (type === 'all' || type === 'order') {
       const { data: orders } = await supabase
         .from('order_items')
@@ -91,7 +95,6 @@ export async function GET(req: Request) {
       }
     }
 
-    // 3. Recipes fallback (Task 9)
     if (type === 'all' || type === 'recipe') {
         const { data: recipeHeaders } = await supabase
           .from('recipe_headers')

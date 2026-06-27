@@ -13,7 +13,7 @@ const headers = {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const { order_id, payment_method, cash_amount, card_amount, tip_amount } = await request.json();
 
@@ -44,7 +44,6 @@ export async function POST(request: NextRequest) {
     };
     if (tip_amount !== undefined) updateData.tip_amount = tip_amount;
 
-    // Update primary order to paid
     const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order_id}`, {
       method: 'PATCH',
       headers,
@@ -55,7 +54,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
     }
 
-    // Also mark child orders (merged_into = order_id) as paid
     if (order.table_number) {
       const childrenRes = await fetch(
         `${SUPABASE_URL}/rest/v1/orders?select=id&merged_into=eq.${order_id}`,
@@ -73,7 +71,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ═══ STOCK DEDUCTION ═══
     let stockDeduction = { deducted: 0, ingredientIds: [] as string[] };
     try {
       stockDeduction = await deductStockForOrder(order_id);

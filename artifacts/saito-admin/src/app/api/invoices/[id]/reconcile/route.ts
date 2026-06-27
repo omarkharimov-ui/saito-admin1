@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withTransaction, createTransactionLog } from '@/lib/transaction';
 import { canTransitionInvoice } from '@/types/inventory';
 import type { InvoiceStatus } from '@/types/inventory';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -25,6 +26,11 @@ async function aiMatchProduct(productName: string, origin: string): Promise<any>
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { id } = await params;
     const supabase = svc();

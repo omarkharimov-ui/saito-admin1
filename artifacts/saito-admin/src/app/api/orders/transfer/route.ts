@@ -13,7 +13,7 @@ const headers = {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const { from_table, to_table, version } = await request.json();
 
@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await executeTransactionalOrderAction('TableTransfer', async () => {
-      // 1. Get all non-paid orders on source table
       const sourceRes = await fetch(
         `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${from_table}&status=neq.paid&select=*`,
         { headers }
@@ -33,7 +32,6 @@ export async function POST(request: NextRequest) {
         throw new Error('No active orders on source table');
       }
 
-      // 2. Check for target table status
       const targetTableRes = await fetch(
         `${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${to_table}&select=*`,
         { headers }
@@ -45,7 +43,6 @@ export async function POST(request: NextRequest) {
         throw new Error('TARGET_TABLE_OCCUPIED');
       }
 
-      // 3. Perform atomic transfer of all source orders
       for (const order of sourceOrders) {
         const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`, {
           method: 'PATCH',
@@ -59,15 +56,12 @@ export async function POST(request: NextRequest) {
         if (!updateRes.ok) throw new Error(`Failed to move order ${order.id}`);
       }
 
-      // 4. Update Table States
-      // Clear source table
       await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${from_table}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ status: 'available', reservation_id: null, reservation_name: null }),
       });
 
-      // Set target table to occupied
       await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${to_table}`, {
         method: 'PATCH',
         headers,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
   return forward(request, 'POST');

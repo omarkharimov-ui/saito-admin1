@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-};
+function getHeaders() {
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return {
+    SUPABASE_URL,
+    headers: {
+      'apikey': SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+    },
+  };
+}
 
 interface Order {
   id: string;
@@ -21,8 +27,13 @@ interface Order {
 }
 
 export async function GET() {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const { SUPABASE_URL, headers } = getHeaders();
   try {
-    // 1. Fetch tables and active orders
     const [floorsRes, ordersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into,is_draft,reservation_id&status=neq.paid&order=created_at.desc`, { headers }),
@@ -35,12 +46,10 @@ export async function GET() {
     const floors = await floorsRes.json();
     const orders: Order[] = await ordersRes.json();
 
-    // 2. Identify all UNIQUE reservation IDs currently active
     const floorResIds = floors.map((f: any) => f.reservation_id).filter(Boolean);
     const orderResIds = orders.map((o: Order) => o.reservation_id).filter(Boolean);
     const uniqueResIds = Array.from(new Set([...floorResIds, ...orderResIds]));
 
-    // 3. BROAD FETCH (Dynamic Timezone Support)
     // Fetch timezone from settings, default to Asia/Baku if not set
     const settingsRes = await fetch(`${SUPABASE_URL}/rest/v1/settings?select=timezone&id=eq.1`, { headers });
     const settingsData = await settingsRes.json();
@@ -55,7 +64,6 @@ export async function GET() {
       resUrl += `&status=eq.confirmed&date=eq.${todayLocal}`;
     }
 
-    // 4. EXECUTE FETCH AND BUILD MAP
     const reservationsRes = await fetch(resUrl, { headers });
     const reservationData = reservationsRes.ok ? await reservationsRes.json() : [];
 
@@ -66,7 +74,6 @@ export async function GET() {
       });
     }
 
-    // 5. Map orders by table
     const ordersByTable: Record<number, Order[]> = {};
     for (const o of orders) {
       if (o.table_number == null) continue;
@@ -76,7 +83,6 @@ export async function GET() {
 
     const floorMap: Record<string, { name: string; tables: any[] }> = {};
 
-    // 5. Process each table and link the reservation data
     for (const f of floors) {
       const fn = f.floor_name || 'Main';
       if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [] };
@@ -84,7 +90,6 @@ export async function GET() {
       const tableOrders = ordersByTable[f.table_number] || [];
       const activeOrders = tableOrders.filter(o => o.status !== 'paid' && o.status !== 'cancelled');
       
-      // Find the ID to look up
       const currentResId = activeOrders.find(o => o.reservation_id)?.reservation_id || f.reservation_id;
       const reservation = currentResId ? reservationMap[currentResId] : null;
 
@@ -98,7 +103,6 @@ export async function GET() {
       else if (activeOrders.some(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing')) status = 'cooking';
       else status = 'active';
 
-      // Totals
       const totalAmount = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
       let guestCount = activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0);
       if (reservation) guestCount = reservation.guests || guestCount;

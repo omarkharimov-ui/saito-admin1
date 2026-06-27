@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -17,6 +18,11 @@ interface ApplyCalibrationPayload {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const body: ApplyCalibrationPayload = await req.json();

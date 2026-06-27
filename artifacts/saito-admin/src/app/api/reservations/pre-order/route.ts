@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -10,6 +11,11 @@ const headers = {
 };
 
 export async function GET(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const reservation_id = searchParams.get('reservation_id');
@@ -35,6 +41,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await request.json();
     const { reservation_id, items } = body;

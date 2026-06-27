@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { groqChat, parseJsonFromText } from '@/lib/groq';
+import { validateAuth } from '@/lib/api-auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -11,6 +12,11 @@ const headers = {
 };
 
 export async function GET() {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -68,6 +74,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await request.json();
     const { reservation_id, action } = body;

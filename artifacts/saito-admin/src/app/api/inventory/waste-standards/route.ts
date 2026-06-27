@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { groqChat } from '@/lib/groq';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -13,6 +14,11 @@ function svc() {
 // GET /api/inventory/waste-standards — all
 // GET /api/inventory/waste-standards?q=avokado — AI lookup with cache
 export async function GET(req: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const url = new URL(req.url);
@@ -89,6 +95,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const body = await req.json();
@@ -117,6 +128,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const body = await req.json();
@@ -149,6 +165,11 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const url = new URL(req.url);

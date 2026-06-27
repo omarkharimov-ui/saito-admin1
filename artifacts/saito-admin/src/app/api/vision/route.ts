@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 export async function POST(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { imageUrl, language } = await request.json();
     
@@ -12,7 +18,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
     }
 
-    // Remove base64 prefix if present
     const base64Image = imageUrl.replace(/^data:image\/\w+;base64,/, '');
 
     const prompt = language === 'az'
@@ -59,7 +64,6 @@ export async function POST(request: Request) {
     const groqData = await groqRes.json();
     const content = groqData.choices?.[0]?.message?.content || '';
 
-    // Parse JSON from response
     let result;
     try {
       // Try to extract JSON from markdown code blocks

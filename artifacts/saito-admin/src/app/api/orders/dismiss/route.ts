@@ -13,18 +13,16 @@ const headers = {
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const { table_number } = await req.json();
     if (!table_number) return NextResponse.json({ error: 'Table number required' }, { status: 400 });
 
     const result = await executeTransactionalOrderAction('DismissTable', async () => {
-      // 1. Find all active orders for this table
       const ordersRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?select=id&table_number=eq.${table_number}&status=neq.paid&status=neq.cancelled`, { headers });
       const orders = await ordersRes.json();
 
       if (Array.isArray(orders) && orders.length > 0) {
-        // 2. Mark orders as cancelled (Soft Delete)
         const orderIds = orders.map(o => o.id);
         await fetch(`${SUPABASE_URL}/rest/v1/orders?id=in.(${orderIds.join(',')})`, {
           method: 'PATCH',
@@ -36,7 +34,6 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 3. Reset table floor record
       await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${table_number}`, {
         method: 'PATCH',
         headers,

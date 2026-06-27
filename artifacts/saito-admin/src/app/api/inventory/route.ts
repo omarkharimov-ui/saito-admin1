@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const auth = await requireAuth(['admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const supabase = svc();
     const id = req.nextUrl.searchParams.get('id');

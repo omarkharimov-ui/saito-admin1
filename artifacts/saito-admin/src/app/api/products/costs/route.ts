@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -11,6 +12,11 @@ function svc() {
 
 // GET /api/products/costs — bütün məhsulların maya dəyəri məlumatı
 export async function GET() {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
 
@@ -28,6 +34,11 @@ export async function GET() {
 
 // POST /api/products/costs — bütün məhsulların maya dəyərini manual yenilə
 export async function POST() {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
 

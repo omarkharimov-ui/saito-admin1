@@ -6,7 +6,6 @@ import { ShieldCheck, UserCog, ChefHat, ArrowRight, BarChart2, ShoppingBag, Cale
 
 interface WelcomeScreenProps {
   role: 'superadmin' | 'admin' | 'kitchen';
-  email?: string;
   onDismiss: () => void;
 }
 
@@ -72,7 +71,7 @@ const ROLE_CONTENT = {
 
 function getWelcomeKey(role: string) { return `saito_welcomed_${role}`; }
 
-export function WelcomeScreen({ role, email, onDismiss }: WelcomeScreenProps) {
+export function WelcomeScreen({ role, onDismiss }: WelcomeScreenProps) {
   const [visible, setVisible] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -169,9 +168,6 @@ export function WelcomeScreen({ role, email, onDismiss }: WelcomeScreenProps) {
                   }}>
                     {c.badge}
                   </span>
-                  {email && (
-                    <p style={{ color: 'rgba(255,255,255,0.28)', fontSize: 11, marginTop: 6, fontFamily: 'monospace' }}>{email}</p>
-                  )}
                 </div>
               </div>
 

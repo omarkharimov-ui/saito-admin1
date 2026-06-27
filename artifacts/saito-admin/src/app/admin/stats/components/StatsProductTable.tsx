@@ -109,7 +109,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
             <div key={p.id} className="flex items-center gap-3 px-4 py-3">
               <span className="text-white/15 text-xs font-mono w-4 flex-shrink-0">{i + 1}</span>
               <div className="w-8 h-8 bg-black border border-white/5 overflow-hidden rounded-lg flex items-center justify-center flex-shrink-0">
-                {p.image ? <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <span className="text-[10px]">🍣</span>}
+                {p.image ? <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <span className="text-[10px]"> </span>}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white text-[13px] font-semibold truncate">{p.name}</p>
@@ -159,7 +159,7 @@ const StatsProductTable = ({ productPerformance, categories, getCategoryTranslat
                           {p.image ? (
                             <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-xs text-white/30">🍣</span>
+                            <span className="text-xs text-white/30"> </span>
                           )}
                         </div>
                         <span className="font-bold">{p.name}</span>

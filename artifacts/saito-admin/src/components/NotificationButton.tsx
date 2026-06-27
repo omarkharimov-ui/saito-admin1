@@ -32,11 +32,11 @@ export function NotificationButton() {
       // Show custom SAITO notification (not browser default)
       const testTypes = ['order', 'ready', 'reservation', 'payment', 'stock'] as const;
       const testNotifs = [
-        { type: 'order', title: '🍣 Yeni Sifariş!', message: 'Masa 5 • 3 məhsul • 45 ₼' },
-        { type: 'ready', title: '✅ Sifariş Hazır!', message: 'Masa 3 • Salmon Roll hazırdır' },
-        { type: 'reservation', title: '📅 Yeni Rezervasiya!', message: 'Ahməd • 19:00 • 4 nəfər' },
-        { type: 'payment', title: '💳 Ödəniş Alındı!', message: '58 ₼ • Kart • Masa 7' },
-        { type: 'stock', title: '⚠️ Məhsul Tükənir!', message: 'Unagi • Qalıq: 3 ədəd' },
+        { type: 'order', title: 'Yeni Sifariş!', message: 'Masa 5 • 3 məhsul • 45 ₼' },
+        { type: 'ready', title: 'Sifariş Hazır!', message: 'Masa 3 • Salmon Roll hazırdır' },
+        { type: 'reservation', title: 'Yeni Rezervasiya!', message: 'Ahməd • 19:00 • 4 nəfər' },
+        { type: 'payment', title: 'Ödəniş Alındı!', message: '58 ₼ • Kart • Masa 7' },
+        { type: 'stock', title: 'Məhsul Tükənir!', message: 'Unagi • Qalıq: 3 ədəd' },
       ];
       
       const testNotif = testNotifs[clickCount % testNotifs.length];

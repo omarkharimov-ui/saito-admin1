@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -31,6 +32,11 @@ async function restoreStockForOrder(supabase: ReturnType<typeof svc>, orderId: s
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const { searchParams } = new URL(req.url);
@@ -50,7 +56,6 @@ export async function DELETE(req: NextRequest) {
     if (orders && orders.length > 0) {
       const orderIds = orders.map(o => o.id);
 
-      // Restore stock before cancelling
       for (const id of orderIds) {
         await restoreStockForOrder(supabase, id);
       }

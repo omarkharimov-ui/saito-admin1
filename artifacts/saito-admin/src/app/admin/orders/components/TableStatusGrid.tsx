@@ -348,18 +348,18 @@ export function TableStatusGrid({
     // Additional validation: check if tables are in compatible states
     
     if (!sourceEmpty && !targetEmpty) {
-      toast(`⚠️ Aktiv masaları birləşdirmək üçün sifariş modalından istifadə edin`, { icon: '⚠️', duration: 3000, style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold' } });
+      toast(`Aktiv masaları birləşdirmək üçün sifariş modalından istifadə edin`, { duration: 3000, style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold' } });
       return;
     }
     
     if (!sourceEmpty && targetEmpty) {
-      toast(`⚠️ Aktiv masanı boş masaya köçürmək üçün sifariş modalından istifadə edin`, { icon: '⚠️', duration: 3000, style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold' } });
+      toast(`Aktiv masanı boş masaya köçürmək üçün sifariş modalından istifadə edin`, { duration: 3000, style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold' } });
       return;
     }
     
     // Prevent merging if source has kitchen_status beyond 'pending' (already being prepared)
     if (!sourceEmpty && sourceOrder.kitchen_status && sourceOrder.kitchen_status !== 'pending') {
-      toast(`⚠️ Hazırlanmaqda olan sifarişi birləşdirmək mümkün deyil`, { icon: '⚠️', duration: 3000, style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold' } });
+      toast(`Hazırlanmaqda olan sifarişi birləşdirmək mümkün deyil`, { duration: 3000, style: { background: '#1a1200', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.35)', fontWeight: 'bold' } });
       return;
     }
     if (sourceEmpty && !targetEmpty) {

@@ -4,7 +4,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 export async function GET() {
   try {
     const auth = await requireAuth(['admin', 'superadmin', 'cashier', 'kitchen']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const supabase = await createAuthClient();
     const { data, error } = await supabase
@@ -14,7 +14,6 @@ export async function GET() {
 
     if (error) throw error;
 
-    // Həmçinin məhsulları da qaytarmalıyıq ki, frontend-də picker işləsin
     const { data: products, error: pErr } = await supabase
       .from('products')
       .select('id, name, price, image_url')
@@ -34,7 +33,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(['admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const body = await req.json();
     const { action, combo, items, id, data } = body;
@@ -46,7 +45,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Create New
     const { data: newCombo, error: cErr } = await supabase.from('combos').insert(combo).select().single();
     if (cErr) throw cErr;
 
@@ -70,7 +68,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const auth = await requireAuth(['admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const body = await req.json();
     const { id, combo, items } = body;
@@ -78,11 +76,9 @@ export async function PUT(req: NextRequest) {
 
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    // Update combo info
     const { error: cErr } = await supabase.from('combos').update(combo).eq('id', id);
     if (cErr) throw cErr;
 
-    // Update items: DELETE + INSERT
     await supabase.from('combo_items').delete().eq('combo_id', id);
     
     if (items && items.length > 0) {
@@ -105,14 +101,13 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const auth = await requireAuth(['admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const id = req.nextUrl.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     const supabase = await createAuthClient();
     
-    // Əvvəlcə asılı olan item-ləri silirik
     await supabase.from('combo_items').delete().eq('combo_id', id);
     
     const { error } = await supabase.from('combos').delete().eq('id', id);

@@ -111,7 +111,7 @@ export default function GoldCalendar({ value, min, onChange }: GoldCalendarProps
             onPointerDown={e => { e.stopPropagation(); e.preventDefault(); onChange(''); }}
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onChange(''); } }}
             className="ml-auto text-white/25 hover:text-white/60 transition-colors text-xs leading-none cursor-pointer"
-          >✕</span>
+          >×</span>
         )}
       </button>
 

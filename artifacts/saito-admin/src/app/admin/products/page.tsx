@@ -124,7 +124,7 @@ const ProductsPage = () => {
 
   const handleBulkStockUpdate = async (inStock: boolean) => {
     if (selectedProducts.size === 0) {
-      toast.error(t('select_products_first'), { id: 'action-toast', icon: '⚠️' });
+      toast.error(t('select_products_first'), { id: 'action-toast' });
       return;
     }
     if (bulkUpdating) return;
@@ -140,7 +140,7 @@ const ProductsPage = () => {
 
   const handleBulkCategoryUpdate = async (categoryId: string) => {
     if (selectedProducts.size === 0) {
-      toast.error(t('select_products_first'), { id: 'action-toast', icon: '⚠️' });
+      toast.error(t('select_products_first'), { id: 'action-toast' });
       return;
     }
     if (bulkUpdating) return;
@@ -369,7 +369,7 @@ const ProductsPage = () => {
         const visionData = await visionRes.json();
         if (visionData.name || visionData.ingredients) {
           setProductForm(prev => ({ ...prev, name: visionData.name ? normalizeProductName(visionData.name) : prev.name, ingredients: visionData.ingredients || prev.ingredients }));
-          toast.success('🔍 AI şəkili analiz etdi', { id: 'action-toast', icon: '✨' });
+          toast.success('AI şəkili analiz etdi', { id: 'action-toast' });
         }
       } catch { /* vision silent */ }
     } catch (error: any) { toast.error(t('image_upload_failed') + ': ' + error.message, { id: 'action-toast' }); }

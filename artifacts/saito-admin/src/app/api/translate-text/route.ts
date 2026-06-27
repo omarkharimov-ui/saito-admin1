@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/api-auth';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -23,12 +24,16 @@ async function groqTranslate(text: string, targetLang: string): Promise<string> 
 }
 
 export async function POST(request: Request) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await request.json();
 
     if (!GROQ_API_KEY) return NextResponse.json({});
 
-    // detectOnly mode — detect language of text
     if (body.detectOnly) {
       const text: string = body.text || '';
       if (!text.trim()) return NextResponse.json({ detectedLanguage: 'az' });
@@ -56,7 +61,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ detectedLanguage: 'az' });
     }
 
-    // Translation mode
     const fields: Record<string, string> = body.fields || {};
     const languages: string[] = body.languages || [];
 

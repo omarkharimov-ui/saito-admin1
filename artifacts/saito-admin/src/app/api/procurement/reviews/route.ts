@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { withTransaction, createTransactionLog } from '@/lib/transaction';
+import { validateAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -11,6 +12,11 @@ function svc() {
 }
 
 export async function GET() {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const { data } = await supabase
@@ -24,6 +30,11 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
+  const auth = await validateAuth();
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const supabase = svc();
     const body = await request.json();

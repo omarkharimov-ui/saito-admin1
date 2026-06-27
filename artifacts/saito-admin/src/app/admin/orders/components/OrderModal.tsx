@@ -798,7 +798,7 @@ export const OrderModal = ({
                     if (confirmClear) { setConfirmClear(false); return; }
                     if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); }
                     if (order.kitchen_status && order.kitchen_status !== 'pending' && addItems.length === 0 && !hasDraft) {
-                      toast('Sifariş artıq mətbəxə göndərilib', { icon: 'ℹ️' });
+                      toast('Sifariş artıq mətbəxə göndərilib');
                       return;
                     }
                     setConfirmClear(true);
@@ -836,7 +836,7 @@ export const OrderModal = ({
                     <div className="flex-1 min-w-0 flex items-center gap-1.5">
                       <p className="text-white/70 text-xs font-medium truncate">{getProductName(item)}</p>
                       {(item.served_quantity ?? 0) > 0 && (
-                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">✓ {item.served_quantity}/{item.quantity}</span>
+                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">{item.served_quantity}/{item.quantity}</span>
                       )}
                       {item.course && item.course !== 'main' && (
                         <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>
@@ -1082,7 +1082,7 @@ export const OrderModal = ({
                   <button onClick={() => {
                     if (confirmClear) { setConfirmClear(false); return; }
                     if (order.kitchen_status && order.kitchen_status !== 'pending' && addItems.length === 0 && !hasDraft) {
-                      toast('Sifariş artıq mətbəxə göndərilib', { icon: 'ℹ️' });
+                      toast('Sifariş artıq mətbəxə göndərilib');
                       return;
                     }
                     setConfirmClear(true);
@@ -1106,7 +1106,7 @@ export const OrderModal = ({
                     <div className="flex-1 min-w-0 flex items-center gap-1.5">
                       <p className="text-white text-sm font-medium truncate">{getProductName(item)}</p>
                       {(item.served_quantity ?? 0) > 0 && (
-                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">✓ {item.served_quantity}/{item.quantity}</span>
+                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">{item.served_quantity}/{item.quantity}</span>
                       )}
                       {item.course && item.course !== 'main' && (
                         <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>

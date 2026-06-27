@@ -4,7 +4,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 export async function GET() {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const supabase = await createAuthClient();
 

@@ -30,7 +30,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Valid role required' }, { status: 400 });
     }
 
-    // Generate unique PIN
     let pin = generatePin();
     let exists = await supabase.from('admin_users').select('id').eq('pin', pin).maybeSingle();
     while (exists?.data) {

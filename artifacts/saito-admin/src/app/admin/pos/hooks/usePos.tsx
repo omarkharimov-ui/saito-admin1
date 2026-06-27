@@ -379,7 +379,7 @@ export function usePos() {
       return item.quantity !== sent || (item.special_notes || '') !== '';
     });
     if (!hasChangedSinceLastSend && resendOnlyIfChanged) {
-      toast('Mətbəxə artıq göndərilib', { icon: 'ℹ️' });
+      toast('Mətbəxə artıq göndərilib');
       return;
     }
 
@@ -462,7 +462,7 @@ export function usePos() {
     );
 
     if (!hasDraft) {
-      toast('Sifariş artıq mətbəxə göndərilib', { icon: 'ℹ️' });
+      toast('Sifariş artıq mətbəxə göndərilib');
       return;
     }
 

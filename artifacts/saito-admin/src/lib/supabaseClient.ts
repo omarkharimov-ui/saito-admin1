@@ -865,8 +865,8 @@ export type Database = {
   };
 };
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jbxmlnsicbfkbsatnoej.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpieG1sbnNpY2Jma2JzYXRub2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MDk5NzMsImV4cCI6MjA5MjA4NTk3M30.5voWlyQ40JPH8QHDCLjEuCwWPyPUSHyvChkKsp6Kaps';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

@@ -8,7 +8,6 @@ export interface PermissionMatrix {
 export const PERMISSIONS: PermissionMatrix = {
   pages: {
     '/admin/settings/users': ['superadmin'],
-    '/admin/settings/smtp': ['superadmin'],
     '/admin/settings/security': ['superadmin'],
     '/admin/settings': ['superadmin', 'admin'],
     '/admin/stock': ['superadmin', 'admin'],
@@ -30,8 +29,6 @@ export const PERMISSIONS: PermissionMatrix = {
   },
   apis: {
     '/api/auth/users': ['superadmin'],
-    '/api/auth/smtp': ['superadmin'],
-    '/api/auth/smtp-test': ['superadmin'],
     '/api/products': ['superadmin', 'admin'],
     '/api/stock': ['superadmin', 'admin'],
     '/api/inventory': ['superadmin', 'admin'],

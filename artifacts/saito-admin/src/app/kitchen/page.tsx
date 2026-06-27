@@ -232,7 +232,7 @@ function CardWithCollapse({
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-sm leading-tight truncate text-white tracking-wide">{item.product_name}</p>
                 <p className="text-xs mt-0.5">
-                  <span className="text-emerald-400 font-semibold">✓ {ready}</span>
+                  <span className="text-emerald-400 font-semibold">{ready}</span>
                   <span className="text-white/25 font-normal">/{item.orderedQuantity}</span>
                   <span className="text-white/30 font-normal ml-1 text-[10px]">hazır</span>
                   <span className="ml-1.5 text-[#c9a035] font-bold text-[10px] tracking-wide">+{pending} yeni</span>
@@ -313,7 +313,7 @@ function CardWithCollapse({
                 {isDelayed && <span className="font-black">— {t.kitchen_overdue||'GECİKMƏ!'}</span>}
               </div>
             </div>
-            <button onClick={() => setModalOpen(false)} className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/[0.06] border border-white/[0.1] text-white/50 hover:text-white transition-all text-lg">✕</button>
+            <button onClick={() => setModalOpen(false)} className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/[0.06] border border-white/[0.1] text-white/50 hover:text-white transition-all text-lg">×</button>
           </div>
           <div className="h-px mx-6" style={{ background: 'rgba(255,255,255,0.07)' }} />
           <div className="px-4 py-3 space-y-0.5 max-h-[45vh] overflow-y-auto">
@@ -408,7 +408,7 @@ function CardWithCollapse({
           <div onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowReady(v => !v)}
               className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[11px] font-semibold hover:bg-white/[0.04] transition-all mt-1">
-              <span className="text-emerald-400/70">✓ {readyItems.length} hazırdır</span>
+              <span className="text-emerald-400/70">{readyItems.length} hazırdır</span>
               <span className="text-white/25">{showReady ? '▴' : '▾'}</span>
             </button>
             {showReady && <div className="space-y-0.5">{readyItems.map((item, idx) => renderItem(item, idx, readyItems))}</div>}
@@ -713,7 +713,7 @@ export default function KitchenPage() {
               className="flex items-center gap-4"
             >
               <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(99,179,237,0.1)', border: '1px solid rgba(99,179,237,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 20 }}>✂️</span>
+                <span style={{ fontSize: 20 }}>Scissors</span>
               </div>
               <div>
                 <p style={{ fontSize: 15, fontWeight: 800, color: '#90cdf4', lineHeight: 1.2 }}>Masa {tableNum}</p>
@@ -1176,7 +1176,7 @@ export default function KitchenPage() {
             <button
               onClick={() => { setRecentAction(null); if (undoTimer.current) clearTimeout(undoTimer.current); }}
               className="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/30 hover:text-white/60 transition-all text-xs"
-            >✕</button>
+            >×</button>
           </motion.div>
         )}
       </AnimatePresence>

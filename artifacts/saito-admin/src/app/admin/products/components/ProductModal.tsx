@@ -818,7 +818,7 @@ export function ProductModal({
                             <div className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg ${
                               priceOk ? 'text-emerald-400/70 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'
                             }`}>
-                              {priceOk ? '✓ Qiymət tövsiyə olunan aralıqdadır' : '⚠ Qiymət tövsiyə olunan aralıqdan kənardır'}
+                              {priceOk ? 'Qiymət tövsiyə olunan aralıqdadır' : 'Qiymət tövsiyə olunan aralıqdan kənardır'}
                               <span className="text-[9px] text-white/30 font-normal ml-auto">
                                 ₼{minPrice.toFixed(0)} – ₼{maxPrice.toFixed(0)}
                               </span>

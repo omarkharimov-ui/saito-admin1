@@ -11,11 +11,10 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-// Bütün sifarişləri gətir
 export async function GET() {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
       console.error('[API /orders] Missing env vars:', { SUPABASE_URL: !!SUPABASE_URL, SERVICE_ROLE_KEY: !!SERVICE_ROLE_KEY });
@@ -55,11 +54,10 @@ export async function GET() {
   }
 }
 
-// Sifariş yarat (order + order_items), güncəl, sil
 export async function POST(request: Request) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
-    if (auth instanceof NextResponse) return auth;
+    if (!auth.authenticated) return auth;
 
     const body = await request.json();
     const { action, data, id, version } = body;
@@ -69,7 +67,6 @@ export async function POST(request: Request) {
     }
 
     const result = await executeTransactionalOrderAction(`Order${action || 'Create'}`, async () => {
-      // ── Update Action ──
       if (action === 'update') {
         const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}&select=*`, { headers });
         const existingOrder = (await orderRes.json())?.[0];
@@ -91,7 +88,6 @@ export async function POST(request: Request) {
         return await res.json();
       }
 
-      // ── Delete Action (Soft Delete) ──
       if (action === 'delete') {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`, {
           method: 'PATCH',
@@ -105,14 +101,12 @@ export async function POST(request: Request) {
         return { success: true };
       }
 
-      // ── Create Action (Atomic) ──
       const { table_number, total_amount, status, order_type, guest_count, customer_note, items } = body;
 
       if (!table_number || !items?.length) {
         throw new Error('table_number and items required');
       }
 
-      // 1. Create Order
       const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
         method: 'POST',
         headers: { ...headers, 'Prefer': 'return=representation' },
@@ -131,7 +125,6 @@ export async function POST(request: Request) {
       if (!orderRes.ok) throw new Error('Order creation failed');
       const newOrder = (await orderRes.json())?.[0];
 
-      // 2. Create Order Items
       for (const item of items) {
         await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
           method: 'POST',
@@ -148,7 +141,6 @@ export async function POST(request: Request) {
         });
       }
 
-      // 3. Update Table Status to OCCUPIED
       await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${table_number}`, {
         method: 'PATCH',
         headers,

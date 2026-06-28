@@ -284,7 +284,7 @@ export default function POSPage() {
   }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
 
   return (
-    <div ref={posRef} className={`h-screen w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden ${(actionSheetOpen || modifierOpen) ? 'no-scroll' : ''}`}>
+    <div ref={posRef} className={`flex-1 min-h-0 w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden ${(actionSheetOpen || modifierOpen) ? 'no-scroll' : ''}`}>
       <style jsx global>{`.no-scroll { overflow: hidden !important; height: 100vh !important; }`}</style>
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <AnimatePresence mode="wait">

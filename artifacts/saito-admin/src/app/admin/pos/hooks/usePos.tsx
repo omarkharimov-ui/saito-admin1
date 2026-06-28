@@ -542,31 +542,6 @@ export function usePos() {
     });
   }, []);
 
-  /* ── Table Operations ── */
-  const dismissTable = useCallback(async (tableNumber: number) => {
-    setTables(prev => prev.map(t =>
-      t.table_number === tableNumber
-        ? { ...t, status: 'empty' as const, total_amount: 0, guest_count: 0, order_ids: [] }
-        : t
-    ));
-    const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-    delete all[tableNumber];
-    saveCache(POS_CART_KEY + '_all', all);
-    delete orderFingerprintRef.current[tableNumber];
-    try {
-      const res = await fetch(`/api/orders/dismiss`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: tableNumber }),
-      });
-      if (!res.ok) throw new Error("Masanı təmizləmək mümkün olmadı");
-      toast.success(`Masa ${tableNumber} təmizləndi`);
-    } catch (e: any) {
-      toast.error(e.message);
-      fetchData();
-    }
-  }, [fetchData]);
-
   /* ── Billing ── */
   const closeBill = useCallback(async (orderId: string, payment: PaymentInfo) => {
     const tableNum = cartRef.current?.table_number;

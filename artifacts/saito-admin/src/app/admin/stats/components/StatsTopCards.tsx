@@ -14,6 +14,8 @@ interface Props {
   foodCostPct?: number;
   totalFoodCost?: number;
   totalWasteCost?: number;
+  laborCost?: number;
+  utilityCost?: number;
 }
 
 const fmt = (n: number) =>
@@ -27,7 +29,9 @@ const StatsTopCards = ({
     netProfit = 0, 
     foodCostPct = 0,
     totalFoodCost = 0,
-    totalWasteCost = 0
+    totalWasteCost = 0,
+    laborCost = 0,
+    utilityCost = 0
 }: Props) => {
   const { t } = useLanguage();
   const isProfit = netProfit >= 0;

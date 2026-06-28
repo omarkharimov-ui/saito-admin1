@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { MoreVertical, AlertTriangle, Users, Check, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import type { PosTable } from '../types/shared';
@@ -22,9 +23,35 @@ interface TableCardProps {
 export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0 }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
+  const [delaySec, setDelaySec] = useState(0);
 
-  const isReserved = table.status === 'reserved' || (table as any).is_draft || table.kitchen_status === 'reserved' || (table.has_pending && table.status === 'reserved');
-  const isOccupied = (table.status === 'occupied' || table.total_amount > 0) && !isReserved;
+  const isOccupied = (table.status === 'occupied' || table.status === 'active' || table.status === 'cooking' || table.status === 'waiting_bill' || table.total_amount > 0) && table.status !== 'reserved';
+  const isReserved = (table.status === 'reserved' || (table as any).is_draft || table.kitchen_status === 'reserved') && table.total_amount === 0;
+
+  // Real-time delay counter
+  useEffect(() => {
+    if (!isOccupied || !table.last_activity_at) {
+      setDelaySec(0);
+      return;
+    }
+
+    const startTime = new Date(table.last_activity_at).getTime();
+    
+    const update = () => {
+      const diff = Math.floor((Date.now() - startTime) / 1000);
+      setDelaySec(diff > 0 ? diff : 0);
+    };
+
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [isOccupied, table.last_activity_at]);
+
+  const formatDelay = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div
@@ -72,10 +99,21 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       )}
 
       {/* Standard Occupied Metadata (Fallback) */}
-      {!isReserved && isOccupied && (table.guest_count ?? 0) > 0 && (
-        <div className="absolute top-[72px] left-6 flex items-center gap-1 opacity-60">
-          <Users size={12} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
-          <span className={`text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>{table.guest_count}</span>
+      {!isReserved && isOccupied && (
+        <div className="absolute top-[72px] left-6 flex flex-col gap-1">
+          { (table.guest_count ?? 0) > 0 && (
+            <div className="flex items-center gap-1 opacity-60">
+              <Users size={12} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
+              <span className={`text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>{table.guest_count}</span>
+            </div>
+          )}
+          {delaySec > 0 && (
+            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[10px] font-black tabular-nums
+              ${delaySec > 1200 ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' : 'bg-white/5 border-white/5 text-white/40'}`}>
+              <Clock size={10} strokeWidth={3} />
+              {formatDelay(delaySec)}
+            </div>
+          )}
         </div>
       )}
 

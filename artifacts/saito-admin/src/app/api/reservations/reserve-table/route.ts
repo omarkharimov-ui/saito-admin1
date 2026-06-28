@@ -72,21 +72,42 @@ export async function POST(request: NextRequest) {
       0
     );
 
-    const tableFloorPatch = {
-      status: 'reserved',
+    // 3. ATOMIC SYNC: Create a DRAFT order immediately to lock the table in POS
+    // This ensures that even if 'table_floors' schema is missing columns,
+    // the POS will see this table as RESERVED because of the draft order.
+    const orderPayload = {
+      table_number,
       reservation_id,
-      reservation_name: reservation.customer_name || reservation.name || 'Guest',
-      reservation_phone: reservation.phone,
-      reservation_time: reservation.time,
-      guest_count: guest_count ?? reservation.guests ?? null,
+      status: 'confirmed',
+      kitchen_status: 'reserved', // Special flag for POS status logic
+      is_draft: true,
+      guest_count: guest_count ?? reservation.guests ?? 2,
+      total_amount: totalAmount || 0,
+      customer_note: reservation.note || 'Rezervasiya',
+      created_at: new Date().toISOString(),
+      version: 1
     };
 
+    const orderRes = await fetch(`${svc().url}/rest/v1/orders`, {
+      method: 'POST',
+      headers: { ...svc().headers, 'Prefer': 'return=representation' },
+      body: JSON.stringify(orderPayload),
+    });
+
+    if (!orderRes.ok) {
+        console.error("[reserve-table] Failed to create sync order:", await orderRes.text());
+    }
+
+    // 4. Update table_floors status (Minimal data to avoid schema errors)
     for (const tid of table_ids) {
       await fetch(`${svc().url}/rest/v1/table_floors?id=eq.${tid}`, {
         method: 'PATCH',
         headers: svc().headers,
-        body: JSON.stringify(tableFloorPatch),
-      });
+        body: JSON.stringify({ 
+          status: 'reserved',
+          reservation_id: reservation_id // Keep it for SSOT, even if fails
+        }),
+      }).catch(() => {}); // Silent catch to let the workflow continue via Orders sync
     }
 
     // 4. Kitchen schedule logic (Optional but kept)

@@ -59,9 +59,9 @@ export async function GET() {
     
     let resUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,phone,time,guests,status,date`;
     if (uniqueResIds.length > 0) {
-      resUrl += `&or=(id.in.(${uniqueResIds.join(',')}),and(status.eq.confirmed,date.eq.${todayLocal}))`;
+      resUrl += `&or=(id.in.(${uniqueResIds.join(',')}),and(status.in.(confirmed,pending),date.eq.${todayLocal}))`;
     } else {
-      resUrl += `&status=eq.confirmed&date=eq.${todayLocal}`;
+      resUrl += `&status=in.(confirmed,pending)&date=eq.${todayLocal}`;
     }
 
     const reservationsRes = await fetch(resUrl, { headers });
@@ -102,16 +102,20 @@ export async function GET() {
       const currentResId = activeOrders.find(o => o.reservation_id)?.reservation_id || f.reservation_id;
       const reservation = currentResId ? reservationMap[currentResId] : null;
 
-      const isReserved = f.status === 'reserved' || activeOrders.some(o => o.is_draft || o.kitchen_status === 'reserved') || reservation != null;
+      // REBUILD STATUS LOGIC — Single Source of Truth
+      const hasActiveOrder = activeOrders.length > 0;
+      const isReserved = !hasActiveOrder && (f.status === 'reserved' || reservation != null);
       
       let status: string;
       if (f.merged_into_table != null) status = 'merged';
+      else if (hasActiveOrder) {
+        if (activeOrders.some(o => o.kitchen_status === 'ready')) status = 'waiting_bill';
+        else if (activeOrders.some(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing')) status = 'cooking';
+        else status = 'occupied'; // Base state for any active order
+      }
       else if (isReserved) status = 'reserved';
-      else if (activeOrders.length === 0 && f.status !== 'occupied') status = 'empty';
-      else if (activeOrders.length === 0) status = 'active';
-      else if (activeOrders.some(o => o.kitchen_status === 'ready')) status = 'waiting_bill';
-      else if (activeOrders.some(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing')) status = 'cooking';
-      else status = 'active';
+      else if (f.status === 'occupied' || f.status === 'active') status = 'active';
+      else status = 'empty';
 
       const totalAmount = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
       let guestCount = activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0);

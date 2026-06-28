@@ -47,6 +47,7 @@ export function usePos() {
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(!cached);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<{ action: string; data: any; message: string } | null>(null);
@@ -62,15 +63,17 @@ export function usePos() {
   /* ── Data Fetching ── */
   const fetchData = useCallback(async () => {
     try {
-      const [tablesRes, productsRes] = await Promise.all([
+      const [tablesRes, productsRes, campaignsRes] = await Promise.all([
         fetch('/api/pos/tables').catch(() => ({ ok: false })),
         fetch('/api/pos/products').catch(() => ({ ok: false })),
+        fetch('/api/campaigns?status=active').catch(() => ({ ok: false })),
       ]);
 
       let newTables: PosTable[] = [];
       let newFloors: FloorConfig[] = [];
       let newProducts: PosProduct[] = [];
       let newCategories: { id: string; name: string }[] = [];
+      let newCampaigns: any[] = [];
 
       if (tablesRes && 'ok' in tablesRes && tablesRes.ok) {
         const data = await (tablesRes as Response).json();
@@ -89,6 +92,12 @@ export function usePos() {
         if (data.ingredients) setIngredients(data.ingredients);
         if (data.recipes) setRecipes(data.recipes);
         if (data.variants) setVariants(data.variants);
+      }
+
+      if (campaignsRes && 'ok' in campaignsRes && campaignsRes.ok) {
+        const data = await (campaignsRes as Response).json();
+        newCampaigns = Array.isArray(data) ? data : (data.campaigns || []);
+        setCampaigns(newCampaigns);
       }
 
       // If we got valid data, save to cache
@@ -165,6 +174,7 @@ export function usePos() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => fetchData())
       .subscribe();
     return () => { removeRealtimeChannel(channel); };
   }, [fetchData]);
@@ -191,20 +201,75 @@ export function usePos() {
     const saved = existing[table.table_number];
     
     // If we have a saved cart with items, use it regardless of table status
-    // This allows "draft" carts to persist before the first order is placed
     if (saved && (saved.items.length > 0 || table.status !== 'empty')) {
       setCart(saved);
     } else {
+      // If table is reserved, pull info from the table object
       setCart({
         table_id: table.id,
         table_number: table.table_number,
         guest_count: table.guest_count || 1,
         items: [],
-        notes: '',
+        notes: table.reservation_name ? `Rezervasiya: ${table.reservation_name}` : '',
         order_type: 'dine_in',
       });
     }
   }, []);
+
+  const activateReservedTable = useCallback(async (table: PosTable) => {
+    if (!table.reservation_id) return;
+    try {
+      setLoading(true);
+      const res = await fetch('/api/reservations/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          reservation_id: table.reservation_id,
+          table_number: table.table_number 
+        }),
+      });
+      
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Aktivləşdirmə xətası");
+
+      // Reload data to see the new order and table status
+      await fetchData();
+      
+      // Auto-select the newly activated table to enter POS view
+      const updatedTable = tables.find(t => t.table_number === table.table_number);
+      if (updatedTable) selectTable({ ...updatedTable, status: 'occupied' });
+
+      toast.success("Masa aktivləşdirildi və sessiya yaradıldı");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectTable, fetchData, tables]);
+
+  const dismissTable = useCallback(async (tableNumber: number) => {
+    if (!confirm(`Masa ${tableNumber} boşaldılsın? (Bütün aktiv sifarişlər ləğv ediləcək)`)) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/orders/dismiss`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: tableNumber }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to dismiss table');
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      delete all[tableNumber];
+      saveCache(POS_CART_KEY + '_all', all);
+      delete orderFingerprintRef.current[tableNumber];
+      toast.success(`Masa ${tableNumber} təmizləndi`);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+      fetchData();
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchData]);
 
   const checkStock = useCallback((productId: string, qty: number = 1): boolean => {
     const product = products.find(p => p.id === productId);
@@ -292,7 +357,24 @@ export function usePos() {
         ),
       } : null);
     } else {
-      const unitPrice = modifiers?.reduce((s, m) => s + m.price, product.price) ?? product.price;
+      let basePrice = modifiers?.reduce((s, m) => s + m.price, product.price) ?? product.price;
+      
+      // Task: Sync Campaigns with POS
+      const activeCampaign = campaigns.find(c => 
+        (c.target_type === 'product' && c.target_id === product.id) ||
+        (c.target_type === 'category' && c.target_id === product.category_id)
+      );
+
+      if (activeCampaign) {
+        const discountValue = Number(activeCampaign.discount_value) || 0;
+        if (activeCampaign.type === 'percentage') {
+          basePrice = basePrice * (1 - discountValue / 100);
+        } else if (activeCampaign.type === 'fixed') {
+          basePrice = Math.max(0, basePrice - discountValue);
+        }
+      }
+
+      const unitPrice = basePrice;
       const localizedName = langs === 'az' ? product.name_az : langs === 'en' ? product.name_en : product.name_ru;
       const newItem: PosCartItem = {
         product_id: product.id,
@@ -472,27 +554,6 @@ export function usePos() {
     });
   }, []);
 
-  /* ── Table Operations ── */
-  const dismissTable = useCallback(async (tableNumber: number) => {
-    try {
-      const res = await fetch(`/api/orders/dismiss`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: tableNumber }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error || 'Failed to dismiss table');
-      toast.success(`Masa ${tableNumber} təmizləndi`);
-      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-      delete all[tableNumber];
-      saveCache(POS_CART_KEY + '_all', all);
-      delete orderFingerprintRef.current[tableNumber];
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message);
-      fetchData();
-    }
-  }, [fetchData]);
-
   /* ── Billing ── */
   const closeBill = useCallback(async (orderId: string, payment: PaymentInfo) => {
     const tableNum = cartRef.current?.table_number;
@@ -654,6 +715,29 @@ export function usePos() {
     }
   }, [fetchData, showUndo]);
 
+  const splitTables = useCallback(async (primaryTableNumber: number, childTableNumbers: number[]) => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/orders/unmerge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          primary_table_number: primaryTableNumber,
+          child_table_numbers: childTableNumbers 
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ayırma xətası");
+      
+      toast.success(`Masalar ayrıldı`);
+      await fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchData]);
+
   const performUndo = useCallback(async () => {
     const log = lastUndo;
     if (!log) return;
@@ -675,9 +759,9 @@ export function usePos() {
   return {
     language, tables, floors, products, categories, loading,
     selectedTable, cart, activeView, orderHistory, lastUndo,
-    selectTable, backToFloor, performUndo,
+    selectTable, backToFloor, performUndo, activateReservedTable,
     addToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts,
-    placeOrder, closeBill, transferTable, mergeTables, dismissTable,
+    placeOrder, closeBill, transferTable, mergeTables, splitTables, dismissTable,
     setActiveView, setCart, setSelectedTable, setTables,
     fetchData,
   };

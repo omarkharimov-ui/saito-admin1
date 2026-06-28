@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, ShoppingBag, AlertTriangle, TrendingDown, ArrowRight } from 'lucide-react';
+import { Search, Loader2, ShoppingBag, AlertTriangle, TrendingDown, ArrowRight, Download } from 'lucide-react';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/lib/toast';
 import { PageTransition, PageHeader } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
 
@@ -150,6 +151,33 @@ export default function AuditPage() {
     return { totalDeductions, totalWaste, totalStockIn, totalAdjustments, total: entries.length };
   }, [entries]);
 
+  const exportToCSV = () => {
+    if (filtered.length === 0) return;
+    
+    const headers = ['Tarix', 'Növ', 'Xammal', 'Miqdar', 'Vahid', 'Məhsul', 'Masa', 'Səbəb'];
+    const rows = filtered.map(e => [
+      new Date(e.created_at).toLocaleString('az-AZ'),
+      TYPE_LABELS[e.type]?.label || e.type,
+      e.ingredient_name,
+      e.quantity.toFixed(2),
+      e.ingredient_unit,
+      e.product_name || '',
+      e.table_number || '',
+      e.reason || ''
+    ]);
+
+    const csvContent = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `saito_audit_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Audit hesabatı endirildi');
+  };
+
   if (loading && entries.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -160,11 +188,20 @@ export default function AuditPage() {
 
   return (
     <PageTransition className="min-h-screen p-4 sm:p-6 max-w-6xl mx-auto space-y-5">
-      <PageHeader
-        icon={<AlertTriangle size={18} className="text-rose-400" />}
-        title="Audit Trail"
-        subtitle="Stok dəyişikliklərinin tam tarixçəsi — hər sifariş, itki və tənzimləmə"
-      />
+      <div className="flex items-center justify-between gap-3">
+        <PageHeader
+          icon={<AlertTriangle size={18} className="text-rose-400" />}
+          title="Audit Trail"
+          subtitle="Stok dəyişikliklərinin tam tarixçəsi — hər sifariş, itki və tənzimləmə"
+        />
+        <button
+          onClick={exportToCSV}
+          disabled={filtered.length === 0}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all disabled:opacity-30 text-xs font-bold uppercase tracking-widest"
+        >
+          <Download size={14} /> Export
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <GlassCard intensity="light" padding="md" className="border-blue-500/15">

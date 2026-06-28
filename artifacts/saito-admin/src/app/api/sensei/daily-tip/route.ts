@@ -29,12 +29,15 @@ export async function GET(request: Request) {
       .gte('created_at', new Date(Date.now() - 86400000).toISOString());
 
     const totalRevenue = stats?.reduce((acc, curr) => acc + (curr.total_amount || 0), 0) || 0;
+    
+    // Task 4: Add more real data context
+    const { count: stockAlerts } = await supabase.from('ingredients').select('*', { count: 'exact', head: true }).filter('current_stock', 'lt', 'critical_limit');
 
-    const systemPrompt = `Sən restoranın strateji məsləhətçisisən. Hər gün üçün 1 ədəd qısa, konkret və tətbiq edilə bilən "Günün Məsləhəti" (Daily Tip) ver. 
-    Məsləhət satış artırma, israfı azaltma, müştəri məmnuniyyəti və ya yeni bir menu ideyası ilə bağlı ola bilər.
-    Dil: ${language}. Format: Qısa başlıq və 2 cümləlik izah.`;
+    const systemPrompt = `Sən restoranın strateji data analitiksisən. Verilən real rəqəmlərə əsasən (Gəlir, Stok və s.) ÇOX QISA və konkret bir "Günün Məsləhəti" ver. 
+    Ümumi və saxta pozitiv sözlərdən qaçın. Əgər vəziyyət pisdirsə, birbaşa de.
+    Dil: ${language}. Format: Qısa başlıq və maks 2 cümləlik analiz.`;
 
-    const userPrompt = `Dünənki ümumi gəlir: ${totalRevenue} AZN. Bu məlumatı nəzərə alaraq bugünkü iş günü üçün bir məsləhət ver.`;
+    const userPrompt = `Son 24 saatın gəliri: ${totalRevenue} AZN. Kritik stok sayı (limit altı): ${stockAlerts || 0}. Bu dürüst məlumatları nəzərə alaraq strateji bir tövsiyə ver.`;
 
     const tip = await groqChat(systemPrompt, userPrompt, { temperature: 0.8, maxTokens: 300 });
 

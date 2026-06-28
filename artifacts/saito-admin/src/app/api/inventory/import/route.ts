@@ -12,8 +12,13 @@ const UNIT_MAP: Record<string, string> = {
   piece: 'piece', pcs: 'piece', ədəd: 'piece', adet: 'piece',
 };
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+function svc() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 export async function POST(request: Request) {
   const auth = await validateAuth();
@@ -31,7 +36,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = svc();
 
     const results: { name: string; status: 'created' | 'updated' | 'skipped'; ingredientId?: string; error?: string }[] = [];
 

@@ -484,6 +484,15 @@ export function usePos() {
 
   /* ── Table Operations ── */
   const dismissTable = useCallback(async (tableNumber: number) => {
+    setTables(prev => prev.map(t =>
+      t.table_number === tableNumber
+        ? { ...t, status: 'empty' as const, total_amount: 0, guest_count: 0, order_ids: [] }
+        : t
+    ));
+    const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+    delete all[tableNumber];
+    saveCache(POS_CART_KEY + '_all', all);
+    delete orderFingerprintRef.current[tableNumber];
     try {
       const res = await fetch(`/api/orders/dismiss`, {
         method: 'POST',
@@ -491,22 +500,25 @@ export function usePos() {
         body: JSON.stringify({ table_number: tableNumber }),
       });
       if (!res.ok) throw new Error("Masanı təmizləmək mümkün olmadı");
-      
-      // Local state cleanup
-      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-      delete all[tableNumber];
-      saveCache(POS_CART_KEY + '_all', all);
-      delete orderFingerprintRef.current[tableNumber];
-      
       toast.success(`Masa ${tableNumber} təmizləndi`);
-      fetchData();
     } catch (e: any) {
       toast.error(e.message);
+      fetchData();
     }
   }, [fetchData]);
 
   /* ── Billing ── */
   const closeBill = useCallback(async (orderId: string, payment: PaymentInfo) => {
+    const tableNum = cartRef.current?.table_number;
+    if (tableNum) {
+      setTables(prev => prev.map(t =>
+        t.table_number === tableNum
+          ? { ...t, status: 'empty' as const, total_amount: 0, guest_count: 0, order_ids: [] }
+          : t
+      ));
+    }
+    cartRef.current = null;
+    backToFloor();
     try {
       const res = await fetch(`/api/orders/pay`, {
         method: 'POST',
@@ -519,21 +531,7 @@ export function usePos() {
           tip_amount: payment.tip,
         }),
       });
-
       if (!res.ok) throw new Error((await res.json()).error || 'Payment failed');
-
-      // Stock deduction is handled server-side in /api/orders/pay — do NOT call again here
-
-      const recipeRes = await fetch(`/api/orders/${orderId}/recipes`);
-      if (recipeRes.ok) {
-        const recipeData = await recipeRes.json();
-        if (recipeData.message) {
-          console.info(recipeData.message);
-        }
-      }
-
-      // Wipe localStorage cart for this table so stale data doesn't reload
-      const tableNum = cartRef.current?.table_number;
       if (tableNum) {
         try {
           const raw = localStorage.getItem('saito_pos_cart_all');
@@ -544,15 +542,11 @@ export function usePos() {
           }
         } catch {} // eslint-disable-line no-empty
       }
-
-      // Nullify ref so backToFloor doesn't re-save the paid cart
-      cartRef.current = null;
-
-      toast.success('Hesap bağlandı');
-      backToFloor();
+      toast.success('Hesab bağlandı');
       fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Ödəniş xətası');
+      fetchData();
     }
   }, [backToFloor, fetchData, t]);
 

@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { validateAuth } from '@/lib/api-auth';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+function svcHeaders() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return {
+    'apikey': key,
+    'Authorization': `Bearer ${key}`,
+  };
+}
 
 export async function GET(request: Request) {
   const auth = await validateAuth();
@@ -49,7 +54,8 @@ export async function GET(request: Request) {
         isoStartDate = defaultStart.toISOString();
     }
 
-    const H = { 'apikey': SERVICE_ROLE_KEY, 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` };
+    const supabaseUrl = process.env.NEXT_PUBLIC_supabaseUrl || '';
+    const H = svcHeaders();
 
     const [
       ordersRes,
@@ -62,15 +68,15 @@ export async function GET(request: Request) {
       wasteLogsRes,
       activeOrdersRes,
     ] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,total_amount,created_at,status,table_number&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/products?select=id,name,price,image_url,views_count,is_ready_product,direct_ingredient_id,category:categories(id,name)`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name,translations&order=name`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/cancelled_orders?select=*&created_at=gte.${isoStartDate}`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/recipes?select=menu_item_id,ingredient_id,quantity_required`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/ingredients?select=id,average_cost_per_unit`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/inventory_logs?select=quantity,cost_per_unit,ingredient_id&type=in.(waste,adjustment)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=table_number&status=in.(new,confirmed)`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/orders?select=id,total_amount,created_at,status,table_number&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/products?select=id,name,price,image_url,views_count,is_ready_product,direct_ingredient_id,category:categories(id,name)`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/categories?select=id,name,translations&order=name`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/cancelled_orders?select=*&created_at=gte.${isoStartDate}`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/recipes?select=menu_item_id,ingredient_id,quantity_required`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/ingredients?select=id,average_cost_per_unit`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/inventory_logs?select=quantity,cost_per_unit,ingredient_id&type=in.(waste,adjustment)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/orders?select=table_number&status=in.(new,confirmed)`, { headers: H }),
     ]);
 
     const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders] = await Promise.all([
@@ -105,8 +111,8 @@ export async function GET(request: Request) {
       const pid = item.product_id;
       if (!pid) return;
       const existing = productMap.get(pid) || { sold: 0, revenue: 0 };
-      existing.sold += item.quantity || 0;
-      existing.revenue += item.total_price || 0;
+      existing.sold += Math.max(0, item.quantity || 0);
+      existing.revenue += Math.max(0, item.total_price || 0);
       productMap.set(pid, existing);
     });
 

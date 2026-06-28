@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { executeTransactionalOrderAction } from '@/lib/transaction';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,8 +24,8 @@ export async function POST(request: NextRequest) {
       const restTables = table_numbers.slice(1);
 
       const targetOrdersRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&status=neq.cancelled&select=*`,
-        { headers }
+        `${svc().url}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&status=neq.cancelled&select=*`,
+        { headers: svc().headers }
       );
       const targetOrders = await targetOrdersRes.json();
       let primaryOrder = targetOrders?.[0];
@@ -35,8 +33,8 @@ export async function POST(request: NextRequest) {
       const sourceOrders: any[] = [];
       for (const tNum of restTables) {
         const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${tNum}&status=neq.paid&status=neq.cancelled&select=*`,
-          { headers }
+          `${svc().url}/rest/v1/orders?table_number=eq.${tNum}&status=neq.paid&status=neq.cancelled&select=*`,
+          { headers: svc().headers }
         );
         const orders = await res.json();
         if (orders) sourceOrders.push(...orders);
@@ -49,9 +47,9 @@ export async function POST(request: NextRequest) {
       if (!primaryOrder && sourceOrders.length > 0) {
         primaryOrder = sourceOrders[0];
         // The first order found becomes the primary one on the target table
-        const upgradeRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${primaryOrder.id}`, {
+        const upgradeRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${primaryOrder.id}`, {
           method: 'PATCH',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({ 
             table_number: targetTable,
             version: (primaryOrder.version || 0) + 1
@@ -70,9 +68,9 @@ export async function POST(request: NextRequest) {
         extraTotal += Number(src.total_amount || 0);
         extraGuests += Number(src.guest_count || 0);
         
-        const mergeRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`, {
+        const mergeRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${src.id}`, {
           method: 'PATCH',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({ 
             merged_into: primaryOrder.id,
             version: (src.version || 0) + 1
@@ -81,9 +79,9 @@ export async function POST(request: NextRequest) {
         if (!mergeRes.ok) throw new Error(`Failed to merge order ${src.id}`);
       }
 
-      const finalUpdateRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${primaryOrder.id}`, {
+      const finalUpdateRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${primaryOrder.id}`, {
         method: 'PATCH',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify({
           total_amount: Number(primaryOrder.total_amount || 0) + extraTotal,
           guest_count: Number(primaryOrder.guest_count || 1) + extraGuests,
@@ -93,9 +91,9 @@ export async function POST(request: NextRequest) {
       if (!finalUpdateRes.ok) throw new Error('Failed to update primary order totals');
 
       for (const tNum of restTables) {
-        await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tNum}`, {
+        await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tNum}`, {
           method: 'PATCH',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({ 
             status: 'merged', 
             merged_into_table: targetTable 
@@ -103,9 +101,9 @@ export async function POST(request: NextRequest) {
         });
       }
       
-      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${targetTable}`, {
+      await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${targetTable}`, {
         method: 'PATCH',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify({ status: 'occupied' }),
       });
 

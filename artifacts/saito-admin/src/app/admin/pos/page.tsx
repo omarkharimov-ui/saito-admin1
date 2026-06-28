@@ -56,6 +56,7 @@ export default function POSPage() {
   const [outOfStock, setOutOfStock] = useState<Set<string>>(new Set());
   const posRef = useRef<HTMLDivElement>(null);
   const [warningOpen, setWarningOpen] = useState(false);
+  const [warningTable, setWarningTable] = useState<PosTable | null>(null);
   const [canUndo, setUndoData] = useState<{ action: string; data: any; message: string } | null>(null);
 
   useEffect(() => {
@@ -274,6 +275,11 @@ export default function POSPage() {
       setReservedTableDetail(table);
       return;
     }
+    if (table.status === 'occupied' && table.total_amount > 0) {
+      setWarningTable(table);
+      setWarningOpen(true);
+      return;
+    }
     pos.selectTable(table);
   }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
 
@@ -316,7 +322,7 @@ export default function POSPage() {
               <div className="flex-1 min-w-0 h-full p-6 flex flex-col overflow-hidden">
                 <ProductGrid products={pos.products} categories={pos.categories} onAddProduct={handleAddProduct} cartCounts={cartCounts} outOfStock={outOfStock} />
               </div>
-              <div className={`w-full md:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
+              <div className={`w-full md:w-[380px] xl:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
                   <CartPanel
                     cart={pos.cart}
                     onUpdateQty={handleUpdateQty}
@@ -373,7 +379,14 @@ export default function POSPage() {
         onSuccess={() => { pos.fetchData(); }} 
       />
       {paymentOpen && payOrder && (
-        <ReceiptModal order={payOrder} onClose={() => setPaymentOpen(false)} getProductName={(it) => { const p = it.products as any; if (!p) return ''; const transName = p.translations?.[language]?.name; if (transName) return transName; return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || ''; }} onPay={handleCloseBill} />
+        <ReceiptModal order={payOrder} onClose={() => setPaymentOpen(false)} getProductName={(it) => { const p = it.products as any; if (!p) return ''; const transName = p.translations?.[language]?.name; if (transName) return transName; return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || ''; }} onPay={handleCloseBill}
+          onSplit={async () => {
+            if (!payOrderId) return;
+            const { data } = await supabase.from('order_items').select('*').eq('order_id', payOrderId);
+            setBillSplitItems(data || []);
+            setBillSplitOpen(true);
+          }}
+        />
       )}
       <AnimatePresence>
         {pos.lastUndo && (
@@ -471,14 +484,98 @@ export default function POSPage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => setReservedTableDetail(null)}
-                className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
-                  lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-700' : 'bg-white text-black hover:bg-white/90'
-                }`}
-              >
-                Bağla
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    if (!reservedTableDetail) return;
+                    try {
+                      await supabase.from('table_floors').update({
+                        status: 'occupied',
+                        reservation_status: 'active',
+                      }).eq('id', reservedTableDetail.id);
+                      if (reservedTableDetail.reservation_id) {
+                        await supabase.from('reservations').update({ status: 'checked_in' }).eq('id', reservedTableDetail.reservation_id);
+                      }
+                      pos.selectTable(reservedTableDetail);
+                      setReservedTableDetail(null);
+                      toast.success(`Masa ${reservedTableDetail.table_number} aktivləşdirildi`);
+                      pos.fetchData();
+                    } catch (e: any) {
+                      toast.error(e.message || 'Xəta baş verdi');
+                    }
+                  }}
+                  className={`flex-[2] py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
+                    lightMode ? 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/20' : 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
+                  }`}
+                >
+                  Aktiv et
+                </button>
+                <button
+                  onClick={() => setReservedTableDetail(null)}
+                  className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
+                    lightMode ? 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 text-white/60 hover:bg-white/10'
+                  }`}
+                >
+                  Bağla
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── DOLU MASA WARNING ── */}
+      <AnimatePresence>
+        {warningOpen && warningTable && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[130] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setWarningOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              className={`w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl ${
+                lightMode ? 'bg-white border border-zinc-200' : 'bg-[#111] border border-white/10'
+              }`}
+            >
+              <div className="flex flex-col items-center text-center gap-5">
+                <div className="w-16 h-16 rounded-full bg-amber-500/15 flex items-center justify-center">
+                  <AlertTriangle size={32} className="text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black tracking-tighter mb-1">Masa {warningTable.table_number} doludur</h3>
+                  <p className="text-sm opacity-60 font-medium">
+                    Bu masa hal-hazırda aktiv sifarişə sahibdir. Yenə də seçmək istəyirsiniz?
+                  </p>
+                </div>
+                <div className="flex gap-3 w-full mt-2">
+                  <button
+                    onClick={() => { setWarningOpen(false); setWarningTable(null); }}
+                    className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all ${
+                      lightMode ? 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 text-white/60 hover:bg-white/10'
+                    }`}
+                  >
+                    Ləğv et
+                  </button>
+                  <button
+                    onClick={() => {
+                      pos.selectTable(warningTable);
+                      setWarningOpen(false);
+                      setWarningTable(null);
+                    }}
+                    className="flex-[2] py-4 rounded-2xl bg-amber-500 text-white font-black uppercase tracking-widest text-[11px] shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all"
+                  >
+                    Yenə də Seç
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}

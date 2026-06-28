@@ -104,6 +104,12 @@ export async function GET() {
     });
     const topProduct = Object.entries(productCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
 
+    const calibrationSuggestions = calculateCalibrationSuggestions({
+      ingredients: (ingredients ?? []) as any,
+      recipes: (recipes ?? []) as any,
+      logs: (wasteLogs ?? []) as any,
+    }).filter(s => s.severity !== 'info');
+
     return NextResponse.json({
       dailyRevenue: Math.round(dailyRevenue * 100) / 100,
       todayOrders: todayOrders ?? 0,
@@ -114,6 +120,8 @@ export async function GET() {
       dailyNetProfit: Math.round(dailyNetProfit * 100) / 100,
       foodCostPct: Math.round(foodCostPct * 10) / 10,
       stockAlerts: (lowStockItems ?? []).length,
+      criticalStockCount: (lowStockItems ?? []).length,
+      calibrationSuggestions: calibrationSuggestions.length,
       marginInsight: calculateMarginInsight({
         revenue: dailyRevenue,
         foodCost: dailyFoodCost,

@@ -13,6 +13,7 @@ import { ProductBulkModals } from './components/ProductBulkModals';
 import { ProductCategoryModal } from './components/ProductCategoryModal';
 import { DeleteAllModal, DeleteProductModal, DeleteCategoryModal } from './components/ProductDeleteModals';
 import { ProductsLoader } from './components/ProductsLoader';
+import CombosSection from './components/CombosSection';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
 import { useCrossTableRefresh } from '@/hooks/useCrossTableRefresh';
@@ -77,6 +78,7 @@ const ProductsPage = () => {
   // Enforce minimum loading time to prevent skeleton flicker
   const loading = useMinimumLoadingTime(rawLoading, 600);
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'products' | 'combos'>('products');
   const [expandedCategories, setExpandedCategories] = useState<string[]>(() => {
     try { const r = localStorage.getItem('saito_expanded_categories'); return r ? JSON.parse(r) : []; } catch { return []; }
   });
@@ -227,11 +229,9 @@ const ProductsPage = () => {
       if (language !== 'az') autoTranslateMissing(language, freshProducts, freshCategories);
       const uniqueCatIds = Array.from(new Set(freshProducts.map(p => p.category_id))).filter(Boolean) as string[];
       setExpandedCategories(prev => {
-        if (prev.length === 0) {
-          try { localStorage.setItem('saito_expanded_categories', JSON.stringify(uniqueCatIds)); } catch {}
-          return uniqueCatIds;
-        }
-        return prev;
+        const merged = Array.from(new Set([...prev, ...uniqueCatIds]));
+        try { localStorage.setItem('saito_expanded_categories', JSON.stringify(merged)); } catch {}
+        return merged;
       });
       if (freshCategories.length > 0 && !productForm.category_id) setProductForm(prev => ({ ...prev, category_id: freshCategories[0].id }));
     } catch (error: any) { toast.error('Məlumatları yükləmək mümkün olmadı: ' + error.message, { id: 'action-toast' }); }
@@ -682,10 +682,25 @@ const ProductsPage = () => {
   return (
     <PageTransition className="space-y-6 pb-24">
       <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[32px] p-10 shadow-[var(--theme-shadow)]">
-        <h2 className="text-3xl font-serif font-black text-[var(--theme-text)] tracking-tight mb-2 uppercase">{t('products_title' as any)}</h2>
-        <p className="text-[var(--theme-text-muted)] text-[11px] font-bold uppercase tracking-[0.2em]">{t('products_subtitle' as any)}</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-3xl font-serif font-black text-[var(--theme-text)] tracking-tight mb-2 uppercase">{t('products_title' as any)}</h2>
+            <p className="text-[var(--theme-text-muted)] text-[11px] font-bold uppercase tracking-[0.2em]">{t('products_subtitle' as any)}</p>
+          </div>
+          <div className="flex bg-[var(--theme-bg)] p-1 rounded-2xl border border-[var(--theme-border)]">
+            <button onClick={() => setViewMode('products')}
+              className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'products' ? 'bg-[var(--theme-accent)] text-black' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
+              {t('products_title' as any)}
+            </button>
+            <button onClick={() => setViewMode('combos')}
+              className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'combos' ? 'bg-[var(--theme-accent)] text-black' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
+              {t('combos')}
+            </button>
+          </div>
+        </div>
       </div>
 
+      {viewMode === 'products' && (
       <GlassCard intensity="light" padding="md">
         <ProductTable
         products={products}
@@ -784,6 +799,13 @@ const ProductsPage = () => {
         onConfirm={confirmDeleteCategoryAction}
       />
     </GlassCard>
+      )}
+
+      {viewMode === 'combos' && (
+        <GlassCard intensity="light" padding="md">
+          <CombosSection />
+        </GlassCard>
+      )}
     </PageTransition>
   );
 };

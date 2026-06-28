@@ -61,7 +61,7 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'critical' | 'out_of_stock'>('all');
-  const [viewMode, setViewMode] = useState<'stock' | 'intelligence' | 'suppliers'>('stock');
+  const [viewMode, setViewMode] = useState<'stock' | 'intelligence' | 'suppliers' | 'procurement'>('stock');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   // Form states for modals
@@ -106,23 +106,33 @@ export default function StockPage() {
     return { ...data.stats, normal };
   }, [data?.stats]);
 
-  const handleAction = async (type: 'stock_in' | 'waste' | 'adjustment') => {
+  const handleAction = async (type: 'stock_in' | 'waste' | 'adjustment' | 'audit') => {
     if (!selectedRow || !qtyInput) return;
     setSaving(true);
     const amount = parseFloat(qtyInput);
     
     try {
-      const res = await fetch('/api/inventory/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ingredient_id: selectedRow.id,
-          type,
-          quantity: type === 'stock_in' ? amount : -amount,
-          reason: reasonInput || (type === 'stock_in' ? 'Stok artımı' : 'İtki qeydi'),
-          cost_per_unit: selectedRow.purchase_price ?? selectedRow.average_cost_per_unit
-        })
-      });
+      let res: Response;
+
+      if (type === 'audit') {
+        res = await fetch('/api/inventory/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ingredientId: selectedRow.id, actualQty: amount })
+        });
+      } else {
+        res = await fetch('/api/inventory/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ingredient_id: selectedRow.id,
+            type,
+            quantity: type === 'stock_in' ? amount : -amount,
+            reason: reasonInput || (type === 'stock_in' ? 'Stok artımı' : 'İtki qeydi'),
+            cost_per_unit: selectedRow.purchase_price ?? selectedRow.average_cost_per_unit
+          })
+        });
+      }
 
       if (res.ok) {
         toast.success('Əməliyyat uğurla tamamlandı');
@@ -131,7 +141,8 @@ export default function StockPage() {
         setReasonInput('');
         fetchData();
       } else {
-        throw new Error('Xəta baş verdi');
+        const err = await res.json();
+        toast.error(err.error || 'Xəta baş verdi');
       }
     } catch (e) {
       toast.error('Gözlənilməz xəta');
@@ -156,9 +167,10 @@ export default function StockPage() {
                 </div>
                 <h1 className="text-5xl font-black tracking-tighter text-[var(--theme-text)]">Stok Paneli</h1>
                 <div className="flex gap-2">
-                  <button onClick={() => setViewMode('stock')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'stock' ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white text-black') : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Anbar</button>
+                  <button onClick={() => setViewMode('stock')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'stock' ? (lightMode ? 'bg-gray-900 text-white' : 'bg-[var(--theme-surface)] text-[var(--theme-text)]') : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Anbar</button>
                   <button onClick={() => setViewMode('intelligence')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'intelligence' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Ağıllı Analiz</button>
                   <button onClick={() => setViewMode('suppliers')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'suppliers' ? 'bg-blue-500 text-white' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarükçülər</button>
+                  <button onClick={() => setViewMode('procurement')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'procurement' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarük</button>
                 </div>
               </div>
               <InventoryHealthCard stats={stats} loading={loading} />
@@ -179,7 +191,7 @@ export default function StockPage() {
                       />
                     </div>
                     <div className="flex bg-[var(--theme-bg)] p-1.5 rounded-2xl border border-[var(--theme-border)]">
-                      <button onClick={() => setFilter('all')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? (lightMode ? 'bg-gray-900 text-white' : 'bg-white text-black') : 'text-[var(--theme-text-muted)]'}`}>Hamısı</button>
+                      <button onClick={() => setFilter('all')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? (lightMode ? 'bg-gray-900 text-white' : 'bg-[var(--theme-surface)] text-[var(--theme-text)]') : 'text-[var(--theme-text-muted)]'}`}>Hamısı</button>
                       <button onClick={() => setFilter('critical')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'critical' ? 'bg-rose-500 text-white' : 'text-[var(--theme-text-muted)]'}`}>Kritik</button>
                       <button onClick={() => setFilter('out_of_stock')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'out_of_stock' ? 'bg-red-600 text-white' : 'text-[var(--theme-text-muted)]'}`}>Bitənlər</button>
                     </div>
@@ -226,8 +238,14 @@ export default function StockPage() {
                                <Pencil size={14} />
                              </button>
                              <button onClick={() => { setSelectedRow(row); setModalMode('stock_in'); }} className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 transition-all border border-emerald-500/20">
-                               <Plus size={14} />
-                             </button>
+                                <TrendingUp size={14} />
+                              </button>
+                              <button onClick={() => { setSelectedRow(row); setModalMode('waste'); }} className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all border border-rose-500/20">
+                                <TrendingDown size={14} />
+                              </button>
+                              <button onClick={() => { setSelectedRow(row); setModalMode('audit'); }} className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 transition-all border border-amber-500/20">
+                                <ClipboardCheck size={14} />
+                              </button>
                           </div>
                         </motion.div>
                       );
@@ -236,7 +254,7 @@ export default function StockPage() {
                 </div>
               </div>
             </div>
-          )},old_string:
+          )}
 
           {viewMode === 'suppliers' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -259,6 +277,10 @@ export default function StockPage() {
             </div>
           )}
 
+          {viewMode === 'procurement' && (
+            <ProcurementTab />
+          )}
+
         </div>
       </div>
 
@@ -272,39 +294,69 @@ export default function StockPage() {
               className="relative w-full max-w-md bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[40px] p-10 shadow-2xl"
             >
               <div className="flex items-center gap-4 mb-8">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${modalMode === 'stock_in' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
-                  {modalMode === 'stock_in' ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${modalMode === 'stock_in' ? 'bg-emerald-500/10 text-emerald-600' : modalMode === 'audit' ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-600'}`}>
+                  {modalMode === 'stock_in' ? <TrendingUp size={24} /> : modalMode === 'audit' ? <ClipboardCheck size={24} /> : <TrendingDown size={24} />}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-[var(--theme-text)]">{modalMode === 'stock_in' ? 'Stok Girişi' : 'İtki Qeydi'}</h2>
+                  <h2 className="text-2xl font-black text-[var(--theme-text)]">{modalMode === 'stock_in' ? 'Stok Girişi' : modalMode === 'audit' ? 'İnventarizasiya' : 'İtki Qeydi'}</h2>
                   <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">{selectedRow.name}</p>
+                  {modalMode === 'audit' && (
+                    <p className="text-[10px] text-amber-500 font-bold mt-1">Cari stok: {selectedRow.current_stock.toFixed(1)} {UNIT_LABELS[selectedRow.unit]}</p>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-8">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Miqdar ({UNIT_LABELS[selectedRow.unit]})</label>
-                  <input 
-                    type="number" autoFocus value={qtyInput} onChange={e => setQtyInput(e.target.value)}
-                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-3xl px-8 py-5 text-3xl font-black text-[var(--theme-text)] outline-none focus:border-gold/40 transition-all shadow-inner"
-                    placeholder="0.0"
-                  />
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Qeyd (Səbəb)</label>
-                  <input 
-                    type="text" value={reasonInput} onChange={e => setReasonInput(e.target.value)}
-                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-6 py-4 text-sm text-[var(--theme-text)] outline-none focus:border-gold/20 transition-all shadow-inner"
-                    placeholder="Məs: Təzə mal gəldi"
-                  />
-                </div>
+                {modalMode === 'audit' ? (
+                  <>
+                    <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                      <span className="text-xs font-bold text-[var(--theme-text-muted)] uppercase tracking-widest">Sistem stoku</span>
+                      <span className="text-lg font-black text-[var(--theme-text)]">{selectedRow.current_stock.toFixed(1)} {UNIT_LABELS[selectedRow.unit]}</span>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Faktiki say ({UNIT_LABELS[selectedRow.unit]})</label>
+                      <input 
+                        type="number" autoFocus value={qtyInput} onChange={e => setQtyInput(e.target.value)}
+                        className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-3xl px-8 py-5 text-3xl font-black text-[var(--theme-text)] outline-none focus:border-amber-500/40 transition-all shadow-inner"
+                        placeholder={String(selectedRow.current_stock)}
+                      />
+                    </div>
+                    {qtyInput && (
+                      <div className={`flex items-center justify-between px-4 py-3 rounded-2xl ${Math.abs(parseFloat(qtyInput) - selectedRow.current_stock) > 0.01 ? 'bg-rose-500/10 border border-rose-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
+                        <span className="text-xs font-bold uppercase tracking-widest">Fərq</span>
+                        <span className={`text-lg font-black ${Math.abs(parseFloat(qtyInput) - selectedRow.current_stock) > 0.01 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                          {(parseFloat(qtyInput) - selectedRow.current_stock) > 0 ? '+' : ''}{(parseFloat(qtyInput || '0') - selectedRow.current_stock).toFixed(1)} {UNIT_LABELS[selectedRow.unit]}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Miqdar ({UNIT_LABELS[selectedRow.unit]})</label>
+                      <input 
+                        type="number" autoFocus value={qtyInput} onChange={e => setQtyInput(e.target.value)}
+                        className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-3xl px-8 py-5 text-3xl font-black text-[var(--theme-text)] outline-none focus:border-gold/40 transition-all shadow-inner"
+                        placeholder="0.0"
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Qeyd (Səbəb)</label>
+                      <input 
+                        type="text" value={reasonInput} onChange={e => setReasonInput(e.target.value)}
+                        className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-6 py-4 text-sm text-[var(--theme-text)] outline-none focus:border-gold/20 transition-all shadow-inner"
+                        placeholder="Məs: Təzə mal gəldi"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="flex gap-4 pt-4">
                   <button onClick={() => setModalMode(null)} className="flex-1 py-5 rounded-3xl border border-[var(--theme-border)] text-[var(--theme-text-muted)] font-black uppercase tracking-widest text-[10px] hover:bg-[var(--theme-bg)] transition-all">Ləğv Et</button>
                   <button 
-                    onClick={() => handleAction(modalMode === 'stock_in' ? 'stock_in' : 'waste')} 
+                    onClick={() => handleAction(modalMode === 'stock_in' ? 'stock_in' : modalMode === 'audit' ? 'audit' : 'waste')} 
                     disabled={saving || !qtyInput}
-                    className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${modalMode === 'stock_in' ? 'bg-gray-900 text-white hover:bg-black' : 'bg-rose-500 text-white hover:bg-rose-600'}`}
+                    className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${modalMode === 'stock_in' ? 'bg-gray-900 text-white hover:bg-black' : modalMode === 'audit' ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-rose-500 text-white hover:bg-rose-600'}`}
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     Təsdiqlə

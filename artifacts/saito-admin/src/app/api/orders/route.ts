@@ -2,30 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { executeTransactionalOrderAction } from '@/lib/transaction';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function GET() {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
     if (!auth.authenticated) return auth;
 
-    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-      console.error('[API /orders] Missing env vars:', { SUPABASE_URL: !!SUPABASE_URL, SERVICE_ROLE_KEY: !!SERVICE_ROLE_KEY });
+    if (!svc().url || !svc().headers['apikey']) {
+      console.error('[API /orders] Missing env vars:', { SUPABASE_URL: !!svc().url, SERVICE_ROLE_KEY: !!svc().headers['apikey'] });
       return NextResponse.json({ error: 'Missing Supabase configuration. Restart the dev server after creating .env.local' }, { status: 500 });
     }
 
     const [ordersRes, itemsRes, tablesRes, floorsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/order_items?select=*,products(image_url,name_az,name_en,name_ru,translations)`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/settings?select=qr_table_count,opening_hours&limit=1`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=table_number,status,reservation_name,reservation_time`, { headers }),
+      fetch(`${svc().url}/rest/v1/orders?select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`, { headers: svc().headers }),
+      fetch(`${svc().url}/rest/v1/order_items?select=*,products(image_url,name_az,name_en,name_ru,translations)`, { headers: svc().headers }),
+      fetch(`${svc().url}/rest/v1/settings?select=qr_table_count,opening_hours&limit=1`, { headers: svc().headers }),
+      fetch(`${svc().url}/rest/v1/table_floors?select=table_number,status,reservation_name,reservation_time`, { headers: svc().headers }),
     ]);
 
     if (!ordersRes.ok || !itemsRes.ok || !tablesRes.ok || !floorsRes.ok) {
@@ -68,7 +65,7 @@ export async function POST(request: Request) {
 
     const result = await executeTransactionalOrderAction(`Order${action || 'Create'}`, async () => {
       if (action === 'update') {
-        const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}&select=*`, { headers });
+        const orderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=*`, { headers: svc().headers });
         const existingOrder = (await orderRes.json())?.[0];
         
         if (!existingOrder) throw new Error('Order not found');
@@ -76,9 +73,9 @@ export async function POST(request: Request) {
           throw new Error('CONCURRENCY_CONFLICT');
         }
 
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`, {
+        const res = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}`, {
           method: 'PATCH',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({ 
             ...data, 
             version: (existingOrder.version || 0) + 1 
@@ -89,9 +86,9 @@ export async function POST(request: Request) {
       }
 
       if (action === 'delete') {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`, {
+        const res = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}`, {
           method: 'PATCH',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({ 
             status: 'cancelled', 
             cancelled_at: new Date().toISOString() 
@@ -107,9 +104,9 @@ export async function POST(request: Request) {
         throw new Error('table_number and items required');
       }
 
-      const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
+      const orderRes = await fetch(`${svc().url}/rest/v1/orders`, {
         method: 'POST',
-        headers: { ...headers, 'Prefer': 'return=representation' },
+        headers: { ...svc().headers, 'Prefer': 'return=representation' },
         body: JSON.stringify({
           table_number,
           total_amount: total_amount || items.reduce((s: number, i: any) => s + i.total_price, 0),
@@ -126,9 +123,9 @@ export async function POST(request: Request) {
       const newOrder = (await orderRes.json())?.[0];
 
       for (const item of items) {
-        await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
+        await fetch(`${svc().url}/rest/v1/order_items`, {
           method: 'POST',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({
             order_id: newOrder.id,
             product_id: item.product_id,
@@ -141,9 +138,9 @@ export async function POST(request: Request) {
         });
       }
 
-      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+      await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
         method: 'PATCH',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify({ status: 'occupied' }),
       });
 

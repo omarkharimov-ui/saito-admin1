@@ -10,44 +10,46 @@ import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 function YojiAdvice() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [advice, setAdvice] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAdvice = async () => {
       try {
-        const res = await fetch('/api/stats?timeFilter=month');
-        const data = await res.json();
-        
-        const isCritical = (data.netProfit < -100000); // Yalnız çox ciddi ziyan olanda kritik göstər
+        const [statsRes, tipRes] = await Promise.all([
+          fetch('/api/stats?timeFilter=month'),
+          fetch(`/api/sensei/daily-tip?lang=${language}`)
+        ]);
+        const stats = await statsRes.json();
+        const tipData = tipRes.ok ? await tipRes.json() : null;
+
+        const isCritical = (stats.netProfit < -100000);
 
         if (isCritical) {
           setAdvice({
             title: "KRİTİK VƏZİYYƏT",
-            text: `Biznesdə ciddi maliyyə kənarlaşması var. Cari dövrdə ₼${Math.abs(data.netProfit).toLocaleString()} kəsir qeydə alınıb.`,
+            text: `Biznesdə ciddi maliyyə kənarlaşması var. Cari dövrdə ₼${Math.abs(stats.netProfit).toLocaleString()} kəsir qeydə alınıb.`,
             type: 'critical'
           });
+        } else if (tipData?.tip) {
+          const parts = tipData.tip.split(/[:.\n]/).filter(Boolean);
+          setAdvice({
+            title: parts[0]?.length < 60 ? parts[0] : "Yoji-dən Təklif",
+            text: tipData.tip,
+            type: 'growth'
+          });
         } else {
-          const tips = [
-            "Saito bu gün stabil görünür. Müştəri məmnuniyyətinə fokuslanmağa davam edin.",
-            "VIP masalarda aktivlik müşahidə olunur. Xidmət keyfiyyətini yüksək saxlayın.",
-            "Axşam saatlarında sifariş axını arta bilər. Hazırlıqlı olun.",
-            "Yeni kampaniyalarla mənfəəti 15% artırmaq potensialınız var.",
-            "İşçi heyəti yaxşı performans göstərir. Kiçik bir təşəkkür motivasiyanı artırar."
-          ];
-          const randomTip = tips[Math.floor(Math.random() * tips.length)];
-          
           setAdvice({
             title: "Yoji-dən Mesaj",
-            text: randomTip,
+            text: "Saito-da işlər qaydasında gedir.",
             type: 'growth'
           });
         }
       } catch {
         setAdvice({
           title: "Yoji-dən Mesaj",
-          text: "Saito-da işlər qaydasında gedir. Müştəri məmnuniyyətinə fokuslanmağa davam edin.",
+          text: "Saito-da işlər qaydasında gedir.",
           type: 'growth'
         });
       } finally {
@@ -55,7 +57,7 @@ function YojiAdvice() {
       }
     };
     fetchAdvice();
-  }, []);
+  }, [language]);
 
   const isCritical = advice?.type === 'critical';
 

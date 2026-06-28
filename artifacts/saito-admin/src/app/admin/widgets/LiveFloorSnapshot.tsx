@@ -182,20 +182,40 @@ export default function LiveFloorSnapshot() {
         </div>
       </div>
 
-      {/* Compact Stats Row - No Table Grid */}
-      <div className="flex gap-4">
-        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)] border-l-[6px] border-l-blue-500">
+      {/* Compact Stats Row */}
+      <div className="flex gap-3 mb-6">
+        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] border-l-[6px] border-l-blue-500">
           <p className="text-xl font-black text-[var(--theme-text)]">{occupiedCount}<span className="text-[var(--theme-text-muted)] text-sm font-bold">/{tableCount}</span></p>
           <p className="text-[10px] text-[var(--theme-text-muted)] font-black uppercase tracking-widest mt-1">{t('occupied' as any)}</p>
         </div>
-        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)] border-l-[6px] border-l-emerald-500">
+        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] border-l-[6px] border-l-emerald-500">
           <p className="text-xl font-black text-emerald-500">{newCount}</p>
           <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mt-1">{t('new_arrivals' as any)}</p>
         </div>
-        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] shadow-[0_8px_24px_rgba(0,0,0,0.03)] border-l-[6px] border-l-amber-500">
+        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] border-l-[6px] border-l-amber-500">
           <p className="text-xl font-black text-amber-500">{cookingCount}</p>
           <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest mt-1">{t('in_kitchen' as any)}</p>
         </div>
+      </div>
+
+      {/* Table Grid */}
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+        {tables.map((table) => (
+          <motion.div
+            key={table.tableNumber}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`relative flex flex-col items-center justify-center rounded-2xl p-3 transition-all ${getStatusColor(table.status)}`}
+          >
+            <div className="flex items-center gap-1 mb-1">
+              {getStatusIcon(table.status)}
+              <span className="text-[9px] font-black tabular-nums">{table.tableNumber}</span>
+            </div>
+            {table.waitTime !== undefined && table.status !== 'empty' && (
+              <span className="text-[8px] font-bold opacity-60">{table.waitTime}d</span>
+            )}
+          </motion.div>
+        ))}
       </div>
     </motion.div>
   );

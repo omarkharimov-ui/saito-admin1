@@ -185,7 +185,7 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50" onClick={() => setPreview(null)} />
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-                <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} className="pointer-events-auto relative bg-white rounded-2xl p-8 w-72 flex flex-col items-center gap-4 shadow-2xl">
+                <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} className="pointer-events-auto relative bg-[var(--theme-surface)] rounded-2xl p-8 w-72 flex flex-col items-center gap-4 shadow-[var(--theme-shadow)]">
                   <button onClick={() => setPreview(null)} className="absolute top-4 right-4 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]"><X size={16} /></button>
                   <p className="text-[var(--theme-text)] font-black text-xl tracking-widest">MASA {preview}</p>
                   {qrDataUrls[preview] ? <img src={qrDataUrls[preview]} alt="" loading="lazy" decoding="async" className="w-48 h-48" /> : <div className="w-48 h-48 bg-[var(--theme-surface-muted)] rounded-xl flex items-center justify-center"><QrCode size={36} className="text-[var(--theme-text-muted)]" /></div>}

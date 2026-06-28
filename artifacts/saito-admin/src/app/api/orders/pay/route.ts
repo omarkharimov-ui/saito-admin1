@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { deductStockForOrder } from '@/lib/stockAutomation';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const [orderRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order_id}&select=*`, { headers }),
+      fetch(`${svc().url}/rest/v1/orders?id=eq.${order_id}&select=*`, { headers: svc().headers }),
     ]);
 
     if (!orderRes.ok) {
@@ -44,9 +42,9 @@ export async function POST(request: NextRequest) {
     };
     if (tip_amount !== undefined) updateData.tip_amount = tip_amount;
 
-    const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order_id}`, {
+    const updateRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${order_id}`, {
       method: 'PATCH',
-      headers,
+      headers: svc().headers,
       body: JSON.stringify(updateData),
     });
 
@@ -56,15 +54,15 @@ export async function POST(request: NextRequest) {
 
     if (order.table_number) {
       const childrenRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/orders?select=id&merged_into=eq.${order_id}`,
-        { headers }
+        `${svc().url}/rest/v1/orders?select=id&merged_into=eq.${order_id}`,
+        { headers: svc().headers }
       );
       const children = await childrenRes.json();
       if (children?.length) {
         for (const child of children) {
-          await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${child.id}`, {
+          await fetch(`${svc().url}/rest/v1/orders?id=eq.${child.id}`, {
             method: 'PATCH',
-            headers,
+            headers: svc().headers,
             body: JSON.stringify({ status: 'paid', kitchen_status: null }),
           });
         }

@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-const headers = {
-  'apikey': ANON_KEY,
-  'Authorization': `Bearer ${ANON_KEY}`,
-  'Content-Type': 'application/json',
-};
+function getHeaders() {
+  return {
+    'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
+    'Content-Type': 'application/json',
+  };
+}
 
 export async function POST(request: Request) {
   try {
@@ -18,20 +17,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // In a real production system, this would check table availability specifically.
-    // For now, we'll check if there's already a reservation for the same customer/phone at the same time to prevent duplicates.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const h = getHeaders();
     const checkRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/reservations?select=id&phone=eq.${phone}&date=eq.${date}&time=eq.${time}`,
-      { headers }
+      `${supabaseUrl}/rest/v1/reservations?select=id&phone=eq.${phone}&date=eq.${date}&time=eq.${time}`,
+      { headers: h }
     );
     const existing = await checkRes.json();
     if (existing && existing.length > 0) {
       return NextResponse.json({ error: 'A reservation already exists for this time and phone number.' }, { status: 409 });
     }
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/reservations`, {
+    const res = await fetch(`${supabaseUrl}/rest/v1/reservations`, {
       method: 'POST',
-      headers: { ...headers, 'Prefer': 'return=representation' },
+      headers: { ...h, 'Prefer': 'return=representation' },
       body: JSON.stringify({
         customer_name,
         name: customer_name, // Sync name and customer_name for compatibility

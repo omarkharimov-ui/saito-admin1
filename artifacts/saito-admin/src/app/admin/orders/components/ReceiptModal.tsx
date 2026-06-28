@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Printer, CreditCard, Banknote, Loader2 } from 'lucide-react';
+import { X, Printer, CreditCard, Banknote, Loader2, Split } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import ReceiptPreview from '../../shared/ReceiptPreview';
@@ -13,6 +13,7 @@ interface ReceiptModalProps {
   onClose: () => void;
   getProductName: (item: OrderItem) => string;
   onPay?: (paymentMethod?: string, tipAmount?: number) => Promise<void>;
+  onSplit?: () => void;
 }
 
 interface RestaurantInfo {
@@ -39,7 +40,7 @@ function formatTime(iso: string) {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
-export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptModalProps) {
+export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit }: ReceiptModalProps) {
   const [mounted, setMounted] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
@@ -188,6 +189,11 @@ export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptM
             <button onClick={handlePrint} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-black text-white border border-white/20 hover:bg-white hover:text-black text-sm font-bold tracking-widest uppercase transition-all duration-200">
               <Printer size={15} /> Çap et
             </button>
+            {onSplit && (
+              <button onClick={() => { onSplit(); onClose(); }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-white text-sm font-bold tracking-widest uppercase transition-all duration-200">
+                <Split size={15} /> Böl
+              </button>
+            )}
             {onPay && (
               <button onClick={handlePayAndClose} disabled={paying}
                 className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white text-sm font-bold tracking-widest uppercase transition-all duration-200 disabled:opacity-50">
@@ -227,7 +233,7 @@ export function ReceiptModal({ order, onClose, getProductName, onPay }: ReceiptM
           {/* Receipt paper */}
           <div id="receipt-print-area" className="w-full md:w-auto overflow-x-auto">
             {!restaurantLoaded ? (
-              <div className="bg-white text-black shadow-2xl" style={{ width: '100%', maxWidth: 302, padding: '40px 0', textAlign: 'center', fontSize: 12, color: '#999' }}>Yüklənir...</div>
+              <div className="bg-[var(--theme-bg)] text-[var(--theme-text)] shadow-[var(--theme-shadow)]" style={{ width: '100%', maxWidth: 302, padding: '40px 0', textAlign: 'center', fontSize: 12 }}>Yüklənir...</div>
             ) : (
               <ReceiptPreview
                 title={restaurant.name}

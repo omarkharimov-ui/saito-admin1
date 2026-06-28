@@ -101,11 +101,10 @@ export default function RecipesPage() {
 
   const filteredProducts = useMemo(() => {
     const q = search.toLowerCase();
-    const productIdsWithRecipes = new Set(recipes.map(r => r.menu_item_id));
     return products.filter(p =>
-      productIdsWithRecipes.has(p.id) && getProductName(p).toLowerCase().includes(q)
+      getProductName(p).toLowerCase().includes(q)
     );
-  }, [products, recipes, search, language]);
+  }, [products, search, language]);
 
   const productRecipes = (productId: string) =>
     recipes.filter(r => r.menu_item_id === productId).map(r => ({

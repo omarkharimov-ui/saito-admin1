@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { executeTransactionalOrderAction } from '@/lib/transaction';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await executeTransactionalOrderAction('BillSplit', async () => {
-      const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${original_order_id}&select=*`, { headers });
+      const orderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${original_order_id}&select=*`, { headers: svc().headers });
       const originalOrder = (await orderRes.json())?.[0];
 
       if (!originalOrder) throw new Error('Original order not found');
@@ -35,9 +33,9 @@ export async function POST(request: NextRequest) {
       const splitTotal = items_to_split.reduce((sum: number, item: any) => sum + (Number(item.unit_price) * Number(item.quantity)), 0);
       const newOriginalTotal = Math.max(0, Number(originalOrder.total_amount) - splitTotal);
 
-      const newOrderRes = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
+      const newOrderRes = await fetch(`${svc().url}/rest/v1/orders`, {
         method: 'POST',
-        headers: { ...headers, 'Prefer': 'return=representation' },
+        headers: { ...svc().headers, 'Prefer': 'return=representation' },
         body: JSON.stringify({
           table_number: originalOrder.table_number,
           total_amount: splitTotal,
@@ -55,9 +53,9 @@ export async function POST(request: NextRequest) {
       const newOrder = (await newOrderRes.json())?.[0];
 
       for (const item of items_to_split) {
-        await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
+        await fetch(`${svc().url}/rest/v1/order_items`, {
           method: 'POST',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({
             order_id: newOrder.id,
             product_id: item.product_id,
@@ -70,29 +68,29 @@ export async function POST(request: NextRequest) {
           }),
         });
 
-        const itemRes = await fetch(`${SUPABASE_URL}/rest/v1/order_items?id=eq.${item.id}&select=id,quantity`, { headers });
+        const itemRes = await fetch(`${svc().url}/rest/v1/order_items?id=eq.${item.id}&select=id,quantity`, { headers: svc().headers });
         const origItems = await itemRes.json();
         if (Array.isArray(origItems) && origItems.length > 0) {
           const origItem = origItems[0];
           const newQty = Math.max(0, (Number(origItem.quantity) || 0) - (Number(item.quantity) || 0));
           if (newQty > 0) {
-            await fetch(`${SUPABASE_URL}/rest/v1/order_items?id=eq.${origItem.id}`, {
+            await fetch(`${svc().url}/rest/v1/order_items?id=eq.${origItem.id}`, {
               method: 'PATCH',
-              headers,
+              headers: svc().headers,
               body: JSON.stringify({ quantity: newQty }),
             });
           } else {
-            await fetch(`${SUPABASE_URL}/rest/v1/order_items?id=eq.${origItem.id}`, {
+            await fetch(`${svc().url}/rest/v1/order_items?id=eq.${origItem.id}`, {
               method: 'DELETE',
-              headers,
+              headers: svc().headers,
             });
           }
         }
       }
 
-      const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${original_order_id}`, {
+      const updateRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${original_order_id}`, {
         method: 'PATCH',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify({
           total_amount: newOriginalTotal,
           version: (originalOrder.version || 0) + 1

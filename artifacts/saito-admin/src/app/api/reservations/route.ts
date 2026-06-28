@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function GET() {
   try {
@@ -16,8 +13,8 @@ export async function GET() {
     if (!auth.authenticated) return auth;
 
     const [reservationsRes, ordersRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/reservations?select=*&order=date.desc,time.desc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=table_number,status&status=in.(new,confirmed,paid)`, { headers }),
+      fetch(`${svc().url}/rest/v1/reservations?select=*&order=date.desc,time.desc`, { headers: svc().headers }),
+      fetch(`${svc().url}/rest/v1/orders?select=table_number,status&status=in.(new,confirmed,paid)`, { headers: svc().headers }),
     ]);
 
     const reservations = await reservationsRes.json();
@@ -60,8 +57,8 @@ export async function POST(request: Request) {
       if (date && time && table_ids) {
         // Check for overlapping reservations on the same tables
         // Simple check: same date, same time range (+/- 2 hours)
-        const checkUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,time&date=eq.${date}&status=eq.confirmed`;
-        const checkRes = await fetch(checkUrl, { headers });
+        const checkUrl = `${svc().url}/rest/v1/reservations?select=id,name,time&date=eq.${date}&status=eq.confirmed`;
+        const checkRes = await fetch(checkUrl, { headers: svc().headers });
         const existing = await checkRes.json();
 
         const requestedTime = new Date(`1970-01-01T${time}:00`).getTime();
@@ -90,7 +87,7 @@ export async function POST(request: Request) {
       }
     }
 
-    let url = `${SUPABASE_URL}/rest/v1/reservations`;
+    let url = `${svc().url}/rest/v1/reservations`;
     let method = 'POST';
     let payload = data || body;
     
@@ -113,7 +110,7 @@ export async function POST(request: Request) {
 
     const res = await fetch(url, {
       method,
-      headers: { ...headers, 'Content-Type': 'application/json' },
+      headers: { ...svc().headers, 'Content-Type': 'application/json' },
       body: payload ? JSON.stringify(payload) : undefined,
     });
 

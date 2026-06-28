@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { executeTransactionalOrderAction } from '@/lib/transaction';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,8 +21,8 @@ export async function POST(request: NextRequest) {
 
     const result = await executeTransactionalOrderAction('TableTransfer', async () => {
       const sourceRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/orders?table_number=eq.${from_table}&status=neq.paid&select=*`,
-        { headers }
+        `${svc().url}/rest/v1/orders?table_number=eq.${from_table}&status=neq.paid&select=*`,
+        { headers: svc().headers }
       );
       const sourceOrders = await sourceRes.json();
       
@@ -33,8 +31,8 @@ export async function POST(request: NextRequest) {
       }
 
       const targetTableRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${to_table}&select=*`,
-        { headers }
+        `${svc().url}/rest/v1/table_floors?table_number=eq.${to_table}&select=*`,
+        { headers: svc().headers }
       );
       const targetTables = await targetTableRes.json();
       const targetTable = targetTables?.[0];
@@ -44,9 +42,9 @@ export async function POST(request: NextRequest) {
       }
 
       for (const order of sourceOrders) {
-        const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`, {
+        const updateRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${order.id}`, {
           method: 'PATCH',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({
             table_number: to_table,
             version: (order.version || 0) + 1,
@@ -56,15 +54,15 @@ export async function POST(request: NextRequest) {
         if (!updateRes.ok) throw new Error(`Failed to move order ${order.id}`);
       }
 
-      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${from_table}`, {
+      await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${from_table}`, {
         method: 'PATCH',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify({ status: 'available', reservation_id: null, reservation_name: null }),
       });
 
-      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${to_table}`, {
+      await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${to_table}`, {
         method: 'PATCH',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify({ status: 'occupied' }),
       });
 

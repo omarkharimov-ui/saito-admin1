@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { executeTransactionalOrderAction } from '@/lib/transaction';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,22 +26,22 @@ export async function POST(request: NextRequest) {
 
           if (sourceTableNumbers?.length) {
             for (const tableNum of sourceTableNumbers) {
-              await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
+              await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
                 method: 'PATCH',
-                headers,
+                headers: svc().headers,
                 body: JSON.stringify({ status: 'occupied', merged_into_table: null }),
               });
             }
           }
 
           if (sourceOrders?.length) {
-            const parentRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&select=*`, { headers });
+            const parentRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&select=*`, { headers: svc().headers });
             const parentOrder = (await parentRes.json())?.[0];
 
             for (const src of sourceOrders) {
-              await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${src.id}`, {
+              await fetch(`${svc().url}/rest/v1/orders?id=eq.${src.id}`, {
                 method: 'PATCH',
-                headers,
+                headers: svc().headers,
                 body: JSON.stringify({ merged_into: null, version: (src.version || 0) + 1 }),
               });
             }
@@ -51,9 +49,9 @@ export async function POST(request: NextRequest) {
             if (parentOrder) {
               const childTotal = sourceOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
               const newTotal = Math.max(0, Number(parentOrder.total_amount || 0) - childTotal);
-              await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${parentOrder.id}`, {
+              await fetch(`${svc().url}/rest/v1/orders?id=eq.${parentOrder.id}`, {
                 method: 'PATCH',
-                headers,
+                headers: svc().headers,
                 body: JSON.stringify({ total_amount: newTotal, version: (parentOrder.version || 0) + 1 }),
               });
             }
@@ -64,22 +62,22 @@ export async function POST(request: NextRequest) {
         case 'transfer': {
           const { orderIds, fromTable, toTable } = data;
           for (const oid of orderIds) {
-            await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${oid}`, {
+            await fetch(`${svc().url}/rest/v1/orders?id=eq.${oid}`, {
               method: 'PATCH',
-              headers,
+              headers: svc().headers,
               body: JSON.stringify({ table_number: fromTable }),
             });
           }
           
-          await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${fromTable}`, {
+          await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${fromTable}`, {
             method: 'PATCH',
-            headers,
+            headers: svc().headers,
             body: JSON.stringify({ status: 'occupied' }),
           });
           
-          await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${toTable}`, {
+          await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${toTable}`, {
             method: 'PATCH',
-            headers,
+            headers: svc().headers,
             body: JSON.stringify({ status: 'available' }),
           });
           break;

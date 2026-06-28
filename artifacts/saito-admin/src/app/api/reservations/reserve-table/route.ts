@@ -2,14 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { groqChat, parseJsonFromText } from '@/lib/groq';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,8 +22,8 @@ export async function POST(request: NextRequest) {
     }
 
     const resRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/reservations?select=*&id=eq.${reservation_id}`,
-      { headers }
+      `${svc().url}/rest/v1/reservations?select=*&id=eq.${reservation_id}`,
+      { headers: svc().headers }
     );
     const resData = await resRes.json();
     const reservation = resData?.[0];
@@ -34,8 +31,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
     }
 
-    const checkUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,time&date=eq.${reservation.date}&status=eq.confirmed`;
-    const checkRes = await fetch(checkUrl, { headers });
+    const checkUrl = `${svc().url}/rest/v1/reservations?select=id,name,time&date=eq.${reservation.date}&status=eq.confirmed`;
+    const checkRes = await fetch(checkUrl, { headers: svc().headers });
     const existing = await checkRes.json();
 
     const requestedTime = new Date(`1970-01-01T${reservation.time}:00`).getTime();
@@ -59,8 +56,8 @@ export async function POST(request: NextRequest) {
 
     if (!table_number && table_ids && table_ids.length > 0) {
       const tRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/table_floors?select=table_number&id=eq.${table_ids[0]}`,
-        { headers }
+        `${svc().url}/rest/v1/table_floors?select=table_number&id=eq.${table_ids[0]}`,
+        { headers: svc().headers }
       );
       const tData = await tRes.json();
       table_number = tData?.[0]?.table_number;
@@ -85,9 +82,9 @@ export async function POST(request: NextRequest) {
     };
 
     for (const tid of table_ids) {
-      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?id=eq.${tid}`, {
+      await fetch(`${svc().url}/rest/v1/table_floors?id=eq.${tid}`, {
         method: 'PATCH',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify(tableFloorPatch),
       });
     }
@@ -102,9 +99,9 @@ export async function POST(request: NextRequest) {
       kitchen_scheduled_at = new Date(reservationDate.getTime() - minutesBefore * 60 * 1000).toISOString();
     }
 
-    await fetch(`${SUPABASE_URL}/rest/v1/reservations?id=eq.${reservation_id}`, {
+    await fetch(`${svc().url}/rest/v1/reservations?id=eq.${reservation_id}`, {
       method: 'PATCH',
-      headers,
+      headers: svc().headers,
       body: JSON.stringify({
         table_number,
         table_ids: JSON.stringify(table_ids),

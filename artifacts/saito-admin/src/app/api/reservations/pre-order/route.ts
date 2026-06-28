@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
 import { validateAuth } from '@/lib/api-auth';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function GET(request: Request) {
   const auth = await validateAuth();
@@ -25,8 +22,8 @@ export async function GET(request: Request) {
     }
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/reservations?select=pre_order_items,pre_order_total&id=eq.${reservation_id}`,
-      { headers }
+      `${svc().url}/rest/v1/reservations?select=pre_order_items,pre_order_total&id=eq.${reservation_id}`,
+      { headers: svc().headers }
     );
     const data = await res.json();
     const reservation = data?.[0];
@@ -59,9 +56,9 @@ export async function POST(request: Request) {
       0
     );
 
-    await fetch(`${SUPABASE_URL}/rest/v1/reservations?id=eq.${reservation_id}`, {
+    await fetch(`${svc().url}/rest/v1/reservations?id=eq.${reservation_id}`, {
       method: 'PATCH',
-      headers,
+      headers: svc().headers,
       body: JSON.stringify({
         pre_order_items: items ? JSON.stringify(items) : null,
         pre_order_total: totalAmount || null,

@@ -366,7 +366,7 @@ export default function HeroBanner() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4">
+            <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4" title="Net margin <15% or food cost >45% = critical | Net margin <25% or food cost >35% = tight | Otherwise healthy">
               <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Margin pressure</div>
               <div className="flex items-end justify-between gap-3">
                 <div>

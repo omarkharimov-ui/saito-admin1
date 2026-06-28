@@ -310,23 +310,23 @@ const TablesPage = () => {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="pointer-events-auto bg-white rounded-2xl p-8 w-full max-w-[320px] flex flex-col items-center gap-4 shadow-2xl"
+              className="pointer-events-auto bg-[var(--theme-surface)] rounded-2xl p-8 w-full max-w-[320px] flex flex-col items-center gap-4 shadow-[var(--theme-shadow)]"
             >
               <button
                 onClick={() => setPreviewTable(null)}
-                className="absolute top-4 right-4 text-black/30 hover:text-black transition-colors"
+                className="absolute top-4 right-4 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"
               >
                 <X size={18} />
               </button>
-              <p className="text-black font-black text-xl tracking-widest uppercase">MASA {previewTable}</p>
+              <p className="text-[var(--theme-text)] font-black text-xl tracking-widest uppercase">MASA {previewTable}</p>
               {qrDataUrls[previewTable] ? (
                 <img src={qrDataUrls[previewTable]} alt={`Masa ${previewTable} QR`} loading="lazy" decoding="async" className="w-56 h-56" />
               ) : (
-                <div className="w-56 h-56 bg-gray-100 rounded-xl flex items-center justify-center">
-                  <QrCode size={40} className="text-gray-300" />
+                <div className="w-56 h-56 bg-[var(--theme-surface-soft)] rounded-xl flex items-center justify-center">
+                  <QrCode size={40} className="text-[var(--theme-text-muted)]" />
                 </div>
               )}
-              <p className="text-[10px] text-gray-400 text-center break-all">{siteUrl}/menu?table={previewTable}</p>
+              <p className="text-[10px] text-[var(--theme-text-muted)] text-center break-all">{siteUrl}/menu?table={previewTable}</p>
               <div className="flex gap-2 w-full">
                 <button
                   onClick={() => downloadQR(previewTable)}

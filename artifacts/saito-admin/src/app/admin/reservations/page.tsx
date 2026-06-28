@@ -77,28 +77,28 @@ export default function ReservationsPage() {
     clearNotifications();
   }, []);
 
-  /* ─── Auto-Release Expired Reservations (Task 8) ─── */
+  /* ─── Auto-Release Expired Reservations ─── */
   useEffect(() => {
     const checkExpired = async () => {
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
       
       const expiredRes = reservations.filter(res => 
-        res.status === 'confirmed' && 
-        res.date === todayStr &&
+        (res.status === 'confirmed' || res.status === 'pending') && 
+        res.date <= todayStr &&
         res.time && 
         (() => {
           const [h, m] = res.time.split(':').map(Number);
           const resTime = new Date();
           resTime.setHours(h, m, 0);
           const diff = (now.getTime() - resTime.getTime()) / 60000;
-          return diff > 30; // 30 dəqiqə gecikənlər
+          return diff > 30;
         })()
       );
 
       for (const res of expiredRes) {
-        await updateStatus(res.id, 'no_show');
-        toast.success(`${res.name} gəlmədiyi üçün masalar boşaldıldı`, { id: `expire-${res.id}` });
+        await updateStatus(res.id, 'cancelled');
+        toast.success(`${res.name} vaxtı keçdiyi üçün avtomatik ləğv edildi`, { id: `expire-${res.id}` });
       }
     };
 
@@ -341,7 +341,13 @@ export default function ReservationsPage() {
           onStartArchiveSelection={() => setArchiveSelectionMode(true)}
           onDeleteSelectedArchive={() => setConfirmClearArchiveModal(true)}
           onCancelArchiveSelection={() => setArchiveSelectionMode(false)}
-          onSelectAll={() => {}}
+          onSelectAll={() => {
+            if (selectedArchiveIds.length === filteredReservations.length) {
+              setSelectedArchiveIds([]);
+            } else {
+              setSelectedArchiveIds(filteredReservations.map(r => r.id));
+            }
+          }}
         />
       </div>
 
@@ -361,7 +367,12 @@ export default function ReservationsPage() {
             <tbody>
               {filteredReservations.map(res => (
                 <ReservationTableRow 
-                  key={res.id} res={res} timeFilter={timeFilter} 
+                  key={res.id} res={res} timeFilter={timeFilter}
+                  selectionMode={archiveSelectionMode}
+                  isSelected={selectedArchiveIds.includes(res.id)}
+                  onToggleSelect={(id) => {
+                    setSelectedArchiveIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+                  }}
                   onSelect={(r) => { setSelectedRes(r); setModalView('main'); setSelectedTableIds(r.table_ids || []); }}
                   statusBadge={(s) => {
                     const colors: Record<string, string> = {
@@ -393,11 +404,12 @@ export default function ReservationsPage() {
         {selectedRes && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRes(null)} className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md" />
-            <motion.div
-              layout
-              layoutId={`reserv-${selectedRes.id}`}
-              transition={{ type: 'spring', stiffness: 350, damping: 32 }}
-              className={`fixed inset-0 m-auto z-[110] w-[95%] h-fit max-h-[90vh] overflow-hidden rounded-[3.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.4)] border border-white/20 backdrop-blur-3xl ${lightMode ? 'bg-white/90 text-zinc-900' : 'bg-zinc-900/90 text-white'} ${modalView === 'main' ? 'max-w-2xl' : 'max-w-4xl'}`}
+              <motion.div
+                initial={{ opacity: 0, y: 60, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 40, scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.9 }}
+                className={`fixed inset-0 m-auto z-[110] w-[95%] h-fit max-h-[90vh] overflow-hidden rounded-[3.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.4)] border border-white/20 backdrop-blur-3xl ${lightMode ? 'bg-white/90 text-zinc-900' : 'bg-zinc-900/90 text-white'} ${modalView === 'main' ? 'max-w-2xl' : 'max-w-4xl'}`}
             >
               <div className="p-10 relative overflow-y-auto max-h-[90vh] custom-scrollbar">
                 <button onClick={() => setSelectedRes(null)} className="absolute top-8 right-10 p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors"><X size={24} /></button>
@@ -407,57 +419,89 @@ export default function ReservationsPage() {
                     <motion.div key="main-view" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2 }} className="flex flex-col gap-8">
                        <motion.div layout="position">
                           <h2 className="text-5xl font-black tracking-tighter mb-2 leading-none">{selectedRes.name}</h2>
-                          <div className="flex gap-4 text-xs font-black opacity-40 uppercase tracking-widest mb-10">
+                          <div className="flex gap-4 text-xs font-black opacity-40 uppercase tracking-widest mb-2">
                              <span className="flex items-center gap-1.5 text-blue-500"><Phone size={14} /> {selectedRes.phone}</span>
                              <span className="flex items-center gap-1.5"><Star size={14} /> {selectedRes.visitCount} Ziyarət</span>
                           </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                             <motion.div layout onClick={() => setModalView('tables')} className={`p-7 rounded-[2.5rem] border cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-lg ${lightMode ? 'bg-zinc-50/50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
-                                <div className="flex items-center justify-between mb-5 uppercase tracking-widest text-[10px] opacity-40 font-black">
-                                   <span><TableIcon size={14} className="inline mr-2" /> Masa Seçimi & Merge</span>
-                                   <ArrowRight size={14} className="text-blue-500" />
-                                </div>
-                                <div className="flex items-center gap-5">
-                                   <div className="w-16 h-16 rounded-2xl bg-blue-500 text-white flex items-center justify-center font-black text-2xl shadow-xl shadow-blue-500/20">
-                                      {selectedTableIds.length > 0 ? selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).join('+') : '?'}
-                                   </div>
-                                   <div className="flex flex-col">
-                                      <span className="text-sm font-black tracking-tight">{selectedTableIds.length ? `${selectedTableIds.length} Masa seçildi` : 'Masa təyin edilməyib'}</span>
-                                      <span className="text-[10px] opacity-40 font-bold uppercase tracking-wide">Zaldan masaları birləşdir</span>
-                                   </div>
-                                </div>
-                             </motion.div>
-
-                             <motion.div layout onClick={goToPOSPreOrder} className={`p-7 rounded-[2.5rem] border cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-lg ${lightMode ? 'bg-zinc-50/50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
-                                <div className="flex items-center justify-between mb-5 uppercase tracking-widest text-[10px] opacity-40 font-black">
-                                   <span><ShoppingBag size={14} className="inline mr-2" /> Öncədən Sifariş</span>
-                                   <Zap size={14} className="text-amber-500" />
-                                </div>
-                                <div className="flex flex-col">
-                                   <span className="text-sm font-black tracking-tight">Sifariş Daxil Et</span>
-                                   <span className="text-[10px] opacity-40 font-bold uppercase tracking-wide">Dərhal POS menyusuna keç</span>
-                                </div>
-                             </motion.div>
+                          <div className="flex flex-wrap gap-3 mb-10">
+                             <span className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 ${lightMode ? 'bg-zinc-100 text-zinc-700' : 'bg-white/10 text-white/80'}`}>
+                               <Calendar size={14} /> {new Date(selectedRes.date).toLocaleDateString('az-AZ')}
+                             </span>
+                             <span className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 ${lightMode ? 'bg-zinc-100 text-zinc-700' : 'bg-white/10 text-white/80'}`}>
+                               <Clock size={14} /> {selectedRes.time}
+                             </span>
+                             <span className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 ${lightMode ? 'bg-zinc-100 text-zinc-700' : 'bg-white/10 text-white/80'}`}>
+                               <Users size={14} /> {selectedRes.guests} Nəfər
+                             </span>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                             <div className="flex gap-4">
-                                <button onClick={handleConfirmReservation} className="flex-[2] py-6 rounded-[2.2rem] bg-green-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
-                                   <CheckCircle size={24} /> Təsdiqlə
-                                </button>
-                                <button onClick={() => setSelectedRes(null)} className="flex-1 py-6 rounded-[2.2rem] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-[var(--theme-text-muted)]">Bağla</button>
-                             </div>
-                             
-                              <div className={`p-6 rounded-[2.5rem] flex items-center justify-center gap-4 ${lightMode ? 'bg-zinc-50/50' : 'bg-white/5'}`}>
-                                 <Timer size={28} className="text-blue-500 animate-pulse" />
-                                 <div className="flex flex-col">
-                                    <span className="text-[9px] font-black uppercase opacity-40 leading-none mb-1">Bron Vaxtına Qalıb</span>
-                                    <span className="text-2xl font-black tracking-tighter leading-none">{calculateTimeLeft(selectedRes.time, selectedRes.date)}</span>
-                                 </div>
+                          {(() => {
+                            const isExpired = selectedRes.date < new Date().toISOString().split('T')[0] || 
+                              (selectedRes.date === new Date().toISOString().split('T')[0] && selectedRes.time && (() => {
+                                const [h, m] = selectedRes.time.split(':').map(Number);
+                                const t = new Date(); t.setHours(h, m, 0);
+                                return new Date().getTime() - t.getTime() > 0;
+                              })());
+                            
+                            if (isExpired && (selectedRes.status === 'cancelled' || selectedRes.status === 'no_show' || selectedRes.status === 'archived')) {
+                              return (
+                                <div className={`p-8 rounded-[2.5rem] text-center ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+                                  <Timer size={40} className="mx-auto mb-4 text-zinc-400" />
+                                  <p className="text-lg font-black tracking-tight opacity-60">Bu rezervasiyanın vaxtı keçib</p>
+                                  <p className="text-sm opacity-40 mt-1">Ətraflı məlumat üçün yuxarıdakı detallara baxın</p>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="flex flex-col gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <motion.div layout onClick={() => setModalView('tables')} className={`p-7 rounded-[2.5rem] border cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-lg ${lightMode ? 'bg-zinc-50/50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                                    <div className="flex items-center justify-between mb-5 uppercase tracking-widest text-[10px] opacity-40 font-black">
+                                      <span><TableIcon size={14} className="inline mr-2" /> Masa Seçimi & Merge</span>
+                                      <ArrowRight size={14} className="text-blue-500" />
+                                    </div>
+                                    <div className="flex items-center gap-5">
+                                      <div className="w-16 h-16 rounded-2xl bg-blue-500 text-white flex items-center justify-center font-black text-2xl shadow-xl shadow-blue-500/20">
+                                        {selectedTableIds.length > 0 ? selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).join('+') : '?'}
+                                      </div>
+                                      <div className="flex flex-col">
+                                        <span className="text-sm font-black tracking-tight">{selectedTableIds.length ? `${selectedTableIds.length} Masa seçildi` : 'Masa təyin edilməyib'}</span>
+                                        <span className="text-[10px] opacity-40 font-bold uppercase tracking-wide">Zaldan masaları birləşdir</span>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+
+                                  <motion.div layout onClick={goToPOSPreOrder} className={`p-7 rounded-[2.5rem] border cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-lg ${lightMode ? 'bg-zinc-50/50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                                    <div className="flex items-center justify-between mb-5 uppercase tracking-widest text-[10px] opacity-40 font-black">
+                                      <span><ShoppingBag size={14} className="inline mr-2" /> Öncədən Sifariş</span>
+                                      <Zap size={14} className="text-amber-500" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-black tracking-tight">Sifariş Daxil Et</span>
+                                      <span className="text-[10px] opacity-40 font-bold uppercase tracking-wide">Dərhal POS menyusuna keç</span>
+                                    </div>
+                                  </motion.div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                                  <div className="flex gap-4">
+                                    <button onClick={handleConfirmReservation} className="flex-[2] py-6 rounded-[2.2rem] bg-green-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+                                      <CheckCircle size={24} /> Təsdiqlə
+                                    </button>
+                                  </div>
+                                  
+                                  <div className={`p-6 rounded-[2.5rem] flex items-center justify-center gap-4 ${lightMode ? 'bg-zinc-50/50' : 'bg-white/5'}`}>
+                                    <Timer size={28} className="text-blue-500 animate-pulse" />
+                                    <div className="flex flex-col">
+                                      <span className="text-[9px] font-black uppercase opacity-40 leading-none mb-1">Bron Vaxtına Qalıb</span>
+                                      <span className="text-2xl font-black tracking-tighter leading-none">{calculateTimeLeft(selectedRes.time, selectedRes.date)}</span>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-
-                          </div>
+                            );
+                          })()}
                        </motion.div>
                     </motion.div>
                   )}
@@ -493,7 +537,7 @@ export default function ReservationsPage() {
                              </button>
                           ))}
                        </div>
-                       <button onClick={() => setModalView('main')} className="w-full py-6 rounded-[2.5rem] bg-zinc-900 text-white font-black uppercase tracking-widest shadow-2xl shadow-black/40 hover:brightness-110 active:scale-98 transition-all">Seçimi Təsdiqlə və Geri Qayıt</button>
+                        <button onClick={() => setModalView('main')} className={`w-full py-6 rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl transition-all ${lightMode ? 'bg-zinc-900 text-white shadow-zinc-900/30' : 'bg-blue-500 text-white shadow-blue-500/30'}`}>Seçimi Təsdiqlə və Geri Qayıt</button>
                     </motion.div>
                   )}
                 </AnimatePresence>

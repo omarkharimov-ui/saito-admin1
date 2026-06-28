@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { executeTransactionalOrderAction, TABLE_STATES } from '@/lib/transaction';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,14 +17,14 @@ export async function POST(req: NextRequest) {
     if (!table_number) return NextResponse.json({ error: 'Table number required' }, { status: 400 });
 
     const result = await executeTransactionalOrderAction('DismissTable', async () => {
-      const ordersRes = await fetch(`${SUPABASE_URL}/rest/v1/orders?select=id&table_number=eq.${table_number}&status=neq.paid&status=neq.cancelled`, { headers });
+      const ordersRes = await fetch(`${svc().url}/rest/v1/orders?select=id&table_number=eq.${table_number}&status=neq.paid&status=neq.cancelled`, { headers: svc().headers });
       const orders = await ordersRes.json();
 
       if (Array.isArray(orders) && orders.length > 0) {
         const orderIds = orders.map(o => o.id);
-        await fetch(`${SUPABASE_URL}/rest/v1/orders?id=in.(${orderIds.join(',')})`, {
+        await fetch(`${svc().url}/rest/v1/orders?id=in.(${orderIds.join(',')})`, {
           method: 'PATCH',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({ 
             status: 'cancelled',
             cancelled_at: new Date().toISOString()
@@ -34,9 +32,9 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      await fetch(`${SUPABASE_URL}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+      await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
         method: 'PATCH',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify({
           status: TABLE_STATES.AVAILABLE,
           reservation_id: null,

@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOut, Activity, ChevronRight, Zap } from 'lucide-react';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
@@ -54,11 +54,6 @@ const Sidebar = ({
   const pathname = usePathname();
   const { pendingCount, readyOrdersCount } = useNotifications();
   const { t } = useLanguage();
-  const [isSystemActive, setIsSystemActive] = useState(true);
-  
-  // Stretch logic for tactile feeling
-  const handleScale = useMotionValue(1);
-  const springScale = useSpring(handleScale, { stiffness: 400, damping: 25 });
 
   const links = useMemo(
     () =>
@@ -71,12 +66,6 @@ const Sidebar = ({
       ),
     [t, role, pendingCount, readyOrdersCount]
   );
-
-  const toggleSystem = () => {
-    const newState = !isSystemActive;
-    setIsSystemActive(newState);
-    playSystemSound(newState ? 'on' : 'off');
-  };
 
   const handleLogout = async () => {
     playSystemSound('off');
@@ -93,11 +82,11 @@ const Sidebar = ({
       }`}
       style={{ width: 290 }}
     >
-      {/* iOS 27 Vision Pro Container */}
-      <div className="mx-5 my-5 flex-1 flex flex-col overflow-hidden rounded-[44px] border border-[var(--theme-border)] bg-[var(--theme-surface)] backdrop-blur-[60px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.1)] dark:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.9)] relative">
+      {/* Sidebar container */}
+      <div className="ml-0 my-0 flex-1 flex flex-col overflow-hidden rounded-r-[28px] border-r border-[var(--theme-border)] bg-[var(--theme-surface)] relative">
         
         {/* Navigation */}
-        <nav className="flex-1 px-5 space-y-1.5 overflow-y-auto scrollbar-none py-2">
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-none py-3">
           {links.map((link) => {
             const Icon = link.icon;
             const isActive = link.href === '/admin' ? pathname === '/admin' : pathname.startsWith(link.href);
@@ -111,20 +100,20 @@ const Sidebar = ({
                 <Link
                   href={link.href}
                   onClick={onClose}
-                  className={`group relative flex items-center gap-4 px-5 py-4 rounded-[24px] transition-all duration-500 ${
+                  className={`group relative flex items-center gap-3.5 px-4 py-3.5 rounded-[18px] transition-all duration-300 ${
                     isActive 
-                      ? 'bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] shadow-[0_15px_35px_-10px_rgba(0,0,0,0.05)] dark:shadow-[0_15px_35px_-10px_rgba(0,0,0,0.6)]' 
+                      ? 'bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]' 
                       : 'hover:bg-[var(--theme-surface-soft)]'
                   }`}
                 >
-                  <div className={`relative flex items-center justify-center transition-all duration-500 ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text)]'}`}>
-                    <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                  <div className={`relative flex items-center justify-center transition-all duration-300 ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text)]'}`}>
+                    <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
                     {isActive && (
                       <motion.div layoutId="active-glow" className="absolute inset-0 blur-xl bg-gold/20 -z-10" />
                     )}
                   </div>
 
-                  <span className={`flex-1 text-[12px] font-bold tracking-[0.2em] uppercase transition-all duration-500 ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text)]'}`}>
+                  <span className={`flex-1 text-[11px] font-bold tracking-[0.15em] uppercase transition-all duration-300 ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text)]'}`}>
                     {link.name}
                   </span>
 
@@ -133,7 +122,7 @@ const Sidebar = ({
                       <motion.div 
                         initial={{ opacity: 0, x: -10 }} 
                         animate={{ opacity: 1, x: 0 }}
-                        className="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_12px_#D4AF37]"
+                        className="w-1 h-1 rounded-full bg-gold"
                       />
                     )}
                   </AnimatePresence>
@@ -143,37 +132,8 @@ const Sidebar = ({
           })}
         </nav>
 
-        {/* iOS 27 Tactile Switch Area */}
-        <div className="p-6">
-          <motion.div 
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center justify-between px-5 py-5 rounded-[28px] bg-white/[0.04] border border-white/[0.06] backdrop-blur-md"
-          >
-             <div className="flex flex-col gap-1">
-               <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em]">Sistem</span>
-               <span className={`text-[9px] font-bold tracking-widest ${isSystemActive ? 'text-emerald-400' : 'text-zinc-500'}`}>
-                 {isSystemActive ? 'LIVE SYNC' : 'STANDBY'}
-               </span>
-             </div>
-
-             {/* The Squishy Apple Switch */}
-             <button 
-                onMouseDown={() => handleScale.set(1.4)}
-                onMouseUp={() => handleScale.set(1)}
-                onClick={toggleSystem}
-                className={`relative w-12 h-7 rounded-full transition-all duration-500 overflow-hidden ${isSystemActive ? 'bg-emerald-500' : 'bg-zinc-800'}`}
-             >
-                <motion.div 
-                  style={{ scaleX: springScale }}
-                  animate={{ x: isSystemActive ? 20 : 0 }}
-                  className="absolute left-1 top-1 w-5 h-5 bg-white rounded-full shadow-lg" 
-                />
-             </button>
-          </motion.div>
-        </div>
-
-        {/* Logout (Hold to action) */}
-        <div className="p-6 pt-0">
+        {/* Logout */}
+        <div className="p-4">
           <motion.button 
             onClick={handleLogout}
             whileTap={{ scale: 0.95 }}

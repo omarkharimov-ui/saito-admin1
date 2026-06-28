@@ -231,11 +231,11 @@ export function ProductTable({
                   <Filter size={13} /> <span className="hidden sm:inline">{t('bulk_operation')}</span>
                 </button>
                 <button onClick={onOpenCategoryModal}
-                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-[10px] bg-white text-[#6E6E73] border border-[#E5E5E7] hover:bg-[#F7F7F8] hover:text-[#1D1D1F] transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]">
+                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-[10px] bg-[var(--theme-surface)] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)] hover:text-[var(--theme-text)] transition-all text-xs font-semibold tracking-wide uppercase whitespace-nowrap focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(255,255,255,0.06)]">
                   <FolderPlus size={13} /> <span className="hidden sm:inline">{t('add_category')}</span>
                 </button>
                 <button onClick={onConfirmDeleteAll} disabled={products.length === 0 || updating}
-                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-[10px] border border-red-200 bg-red-50 text-red-600 text-xs font-semibold tracking-wide uppercase whitespace-nowrap hover:bg-red-100 transition-all disabled:opacity-30 focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(0,0,0,0.08)]">
+                  className="flex-1 sm:flex-none w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2.5 flex items-center justify-center sm:gap-1.5 rounded-[10px] border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-semibold tracking-wide uppercase whitespace-nowrap hover:bg-red-500/20 transition-all disabled:opacity-30 focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[0_0_0_4px_rgba(255,255,255,0.06)]">
                   <Trash2 size={13} /> <span className="hidden sm:inline">{t('delete_all')}</span>
                 </button>
               </>
@@ -272,13 +272,13 @@ export function ProductTable({
           </div>
         ) : Object.entries(groupedProducts).map(([catId, { name, products: catProducts }]) => (
           <div key={catId} className="bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-[16px] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.08)]">
-            <div className="w-full px-6 py-4 flex items-center justify-between bg-[#FCFCFD] hover:bg-[#F7F7F8] transition-colors border-b border-[#E5E5E7]">
+            <div className="w-full px-6 py-4 flex items-center justify-between bg-[var(--theme-surface)] hover:bg-[var(--theme-surface-soft)] transition-colors border-b border-[var(--theme-border)]">
               <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => onToggleCategory(catId)}>
-                <div className="w-9 h-9 rounded-[10px] bg-[#F5F5F5] text-[#6E6E73] flex items-center justify-center shrink-0 border border-[#E5E5E7]">
+                <div className="w-9 h-9 rounded-[10px] bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] flex items-center justify-center shrink-0 border border-[var(--theme-border)]">
                   <Tag size={16} />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-[#1D1D1F] cursor-help"
+                  <h3 className="text-base font-semibold text-[var(--theme-text)] cursor-help"
                     title={(() => { const cat = categories.find(c => c.id === catId); return cat && cat.name !== name ? cat.name : undefined; })()}>
                     {name}
                   </h3>
@@ -310,7 +310,7 @@ export function ProductTable({
                   <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[800px]">
                       <thead>
-                        <tr className="border-b border-[#E5E5E7]">
+                        <tr className="border-b border-[var(--theme-border)]">
                           <th className="px-4 py-3 w-8">
                             {isBulkMode && (
                               <button
@@ -342,7 +342,7 @@ export function ProductTable({
                           return (
                             <React.Fragment key={product.id}>
                               {/* Main Product Row */}
-                              <tr className={`group h-[44px] border-b border-[#F0F0F2] hover:bg-black/[0.025] ${selectedProducts.has(product.id) ? 'bg-[#F7F7F8]' : ''}`}>
+                              <tr className={`group h-[44px] border-b border-[var(--theme-border)] hover:bg-[var(--theme-surface-soft)]/50 ${selectedProducts.has(product.id) ? 'bg-[var(--theme-surface-soft)]' : ''}`}>
                                 <td className="px-4 py-2.5 w-8">
                                   {isBulkMode && (
                                     <button

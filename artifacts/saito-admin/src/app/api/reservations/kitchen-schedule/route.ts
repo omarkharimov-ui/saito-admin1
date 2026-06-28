@@ -2,14 +2,11 @@ import { NextResponse } from 'next/server';
 import { groqChat, parseJsonFromText } from '@/lib/groq';
 import { validateAuth } from '@/lib/api-auth';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const headers = {
-  'apikey': SERVICE_ROLE_KEY,
-  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
-};
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function GET() {
   const auth = await validateAuth();
@@ -23,8 +20,8 @@ export async function GET() {
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/reservations?select=*&date=eq.${tomorrowStr}&status=eq.confirmed&not.pre_order_items=is.null`,
-      { headers }
+      `${svc().url}/rest/v1/reservations?select=*&date=eq.${tomorrowStr}&status=eq.confirmed&not.pre_order_items=is.null`,
+      { headers: svc().headers }
     );
     const reservations = await res.json();
 
@@ -33,8 +30,8 @@ export async function GET() {
     const nowTime = now.toTimeString().slice(0, 5);
 
     const todayRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/reservations?select=*&date=eq.${today}&status=eq.confirmed&not.pre_order_items=is.null`,
-      { headers }
+      `${svc().url}/rest/v1/reservations?select=*&date=eq.${today}&status=eq.confirmed&not.pre_order_items=is.null`,
+      { headers: svc().headers }
     );
     const todayReservations = await todayRes.json();
 
@@ -89,16 +86,16 @@ export async function POST(request: Request) {
 
     if (action === 'start_preparing') {
       const orderRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/orders?select=id,table_number&reservation_id=eq.${reservation_id}&kitchen_status=eq.reserved`,
-        { headers }
+        `${svc().url}/rest/v1/orders?select=id,table_number&reservation_id=eq.${reservation_id}&kitchen_status=eq.reserved`,
+        { headers: svc().headers }
       );
       const orders = await orderRes.json();
       const order = Array.isArray(orders) ? orders[0] : null;
 
       if (order) {
-        await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`, {
+        await fetch(`${svc().url}/rest/v1/orders?id=eq.${order.id}`, {
           method: 'PATCH',
-          headers,
+          headers: svc().headers,
           body: JSON.stringify({
             kitchen_status: 'pending',
             kitchen_accepted_at: new Date().toISOString(),
@@ -106,19 +103,19 @@ export async function POST(request: Request) {
         });
 
         await fetch(
-          `${SUPABASE_URL}/rest/v1/order_items?order_id=eq.${order.id}&kitchen_status=eq.reserved`,
+          `${svc().url}/rest/v1/order_items?order_id=eq.${order.id}&kitchen_status=eq.reserved`,
           {
             method: 'PATCH',
-            headers,
+            headers: svc().headers,
             body: JSON.stringify({ kitchen_status: 'pending' }),
           }
         );
 
         await fetch(
-          `${SUPABASE_URL}/rest/v1/kitchen_schedule?reservation_id=eq.${reservation_id}`,
+          `${svc().url}/rest/v1/kitchen_schedule?reservation_id=eq.${reservation_id}`,
           {
             method: 'PATCH',
-            headers,
+            headers: svc().headers,
             body: JSON.stringify({ status: 'started' }),
           }
         );
@@ -134,9 +131,9 @@ export async function POST(request: Request) {
 
     if (action === 'schedule') {
       const { scheduled_at } = body;
-      await fetch(`${SUPABASE_URL}/rest/v1/kitchen_schedule`, {
+      await fetch(`${svc().url}/rest/v1/kitchen_schedule`, {
         method: 'POST',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify({
           reservation_id,
           table_number: body.table_number,
@@ -145,9 +142,9 @@ export async function POST(request: Request) {
         }),
       });
 
-      await fetch(`${SUPABASE_URL}/rest/v1/reservations?id=eq.${reservation_id}`, {
+      await fetch(`${svc().url}/rest/v1/reservations?id=eq.${reservation_id}`, {
         method: 'PATCH',
-        headers,
+        headers: svc().headers,
         body: JSON.stringify({ kitchen_scheduled_at: scheduled_at }),
       });
 

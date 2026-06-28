@@ -63,7 +63,6 @@ export function ActionSheet({
     { id: 'merge', icon: Merge, label: t('merge_tables'), visible: true },
     { id: 'transfer', icon: Move, label: t('move_table'), visible: true },
     { id: 'unmerge', icon: GitMerge, label: 'Masaları Ayır', visible: isMerged },
-    { id: 'bill_split', icon: Split, label: 'Hesabı Böl', visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'cancel_table', icon: Trash2, label: 'Masanı Təmizlə', visible: isOccupied || table?.status === 'reserved' },
   ];
@@ -110,7 +109,7 @@ export function ActionSheet({
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     {visibleActions.map((action) => (
-                      <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, merge: onMerge, transfer: onTransfer, unmerge: onUnmerge, bill_split: onBillSplit, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
+                      <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, merge: onMerge, transfer: onTransfer, unmerge: onUnmerge, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
                         className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
                         <action.icon size={22} strokeWidth={2.5} />
                         <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>

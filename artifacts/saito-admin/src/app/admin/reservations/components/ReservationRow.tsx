@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle, Calendar, Users, Phone, Clock, Trash2, Star, UserPlus, Zap, Edit2, ShoppingBag } from 'lucide-react';
+import { Calendar, Users, Phone, Clock, Trash2, Star, UserPlus, Zap } from 'lucide-react';
 
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -19,6 +19,9 @@ interface Props {
   onRestore: (id: string) => void;
   onSelect: (res: any) => void;
   onHandle?: (res: any) => void;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 const maskPhone = (phone: string) => {
@@ -45,7 +48,10 @@ export const ReservationTableRow = ({
   onArchive, 
   onRestore, 
   onSelect, 
-  onHandle 
+  onHandle,
+  selectionMode,
+  isSelected,
+  onToggleSelect
 }: Props) => {
   const { lightMode } = useTheme();
   const tag = getGuestTag(res.visitCount || 1);
@@ -53,16 +59,30 @@ export const ReservationTableRow = ({
 
   return (
     <motion.tr
-      layoutId={`reserv-${res.id}`}
-      onClick={() => onSelect(res)}
+      whileHover={{ scale: 1.002 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      onClick={() => selectionMode ? onToggleSelect?.(res.id) : onSelect(res)}
       className={`group border-b cursor-pointer transition-all duration-300 ${
-        lightMode 
-          ? 'border-zinc-100 hover:bg-zinc-50' 
-          : 'border-white/[0.04] hover:bg-white/[0.02]'
+        isSelected 
+          ? (lightMode ? 'bg-blue-50/50' : 'bg-blue-500/5') 
+          : lightMode 
+            ? 'border-zinc-100 hover:bg-zinc-50' 
+            : 'border-white/[0.04] hover:bg-white/[0.02]'
       }`}
     >
       <td className="px-8 py-6">
-        <div className="flex flex-col">
+        <div className="flex items-center gap-3">
+          {selectionMode && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onToggleSelect?.(res.id)}
+                className="w-5 h-5 rounded accent-blue-500 cursor-pointer"
+              />
+            </div>
+          )}
+          <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className={`font-bold text-[15px] ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{displayName}</span>
             <span className={`px-1.5 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest ${tag.color}`}>
@@ -73,6 +93,7 @@ export const ReservationTableRow = ({
             {maskPhone(res.phone)}
           </span>
         </div>
+        </div>
       </td>
       <td className="px-8 py-6">
         <div className="flex flex-col gap-1.5 text-[12px] font-bold">
@@ -81,6 +102,17 @@ export const ReservationTableRow = ({
           </span>
           <span className={`flex items-center gap-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
             <Clock size={13} className="opacity-30" /> {res.time}
+            {res.status !== 'archived' && res.status !== 'cancelled' && res.status !== 'completed' && (() => {
+              const today = new Date().toISOString().split('T')[0];
+              if (res.date < today || (res.date === today && res.time && (() => {
+                const [h, m] = res.time.split(':').map(Number);
+                const resTime = new Date(); resTime.setHours(h, m, 0);
+                return new Date().getTime() - resTime.getTime() > 0;
+              })())) {
+                return <span className="px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 text-[8px] font-black uppercase tracking-widest ml-1">vaxtı keçib</span>;
+              }
+              return null;
+            })()}
           </span>
         </div>
       </td>
@@ -96,32 +128,13 @@ export const ReservationTableRow = ({
         </p>
       </td>
       <td className="px-8 py-6 text-right">
-        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-           {res.status === 'pending' && onHandle && (
-             <button onClick={() => onHandle(res)} className="px-3 py-2.5 rounded-xl bg-amber-500/15 text-amber-400 hover:bg-amber-500 hover:text-white transition-all shadow-lg shadow-amber-500/5 text-xs font-bold flex items-center gap-1.5">
-               Bron et
-             </button>
-           )}
-           {res.status === 'pending' && (
-             <button title="Təsdiqlə" onClick={() => onUpdateStatus(res.id, 'confirmed')} className="p-2.5 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5"><CheckCircle size={18} /></button>
-           )}
-            {res.status === 'confirmed' && (
-              <div className="flex gap-1.5">
-                <button title="Gəldi" onClick={() => onUpdateStatus(res.id, 'checked_in')} className="px-3 py-2.5 rounded-xl bg-blue-500/15 text-blue-400 hover:bg-blue-500 hover:text-white transition-all shadow-lg text-xs font-bold whitespace-nowrap">Gəldi</button>
-                <button title="Gəlmədi" onClick={() => onUpdateStatus(res.id, 'no_show')} className="px-3 py-2.5 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all text-xs font-bold whitespace-nowrap">Gəlmədi</button>
-              </div>
-            )}
-           {res.status === 'checked_in' && (
-             <button title="Tamamla" onClick={() => onUpdateStatus(res.id, 'completed')} className="px-3 py-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all shadow-lg text-xs font-bold">Tamamla</button>
-           )}
-           <button title="Redaktə et" onClick={() => onEdit(res)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all shadow-lg shadow-black/5"><Edit2 size={18} /></button>
-           
-           {timeFilter === 'archive' ? (
-             <button title="Bərpa et" onClick={() => onRestore(res.id)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all shadow-lg shadow-black/5"><Zap size={18} /></button>
-           ) : (
-             <button title="Arxivlə" onClick={() => onArchive(res.id)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all shadow-lg shadow-black/5"><ShoppingBag size={18} /></button>
-           )}
-           <button title="Sil" onClick={() => onDelete(res.id, displayName)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-500/5"><Trash2 size={18} /></button>
+        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+          {timeFilter === 'archive' && (
+            <button title="Bərpa et" onClick={() => onRestore(res.id)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all"><Zap size={18} /></button>
+          )}
+          {res.status === 'archived' && (
+            <button title="Sil" onClick={() => onDelete(res.id, displayName)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18} /></button>
+          )}
         </div>
       </td>
     </motion.tr>
@@ -140,7 +153,8 @@ export const ReservationCard = ({
 
   return (
     <motion.div
-      layoutId={`reserv-${res.id}`}
+      whileHover={{ scale: 1.01 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       onClick={() => onSelect(res)}
       className={`p-6 rounded-[2.5rem] border shadow-2xl transition-all ${
         lightMode 

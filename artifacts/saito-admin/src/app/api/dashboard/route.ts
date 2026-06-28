@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { validateAuth } from '@/lib/api-auth';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+function svcHeaders() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return {
+    'apikey': key,
+    'Authorization': `Bearer ${key}`,
+  };
+}
 
 export async function GET() {
   const auth = await validateAuth();
@@ -10,6 +15,7 @@ export async function GET() {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -20,36 +26,11 @@ export async function GET() {
       campaignsRes,
       settingsRes
     ] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/products?select=*,category:categories(*),variants:product_variants(*),modifiers:product_modifiers(*)&order=name`, {
-        headers: {
-          'apikey': SERVICE_ROLE_KEY,
-          'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-      }),
-      fetch(`${SUPABASE_URL}/rest/v1/categories?select=*&order=name`, {
-        headers: {
-          'apikey': SERVICE_ROLE_KEY,
-          'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-      }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=total_amount&status=eq.paid&created_at=gte.${todayStart.toISOString()}`, {
-        headers: {
-          'apikey': SERVICE_ROLE_KEY,
-          'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-      }),
-      fetch(`${SUPABASE_URL}/rest/v1/campaigns?select=id&type=eq.HAPPY_HOUR&status=eq.active&limit=1`, {
-        headers: {
-          'apikey': SERVICE_ROLE_KEY,
-          'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-      }),
-      fetch(`${SUPABASE_URL}/rest/v1/settings?select=opening_hours&limit=1`, {
-        headers: {
-          'apikey': SERVICE_ROLE_KEY,
-          'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-      }),
+      fetch(`${supabaseUrl}/rest/v1/products?select=*,category:categories(*),variants:product_variants(*),modifiers:product_modifiers(*)&order=name`, { headers: svcHeaders() }),
+      fetch(`${supabaseUrl}/rest/v1/categories?select=*&order=name`, { headers: svcHeaders() }),
+      fetch(`${supabaseUrl}/rest/v1/orders?select=total_amount&status=eq.paid&created_at=gte.${todayStart.toISOString()}`, { headers: svcHeaders() }),
+      fetch(`${supabaseUrl}/rest/v1/campaigns?select=id&type=eq.HAPPY_HOUR&status=eq.active&limit=1`, { headers: svcHeaders() }),
+      fetch(`${supabaseUrl}/rest/v1/settings?select=opening_hours&limit=1`, { headers: svcHeaders() }),
     ]);
 
     const [products, categories, orders, campaigns, settings] = await Promise.all([

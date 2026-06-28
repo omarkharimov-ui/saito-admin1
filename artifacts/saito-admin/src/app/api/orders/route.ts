@@ -143,7 +143,10 @@ export async function POST(request: Request) {
       const floorData = floorRes.ok ? await floorRes.json() : [];
       const currentFloor = floorData?.[0];
 
-      const tablePatch: Record<string, any> = { status: 'occupied' };
+      const tablePatch: Record<string, any> = { 
+        status: 'cooking',
+        last_activity_at: new Date().toISOString()
+      };
 
       // If table was reserved, clear reservation metadata and mark reservation as checked_in
       if (currentFloor?.reservation_id) {

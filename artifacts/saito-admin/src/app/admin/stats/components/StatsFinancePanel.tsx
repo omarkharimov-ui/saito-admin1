@@ -29,6 +29,8 @@ interface Props {
   totalRevenue: number;
   totalFoodCost: number;
   totalWasteCost: number;
+  laborCost: number;
+  utilityCost: number;
   grossProfit: number;
   netProfit: number;
   foodCostPct: number;
@@ -48,6 +50,12 @@ function foodCostHealth(pct: number): { label: string; color: string; bg: string
   if (pct <= 32)    return { label: 'Normal',          color: 'text-[#D4AF37]',   bg: 'bg-amber-500/10',  border: 'border-amber-500/20' };
   if (pct <= 40)    return { label: 'Diqqət',          color: 'text-orange-400',  bg: 'bg-orange-500/10', border: 'border-orange-500/20' };
   return              { label: 'Kritik',          color: 'text-red-400',     bg: 'bg-red-500/10',    border: 'border-red-500/25' };
+}
+
+function costHealth(pct: number, target: number): { label: string; color: string } {
+    if (pct <= target) return { label: 'Əla', color: 'text-emerald-400' };
+    if (pct <= target + 5) return { label: 'Normal', color: 'text-[#D4AF37]' };
+    return { label: 'Yüksək', color: 'text-rose-400' };
 }
 
 function FinCard({
@@ -93,11 +101,17 @@ function ChartTooltip({ active, payload, label }: any) {
 
 export default function StatsFinancePanel({
   totalRevenue, totalFoodCost, totalWasteCost,
+  laborCost, utilityCost,
   grossProfit, netProfit, foodCostPct,
   topProfitableItems, financeChartData, loading,
 }: Props) {
   const health = foodCostHealth(foodCostPct);
+  const laborPct = totalRevenue > 0 ? (laborCost / totalRevenue) * 100 : 0;
+  const utilityPct = totalRevenue > 0 ? (utilityCost / totalRevenue) * 100 : 0;
   
+  const laborHealth = costHealth(laborPct, 18);
+  const utilityHealth = costHealth(utilityPct, 5);
+
   const chartEnriched = financeChartData.map(d => ({
     ...d,
     net_profit: d.net_profit ?? (totalRevenue > 0
@@ -122,36 +136,68 @@ export default function StatsFinancePanel({
         </div>
       </div>
 
-      {foodCostPct > 0 && (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Food Cost Bar */}
         <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-          className="rounded-2xl px-5 py-4"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="rounded-2xl px-5 py-4 bg-white/[0.02] border border-white/[0.06]"
         >
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-[11px] font-bold text-white/30 uppercase tracking-wider">Food Cost %</span>
-            <span className={`text-[11px] font-bold ${health.color}`}>{health.label} — ideal: 25–35%</span>
-          </div>
-          <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden">
-            <div className="absolute inset-y-0 left-0 w-[25%] bg-emerald-500/20 rounded-full" />
-            <div className="absolute inset-y-0 left-[25%] w-[10%] bg-amber-400/20" />
-            <div className="absolute inset-y-0 left-[35%] w-[5%] bg-orange-400/20" />
-            <motion.div
-              className={`absolute inset-y-0 left-0 rounded-full ${
-                foodCostPct <= 25 ? 'bg-emerald-400' :
-                foodCostPct <= 32 ? 'bg-amber-400' :
-                foodCostPct <= 40 ? 'bg-orange-400' : 'bg-red-500'
-              }`}
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(foodCostPct, 100)}%` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
-            />
-          </div>
-          <div className="flex items-center justify-between mt-1.5 text-[9px] text-white/20 font-medium">
-            <span>0%</span><span>25%</span><span>35%</span><span>50%</span><span>100%</span>
-          </div>
+            <div className="flex items-center justify-between mb-2.5">
+                <span className="text-[11px] font-bold text-white/30 uppercase tracking-wider">Food Cost</span>
+                <span className={`text-[11px] font-bold ${health.color}`}>{health.label} · {foodCostPct.toFixed(1)}%</span>
+            </div>
+            <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                <motion.div
+                    className={`absolute inset-y-0 left-0 rounded-full ${
+                        foodCostPct <= 25 ? 'bg-emerald-400' :
+                        foodCostPct <= 32 ? 'bg-amber-400' :
+                        foodCostPct <= 40 ? 'bg-orange-400' : 'bg-red-500'
+                    }`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(foodCostPct, 100)}%` }}
+                    transition={{ duration: 0.8 }}
+                />
+            </div>
         </motion.div>
-      )}
+
+        {/* Labor Cost Bar */}
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+            className="rounded-2xl px-5 py-4 bg-white/[0.02] border border-white/[0.06]"
+        >
+            <div className="flex items-center justify-between mb-2.5">
+                <span className="text-[11px] font-bold text-white/30 uppercase tracking-wider">İşçilik</span>
+                <span className={`text-[11px] font-bold ${laborHealth.color}`}>{laborHealth.label} · {laborPct.toFixed(1)}%</span>
+            </div>
+            <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                <motion.div
+                    className={`absolute inset-y-0 left-0 rounded-full ${laborHealth.color.replace('text-', 'bg-')}`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(laborPct * 2.5, 100)}%` }}
+                    transition={{ duration: 0.8 }}
+                />
+            </div>
+        </motion.div>
+
+        {/* Utility Cost Bar */}
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
+            className="rounded-2xl px-5 py-4 bg-white/[0.02] border border-white/[0.06]"
+        >
+            <div className="flex items-center justify-between mb-2.5">
+                <span className="text-[11px] font-bold text-white/30 uppercase tracking-wider">Kommunal</span>
+                <span className={`text-[11px] font-bold ${utilityHealth.color}`}>{utilityHealth.label} · {utilityPct.toFixed(1)}%</span>
+            </div>
+            <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                <motion.div
+                    className={`absolute inset-y-0 left-0 rounded-full ${utilityHealth.color.replace('text-', 'bg-')}`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(utilityPct * 8, 100)}%` }}
+                    transition={{ duration: 0.8 }}
+                />
+            </div>
+        </motion.div>
+      </div>
 
       {chartEnriched.length > 1 && (
         <motion.div

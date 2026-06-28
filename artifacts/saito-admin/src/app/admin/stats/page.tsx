@@ -35,7 +35,8 @@ const StatsPage = () => {
   const [stats, setStats] = useState<any>({
     totalRevenue: 0, totalOrders: 0, aov: 0, peakHour: '—', topProduct: '—',
     missedRevenue: 0, peakHours: [], activeTables: 0, chartData: [], productPerformance: [],
-    cancellationReasons: [], totalFoodCost: 0, totalWasteCost: 0, grossProfit: 0, netProfit: 0,
+    cancellationReasons: [], totalFoodCost: 0, totalWasteCost: 0, laborCost: 0, utilityCost: 0, 
+    grossProfit: 0, netProfit: 0,
     foodCostPct: 0, topProfitableItems: [], financeChartData: [],
   });
 
@@ -139,6 +140,8 @@ const StatsPage = () => {
         activeTables: data.activeTables ?? 0,
         totalFoodCost: data.totalFoodCost ?? 0,
         totalWasteCost: data.totalWasteCost ?? 0,
+        laborCost: data.laborCost ?? 0,
+        utilityCost: data.utilityCost ?? 0,
         grossProfit: data.grossProfit ?? 0,
         netProfit: data.netProfit ?? 0,
         foodCostPct: data.foodCostPct ?? 0,
@@ -217,6 +220,8 @@ const StatsPage = () => {
             foodCostPct={stats.foodCostPct}
             totalFoodCost={stats.totalFoodCost}
             totalWasteCost={stats.totalWasteCost}
+            laborCost={stats.laborCost}
+            utilityCost={stats.utilityCost}
           />
 
           <StatsSenseiPanel
@@ -253,6 +258,8 @@ const StatsPage = () => {
                totalRevenue={stats.totalRevenue}
                totalFoodCost={stats.totalFoodCost}
                totalWasteCost={stats.totalWasteCost}
+               laborCost={stats.laborCost}
+               utilityCost={stats.utilityCost}
                grossProfit={stats.grossProfit}
                netProfit={stats.netProfit}
                foodCostPct={stats.foodCostPct}

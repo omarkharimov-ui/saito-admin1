@@ -6,11 +6,22 @@ import { Armchair, Users, Clock, CheckCircle2, Utensils } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
 
-interface TableStatus {
-  tableNumber: number;
-  status: 'empty' | 'occupied' | 'new' | 'order_placed' | 'payment_pending' | 'reserved';
-  orderCount?: number;
-  waitTime?: number;
+function TableTimer({ startTime, status }: { startTime: number, status: string }) {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        if (status === 'empty' || !startTime) {
+            setElapsed(0);
+            return;
+        }
+        const update = () => setElapsed(Math.floor((Date.now() - startTime) / 60000));
+        update();
+        const interval = setInterval(update, 10000); // Update minute display every 10s
+        return () => clearInterval(interval);
+    }, [startTime, status]);
+
+    if (status === 'empty' || elapsed <= 0) return null;
+    return <span className="text-[8px] font-bold opacity-60">{elapsed}d</span>;
 }
 
 export default function LiveFloorSnapshot() {
@@ -77,14 +88,14 @@ export default function LiveFloorSnapshot() {
                   status = 'order_placed';
                 }
 
-                const waitTime = order.created_at ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000) : 0;
+                const startTime = order.created_at ? new Date(order.created_at).getTime() : 0;
 
                 tableMap.set(tableNum, {
                 tableNumber: tableNum,
                 status,
                 orderCount: (existing?.orderCount || 0) + 1,
-                waitTime,
-                });
+                startTime,
+                } as any);
             });
         }
 
@@ -94,7 +105,7 @@ export default function LiveFloorSnapshot() {
         // In case of a major error, set a default safe state
         const defaultTables: TableStatus[] = [];
         for (let i = 1; i <= tableCount; i++) {
-          defaultTables.push({ tableNumber: i, status: 'empty' });
+          defaultTables.push({ tableNumber: i, status: 'empty' } as any);
         }
         setTables(defaultTables);
       } finally {
@@ -211,9 +222,7 @@ export default function LiveFloorSnapshot() {
               {getStatusIcon(table.status)}
               <span className="text-[9px] font-black tabular-nums">{table.tableNumber}</span>
             </div>
-            {table.waitTime !== undefined && table.status !== 'empty' && (
-              <span className="text-[8px] font-bold opacity-60">{table.waitTime}d</span>
-            )}
+            <TableTimer startTime={(table as any).startTime} status={table.status} />
           </motion.div>
         ))}
       </div>

@@ -209,8 +209,12 @@ export async function GET(request: Request) {
     }, 0);
 
     const grossProfit = totalRevenue - totalFoodCost;
-    const netProfit = grossProfit - totalWasteCost;
     const foodCostPct = totalRevenue > 0 ? (totalFoodCost / totalRevenue) * 100 : 0;
+
+    // Fixed costs logic (Labor & Utility) - Priority 7
+    const laborCost = totalRevenue * 0.18; // 18% target
+    const utilityCost = totalRevenue * 0.05; // 5% target
+    const netProfit = grossProfit - totalWasteCost - laborCost - utilityCost;
 
     const topProfitableItems = Array.from(profitByProduct.entries())
       .map(([pid, d]) => ({
@@ -319,6 +323,8 @@ export async function GET(request: Request) {
       chartData,
       totalFoodCost: Math.round(totalFoodCost * 100) / 100,
       totalWasteCost: Math.round(totalWasteCost * 100) / 100,
+      laborCost: Math.round(laborCost * 100) / 100,
+      utilityCost: Math.round(utilityCost * 100) / 100,
       grossProfit: Math.round(grossProfit * 100) / 100,
       netProfit: Math.round(netProfit * 100) / 100,
       foodCostPct: Math.round(foodCostPct * 10) / 10,

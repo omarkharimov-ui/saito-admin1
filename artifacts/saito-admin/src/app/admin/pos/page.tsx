@@ -289,7 +289,13 @@ export default function POSPage() {
         onPrint={() => window.print()} onSaveDraft={() => {}} onCancelTable={() => { if (actionSheetTable) { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); } }}
         mergeMode={mergeMode} transferMode={transferMode} splitMode={splitMode} allTables={pos.tables} selectedForMerge={selectedForMerge} selectedForSplit={selectedForSplit} transferSource={transferSource} transferTarget={transferTarget}
         onToggleSplit={(n) => { if (selectedForSplit.includes(n)) setSelectedForSplit(p => p.filter(x => x !== n)); else setSelectedForSplit(p => [...p, n]); }}
-        onConfirmSplit={async () => { const toSplit = selectedForSplit.filter(n => n !== selectedForSplit[0]); if (toSplit.length === 0) { toast.error("Ayırmaq üçün ən azı bir masa seçin"); return; } try { const res = await fetch('/api/orders/split', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table_numbers: toSplit }) }); if (!res.ok) throw new Error("Ayırma xətası"); toast.success("Masalar ayrıldı"); setSplitMode(false); setSelectedForSplit([]); setActionSheetOpen(false); pos.fetchData(); } catch (e: any) { toast.error(e.message); } }}
+        onConfirmSplit={async () => { 
+          if (!actionSheetTable || selectedForSplit.length === 0) return;
+          await (pos as any).splitTables(actionSheetTable.table_number, selectedForSplit);
+          setSplitMode(false);
+          setSelectedForSplit([]);
+          setActionSheetOpen(false);
+        }}
         onCancelMode={() => { setMergeMode(false); setTransferMode(false); setSplitMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
         onConfirmMerge={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
         onConfirmTransfer={async () => { if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); } }}

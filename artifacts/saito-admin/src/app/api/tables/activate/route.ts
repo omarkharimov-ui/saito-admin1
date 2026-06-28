@@ -33,20 +33,91 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Table is not reserved' }, { status: 409 });
     }
 
-    const reservationRes = await fetch(`${s.url}/rest/v1/reservations?id=eq.${currentTable.reservation_id}`, { headers: s.headers });
+    const reservationId = currentTable.reservation_id;
+    if (!reservationId) {
+      return NextResponse.json({ error: 'Table has no linked reservation' }, { status: 409 });
+    }
+
+    const reservationRes = await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, { headers: s.headers });
     if (!reservationRes.ok) {
       return NextResponse.json({ error: 'Failed to fetch reservation' }, { status: 500 });
     }
     const reservations: any[] = await reservationRes.json();
     const reservation = reservations?.[0];
 
+    if (!reservation) {
+      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
+    }
+
+    // 1. Create the POS Order
+    const orderPayload = {
+      table_number: currentTable.table_number,
+      reservation_id: reservationId,
+      status: 'confirmed',
+      order_type: 'dine_in',
+      guest_count: guest_count || reservation.guests || 1,
+      total_amount: Number(reservation.pre_order_total || 0),
+      customer_note: reservation.note,
+      created_at: new Date().toISOString(),
+      version: 1,
+    };
+
+    const orderCreateRes = await fetch(`${s.url}/rest/v1/orders`, {
+      method: 'POST',
+      headers: { ...s.headers, 'Prefer': 'return=representation' },
+      body: JSON.stringify(orderPayload),
+    });
+    if (!orderCreateRes.ok) {
+      return NextResponse.json({ error: 'Order creation failed' }, { status: 500 });
+    }
+    const newOrder = (await orderCreateRes.json())?.[0];
+    if (!newOrder) {
+      return NextResponse.json({ error: 'Order creation returned no data' }, { status: 500 });
+    }
+
+    // 2. Transfer pre-order items if any
+    const preItems = typeof reservation.pre_order_items === 'string'
+      ? JSON.parse(reservation.pre_order_items)
+      : (reservation.pre_order_items || []);
+
+    if (Array.isArray(preItems) && preItems.length > 0) {
+      for (const item of preItems) {
+        await fetch(`${s.url}/rest/v1/order_items`, {
+          method: 'POST',
+          headers: s.headers,
+          body: JSON.stringify({
+            order_id: newOrder.id,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.unit_price * item.quantity,
+            modifiers: JSON.stringify(item.modifiers || []),
+            special_notes: item.special_notes || '',
+            kitchen_status: 'pending',
+          }),
+        });
+      }
+    }
+
+    // 3. Update Reservation status
+    await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, {
+      method: 'PATCH',
+      headers: s.headers,
+      body: JSON.stringify({
+        status: 'checked_in',
+        checked_in_at: new Date().toISOString(),
+      }),
+    });
+
+    // 4. Update Table status (last — clears reservation tie)
     const tablePatch: Record<string, any> = {
       status: 'occupied',
       reservation_id: null,
       reservation_name: null,
       reservation_phone: null,
       reservation_time: null,
-      guest_count: guest_count ?? reservation?.guests ?? null,
+      guest_count: guest_count || reservation.guests || null,
     };
 
     const updatedTableRes = await fetch(`${s.url}/rest/v1/table_floors?id=eq.${table_id}`, {
@@ -61,19 +132,9 @@ export async function POST(req: NextRequest) {
     const updatedTables = await updatedTableRes.json();
     const updatedTable = Array.isArray(updatedTables) ? updatedTables[0] : updatedTables;
 
-    if (reservation) {
-      await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservation.id}`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({
-          status: 'checked_in',
-          checked_in_at: new Date().toISOString(),
-        }),
-      }).catch(() => {});
-    }
-
-    return NextResponse.json({ success: true, table: updatedTable });
+    return NextResponse.json({ success: true, table: updatedTable, order: newOrder });
   } catch (error: any) {
+    console.error('[API /tables/activate] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

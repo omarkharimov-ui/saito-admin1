@@ -217,28 +217,19 @@ export function usePos() {
   }, []);
 
   const activateReservedTable = useCallback(async (table: PosTable) => {
-    if (!table.reservation_id) return;
+    if (!table.id) return;
     try {
       setLoading(true);
-      const res = await fetch('/api/reservations/activate', {
+      const res = await fetch('/api/tables/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          reservation_id: table.reservation_id,
-          table_number: table.table_number 
-        }),
+        body: JSON.stringify({ table_id: table.id }),
       });
-      
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Aktivləşdirmə xətası");
-
-      // Reload data to see the new order and table status
       await fetchData();
-      
-      // Auto-select the newly activated table to enter POS view
       const updatedTable = tables.find(t => t.table_number === table.table_number);
       if (updatedTable) selectTable({ ...updatedTable, status: 'occupied' });
-
       toast.success("Masa aktivləşdirildi və sessiya yaradıldı");
     } catch (e: any) {
       toast.error(e.message);
@@ -262,10 +253,10 @@ export function usePos() {
       saveCache(POS_CART_KEY + '_all', all);
       delete orderFingerprintRef.current[tableNumber];
       toast.success(`Masa ${tableNumber} təmizləndi`);
-      fetchData();
+      await fetchData();
     } catch (e: any) {
       toast.error(e.message);
-      fetchData();
+      await fetchData();
     } finally {
       setLoading(false);
     }
@@ -585,11 +576,11 @@ export function usePos() {
       
       toast.success('Hesab bağlandı');
       cartRef.current = null;
+      await fetchData();
       backToFloor();
-      fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Ödəniş xətası');
-      fetchData();
+      await fetchData();
     }
   }, [backToFloor, fetchData, t]);
 

@@ -25,8 +25,8 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
 
-  const isOccupied = (table.status === 'occupied' || table.status === 'active' || table.status === 'cooking' || table.status === 'waiting_bill' || table.total_amount > 0) && table.status !== 'reserved';
-  const isReserved = (table.status === 'reserved' || (table as any).is_draft || table.kitchen_status === 'reserved') && table.total_amount === 0;
+  const isOccupied = ['occupied', 'cooking', 'waiting_bill', 'merged'].includes(table.status);
+  const isReserved = table.status === 'reserved';
 
   // Real-time delay counter
   useEffect(() => {

@@ -420,16 +420,8 @@ export default function POSPage() {
                   onClick={async () => {
                     if (!reservedTableDetail) return;
                     try {
-                      const res = await fetch('/api/tables/activate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ table_id: reservedTableDetail.id }),
-                      });
-                      if (!res.ok) throw new Error((await res.json()).error || 'Xəta baş verdi');
-                      pos.selectTable(reservedTableDetail);
+                      await pos.activateReservedTable(reservedTableDetail);
                       setReservedTableDetail(null);
-                      toast.success(`Masa ${reservedTableDetail.table_number} aktivləşdirildi`);
-                      pos.fetchData();
                     } catch (e: any) {
                       toast.error(e.message || 'Xəta baş verdi');
                     }

@@ -98,12 +98,11 @@ export async function GET() {
       
       const tableOrders = ordersByTable[f.table_number] || [];
       const activeOrders = tableOrders.filter(o => o.status !== 'paid' && o.status !== 'cancelled');
+      const realActiveOrders = activeOrders.filter(o => !o.is_draft && o.kitchen_status !== 'reserved');
+      const hasActiveOrder = realActiveOrders.length > 0;
       
       const currentResId = activeOrders.find(o => o.reservation_id)?.reservation_id || f.reservation_id;
       const reservation = currentResId ? reservationMap[currentResId] : null;
-
-      // REBUILD STATUS LOGIC — Single Source of Truth
-      const hasActiveOrder = activeOrders.length > 0;
       const isReserved = !hasActiveOrder && (f.status === 'reserved' || reservation != null);
       
       let status: string;
@@ -111,10 +110,9 @@ export async function GET() {
       else if (hasActiveOrder) {
         if (activeOrders.some(o => o.kitchen_status === 'ready')) status = 'waiting_bill';
         else if (activeOrders.some(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing')) status = 'cooking';
-        else status = 'occupied'; // Base state for any active order
+        else status = 'occupied';
       }
       else if (isReserved) status = 'reserved';
-      else if (f.status === 'occupied' || f.status === 'active') status = 'active';
       else status = 'empty';
 
       const totalAmount = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);

@@ -14,6 +14,24 @@ interface TableStatus {
 }
 
 function TableTimer({ startTime, status }: { startTime?: number, status: string }) {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        if (status === 'empty' || !startTime) {
+            setElapsed(0);
+            return;
+        }
+        const update = () => setElapsed(Math.floor((Date.now() - startTime) / 60000));
+        update();
+        const interval = setInterval(update, 10000); // Update minute display every 10s
+        return () => clearInterval(interval);
+    }, [startTime, status]);
+
+    if (status === 'empty' || elapsed <= 0) return null;
+    return <span className="text-[8px] font-bold opacity-60">{elapsed}d</span>;
+}
+
+export default function LiveFloorSnapshot() {
   const { t } = useLanguage();
   const [tableCount, setTableCount] = useState(12);
   const [tables, setTables] = useState<TableStatus[]>([]);

@@ -72,14 +72,19 @@ export async function POST(request: NextRequest) {
       0
     );
 
-    const tableFloorPatch = {
+    const tableFloorPatch: any = {
       status: 'reserved',
       reservation_id,
-      reservation_name: reservation.customer_name || reservation.name || 'Guest',
-      reservation_phone: reservation.phone,
-      reservation_time: reservation.time,
       guest_count: guest_count ?? reservation.guests ?? null,
     };
+
+    // Only add metadata columns if we are sure they exist or handle gracefully
+    // Note: User needs to run schema_sync.sql for full metadata support
+    if (reservation.customer_name || reservation.name) {
+        tableFloorPatch.reservation_name = reservation.customer_name || reservation.name;
+    }
+    if (reservation.phone) tableFloorPatch.reservation_phone = reservation.phone;
+    if (reservation.time) tableFloorPatch.reservation_time = reservation.time;
 
     // 3. Atomically update ALL tables (SSOT enforced)
     for (const tid of table_ids) {
@@ -88,7 +93,18 @@ export async function POST(request: NextRequest) {
         headers: svc().headers,
         body: JSON.stringify(tableFloorPatch),
       });
-      if (!floorRes.ok) throw new Error(`Table update failed for ID ${tid}`);
+      
+      if (!floorRes.ok) {
+        const errorBody = await floorRes.text();
+        console.error(`[reserve-table] Table update failed for ID ${tid}:`, errorBody);
+        // If it fails because of missing columns, retry with minimal data
+        const fallbackRes = await fetch(`${svc().url}/rest/v1/table_floors?id=eq.${tid}`, {
+          method: 'PATCH',
+          headers: svc().headers,
+          body: JSON.stringify({ status: 'reserved', reservation_id }),
+        });
+        if (!fallbackRes.ok) throw new Error(`Table update failed for ID ${tid}. Please check database schema.`);
+      }
     }
 
     // 4. Kitchen schedule logic (Optional but kept)

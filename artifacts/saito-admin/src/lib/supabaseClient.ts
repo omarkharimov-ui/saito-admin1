@@ -110,6 +110,14 @@ export type Database = {
           split_count: number | null;
           guest_count: number | null;
           tip_amount: number | null;
+          cancelled_at: string | null;
+          paid_at: string | null;
+          closed_at: string | null;
+          version: number | null;
+          merged_into: string | null;
+          reservation_id: string | null;
+          is_draft: boolean | null;
+          checkin_at: string | null;
         };
         Insert: {
           id?: string;
@@ -132,6 +140,14 @@ export type Database = {
           split_count?: number | null;
           guest_count?: number | null;
           tip_amount?: number | null;
+          cancelled_at?: string | null;
+          paid_at?: string | null;
+          closed_at?: string | null;
+          version?: number | null;
+          merged_into?: string | null;
+          reservation_id?: string | null;
+          is_draft?: boolean | null;
+          checkin_at?: string | null;
         };
         Update: {
           table_number?: number | null;
@@ -152,6 +168,14 @@ export type Database = {
           split_count?: number | null;
           guest_count?: number | null;
           tip_amount?: number | null;
+          cancelled_at?: string | null;
+          paid_at?: string | null;
+          closed_at?: string | null;
+          version?: number | null;
+          merged_into?: string | null;
+          reservation_id?: string | null;
+          is_draft?: boolean | null;
+          checkin_at?: string | null;
         };
         Relationships: [];
       };
@@ -167,6 +191,11 @@ export type Database = {
           total_price: number | null;
           created_at: string | null;
           course: string | null;
+          modifiers: Json | null;
+          special_notes: string | null;
+          kitchen_status: string | null;
+          is_ready_product: boolean | null;
+          direct_ingredient_id: string | null;
         };
         Insert: {
           id?: string;
@@ -179,6 +208,11 @@ export type Database = {
           total_price?: number | null;
           created_at?: string | null;
           course?: string | null;
+          modifiers?: Json | null;
+          special_notes?: string | null;
+          kitchen_status?: string | null;
+          is_ready_product?: boolean | null;
+          direct_ingredient_id?: string | null;
         };
         Update: {
           product_id?: string | null;
@@ -188,6 +222,11 @@ export type Database = {
           unit_price?: number | null;
           total_price?: number | null;
           course?: string | null;
+          modifiers?: Json | null;
+          special_notes?: string | null;
+          kitchen_status?: string | null;
+          is_ready_product?: boolean | null;
+          direct_ingredient_id?: string | null;
         };
         Relationships: [];
       };
@@ -247,9 +286,17 @@ export type Database = {
           guests: number | null;
           date: string | null;
           time: string | null;
-          status: 'pending' | 'confirmed' | 'cancelled' | 'expired' | string;
+          status: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'checked_in' | 'completed' | 'no_show' | string;
           note: string | null;
           created_at: string | null;
+          customer_name: string | null;
+          table_ids: Json | null;
+          pre_order_items: Json | null;
+          pre_order_total: number | null;
+          kitchen_scheduled_at: string | null;
+          table_number: number | null;
+          checked_in_at: string | null;
+          completed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -258,9 +305,17 @@ export type Database = {
           guests?: number | null;
           date?: string | null;
           time?: string | null;
-          status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | string;
+          status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'checked_in' | 'completed' | 'no_show' | string;
           note?: string | null;
           created_at?: string | null;
+          customer_name?: string | null;
+          table_ids?: Json | null;
+          pre_order_items?: Json | null;
+          pre_order_total?: number | null;
+          kitchen_scheduled_at?: string | null;
+          table_number?: number | null;
+          checked_in_at?: string | null;
+          completed_at?: string | null;
         };
         Update: {
           name?: string | null;
@@ -268,8 +323,16 @@ export type Database = {
           guests?: number | null;
           date?: string | null;
           time?: string | null;
-          status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | string;
+          status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'checked_in' | 'completed' | 'no_show' | string;
           note?: string | null;
+          customer_name?: string | null;
+          table_ids?: Json | null;
+          pre_order_items?: Json | null;
+          pre_order_total?: number | null;
+          kitchen_scheduled_at?: string | null;
+          table_number?: number | null;
+          checked_in_at?: string | null;
+          completed_at?: string | null;
         };
         Relationships: [];
       };
@@ -423,17 +486,38 @@ export type Database = {
           table_number: number;
           floor_name: string;
           sort_order: number;
+          status: string | null;
+          reservation_id: string | null;
+          reservation_name: string | null;
+          reservation_phone: string | null;
+          reservation_time: string | null;
+          guest_count: number | null;
+          merged_into_table: number | null;
         };
         Insert: {
           id?: string;
           table_number: number;
           floor_name?: string;
           sort_order?: number;
+          status?: string | null;
+          reservation_id?: string | null;
+          reservation_name?: string | null;
+          reservation_phone?: string | null;
+          reservation_time?: string | null;
+          guest_count?: number | null;
+          merged_into_table?: number | null;
         };
         Update: {
           table_number?: number;
           floor_name?: string;
           sort_order?: number;
+          status?: string | null;
+          reservation_id?: string | null;
+          reservation_name?: string | null;
+          reservation_phone?: string | null;
+          reservation_time?: string | null;
+          guest_count?: number | null;
+          merged_into_table?: number | null;
         };
         Relationships: [];
       };

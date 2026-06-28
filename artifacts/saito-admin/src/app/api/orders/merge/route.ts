@@ -85,10 +85,13 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           total_amount: Number(primaryOrder.total_amount || 0) + extraTotal,
           guest_count: Number(primaryOrder.guest_count || 1) + extraGuests,
-          version: (primaryOrder.version || 0) + 2 // Increment for the total update too
+          version: (primaryOrder.version || 0) + 1
         }),
       });
       if (!finalUpdateRes.ok) throw new Error('Failed to update primary order totals');
+
+      // Determine combined guest count for target table
+      const totalGuests = (Number(primaryOrder?.guest_count || 1)) + extraGuests;
 
       for (const tNum of restTables) {
         await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tNum}`, {
@@ -96,7 +99,12 @@ export async function POST(request: NextRequest) {
           headers: svc().headers,
           body: JSON.stringify({ 
             status: 'merged', 
-            merged_into_table: targetTable 
+            merged_into_table: targetTable,
+            reservation_id: null,
+            reservation_name: null,
+            reservation_phone: null,
+            reservation_time: null,
+            guest_count: null,
           }),
         });
       }
@@ -104,7 +112,10 @@ export async function POST(request: NextRequest) {
       await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${targetTable}`, {
         method: 'PATCH',
         headers: svc().headers,
-        body: JSON.stringify({ status: 'occupied' }),
+        body: JSON.stringify({ 
+          status: 'occupied',
+          guest_count: totalGuests,
+        }),
       });
 
       return { primary_order_id: primaryOrder.id, targetTable, merged_tables: restTables };

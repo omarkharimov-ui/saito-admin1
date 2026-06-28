@@ -138,10 +138,44 @@ export async function POST(request: Request) {
         });
       }
 
+      // Get current table floor state to check for reservation
+      const floorRes = await fetch(`${svc().url}/rest/v1/table_floors?select=*&table_number=eq.${table_number}`, { headers: svc().headers });
+      const floorData = floorRes.ok ? await floorRes.json() : [];
+      const currentFloor = floorData?.[0];
+
+      const tablePatch: Record<string, any> = { status: 'occupied' };
+
+      // If table was reserved, clear reservation metadata and mark reservation as checked_in
+      if (currentFloor?.reservation_id) {
+        tablePatch.reservation_id = null;
+        tablePatch.reservation_name = null;
+        tablePatch.reservation_phone = null;
+        tablePatch.reservation_time = null;
+
+        // Store reservation_id on the order for later lookup (dismiss/cancel)
+        await fetch(`${svc().url}/rest/v1/orders?id=eq.${newOrder.id}`, {
+          method: 'PATCH',
+          headers: svc().headers,
+          body: JSON.stringify({
+            reservation_id: currentFloor.reservation_id,
+          }),
+        }).catch(() => {});
+
+        // Update reservation to 'checked_in'
+        await fetch(`${svc().url}/rest/v1/reservations?id=eq.${currentFloor.reservation_id}`, {
+          method: 'PATCH',
+          headers: svc().headers,
+          body: JSON.stringify({
+            status: 'checked_in',
+            checked_in_at: new Date().toISOString(),
+          }),
+        }).catch(() => {});
+      }
+
       await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
         method: 'PATCH',
         headers: svc().headers,
-        body: JSON.stringify({ status: 'occupied' }),
+        body: JSON.stringify(tablePatch),
       });
 
       return newOrder;

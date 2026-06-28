@@ -270,12 +270,12 @@ export default function POSPage() {
       return;
     }
     if (table.status === 'merged') return;
-    // Bron edilmis masaya basilanda detail modal ac, normal order view-e kecme
+    // Reserved table tap → show reservation detail modal (Activate / Dismiss)
     if (table.status === 'reserved') {
       setReservedTableDetail(table);
       return;
     }
-    if (table.status === 'occupied' && table.total_amount > 0) {
+    if (['active', 'cooking', 'waiting_bill'].includes(table.status) && table.total_amount > 0) {
       setWarningTable(table);
       setWarningOpen(true);
       return;
@@ -335,7 +335,7 @@ export default function POSPage() {
                     isReservationMode={!!reservationCtx}
                     reservationId={reservationCtx?.resId}
                     guestName={reservationCtx?.guestName}
-                    onUpdateGuests={(d) => { const c = pos.cart; if (!c) return; const n = Math.max(1, c.guest_count + d); pos.setCart({ ...c, guest_count: n }); pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t)); supabase.from('tables').update({ guest_count: n }).eq('table_number', c.table_number).then(() => {}); }}
+                    onUpdateGuests={(d) => { const c = pos.cart; if (!c) return; const n = Math.max(1, c.guest_count + d); pos.setCart({ ...c, guest_count: n }); pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t)); supabase.from('table_floors').update({ guest_count: n }).eq('table_number', c.table_number).then(() => {}); }}
                     onRecordLoss={async (items, reason) => { await fetch('/api/finance/loss', { method: 'POST', body: JSON.stringify({ table_number: pos.selectedTable?.table_number, reason, items, source: 'pos' }) }); toast.success(`Itki qeyd edildi`); pos.fetchData(); }}
                   />
               </div>
@@ -491,10 +491,14 @@ export default function POSPage() {
                     try {
                       await supabase.from('table_floors').update({
                         status: 'occupied',
-                        reservation_status: 'active',
+                        guest_count: reservedTableDetail.guest_count || 1,
+                        reservation_id: null,
+                        reservation_name: null,
+                        reservation_phone: null,
+                        reservation_time: null,
                       }).eq('id', reservedTableDetail.id);
                       if (reservedTableDetail.reservation_id) {
-                        await supabase.from('reservations').update({ status: 'checked_in' }).eq('id', reservedTableDetail.reservation_id);
+                        await supabase.from('reservations').update({ status: 'checked_in', checked_in_at: new Date().toISOString() }).eq('id', reservedTableDetail.reservation_id);
                       }
                       pos.selectTable(reservedTableDetail);
                       setReservedTableDetail(null);

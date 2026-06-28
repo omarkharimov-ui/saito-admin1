@@ -21,12 +21,23 @@ export async function POST(request: NextRequest) {
 
     const result = await executeTransactionalOrderAction('TableUnmerge', async () => {
       for (const tableNum of table_numbers) {
+        const floorRes = await fetch(
+          `${svc().url}/rest/v1/table_floors?select=*&table_number=eq.${tableNum}`,
+          { headers: svc().headers }
+        );
+        const floorData = floorRes.ok ? await floorRes.json() : [];
+        const currentFloor = floorData?.[0];
+
+        // Determine what guest count to restore to child table
+        let childGuests = 0;
+
         await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
           method: 'PATCH',
           headers: svc().headers,
           body: JSON.stringify({ 
             status: TABLE_STATES.OCCUPIED, 
-            merged_into_table: null 
+            merged_into_table: null,
+            guest_count: null,
           }),
         });
 
@@ -41,6 +52,8 @@ export async function POST(request: NextRequest) {
             if (order.merged_into) {
               const parentId = order.merged_into;
               
+              childGuests += Number(order.guest_count || 0);
+
               await fetch(`${svc().url}/rest/v1/orders?id=eq.${order.id}`, {
                 method: 'PATCH',
                 headers: svc().headers,
@@ -68,6 +81,32 @@ export async function POST(request: NextRequest) {
                 });
               }
             }
+          }
+        }
+
+        // Write combined guest count to child table
+        if (childGuests > 0) {
+          await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
+            method: 'PATCH',
+            headers: svc().headers,
+            body: JSON.stringify({ guest_count: childGuests }),
+          });
+        }
+
+        // Check if parent table now has no active orders and should be emptied
+        if (currentFloor?.merged_into_table) {
+          const parentTableNum = currentFloor.merged_into_table;
+          const parentOrdersRes = await fetch(
+            `${svc().url}/rest/v1/orders?select=id&table_number=eq.${parentTableNum}&status=neq.paid&status=neq.cancelled`,
+            { headers: svc().headers }
+          );
+          const parentOrders = parentOrdersRes.ok ? await parentOrdersRes.json() : [];
+          if (!parentOrders || parentOrders.length === 0) {
+            await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${parentTableNum}`, {
+              method: 'PATCH',
+              headers: svc().headers,
+              body: JSON.stringify({ status: 'empty', guest_count: null }),
+            });
           }
         }
       }

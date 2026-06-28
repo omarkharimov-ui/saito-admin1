@@ -29,7 +29,11 @@ export async function POST(request: NextRequest) {
               await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
                 method: 'PATCH',
                 headers: svc().headers,
-                body: JSON.stringify({ status: 'occupied', merged_into_table: null }),
+                body: JSON.stringify({ 
+                  status: 'occupied', 
+                  merged_into_table: null,
+                  guest_count: null,
+                }),
               });
             }
           }
@@ -78,7 +82,7 @@ export async function POST(request: NextRequest) {
           await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${toTable}`, {
             method: 'PATCH',
             headers: svc().headers,
-            body: JSON.stringify({ status: 'available' }),
+            body: JSON.stringify({ status: 'empty' }),
           });
           break;
         }

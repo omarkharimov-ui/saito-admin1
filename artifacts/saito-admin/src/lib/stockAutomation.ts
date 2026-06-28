@@ -51,7 +51,7 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
 
   console.log('[stockAutomation] Order items:', JSON.stringify(items, null, 2));
 
-  const logs: { ingredient_id: string; type: 'order_consumption'; quantity: number; reason: string }[] = [];
+  const logs: { ingredient_id: string; type: 'order_consumption'; quantity: number; reason: string; order_id: string }[] = [];
 
   // Hazır məhsulların id-lərini topla (resept yox, birbaşa ingredient)
   const readyProductIds: string[] = [];
@@ -78,6 +78,7 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
         ingredient_id: prod.direct_ingredient_id,
         type: 'order_consumption',
         quantity: qty,
+        order_id: orderId,
         reason: `Hazır məhsul satışı — Sifariş #${orderId.slice(0, 8)}`,
       });
     }
@@ -123,6 +124,7 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
             ingredient_id: rec.ingredient_id,
             type: 'order_consumption',
             quantity: deductQty,
+            order_id: orderId,
             reason: `Reseptli satış — Sifariş #${orderId.slice(0, 8)}`,
           });
         }

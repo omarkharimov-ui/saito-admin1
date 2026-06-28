@@ -72,13 +72,14 @@ export async function DELETE(req: NextRequest) {
     }
 
     await supabase
-      .from('tables')
+      .from('table_floors')
       .update({
         status: 'empty',
         guest_count: null,
-        opened_at: null,
-        last_activity_at: null,
-        total_amount: 0,
+        reservation_id: null,
+        reservation_name: null,
+        reservation_phone: null,
+        reservation_time: null,
         merged_into_table: null,
       })
       .eq('table_number', tableNumber);

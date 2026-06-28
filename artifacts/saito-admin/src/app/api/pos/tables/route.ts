@@ -81,6 +81,15 @@ export async function GET() {
       ordersByTable[o.table_number].push(o);
     }
 
+    // Build merged_children map: parent table_number → child table_numbers
+    const mergedChildrenMap: Record<number, number[]> = {};
+    for (const f of floors) {
+      if (f.merged_into_table != null) {
+        if (!mergedChildrenMap[f.merged_into_table]) mergedChildrenMap[f.merged_into_table] = [];
+        mergedChildrenMap[f.merged_into_table].push(f.table_number);
+      }
+    }
+
     const floorMap: Record<string, { name: string; tables: any[] }> = {};
 
     for (const f of floors) {
@@ -98,7 +107,8 @@ export async function GET() {
       let status: string;
       if (f.merged_into_table != null) status = 'merged';
       else if (isReserved) status = 'reserved';
-      else if (activeOrders.length === 0) status = 'empty';
+      else if (activeOrders.length === 0 && f.status !== 'occupied') status = 'empty';
+      else if (activeOrders.length === 0) status = 'active';
       else if (activeOrders.some(o => o.kitchen_status === 'ready')) status = 'waiting_bill';
       else if (activeOrders.some(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing')) status = 'cooking';
       else status = 'active';
@@ -106,6 +116,7 @@ export async function GET() {
       const totalAmount = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
       let guestCount = activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0);
       if (reservation) guestCount = reservation.guests || guestCount;
+      if (!guestCount) guestCount = f.guest_count || 0;
 
       floorMap[fn].tables.push({
         id: f.id,
@@ -124,6 +135,7 @@ export async function GET() {
         order_count: activeOrders.length,
         order_ids: activeOrders.map(o => o.id),
         merged_into_table: f.merged_into_table,
+        merged_orders: (mergedChildrenMap[f.table_number] || []).map(tn => ({ table_number: tn })),
         has_pending: activeOrders.some(o => o.kitchen_status === 'pending' || o.kitchen_status == null),
       });
     }

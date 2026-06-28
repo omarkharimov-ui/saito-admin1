@@ -198,7 +198,7 @@ export function usePos() {
       setCart({
         table_id: table.id,
         table_number: table.table_number,
-        guest_count: 1,
+        guest_count: table.guest_count || 1,
         items: [],
         notes: '',
         order_type: 'dine_in',

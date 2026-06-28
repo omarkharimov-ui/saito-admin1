@@ -24,7 +24,7 @@ export interface Order {
   table_number: number | null;
   total_amount: number;
   status: 'new' | 'confirmed' | 'paid' | 'cancelled';
-  kitchen_status: 'pending' | 'cooking' | 'preparing' | 'ready' | 'cancelled' | 'reserved' | null;
+  kitchen_status: 'pending' | 'cooking' | 'preparing' | 'ready' | 'completed' | 'cancelled' | 'reserved' | null;
   kitchen_accepted_at: string | null;
   kitchen_ready_at: string | null;
   created_at: string;
@@ -49,7 +49,7 @@ export interface Reservation {
   table_number: number;
   guest_count: number;
   reservation_time: string;
-  status: 'pending' | 'confirmed' | 'seated' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'checked_in' | 'completed' | 'cancelled' | 'no_show' | 'expired' | 'archived';
   notes: string | null;
   created_at: string;
 }

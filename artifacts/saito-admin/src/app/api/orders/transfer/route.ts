@@ -57,13 +57,24 @@ export async function POST(request: NextRequest) {
       await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${from_table}`, {
         method: 'PATCH',
         headers: svc().headers,
-        body: JSON.stringify({ status: 'available', reservation_id: null, reservation_name: null }),
+        body: JSON.stringify({ 
+          status: 'empty', 
+          reservation_id: null, 
+          reservation_name: null, 
+          reservation_phone: null, 
+          reservation_time: null, 
+          guest_count: null,
+          merged_into_table: null,
+        }),
       });
 
       await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${to_table}`, {
         method: 'PATCH',
         headers: svc().headers,
-        body: JSON.stringify({ status: 'occupied' }),
+        body: JSON.stringify({ 
+          status: 'occupied',
+          guest_count: sourceOrders.reduce((s: number, o: any) => s + Number(o.guest_count || 0), 0) || null,
+        }),
       });
 
       return { from_table, to_table, moved_count: sourceOrders.length };

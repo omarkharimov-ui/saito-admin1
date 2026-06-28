@@ -62,9 +62,9 @@ export function ActionSheet({
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
     { id: 'merge', icon: Merge, label: t('merge_tables'), visible: true },
     { id: 'transfer', icon: Move, label: t('move_table'), visible: true },
-    { id: 'unmerge', icon: GitMerge, label: 'Masaları Ayır', visible: isMerged },
+    { id: 'unmerge', icon: GitMerge, label: t('unmerge_tables') || 'Masaları Ayır', visible: isMerged },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
-    { id: 'cancel_table', icon: Trash2, label: 'Masanı Təmizlə', visible: isOccupied || table?.status === 'reserved' },
+    { id: 'cancel_table', icon: Trash2, label: t('dismiss_table') || 'Masanı boşalt', visible: isOccupied || table?.status === 'reserved' },
   ];
 
   const visibleActions = actions.filter(a => a.visible);

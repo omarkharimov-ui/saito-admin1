@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Printer, CreditCard, Banknote, Loader2, Split } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/lib/toast';
 import ReceiptPreview from '../../shared/ReceiptPreview';
 import type { Order, OrderItem } from '../types';
 
@@ -51,9 +52,11 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit }:
     setPaying(true);
     try {
       await onPay(paymentMethod, tipAmount);
+      onClose();
+    } catch {
+      toast.error('Ödəniş alınmadı, yenidən cəhd edin');
     } finally {
       setPaying(false);
-      onClose();
     }
   };
   const [restaurant, setRestaurant] = useState<RestaurantInfo>({

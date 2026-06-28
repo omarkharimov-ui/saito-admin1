@@ -67,6 +67,7 @@ export async function GET(request: Request) {
       ingredientsRes,
       wasteLogsRes,
       activeOrdersRes,
+      clockEventsRes,
     ] = await Promise.all([
       fetch(`${supabaseUrl}/rest/v1/orders?select=id,total_amount,created_at,status,table_number&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, { headers: H }),
@@ -77,9 +78,10 @@ export async function GET(request: Request) {
       fetch(`${supabaseUrl}/rest/v1/ingredients?select=id,average_cost_per_unit`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/inventory_logs?select=quantity,cost_per_unit,ingredient_id&type=in.(waste,adjustment)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/orders?select=table_number&status=in.(new,confirmed)`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/clock_events?select=*&clock_in=gte.${isoStartDate}`, { headers: H }),
     ]);
 
-    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders] = await Promise.all([
+    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders, clockEvents] = await Promise.all([
       ordersRes.json(),
       orderItemsRes.json(),
       productsRes.json(),
@@ -89,7 +91,22 @@ export async function GET(request: Request) {
       ingredientsRes.json(),
       wasteLogsRes.json(),
       activeOrdersRes.json(),
+      clockEventsRes.json(),
     ]);
+
+    // Real Labor Cost Calculation
+    let calculatedLaborCost = 0;
+    const HOURLY_RATE = 5; // Target hourly rate in AZN
+    (Array.isArray(clockEvents) ? clockEvents : []).forEach((ev: any) => {
+      if (ev.clock_in && ev.clock_out) {
+        const durationHours = (new Date(ev.clock_out).getTime() - new Date(ev.clock_in).getTime()) / (1000 * 60 * 60);
+        calculatedLaborCost += Math.max(0, durationHours) * HOURLY_RATE;
+      } else if (ev.clock_in) {
+        // Still working? Estimate until now
+        const durationHours = (new Date().getTime() - new Date(ev.clock_in).getTime()) / (1000 * 60 * 60);
+        calculatedLaborCost += Math.max(0, durationHours) * HOURLY_RATE;
+      }
+    });
 
     const totalRevenue = orders?.reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0) || 0;
     const totalOrders = orders?.length || 0;
@@ -212,8 +229,8 @@ export async function GET(request: Request) {
     const foodCostPct = totalRevenue > 0 ? (totalFoodCost / totalRevenue) * 100 : 0;
 
     // Fixed costs logic (Labor & Utility) - Priority 7
-    const laborCost = totalRevenue * 0.18; // 18% target
-    const utilityCost = totalRevenue * 0.05; // 5% target
+    const laborCost = calculatedLaborCost > 0 ? calculatedLaborCost : (totalRevenue * 0.18); // Use real data if exists, otherwise estimate
+    const utilityCost = totalRevenue * 0.05; // 5% target estimate for utility
     const netProfit = grossProfit - totalWasteCost - laborCost - utilityCost;
 
     const topProfitableItems = Array.from(profitByProduct.entries())

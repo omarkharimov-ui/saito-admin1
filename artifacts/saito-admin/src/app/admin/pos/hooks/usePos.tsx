@@ -47,6 +47,7 @@ export function usePos() {
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(!cached);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<{ action: string; data: any; message: string } | null>(null);
@@ -62,15 +63,17 @@ export function usePos() {
   /* ── Data Fetching ── */
   const fetchData = useCallback(async () => {
     try {
-      const [tablesRes, productsRes] = await Promise.all([
+      const [tablesRes, productsRes, campaignsRes] = await Promise.all([
         fetch('/api/pos/tables').catch(() => ({ ok: false })),
         fetch('/api/pos/products').catch(() => ({ ok: false })),
+        fetch('/api/campaigns?status=active').catch(() => ({ ok: false })),
       ]);
 
       let newTables: PosTable[] = [];
       let newFloors: FloorConfig[] = [];
       let newProducts: PosProduct[] = [];
       let newCategories: { id: string; name: string }[] = [];
+      let newCampaigns: any[] = [];
 
       if (tablesRes && 'ok' in tablesRes && tablesRes.ok) {
         const data = await (tablesRes as Response).json();
@@ -89,6 +92,12 @@ export function usePos() {
         if (data.ingredients) setIngredients(data.ingredients);
         if (data.recipes) setRecipes(data.recipes);
         if (data.variants) setVariants(data.variants);
+      }
+
+      if (campaignsRes && 'ok' in campaignsRes && campaignsRes.ok) {
+        const data = await (campaignsRes as Response).json();
+        newCampaigns = Array.isArray(data) ? data : (data.campaigns || []);
+        setCampaigns(newCampaigns);
       }
 
       // If we got valid data, save to cache
@@ -352,7 +361,24 @@ export function usePos() {
         ),
       } : null);
     } else {
-      const unitPrice = modifiers?.reduce((s, m) => s + m.price, product.price) ?? product.price;
+      let basePrice = modifiers?.reduce((s, m) => s + m.price, product.price) ?? product.price;
+      
+      // Task: Sync Campaigns with POS
+      const activeCampaign = campaigns.find(c => 
+        (c.target_type === 'product' && c.target_id === product.id) ||
+        (c.target_type === 'category' && c.target_id === product.category_id)
+      );
+
+      if (activeCampaign) {
+        const discountValue = Number(activeCampaign.discount_value) || 0;
+        if (activeCampaign.type === 'percentage') {
+          basePrice = basePrice * (1 - discountValue / 100);
+        } else if (activeCampaign.type === 'fixed') {
+          basePrice = Math.max(0, basePrice - discountValue);
+        }
+      }
+
+      const unitPrice = basePrice;
       const localizedName = langs === 'az' ? product.name_az : langs === 'en' ? product.name_en : product.name_ru;
       const newItem: PosCartItem = {
         product_id: product.id,

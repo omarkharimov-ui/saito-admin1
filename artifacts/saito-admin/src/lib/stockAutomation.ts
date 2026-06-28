@@ -94,32 +94,35 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
     console.log('[stockAutomation] Recipes found:', recipes?.length || 0, JSON.stringify(recipes, null, 2));
 
     if (recipes && recipes.length > 0) {
-      // Fetch ingredient units for correct normalization
+      // Fetch ingredient units and name for alerting
       const ingredientIds = [...new Set(recipes.map(r => r.ingredient_id))];
-      const { data: ingredients } = await supabase
-        .from('ingredients')
-        .select('id, unit')
-        .in('id', ingredientIds);
+      const [ingredientsRes, standardsRes] = await Promise.all([
+        supabase.from('ingredients').select('id, unit, name').in('id', ingredientIds),
+        supabase.from('waste_standards').select('*'),
+      ]);
+
+      const ingredientsData = ingredientsRes.data || [];
+      const standards = standardsRes.data || [];
       const unitMap: Record<string, string> = {};
-      if (ingredients) {
-        for (const ing of ingredients) {
-          unitMap[ing.id] = ing.unit;
-        }
+      const nameMap: Record<string, string> = {};
+      
+      for (const ing of ingredientsData) {
+        unitMap[ing.id] = ing.unit;
+        nameMap[ing.id] = ing.name;
       }
 
       for (const item of items) {
         const prod = Array.isArray(item.products) ? item.products[0] : item.products;
-        if (prod?.is_ready_product) continue; // hazır məhsulları skip
+        if (prod?.is_ready_product) continue; 
 
         const itemRecipes = recipes.filter(r => r.menu_item_id === item.product_id);
-        console.log(`[stockAutomation] Item ${item.product_id} (qty=${item.quantity}): ${itemRecipes.length} recipes matched`);
         for (const rec of itemRecipes) {
           const rawQty = (rec.quantity_brutto ?? rec.quantity_required);
           const ingUnit = unitMap[rec.ingredient_id] || 'gram';
           const qtyUnit = ingUnit === 'gram' ? 'g' : ingUnit === 'ml' ? 'ml' : 'piece';
           const normalizedQty = normalizeQuantity(rawQty, qtyUnit);
           const deductQty = normalizedQty.value * (Number(item.quantity) || 1);
-          console.log(`[stockAutomation] Recipe deduct: ingredient=${rec.ingredient_id}, raw=${rawQty}${ingUnit}, normalized=${normalizedQty.value}${normalizedQty.unit}, itemQty=${item.quantity}, total=${deductQty}`);
+          
           logs.push({
             ingredient_id: rec.ingredient_id,
             type: 'order_consumption',
@@ -127,6 +130,30 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
             order_id: orderId,
             reason: `Reseptli satış — Sifariş #${orderId.slice(0, 8)}`,
           });
+
+          // Task: Waste Standards vs Alerts Workflow
+          const standard = standards.find(s => 
+            nameMap[rec.ingredient_id]?.toLowerCase().includes(s.keyword.toLowerCase())
+          );
+
+          if (standard && rec.quantity_brutto && rec.quantity_required) {
+            const actualWastePct = ((rec.quantity_brutto - rec.quantity_required) / rec.quantity_brutto) * 100;
+            if (actualWastePct > standard.waste_percentage) {
+              // Create an automated alert
+              await supabase.from('discrepancy_alerts').insert({
+                type: 'waste_vs_norm',
+                severity: 'medium',
+                title: `Normadan artıq itki: ${nameMap[rec.ingredient_id]}`,
+                description: `Resept üzrə itki ${actualWastePct.toFixed(1)}%, standart isə ${standard.waste_percentage}% təşkil edir.`,
+                source_id: orderId,
+                source_table: 'orders',
+                value: actualWastePct,
+                expected_value: standard.waste_percentage,
+                variance_pct: actualWastePct - standard.waste_percentage,
+                status: 'open'
+              });
+            }
+          }
         }
       }
     }

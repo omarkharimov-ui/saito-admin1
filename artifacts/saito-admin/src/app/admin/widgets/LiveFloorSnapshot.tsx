@@ -6,7 +6,14 @@ import { Armchair, Users, Clock, CheckCircle2, Utensils } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
 
-export default function LiveFloorSnapshot() {
+interface TableStatus {
+  tableNumber: number;
+  status: 'empty' | 'occupied' | 'new' | 'order_placed' | 'payment_pending' | 'reserved';
+  orderCount?: number;
+  startTime?: number;
+}
+
+function TableTimer({ startTime, status }: { startTime?: number, status: string }) {
   const { t } = useLanguage();
   const [tableCount, setTableCount] = useState(12);
   const [tables, setTables] = useState<TableStatus[]>([]);

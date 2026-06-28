@@ -417,9 +417,11 @@ export default function POSPage() {
               {/* Actions */}
               <div className="flex flex-col gap-3">
                 <button
-                  onClick={() => {
-                    if (reservedTableDetail) (pos as any).activateReservedTable(reservedTableDetail);
-                    setReservedTableDetail(null);
+                  onClick={async () => {
+                    if (reservedTableDetail) {
+                      await pos.activateReservedTable(reservedTableDetail);
+                      setReservedTableDetail(null);
+                    }
                   }}
                   className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl shadow-gold/20 flex items-center justify-center gap-3 bg-gold text-black hover:brightness-110 active:scale-95`}
                 >
@@ -428,12 +430,9 @@ export default function POSPage() {
                 <div className="grid grid-cols-2 gap-3">
                     <button
                         onClick={async () => {
-                            if (!reservedTableDetail?.reservation_id) return;
-                            if (confirm("Rezervasiyanı ləğv etmək istədiyinizə əminsiniz?")) {
-                                await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', reservedTableDetail.reservation_id);
-                                await pos.dismissTable(reservedTableDetail.table_number);
-                                setReservedTableDetail(null);
-                            }
+                            if (!reservedTableDetail) return;
+                            await pos.dismissTable(reservedTableDetail.table_number);
+                            setReservedTableDetail(null);
                         }}
                         className="py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-rose-500/10 text-rose-500 border border-rose-500/20"
                     >

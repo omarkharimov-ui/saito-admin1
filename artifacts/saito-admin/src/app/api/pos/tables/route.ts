@@ -59,9 +59,9 @@ export async function GET() {
     
     let resUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,phone,time,guests,status,date`;
     if (uniqueResIds.length > 0) {
-      resUrl += `&or=(id.in.(${uniqueResIds.join(',')}),and(status.eq.confirmed,date.eq.${todayLocal}))`;
+      resUrl += `&or=(id.in.(${uniqueResIds.join(',')}),and(status.in.(confirmed,pending),date.eq.${todayLocal}))`;
     } else {
-      resUrl += `&status=eq.confirmed&date=eq.${todayLocal}`;
+      resUrl += `&status=in.(confirmed,pending)&date=eq.${todayLocal}`;
     }
 
     const reservationsRes = await fetch(resUrl, { headers });

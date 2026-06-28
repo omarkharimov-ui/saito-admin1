@@ -81,12 +81,14 @@ export async function POST(request: NextRequest) {
       guest_count: guest_count ?? reservation.guests ?? null,
     };
 
+    // 3. Atomically update ALL tables (SSOT enforced)
     for (const tid of table_ids) {
-      await fetch(`${svc().url}/rest/v1/table_floors?id=eq.${tid}`, {
+      const floorRes = await fetch(`${svc().url}/rest/v1/table_floors?id=eq.${tid}`, {
         method: 'PATCH',
         headers: svc().headers,
         body: JSON.stringify(tableFloorPatch),
       });
+      if (!floorRes.ok) throw new Error(`Table update failed for ID ${tid}`);
     }
 
     // 4. Kitchen schedule logic (Optional but kept)

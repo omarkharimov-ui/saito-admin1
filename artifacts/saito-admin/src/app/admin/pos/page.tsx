@@ -489,17 +489,12 @@ export default function POSPage() {
                   onClick={async () => {
                     if (!reservedTableDetail) return;
                     try {
-                      await supabase.from('table_floors').update({
-                        status: 'occupied',
-                        guest_count: reservedTableDetail.guest_count || 1,
-                        reservation_id: null,
-                        reservation_name: null,
-                        reservation_phone: null,
-                        reservation_time: null,
-                      }).eq('id', reservedTableDetail.id);
-                      if (reservedTableDetail.reservation_id) {
-                        await supabase.from('reservations').update({ status: 'checked_in', checked_in_at: new Date().toISOString() }).eq('id', reservedTableDetail.reservation_id);
-                      }
+                      const res = await fetch('/api/tables/activate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ table_id: reservedTableDetail.id }),
+                      });
+                      if (!res.ok) throw new Error((await res.json()).error || 'Xəta baş verdi');
                       pos.selectTable(reservedTableDetail);
                       setReservedTableDetail(null);
                       toast.success(`Masa ${reservedTableDetail.table_number} aktivləşdirildi`);

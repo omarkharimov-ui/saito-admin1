@@ -349,16 +349,6 @@ export function usePos() {
     
     saveCache(POS_CART_KEY, null);
     
-    // Reset table status locally if needed
-    if (selectedTable) {
-      setSelectedTable({
-        ...selectedTable,
-        guest_count: 0,
-        total_amount: 0,
-        status: 'empty' as const,
-      });
-    }
-    
     toast.success('Səbət təmizləndi');
   }, [selectedTable]);
 
@@ -484,23 +474,19 @@ export function usePos() {
 
   /* ── Table Operations ── */
   const dismissTable = useCallback(async (tableNumber: number) => {
-    setTables(prev => prev.map(t =>
-      t.table_number === tableNumber
-        ? { ...t, status: 'empty' as const, total_amount: 0, guest_count: 0, order_ids: [] }
-        : t
-    ));
-    const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
-    delete all[tableNumber];
-    saveCache(POS_CART_KEY + '_all', all);
-    delete orderFingerprintRef.current[tableNumber];
     try {
       const res = await fetch(`/api/orders/dismiss`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_number: tableNumber }),
       });
-      if (!res.ok) throw new Error("Masanı təmizləmək mümkün olmadı");
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to dismiss table');
       toast.success(`Masa ${tableNumber} təmizləndi`);
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      delete all[tableNumber];
+      saveCache(POS_CART_KEY + '_all', all);
+      delete orderFingerprintRef.current[tableNumber];
+      fetchData();
     } catch (e: any) {
       toast.error(e.message);
       fetchData();
@@ -510,15 +496,6 @@ export function usePos() {
   /* ── Billing ── */
   const closeBill = useCallback(async (orderId: string, payment: PaymentInfo) => {
     const tableNum = cartRef.current?.table_number;
-    if (tableNum) {
-      setTables(prev => prev.map(t =>
-        t.table_number === tableNum
-          ? { ...t, status: 'empty' as const, total_amount: 0, guest_count: 0, order_ids: [] }
-          : t
-      ));
-    }
-    cartRef.current = null;
-    backToFloor();
     try {
       const res = await fetch(`/api/orders/pay`, {
         method: 'POST',
@@ -532,6 +509,8 @@ export function usePos() {
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Payment failed');
+      
+      // Clear localStorage cart on success
       if (tableNum) {
         try {
           const raw = localStorage.getItem('saito_pos_cart_all');
@@ -542,7 +521,10 @@ export function usePos() {
           }
         } catch {} // eslint-disable-line no-empty
       }
+      
       toast.success('Hesab bağlandı');
+      cartRef.current = null;
+      backToFloor();
       fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Ödəniş xətası');

@@ -32,7 +32,7 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
     .from('inventory_logs')
     .select('*', { count: 'exact', head: true })
     .eq('type', 'order_consumption')
-    .ilike('reason', `%${orderId.slice(0, 8)}%`);
+    .eq('order_id', orderId);
   if (existingCount && existingCount > 0) {
     console.log(`[stockAutomation] Order ${orderId} already processed (${existingCount} logs), skipping`);
     return { deducted: 0, ingredientIds: [] };
@@ -79,7 +79,7 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
         type: 'order_consumption',
         quantity: qty,
         order_id: orderId,
-        reason: `Hazır məhsul satışı — Sifariş #${orderId.slice(0, 8)}`,
+        reason: `Hazır məhsul satışı — Sifariş #${orderId}`,
       });
     }
   }
@@ -125,7 +125,7 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
             type: 'order_consumption',
             quantity: deductQty,
             order_id: orderId,
-            reason: `Reseptli satış — Sifariş #${orderId.slice(0, 8)}`,
+            reason: `Reseptli satış — Sifariş #${orderId}`,
           });
         }
       }

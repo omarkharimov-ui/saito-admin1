@@ -17,6 +17,11 @@ const CartSidebar = () => {
 
   // TODO: restore QR guard: if (!tableNumber && isCartOpen) { setIsCartOpen(false); return null; }
 
+  // TODO(deprecated): This component bypasses main POS business logic.
+  // Item merging is done via direct Supabase to preserve prepared_quantity.
+  // Consider migrating to /admin/pos components which use /api/orders fully.
+  // For new orders: table sync & reservation cleanup is handled by the API.
+  // For payments: use /api/orders/pay for stock deduction.
   const handleSubmitOrder = async () => {
     setSubmitting(true);
     try {
@@ -45,7 +50,7 @@ const CartSidebar = () => {
           unit_price: item.unitPrice,
           total_price: item.unitPrice * item.quantity,
           kitchen_status: 'hot',
-          image_url: item.product.image_url || null
+          image_url: item.product.image_url || null,
         }));
 
       if (existingOrder) {
@@ -91,46 +96,45 @@ const CartSidebar = () => {
           }
         }
 
-        const newTotal = (existingOrder.total_amount || 0) + totalPrice;
-        const { error: updateError, data: updateData } = await supabase
-          .from('orders')
-          .update({
-            total_amount: newTotal,
-            status: 'new',
-            kitchen_status: 'hot',
-            ...(customerNote.trim() ? { customer_note: customerNote.trim() } : {}),
-          })
-          .eq('id', existingOrder.id)
-          .select();
-        if (updateError) throw updateError;
+        // Update order total via API (table status already handled when original order created)
+        const updateRes = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update',
+            id: existingOrder.id,
+            data: {
+              total_amount: (existingOrder.total_amount || 0) + totalPrice,
+              status: 'new',
+              kitchen_status: 'hot',
+              ...(customerNote.trim() ? { customer_note: customerNote.trim() } : {}),
+            },
+          }),
+        });
+        if (!updateRes.ok) throw new Error((await updateRes.json()).error || 'Failed to update order');
       } else {
-        // Create new order
-        const { data: order, error: orderError } = await supabase
-          .from('orders')
-          .insert({
-            customer_note: customerNote.trim() || null,
+        // Create new order via API (handles order + items + table sync)
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             table_number: tableNum,
             total_amount: totalPrice,
-            status: 'new',
-            kitchen_status: 'hot',
-            items: [],
-          })
-          .select()
-          .single();
-        if (orderError) throw orderError;
-
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(newItems.map(i => ({ 
-            ...i, 
-            order_id: order.id
-            // kitchen_status artıq newItems-də var
-          })));
-        if (itemsError) {
-          console.error('❌ Insert items error:', itemsError);
-          console.dir(itemsError);
-          throw itemsError;
-        }
+            status: 'confirmed',
+            order_type: 'dine_in',
+            guest_count: 1,
+            customer_note: customerNote.trim() || null,
+            items: newItems.map(i => ({
+              product_id: i.product_id,
+              variant_id: i.variant_id,
+              product_name: i.product_name,
+              quantity: i.quantity,
+              unit_price: i.unit_price,
+              total_price: i.unit_price * i.quantity,
+            })),
+          }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Failed to create order');
       }
 
       clearCart();

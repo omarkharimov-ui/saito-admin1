@@ -6,6 +6,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { ThemeProvider } from '@/lib/theme/ThemeContext';
 import { useAdminAuth } from './hooks/useAdminAuth';
+import { TableProvider } from '@/context/TableContext';
 import AdminLoadingScreen from './components/layout/AdminLoadingScreen';
 import AdminAuthScreen from './components/layout/AdminAuthScreen';
 import AdminMobileShell from './components/layout/AdminMobileShell';
@@ -70,22 +71,24 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <NotificationProvider>
-      {auth.showWelcome && auth.role && auth.role !== 'cashier' && (
-        <WelcomeScreen
-          role={auth.role as 'superadmin' | 'admin' | 'kitchen'}
-          onDismiss={() => auth.setShowWelcome(false)}
-        />
-      )}
+    <TableProvider>
+      <NotificationProvider>
+        {auth.showWelcome && auth.role && auth.role !== 'cashier' && (
+          <WelcomeScreen
+            role={auth.role as 'superadmin' | 'admin' | 'kitchen'}
+            onDismiss={() => auth.setShowWelcome(false)}
+          />
+        )}
 
-      {isMobile ? (
-        <AdminMobileShell role={auth.role as 'admin' | 'superadmin' | null} onLogout={auth.handleLogout}>
-          {children}
-        </AdminMobileShell>
-      ) : (
-        <AdminDesktopShell role={auth.role as 'admin' | 'superadmin' | null}>{children}</AdminDesktopShell>
-      )}
-    </NotificationProvider>
+        {isMobile ? (
+          <AdminMobileShell role={auth.role as 'admin' | 'superadmin' | null} onLogout={auth.handleLogout}>
+            {children}
+          </AdminMobileShell>
+        ) : (
+          <AdminDesktopShell role={auth.role as 'admin' | 'superadmin' | null}>{children}</AdminDesktopShell>
+        )}
+      </NotificationProvider>
+    </TableProvider>
   );
 }
 

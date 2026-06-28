@@ -165,6 +165,7 @@ export function usePos() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => fetchData())
       .subscribe();
     return () => { removeRealtimeChannel(channel); };
   }, [fetchData]);
@@ -191,20 +192,113 @@ export function usePos() {
     const saved = existing[table.table_number];
     
     // If we have a saved cart with items, use it regardless of table status
-    // This allows "draft" carts to persist before the first order is placed
     if (saved && (saved.items.length > 0 || table.status !== 'empty')) {
       setCart(saved);
     } else {
+      // If table is reserved, pull info from the table object
       setCart({
         table_id: table.id,
         table_number: table.table_number,
         guest_count: table.guest_count || 1,
         items: [],
-        notes: '',
+        notes: table.reservation_name ? `Rezervasiya: ${table.reservation_name}` : '',
         order_type: 'dine_in',
       });
     }
   }, []);
+
+  const activateReservedTable = useCallback(async (table: PosTable) => {
+    if (!table.reservation_id) return;
+    try {
+      setLoading(true);
+      // 1. Fetch reservation data for pre-order items
+      const { data: resData, error: resErr } = await supabase
+        .from('reservations')
+        .select('*')
+        .eq('id', table.reservation_id)
+        .single();
+      
+      if (resErr || !resData) throw new Error("Rezervasiya detalları tapılmadı");
+
+      // 2. Update table and reservation statuses
+      const { error: tErr } = await supabase.from('table_floors').update({ status: 'occupied' }).eq('id', table.id);
+      const { error: rErr } = await supabase.from('reservations').update({ status: 'seated' }).eq('id', table.reservation_id);
+      
+      if (tErr || rErr) throw new Error("Status yenilənməsi alınmadı");
+
+      // 3. Select table and setup cart
+      selectTable({ ...table, status: 'occupied' });
+
+      // 4. Load pre-order items if exist
+      if (resData.pre_order_items) {
+        const preItems = typeof resData.pre_order_items === 'string' ? JSON.parse(resData.pre_order_items) : resData.pre_order_items;
+        if (Array.isArray(preItems) && preItems.length > 0) {
+            setCart(prev => {
+                if (!prev) return null;
+                const formattedItems = preItems.map(it => ({
+                    product_id: it.product_id,
+                    product_name: it.product_name,
+                    unit_price: it.unit_price,
+                    total_price: it.unit_price * it.quantity,
+                    quantity: it.quantity,
+                    modifiers: it.modifiers || [],
+                    special_notes: it.special_notes || '',
+                }));
+                return { ...prev, items: formattedItems, guest_count: resData.guests || prev.guest_count };
+            });
+        }
+      }
+      
+      await fetchData();
+      toast.success("Masa aktivləşdirildi");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectTable, fetchData]);
+
+  const dismissTable = useCallback(async (tableNumber: number) => {
+    try {
+      setLoading(true);
+      const table = tables.find(t => t.table_number === tableNumber);
+      if (!table) return;
+
+      // 1. Update table status to empty
+      const { error: tErr } = await supabase
+        .from('table_floors')
+        .update({ 
+          status: 'empty', 
+          reservation_id: null, 
+          reservation_name: null, 
+          reservation_phone: null, 
+          reservation_time: null,
+          guest_count: null,
+          last_activity_at: null,
+          opened_at: null
+        })
+        .eq('table_number', tableNumber);
+      
+      if (tErr) throw tErr;
+
+      // 2. If it was a reservation, complete it
+      if (table.reservation_id) {
+        await supabase.from('reservations').update({ status: 'completed' }).eq('id', table.reservation_id);
+      }
+
+      // 3. Clear cache
+      const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
+      delete all[tableNumber];
+      saveCache(POS_CART_KEY + '_all', all);
+
+      await fetchData();
+      toast.success(`Masa ${tableNumber} təmizləndi`);
+    } catch (e: any) {
+      toast.error("Xəta: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [tables, fetchData]);
 
   const checkStock = useCallback((productId: string, qty: number = 1): boolean => {
     const product = products.find(p => p.id === productId);

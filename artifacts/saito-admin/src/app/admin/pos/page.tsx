@@ -59,12 +59,6 @@ export default function POSPage() {
   const [warningTable, setWarningTable] = useState<PosTable | null>(null);
   const [canUndo, setUndoData] = useState<{ action: string; data: any; message: string } | null>(null);
 
-  useEffect(() => {
-    const handler = (e: any) => { if (e.detail?.action) setUndoData(e.detail); };
-    window.addEventListener('saito_pos_undo_available', handler);
-    return () => window.removeEventListener('saito_pos_undo_available', handler);
-  }, []);
-
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [billSplitOpen, setBillSplitOpen] = useState(false);
   const [billSplitItems, setBillSplitItems] = useState<any[]>([]);
@@ -75,7 +69,6 @@ export default function POSPage() {
   const [payMethod, setPayMethod] = useState<'cash' | 'card'>('card');
   const [payTip, setPayTip] = useState(0);
 
-  // Rezervasiya konteksti: rezervasiyadan POS-a kecid zamani saxlanilir
   const [reservationCtx, setReservationCtx] = useState<{
     resId: string;
     tableIds: string[];
@@ -83,7 +76,6 @@ export default function POSPage() {
     tablesLabel: string;
   } | null>(null);
 
-  // Bron edilmis masa detali: POS-da bron masaya basilanda acilir (read-only)
   const [reservedTableDetail, setReservedTableDetail] = useState<PosTable | null>(null);
 
   const selectedFloorName = selectedFloor || pos.floors[0]?.name || '';
@@ -102,39 +94,6 @@ export default function POSPage() {
     fetch('/api/stock-check').then(r => r.json()).then(d => setOutOfStock(new Set(d.outOfStock || []))).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    // Check for incoming pre-order from reservations
-    const contextStr = localStorage.getItem('saito_preorder_context');
-    if (contextStr) {
-      const ctx = JSON.parse(contextStr);
-      localStorage.removeItem('saito_preorder_context');
-      
-      // Auto-setup POS for this reservation
-      const table = pos.tables.find(t => t.id === ctx.tableIds[0]);
-      if (table) {
-        pos.selectTable(table);
-        toast.success(`${ctx.guestName} üçün öncədən sifariş yığılır`);
-      }
-    }
-  }, [pos.tables]);
-
-  useEffect(() => {
-    // Check for incoming pre-order context from reservations page
-    const preorderStr = localStorage.getItem('saito_pos_preorder_context');
-    if (preorderStr && pos.tables.length > 0) {
-      const ctx = JSON.parse(preorderStr);
-      localStorage.removeItem('saito_pos_preorder_context');
-      
-      const targetTable = pos.tables.find(t => t.id === ctx.tableIds[0]);
-      if (targetTable) {
-        pos.selectTable(targetTable);
-        // Rezervasiya kontekstini saxla - CartPanel bron rejiminde acilsin
-        setReservationCtx(ctx);
-        toast.success(`${ctx.guestName} ucun onceden sifaris daxil edilir (Masa: ${ctx.tablesLabel})`);
-      }
-    }
-  }, [pos.tables]);
-
   const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
   const overdueTables = useMemo(() => {
     const map = new Map<number, boolean>();
@@ -142,8 +101,8 @@ export default function POSPage() {
     const threshold = orderDelayMinutes || 20;
 
     for (const table of pos.tables) {
-      if (table.status === 'occupied' && table.lastOrderTime) {
-        const diff = (now.getTime() - new Date(table.lastOrderTime).getTime()) / 60000;
+      if ((table.status === 'occupied' || table.status === 'active') && (table as any).lastOrderTime) {
+        const diff = (now.getTime() - new Date((table as any).lastOrderTime).getTime()) / 60000;
         if (diff > threshold) {
           map.set(table.table_number, true);
         }
@@ -179,45 +138,6 @@ export default function POSPage() {
   }, [pos.cart]);
 
   const handlePlaceOrder = useCallback(async () => {
-    // Eger rezervasiya rejimindeyiksə, reserve-table API-ni cagir
-    if (reservationCtx) {
-      setOrderButtonStatus('loading');
-      try {
-        const cartItems = pos.cart?.items ?? [];
-        const preOrderItems = cartItems.map(item => ({
-          product_id: item.product_id,
-          product_name: item.product_name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          modifiers: item.modifiers ?? [],
-          special_notes: item.special_notes || null,
-        }));
-        const res = await fetch('/api/reservations/reserve-table', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            reservation_id: reservationCtx.resId,
-            table_ids: reservationCtx.tableIds,
-            pre_order_items: preOrderItems,
-            guest_count: pos.cart?.guest_count ?? 0,
-          }),
-        });
-        if (!res.ok) throw new Error((await res.json()).error || 'Bron xetasi');
-        toast.success(`${reservationCtx.guestName} ucun masa bron edildi!`);
-        setReservationCtx(null);
-        setOrderButtonStatus('success');
-        setIsDirty(false);
-        window.setTimeout(() => setOrderButtonStatus('idle'), 1400);
-        pos.backToFloor();
-        pos.fetchData();
-      } catch (e: any) {
-        toast.error(e.message || 'Bron zamani xeta bas verdi');
-        setOrderButtonStatus('error');
-        window.setTimeout(() => setOrderButtonStatus('idle'), 1600);
-      }
-      return;
-    }
-    // Normal POS sifarisi
     setOrderButtonStatus('loading');
     try {
       await pos.placeOrder();
@@ -228,7 +148,7 @@ export default function POSPage() {
       setOrderButtonStatus('error');
       window.setTimeout(() => setOrderButtonStatus('idle'), 1600);
     }
-  }, [pos, reservationCtx]);
+  }, [pos]);
 
   const openPayment = useCallback(async (tableNumber: number, amount: number, orderIds: string[]) => {
     const orderId = orderIds[0];
@@ -269,17 +189,28 @@ export default function POSPage() {
       else if (!transferTarget && table.table_number !== transferSource) setTransferTarget(table.table_number);
       return;
     }
-    if (table.status === 'merged') return;
-    // Reserved table tap → show reservation detail modal (Activate / Dismiss)
+    
+    // Handle Merged Table Tap
+    if (table.status === 'merged') {
+        const parent = pos.tables.find(t => t.table_number === table.merged_into_table);
+        if (parent) pos.selectTable(parent);
+        else toast.error("Əsas masa tapılmadı");
+        return;
+    }
+
+    // Handle Reserved Table Tap
     if (table.status === 'reserved') {
       setReservedTableDetail(table);
       return;
     }
-    if (['active', 'cooking', 'waiting_bill'].includes(table.status) && table.total_amount > 0) {
+
+    // Handle Occupied Table Warning
+    if (['active', 'cooking', 'waiting_bill', 'occupied'].includes(table.status) && table.total_amount > 0) {
       setWarningTable(table);
       setWarningOpen(true);
       return;
     }
+
     pos.selectTable(table);
   }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
 
@@ -309,7 +240,7 @@ export default function POSPage() {
               <div className="flex-1 overflow-y-auto p-6 pt-2">
                 {activeFloor ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {(activeFloor.tables ?? []).filter(t => t.status !== 'merged').sort((a, b) => a.table_number - b.table_number).map(table => (
+                    {(activeFloor.tables ?? []).sort((a, b) => a.table_number - b.table_number).map(table => (
                       <TableCard key={table.table_number} table={table} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} selectionMode={mergeMode || transferMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} />
                     ))}
                   </div>
@@ -331,7 +262,7 @@ export default function POSPage() {
                     onBack={() => { setIsDirty(false); setReservationCtx(null); pos.backToFloor(); }}
                     orderButtonStatus={orderButtonStatus}
                     isDirty={isDirty}
-                    hasExistingOrder={pos.selectedTable?.status !== 'empty'}
+                    hasExistingOrder={['active', 'cooking', 'waiting_bill', 'occupied'].includes(pos.selectedTable?.status || '')}
                     isReservationMode={!!reservationCtx}
                     reservationId={reservationCtx?.resId}
                     guestName={reservationCtx?.guestName}
@@ -379,14 +310,7 @@ export default function POSPage() {
         onSuccess={() => { pos.fetchData(); }} 
       />
       {paymentOpen && payOrder && (
-        <ReceiptModal order={payOrder} onClose={() => setPaymentOpen(false)} getProductName={(it) => { const p = it.products as any; if (!p) return ''; const transName = p.translations?.[language]?.name; if (transName) return transName; return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || ''; }} onPay={handleCloseBill}
-          onSplit={async () => {
-            if (!payOrderId) return;
-            const { data } = await supabase.from('order_items').select('*').eq('order_id', payOrderId);
-            setBillSplitItems(data || []);
-            setBillSplitOpen(true);
-          }}
-        />
+        <ReceiptModal order={payOrder} onClose={() => setPaymentOpen(false)} getProductName={(it) => { const p = it.products as any; if (!p) return ''; const transName = p.translations?.[language]?.name; if (transName) return transName; return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || ''; }} onPay={handleCloseBill} />
       )}
       <AnimatePresence>
         {pos.lastUndo && (
@@ -484,100 +408,39 @@ export default function POSPage() {
                 </p>
               </div>
 
-              <div className="flex gap-3">
+              {/* Actions */}
+              <div className="flex flex-col gap-3">
                 <button
-                  onClick={async () => {
-                    if (!reservedTableDetail) return;
-                    try {
-                      await supabase.from('table_floors').update({
-                        status: 'occupied',
-                        guest_count: reservedTableDetail.guest_count || 1,
-                        reservation_id: null,
-                        reservation_name: null,
-                        reservation_phone: null,
-                        reservation_time: null,
-                      }).eq('id', reservedTableDetail.id);
-                      if (reservedTableDetail.reservation_id) {
-                        await supabase.from('reservations').update({ status: 'checked_in', checked_in_at: new Date().toISOString() }).eq('id', reservedTableDetail.reservation_id);
-                      }
-                      pos.selectTable(reservedTableDetail);
-                      setReservedTableDetail(null);
-                      toast.success(`Masa ${reservedTableDetail.table_number} aktivləşdirildi`);
-                      pos.fetchData();
-                    } catch (e: any) {
-                      toast.error(e.message || 'Xəta baş verdi');
-                    }
+                  onClick={() => {
+                    if (reservedTableDetail) (pos as any).activateReservedTable(reservedTableDetail);
+                    setReservedTableDetail(null);
                   }}
-                  className={`flex-[2] py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
-                    lightMode ? 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/20' : 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
-                  }`}
+                  className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl shadow-gold/20 flex items-center justify-center gap-3 bg-gold text-black hover:brightness-110 active:scale-95`}
                 >
-                  Aktiv et
+                  <CheckCircle size={18} /> Masanı Aktivləşdir
                 </button>
-                <button
-                  onClick={() => setReservedTableDetail(null)}
-                  className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all ${
-                    lightMode ? 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 text-white/60 hover:bg-white/10'
-                  }`}
-                >
-                  Bağla
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── DOLU MASA WARNING ── */}
-      <AnimatePresence>
-        {warningOpen && warningTable && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[130] flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }}
-            onClick={() => setWarningOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-              onClick={e => e.stopPropagation()}
-              className={`w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl ${
-                lightMode ? 'bg-white border border-zinc-200' : 'bg-[#111] border border-white/10'
-              }`}
-            >
-              <div className="flex flex-col items-center text-center gap-5">
-                <div className="w-16 h-16 rounded-full bg-amber-500/15 flex items-center justify-center">
-                  <AlertTriangle size={32} className="text-amber-500" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black tracking-tighter mb-1">Masa {warningTable.table_number} doludur</h3>
-                  <p className="text-sm opacity-60 font-medium">
-                    Bu masa hal-hazırda aktiv sifarişə sahibdir. Yenə də seçmək istəyirsiniz?
-                  </p>
-                </div>
-                <div className="flex gap-3 w-full mt-2">
-                  <button
-                    onClick={() => { setWarningOpen(false); setWarningTable(null); }}
-                    className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all ${
-                      lightMode ? 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 text-white/60 hover:bg-white/10'
-                    }`}
-                  >
-                    Ləğv et
-                  </button>
-                  <button
-                    onClick={() => {
-                      pos.selectTable(warningTable);
-                      setWarningOpen(false);
-                      setWarningTable(null);
-                    }}
-                    className="flex-[2] py-4 rounded-2xl bg-amber-500 text-white font-black uppercase tracking-widest text-[11px] shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all"
-                  >
-                    Yenə də Seç
-                  </button>
+                <div className="grid grid-cols-2 gap-3">
+                    <button
+                        onClick={async () => {
+                            if (!reservedTableDetail?.reservation_id) return;
+                            if (confirm("Rezervasiyanı ləğv etmək istədiyinizə əminsiniz?")) {
+                                await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', reservedTableDetail.reservation_id);
+                                await pos.dismissTable(reservedTableDetail.table_number);
+                                setReservedTableDetail(null);
+                            }
+                        }}
+                        className="py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                    >
+                        Rezervi Ləğv Et
+                    </button>
+                    <button
+                        onClick={() => setReservedTableDetail(null)}
+                        className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] ${
+                        lightMode ? 'bg-zinc-100 text-zinc-600' : 'bg-white/5 text-white/40'
+                        }`}
+                    >
+                        Bağla
+                    </button>
                 </div>
               </div>
             </motion.div>

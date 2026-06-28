@@ -60,6 +60,32 @@ export async function POST(request: NextRequest) {
     }
 
     if (order.table_number) {
+      // 1. Update table status to empty and clear reservation data (Workflow sync)
+      await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${order.table_number}`, {
+        method: 'PATCH',
+        headers: svc().headers,
+        body: JSON.stringify({ 
+          status: 'empty', 
+          reservation_id: null, 
+          reservation_name: null, 
+          reservation_phone: null,
+          reservation_time: null,
+          guest_count: null,
+          opened_at: null,
+          last_activity_at: null
+        }),
+      });
+
+      // 2. If this order is linked to a reservation, complete it
+      if (order.reservation_id) {
+        await fetch(`${svc().url}/rest/v1/reservations?id=eq.${order.reservation_id}`, {
+          method: 'PATCH',
+          headers: svc().headers,
+          body: JSON.stringify({ status: 'completed' }),
+        });
+      }
+
+      // 3. Handle merged/child orders
       const childrenRes = await fetch(
         `${s.url}/rest/v1/orders?select=id&merged_into=eq.${order_id}`,
         { headers: s.headers }

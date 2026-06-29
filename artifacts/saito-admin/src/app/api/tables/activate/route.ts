@@ -3,14 +3,15 @@ import { requireAuth } from '@/lib/api-auth';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !serviceKey) throw new Error('Missing Supabase configuration. Restart the dev server after creating .env.local');
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key) {
+    throw new Error('Missing Supabase configuration. Restart the dev server after creating .env.local');
+  }
   return {
     url,
     headers: {
-      'apikey': serviceKey,
-      'Authorization': `Bearer ${serviceKey}`,
+      'apikey': key,
+      'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
       'Prefer': 'return=representation',
     },
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
 
     const s = svc();
 
+    // 1. Fetch table
     const tableRes = await fetch(`${s.url}/rest/v1/table_floors?select=*&id=eq.${table_id}`, { headers: s.headers });
     if (!tableRes.ok) return NextResponse.json({ error: 'Failed to fetch table' }, { status: 500 });
     const tables: any[] = await tableRes.json();
@@ -42,13 +44,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Table has no linked reservation' }, { status: 409 });
     }
 
+    // 2. Fetch reservation
     const reservationRes = await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, { headers: s.headers });
     if (!reservationRes.ok) return NextResponse.json({ error: 'Failed to fetch reservation' }, { status: 500 });
     const reservations: any[] = await reservationRes.json();
     const reservation = reservations?.[0];
     if (!reservation) return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
 
-    // Create a real POS order
+    // 3. Create POS order (simple: just the order, items come from kitchen later)
     const orderPayload: Record<string, any> = {
       table_number: currentTable.table_number,
       reservation_id: reservationId,
@@ -58,7 +61,6 @@ export async function POST(req: NextRequest) {
       total_amount: Number(reservation.pre_order_total || 0),
       customer_note: reservation.note || 'Rezervasiya',
       created_at: new Date().toISOString(),
-      version: 1,
     };
 
     const createRes = await fetch(`${s.url}/rest/v1/orders`, {
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
     const created = await createRes.json();
     const activeOrder = Array.isArray(created) ? created[0] : created;
 
-    // Transfer pre-order items if any
+    // 4. Transfer pre-order items if any
     const preItems = typeof reservation.pre_order_items === 'string'
       ? JSON.parse(reservation.pre_order_items)
       : (reservation.pre_order_items || []);
@@ -98,7 +100,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Update reservation
+    // 5. Update reservation status
     await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, {
       method: 'PATCH',
       headers: s.headers,
@@ -108,7 +110,7 @@ export async function POST(req: NextRequest) {
       }),
     }).catch(() => {});
 
-    // Update table to occupied
+    // 6. Update table to occupied
     const tablePatch: Record<string, any> = {
       status: 'occupied',
       reservation_id: null,

@@ -382,7 +382,6 @@ INSERT INTO settings (restaurant_name, qr_table_count, opening_hours, tax_rate)
 SELECT 'Restoran', 20, '09:00-23:00', 18
 WHERE NOT EXISTS (SELECT 1 FROM settings LIMIT 1);
 
-INSERT INTO staff (full_name, role, pin_hash)
 VALUES 
   ('Admin', 'superadmin', 'pbkdf2_sha256$260000$dummy'),
   ('Kassir', 'cashier', 'pbkdf2_sha256$260000$dummy')
@@ -392,3 +391,10 @@ ON CONFLICT DO NOTHING;
 -- REALTIME: enable in Supabase Dashboard → Database → Replication
 -- Tables: orders, order_items, table_floors, reservations, inventory_logs
 -- ============================================================
+
+-- FIX: insert staff using the correct column name that already exists
+INSERT INTO staff (name, role, pin_hash, full_name, is_active, hourly_rate, created_at)
+VALUES 
+  ('Admin', 'superadmin', 'pbkdf2_sha256$260000$dummy', 'Admin', true, 5, NOW()),
+  ('Kassir', 'cashier', 'pbkdf2_sha256$260000$dummy', 'Kassir', true, 5, NOW())
+ON CONFLICT DO NOTHING;

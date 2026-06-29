@@ -949,8 +949,8 @@ export type Database = {
   };
 };
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -962,15 +962,6 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
   global: {
     headers: {
       'X-Client-Info': 'saito-admin',
-    },
-    fetch: (url: RequestInfo | URL, options?: RequestInit) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-      
-      return fetch(url, {
-        ...options,
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timeoutId));
     },
   },
 });

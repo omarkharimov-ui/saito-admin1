@@ -543,7 +543,7 @@ export default function KitchenPage() {
     if (orderIds.length > 0) {
       // Bulk query: find all child orders merged into any of our orders
       Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=id,table_number,merged_into&merged_into=in.(${orderIds.join(',')})`, {
+        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=id,table_number,merged_into&or=(${orderIds.map(id => `merged_into.eq.${id}`).join(',')})`, {
           headers: { 'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || '', 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}` }
         }).then(r => r.json()),
       ]).then(([childOrders]: any[]) => {

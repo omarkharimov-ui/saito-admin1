@@ -217,7 +217,9 @@ export function usePos() {
   }, []);
 
   const activateReservedTable = useCallback(async (table: PosTable) => {
-    if (!table.id) return;
+    if (!table.id) {
+      throw new Error('Masa ID-si tapılmadı. Səhifəni yeniləyin.');
+    }
     try {
       setLoading(true);
       const res = await fetch('/api/tables/activate', {
@@ -226,13 +228,13 @@ export function usePos() {
         body: JSON.stringify({ table_id: table.id }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Aktivləşdirmə xətası");
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Aktivləşdirmə xətası");
+      }
       await fetchData();
       const updatedTable = tables.find(t => t.table_number === table.table_number);
       if (updatedTable) selectTable({ ...updatedTable, status: 'occupied' });
       toast.success("Masa aktivləşdirildi və sessiya yaradıldı");
-    } catch (e: any) {
-      toast.error(e.message);
     } finally {
       setLoading(false);
     }
@@ -247,7 +249,12 @@ export function usePos() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_number: tableNumber }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || 'Failed to dismiss table');
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result?.error || 'Failed to dismiss table');
+      }
+
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
       delete all[tableNumber];
       saveCache(POS_CART_KEY + '_all', all);
@@ -255,7 +262,7 @@ export function usePos() {
       toast.success(`Masa ${tableNumber} təmizləndi`);
       await fetchData();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.message || 'Boşaltma xətası');
       await fetchData();
     } finally {
       setLoading(false);

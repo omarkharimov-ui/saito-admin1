@@ -414,42 +414,48 @@ export default function POSPage() {
                 </p>
               </div>
 
-              {/* Actions */}
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={async () => {
-                    if (!reservedTableDetail) return;
-                    try {
-                      await pos.activateReservedTable(reservedTableDetail);
-                      setReservedTableDetail(null);
-                    } catch (e: any) {
-                      toast.error(e.message || 'Xəta baş verdi');
-                    }
-                  }}
-                  className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl shadow-gold/20 flex items-center justify-center gap-3 bg-gold text-black hover:brightness-110 active:scale-95`}
-                >
-                  <CheckCircle size={18} /> Masanı Aktivləşdir
-                </button>
-                <div className="grid grid-cols-2 gap-3">
-                    <button
-                        onClick={async () => {
-                            if (!reservedTableDetail) return;
-                            await pos.dismissTable(reservedTableDetail.table_number);
-                            setReservedTableDetail(null);
-                        }}
-                        className="py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-rose-500/10 text-rose-500 border border-rose-500/20"
-                    >
-                        Rezervi Ləğv Et
-                    </button>
-                    <button
-                        onClick={() => setReservedTableDetail(null)}
-                        className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] ${
-                        lightMode ? 'bg-zinc-100 text-zinc-600' : 'bg-white/5 text-white/40'
-                        }`}
-                    >
-                        Bağla
-                    </button>
-                </div>
+                {/* Actions */}
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={async () => {
+                      if (!reservedTableDetail) return;
+                      try {
+                        await pos.activateReservedTable(reservedTableDetail);
+                        setReservedTableDetail(null);
+                      } catch (e: any) {
+                        toast.error(e.message || 'Xəta baş verdi');
+                      }
+                    }}
+                    disabled={pos.loading}
+                    className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl shadow-gold/20 flex items-center justify-center gap-3 bg-gold text-black hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <CheckCircle size={18} /> Masanı Aktivləşdir
+                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                      <button
+                          disabled={pos.loading}
+                          onClick={async () => {
+                              if (!reservedTableDetail) return;
+                              try {
+                                await pos.dismissTable(reservedTableDetail.table_number);
+                                setReservedTableDetail(null);
+                              } catch (e: any) {
+                                toast.error(e.message || 'Xəta baş verdi');
+                              }
+                          }}
+                          className="py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-rose-500/10 text-rose-500 border border-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                          Rezervi Ləğv Et
+                      </button>
+                      <button
+                          onClick={() => setReservedTableDetail(null)}
+                          className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] ${
+                          lightMode ? 'bg-zinc-100 text-zinc-600' : 'bg-white/5 text-white/40'
+                          }`}
+                      >
+                          Bağla
+                      </button>
+                  </div>
               </div>
             </motion.div>
           </motion.div>

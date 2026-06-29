@@ -4,7 +4,7 @@ import { executeTransactionalOrderAction } from '@/lib/transaction';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const key = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
   if (!url || !key) throw new Error('Missing Supabase configuration');
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
@@ -24,14 +24,14 @@ export async function POST(req: NextRequest) {
       const ordersRes = await fetch(`${s.url}/rest/v1/orders?select=id,reservation_id,total_amount,order_items(*)&table_number=eq.${table_number}&status=neq.paid&status=neq.cancelled`, { headers: s.headers });
       const orders: any[] = await ordersRes.json();
 
-      let resIdFromOrder = null;
+      let resIdFromOrder: string | null = null;
 
       if (Array.isArray(orders) && orders.length > 0) {
         const orderIds = orders.map((o: any) => o.id);
-        resIdFromOrder = orders.find(o => o.reservation_id)?.reservation_id;
+        resIdFromOrder = orders.find(o => o.reservation_id)?.reservation_id || null;
 
         // 2. Cancel the orders
-        await fetch(`${s.url}/rest/v1/orders?id=in.(${orderIds.join(',')})`, {
+        const cancelRes = await fetch(`${s.url}/rest/v1/orders?id=in.(${orderIds.join(',')})`, {
           method: 'PATCH',
           headers: s.headers,
           body: JSON.stringify({ 
@@ -39,15 +39,15 @@ export async function POST(req: NextRequest) {
             cancelled_at: new Date().toISOString()
           }),
         });
+        if (!cancelRes.ok) throw new Error('Failed to cancel orders');
 
-        // 3. Cancel all kitchen items associated with these orders
-        await fetch(`${s.url}/rest/v1/order_items?order_id=in.(${orderIds.join(',')})`, {
+        // 3. Cancel all kitchen items
+        const itemsCancelRes = await fetch(`${s.url}/rest/v1/order_items?order_id=in.(${orderIds.join(',')})`, {
           method: 'PATCH',
           headers: s.headers,
-          body: JSON.stringify({ 
-            kitchen_status: 'cancelled' 
-          }),
+          body: JSON.stringify({ kitchen_status: 'cancelled' }),
         });
+        if (!itemsCancelRes.ok) throw new Error('Failed to cancel order items');
 
         // 4. Record in cancelled_orders for audit
         for (const order of orders) {
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       }
 
       // 7. Reset Table status
-      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+      const tablePatchRes = await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
         method: 'PATCH',
         headers: s.headers,
         body: JSON.stringify({
@@ -103,11 +103,16 @@ export async function POST(req: NextRequest) {
           merged_into_table: null
         }),
       });
+      if (!tablePatchRes.ok) throw new Error('Failed to reset table status');
 
       return { success: true };
     });
 
-    return NextResponse.json(result);
+    if (!result.success) {
+      return NextResponse.json({ error: result.error || 'Dismiss failed' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('[API /orders/dismiss] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

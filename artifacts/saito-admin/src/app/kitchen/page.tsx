@@ -538,6 +538,30 @@ export default function KitchenPage() {
   const applyData = useCallback((data: any[], lang: string) => {
     const mapped = data.map(o => mapRawOrder(o, lang)).filter((o: Order) => o.kitchen_status !== 'completed');
 
+    // Enrich with merged_from_tables data
+    const orderIds = mapped.map(o => o.id);
+    if (orderIds.length > 0) {
+      // Bulk query: find all child orders merged into any of our orders
+      Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=id,table_number,merged_into&merged_into=in.(${orderIds.join(',')})`, {
+          headers: { 'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || '', 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}` }
+        }).then(r => r.json()),
+      ]).then(([childOrders]: any[]) => {
+        const mergedMap = new Map<string, number[]>();
+        (childOrders || []).forEach((co: any) => {
+          if (co.merged_into && co.table_number) {
+            const existing = mergedMap.get(co.merged_into) || [];
+            if (!existing.includes(co.table_number)) existing.push(co.table_number);
+            mergedMap.set(co.merged_into, existing);
+          }
+        });
+        setOrders(prev => prev.map(o => ({
+          ...o,
+          merged_from_tables: mergedMap.get(o.id) || [],
+        })));
+      }).catch(() => {});
+    }
+
     // Sound: new order arrived OR new items added to existing order
     if (soundOnRef.current) {
       const newIds = new Set(mapped.map((o: Order) => o.id));
@@ -607,6 +631,7 @@ export default function KitchenPage() {
         `)
         .gt('table_number', 0)
         .not('status', 'eq', 'paid')
+        .is('is_draft', 'false') // CRITICAL: hide draft/reservation placeholders from kitchen
         .order('created_at', { ascending: false });
 
       if (!error && data) {
@@ -845,7 +870,7 @@ export default function KitchenPage() {
     fetchOrdersRef.current();
   };
 
-  // Addım 2: Təhvil Ver — itemləri ready edir + kitchen_ready_at timestamp
+  // Addım 2: Təhvil Ver — itemləri ready edir + stock deduction
   // Admin panel realtime subscription bu dəyişikliyi görür → masa flash edir
   const markAllReadyAndNotify = async (order: Order) => {
     pushUndo(`MASA ${order.table_number} — servise verildi`, order);
@@ -859,6 +884,19 @@ export default function KitchenPage() {
     await supabase.from('orders')
       .update({ kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() })
       .eq('id', order.id);
+
+    // Deduct stock immediately when kitchen marks order as ready
+    // Idempotency check prevents double-deduction if pay endpoint also runs
+    try {
+      await fetch('/api/orders/mark-ready', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: order.id }),
+      });
+    } catch (err) {
+      console.error('[kitchen] mark-ready stock deduction failed:', err);
+    }
+
     fetchOrdersRef.current();
   };
 

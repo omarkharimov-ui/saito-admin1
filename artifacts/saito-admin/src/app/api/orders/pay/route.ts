@@ -97,6 +97,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // NOTE: Primary stock deduction happens in /api/orders/mark-ready when kitchen marks ready.
+    // This fallback ensures stock is deducted even if kitchen flow was skipped (e.g., direct payment).
+    // Idempotency check in deductStockForOrder prevents double-deduction.
     let stockDeduction = { deducted: 0, ingredientIds: [] as string[] };
     try {
       stockDeduction = await deductStockForOrder(order_id);

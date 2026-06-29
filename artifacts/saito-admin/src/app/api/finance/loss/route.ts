@@ -48,6 +48,22 @@ export async function POST(req: NextRequest) {
         .in('id', orderIds);
     }
 
+    // Clear table_floors status so table shows as available
+    if (table_number) {
+      await supabase
+        .from('table_floors')
+        .update({
+          status: 'empty',
+          guest_count: null,
+          reservation_id: null,
+          reservation_name: null,
+          reservation_phone: null,
+          reservation_time: null,
+          merged_into_table: null,
+        })
+        .eq('table_number', table_number);
+    }
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

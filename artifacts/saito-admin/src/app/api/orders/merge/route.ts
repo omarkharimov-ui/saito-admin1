@@ -93,6 +93,57 @@ export async function POST(request: NextRequest) {
       // Determine combined guest count for target table
       const totalGuests = (Number(primaryOrder?.guest_count || 1)) + extraGuests;
 
+      // CRITICAL: Merge reservations — transfer source table reservations to target
+      const targetFloorRes = await fetch(
+        `${svc().url}/rest/v1/table_floors?table_number=eq.${targetTable}&select=*`,
+        { headers: svc().headers }
+      );
+      const targetFloorData = await targetFloorRes.json();
+      const targetFloor = targetFloorData?.[0];
+      
+      const mergedReservationIds: string[] = [];
+      for (const tNum of restTables) {
+        const srcFloorRes = await fetch(
+          `${svc().url}/rest/v1/table_floors?table_number=eq.${tNum}&select=*`,
+          { headers: svc().headers }
+        );
+        const srcFloorData = await srcFloorRes.json();
+        const srcFloor = srcFloorData?.[0];
+        
+        if (srcFloor?.reservation_id) {
+          mergedReservationIds.push(srcFloor.reservation_id);
+          // Mark source reservations as no_show or completed (they're now merged)
+          await fetch(`${svc().url}/rest/v1/reservations?id=eq.${srcFloor.reservation_id}`, {
+            method: 'PATCH',
+            headers: svc().headers,
+            body: JSON.stringify({ status: 'completed', note: `Birləşdirildi → Masa ${targetTable}` }),
+          }).catch(() => {});
+        }
+      }
+
+      // Build reservation patch for target table
+      const targetReservationPatch: Record<string, any> = {
+        status: 'occupied',
+        guest_count: totalGuests,
+      };
+      if (targetFloor?.reservation_id) {
+        // Keep target's existing reservation
+      } else if (mergedReservationIds.length > 0) {
+        // Use first merged reservation on target table
+        const mergedRes = await fetch(
+          `${svc().url}/rest/v1/reservations?id=eq.${mergedReservationIds[0]}&select=*`,
+          { headers: svc().headers }
+        );
+        const mergedResData = await mergedRes.json();
+        const mergedReservation = mergedResData?.[0];
+        if (mergedReservation) {
+          targetReservationPatch.reservation_id = mergedReservation.id;
+          targetReservationPatch.reservation_name = mergedReservation.name;
+          targetReservationPatch.reservation_phone = mergedReservation.phone;
+          targetReservationPatch.reservation_time = mergedReservation.time;
+        }
+      }
+
       for (const tNum of restTables) {
         await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tNum}`, {
           method: 'PATCH',
@@ -109,13 +160,10 @@ export async function POST(request: NextRequest) {
         });
       }
       
-      await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${targetTable}`, {
+       await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${targetTable}`, {
         method: 'PATCH',
         headers: svc().headers,
-        body: JSON.stringify({ 
-          status: 'occupied',
-          guest_count: totalGuests,
-        }),
+        body: JSON.stringify(targetReservationPatch),
       });
 
       return { primary_order_id: primaryOrder.id, targetTable, merged_tables: restTables };

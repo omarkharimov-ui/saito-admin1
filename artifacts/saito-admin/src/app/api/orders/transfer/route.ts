@@ -41,6 +41,22 @@ export async function POST(request: NextRequest) {
         throw new Error('TARGET_TABLE_OCCUPIED');
       }
 
+      // CRITICAL: Transfer reservation from source to target table
+      const sourceFloorRes = await fetch(
+        `${svc().url}/rest/v1/table_floors?table_number=eq.${from_table}&select=*`,
+        { headers: svc().headers }
+      );
+      const sourceFloorData = await sourceFloorRes.json();
+      const sourceFloor = sourceFloorData?.[0];
+      
+      const reservationPatch: Record<string, any> = {};
+      if (sourceFloor?.reservation_id) {
+        reservationPatch.reservation_id = sourceFloor.reservation_id;
+        reservationPatch.reservation_name = sourceFloor.reservation_name;
+        reservationPatch.reservation_phone = sourceFloor.reservation_phone;
+        reservationPatch.reservation_time = sourceFloor.reservation_time;
+      }
+
       for (const order of sourceOrders) {
         const updateRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${order.id}`, {
           method: 'PATCH',
@@ -74,6 +90,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({ 
           status: 'occupied',
           guest_count: sourceOrders.reduce((s: number, o: any) => s + Number(o.guest_count || 0), 0) || null,
+          ...reservationPatch, // Transfer reservation data to target table
         }),
       });
 

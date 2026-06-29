@@ -11,12 +11,11 @@ function svc() {
 }
 
 async function restoreStockForOrder(supabase: ReturnType<typeof svc>, orderId: string) {
-  const shortId = orderId.slice(0, 8);
   const { data: logs } = await supabase
     .from('inventory_logs')
     .select('id, ingredient_id, quantity')
     .eq('type', 'order_consumption')
-    .ilike('reason', `%${shortId}%`);
+    .eq('order_id', orderId);
 
   if (!logs || logs.length === 0) return;
 
@@ -24,7 +23,8 @@ async function restoreStockForOrder(supabase: ReturnType<typeof svc>, orderId: s
     ingredient_id: log.ingredient_id,
     type: 'order_restore' as const,
     quantity: Math.abs(log.quantity),
-    reason: `Ləğv olunmuş sifariş — #${shortId} (geri yazıldı)`,
+    order_id: orderId,
+    reason: `Ləğv olunmuş sifariş — #${orderId} (geri yazıldı)`,
   }));
 
   const { error } = await supabase.from('inventory_logs').insert(restoreLogs);

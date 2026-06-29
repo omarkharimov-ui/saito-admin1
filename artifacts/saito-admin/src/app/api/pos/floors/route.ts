@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(allRows) && allRows.length > 0) {
       const toDelete = allRows.filter((r: any) => !currentNames.includes(r.floor_name)).map((r: any) => r.id);
       if (toDelete.length > 0) {
-        await fetch(`${SUPABASE_URL}/rest/v1/table_floors?id=in.(${toDelete.map((id: string) => `"${id}"`).join(',')})`, {
+        const idOr = toDelete.map(id => `id.eq.${id}`).join(',');
+        await fetch(`${SUPABASE_URL}/rest/v1/table_floors?or=(${idOr})`, {
           headers: { ...headers, 'Prefer': 'return=minimal' },
           method: 'DELETE',
         });

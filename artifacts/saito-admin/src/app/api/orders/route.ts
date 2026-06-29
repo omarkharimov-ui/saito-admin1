@@ -107,7 +107,7 @@ export async function POST(request: Request) {
       // ── CRITICAL FIX: Find existing active order for this table ──
       // Instead of creating duplicate orders, add items to the existing one
       const existingOrderRes = await fetch(
-        `${svc().url}/rest/v1/orders?select=*&table_number=eq.${table_number}&status=neq.paid&status=neq.cancelled&is_draft=eq.false&order=created_at.asc`,
+        `${svc().url}/rest/v1/orders?select=*&table_number=eq.${table_number}&status=neq.paid&status=neq.cancelled&order=created_at.asc`,
         { headers: svc().headers }
       );
       const existingOrders: any[] = await existingOrderRes.json();
@@ -122,22 +122,18 @@ export async function POST(request: Request) {
 
       if (!activeOrder) {
         // No active order → create new one
-        const orderRes = await fetch(`${svc().url}/rest/v1/orders`, {
-          method: 'POST',
-          headers: { ...svc().headers, 'Prefer': 'return=representation' },
-          body: JSON.stringify({
-            table_number,
-            total_amount: total_amount || items.reduce((s: number, i: any) => s + i.total_price, 0),
-            status: status || 'confirmed',
-            order_type: order_type || 'dine_in',
-            kitchen_status: 'pending',
-            guest_count: guest_count || 1,
-            customer_note: customer_note || null,
-            reservation_id: reservation_id || null,
-            created_at: new Date().toISOString(),
-            version: 1
-          }),
-        });
+         const orderRes = await fetch(`${svc().url}/rest/v1/orders`, {
+           method: 'POST',
+           headers: { ...svc().headers, 'Prefer': 'return=representation' },
+           body: JSON.stringify({
+             table_number,
+             total_amount: total_amount || items.reduce((s: number, i: any) => s + i.total_price, 0),
+             status: status || 'confirmed',
+             guest_count: guest_count || 1,
+             customer_note: customer_note || null,
+             created_at: new Date().toISOString(),
+           }),
+         });
         if (!orderRes.ok) throw new Error('Order creation failed');
         activeOrder = (await orderRes.json())?.[0];
         isNewOrder = true;

@@ -1,5 +1,7 @@
 -- ============================================================
--- SAITO ADMIN1 — Restaurant POS Schema
+-- SAITO ADMIN1 v2 — SADƏ, TƏMİZ, İŞLƏK
+-- ============================================================
+-- Supabase → SQL Editor → Run (hamısını kopyala)
 -- ============================================================
 
 -- 1. table_floors
@@ -20,8 +22,6 @@ CREATE TABLE IF NOT EXISTS table_floors (
   opened_at TIMESTAMPTZ,
   has_pending BOOLEAN DEFAULT false,
   oldest_pending_at TIMESTAMPTZ,
-  merged_into_table INTEGER,
-  merged_orders JSONB DEFAULT '[]'::jsonb,
   last_activity_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -48,12 +48,7 @@ CREATE TABLE IF NOT EXISTS orders (
   merged_into UUID,
   is_draft BOOLEAN DEFAULT false,
   is_split BOOLEAN DEFAULT false,
-  is_rush BOOLEAN DEFAULT false,
   version INTEGER DEFAULT 1,
-  created_by UUID,
-  assigned_to UUID,
-  priority INTEGER DEFAULT 0,
-  kitchen_ready_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   cancelled_at TIMESTAMPTZ,
@@ -76,7 +71,6 @@ CREATE TABLE IF NOT EXISTS order_items (
   prepared_quantity INTEGER DEFAULT 0,
   served_quantity INTEGER DEFAULT 0,
   image_url TEXT,
-  legacy_id UUID,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -218,7 +212,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_order ON audit_logs(order_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
 
--- 12. daily_reports (Z-Report)
+-- 12. daily_reports
 CREATE TABLE IF NOT EXISTS daily_reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   report_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -328,136 +322,57 @@ CREATE TABLE IF NOT EXISTS invoices (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ============================================================
--- RLS — Policies
--- ============================================================
 
-ALTER TABLE table_floors ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_table_floors" ON table_floors FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_table_floors" ON table_floors FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_table_floors" ON table_floors FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin','cashier'))
-);
+-- Ensure existing tables have all required columns
+ALTER TABLE table_floors ADD COLUMN IF NOT EXISTS merged_into_table INTEGER;
+ALTER TABLE table_floors ADD COLUMN IF NOT EXISTS merged_orders JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE table_floors ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE table_floors ADD COLUMN IF NOT EXISTS has_pending BOOLEAN DEFAULT false;
+ALTER TABLE table_floors ADD COLUMN IF NOT EXISTS oldest_pending_at TIMESTAMPTZ;
 
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_orders" ON orders FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_orders" ON orders FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_orders" ON orders FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin','cashier','kitchen'))
-);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS kitchen_status TEXT DEFAULT 'pending';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_draft BOOLEAN DEFAULT false;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS merged_into UUID;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS reservation_id UUID;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS kitchen_ready_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS special_request TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS created_by UUID;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS assigned_to UUID;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS priority INTEGER DEFAULT 0;
 
-ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_order_items" ON order_items FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_order_items" ON order_items FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_order_items" ON order_items FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin','cashier','kitchen'))
-);
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS kitchen_status TEXT DEFAULT 'pending';
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS prepared_quantity INTEGER DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS served_quantity INTEGER DEFAULT 0;
 
-ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_reservations" ON reservations FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_reservations" ON reservations FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_reservations" ON reservations FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin','cashier'))
-);
-CREATE POLICY "public_create_reservation" ON reservations FOR INSERT TO public WITH CHECK (true);
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS pre_order_items JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS pre_order_total NUMERIC DEFAULT 0;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS kitchen_scheduled_at TIMESTAMPTZ;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_products" ON products FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_products" ON products FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_products" ON products FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS is_ready_product BOOLEAN DEFAULT false;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS has_active_recipe BOOLEAN DEFAULT false;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS direct_ingredient_id UUID;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS modifiers JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS views_count INTEGER DEFAULT 0;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS sold_count INTEGER DEFAULT 0;
 
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_categories" ON categories FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_categories" ON categories FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_categories" ON categories FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
+ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS min_stock_threshold NUMERIC DEFAULT 0;
+ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS average_cost_per_unit NUMERIC DEFAULT 0;
+ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS last_restocked_at TIMESTAMPTZ;
 
-ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_recipes" ON recipes FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_recipes" ON recipes FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_recipes" ON recipes FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS tax_rate NUMERIC DEFAULT 18;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'AZN';
 
-ALTER TABLE ingredients ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_ingredients" ON ingredients FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_ingredients" ON ingredients FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_ingredients" ON ingredients FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
-
-ALTER TABLE inventory_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_inventory_logs" ON inventory_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_inventory_logs" ON inventory_logs FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_inventory_logs" ON inventory_logs FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
-
-ALTER TABLE cancelled_orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_cancelled_orders" ON cancelled_orders FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_cancelled_orders" ON cancelled_orders FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_cancelled_orders" ON cancelled_orders FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin','cashier','kitchen'))
-);
-
-ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_audit_logs" ON audit_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_audit_logs" ON audit_logs FOR SELECT TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
-
-ALTER TABLE daily_reports ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_daily_reports" ON daily_reports FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_daily_reports" ON daily_reports FOR SELECT TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
-
-ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_settings" ON settings FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_settings" ON settings FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_settings" ON settings FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
-
-ALTER TABLE staff ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_staff" ON staff FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_staff" ON staff FOR SELECT TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff s2 WHERE s2.id = auth.uid()::uuid AND s2.role IN ('superadmin','admin'))
-);
-CREATE POLICY "auth_modify_staff" ON staff FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role = 'superadmin')
-);
-
-ALTER TABLE clock_events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_clock_events" ON clock_events FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_clock_events" ON clock_events FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_clock_events" ON clock_events FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
-
-ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_suppliers" ON suppliers FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_suppliers" ON suppliers FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_suppliers" ON suppliers FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
-
-ALTER TABLE purchase_orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_purchase_orders" ON purchase_orders FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_purchase_orders" ON purchase_orders FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_purchase_orders" ON purchase_orders FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
-
-ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_full_invoices" ON invoices FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "auth_read_invoices" ON invoices FOR SELECT TO authenticated USING (true);
-CREATE POLICY "auth_modify_invoices" ON invoices FOR ALL TO authenticated USING (
-  EXISTS (SELECT 1 FROM staff WHERE staff.id = auth.uid()::uuid AND staff.role IN ('superadmin','admin'))
-);
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS pin_hash TEXT;
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'cashier';
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS hourly_rate NUMERIC DEFAULT 5;
 
 -- ============================================================
 -- Default data
@@ -472,3 +387,8 @@ VALUES
   ('Admin', 'superadmin', 'pbkdf2_sha256$260000$dummy'),
   ('Kassir', 'cashier', 'pbkdf2_sha256$260000$dummy')
 ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- REALTIME: enable in Supabase Dashboard → Database → Replication
+-- Tables: orders, order_items, table_floors, reservations, inventory_logs
+-- ============================================================

@@ -36,7 +36,7 @@ export async function GET() {
   try {
     const [floorsRes, ordersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at,kitchen_status,merged_into,is_draft,reservation_id&status=neq.paid&order=created_at.desc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=id,table_number,status,total_amount,guest_count,created_at&status=neq.paid&order=created_at.desc`, { headers }),
     ]);
 
     if (!floorsRes.ok || !ordersRes.ok) {
@@ -59,9 +59,10 @@ export async function GET() {
     
     let resUrl = `${SUPABASE_URL}/rest/v1/reservations?select=id,name,phone,time,guests,status,date`;
     if (uniqueResIds.length > 0) {
-      resUrl += `&or=(id.in.(${uniqueResIds.join(',')}),and(status.in.(confirmed,pending),date.eq.${todayLocal}))`;
+      const idClause = uniqueResIds.map(id => `id.eq.${id}`).join(',');
+      resUrl += `&or=(${idClause},and(status.eq.confirmed,date.eq.${todayLocal}),and(status.eq.pending,date.eq.${todayLocal}))`;
     } else {
-      resUrl += `&status=in.(confirmed,pending)&date=eq.${todayLocal}`;
+      resUrl += `&or=(status.eq.confirmed,status.eq.pending)&date=eq.${todayLocal}`;
     }
 
     const reservationsRes = await fetch(resUrl, { headers });

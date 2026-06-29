@@ -14,7 +14,7 @@ export async function GET() {
 
     const [reservationsRes, ordersRes] = await Promise.all([
       fetch(`${svc().url}/rest/v1/reservations?select=*&order=date.desc,time.desc`, { headers: svc().headers }),
-      fetch(`${svc().url}/rest/v1/orders?select=table_number,status&status=in.(new,confirmed,paid)`, { headers: svc().headers }),
+      fetch(`${svc().url}/rest/v1/orders?select=table_number,status&or=(status.eq.new,status.eq.confirmed,status.eq.paid)`, { headers: svc().headers }),
     ]);
 
     const reservations = await reservationsRes.json();

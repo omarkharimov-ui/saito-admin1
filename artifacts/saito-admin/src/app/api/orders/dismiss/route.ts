@@ -20,36 +20,40 @@ export async function POST(req: NextRequest) {
     const s = svc();
 
     const result = await executeTransactionalOrderAction('TableDismiss', async () => {
-      // 1. Find active (non-paid) orders for this table
-      const ordersRes = await fetch(`${s.url}/rest/v1/orders?select=id,reservation_id,total_amount,order_items(*)&table_number=eq.${table_number}&status=neq.paid&status=neq.cancelled`, { headers: s.headers });
-      const orders: any[] = await ordersRes.json();
+      const s = svc();
+
+      // 1. Find active orders for this table (simple query, no joins)
+      const ordersRes = await fetch(`${s.url}/rest/v1/orders?select=id,table_number,status,reservation_id,total_amount,guest_count&table_number=eq.${table_number}`, { headers: s.headers });
+      if (!ordersRes.ok) throw new Error('Failed to fetch orders');
+      const allOrders: any[] = await ordersRes.json();
+      const orders = allOrders.filter(o => o.status !== 'paid' && o.status !== 'cancelled');
 
       let resIdFromOrder: string | null = null;
 
-      if (Array.isArray(orders) && orders.length > 0) {
-        const orderIds = orders.map((o: any) => o.id);
+      if (orders.length > 0) {
+        const orderIds = orders.map(o => o.id);
         resIdFromOrder = orders.find(o => o.reservation_id)?.reservation_id || null;
 
+        const idOr = orderIds.map(id => `id.eq.${id}`).join(',');
+
         // 2. Cancel the orders
-        const cancelRes = await fetch(`${s.url}/rest/v1/orders?id=in.(${orderIds.join(',')})`, {
+        const cancelRes = await fetch(`${s.url}/rest/v1/orders?or=(${idOr})`, {
           method: 'PATCH',
           headers: s.headers,
-          body: JSON.stringify({ 
-            status: 'cancelled',
-            cancelled_at: new Date().toISOString()
-          }),
+          body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
         });
         if (!cancelRes.ok) throw new Error('Failed to cancel orders');
 
-        // 3. Cancel all kitchen items
-        const itemsCancelRes = await fetch(`${s.url}/rest/v1/order_items?order_id=in.(${orderIds.join(',')})`, {
+        // 3. Cancel order items
+        const itemIdOr = orderIds.map(id => `order_id.eq.${id}`).join(',');
+        const itemsRes = await fetch(`${s.url}/rest/v1/order_items?or=(${itemIdOr})`, {
           method: 'PATCH',
           headers: s.headers,
           body: JSON.stringify({ kitchen_status: 'cancelled' }),
         });
-        if (!itemsCancelRes.ok) throw new Error('Failed to cancel order items');
+        if (!itemsRes.ok) throw new Error('Failed to cancel items');
 
-        // 4. Record in cancelled_orders for audit
+        // 4. Audit log
         for (const order of orders) {
           await fetch(`${s.url}/rest/v1/cancelled_orders`, {
             method: 'POST',
@@ -60,37 +64,15 @@ export async function POST(req: NextRequest) {
               total_amount: Number(order.total_amount || 0),
               reason: 'dismiss',
               reason_text: 'Masa boşaldıldı',
-              items: (order.order_items || []).map((i: any) => ({
-                name: i.product_name || i.product_id,
-                quantity: i.quantity,
-                price: i.unit_price,
-              })),
+              items: [],
               created_at: new Date().toISOString(),
             }),
           }).catch(() => {});
         }
       }
 
-      // 5. Get current table floor state
-      const floorRes = await fetch(`${s.url}/rest/v1/table_floors?select=*&table_number=eq.${table_number}`, { headers: s.headers });
-      const currentFloor = (await floorRes.json())?.[0];
-
-      const resId = currentFloor?.reservation_id || resIdFromOrder;
-
-      // 6. Handle Reservation cleanup
-      if (resId) {
-        const hasOrders = Array.isArray(orders) && orders.length > 0;
-        await fetch(`${s.url}/rest/v1/reservations?id=eq.${resId}`, {
-          method: 'PATCH',
-          headers: s.headers,
-          body: JSON.stringify({
-            status: hasOrders ? 'cancelled' : 'no_show',
-          }),
-        }).catch(() => {});
-      }
-
-      // 7. Reset Table status
-      const tablePatchRes = await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+      // 5. Reset table
+      const patchRes = await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
         method: 'PATCH',
         headers: s.headers,
         body: JSON.stringify({
@@ -100,10 +82,10 @@ export async function POST(req: NextRequest) {
           reservation_phone: null,
           reservation_time: null,
           guest_count: null,
-          merged_into_table: null
+          merged_into_table: null,
         }),
       });
-      if (!tablePatchRes.ok) throw new Error('Failed to reset table status');
+      if (!patchRes.ok) throw new Error('Failed to reset table');
 
       return { success: true };
     });

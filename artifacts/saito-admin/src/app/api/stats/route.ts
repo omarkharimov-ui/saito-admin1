@@ -76,8 +76,8 @@ export async function GET(request: Request) {
       fetch(`${supabaseUrl}/rest/v1/cancelled_orders?select=*&created_at=gte.${isoStartDate}`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/recipes?select=menu_item_id,ingredient_id,quantity_required`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/ingredients?select=id,average_cost_per_unit`, { headers: H }),
-      fetch(`${supabaseUrl}/rest/v1/inventory_logs?select=quantity,cost_per_unit,ingredient_id&type=in.(waste,adjustment)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
-      fetch(`${supabaseUrl}/rest/v1/orders?select=table_number&status=in.(new,confirmed)`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/inventory_logs?select=quantity,cost_per_unit,ingredient_id&or=(type.eq.waste,type.eq.adjustment)&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/orders?select=table_number&or=(status.eq.new,status.eq.confirmed)`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/clock_events?select=*&clock_in=gte.${isoStartDate}`, { headers: H }),
     ]);
 

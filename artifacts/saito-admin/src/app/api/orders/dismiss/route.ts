@@ -3,6 +3,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createAuthClient();
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
 
@@ -11,11 +12,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Table number required' }, { status: 400 });
     }
 
-    const supabase = await createAuthClient();
-
     const { data: table } = await supabase
       .from('table_floors')
-      .select('id, status, merged_into_table, reservation_id')
+      .select('id, table_number, status, merged_into_table, reservation_id')
       .eq('table_number', table_number)
       .maybeSingle();
 
@@ -24,14 +23,15 @@ export async function POST(req: NextRequest) {
     }
 
     const allTableNumbers = [table_number];
-    const { data: mergedTables } = await supabase
+    if (table.merged_into_table) {
+      allTableNumbers.push(table.merged_into_table);
+    }
+    const { data: children } = await supabase
       .from('table_floors')
       .select('table_number')
-      .or(`merged_into_table.eq.${table.id},table_number.eq.${table_number}`);
-
-    if (mergedTables) {
-      const linked = mergedTables.map(t => t.table_number).filter(Boolean);
-      allTableNumbers.push(...linked);
+      .eq('merged_into_table', table.table_number);
+    if (children) {
+      children.forEach(t => allTableNumbers.push(t.table_number));
     }
     const uniqueTableNumbers = [...new Set(allTableNumbers)];
 
@@ -72,17 +72,17 @@ export async function POST(req: NextRequest) {
       if (resId) {
         await supabase
           .from('reservations')
-          .update({ status: 'no_show' })
+          .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
           .eq('id', resId);
       }
     }
 
-    const tableReservationId = table.reservation_id;
-    if (tableReservationId && !activeOrders.some(o => o.reservation_id === tableReservationId)) {
+    const resId = table.reservation_id;
+    if (resId && !activeOrders.some(o => o.reservation_id === resId)) {
       await supabase
         .from('reservations')
-        .update({ status: 'cancelled' })
-        .eq('id', tableReservationId);
+        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+        .eq('id', resId);
     }
 
     await supabase
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
       })
       .in('table_number', uniqueTableNumbers);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, table_number });
   } catch (error: any) {
     console.error('[API /orders/dismiss] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

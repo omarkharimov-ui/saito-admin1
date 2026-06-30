@@ -262,15 +262,21 @@ export function usePos() {
         throw new Error(result?.error || 'Failed to dismiss table');
       }
 
+      setTables(prev => prev.map(t =>
+        t.table_number === tableNumber
+          ? { ...t, status: 'empty', reservation_id: undefined, reservation_name: null, reservation_phone: null, reservation_time: null, guest_count: 0, merged_into_table: null }
+          : t
+      ));
+
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
       delete all[tableNumber];
       saveCache(POS_CART_KEY + '_all', all);
       delete orderFingerprintRef.current[tableNumber];
       toast.success(`Masa ${tableNumber} təmizləndi`);
-      await fetchData();
+      fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Boşaltma xətası');
-      await fetchData();
+      fetchData();
     } finally {
       setLoading(false);
     }

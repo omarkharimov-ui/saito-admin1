@@ -77,6 +77,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const tableReservationId = table.reservation_id;
+    if (tableReservationId && !activeOrders.some(o => o.reservation_id === tableReservationId)) {
+      await supabase
+        .from('reservations')
+        .update({ status: 'cancelled' })
+        .eq('id', tableReservationId);
+    }
+
     await supabase
       .from('table_floors')
       .update({

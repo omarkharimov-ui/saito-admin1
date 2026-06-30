@@ -9,6 +9,7 @@ import { toast } from '@/lib/toast';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import ReservationFilters from './components/ReservationFilters';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { ReservationTableRow, ReservationCard } from './components/ReservationRow';
@@ -75,6 +76,15 @@ export default function ReservationsPage() {
   useEffect(() => {
     fetchData();
     clearNotifications();
+  }, []);
+
+  /* ─── Realtime: sync with POS / other sources ─── */
+  useEffect(() => {
+    const channel = createRealtimeChannel('reservations-page')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, () => fetchData())
+      .subscribe();
+    return () => { removeRealtimeChannel(channel); };
   }, []);
 
   /* ─── Auto-Release Expired Reservations ─── */

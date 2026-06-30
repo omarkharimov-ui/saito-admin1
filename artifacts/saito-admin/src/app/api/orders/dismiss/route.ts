@@ -45,7 +45,6 @@ export async function POST(req: NextRequest) {
 
     if (activeOrders.length > 0) {
       const orderIds = activeOrders.map(o => o.id);
-      const resId = activeOrders.find(o => o.reservation_id)?.reservation_id || null;
 
       await supabase
         .from('orders')
@@ -68,21 +67,6 @@ export async function POST(req: NextRequest) {
           created_at: new Date().toISOString(),
         }).maybeSingle();
       }
-
-      if (resId) {
-        await supabase
-          .from('reservations')
-          .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
-          .eq('id', resId);
-      }
-    }
-
-    const resId = table.reservation_id;
-    if (resId && !activeOrders.some(o => o.reservation_id === resId)) {
-      await supabase
-        .from('reservations')
-        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
-        .eq('id', resId);
     }
 
     await supabase
@@ -97,6 +81,14 @@ export async function POST(req: NextRequest) {
         merged_into_table: null,
       })
       .in('table_number', uniqueTableNumbers);
+
+    const resId = table.reservation_id;
+    if (resId) {
+      await supabase
+        .from('reservations')
+        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+        .eq('id', resId);
+    }
 
     return NextResponse.json({ success: true, table_number });
   } catch (error: any) {

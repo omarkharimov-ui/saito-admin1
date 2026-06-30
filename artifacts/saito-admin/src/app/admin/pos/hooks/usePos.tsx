@@ -262,11 +262,20 @@ export function usePos() {
         throw new Error(result?.error || 'Failed to dismiss table');
       }
 
+      const resetTable = (t: PosTable): PosTable => ({
+        ...t, status: 'empty' as const, reservation_id: null as any, reservation_name: null, reservation_phone: null, reservation_time: null, guest_count: 0, merged_into_table: null, total_amount: 0, order_count: 0, order_ids: [], merged_orders: [], has_pending: false
+      });
+
       setTables(prev => prev.map(t =>
-        t.table_number === tableNumber
-          ? { ...t, status: 'empty', reservation_id: undefined, reservation_name: null, reservation_phone: null, reservation_time: null, guest_count: 0, merged_into_table: null }
-          : t
+        t.table_number === tableNumber ? resetTable(t) : t
       ));
+
+      setFloors(prev => prev.map(f => ({
+        ...f,
+        tables: f.tables?.map(t =>
+          t.table_number === tableNumber ? resetTable(t) : t
+        )
+      })));
 
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
       delete all[tableNumber];

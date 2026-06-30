@@ -489,11 +489,9 @@ export function usePos() {
           table_number: currentCart.table_number,
           total_amount: totalAmount,
           status: 'confirmed',
-          order_type: currentCart.order_type,
           guest_count: currentCart.guest_count,
           customer_note: currentCart.notes || null,
           items: orderItems,
-          source: 'pos',
         }),
       });
 

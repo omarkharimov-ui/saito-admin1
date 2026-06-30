@@ -37,93 +37,34 @@ export default function LiveFloorSnapshot() {
   const [tables, setTables] = useState<TableStatus[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchFloorStatus = async () => {
-      setLoading(true);
-      try {
-        // Get table count from settings
-        const { data: settings, error: settingsError } = await supabase.from('settings').select('qr_table_count').maybeSingle();
-        if (settingsError) {
-          console.error("Error fetching settings:", settingsError);
-        }
-        const count = settings?.qr_table_count || 12;
-        setTableCount(count);
+   useEffect(() => {
+     const fetchFloorStatus = async () => {
+       setLoading(true);
+       try {
+         const res = await fetch('/api/pos/tables');
+         if (!res.ok) throw new Error('Failed to fetch tables');
+         const data = await res.json();
+         const tables = data.tables || [];
 
-        // Get active orders with table info
-        const { data: orders, error: ordersError } = await supabase
-          .from('orders')
-          .select('table_number, status, kitchen_status, created_at, total_amount, is_draft')
-          .in('status', ['new', 'confirmed'])
-          .order('created_at', { ascending: false });
+         setTableCount(tables.length);
+         setTables(tables.map((t: any) => ({
+           tableNumber: t.table_number,
+           status: t.status,
+           orderCount: t.order_count,
+           startTime: t.opened_at ? new Date(t.opened_at).getTime() : undefined,
+         })));
+       } catch (error) {
+         console.error("An unexpected error occurred in fetchFloorStatus:", error);
+         setTables([]);
+       } finally {
+         setLoading(false);
+       }
+     };
 
-        if (ordersError) {
-          console.error("Error fetching orders:", ordersError);
-        }
-
-        // Get table floor statuses (reserved backup)
-        const { data: floorData } = await supabase.from('table_floors').select('table_number, status');
-        const floorStatusMap: Record<number, string> = {};
-        if (Array.isArray(floorData)) {
-          floorData.forEach(f => { floorStatusMap[f.table_number] = f.status; });
-        }
-
-        // Build table status map
-        const tableMap = new Map<number, TableStatus>();
-        
-        // Initialize all tables as empty
-        for (let i = 1; i <= count; i++) {
-          const dbStatus = floorStatusMap[i];
-          tableMap.set(i, { tableNumber: i, status: dbStatus === 'reserved' ? 'reserved' : 'empty' });
-        }
-
-        // Update based on orders, only if orders is a valid array
-        if (Array.isArray(orders)) {
-            orders.forEach(order => {
-                if (!order || !order.table_number) return;
-
-                const tableNum = order.table_number;
-                const existing = tableMap.get(tableNum);
-                let status: TableStatus['status'] = 'occupied';
-                
-                if (order.is_draft || order.kitchen_status === 'reserved') {
-                  status = 'reserved';
-                } else if (order.status === 'new') {
-                  status = 'new';
-                } else if (order.kitchen_status === 'ready') {
-                  status = 'payment_pending';
-                } else {
-                  status = 'order_placed';
-                }
-
-                const startTime = order.created_at ? new Date(order.created_at).getTime() : 0;
-
-                tableMap.set(tableNum, {
-                tableNumber: tableNum,
-                status,
-                orderCount: (existing?.orderCount || 0) + 1,
-                startTime,
-                } as any);
-            });
-        }
-
-        setTables(Array.from(tableMap.values()));
-      } catch (error) {
-        console.error("An unexpected error occurred in fetchFloorStatus:", error);
-        // In case of a major error, set a default safe state
-        const defaultTables: TableStatus[] = [];
-        for (let i = 1; i <= tableCount; i++) {
-          defaultTables.push({ tableNumber: i, status: 'empty' } as any);
-        }
-        setTables(defaultTables);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFloorStatus();
-    const interval = setInterval(fetchFloorStatus, 15000); // 15s refresh
-    return () => clearInterval(interval);
-  }, []);
+     fetchFloorStatus();
+     const interval = setInterval(fetchFloorStatus, 5000);
+     return () => clearInterval(interval);
+    }, []);
 
   const getStatusColor = (status: TableStatus['status']) => {
     switch (status) {

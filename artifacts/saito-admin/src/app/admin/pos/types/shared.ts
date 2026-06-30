@@ -27,6 +27,16 @@ export interface PosCartItem {
   modifiers?: PosModifierSelection[];
   notes?: string;
   special_notes?: string;
+  is_combo?: boolean;
+  combo_id?: string | null;
+  combo_components?: Array<{
+    product_id: string;
+    product_name?: string;
+    variant_id?: string | null;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+  }>;
 }
 
 export interface PosCart {

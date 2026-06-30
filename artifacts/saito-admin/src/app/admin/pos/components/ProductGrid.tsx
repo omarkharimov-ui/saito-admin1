@@ -70,8 +70,9 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
               <motion.button
                 key={product.id}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => onAddProduct(product)}
-                className="group relative flex flex-col rounded-[28px] bg-[#f4f4f7] dark:bg-white/[0.08] p-4 transition-all duration-300 hover:shadow-xl hover:bg-[#ebebef] dark:hover:bg-white/[0.12]"
+                onClick={() => { if (!hasNoStock) onAddProduct(product); }}
+                disabled={hasNoStock}
+                className={`group relative flex flex-col rounded-[28px] bg-[#f4f4f7] dark:bg-white/[0.08] p-4 transition-all duration-300 hover:shadow-xl hover:bg-[#ebebef] dark:hover:bg-white/[0.12] ${hasNoStock ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 {hasNoStock && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 rounded-[28px] backdrop-blur-[2px]">

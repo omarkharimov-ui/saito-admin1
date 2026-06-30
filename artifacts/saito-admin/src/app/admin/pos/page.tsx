@@ -41,6 +41,7 @@ export default function POSPage() {
   const [actionSheetTable, setActionSheetTable] = useState<PosTable | null>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
   const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
+  const [comboModalOpen, setComboModalOpen] = useState(false);
 
   const [orderButtonStatus, setOrderButtonStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isDirty, setIsDirty] = useState(false);
@@ -251,6 +252,13 @@ export default function POSPage() {
           {pos.activeView === 'order' && pos.selectedTable && (
             <motion.div key="order" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="h-full w-full flex flex-col md:flex-row overflow-hidden bg-[var(--theme-bg)]">
               <div className="flex-1 min-w-0 h-full p-6 flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold">Məhsullar</h2>
+                  <button onClick={() => setComboModalOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all">
+                    <GitMerge size={16} />
+                    Kombo
+                  </button>
+                </div>
                 <ProductGrid products={pos.products} categories={pos.categories} onAddProduct={handleAddProduct} cartCounts={cartCounts} outOfStock={outOfStock} />
               </div>
               <div className={`w-full md:w-[380px] xl:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
@@ -318,6 +326,57 @@ export default function POSPage() {
       {paymentOpen && payOrder && (
         <ReceiptModal order={payOrder} onClose={() => setPaymentOpen(false)} getProductName={(it) => { const p = it.products as any; if (!p) return ''; const transName = p.translations?.[language]?.name; if (transName) return transName; return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || ''; }} onPay={handleCloseBill} />
       )}
+
+      <AnimatePresence>
+        {comboModalOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setComboModalOpen(false)}>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[32px] bg-white dark:bg-zinc-900 shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-black">Kombolar</h3>
+                <button onClick={() => setComboModalOpen(false)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
+              </div>
+              {pos.combos.length === 0 ? (
+                <p className="text-center text-gray-500 py-12">Aktiv kombo tapılmadı</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {pos.combos.map((combo: any) => {
+                    const name = language === 'az' ? combo.name_az : language === 'en' ? combo.name_en : language === 'ru' ? combo.name_ru : combo.name;
+                    const items = combo.items || [];
+                    return (
+                      <div key={combo.id} className={`rounded-[24px] border p-4 transition-all ${combo.is_in_stock ? 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10' : 'bg-gray-100 dark:bg-white/[0.02] border-gray-200 opacity-60'}`}>
+                        {combo.image_url && <img src={combo.image_url} alt={name} className="w-full h-32 object-cover rounded-[20px] mb-3" />}
+                        <h4 className="font-bold text-lg leading-tight mb-1">{name || combo.name}</h4>
+                        <p className="text-xs text-gray-500 mb-3 line-clamp-2">{language === 'az' ? combo.description_az : language === 'en' ? combo.description_en : language === 'ru' ? combo.description_ru : combo.description}</p>
+                        <div className="space-y-1 mb-3">
+                          {items.map((it: any, idx: number) => {
+                            const pName = language === 'az' ? it.product?.name_az : language === 'en' ? it.product?.name_en : language === 'ru' ? it.product?.name_ru : it.product?.name;
+                            return (
+                              <div key={idx} className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                                <span>{it.quantity}x {pName || 'Məhsul'}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-lg font-black">₼{Number(combo.price).toFixed(2)}</span>
+                          <button
+                            disabled={!combo.is_in_stock}
+                            onClick={() => { pos.addComboToCart(combo); setComboModalOpen(false); }}
+                            className="px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all"
+                          >
+                            Əlavə et
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {pos.lastUndo && (
           <motion.div initial={{ y: 50, opacity: 0, scale: 0.9 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 50, opacity: 0, scale: 0.9 }} className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 px-6 py-3.5 rounded-2xl bg-[#D4AF37] text-black shadow-[0_15px_40px_rgba(212,175,55,0.4)] border border-white/20">

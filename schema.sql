@@ -175,6 +175,9 @@ CREATE TABLE IF NOT EXISTS inventory_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS unit_cost NUMERIC DEFAULT 0;
+ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS cost_per_unit NUMERIC DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS idx_inventory_logs_type ON inventory_logs(type);
 CREATE INDEX IF NOT EXISTS idx_inventory_logs_order_id ON inventory_logs(order_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_logs_ingredient ON inventory_logs(ingredient_id);
@@ -322,6 +325,164 @@ CREATE TABLE IF NOT EXISTS invoices (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 19. product_variants
+CREATE TABLE IF NOT EXISTS product_variants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL,
+  name TEXT NOT NULL,
+  price NUMERIC NOT NULL DEFAULT 0,
+  discount_price NUMERIC,
+  image_url TEXT,
+  is_default BOOLEAN DEFAULT false,
+  variant_type TEXT DEFAULT 'olcu',
+  description TEXT,
+  ingredients TEXT,
+  is_special BOOLEAN DEFAULT false,
+  is_spicy BOOLEAN DEFAULT false,
+  parent_variant_id UUID,
+  translations JSONB DEFAULT '{}'::jsonb,
+  views_count INTEGER DEFAULT 0,
+  is_in_stock BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_variants_product ON product_variants(product_id);
+
+-- 20. product_modifiers
+CREATE TABLE IF NOT EXISTS product_modifiers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL,
+  name TEXT NOT NULL,
+  name_az TEXT,
+  name_en TEXT,
+  name_ru TEXT,
+  price NUMERIC DEFAULT 0,
+  is_required BOOLEAN DEFAULT false,
+  options JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_modifiers_product ON product_modifiers(product_id);
+
+-- 21. combos
+CREATE TABLE IF NOT EXISTS combos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  name_az TEXT,
+  name_en TEXT,
+  name_ru TEXT,
+  description TEXT,
+  description_az TEXT,
+  description_en TEXT,
+  description_ru TEXT,
+  price NUMERIC NOT NULL DEFAULT 0,
+  image_url TEXT,
+  is_in_stock BOOLEAN DEFAULT true,
+  is_active BOOLEAN DEFAULT true,
+  translations JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 22. combo_items
+CREATE TABLE IF NOT EXISTS combo_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  combo_id UUID NOT NULL REFERENCES combos(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL,
+  variant_id UUID,
+  quantity INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_combo_items_combo ON combo_items(combo_id);
+
+-- 23. campaigns
+CREATE TABLE IF NOT EXISTS campaigns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT,
+  description TEXT,
+  type TEXT,
+  target_type TEXT,
+  target_id UUID,
+  discount_value NUMERIC DEFAULT 0,
+  start_time TIMESTAMPTZ,
+  end_time TIMESTAMPTZ,
+  end_date DATE,
+  status TEXT DEFAULT 'active',
+  image_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
+CREATE INDEX IF NOT EXISTS idx_campaigns_type ON campaigns(type);
+
+-- 24. waste_standards
+CREATE TABLE IF NOT EXISTS waste_standards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  keyword TEXT NOT NULL,
+  keyword_en TEXT,
+  waste_percentage NUMERIC NOT NULL DEFAULT 0,
+  note TEXT,
+  category TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 25. discrepancy_alerts
+CREATE TABLE IF NOT EXISTS discrepancy_alerts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type TEXT NOT NULL,
+  severity TEXT DEFAULT 'medium',
+  title TEXT NOT NULL,
+  description TEXT,
+  source_id TEXT,
+  source_table TEXT,
+  value NUMERIC DEFAULT 0,
+  expected_value NUMERIC DEFAULT 0,
+  variance_pct NUMERIC DEFAULT 0,
+  status TEXT DEFAULT 'open',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_discrepancy_alerts_status ON discrepancy_alerts(status);
+CREATE INDEX IF NOT EXISTS idx_discrepancy_alerts_type ON discrepancy_alerts(type);
+
+-- 26. recipe_headers
+CREATE TABLE IF NOT EXISTS recipe_headers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  menu_item_id UUID NOT NULL,
+  instructions TEXT,
+  portions INTEGER DEFAULT 1,
+  prep_time INTEGER DEFAULT 0,
+  cook_time INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_recipe_headers_menu ON recipe_headers(menu_item_id);
+
+-- 27. sessions
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  user_id UUID NOT NULL,
+  role TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+-- 28. admin_users
+CREATE TABLE IF NOT EXISTS admin_users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  role TEXT NOT NULL DEFAULT 'cashier',
+  is_active BOOLEAN DEFAULT true,
+  pin TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_pin ON admin_users(pin);
+
 
 -- Ensure existing tables have all required columns
 ALTER TABLE table_floors ADD COLUMN IF NOT EXISTS merged_into_table INTEGER;
@@ -382,10 +543,39 @@ INSERT INTO settings (restaurant_name, qr_table_count, opening_hours, tax_rate)
 SELECT 'Restoran', 20, '09:00-23:00', 18
 WHERE NOT EXISTS (SELECT 1 FROM settings LIMIT 1);
 
+INSERT INTO staff (name, role, pin_hash, full_name, is_active, hourly_rate, created_at)
+SELECT 'Admin', 'superadmin', 'pbkdf2_sha256$260000$dummy', 'Admin', true, 5, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM staff LIMIT 1);
+
+INSERT INTO staff (name, role, pin_hash, full_name, is_active, hourly_rate, created_at)
 VALUES 
-  ('Admin', 'superadmin', 'pbkdf2_sha256$260000$dummy'),
-  ('Kassir', 'cashier', 'pbkdf2_sha256$260000$dummy')
+  ('Admin', 'superadmin', 'pbkdf2_sha256$260000$dummy', 'Admin', true, 5, NOW()),
+  ('Kassir', 'cashier', 'pbkdf2_sha256$260000$dummy', 'Kassir', true, 5, NOW())
 ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- STOCK AUTOMATION TRIGGER
+-- Avtomatik stock azaltma / artırma
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION update_ingredient_stock()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.type = 'stock_in' THEN
+    UPDATE ingredients SET current_stock = current_stock + NEW.quantity WHERE id = NEW.ingredient_id;
+  ELSIF NEW.type = 'order_consumption' THEN
+    UPDATE ingredients SET current_stock = current_stock - NEW.quantity WHERE id = NEW.ingredient_id;
+  ELSIF NEW.type IN ('waste', 'adjustment') THEN
+    UPDATE ingredients SET current_stock = current_stock - ABS(NEW.quantity) WHERE id = NEW.ingredient_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_ingredient_stock ON inventory_logs;
+CREATE TRIGGER trg_update_ingredient_stock
+  AFTER INSERT ON inventory_logs
+  FOR EACH ROW EXECUTE FUNCTION update_ingredient_stock();
 
 -- ============================================================
 -- REALTIME: enable in Supabase Dashboard → Database → Replication

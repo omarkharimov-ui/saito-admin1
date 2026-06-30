@@ -39,7 +39,7 @@ export function usePos() {
   languageRef.current = language;
 
   /* ── State ── */
-  const cached = typeof window !== 'undefined' ? loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[] } | null>(POS_DATA_KEY, null) : null;
+  const cached = typeof window !== 'undefined' ? loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[]; combos: any[] } | null>(POS_DATA_KEY, null) : null;
   const [tables, setTables] = useState<PosTable[]>(cached?.tables || []);
   const [floors, setFloors] = useState<FloorConfig[]>(cached?.floors || []);
   const [products, setProducts] = useState<PosProduct[]>(cached?.products || []);
@@ -48,6 +48,7 @@ export function usePos() {
   const [recipes, setRecipes] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [combos, setCombos] = useState<any[]>([]);
   const [loading, setLoading] = useState(!cached);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<{ action: string; data: any; message: string } | null>(null);
@@ -73,6 +74,7 @@ export function usePos() {
       let newFloors: FloorConfig[] = [];
       let newProducts: PosProduct[] = [];
       let newCategories: { id: string; name: string }[] = [];
+      let newCombos: any[] = [];
       let newCampaigns: any[] = [];
 
       if (tablesRes && 'ok' in tablesRes && tablesRes.ok) {
@@ -87,8 +89,10 @@ export function usePos() {
         const data = await (productsRes as Response).json();
         newProducts = data.products || [];
         newCategories = data.categories || [];
+        newCombos = data.combos || [];
         setProducts(newProducts);
         setCategories(newCategories);
+        setCombos(newCombos);
         if (data.ingredients) setIngredients(data.ingredients);
         if (data.recipes) setRecipes(data.recipes);
         if (data.variants) setVariants(data.variants);
@@ -102,26 +106,28 @@ export function usePos() {
 
       // If we got valid data, save to cache
       if (newTables.length > 0 || newProducts.length > 0) {
-        saveCache(POS_DATA_KEY, { tables: newTables, floors: newFloors, products: newProducts, categories: newCategories });
+        saveCache(POS_DATA_KEY, { tables: newTables, floors: newFloors, products: newProducts, categories: newCategories, combos: newCombos });
       } else {
         // If fetch failed or returned empty (offline), try to load from cache immediately
-        const cachedData = loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[] } | null>(POS_DATA_KEY, null);
+        const cachedData = loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[]; combos: any[] } | null>(POS_DATA_KEY, null);
         if (cachedData) {
           setTables(cachedData.tables);
           setFloors(cachedData.floors);
           setProducts(cachedData.products);
           setCategories(cachedData.categories);
+          setCombos(cachedData.combos || []);
         }
       }
     } catch (e) {
       console.error('POS fetch error:', e);
       // Fallback to cache on any error
-      const cachedData = loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[] } | null>(POS_DATA_KEY, null);
+      const cachedData = loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[]; combos: any[] } | null>(POS_DATA_KEY, null);
       if (cachedData) {
         setTables(cachedData.tables);
         setFloors(cachedData.floors);
         setProducts(cachedData.products);
         setCategories(cachedData.categories);
+        setCombos(cachedData.combos || []);
       }
     } finally {
       setLoading(false);
@@ -390,6 +396,49 @@ export function usePos() {
     forceUpdate(n => n + 1);
   }, [checkStock]);
 
+  const addComboToCart = useCallback((combo: any) => {
+    const currentCart = cartRef.current;
+    if (!currentCart) return;
+
+    if (!combo.is_in_stock) return;
+
+    const langs = languageRef.current;
+    const comboItems = (combo.items || []) as any[];
+    
+    if (comboItems.length === 0) return;
+
+    const comboComponents = comboItems.map(ci => {
+      const product = Array.isArray(ci.product) ? ci.product[0] : ci.product;
+      const price = product?.price || 0;
+      return {
+        product_id: ci.product_id,
+        product_name: product?.name || 'Məhsul',
+        variant_id: ci.variant_id || null,
+        quantity: ci.quantity || 1,
+        unit_price: price,
+        total_price: price * (ci.quantity || 1),
+      };
+    });
+
+    const localizedName = langs === 'az' ? combo.name_az : langs === 'en' ? combo.name_en : langs === 'ru' ? combo.name_ru : combo.name;
+    const newItem: PosCartItem = {
+      product_id: combo.id,
+      product_name: `Kombo: ${localizedName || combo.name}`,
+      product_image: combo.image_url ?? null,
+      unit_price: combo.price,
+      total_price: combo.price,
+      quantity: 1,
+      modifiers: [],
+      special_notes: '',
+      is_combo: true,
+      combo_id: combo.id,
+      combo_components: comboComponents,
+    };
+
+    setCart(prev => prev ? { ...prev, items: [...prev.items, newItem] } : null);
+    forceUpdate(n => n + 1);
+  }, []);
+
   const updateCartItemQty = useCallback((index: number, delta: number) => {
     setCart(prev => {
       if (!prev) return null;
@@ -454,15 +503,29 @@ export function usePos() {
     }
 
     try {
-      const orderItems = currentCart.items.map(item => ({
-        product_id: item.product_id,
-        variant_id: item.variant_id || null,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.unit_price * item.quantity,
-        modifiers: JSON.stringify(item.modifiers),
-        special_notes: item.special_notes,
-      }));
+      const orderItems = currentCart.items.flatMap(item => {
+        if (item.is_combo && item.combo_components && item.combo_components.length > 0) {
+          const components = item.combo_components.map(comp => ({
+            product_id: comp.product_id,
+            variant_id: comp.variant_id || null,
+            quantity: item.quantity * comp.quantity,
+            unit_price: comp.unit_price,
+            total_price: comp.unit_price * item.quantity * comp.quantity,
+            modifiers: JSON.stringify([]),
+            special_notes: `Kombo: ${item.product_name}`,
+          }));
+          return components;
+        }
+        return [{
+          product_id: item.product_id,
+          variant_id: item.variant_id || null,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.unit_price * item.quantity,
+          modifiers: JSON.stringify(item.modifiers),
+          special_notes: item.special_notes,
+        }];
+      });
 
       const totalAmount = orderItems.reduce((s, i) => s + i.total_price, 0);
 
@@ -753,10 +816,10 @@ export function usePos() {
   }, [lastUndo, fetchData]);
 
   return {
-    language, tables, floors, products, categories, loading,
+    language, tables, floors, products, categories, combos, loading,
     selectedTable, cart, activeView, orderHistory, lastUndo,
     selectTable, backToFloor, performUndo, activateReservedTable,
-    addToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts,
+    addToCart, addComboToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts,
     placeOrder, closeBill, transferTable, mergeTables, splitTables, dismissTable,
     setActiveView, setCart, setSelectedTable, setTables,
     fetchData,

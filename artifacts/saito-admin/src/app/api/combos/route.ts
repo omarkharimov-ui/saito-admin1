@@ -16,7 +16,7 @@ export async function GET() {
 
     const { data: products, error: pErr } = await supabase
       .from('products')
-      .select('id, name, price, image_url')
+      .select('id, name, price, discount_price, image_url, category_id')
       .order('name');
     
     if (pErr) throw pErr;

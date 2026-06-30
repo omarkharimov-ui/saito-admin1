@@ -78,6 +78,51 @@ export default function POSPage() {
   } | null>(null);
 
   const [reservedTableDetail, setReservedTableDetail] = useState<PosTable | null>(null);
+  const [reservedCountdown, setReservedCountdown] = useState<string>('');
+
+  useEffect(() => {
+    const stored = localStorage.getItem('saito_pos_preorder_context');
+    if (stored) {
+      try {
+        const ctx = JSON.parse(stored);
+        setReservationCtx(ctx);
+        localStorage.removeItem('saito_pos_preorder_context');
+        const tableNum = ctx.tableIds?.[0];
+        if (tableNum) {
+          const table = pos.tables.find(t => t.id === tableNum);
+          if (table) {
+            setReservedTableDetail(table);
+          }
+        }
+      } catch {}
+    }
+  }, [pos.tables]);
+
+  useEffect(() => {
+    if (!reservedTableDetail?.reservation_time) {
+      setReservedCountdown('');
+      return;
+    }
+    const update = () => {
+      const [h, m] = reservedTableDetail.reservation_time!.split(':').map(Number);
+      const now = new Date();
+      const target = new Date();
+      target.setHours(h, m, 0, 0);
+      const diff = target.getTime() - now.getTime();
+      if (diff <= 0) { setReservedCountdown('Gecikir'); return; }
+      const hrs = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setReservedCountdown(
+        hrs > 0
+          ? `${hrs}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`
+          : `${mins}:${String(secs).padStart(2,'0')}`
+      );
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [reservedTableDetail?.reservation_time]);
 
   const selectedFloorName = selectedFloor || pos.floors[0]?.name || '';
 
@@ -92,7 +137,10 @@ export default function POSPage() {
   }, []);
 
   useEffect(() => {
-    fetch('/api/stock-check').then(r => r.json()).then(d => setOutOfStock(new Set(d.outOfStock || []))).catch(() => {});
+    const checkStock = () => fetch('/api/stock-check').then(r => r.json()).then(d => setOutOfStock(new Set(d.outOfStock || []))).catch(() => {});
+    checkStock();
+    const interval = setInterval(checkStock, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
@@ -259,7 +307,7 @@ export default function POSPage() {
                     Kombo
                   </button>
                 </div>
-                <ProductGrid products={pos.products} categories={pos.categories} onAddProduct={handleAddProduct} cartCounts={cartCounts} outOfStock={outOfStock} />
+                <ProductGrid products={pos.products} combos={pos.combos} categories={pos.categories} onAddProduct={handleAddProduct} onAddCombo={(c) => { pos.addComboToCart(c); }} cartCounts={cartCounts} outOfStock={outOfStock} />
               </div>
               <div className={`w-full md:w-[380px] xl:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
                   <CartPanel
@@ -441,16 +489,7 @@ export default function POSPage() {
                   }`}>
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Saat</p>
                     <p className="text-2xl font-black">{reservedTableDetail.reservation_time}</p>
-                    {(() => {
-                      const [h, m] = reservedTableDetail.reservation_time.split(':').map(Number);
-                      const now = new Date();
-                      const resTime = new Date();
-                      resTime.setHours(h, m, 0);
-                      const diff = Math.floor((resTime.getTime() - now.getTime()) / 60000);
-                      if (diff > 0) return <p className="text-[10px] font-bold text-amber-500 mt-1 uppercase tracking-tighter">{diff} dəqiqə qalıb</p>;
-                      if (diff < 0) return <p className="text-[10px] font-bold text-rose-500 mt-1 uppercase tracking-tighter">Gecikir</p>;
-                      return null;
-                    })()}
+                    <p className={`text-[10px] font-bold mt-1 uppercase tracking-tighter tabular-nums ${reservedCountdown === 'Gecikir' ? 'text-rose-500' : 'text-amber-500'}`}>{reservedCountdown}</p>
                   </div>
                 )}
                 {(reservedTableDetail.guest_count ?? 0) > 0 && (

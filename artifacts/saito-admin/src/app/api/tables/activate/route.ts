@@ -51,6 +51,10 @@ export async function POST(req: NextRequest) {
     const reservation = reservations?.[0];
     if (!reservation) return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
 
+    if (reservation.status === 'checked_in' || reservation.status === 'completed') {
+      return NextResponse.json({ error: 'Reservation already activated' }, { status: 409 });
+    }
+
     // 3. Create POS order (simple: just the order, items come from kitchen later)
     const orderPayload: Record<string, any> = {
       table_number: currentTable.table_number,

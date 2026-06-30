@@ -1,19 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
-
-function svc() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  
-  if (!url || !key) {
-    return NextResponse.json(
-      { error: 'Missing Supabase configuration. Please create .env.local with NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY' },
-      { status: 500 }
-    );
-  }
-  
-  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
-}
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,80 +11,75 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Table number required' }, { status: 400 });
     }
 
-    const s = svc();
-    if ('error' in s) return s; // svc() returned error response
+    const supabase = await createAuthClient();
 
-    // 1. Fetch active orders for this table
-    const ordersRes = await fetch(
-      `${s.url}/rest/v1/orders?select=id,status,total_amount,reservation_id,guest_count&table_number=eq.${table_number}`,
-      { headers: s.headers }
-    );
-    if (!ordersRes.ok) {
-      return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
+    const { data: table } = await supabase
+      .from('table_floors')
+      .select('id, status, merged_into_table, reservation_id')
+      .eq('table_number', table_number)
+      .maybeSingle();
+
+    if (!table) {
+      return NextResponse.json({ error: 'Table not found' }, { status: 404 });
     }
-    const allOrders: any[] = await ordersRes.json();
-    const orders = allOrders.filter((o: any) => o.status !== 'paid' && o.status !== 'cancelled');
 
-    // 2. Cancel active orders
-    if (orders.length > 0) {
-      const orderIds = orders.map((o: any) => o.id);
-      const resIdFromOrder = orders.find((o: any) => o.reservation_id)?.reservation_id || null;
+    const allTableNumbers = [table_number];
+    const { data: mergedTables } = await supabase
+      .from('table_floors')
+      .select('table_number')
+      .or(`merged_into_table.eq.${table.id},table_number.eq.${table_number}`);
 
-      // Cancel orders
-      const idOr = orderIds.map((id: string) => `id.eq.${id}`).join(',');
-      const cancelRes = await fetch(`${s.url}/rest/v1/orders?or=(${idOr})`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
-      });
-      if (!cancelRes.ok) {
-        return NextResponse.json({ error: 'Failed to cancel orders' }, { status: 500 });
+    if (mergedTables) {
+      const linked = mergedTables.map(t => t.table_number).filter(Boolean);
+      allTableNumbers.push(...linked);
+    }
+    const uniqueTableNumbers = [...new Set(allTableNumbers)];
+
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('id, status, total_amount, reservation_id')
+      .in('table_number', uniqueTableNumbers)
+      .not('status', 'in', '(paid,cancelled)');
+
+    const activeOrders = orders || [];
+
+    if (activeOrders.length > 0) {
+      const orderIds = activeOrders.map(o => o.id);
+      const resId = activeOrders.find(o => o.reservation_id)?.reservation_id || null;
+
+      await supabase
+        .from('orders')
+        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+        .in('id', orderIds);
+
+      await supabase
+        .from('order_items')
+        .update({ kitchen_status: 'cancelled' })
+        .in('order_id', orderIds);
+
+      for (const order of activeOrders) {
+        await supabase.from('cancelled_orders').insert({
+          order_id: order.id,
+          table_number,
+          total_amount: Number(order.total_amount || 0),
+          reason: 'dismiss',
+          reason_text: 'Masa boşaldıldı',
+          items: [],
+          created_at: new Date().toISOString(),
+        }).maybeSingle();
       }
 
-      // Cancel order items
-      const itemIdOr = orderIds.map((id: string) => `order_id.eq.${id}`).join(',');
-      const itemsRes = await fetch(`${s.url}/rest/v1/order_items?or=(${itemIdOr})`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({ kitchen_status: 'cancelled' }),
-      });
-      if (!itemsRes.ok) {
-        return NextResponse.json({ error: 'Failed to cancel items' }, { status: 500 });
-      }
-
-      // Audit log
-      for (const order of orders) {
-        await fetch(`${s.url}/rest/v1/cancelled_orders`, {
-          method: 'POST',
-          headers: s.headers,
-          body: JSON.stringify({
-            order_id: order.id,
-            table_number,
-            total_amount: Number(order.total_amount || 0),
-            reason: 'dismiss',
-            reason_text: 'Masa boşaldıldı',
-            items: [],
-            created_at: new Date().toISOString(),
-          }),
-        }).catch(() => {});
-      }
-
-      // Update reservation if linked
-      const resId = resIdFromOrder;
       if (resId) {
-        await fetch(`${s.url}/rest/v1/reservations?id=eq.${resId}`, {
-          method: 'PATCH',
-          headers: s.headers,
-          body: JSON.stringify({ status: 'no_show' }),
-        }).catch(() => {});
+        await supabase
+          .from('reservations')
+          .update({ status: 'no_show' })
+          .eq('id', resId);
       }
     }
 
-    // 3. Reset table to empty
-    const patchRes = await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
-      method: 'PATCH',
-      headers: s.headers,
-      body: JSON.stringify({
+    await supabase
+      .from('table_floors')
+      .update({
         status: 'empty',
         reservation_id: null,
         reservation_name: null,
@@ -106,11 +87,8 @@ export async function POST(req: NextRequest) {
         reservation_time: null,
         guest_count: null,
         merged_into_table: null,
-      }),
-    });
-    if (!patchRes.ok) {
-      return NextResponse.json({ error: 'Failed to reset table' }, { status: 500 });
-    }
+      })
+      .in('table_number', uniqueTableNumbers);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

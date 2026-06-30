@@ -126,10 +126,11 @@ export async function POST(request: NextRequest) {
         status: 'occupied',
         guest_count: totalGuests,
       };
+      let keptReservationId: string | null = null;
       if (targetFloor?.reservation_id) {
-        // Keep target's existing reservation
+        keptReservationId = targetFloor.reservation_id;
       } else if (mergedReservationIds.length > 0) {
-        // Use first merged reservation on target table
+        keptReservationId = mergedReservationIds[0];
         const mergedRes = await fetch(
           `${svc().url}/rest/v1/reservations?id=eq.${mergedReservationIds[0]}&select=*`,
           { headers: svc().headers }
@@ -142,6 +143,15 @@ export async function POST(request: NextRequest) {
           targetReservationPatch.reservation_phone = mergedReservation.phone;
           targetReservationPatch.reservation_time = mergedReservation.time;
         }
+      }
+
+      if (keptReservationId) {
+        const allTableNumbers = [targetTable, ...restTables];
+        await fetch(`${svc().url}/rest/v1/reservations?id=eq.${keptReservationId}`, {
+          method: 'PATCH',
+          headers: svc().headers,
+          body: JSON.stringify({ table_ids: allTableNumbers }),
+        });
       }
 
       for (const tNum of restTables) {

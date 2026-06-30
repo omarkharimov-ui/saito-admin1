@@ -181,6 +181,7 @@ export function usePos() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => fetchData())
       .subscribe();
     return () => { removeRealtimeChannel(channel); };
   }, [fetchData]);
@@ -371,10 +372,12 @@ export function usePos() {
 
       if (activeCampaign) {
         const discountValue = Number(activeCampaign.discount_value) || 0;
-        if (activeCampaign.type === 'percentage') {
+        if (activeCampaign.type === 'PERCENTAGE' || activeCampaign.type === 'HAPPY_HOUR') {
           basePrice = basePrice * (1 - discountValue / 100);
-        } else if (activeCampaign.type === 'fixed') {
-          basePrice = Math.max(0, basePrice - discountValue);
+        } else if (activeCampaign.type === 'BOGO') {
+          basePrice = basePrice / 2;
+        } else if (activeCampaign.type === 'BUY2GET1') {
+          basePrice = basePrice * 2 / 3;
         }
       }
 
@@ -420,13 +423,31 @@ export function usePos() {
       };
     });
 
+    let basePrice = combo.price;
+
+    const activeCampaign = campaigns.find(c =>
+      (c.target_type === 'combo' && c.target_id === combo.id) ||
+      (c.target_type === 'category' && c.target_id === combo.category_id)
+    );
+
+    if (activeCampaign) {
+      const discountValue = Number(activeCampaign.discount_value) || 0;
+      if (activeCampaign.type === 'PERCENTAGE' || activeCampaign.type === 'HAPPY_HOUR') {
+        basePrice = basePrice * (1 - discountValue / 100);
+      } else if (activeCampaign.type === 'BOGO') {
+        basePrice = basePrice / 2;
+      } else if (activeCampaign.type === 'BUY2GET1') {
+        basePrice = basePrice * 2 / 3;
+      }
+    }
+
     const localizedName = langs === 'az' ? combo.name_az : langs === 'en' ? combo.name_en : langs === 'ru' ? combo.name_ru : combo.name;
     const newItem: PosCartItem = {
       product_id: combo.id,
       product_name: `Kombo: ${localizedName || combo.name}`,
       product_image: combo.image_url ?? null,
-      unit_price: combo.price,
-      total_price: combo.price,
+      unit_price: basePrice,
+      total_price: basePrice,
       quantity: 1,
       modifiers: [],
       special_notes: '',
@@ -437,7 +458,7 @@ export function usePos() {
 
     setCart(prev => prev ? { ...prev, items: [...prev.items, newItem] } : null);
     forceUpdate(n => n + 1);
-  }, []);
+  }, [campaigns]);
 
   const updateCartItemQty = useCallback((index: number, delta: number) => {
     setCart(prev => {

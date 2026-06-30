@@ -11,6 +11,26 @@ export async function GET(req: NextRequest) {
     const status = url.searchParams.get('status');
     
     const supabase = await createAuthClient();
+
+    await supabase
+      .from('campaigns')
+      .update({ status: 'expired' })
+      .eq('status', 'active')
+      .or(`end_time.lt.${new Date().toISOString()},end_date.lt.${new Date().toISOString().slice(0, 10)}`);
+
+    const expiredProducts = await supabase
+      .from('campaigns')
+      .select('target_id')
+      .eq('target_type', 'product')
+      .eq('status', 'expired');
+
+    if (expiredProducts.data?.length) {
+      const productIds = expiredProducts.data.map(c => c.target_id).filter(Boolean);
+      if (productIds.length > 0) {
+        await supabase.from('products').update({ discount_price: null }).in('id', productIds);
+      }
+    }
+
     let query = supabase.from('campaigns').select('*').order('created_at', { ascending: false });
     
     if (type) query = query.eq('type', type);
@@ -34,12 +54,23 @@ export async function POST(req: NextRequest) {
     const supabase = await createAuthClient();
 
     if (body.action === 'deactivate') {
+      const { data: campaign } = await supabase
+        .from('campaigns')
+        .select('target_type, target_id')
+        .eq('id', body.id)
+        .single();
+
       const { error } = await supabase
         .from('campaigns')
         .update({ status: 'inactive' })
         .eq('id', body.id);
       
       if (error) throw error;
+
+      if (campaign?.target_type === 'product' && campaign.target_id) {
+        await supabase.from('products').update({ discount_price: null }).eq('id', campaign.target_id);
+      }
+
       return NextResponse.json({ success: true });
     }
 
@@ -62,7 +93,7 @@ export async function PATCH(req: NextRequest) {
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     const body = await req.json();
-    const allowedFields = ['name', 'description', 'type', 'status', 'discount_percent', 'discount_amount', 'start_date', 'end_date', 'min_order_amount', 'max_discount_amount', 'code', 'is_active'];
+    const allowedFields = ['title', 'description', 'type', 'status', 'discount_value', 'start_time', 'end_time', 'end_date', 'target_type', 'target_id', 'translations'];
     const update: Record<string, any> = {};
     for (const key of allowedFields) {
       if (key in body) update[key] = body[key];

@@ -12,13 +12,15 @@ export type Product = PosProduct;
 
 interface ProductGridProps {
   products: PosProduct[];
+  combos?: any[];
   categories: { id: string; name: string }[];
   onAddProduct: (product: PosProduct) => void;
+  onAddCombo?: (combo: any) => void;
   cartCounts: Record<string, number>;
   outOfStock?: Set<string>;
 }
 
-export function ProductGrid({ products, categories, onAddProduct, cartCounts, outOfStock }: ProductGridProps) {
+export function ProductGrid({ products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock }: ProductGridProps) {
   const { language, t } = useLanguage();
   const { lightMode } = useTheme();
   const [search, setSearch] = useState('');
@@ -36,6 +38,20 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
     }
     return list;
   }, [products, categoryFilter, search, language]);
+
+  const filteredCombos = useMemo(() => {
+    if (!combos) return [];
+    let list = combos;
+    if (categoryFilter) list = list.filter((c: any) => c.category_id === categoryFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((c: any) => {
+        const name = (language === 'az' ? c.name_az : language === 'en' ? c.name_en : c.name_ru) || c.name || '';
+        return name.toLowerCase().includes(q);
+      });
+    }
+    return list;
+  }, [combos, categoryFilter, search, language]);
 
   return (
     <div className="flex flex-col h-full">
@@ -62,6 +78,32 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
       {/* Product List - Modern Card Design */}
       <div className="flex-1 overflow-y-auto pr-1 pt-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5">
+          {filteredCombos.map((combo: any) => {
+            const name = (language === 'az' ? combo.name_az : language === 'en' ? combo.name_en : combo.name_ru) || combo.name;
+            return (
+              <motion.button
+                key={`combo-${combo.id}`}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => { if (onAddCombo) onAddCombo(combo); }}
+                className={`group relative flex flex-col rounded-[28px] bg-gradient-to-br from-amber-500/10 to-orange-600/10 dark:from-amber-500/20 dark:to-orange-600/20 p-4 transition-all duration-300 hover:shadow-xl hover:from-amber-500/20 hover:to-orange-600/20 border border-amber-500/20`}
+              >
+                <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
+                  {combo.image_url ? (
+                    <img src={combo.image_url} alt={name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xl font-black opacity-20 uppercase">{name.slice(0, 2)}</div>
+                  )}
+                </div>
+                <div className="pt-4 px-1">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">Kombo</span>
+                  </div>
+                  <p className={`text-sm font-bold truncate leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{name}</p>
+                  <p className={`text-sm font-black mt-2 ${lightMode ? 'text-gray-900' : 'text-white/60'}`}>₼ {combo.price?.toFixed(2)}</p>
+                </div>
+              </motion.button>
+            );
+          })}
           {filtered.map((product) => {
             const name = (language === 'az' ? product.name_az : language === 'en' ? product.name_en : product.name_ru) || product.name;
             const count = cartCounts[product.id] || 0;
@@ -88,7 +130,16 @@ export function ProductGrid({ products, categories, onAddProduct, cartCounts, ou
                 </div>
                 <div className="pt-4 px-1">
                   <p className={`text-sm font-bold truncate leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{name}</p>
-                  <p className={`text-sm font-black mt-2 ${lightMode ? 'text-gray-900' : 'text-white/60'}`}>₼ {product.price.toFixed(2)}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    {product.discount_price != null && product.discount_price < product.price ? (
+                      <>
+                        <p className={`text-sm font-black line-through opacity-50 ${lightMode ? 'text-gray-900' : 'text-white/60'}`}>₼ {product.price.toFixed(2)}</p>
+                        <p className="text-sm font-black text-amber-500">₼ {product.discount_price.toFixed(2)}</p>
+                      </>
+                    ) : (
+                      <p className={`text-sm font-black ${lightMode ? 'text-gray-900' : 'text-white/60'}`}>₼ {product.price.toFixed(2)}</p>
+                    )}
+                  </div>
                 </div>
                 {count > 0 && (
                   <div className="absolute top-2 right-2 w-7 h-7 rounded-full text-[11px] font-black flex items-center justify-center shadow-xl bg-zinc-900 text-white border-2 border-white dark:border-zinc-900">

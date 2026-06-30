@@ -86,6 +86,7 @@ export interface PosProduct {
   id: string;
   name: string;
   price: number;
+  discount_price?: number | null;
   category_id: string | null;
   image_url?: string | null;
   name_az?: string | null;

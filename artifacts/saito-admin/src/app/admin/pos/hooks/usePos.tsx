@@ -174,16 +174,22 @@ export function usePos() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  /* ── Realtime ── */
+  /* ── Realtime (debounced: batch rapid changes into one call) ── */
   useEffect(() => {
+    const timerRef = { current: null as ReturnType<typeof setTimeout> | null };
+    const debouncedFetch = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(fetchData, 300);
+    };
+
     const channel = createRealtimeChannel(`pos-${Date.now()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_logs' }, debouncedFetch)
       .subscribe();
-    return () => { removeRealtimeChannel(channel); };
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); removeRealtimeChannel(channel); };
   }, [fetchData]);
 
   /* ── Polling fallback ── */

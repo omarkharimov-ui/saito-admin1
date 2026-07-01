@@ -84,9 +84,11 @@ export async function POST(req: NextRequest) {
       ? JSON.parse(reservation.pre_order_items)
       : (reservation.pre_order_items || []);
 
+    const transferredItems: any[] = [];
+
     if (Array.isArray(preItems) && preItems.length > 0 && activeOrder?.id) {
       for (const item of preItems) {
-        await fetch(`${s.url}/rest/v1/order_items`, {
+        const itemRes = await fetch(`${s.url}/rest/v1/order_items`, {
           method: 'POST',
           headers: s.headers,
           body: JSON.stringify({
@@ -101,6 +103,10 @@ export async function POST(req: NextRequest) {
             kitchen_status: 'pending',
           }),
         });
+        if (itemRes.ok) {
+          const created = await itemRes.json();
+          transferredItems.push(Array.isArray(created) ? created[0] : created);
+        }
       }
     }
 
@@ -136,7 +142,7 @@ export async function POST(req: NextRequest) {
     const updatedTables = await updatedTableRes.json();
     const updatedTable = Array.isArray(updatedTables) ? updatedTables[0] : updatedTables;
 
-    return NextResponse.json({ success: true, table: updatedTable, order: activeOrder });
+    return NextResponse.json({ success: true, table: updatedTable, order: activeOrder, items: transferredItems });
   } catch (error: any) {
     console.error('[API /tables/activate] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

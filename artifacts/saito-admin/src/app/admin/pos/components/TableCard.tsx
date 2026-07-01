@@ -141,7 +141,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
               : 'bg-white/5 border-white/5 text-white/30'}`}>
           <div className={`w-1.5 h-1.5 rounded-full ${isReserved ? 'bg-indigo-400' : isOccupied ? 'bg-emerald-500' : 'bg-white/20'}`} />
-          {isReserved ? 'Reserved' : isOccupied ? t('occupied' as any) : t('empty' as any)}
+          {isReserved ? t('reserved' as any) : isOccupied ? t('occupied' as any) : t('empty' as any)}
         </div>
 
         {/* Dynamic Context (Price or Phone) */}

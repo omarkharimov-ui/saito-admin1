@@ -92,6 +92,15 @@ export interface PosProduct {
   name_az?: string | null;
   name_en?: string | null;
   name_ru?: string | null;
+  effective_price?: {
+    base_price: number;
+    effective_price: number;
+    discount_amount: number;
+    discount_type: string | null;
+    campaign_id: string | null;
+    campaign_label: string | null;
+    campaign_badge: string | null;
+  } | null;
 }
 
 export interface PaymentInfo {

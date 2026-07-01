@@ -47,7 +47,6 @@ export function usePos() {
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
   const [combos, setCombos] = useState<any[]>([]);
   const [loading, setLoading] = useState(!cached);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
@@ -64,10 +63,9 @@ export function usePos() {
   /* ── Data Fetching ── */
   const fetchData = useCallback(async () => {
     try {
-      const [tablesRes, productsRes, campaignsRes] = await Promise.all([
+      const [tablesRes, productsRes] = await Promise.all([
         fetch('/api/pos/tables').catch(() => ({ ok: false })),
         fetch('/api/pos/products').catch(() => ({ ok: false })),
-        fetch('/api/campaigns?status=active').catch(() => ({ ok: false })),
       ]);
 
       let newTables: PosTable[] = [];
@@ -75,7 +73,6 @@ export function usePos() {
       let newProducts: PosProduct[] = [];
       let newCategories: { id: string; name: string }[] = [];
       let newCombos: any[] = [];
-      let newCampaigns: any[] = [];
 
       if (tablesRes && 'ok' in tablesRes && tablesRes.ok) {
         const data = await (tablesRes as Response).json();
@@ -96,12 +93,6 @@ export function usePos() {
         if (data.ingredients) setIngredients(data.ingredients);
         if (data.recipes) setRecipes(data.recipes);
         if (data.variants) setVariants(data.variants);
-      }
-
-      if (campaignsRes && 'ok' in campaignsRes && campaignsRes.ok) {
-        const data = await (campaignsRes as Response).json();
-        newCampaigns = Array.isArray(data) ? data : (data.campaigns || []);
-        setCampaigns(newCampaigns);
       }
 
       // If we got valid data, save to cache
@@ -246,12 +237,38 @@ export function usePos() {
       }
       await fetchData();
       const updatedTable = tables.find(t => t.table_number === table.table_number);
-      if (updatedTable) selectTable({ ...updatedTable, status: 'occupied' });
+      if (updatedTable) {
+        const cart: PosCart = {
+          table_id: updatedTable.id,
+          table_number: updatedTable.table_number,
+          guest_count: updatedTable.guest_count || 1,
+          items: [],
+          notes: '',
+          order_type: 'dine_in',
+        };
+        // Load pre-order items into cart from the created order
+        if (Array.isArray(result.items)) {
+          cart.items = result.items.map((oi: any) => ({
+            id: oi.product_id,
+            name: oi.product_name,
+            quantity: oi.quantity,
+            unit_price: oi.unit_price,
+            total_price: oi.total_price,
+            modifiers: typeof oi.modifiers === 'string' ? JSON.parse(oi.modifiers) : (oi.modifiers || []),
+            special_notes: oi.special_notes || '',
+            kitchen_status: oi.kitchen_status || 'pending',
+            category_id: '',
+          }));
+        }
+        setCart(cart);
+        setSelectedTable({ ...updatedTable, status: 'occupied' });
+        setActiveView('order');
+      }
       toast.success("Masa aktivləşdirildi və sessiya yaradıldı");
     } finally {
       setLoading(false);
     }
-  }, [selectTable, fetchData, tables]);
+  }, [fetchData, tables]);
 
   const dismissTable = useCallback(async (tableNumber: number) => {
     if (!confirm(`Masa ${tableNumber} boşaldılsın? (Bütün aktiv sifarişlər ləğv ediləcək)`)) return;
@@ -383,26 +400,13 @@ export function usePos() {
         ),
       } : null);
     } else {
-      let basePrice = modifiers?.reduce((s, m) => s + m.price, product.price) ?? product.price;
-      
-      // Task: Sync Campaigns with POS
-      const activeCampaign = campaigns.find(c => 
-        (c.target_type === 'product' && c.target_id === product.id) ||
-        (c.target_type === 'category' && c.target_id === product.category_id)
-      );
-
-      if (activeCampaign) {
-        const discountValue = Number(activeCampaign.discount_value) || 0;
-        if (activeCampaign.type === 'PERCENTAGE' || activeCampaign.type === 'HAPPY_HOUR') {
-          basePrice = basePrice * (1 - discountValue / 100);
-        } else if (activeCampaign.type === 'BOGO') {
-          basePrice = basePrice / 2;
-        } else if (activeCampaign.type === 'BUY2GET1') {
-          basePrice = basePrice * 2 / 3;
-        }
+      // Use server-computed effective_price (campaign engine owns all pricing)
+      let basePrice = product.effective_price?.effective_price ?? product.price ?? 0;
+      if (modifiers?.length) {
+        basePrice += modifiers.reduce((s, m) => s + m.price, 0) * (basePrice / (product.price || 1));
       }
 
-      const unitPrice = basePrice;
+      const unitPrice = Math.round(basePrice * 100) / 100;
       const localizedName = langs === 'az' ? product.name_az : langs === 'en' ? product.name_en : product.name_ru;
       const newItem: PosCartItem = {
         product_id: product.id,
@@ -444,23 +448,7 @@ export function usePos() {
       };
     });
 
-    let basePrice = combo.price;
-
-    const activeCampaign = campaigns.find(c =>
-      (c.target_type === 'combo' && c.target_id === combo.id) ||
-      (c.target_type === 'category' && c.target_id === combo.category_id)
-    );
-
-    if (activeCampaign) {
-      const discountValue = Number(activeCampaign.discount_value) || 0;
-      if (activeCampaign.type === 'PERCENTAGE' || activeCampaign.type === 'HAPPY_HOUR') {
-        basePrice = basePrice * (1 - discountValue / 100);
-      } else if (activeCampaign.type === 'BOGO') {
-        basePrice = basePrice / 2;
-      } else if (activeCampaign.type === 'BUY2GET1') {
-        basePrice = basePrice * 2 / 3;
-      }
-    }
+    let basePrice = combo.effective_price ?? combo.price ?? 0;
 
     const localizedName = langs === 'az' ? combo.name_az : langs === 'en' ? combo.name_en : langs === 'ru' ? combo.name_ru : combo.name;
     const newItem: PosCartItem = {
@@ -479,7 +467,7 @@ export function usePos() {
 
     setCart(prev => prev ? { ...prev, items: [...prev.items, newItem] } : null);
     forceUpdate(n => n + 1);
-  }, [campaigns]);
+  }, []);
 
   const updateCartItemQty = useCallback((index: number, delta: number) => {
     setCart(prev => {

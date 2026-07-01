@@ -24,7 +24,7 @@ export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled' | 'expired'>('all');
   const [timeFilter, setTimeFilter] = useState<'today' | 'future' | 'archive'>('today');
   
   const [selectedRes, setSelectedRes] = useState<any | null>(null);
@@ -374,7 +374,8 @@ export default function ReservationsPage() {
                       completed: 'bg-emerald-500/10 text-emerald-400',
                       cancelled: 'bg-red-500/10 text-red-500',
                       no_show: 'bg-zinc-500/10 text-zinc-500',
-                      archived: 'bg-zinc-500/10 text-zinc-400'
+                      expired: 'bg-rose-500/10 text-rose-400',
+                      archived: 'bg-zinc-500/10 text-zinc-400',
                     };
                     return <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colors[s] || 'bg-zinc-500/10 text-zinc-500'}`}>{s.replace('_', ' ')}</span>
                   }}

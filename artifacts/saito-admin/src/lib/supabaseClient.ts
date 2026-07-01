@@ -462,6 +462,18 @@ export type Database = {
           status: string | null;
           image_url: string | null;
           created_at: string | null;
+          start_date: string | null;
+          priority: number | null;
+          min_purchase_amount: number | null;
+          min_items: number | null;
+          applicable_categories: string[] | null;
+          applicable_products: string[] | null;
+          combo_id: string | null;
+          max_discount_amount: number | null;
+          current_uses: number | null;
+          max_uses: number | null;
+          label: string | null;
+          badge_color: string | null;
         };
         Insert: {
           id?: string;
@@ -477,6 +489,18 @@ export type Database = {
           status?: string | null;
           image_url?: string | null;
           created_at?: string | null;
+          start_date?: string | null;
+          priority?: number | null;
+          min_purchase_amount?: number | null;
+          min_items?: number | null;
+          applicable_categories?: string[] | null;
+          applicable_products?: string[] | null;
+          combo_id?: string | null;
+          max_discount_amount?: number | null;
+          current_uses?: number | null;
+          max_uses?: number | null;
+          label?: string | null;
+          badge_color?: string | null;
         };
         Update: {
           title?: string | null;
@@ -490,6 +514,18 @@ export type Database = {
           end_date?: string | null;
           status?: string | null;
           image_url?: string | null;
+          start_date?: string | null;
+          priority?: number | null;
+          min_purchase_amount?: number | null;
+          min_items?: number | null;
+          applicable_categories?: string[] | null;
+          applicable_products?: string[] | null;
+          combo_id?: string | null;
+          max_discount_amount?: number | null;
+          current_uses?: number | null;
+          max_uses?: number | null;
+          label?: string | null;
+          badge_color?: string | null;
         };
         Relationships: [];
       };
@@ -514,6 +550,57 @@ export type Database = {
           campaign_id?: string | null;
           discount_amount?: number;
           discount_type?: string | null;
+        };
+        Relationships: [];
+      };
+      combos: {
+        Row: {
+          id: string;
+          name: string | null;
+          price: number | null;
+          image_url: string | null;
+          description: string | null;
+          is_active: boolean | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name?: string | null;
+          price?: number | null;
+          image_url?: string | null;
+          description?: string | null;
+          is_active?: boolean | null;
+        };
+        Update: {
+          name?: string | null;
+          price?: number | null;
+          image_url?: string | null;
+          description?: string | null;
+          is_active?: boolean | null;
+        };
+        Relationships: [];
+      };
+      combo_items: {
+        Row: {
+          id: string;
+          combo_id: string;
+          product_id: string;
+          quantity: number;
+          sort_order: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          combo_id: string;
+          product_id: string;
+          quantity?: number;
+          sort_order?: number | null;
+        };
+        Update: {
+          combo_id?: string;
+          product_id?: string;
+          quantity?: number;
+          sort_order?: number | null;
         };
         Relationships: [];
       };
@@ -667,6 +754,7 @@ export type Database = {
           average_cost_per_unit: number;
           purchase_price: number;
           cold_waste_percentage: number;
+          supplier_id: string | null;
           updated_at: string;
         };
         Insert: {
@@ -679,6 +767,7 @@ export type Database = {
           average_cost_per_unit?: number;
           purchase_price?: number;
           cold_waste_percentage?: number;
+          supplier_id?: string | null;
         };
         Update: {
           name?: string;
@@ -689,6 +778,7 @@ export type Database = {
           average_cost_per_unit?: number;
           purchase_price?: number;
           cold_waste_percentage?: number;
+          supplier_id?: string | null;
         };
         Relationships: [];
       };
@@ -701,6 +791,10 @@ export type Database = {
           cost_per_unit: number | null;
           reason: string | null;
           order_id: string | null;
+          reference_type: string | null;
+          reference_id: string | null;
+          unit_cost: number | null;
+          notes: string | null;
           created_at: string;
         };
         Insert: {
@@ -711,6 +805,10 @@ export type Database = {
           cost_per_unit?: number | null;
           reason?: string | null;
           order_id?: string | null;
+          reference_type?: string | null;
+          reference_id?: string | null;
+          unit_cost?: number | null;
+          notes?: string | null;
         };
         Update: {
           ingredient_id?: string;
@@ -719,6 +817,10 @@ export type Database = {
           cost_per_unit?: number | null;
           reason?: string | null;
           order_id?: string | null;
+          reference_type?: string | null;
+          reference_id?: string | null;
+          unit_cost?: number | null;
+          notes?: string | null;
         };
         Relationships: [];
       };
@@ -1075,6 +1177,134 @@ export type Database = {
           variance_pct?: number;
           status?: 'open' | 'acknowledged' | 'resolved';
           resolved_at?: string | null;
+        };
+        Relationships: [];
+      };
+      supplier_returns: {
+        Row: {
+          id: string;
+          supplier_id: string;
+          return_number: string;
+          status: 'draft' | 'sent' | 'completed' | 'cancelled';
+          total_amount: number;
+          reason: string | null;
+          returned_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          supplier_id: string;
+          return_number: string;
+          status?: 'draft' | 'sent' | 'completed' | 'cancelled';
+          total_amount?: number;
+          reason?: string | null;
+          returned_at?: string | null;
+        };
+        Update: {
+          supplier_id?: string;
+          return_number?: string;
+          status?: 'draft' | 'sent' | 'completed' | 'cancelled';
+          total_amount?: number;
+          reason?: string | null;
+          returned_at?: string | null;
+        };
+        Relationships: [];
+      };
+      supplier_return_items: {
+        Row: {
+          id: string;
+          supplier_return_id: string;
+          ingredient_id: string;
+          quantity: number;
+          unit_cost: number;
+          total_cost: number;
+          reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          supplier_return_id: string;
+          ingredient_id: string;
+          quantity: number;
+          unit_cost?: number;
+          total_cost?: number;
+          reason?: string | null;
+        };
+        Update: {
+          supplier_return_id?: string;
+          ingredient_id?: string;
+          quantity?: number;
+          unit_cost?: number;
+          total_cost?: number;
+          reason?: string | null;
+        };
+        Relationships: [];
+      };
+      stock_counts: {
+        Row: {
+          id: string;
+          count_number: string;
+          status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
+          counted_by: string | null;
+          notes: string | null;
+          total_variance: number;
+          counted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          count_number: string;
+          status?: 'draft' | 'in_progress' | 'completed' | 'cancelled';
+          counted_by?: string | null;
+          notes?: string | null;
+          total_variance?: number;
+          counted_at?: string | null;
+        };
+        Update: {
+          count_number?: string;
+          status?: 'draft' | 'in_progress' | 'completed' | 'cancelled';
+          counted_by?: string | null;
+          notes?: string | null;
+          total_variance?: number;
+          counted_at?: string | null;
+        };
+        Relationships: [];
+      };
+      stock_count_items: {
+        Row: {
+          id: string;
+          stock_count_id: string;
+          ingredient_id: string;
+          system_qty: number;
+          actual_qty: number;
+          variance: number;
+          unit_cost: number | null;
+          variance_cost: number;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          stock_count_id: string;
+          ingredient_id: string;
+          system_qty: number;
+          actual_qty: number;
+          variance?: number;
+          unit_cost?: number | null;
+          variance_cost?: number;
+          notes?: string | null;
+        };
+        Update: {
+          stock_count_id?: string;
+          ingredient_id?: string;
+          system_qty?: number;
+          actual_qty?: number;
+          variance?: number;
+          unit_cost?: number | null;
+          variance_cost?: number;
+          notes?: string | null;
         };
         Relationships: [];
       };

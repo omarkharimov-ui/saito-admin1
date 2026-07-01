@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X } from 'lucide-react';
+import { Search, X, Percent } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
@@ -104,13 +104,39 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
                     <div className="w-full h-full flex items-center justify-center text-xl font-black opacity-20 uppercase">{name.slice(0, 2)}</div>
                   )}
                 </div>
-                <div className="pt-4 px-1">
-                  {isCombo && (
-                    <span className="inline-block text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full mb-1">Kombo</span>
-                  )}
-                  <p className={`text-sm font-bold truncate leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{name}</p>
-                  <p className={`text-sm font-black mt-2 ${lightMode ? 'text-gray-900' : 'text-white/60'}`}>₼ {item.price?.toFixed(2)}</p>
-                </div>
+                  <div className="pt-4 px-1">
+                    {isCombo && (
+                      <span className="inline-block text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full mb-1">Kombo</span>
+                    )}
+                    {item.effective_price?.campaign_badge && (
+                      <span
+                        className="inline-block text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full mb-1"
+                        style={{
+                          color: item.effective_price.campaign_badge || '#D4AF37',
+                          backgroundColor: `${item.effective_price.campaign_badge || '#D4AF37'}20`,
+                        }}
+                      >
+                        {item.effective_price.campaign_label || 'Endirim'}
+                      </span>
+                    )}
+                    <p className={`text-sm font-bold truncate leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{name}</p>
+                    <div className="flex items-baseline gap-2 mt-2">
+                      {item.effective_price && item.effective_price.effective_price < item.effective_price.base_price ? (
+                        <>
+                          <p className={`text-sm font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>
+                            ₼ {item.effective_price.effective_price.toFixed(2)}
+                          </p>
+                          <p className="text-[11px] font-bold line-through opacity-40">
+                            ₼ {item.effective_price.base_price.toFixed(2)}
+                          </p>
+                        </>
+                      ) : (
+                        <p className={`text-sm font-black ${lightMode ? 'text-gray-900' : 'text-white/60'}`}>
+                          ₼ {(item.effective_price?.effective_price ?? item.price)?.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 {count > 0 && (
                   <div className="absolute top-2 right-2 w-7 h-7 rounded-full text-[11px] font-black flex items-center justify-center shadow-xl bg-zinc-900 text-white border-2 border-white dark:border-zinc-900">
                     {count}

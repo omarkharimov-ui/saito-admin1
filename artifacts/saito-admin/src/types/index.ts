@@ -69,14 +69,26 @@ export interface Campaign {
   id: string;
   title: string;
   description?: string;
-  type: 'BOGO' | 'BUY2GET1' | 'PERCENTAGE' | 'HAPPY_HOUR' | 'FREE_DELIVERY';
-  target_type: 'category' | 'product';
-  target_id: string;
+  type: 'BOGO' | 'BUY2GET1' | 'PERCENTAGE' | 'HAPPY_HOUR' | 'FIXED_AMOUNT' | 'FREE_DELIVERY';
   discount_value?: number;
-  start_time?: string; // Format: HH:mm
-  end_time?: string;   // Format: HH:mm
+  target_type: 'category' | 'product' | 'combo' | 'all';
+  target_id?: string;
+  start_date?: string;
   end_date?: string;
-  status: 'active' | 'inactive';
+  start_time?: string;
+  end_time?: string;
+  status: 'active' | 'inactive' | 'draft' | 'expired';
+  priority?: number;
+  min_purchase_amount?: number;
+  min_items?: number;
+  applicable_categories?: string[];
+  applicable_products?: string[];
+  combo_id?: string;
+  max_discount_amount?: number;
+  current_uses?: number;
+  max_uses?: number;
+  label?: string;
+  badge_color?: string;
   image_url?: string;
   created_at?: string;
 }

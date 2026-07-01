@@ -1207,6 +1207,7 @@ export const az = {
   payment: 'Ödəniş',
   cooking: 'Hazırlanır',
   occupied: 'Dolu',
+  reserved: 'Rezerv',
 
   // Kitchen Performance
   kitchen_performance: 'Mətbəx Performansı',

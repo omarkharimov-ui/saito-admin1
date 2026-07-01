@@ -1208,6 +1208,7 @@ export const en: TranslationMap = {
   payment: 'Payment',
   cooking: 'Cooking',
   occupied: 'Occupied',
+  reserved: 'Reserved',
 
   // Kitchen Performance
   kitchen_performance: 'Kitchen Performance',

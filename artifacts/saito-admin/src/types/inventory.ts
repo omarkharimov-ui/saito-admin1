@@ -91,6 +91,10 @@ export interface InventoryLog {
   cost_per_unit: number | null;
   reason: string | null;
   order_id: string | null;
+  reference_type: string | null;
+  reference_id: string | null;
+  unit_cost: number | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -478,5 +482,53 @@ export interface AIInsight {
   description: string;
   priority: 'high' | 'medium' | 'low';
   action_url: string | null;
+  created_at: string;
+}
+
+export interface SupplierReturn {
+  id: string;
+  supplier_id: string;
+  return_number: string;
+  status: 'draft' | 'sent' | 'completed' | 'cancelled';
+  total_amount: number;
+  reason: string | null;
+  returned_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierReturnItem {
+  id: string;
+  supplier_return_id: string;
+  ingredient_id: string;
+  quantity: number;
+  unit_cost: number;
+  total_cost: number;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface StockCount {
+  id: string;
+  count_number: string;
+  status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
+  counted_by: string | null;
+  notes: string | null;
+  total_variance: number;
+  counted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockCountItem {
+  id: string;
+  stock_count_id: string;
+  ingredient_id: string;
+  system_qty: number;
+  actual_qty: number;
+  variance: number;
+  unit_cost: number | null;
+  variance_cost: number;
+  notes: string | null;
   created_at: string;
 }

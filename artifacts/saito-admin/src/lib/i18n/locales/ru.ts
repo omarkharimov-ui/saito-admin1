@@ -1210,6 +1210,7 @@ export const ru: TranslationMap = {
   payment: 'Оплата',
   cooking: 'Готовится',
   occupied: 'Занят',
+  reserved: 'Забронирован',
 
   // Kitchen Performance
   kitchen_performance: 'Производительность Кухни',

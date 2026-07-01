@@ -8,7 +8,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Props {
   timeFilter: 'today' | 'future' | 'archive';
-  statusFilter: 'all' | 'pending' | 'confirmed' | 'cancelled';
+  statusFilter: 'all' | 'pending' | 'confirmed' | 'cancelled' | 'expired';
   searchQuery: string;
   todayPendingCount: number;
   futurePendingCount: number;
@@ -17,7 +17,7 @@ interface Props {
   selectedArchiveCount: number;
   totalArchiveCount: number;
   onTimeFilter: (v: 'today' | 'future' | 'archive') => void;
-  onStatusFilter: (v: 'all' | 'pending' | 'confirmed' | 'cancelled') => void;
+  onStatusFilter: (v: 'all' | 'pending' | 'confirmed' | 'cancelled' | 'expired') => void;
   onSearch: (v: string) => void;
   onStartArchiveSelection: () => void;
   onDeleteSelectedArchive: () => void;
@@ -36,12 +36,12 @@ const ReservationFilters = ({
   const { lightMode } = useTheme();
 
   const timeTabs = ['today', 'future', 'archive'] as const;
-  const statusTabs = ['all', 'pending', 'confirmed', 'cancelled'] as const;
+  const statusTabs = ['all', 'pending', 'confirmed', 'cancelled', 'expired'] as const;
 
   const timeLabel = (tab: typeof timeTabs[number]) =>
     tab === 'today' ? t('tab_today') : tab === 'future' ? t('tab_future') : t('tab_archive');
   const statusLabel = (s: typeof statusTabs[number]) =>
-    s === 'all' ? t('all') : s === 'pending' ? t('filter_pending') : s === 'confirmed' ? t('filter_confirmed') : t('filter_cancelled');
+    s === 'all' ? t('all') : s === 'pending' ? t('filter_pending') : s === 'confirmed' ? t('filter_confirmed') : s === 'cancelled' ? t('filter_cancelled') : 'Vaxtı keçib';
 
   return (
     <div className="w-full space-y-4">

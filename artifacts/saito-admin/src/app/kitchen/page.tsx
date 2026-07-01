@@ -10,6 +10,7 @@ import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, F
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { KitchenAIScheduler } from './components/KitchenAIScheduler';
+import { UpcomingReservations } from './components/UpcomingReservations';
 import { az } from '@/lib/i18n/locales/az';
 import { en } from '@/lib/i18n/locales/en';
 import { ru } from '@/lib/i18n/locales/ru';
@@ -1178,6 +1179,8 @@ export default function KitchenPage() {
           </div>
         </div>
       )}
+
+      <UpcomingReservations />
 
       {/* ── Empty state ── */}
       {display.length === 0 && (

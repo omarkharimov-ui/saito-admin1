@@ -82,7 +82,11 @@ export async function POST(req: NextRequest) {
       })
       .in('table_number', uniqueTableNumbers);
 
-    const resId = table.reservation_id;
+    let resId = table.reservation_id;
+    if (!resId && activeOrders.length > 0) {
+      const orderWithRes = activeOrders.find((o: any) => o.reservation_id);
+      if (orderWithRes?.reservation_id) resId = orderWithRes.reservation_id;
+    }
     if (resId) {
       await supabase
         .from('reservations')

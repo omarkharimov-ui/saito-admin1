@@ -35,13 +35,48 @@ export async function POST(req: NextRequest) {
     const currentTable = tables?.[0];
     if (!currentTable) return NextResponse.json({ error: 'Table not found' }, { status: 404 });
 
-    if (currentTable.status !== 'reserved') {
-      return NextResponse.json({ error: 'Table is not reserved' }, { status: 409 });
+    // Resolve reservation ID: check table_floors, then orders, then reservations
+    let reservationId = currentTable.reservation_id;
+
+    if (!reservationId) {
+      // Fallback 1: look for any active order with reservation_id on this table
+      const orderLookup = await fetch(
+        `${s.url}/rest/v1/orders?select=id,reservation_id&table_number=eq.${currentTable.table_number}&status=neq.paid&status=neq.cancelled&not.is.reservation_id&limit=1`,
+        { headers: s.headers }
+      );
+      if (orderLookup.ok) {
+        const orders: any[] = await orderLookup.json();
+        const found = orders?.find((o: any) => o.reservation_id);
+        if (found?.reservation_id) reservationId = found.reservation_id;
+      }
     }
 
-    const reservationId = currentTable.reservation_id;
     if (!reservationId) {
-      return NextResponse.json({ error: 'Table has no linked reservation' }, { status: 409 });
+      // Fallback 2: search reservations for today matching this table_number
+      const today = new Date().toISOString().split('T')[0];
+      const resLookup = await fetch(
+        `${s.url}/rest/v1/reservations?select=id&date=eq.${today}&status=in.(confirmed,pending)&table_number=eq.${currentTable.table_number}`,
+        { headers: s.headers }
+      );
+      if (resLookup.ok) {
+        const resList: any[] = await resLookup.json();
+        if (resList?.[0]?.id) reservationId = resList[0].id;
+      }
+      // Fallback 3: search via table_ids text field
+      if (!reservationId) {
+        const resByIdLookup = await fetch(
+          `${s.url}/rest/v1/reservations?select=id&date=eq.${today}&status=in.(confirmed,pending)&table_ids=like.%${table_id}%`,
+          { headers: s.headers }
+        );
+        if (resByIdLookup.ok) {
+          const resList: any[] = await resByIdLookup.json();
+          if (resList?.[0]?.id) reservationId = resList[0].id;
+        }
+      }
+    }
+
+    if (!reservationId) {
+      return NextResponse.json({ error: 'Table is not reserved' }, { status: 409 });
     }
 
     // 2. Fetch reservation

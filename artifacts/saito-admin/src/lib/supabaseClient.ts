@@ -88,6 +88,49 @@ export type Database = {
         };
         Relationships: [];
       };
+      notifications: {
+        Row: {
+          id: string;
+          type: 'payment' | 'reservation' | 'order' | 'kitchen' | 'stock' | 'campaign' | 'system';
+          title: string;
+          body: string | null;
+          data: Json | null;
+          recipient_role: string | null;
+          is_read: boolean;
+          created_at: string;
+          read_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          type: string;
+          title: string;
+          body?: string | null;
+          data?: Json | null;
+          recipient_role?: string | null;
+          is_read?: boolean;
+          created_at?: string;
+          read_at?: string | null;
+        };
+        Update: {
+          is_read?: boolean;
+          read_at?: string | null;
+        };
+        Relationships: [];
+      };
+      notification_read_state: {
+        Row: {
+          user_id: string;
+          last_read_at: string;
+        };
+        Insert: {
+          user_id: string;
+          last_read_at?: string;
+        };
+        Update: {
+          last_read_at?: string;
+        };
+        Relationships: [];
+      };
       orders: {
         Row: {
           id: string;
@@ -118,6 +161,8 @@ export type Database = {
           reservation_id: string | null;
           is_draft: boolean | null;
           checkin_at: string | null;
+          cogs: number | null;
+          profit: number | null;
         };
         Insert: {
           id?: string;
@@ -148,6 +193,8 @@ export type Database = {
           reservation_id?: string | null;
           is_draft?: boolean | null;
           checkin_at?: string | null;
+          cogs?: number | null;
+          profit?: number | null;
         };
         Update: {
           table_number?: number | null;
@@ -176,6 +223,8 @@ export type Database = {
           reservation_id?: string | null;
           is_draft?: boolean | null;
           checkin_at?: string | null;
+          cogs?: number | null;
+          profit?: number | null;
         };
         Relationships: [];
       };

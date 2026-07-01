@@ -107,7 +107,7 @@ export default function ReservationsPage() {
       );
 
       for (const res of expiredRes) {
-        await updateStatus(res.id, 'cancelled');
+        await updateStatus(res.id, 'expired');
         toast.success(`${res.name} vaxtı keçdiyi üçün avtomatik ləğv edildi`, { id: `expire-${res.id}` });
       }
     };
@@ -291,7 +291,7 @@ export default function ReservationsPage() {
       
       if (timeFilter === 'today') return matchesSearch && matchesStatus && res.date === todayStr && res.status !== 'archived' && res.status !== 'cancelled';
       if (timeFilter === 'future') return matchesSearch && matchesStatus && res.date > todayStr && res.status !== 'archived';
-      if (timeFilter === 'archive') return matchesSearch && matchesStatus && (res.status === 'archived' || res.status === 'cancelled' || res.date < todayStr);
+      if (timeFilter === 'archive') return matchesSearch && matchesStatus && (res.status === 'archived' || res.status === 'cancelled' || res.status === 'expired' || res.date < todayStr);
       
       return matchesSearch && matchesStatus;
     }).sort((a, b) => {
@@ -436,7 +436,7 @@ export default function ReservationsPage() {
                                 return new Date().getTime() - t.getTime() > 0;
                               })());
                             
-                            if (isExpired && (selectedRes.status === 'cancelled' || selectedRes.status === 'no_show' || selectedRes.status === 'archived')) {
+                            if (isExpired && (selectedRes.status === 'cancelled' || selectedRes.status === 'no_show' || selectedRes.status === 'archived' || selectedRes.status === 'expired')) {
                               return (
                                 <div className={`p-8 rounded-[2.5rem] text-center ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
                                   <Timer size={40} className="mx-auto mb-4 text-zinc-400" />
@@ -562,7 +562,7 @@ export default function ReservationsPage() {
           setClearingArchive(true);
           try {
              // Permanent delete of cancelled/archived
-             const { error } = await supabase.from('reservations').delete().in('status', ['cancelled', 'archived']);
+             const { error } = await supabase.from('reservations').delete().in('status', ['cancelled', 'archived', 'expired']);
              if (error) throw error;
              toast.success('Arxiv təmizləndi');
              fetchData();

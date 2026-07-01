@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     if (resId) {
       await supabase
         .from('reservations')
-        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
         .eq('id', resId);
     }
 

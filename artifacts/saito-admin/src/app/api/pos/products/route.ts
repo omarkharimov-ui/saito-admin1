@@ -49,6 +49,7 @@ export async function GET() {
 interface Campaign {
   id: string;
   status: string;
+  type: string | null;
   discount_type: string | null;
   discount_value: number | null;
   target_type: string | null;
@@ -105,21 +106,29 @@ function computeEffectivePrice(product: any, campaigns: Campaign[], now: string)
     };
   }
 
+  const dt = best.discount_type || (best.type === 'FIXED_AMOUNT' ? 'fixed' : 'percentage');
+
   let discount = 0;
-  if (best.discount_type === 'percentage') {
+  if (best.type === 'BOGO') {
+    discount = Math.round(basePrice * 0.5 * 100) / 100;
+  } else if (best.type === 'BUY2GET1') {
+    discount = Math.round(basePrice / 3 * 100) / 100;
+  } else if (dt === 'percentage' || best.type === 'PERCENTAGE' || best.type === 'HAPPY_HOUR') {
     discount = Math.round(basePrice * (best.discount_value || 0) / 100 * 100) / 100;
-  } else if (best.discount_type === 'fixed') {
+  } else {
     discount = Math.min(best.discount_value || 0, basePrice);
   }
   if (best.max_discount_amount && discount > best.max_discount_amount) {
     discount = best.max_discount_amount;
   }
 
+  const displayType = best.type || best.discount_type;
+
   return {
     base_price: basePrice,
     effective_price: Math.max(0, basePrice - discount),
     discount_amount: discount,
-    discount_type: best.discount_type,
+    discount_type: displayType,
     campaign_id: best.id,
     campaign_label: best.label || null,
     campaign_badge: best.badge_color || null,

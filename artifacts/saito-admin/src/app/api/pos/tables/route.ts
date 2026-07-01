@@ -68,10 +68,13 @@ export async function GET() {
     const reservationsRes = await fetch(resUrl, { headers });
     const reservationData = reservationsRes.ok ? await reservationsRes.json() : [];
 
+    const ACTIVE_RES_STATUSES = ['confirmed', 'pending'];
     const reservationMap: Record<string, any> = {};
     if (Array.isArray(reservationData)) {
       reservationData.forEach(r => {
-        reservationMap[r.id] = r;
+        if (ACTIVE_RES_STATUSES.includes(r.status)) {
+          reservationMap[r.id] = r;
+        }
       });
     }
 

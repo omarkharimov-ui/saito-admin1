@@ -8,12 +8,13 @@ function svc() {
 }
 
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ['confirmed', 'cancelled'],
-  confirmed: ['checked_in', 'cancelled', 'no_show'],
+  pending: ['confirmed', 'cancelled', 'expired'],
+  confirmed: ['checked_in', 'cancelled', 'no_show', 'expired'],
   checked_in: ['completed', 'cancelled'],
   completed: ['archived'],
   cancelled: ['pending'],
   no_show: ['pending'],
+  expired: ['pending'],
   archived: ['pending'],
 };
 
@@ -28,6 +29,7 @@ const TABLE_STATUS_MAP: Record<string, string | null> = {
   completed: 'empty',
   cancelled: 'empty',
   no_show: 'empty',
+  expired: 'empty',
 };
 
 export async function POST(request: NextRequest) {
@@ -59,8 +61,8 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
-    // 3. Check for active orders before cancelling/no_show
-    if (status === 'cancelled' || status === 'no_show') {
+    // 3. Check for active orders before cancelling/no_show/expired
+    if (status === 'cancelled' || status === 'no_show' || status === 'expired') {
       const ordersRes = await fetch(
         `${s.url}/rest/v1/orders?select=id,status&reservation_id=eq.${current.id}&status=neq.paid&status=neq.cancelled`,
         { headers: s.headers }
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
           await fetch(`${s.url}/rest/v1/orders?id=eq.${order.id}`, {
             method: 'PATCH',
             headers: s.headers,
-            body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
+            body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }),
           });
         }
       }
@@ -136,21 +138,35 @@ export async function POST(request: NextRequest) {
     });
 
     // 7. Audit log
-    await fetch(`${s.url}/rest/v1/audit_log`, {
+    const auditTable = 'audit_logs';
+    const auditBody = {
+      table_name: 'reservations',
+      record_id: id,
+      action: `status_change:${current.status}→${status}`,
+      old_data: { status: current.status },
+      new_data: { status, notes },
+      performed_by: auth.user?.id || null,
+      created_at: new Date().toISOString(),
+    };
+    const auditRes = await fetch(`${s.url}/rest/v1/${auditTable}`, {
       method: 'POST',
       headers: s.headers,
-      body: JSON.stringify({
-        table_name: 'reservations',
-        record_id: id,
-        action: `status_change:${current.status}→${status}`,
-        old_data: { status: current.status },
-        new_data: { status, notes },
-        performed_by: auth.user?.id || null,
-      }),
+      body: JSON.stringify(auditBody),
     });
+    if (!auditRes.ok) {
+      const auditText = await auditRes.text();
+      // Try with singular name if plural fails
+      if (auditRes.status === 404) {
+        await fetch(`${s.url}/rest/v1/audit_log`, {
+          method: 'POST',
+          headers: s.headers,
+          body: JSON.stringify(auditBody),
+        });
+      }
+    }
 
-    // 8. If cancelled/no_show with pre-order, cancel kitchen schedule
-    if ((status === 'cancelled' || status === 'no_show') && current.kitchen_scheduled_at) {
+    // 8. If cancelled/no_show/expired with pre-order, cancel kitchen schedule
+    if ((status === 'cancelled' || status === 'no_show' || status === 'expired') && current.kitchen_scheduled_at) {
       await fetch(`${s.url}/rest/v1/kitchen_schedule?reservation_id=eq.${id}`, {
         method: 'PATCH',
         headers: s.headers,

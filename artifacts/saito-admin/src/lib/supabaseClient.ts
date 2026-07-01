@@ -336,6 +336,68 @@ export type Database = {
         };
         Relationships: [];
       };
+      kitchen_schedule: {
+        Row: {
+          id: string;
+          reservation_id: string | null;
+          table_number: number | null;
+          scheduled_at: string;
+          status: 'pending' | 'started' | 'completed' | 'cancelled' | string;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          reservation_id?: string | null;
+          table_number?: number | null;
+          scheduled_at: string;
+          status?: 'pending' | 'started' | 'completed' | 'cancelled' | string;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: {
+          reservation_id?: string | null;
+          table_number?: number | null;
+          scheduled_at?: string;
+          status?: 'pending' | 'started' | 'completed' | 'cancelled' | string;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
+      audit_log: {
+        Row: {
+          id: string;
+          table_name: string;
+          record_id: string | null;
+          action: string;
+          old_data: Json | null;
+          new_data: Json | null;
+          performed_by: string | null;
+          ip_address: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          table_name: string;
+          record_id?: string | null;
+          action: string;
+          old_data?: Json | null;
+          new_data?: Json | null;
+          performed_by?: string | null;
+          ip_address?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          table_name?: string;
+          record_id?: string | null;
+          action?: string;
+          old_data?: Json | null;
+          new_data?: Json | null;
+          performed_by?: string | null;
+          ip_address?: string | null;
+        };
+        Relationships: [];
+      };
       campaigns: {
         Row: {
           id: string;
@@ -379,6 +441,30 @@ export type Database = {
           end_date?: string | null;
           status?: string | null;
           image_url?: string | null;
+        };
+        Relationships: [];
+      };
+      campaign_usage: {
+        Row: {
+          id: string;
+          campaign_id: string | null;
+          order_id: string;
+          discount_amount: number;
+          discount_type: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id?: string | null;
+          order_id: string;
+          discount_amount?: number;
+          discount_type?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          campaign_id?: string | null;
+          discount_amount?: number;
+          discount_type?: string | null;
         };
         Relationships: [];
       };

@@ -310,6 +310,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           }
         }
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, async (payload) => {
+        if (payload.new?.status === 'paid' && payload.old?.status !== 'paid') {
+          fetchReadyOrdersCountRef.current();
+          fetchNewOrdersCountRef.current();
+          const tableName = payload.new?.table_number ? `Masa ${payload.new.table_number}` : '';
+          const body = `${tableName} — hesab bağlandı`;
+          addNotificationRef.current('Ödəniş', body, 'order');
+        }
+      })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'orders' }, () => {
         if (!skipOrdersOnMobileRef.current) {
           fetchNewOrdersCountRef.current();

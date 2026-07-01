@@ -88,24 +88,6 @@ export async function createTransactionLog(action: string, status: 'completed' |
 
 /**
  * Validates table state transitions
+ * @deprecated Use tableStatus.ts instead
  */
-export const TABLE_STATES = {
-  AVAILABLE: 'available',
-  RESERVED: 'reserved',
-  OCCUPIED: 'occupied',
-  MERGED: 'merged',
-  CLEANING: 'cleaning'
-};
-
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  [TABLE_STATES.AVAILABLE]: [TABLE_STATES.RESERVED, TABLE_STATES.OCCUPIED],
-  [TABLE_STATES.RESERVED]: [TABLE_STATES.OCCUPIED, TABLE_STATES.AVAILABLE],
-  [TABLE_STATES.OCCUPIED]: [TABLE_STATES.MERGED, TABLE_STATES.CLEANING, TABLE_STATES.AVAILABLE],
-  [TABLE_STATES.MERGED]: [TABLE_STATES.OCCUPIED, TABLE_STATES.AVAILABLE],
-  [TABLE_STATES.CLEANING]: [TABLE_STATES.AVAILABLE]
-};
-
-export function isValidTableTransition(from: string, to: string): boolean {
-  if (from === to) return true;
-  return VALID_TRANSITIONS[from]?.includes(to) || false;
-}
+export { isValidTableTransition, TableStatus } from './tableStatus';

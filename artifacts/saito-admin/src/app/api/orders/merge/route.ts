@@ -112,20 +112,40 @@ export async function POST(request: NextRequest) {
         
         if (srcFloor?.reservation_id) {
           mergedReservationIds.push(srcFloor.reservation_id);
-          // Mark source reservations as no_show or completed (they're now merged)
-          await fetch(`${svc().url}/rest/v1/reservations?id=eq.${srcFloor.reservation_id}`, {
-            method: 'PATCH',
-            headers: svc().headers,
-            body: JSON.stringify({ status: 'completed', note: `Birləşdirildi → Masa ${targetTable}` }),
-          }).catch(() => {});
+          // Fetch reservation status before deciding action
+          const srcResRes = await fetch(
+            `${svc().url}/rest/v1/reservations?id=eq.${srcFloor.reservation_id}&select=status`,
+            { headers: svc().headers }
+          );
+          const srcResData = await srcResRes.json();
+          const srcReservation = srcResData?.[0];
+
+          if (srcReservation) {
+            const isCheckedIn = srcReservation.status === 'checked_in';
+            const updateBody: Record<string, any> = {
+              table_ids: [...(typeof targetFloor?.reservation_id === 'string' ? [] : []), targetTable],
+            };
+            if (isCheckedIn) {
+              updateBody.status = 'completed';
+              updateBody.note = `Birləşdirildi → Masa ${targetTable}`;
+            }
+            await fetch(`${svc().url}/rest/v1/reservations?id=eq.${srcFloor.reservation_id}`, {
+              method: 'PATCH',
+              headers: svc().headers,
+              body: JSON.stringify(updateBody),
+            });
+          }
         }
       }
 
       // Build reservation patch for target table
       const targetReservationPatch: Record<string, any> = {
-        status: 'occupied',
         guest_count: totalGuests,
       };
+      // Only mark occupied if source orders exist or target already occupied
+      if (primaryOrder || restTables.length < table_numbers.length) {
+        targetReservationPatch.status = 'occupied';
+      }
       let keptReservationId: string | null = null;
       if (targetFloor?.reservation_id) {
         keptReservationId = targetFloor.reservation_id;

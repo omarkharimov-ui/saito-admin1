@@ -8,6 +8,7 @@ export enum TableStatus {
   RESERVED = 'reserved',
   OCCUPIED = 'occupied',
   MERGED = 'merged',
+  PAYMENT_PENDING = 'payment_pending',
   CLEANING = 'cleaning',
 }
 
@@ -18,8 +19,9 @@ export type KitchenStatus = 'pending' | 'preparing' | 'ready' | null | undefined
 const VALID_TRANSITIONS: Record<TableStatus, TableStatus[]> = {
   [TableStatus.EMPTY]: [TableStatus.RESERVED, TableStatus.OCCUPIED],
   [TableStatus.RESERVED]: [TableStatus.OCCUPIED, TableStatus.EMPTY],
-  [TableStatus.OCCUPIED]: [TableStatus.MERGED, TableStatus.CLEANING, TableStatus.EMPTY],
+  [TableStatus.OCCUPIED]: [TableStatus.MERGED, TableStatus.PAYMENT_PENDING, TableStatus.EMPTY],
   [TableStatus.MERGED]: [TableStatus.OCCUPIED, TableStatus.EMPTY],
+  [TableStatus.PAYMENT_PENDING]: [TableStatus.EMPTY, TableStatus.OCCUPIED, TableStatus.CLEANING],
   [TableStatus.CLEANING]: [TableStatus.EMPTY],
 };
 
@@ -38,8 +40,8 @@ export interface TableComputeInput {
 export function computeTableStatus(input: TableComputeInput): TableStatus {
   const { floorStatus, activeOrders, mergedIntoTable, reservation } = input;
 
-  if (floorStatus === 'reserved' || reservation != null) return TableStatus.RESERVED;
-  if (activeOrders.length > 0 || floorStatus === 'occupied') return TableStatus.OCCUPIED;
   if (mergedIntoTable != null) return TableStatus.MERGED;
+  if (reservation != null || floorStatus === 'reserved') return TableStatus.RESERVED;
+  if (activeOrders.length > 0) return TableStatus.OCCUPIED;
   return TableStatus.EMPTY;
 }

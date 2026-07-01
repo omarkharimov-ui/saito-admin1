@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
       const targetTables = await targetTableRes.json();
       const targetTable = targetTables?.[0];
 
-      if (targetTable && targetTable.status === 'occupied') {
-        throw new Error('TARGET_TABLE_OCCUPIED');
+      if (targetTable && (targetTable.status === 'occupied' || targetTable.status === 'reserved')) {
+        throw new Error(targetTable.status === 'reserved' ? 'TARGET_TABLE_RESERVED' : 'TARGET_TABLE_OCCUPIED');
       }
 
       // CRITICAL: Transfer reservation from source to target table
@@ -98,6 +98,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.success) {
+      if (result.error === 'TARGET_TABLE_RESERVED') {
+        return NextResponse.json({ error: 'Hədəf masa rezerv edilib' }, { status: 409 });
+      }
       if (result.error === 'TARGET_TABLE_OCCUPIED') {
         return NextResponse.json({ error: 'Target table is already occupied' }, { status: 409 });
       }

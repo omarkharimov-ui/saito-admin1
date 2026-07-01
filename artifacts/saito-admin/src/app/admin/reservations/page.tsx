@@ -152,31 +152,13 @@ export default function ReservationsPage() {
 
   const updateStatus = async (id: string, status: string) => {
     try {
-      const { data: resData } = await supabase.from('reservations').select('*').eq('id', id).single();
-      if (!resData) throw new Error('Reservation not found');
-
-      const { error } = await supabase.from('reservations').update({ status }).eq('id', id);
-      if (error) throw error;
-
-      // Sync Table Status
-      if (resData.table_ids) {
-        const tableIds = typeof resData.table_ids === 'string' ? JSON.parse(resData.table_ids) : resData.table_ids;
-        
-        let tableStatus = 'empty';
-        if (status === 'confirmed') tableStatus = 'reserved';
-        if (status === 'checked_in') tableStatus = 'occupied';
-        if (status === 'completed' || status === 'cancelled' || status === 'no_show') tableStatus = 'empty';
-
-        for (const tId of tableIds) {
-          await supabase.from('table_floors').update({ 
-            status: tableStatus,
-            reservation_id: (tableStatus === 'empty') ? null : id,
-            reservation_name: (tableStatus === 'empty') ? null : (resData.customer_name || resData.name),
-            reservation_time: (tableStatus === 'empty') ? null : resData.time
-          }).eq('id', tId);
-        }
-      }
-
+      const res = await fetch('/api/reservations/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Status update failed');
       toast.success(`Status: ${status}`);
       fetchData();
     } catch (e: any) {

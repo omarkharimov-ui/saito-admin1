@@ -67,6 +67,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'table_number could not be resolved' }, { status: 400 });
     }
 
+    // 2.5. Verify all target tables are available
+    const tablesRes = await fetch(
+      `${svc().url}/rest/v1/table_floors?select=id,table_number,status&id=in.(${table_ids.map((id: string) => id).join(',')})`,
+      { headers: svc().headers }
+    );
+    const targetTables: any[] = await tablesRes.json();
+    const nonEmptyTables = targetTables.filter(t => t.status !== 'empty' && t.status !== 'reserved');
+    if (nonEmptyTables.length > 0) {
+      const occupiedNums = nonEmptyTables.map(t => t.table_number).join(', ');
+      return NextResponse.json({
+        error: `Masa(lar) artıq istifadə olunur: ${occupiedNums}`
+      }, { status: 409 });
+    }
+
     const totalAmount = (pre_order_items || []).reduce(
       (sum: number, item: any) => sum + (item.unit_price * item.quantity),
       0
@@ -96,18 +110,26 @@ export async function POST(request: NextRequest) {
 
     if (!orderRes.ok) {
         console.error("[reserve-table] Failed to create sync order:", await orderRes.text());
+        throw new Error('Failed to create reservation order');
     }
 
-    // 4. Update table_floors status (Minimal data to avoid schema errors)
+    // 4. Update table_floors status
     for (const tid of table_ids) {
-      await fetch(`${svc().url}/rest/v1/table_floors?id=eq.${tid}`, {
+      const updateRes = await fetch(`${svc().url}/rest/v1/table_floors?id=eq.${tid}`, {
         method: 'PATCH',
         headers: svc().headers,
         body: JSON.stringify({ 
           status: 'reserved',
-          reservation_id: reservation_id // Keep it for SSOT, even if fails
+          reservation_id: reservation_id,
+          reservation_name: reservation.name || reservation.customer_name || null,
+          reservation_phone: reservation.phone || null,
+          reservation_time: reservation.time || null,
         }),
-      }).catch(() => {}); // Silent catch to let the workflow continue via Orders sync
+      });
+      if (!updateRes.ok) {
+        console.error(`[reserve-table] Failed to update table ${tid}:`, await updateRes.text());
+        throw new Error(`Failed to reserve table ${tid}`);
+      }
     }
 
     // 4. Kitchen schedule logic (Optional but kept)

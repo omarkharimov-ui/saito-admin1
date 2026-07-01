@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { executeTransactionalOrderAction, TABLE_STATES } from '@/lib/transaction';
+import { executeTransactionalOrderAction } from '@/lib/transaction';
+import { TableStatus } from '@/lib/tableStatus';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
           method: 'PATCH',
           headers: svc().headers,
           body: JSON.stringify({ 
-            status: TABLE_STATES.OCCUPIED, 
+            status: TableStatus.OCCUPIED, 
             merged_into_table: null,
             guest_count: null,
           }),

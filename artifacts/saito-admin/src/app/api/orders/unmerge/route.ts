@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
 
       for (const tNum of child_table_numbers) {
         const order = childOrders.find(o => o.table_number === tNum);
+
         if (order) {
           totalRemovedAmount += Number(order.total_amount || 0);
           totalRemovedGuests += Number(order.guest_count || 0);
@@ -51,12 +52,12 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // Restore table status
+        // Restore table status: 'occupied' only if it has an order; otherwise 'empty'
         await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${tNum}`, {
           method: 'PATCH',
           headers: s.headers,
           body: JSON.stringify({ 
-            status: 'occupied', 
+            status: order ? 'occupied' : 'empty', 
             merged_into_table: null 
           }),
         });

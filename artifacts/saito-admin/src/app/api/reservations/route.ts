@@ -7,6 +7,21 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
+async function logAudit(tableName: string, recordId: string, action: string, oldData: any, newData: any, userId?: string) {
+  await fetch(`${svc().url}/rest/v1/audit_log`, {
+    method: 'POST',
+    headers: svc().headers,
+    body: JSON.stringify({
+      table_name: tableName,
+      record_id: recordId,
+      action,
+      old_data: oldData || null,
+      new_data: newData || null,
+      performed_by: userId || null,
+    }),
+  }).catch(() => {}); // Non-critical — don't fail the request if audit fails
+}
+
 export async function GET() {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
@@ -120,6 +135,22 @@ export async function POST(request: Request) {
     }
 
     const result = method === 'DELETE' ? { success: true } : await res.json();
+
+    // Audit log (non-blocking)
+    const performedBy = auth.user?.id || null;
+    if (action === 'create') {
+      const newId = result?.[0]?.id || result?.id;
+      if (newId) logAudit('reservations', newId, 'create', null, result, performedBy);
+    } else if (action === 'update') {
+      logAudit('reservations', id, 'update', null, payload, performedBy);
+    } else if (action === 'delete') {
+      logAudit('reservations', id, 'delete', null, null, performedBy);
+    } else if (action === 'archive') {
+      logAudit('reservations', id, 'archive', null, { status: 'archived' }, performedBy);
+    } else if (action === 'restore') {
+      logAudit('reservations', id, 'restore', null, { status: 'pending' }, performedBy);
+    }
+
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

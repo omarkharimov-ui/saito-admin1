@@ -7,6 +7,7 @@ import { toast } from '@/lib/toast';
 
 import { PageTransition } from '@/components/PageTransition';
 import { EmptyState } from '@/components/ui/primitives';
+import { CampaignsSkeleton } from './components/CampaignsSkeleton';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import CampaignCard from './components/CampaignCard';
 import CampaignModal from './components/CampaignModal';

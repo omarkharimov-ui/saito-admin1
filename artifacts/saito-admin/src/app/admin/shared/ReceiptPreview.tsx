@@ -19,6 +19,8 @@ interface ReceiptPreviewProps {
   currency: string;
   footerText?: string;
   width?: number;
+  discountAmount?: number;
+  campaignName?: string;
 }
 
 export default function ReceiptPreview({
@@ -32,10 +34,12 @@ export default function ReceiptPreview({
   currency,
   footerText,
   width = 260,
+  discountAmount = 0,
+  campaignName,
 }: ReceiptPreviewProps) {
   const subtotal = items.reduce((sum, i) => sum + i.total_price, 0);
   const serviceFee = showServiceFee ? subtotal * (serviceFeePct / 100) : 0;
-  const total = subtotal + serviceFee;
+  const total = Math.max(0, subtotal - discountAmount + serviceFee);
 
   const displayDate = date || new Date().toLocaleDateString('az-AZ');
   const displayTime = time || new Date().toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' });
@@ -81,6 +85,13 @@ export default function ReceiptPreview({
       ))}
 
       <div style={{ borderTop: '1px dashed #000', margin: '6px 0' }} />
+
+      {discountAmount > 0 && (
+        <div style={{ display: 'flex', fontSize: 10, marginBottom: 3, color: '#BE123C' }}>
+          <span style={{ flex: 1 }}>{campaignName || 'Endirim'}</span>
+          <span style={{ width: 48, textAlign: 'right' }}>-{discountAmount.toFixed(2)}</span>
+        </div>
+      )}
 
       {showServiceFee && (
         <div style={{ display: 'flex', fontSize: 10, marginBottom: 3 }}>

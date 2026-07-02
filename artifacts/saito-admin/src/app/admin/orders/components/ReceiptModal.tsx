@@ -9,12 +9,20 @@ import { toast } from '@/lib/toast';
 import ReceiptPreview from '../../shared/ReceiptPreview';
 import type { Order, OrderItem } from '../types';
 
+interface CampaignInfo {
+  id: string;
+  name: string;
+  discount: number;
+  type: string;
+}
+
 interface ReceiptModalProps {
   order: Order;
   onClose: () => void;
   getProductName: (item: OrderItem) => string;
   onPay?: (paymentMethod?: string, tipAmount?: number) => Promise<void>;
   onSplit?: () => void;
+  campaign?: CampaignInfo | null;
 }
 
 interface RestaurantInfo {
@@ -41,7 +49,7 @@ function formatTime(iso: string) {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
-export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit }: ReceiptModalProps) {
+export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit, campaign }: ReceiptModalProps) {
   const [mounted, setMounted] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
@@ -92,8 +100,9 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit }:
 
   const items = order.order_items ?? [];
   const subtotal = items.reduce((sum, i) => sum + i.total_price, 0);
+  const discountAmount = campaign?.discount ?? Number(order.discount_amount || 0);
   const serviceFee = restaurant.receipt_show_service_fee ? subtotal * (restaurant.receipt_service_fee_pct / 100) : 0;
-  const total = subtotal + serviceFee + tipAmount;
+  const total = Math.max(0, subtotal - discountAmount + serviceFee + tipAmount);
 
   const handlePrint = () => {
     const win = window.open('', '_blank', 'width=400,height=700');
@@ -107,6 +116,13 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit }:
         <span style="width:56px;text-align:right;font-weight:600">${item.total_price.toFixed(2)}</span>
       </div>`;
     }).join('');
+
+    const discountHtml = discountAmount > 0
+      ? `<div style="display:flex;font-size:11px;margin-bottom:4px;color:#BE123C">
+          <span style="flex:1">${campaign?.name || 'Endirim'}</span>
+          <span style="width:56px;text-align:right">-${discountAmount.toFixed(2)}</span>
+        </div>`
+      : '';
 
     const serviceFeeHtml = restaurant.receipt_show_service_fee
       ? `<div style="display:flex;font-size:11px;margin-bottom:4px">
@@ -148,6 +164,7 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit }:
         <hr style="border:none;border-top:1px dashed #000;margin:4px 0 6px"/>
         ${itemsHtml}
         <hr style="border:none;border-top:1px dashed #000;margin:8px 0"/>
+        ${discountHtml}
         ${serviceFeeHtml}
         ${tipHtml}
         <div style="display:flex;justify-content:space-between;font-size:20px">
@@ -251,6 +268,8 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit }:
                 currency={restaurant.receipt_currency}
                 footerText={restaurant.receipt_footer_text}
                 width={302}
+                discountAmount={discountAmount}
+                campaignName={campaign?.name}
               />
             )}
           </div>

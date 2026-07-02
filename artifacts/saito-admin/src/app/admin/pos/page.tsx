@@ -218,6 +218,8 @@ export default function POSPage() {
     }
   }, [pos]);
 
+  const [campaignPreview, setCampaignPreview] = useState<{ id: string; name: string; discount: number; type: string } | null>(null);
+
   const openPayment = useCallback(async (tableNumber: number, amount: number, orderIds: string[]) => {
     const orderId = orderIds[0];
     if (!orderId) return;
@@ -226,6 +228,21 @@ export default function POSPage() {
     setPayTableNumber(tableNumber);
     setPayAmount(amount);
     setPayOrderId(orderId);
+
+    // Preview auto-applicable campaign discount
+    const { data: campaignResult } = await supabase.rpc('auto_apply_campaigns', { p_order_id: orderId });
+    if (campaignResult?.applied) {
+      const { data: camp } = await supabase.from('campaigns').select('title').eq('id', campaignResult.campaign_id).maybeSingle();
+      setCampaignPreview({
+        id: campaignResult.campaign_id,
+        name: camp?.title || '',
+        discount: campaignResult.discount_amount,
+        type: campaignResult.discount_type,
+      });
+    } else {
+      setCampaignPreview(null);
+    }
+
     setPaymentOpen(true);
   }, []);
 
@@ -384,7 +401,7 @@ export default function POSPage() {
         onSuccess={() => { pos.fetchData(); }} 
       />
       {paymentOpen && payOrder && (
-        <ReceiptModal order={payOrder} onClose={() => setPaymentOpen(false)} getProductName={(it) => { const p = it.products as any; if (!p) return ''; const transName = p.translations?.[language]?.name; if (transName) return transName; return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || ''; }} onPay={handleCloseBill} />
+        <ReceiptModal order={payOrder} onClose={() => setPaymentOpen(false)} getProductName={(it) => { const p = it.products as any; if (!p) return ''; const transName = p.translations?.[language]?.name; if (transName) return transName; return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || ''; }} onPay={handleCloseBill} campaign={campaignPreview} />
       )}
 
       <AnimatePresence>

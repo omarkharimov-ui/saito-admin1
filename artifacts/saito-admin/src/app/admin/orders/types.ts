@@ -40,6 +40,13 @@ export interface Order {
   tip_amount?: number;
   is_draft?: boolean;
   reservation_id?: string | null;
+  discount_amount?: number;
+  discount_type?: string | null;
+  paid_amount?: number;
+  cogs?: number;
+  profit?: number;
+  cash_amount?: number;
+  card_amount?: number;
 }
 
 export interface Reservation {

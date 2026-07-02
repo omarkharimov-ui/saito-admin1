@@ -42,6 +42,9 @@ export async function POST(request: NextRequest) {
       p_order_id: order_id,
       p_payment_method: payment_method || 'card',
       p_paid_amount: paidAmount,
+      p_cash_amount: cash_amount || 0,
+      p_card_amount: card_amount || 0,
+      p_tip_amount: tip_amount || 0,
       p_campaign_id: effectiveCampaignId,
       p_discount_amount: effectiveDiscountAmount,
       p_discount_type: effectiveDiscountType,
@@ -57,11 +60,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Order is already paid' }, { status: 409 });
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // ─── Tip tracking (separate from RPC for flexibility) ───
-    if (tip_amount && Number(tip_amount) > 0) {
-      await supabase.from('orders').update({ tip_amount }).eq('id', order_id);
     }
 
     return NextResponse.json({

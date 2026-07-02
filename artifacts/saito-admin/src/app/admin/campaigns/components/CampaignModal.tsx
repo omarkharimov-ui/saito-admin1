@@ -187,6 +187,8 @@ const CampaignModal = ({
   );
 
   if (typeof document === 'undefined') return null;
+  const layoutId = campaign ? `campaign-${campaign.id}` : `campaign-new`;
+
   return createPortal(
     <>
       {/* ── MOBILE: slide-in from right ── */}
@@ -194,6 +196,7 @@ const CampaignModal = ({
         {open && (
           <motion.div
             key="campaign-mobile"
+            layoutId={layoutId}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -237,6 +240,7 @@ const CampaignModal = ({
         <div className="fixed inset-0 z-[120] hidden md:flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
           <motion.div
+            layoutId={layoutId}
             initial={{ opacity: 0, scale: 0.96, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 380, damping: 30 }}

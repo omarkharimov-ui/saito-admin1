@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, MoreVertical } from 'lucide-react';
+import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Campaign, Product, Category } from '@/types';
@@ -46,6 +46,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
     <>
       {/* ── MOBILE card ── */}
       <motion.div
+        layoutId={`campaign-${camp.id}`}
         whileTap={{ scale: 0.978 }}
         onClick={() => onEdit(camp)}
         className={`md:hidden relative overflow-hidden rounded-3xl cursor-pointer border ${isActive ? 'bg-[var(--theme-panel)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}
@@ -125,6 +126,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
 
       {/* ── DESKTOP card ── */}
       <motion.div
+        layoutId={`campaign-${camp.id}`}
         whileHover={{ y: -4, boxShadow: '0 18px 42px rgba(0,0,0,0.35)' }}
         transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         onClick={() => onEdit(camp)}

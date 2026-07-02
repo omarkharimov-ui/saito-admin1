@@ -35,42 +35,29 @@ export async function POST(req: NextRequest) {
     const currentTable = tables?.[0];
     if (!currentTable) return NextResponse.json({ error: 'Table not found' }, { status: 404 });
 
-    // Resolve reservation ID: check table_floors, then orders, then reservations
+    // 2. Find reservation — check table_floors.reservation_id first, then search reservations
     let reservationId = currentTable.reservation_id;
 
     if (!reservationId) {
-      // Fallback 1: look for any active order with reservation_id on this table
-      const orderLookup = await fetch(
-        `${s.url}/rest/v1/orders?select=id,reservation_id&table_number=eq.${currentTable.table_number}&status=neq.paid&status=neq.cancelled&not.is.reservation_id&limit=1`,
-        { headers: s.headers }
-      );
-      if (orderLookup.ok) {
-        const orders: any[] = await orderLookup.json();
-        const found = orders?.find((o: any) => o.reservation_id);
-        if (found?.reservation_id) reservationId = found.reservation_id;
-      }
-    }
-
-    if (!reservationId) {
-      // Fallback 2: search reservations for today matching this table_number
+      // Search today's reservations with status=confirmed/pending matching this table_number
       const today = new Date().toISOString().split('T')[0];
       const resLookup = await fetch(
-        `${s.url}/rest/v1/reservations?select=id&date=eq.${today}&status=in.(confirmed,pending)&table_number=eq.${currentTable.table_number}`,
+        `${s.url}/rest/v1/reservations?select=id,status,table_ids&date=eq.${today}&status=in.(confirmed,pending)&order=created_at.desc`,
         { headers: s.headers }
       );
       if (resLookup.ok) {
         const resList: any[] = await resLookup.json();
-        if (resList?.[0]?.id) reservationId = resList[0].id;
-      }
-      // Fallback 3: search via table_ids text field
-      if (!reservationId) {
-        const resByIdLookup = await fetch(
-          `${s.url}/rest/v1/reservations?select=id&date=eq.${today}&status=in.(confirmed,pending)&table_ids=like.%${table_id}%`,
-          { headers: s.headers }
-        );
-        if (resByIdLookup.ok) {
-          const resList: any[] = await resByIdLookup.json();
-          if (resList?.[0]?.id) reservationId = resList[0].id;
+        // Try matching by table_number first
+        const byNumber = resList.find(r => r.table_number === currentTable.table_number);
+        if (byNumber?.id) {
+          reservationId = byNumber.id;
+        } else {
+          // Fall back to matching by table_ids JSONB array containing this table_id
+          const byIds = resList.find((r: any) => {
+            const ids = typeof r.table_ids === 'string' ? JSON.parse(r.table_ids) : (r.table_ids || []);
+            return Array.isArray(ids) && ids.some((id: any) => String(id) === String(table_id));
+          });
+          if (byIds?.id) reservationId = byIds.id;
         }
       }
     }
@@ -79,7 +66,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Table is not reserved' }, { status: 409 });
     }
 
-    // 2. Fetch reservation
+    // 3. Fetch reservation
     const reservationRes = await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, { headers: s.headers });
     if (!reservationRes.ok) return NextResponse.json({ error: 'Failed to fetch reservation' }, { status: 500 });
     const reservations: any[] = await reservationRes.json();
@@ -90,7 +77,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Reservation already activated' }, { status: 409 });
     }
 
-    // 3. Create POS order (simple: just the order, items come from kitchen later)
+    // 4. Create POS order (simple: just the order, items come from kitchen later)
     const orderPayload: Record<string, any> = {
       table_number: currentTable.table_number,
       reservation_id: reservationId,
@@ -114,7 +101,7 @@ export async function POST(req: NextRequest) {
     const created = await createRes.json();
     const activeOrder = Array.isArray(created) ? created[0] : created;
 
-    // 4. Transfer pre-order items if any
+    // 5. Transfer pre-order items if any
     const preItems = typeof reservation.pre_order_items === 'string'
       ? JSON.parse(reservation.pre_order_items)
       : (reservation.pre_order_items || []);
@@ -135,7 +122,7 @@ export async function POST(req: NextRequest) {
             total_price: item.unit_price * item.quantity,
             modifiers: JSON.stringify(item.modifiers || []),
             special_notes: item.special_notes || '',
-            kitchen_status: 'pending',
+            kitchen_status: 'reserved',
           }),
         });
         if (itemRes.ok) {
@@ -145,17 +132,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Update reservation status
-    await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, {
+    // 6. Update reservation status to checked_in using the RPC/status API
+    // This will trigger normalize_table_after_reservation_change which sets table to 'occupied'
+    const resUpdateRes = await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, {
       method: 'PATCH',
       headers: s.headers,
       body: JSON.stringify({
         status: 'checked_in',
         checked_in_at: new Date().toISOString(),
       }),
-    }).catch(() => {});
+    });
+    if (!resUpdateRes.ok) {
+      console.warn('[activate] Failed to update reservation status, continuing');
+    }
 
-    // 6. Update table to occupied
+    // 7. Update table to occupied (in case the trigger didn't cover it)
     const tablePatch: Record<string, any> = {
       status: 'occupied',
       reservation_id: null,

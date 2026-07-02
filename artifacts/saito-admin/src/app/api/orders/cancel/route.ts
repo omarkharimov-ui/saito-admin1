@@ -10,27 +10,6 @@ function svc() {
   );
 }
 
-async function restoreStockForOrder(supabase: ReturnType<typeof svc>, orderId: string) {
-  const { data: logs } = await supabase
-    .from('inventory_logs')
-    .select('id, ingredient_id, quantity')
-    .eq('type', 'order_consumption')
-    .eq('order_id', orderId);
-
-  if (!logs || logs.length === 0) return;
-
-  const restoreLogs = logs.map(log => ({
-    ingredient_id: log.ingredient_id,
-    type: 'order_restore' as const,
-    quantity: Math.abs(log.quantity),
-    order_id: orderId,
-    reason: `Ləğv olunmuş sifariş — #${orderId} (geri yazıldı)`,
-  }));
-
-  const { error } = await supabase.from('inventory_logs').insert(restoreLogs);
-  if (error) console.error('[Cancel] Stock restore error:', error);
-}
-
 export async function DELETE(req: NextRequest) {
   const auth = await validateAuth();
   if (!auth.authenticated) {
@@ -57,7 +36,8 @@ export async function DELETE(req: NextRequest) {
       const orderIds = orders.map(o => o.id);
 
       for (const id of orderIds) {
-        await restoreStockForOrder(supabase, id);
+        // Use RPC to atomically reverse stock deduction
+        await supabase.rpc('reverse_stock_deduction', { p_order_id: id });
       }
 
       await supabase

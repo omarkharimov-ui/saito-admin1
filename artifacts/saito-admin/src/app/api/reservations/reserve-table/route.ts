@@ -87,13 +87,11 @@ export async function POST(request: NextRequest) {
     );
 
     // 3. ATOMIC SYNC: Create a DRAFT order immediately to lock the table in POS
-    // This ensures that even if 'table_floors' schema is missing columns,
-    // the POS will see this table as RESERVED because of the draft order.
     const orderPayload = {
       table_number,
       reservation_id,
       status: 'confirmed',
-      kitchen_status: 'reserved', // Special flag for POS status logic
+      kitchen_status: 'reserved',
       is_draft: true,
       guest_count: guest_count ?? reservation.guests ?? 2,
       total_amount: totalAmount || 0,
@@ -113,7 +111,30 @@ export async function POST(request: NextRequest) {
         throw new Error('Failed to create reservation order');
     }
 
-    // 4. Update table_floors status
+    // 3b. Insert pre-order items into order_items
+    if (pre_order_items && pre_order_items.length > 0) {
+      const orderData = await orderRes.json();
+      const createdOrder = Array.isArray(orderData) ? orderData[0] : orderData;
+      for (const item of pre_order_items) {
+        await fetch(`${svc().url}/rest/v1/order_items`, {
+          method: 'POST',
+          headers: svc().headers,
+          body: JSON.stringify({
+            order_id: createdOrder.id,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.unit_price * item.quantity,
+            modifiers: JSON.stringify(item.modifiers || []),
+            special_notes: item.special_notes || '',
+            kitchen_status: 'reserved',
+          }),
+        });
+      }
+    }
+
+    // 4. Update table_floors status for ALL selected tables
     for (const tid of table_ids) {
       const updateRes = await fetch(`${svc().url}/rest/v1/table_floors?id=eq.${tid}`, {
         method: 'PATCH',
@@ -128,18 +149,53 @@ export async function POST(request: NextRequest) {
       });
       if (!updateRes.ok) {
         console.error(`[reserve-table] Failed to update table ${tid}:`, await updateRes.text());
-        throw new Error(`Failed to reserve table ${tid}`);
       }
     }
 
-    // 4. Kitchen schedule logic (Optional but kept)
+    // 4b. IMMEDIATE KITCHEN HINT: Notify kitchen about the reservation
+    const hintText = pre_order_items && pre_order_items.length > 0
+      ? `Masa ${table_number} — ${reservation.name} (${reservation.guests} nəfər) üçün rezervasiya təsdiqləndi. Öncədən sifariş var (${pre_order_items.length} məhsul).`
+      : `Masa ${table_number} — ${reservation.name} (${reservation.guests} nəfər) üçün rezervasiya təsdiqləndi.`;
+    await fetch(`${svc().url}/rest/v1/notifications`, {
+      method: 'POST',
+      headers: svc().headers,
+      body: JSON.stringify({
+        type: 'kitchen_hint',
+        title: 'Yeni rezervasiya — Masa ' + table_number,
+        body: hintText,
+        data: JSON.stringify({
+          reservation_id,
+          table_number,
+          table_ids,
+          guest_name: reservation.name,
+          guest_count: reservation.guests,
+          pre_order_count: pre_order_items?.length || 0,
+        }),
+        created_at: new Date().toISOString(),
+      }),
+    });
+
+    // 5. Kitchen schedule logic
     let kitchen_scheduled_at = null;
     if (pre_order_items && pre_order_items.length > 0) {
-      let minutesBefore = schedule_minutes_before || 30;
+      let minutesBefore = schedule_minutes_before || Number(reservation.kitchen_notify_before_minutes) || 120;
       const [hours, minutes] = reservation.time.split(':').map(Number);
       const reservationDate = new Date(reservation.date);
       reservationDate.setHours(hours, minutes, 0, 0);
       kitchen_scheduled_at = new Date(reservationDate.getTime() - minutesBefore * 60 * 1000).toISOString();
+
+      // Create kitchen_schedule entry for the scheduled job
+      await fetch(`${svc().url}/rest/v1/kitchen_schedule`, {
+        method: 'POST',
+        headers: svc().headers,
+        body: JSON.stringify({
+          reservation_id,
+          table_number,
+          scheduled_at: kitchen_scheduled_at,
+          guest_count: reservation.guests || guest_count || 2,
+          status: 'pending',
+        }),
+      });
     }
 
     await fetch(`${svc().url}/rest/v1/reservations?id=eq.${reservation_id}`, {
@@ -151,6 +207,7 @@ export async function POST(request: NextRequest) {
         pre_order_items: pre_order_items ? JSON.stringify(pre_order_items) : null,
         pre_order_total: totalAmount || null,
         kitchen_scheduled_at,
+        kitchen_hint_sent: true,
         status: 'confirmed',
       }),
     });
@@ -159,6 +216,7 @@ export async function POST(request: NextRequest) {
       success: true,
       table_number,
       kitchen_scheduled_at,
+      kitchen_hint_sent: true,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

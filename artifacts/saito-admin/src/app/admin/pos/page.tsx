@@ -80,6 +80,7 @@ export default function POSPage() {
   const [reservedTableDetail, setReservedTableDetail] = useState<PosTable | null>(null);
   const [reservedCountdown, setReservedCountdown] = useState<string>('');
 
+  // Restore reservation context: localStorage first (from reservation page), then URL params (fallback)
   useEffect(() => {
     const stored = localStorage.getItem('saito_pos_preorder_context');
     if (stored) {
@@ -94,7 +95,27 @@ export default function POSPage() {
             setReservedTableDetail(table);
           }
         }
+        return; // Got context from localStorage
       } catch {}
+    }
+
+    // Fallback: URL search params (?resId=...&tableIds=...)
+    const params = new URLSearchParams(window.location.search);
+    const resId = params.get('resId');
+    const tableIdsParam = params.get('tableIds');
+    if (resId && tableIdsParam) {
+      const tableIds = tableIdsParam.split(',');
+      const guestName = params.get('guestName') || '';
+      const tablesLabel = params.get('tablesLabel') || '';
+      const ctx = { resId, tableIds, guestName, tablesLabel };
+      setReservationCtx(ctx);
+      const tableNum = tableIds?.[0];
+      if (tableNum) {
+        const table = pos.tables.find(t => t.id === tableNum);
+        if (table) setReservedTableDetail(table);
+      }
+      // Clean URL params without full page reload
+      window.history.replaceState({}, '', '/admin/pos');
     }
   }, [pos.tables]);
 

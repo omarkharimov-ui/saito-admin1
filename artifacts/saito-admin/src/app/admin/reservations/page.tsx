@@ -87,35 +87,6 @@ export default function ReservationsPage() {
     return () => { removeRealtimeChannel(channel); };
   }, []);
 
-  /* ─── Auto-Release Expired Reservations ─── */
-  useEffect(() => {
-    const checkExpired = async () => {
-      const now = new Date();
-      const todayStr = now.toISOString().split('T')[0];
-      
-      const expiredRes = reservations.filter(res => 
-        (res.status === 'confirmed' || res.status === 'pending') && 
-        res.date <= todayStr &&
-        res.time && 
-        (() => {
-          const [h, m] = res.time.split(':').map(Number);
-          const resTime = new Date();
-          resTime.setHours(h, m, 0);
-          const diff = (now.getTime() - resTime.getTime()) / 60000;
-          return diff > 30;
-        })()
-      );
-
-      for (const res of expiredRes) {
-        await updateStatus(res.id, 'expired');
-        toast.success(`${res.name} vaxtı keçdiyi üçün avtomatik ləğv edildi`, { id: `expire-${res.id}` });
-      }
-    };
-
-    const interval = setInterval(checkExpired, 60000);
-    return () => clearInterval(interval);
-  }, [reservations]);
-
   /* ─── Actions ─── */
   const handleUpsert = async (formData: any) => {
     setActionLoading(true);
@@ -218,8 +189,11 @@ export default function ReservationsPage() {
     if (!selectedRes) return;
     if (selectedTableIds.length === 0) return toast.error("Zəhmət olmasa masa seçin");
 
-    // Capacity validation (Assuming average 4 guests per table if capacity field missing)
-    const totalCapacity = selectedTableIds.length * 4; 
+    // Capacity validation (use actual table capacity if available)
+    const totalCapacity = selectedTableIds.reduce((sum, id) => {
+      const t = tables.find(t => t.id === id);
+      return sum + (t?.capacity || 4);
+    }, 0);
     if (selectedRes.guests > totalCapacity) {
       return toast.error(`Seçilmiş ${selectedTableIds.length} masa ${selectedRes.guests} nəfər üçün yetərli deyil.`);
     }
@@ -303,13 +277,22 @@ export default function ReservationsPage() {
 
   const goToPOSPreOrder = () => {
     if (selectedTableIds.length === 0) return toast.error("Əvvəlcə masanı təyin edin");
+    const tablesLabel = selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).join(' + ');
+    // Save to localStorage for primary consumption
     localStorage.setItem('saito_pos_preorder_context', JSON.stringify({
       resId: selectedRes.id,
       tableIds: selectedTableIds,
       guestName: selectedRes.name,
-      tablesLabel: selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).join(' + ')
+      tablesLabel,
     }));
-    window.location.href = '/admin/pos';
+    // Also pass via URL params as fallback in case localStorage is cleared
+    const params = new URLSearchParams({
+      resId: selectedRes.id,
+      tableIds: selectedTableIds.join(','),
+      guestName: selectedRes.name,
+      tablesLabel,
+    });
+    window.location.href = `/admin/pos?${params.toString()}`;
   };
 
   return (
@@ -561,8 +544,20 @@ export default function ReservationsPage() {
           // Logic for clearing all archive or selected
           setClearingArchive(true);
           try {
-             // Permanent delete of cancelled/archived
-             const { error } = await supabase.from('reservations').delete().in('status', ['cancelled', 'archived', 'expired']);
+       // Use selected IDs if in selection mode, otherwise delete by status
+       let error;
+       if (archiveSelectionMode && selectedArchiveIds.length > 0) {
+         const result = await supabase.from('reservations').delete().in('id', selectedArchiveIds);
+         error = result.error;
+         if (!error) {
+           toast.success(`${selectedArchiveIds.length} rezervasiya silindi`);
+           setSelectedArchiveIds([]);
+           setArchiveSelectionMode(false);
+         }
+       } else {
+         const result = await supabase.from('reservations').delete().in('status', ['cancelled', 'archived', 'expired']);
+         error = result.error;
+       }
              if (error) throw error;
              toast.success('Arxiv təmizləndi');
              fetchData();

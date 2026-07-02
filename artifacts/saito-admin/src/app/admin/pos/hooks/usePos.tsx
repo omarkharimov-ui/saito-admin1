@@ -38,6 +38,13 @@ export function usePos() {
   const languageRef = useRef(language);
   languageRef.current = language;
 
+  /* ── Dismissed tables guard (prevents stale re-fetch from reverting dismissed tables) ── */
+  const dismissedTablesRef = useRef<Set<number>>(new Set());
+
+  const resetTable = useCallback((t: PosTable): PosTable => ({
+    ...t, status: 'empty' as const, reservation_id: null as any, reservation_name: null, reservation_phone: null, reservation_time: null, guest_count: 0, merged_into_table: null, total_amount: 0, order_count: 0, order_ids: [], merged_orders: [], has_pending: false
+  }), []);
+
   /* ── State ── */
   const cached = typeof window !== 'undefined' ? loadCache<{ tables: PosTable[]; floors: FloorConfig[]; products: PosProduct[]; categories: { id: string; name: string }[]; combos: any[] } | null>(POS_DATA_KEY, null) : null;
   const [tables, setTables] = useState<PosTable[]>(cached?.tables || []);
@@ -78,6 +85,18 @@ export function usePos() {
         const data = await (tablesRes as Response).json();
         newTables = data.tables || [];
         newFloors = data.floors || [];
+        // Guard: recently dismissed tables should stay empty regardless of stale API data
+        if (dismissedTablesRef.current.size > 0) {
+          newTables = newTables.map((t: PosTable) =>
+            dismissedTablesRef.current.has(t.table_number) ? resetTable(t) : t
+          );
+          newFloors = newFloors.map((f: any) => ({
+            ...f,
+            tables: (f.tables || []).map((t: PosTable) =>
+              dismissedTablesRef.current.has(t.table_number) ? resetTable(t) : t
+            ),
+          }));
+        }
         setTables(newTables);
         setFloors(newFloors);
       }
@@ -272,6 +291,11 @@ export function usePos() {
 
   const dismissTable = useCallback(async (tableNumber: number) => {
     if (!confirm(`Masa ${tableNumber} boşaldılsın? (Bütün aktiv sifarişlər ləğv ediləcək)`)) return;
+    
+    // Mark as dismissed immediately so stale re-fetches won't revert it
+    dismissedTablesRef.current.add(tableNumber);
+    setTimeout(() => dismissedTablesRef.current.delete(tableNumber), 8000);
+
     try {
       setLoading(true);
       const res = await fetch(`/api/orders/dismiss`, {
@@ -282,12 +306,9 @@ export function usePos() {
 
       const result = await res.json();
       if (!res.ok || !result.success) {
+        dismissedTablesRef.current.delete(tableNumber);
         throw new Error(result?.error || 'Failed to dismiss table');
       }
-
-      const resetTable = (t: PosTable): PosTable => ({
-        ...t, status: 'empty' as const, reservation_id: null as any, reservation_name: null, reservation_phone: null, reservation_time: null, guest_count: 0, merged_into_table: null, total_amount: 0, order_count: 0, order_ids: [], merged_orders: [], has_pending: false
-      });
 
       setTables(prev => prev.map(t =>
         t.table_number === tableNumber ? resetTable(t) : t
@@ -312,7 +333,7 @@ export function usePos() {
     } finally {
       setLoading(false);
     }
-  }, [fetchData]);
+  }, [fetchData, resetTable]);
 
   const checkStock = useCallback((productId: string, qty: number = 1): boolean => {
     const product = products.find(p => p.id === productId);

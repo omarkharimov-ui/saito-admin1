@@ -14,6 +14,26 @@ export async function POST(request: NextRequest) {
 
     const paidAmount = (cash_amount || 0) + (card_amount || 0);
 
+    // ─── Auto-apply active campaign if no campaign_id provided ───
+    let effectiveCampaignId = campaign_id || null;
+    let effectiveDiscountAmount = discount_amount || 0;
+    let effectiveDiscountType = discount_type || null;
+    let autoCampaignName: string | null = null;
+
+    if (!effectiveCampaignId) {
+      const { data: campaignResult } = await supabase.rpc('auto_apply_campaigns', {
+        p_order_id: order_id,
+      });
+      if (campaignResult?.applied) {
+        effectiveCampaignId = campaignResult.campaign_id;
+        effectiveDiscountAmount = campaignResult.discount_amount;
+        effectiveDiscountType = campaignResult.discount_type;
+        // Fetch campaign name for display
+        const { data: camp } = await supabase.from('campaigns').select('title').eq('id', effectiveCampaignId).maybeSingle();
+        autoCampaignName = camp?.title || null;
+      }
+    }
+
     // ─── Atomic payment via RPC ───
     // Handles: order mark paid, child orders paid, inventory deduction,
     // campaign usage, reservation complete, kitchen complete, table release,
@@ -22,9 +42,9 @@ export async function POST(request: NextRequest) {
       p_order_id: order_id,
       p_payment_method: payment_method || 'card',
       p_paid_amount: paidAmount,
-      p_campaign_id: campaign_id || null,
-      p_discount_amount: discount_amount || 0,
-      p_discount_type: discount_type || null,
+      p_campaign_id: effectiveCampaignId,
+      p_discount_amount: effectiveDiscountAmount,
+      p_discount_type: effectiveDiscountType,
       p_performed_by: auth.user?.id || null,
     });
 
@@ -50,6 +70,12 @@ export async function POST(request: NextRequest) {
       cogs: data.cogs,
       profit: data.profit,
       table_number: data.table_number,
+      campaign: autoCampaignName ? {
+        id: effectiveCampaignId,
+        name: autoCampaignName,
+        discount: effectiveDiscountAmount,
+        type: effectiveDiscountType,
+      } : null,
     });
   } catch (error: any) {
     console.error('[API /orders/pay] Error:', error);

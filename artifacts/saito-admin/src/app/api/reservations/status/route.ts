@@ -69,7 +69,6 @@ export async function POST(request: NextRequest) {
       );
       const activeOrders: any[] = await ordersRes.json();
       if (activeOrders.length > 0) {
-        // Cancel the active orders too
         for (const order of activeOrders) {
           await fetch(`${s.url}/rest/v1/orders?id=eq.${order.id}`, {
             method: 'PATCH',
@@ -77,6 +76,21 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }),
           });
         }
+      }
+
+      // 3b. Cancel orphan draft orders with kitchen_status = 'reserved'
+      const draftRes = await fetch(
+        `${s.url}/rest/v1/orders?select=id&reservation_id=eq.${current.id}&is_draft=eq.true&kitchen_status=eq.reserved`,
+        { headers: s.headers }
+      );
+      const draftOrders: any[] = await draftRes.json();
+      if (Array.isArray(draftOrders) && draftOrders.length > 0) {
+        const draftIds = draftOrders.map(o => o.id).join(',');
+        await fetch(`${s.url}/rest/v1/orders?or=(${draftIds.split(',').map(id => `id.eq.${id}`).join(',')})`, {
+          method: 'PATCH',
+          headers: s.headers,
+          body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }),
+        });
       }
     }
 

@@ -158,58 +158,62 @@ export default function CampaignsPage() {
 
   return (
     <PageTransition className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] pb-20">
+      <div className="absolute inset-x-0 top-0 h-[20rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.08),transparent_50%)] pointer-events-none" />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-8">
-        {/* Header */}
+        {/* Hero Section - styled like Stock page */}
         <motion.div
-          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6"
+          initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-[32px] border border-[var(--theme-border)] bg-[var(--theme-surface)] px-6 py-6 sm:px-8 sm:py-8 shadow-[var(--theme-shadow)]"
         >
-          <div>
-            <h1 className="text-2xl font-serif font-bold text-[var(--theme-text)]">{t('campaigns_title')}</h1>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] mt-1">
-              {t('campaigns_subtitle')}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
-              <input
-                type="text"
-                placeholder={t('search') || 'Axtar...'}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-64 pl-9 pr-8 py-2.5 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]"
-                >
-                  <X size={14} />
-                </button>
-              )}
+          <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-gold/10 bg-gold/5 px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-gold uppercase">
+                <Percent size={12} /> PREMIUM MARKETING
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-serif font-bold text-[var(--theme-text)]">{t('campaigns_title')}</h1>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-400 uppercase tracking-wide">{activeCampaigns.length} {t('active_campaigns')}</span>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                  <span className="w-2 h-2 rounded-full bg-white/20" />
+                  <span className="text-[10px] sm:text-[11px] text-[var(--theme-text-muted)] font-semibold uppercase tracking-wide">{inactiveCampaigns.length} {t('passive') || 'Passiv'}</span>
+                </div>
+              </div>
             </div>
-            <button
-              onClick={openCreate}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] hover:brightness-95"
-            >
-              <Plus size={15} />
-              {t('combo_new')}
-            </button>
+            
+            {/* Right side controls */}
+            <div className="relative flex items-center gap-3">
+              <div className="relative">
+                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
+                <input
+                  type="text"
+                  placeholder={t('search') || 'Axtar...'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full sm:w-64 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl pl-12 pr-10 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 placeholder:text-[var(--theme-text-muted)] transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={openCreate}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] hover:brightness-95 whitespace-nowrap"
+              >
+                <Plus size={15} />
+                {t('combo_new')}
+              </button>
+            </div>
           </div>
         </motion.div>
-
-        {/* Stats Summary */}
-        <div className="flex items-center gap-4 mb-6 text-[10px]">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-emerald-400 font-semibold">{activeCampaigns.length} {t('active_campaigns')}</span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08]">
-            <span className="w-2 h-2 rounded-full bg-white/20" />
-            <span className="text-[var(--theme-text-muted)] font-semibold">{inactiveCampaigns.length} {t('passive') || 'Passiv'}</span>
-          </div>
-        </div>
 
         {/* Content */}
         {loading ? (

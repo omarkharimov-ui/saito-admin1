@@ -236,17 +236,25 @@ const CampaignModal = ({
       </AnimatePresence>
 
       {/* ── DESKTOP: centered modal ── */}
-      {open && (
-        <div className="fixed inset-0 z-[120] hidden md:flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-          <motion.div
-            layoutId={layoutId}
-            initial={{ opacity: 0, scale: 0.96, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-            className="relative w-full max-w-xl rounded-2xl bg-card border border-white/[0.08] shadow-2xl overflow-y-auto max-h-[90vh]"
-            onClick={e => e.stopPropagation()}
-          >
+      <AnimatePresence>
+        {open && (
+          <div className="fixed inset-0 z-[120] hidden md:flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={onClose}
+            />
+            <motion.div
+              layoutId={layoutId}
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 16, transition: { duration: 0.12, ease: 'easeOut' } }}
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              className="relative w-full max-w-xl rounded-2xl bg-card border border-white/[0.08] shadow-2xl overflow-y-auto max-h-[90vh]"
+              onClick={e => e.stopPropagation()}
+            >
             <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-card border-b border-white/[0.06]">
               <div>
                 <h2 className="text-lg font-bold tracking-tight text-white">{campaign ? t('edit_campaign') : t('new_campaign')}</h2>

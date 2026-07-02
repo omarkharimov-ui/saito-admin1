@@ -337,7 +337,7 @@ export function ProductTable({
                       </thead>
                       <tbody>
                         {catProducts.map((product) => {
-                          const variants = (product as any).variants as Array<{ variant_type: string | null; parent_variant_id: string | null }> | undefined;
+                            const variants = (product as any).variants as Array<{ variant_type: string | null; parent_variant_id: string | null; name: string; price: number }> | undefined;
 
                           return (
                             <React.Fragment key={product.id}>
@@ -378,9 +378,9 @@ export function ProductTable({
                                         {product.is_spicy && <span className="flex items-center gap-1 text-[10px] text-[#BE123C] uppercase tracking-[0.12em] font-bold"><Zap size={9} /> {t('spicy_label')}</span>}
                                         {(() => {
                                           if (!variants?.length) return null;
-                                          const sizes = variants.filter(v => !v.parent_variant_id).length;
-                                          if (!sizes) return null;
-                                          return <span className="text-[12px] text-[#8E8E93] tracking-wide font-medium">{sizes} {t('variant_type_tab').toLowerCase()}</span>;
+                                          const sizes = variants.filter(v => !v.parent_variant_id);
+                                          if (!sizes.length) return null;
+                                          return <span className="text-[12px] text-[#8E8E93] tracking-wide font-medium">{sizes.map(v => v.name).join(', ')}</span>;
                                         })()}
                                       </div>
                                     </div>
@@ -512,8 +512,7 @@ export function ProductTable({
                         className="overflow-hidden">
                         <div className="border-t border-white/[0.05] divide-y divide-white/[0.04]">
                           {catProducts.map((product, idx) => {
-                            const variants = (product as any).variants as Array<{ variant_type: string | null; parent_variant_id: string | null }> | undefined;
-                            const sizeCount = variants?.filter(v => !v.parent_variant_id).length ?? 0;
+                          const variants = (product as any).variants as Array<{ variant_type: string | null; parent_variant_id: string | null; name: string; price: number }> | undefined;
                             return (
                               <motion.div
                                 key={product.id}
@@ -595,9 +594,12 @@ export function ProductTable({
                                           <Zap size={7} /> {t('spicy_label')}
                                         </span>
                                       )}
-                                      {sizeCount > 0 && (
-                                        <span className="text-[9px] text-white/30 uppercase tracking-wider">{sizeCount} {t('variant_type_tab').toLowerCase()}</span>
-                                      )}
+                                      {(() => {
+                                        if (!variants?.length) return null;
+                                        const sizes = variants.filter(v => !v.parent_variant_id);
+                                        if (!sizes.length) return null;
+                                        return <span className="text-[9px] text-white/30 uppercase tracking-wider">{sizes.map(v => v.name).join(', ')}</span>;
+                                      })()}
                                     </div>
 
                                     {/* Bottom row: stock + actions */}

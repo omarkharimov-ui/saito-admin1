@@ -56,8 +56,6 @@ export default function POSPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [outOfStock, setOutOfStock] = useState<Set<string>>(new Set());
   const posRef = useRef<HTMLDivElement>(null);
-  const [warningOpen, setWarningOpen] = useState(false);
-  const [warningTable, setWarningTable] = useState<PosTable | null>(null);
   const [canUndo, setUndoData] = useState<{ action: string; data: any; message: string } | null>(null);
 
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -271,13 +269,6 @@ export default function POSPage() {
     // Handle Reserved Table Tap
     if (table.status === 'reserved') {
       setReservedTableDetail(table);
-      return;
-    }
-
-    // Handle Occupied Table Warning
-    if (['active', 'cooking', 'waiting_bill', 'occupied'].includes(table.status) && table.total_amount > 0) {
-      setWarningTable(table);
-      setWarningOpen(true);
       return;
     }
 

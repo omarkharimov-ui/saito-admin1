@@ -3,8 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Check } from 'lucide-react';
-import { useTheme } from '@/lib/theme/ThemeContext';
-import type { PosModifier, PosModifierSelection } from '../types/shared';
+import type { PosModifierSelection } from '../types/shared';
 
 interface PosVariant {
   id: string;
@@ -22,64 +21,25 @@ interface ModifierSheetProps {
   onConfirm: (modifiers: PosModifierSelection[], notes: string, variantId?: string) => void;
 }
 
-const DONENESS: PosModifier[] = [
-  { id: 'doneness_rare', name: 'Azbişmiş (Rare)', price: 0, quantity: 1 },
-  { id: 'doneness_medium', name: 'Orta (Medium)', price: 0, quantity: 1 },
-  { id: 'doneness_well', name: 'Tam bişmiş (Well)', price: 0, quantity: 1 },
-];
 
-const EXTRAS: PosModifier[] = [
-  { id: 'extra_cheese', name: 'Əlavə pendir', price: 1.50, quantity: 1 },
-  { id: 'extra_bacon', name: 'Əlavə bekon', price: 2.00, quantity: 1 },
-  { id: 'extra_avocado', name: 'Əlavə avokado', price: 2.50, quantity: 1 },
-  { id: 'extra_egg', name: 'Əlavə yumurta', price: 1.00, quantity: 1 },
-];
-
-const REMOVALS: PosModifier[] = [
-  { id: 'remove_onion', name: 'Soğansız', price: 0, quantity: 1 },
-  { id: 'remove_pickle', name: 'Turşusuz', price: 0, quantity: 1 },
-  { id: 'remove_tomato', name: 'Pomidorsuz', price: 0, quantity: 1 },
-  { id: 'remove_lettuce', name: 'Kahısız', price: 0, quantity: 1 },
-];
 
 export function ModifierSheet({ open, productName, productPrice, variants = [], onClose, onConfirm }: ModifierSheetProps) {
-  const { lightMode } = useTheme();
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
-  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
-  const [selectedRemovals, setSelectedRemovals] = useState<string[]>([]);
-  const [doneness, setDoneness] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (open) {
       const defaultVar = variants.find(v => v.is_default) || variants[0];
       setSelectedVariantId(defaultVar?.id);
-      setDoneness(null);
-      setSelectedExtras([]);
-      setSelectedRemovals([]);
       setNotes('');
     }
   }, [open, variants]);
 
   const currentVariant = useMemo(() => variants.find(v => v.id === selectedVariantId), [variants, selectedVariantId]);
   const basePrice = currentVariant?.price ?? productPrice;
-  const totalExtras = EXTRAS.filter(e => selectedExtras.includes(e.id)).reduce((s, e) => s + (e.price ?? 0), 0);
 
   const handleConfirm = () => {
-    const modifiers: PosModifierSelection[] = [];
-    if (doneness) {
-      const d = DONENESS.find(m => m.id === doneness);
-      if (d) modifiers.push({ id: d.id, name: d.name, price: d.price ?? 0, quantity: 1 });
-    }
-    selectedExtras.forEach(id => {
-      const e = EXTRAS.find(m => m.id === id);
-      if (e) modifiers.push({ id: e.id, name: e.name, price: e.price ?? 0, quantity: 1 });
-    });
-    selectedRemovals.forEach(id => {
-      const r = REMOVALS.find(m => m.id === id);
-      if (r) modifiers.push({ id: r.id, name: r.name, price: r.price ?? 0, quantity: 1 });
-    });
-    onConfirm(modifiers, notes, selectedVariantId);
+    onConfirm([], notes, selectedVariantId);
   };
 
   return (
@@ -114,45 +74,6 @@ export function ModifierSheet({ open, productName, productPrice, variants = [], 
                 </div>
               )}
 
-              {/* Doneness */}
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">Bişmə dərəcəsi</p>
-                <div className="flex flex-wrap gap-2">
-                  {DONENESS.map(d => (
-                    <button key={d.id} onClick={() => setDoneness(doneness === d.id ? null : d.id)} className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition-all ${doneness === d.id ? 'bg-white text-black border-white' : 'bg-white/[0.03] border-white/[0.06] text-white/60'}`}>{d.name}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Extras & Removals (Grid) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">Əlavələr</p>
-                  <div className="space-y-2">
-                    {EXTRAS.map(e => {
-                      const sel = selectedExtras.includes(e.id);
-                      return (
-                        <button key={e.id} onClick={() => setSelectedExtras(p => sel ? p.filter(x => x !== e.id) : [...p, e.id])} className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all ${sel ? 'bg-white/10 border-white/30 text-white' : 'bg-white/[0.02] border-white/[0.05] text-white/40'}`}>
-                          <span className="text-sm font-bold">{e.name}</span>
-                          <span className="text-xs opacity-60">+{(e.price ?? 0).toFixed(2)} ₼</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">Çıxarılacaq</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {REMOVALS.map(r => {
-                      const sel = selectedRemovals.includes(r.id);
-                      return (
-                        <button key={r.id} onClick={() => setSelectedRemovals(p => sel ? p.filter(x => x !== r.id) : [...p, r.id])} className={`p-3 rounded-xl border text-xs font-bold transition-all ${sel ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-white/[0.02] border-white/[0.05] text-white/30'}`}>{r.name}</button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
               {/* Notes */}
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">Xüsusi qeyd</p>
@@ -163,7 +84,7 @@ export function ModifierSheet({ open, productName, productPrice, variants = [], 
               <div className="flex items-center gap-4 pt-4 border-t border-white/[0.05]">
                 <div className="flex-1">
                   <p className="text-[10px] uppercase font-black tracking-widest text-white/20">Ümumi Məbləğ</p>
-                  <p className="text-2xl font-black text-white tabular-nums">{(basePrice + totalExtras).toFixed(2)} ₼</p>
+                  <p className="text-2xl font-black text-white tabular-nums">{basePrice.toFixed(2)} ₼</p>
                 </div>
                 <button onClick={handleConfirm} className="px-10 py-4 rounded-[20px] bg-gold text-black font-black text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-gold/20 flex items-center gap-2">
                   <Plus size={18} /> Əlavə et

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles } from 'lucide-react';
+import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, MoreVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Campaign, Product, Category } from '@/types';
@@ -70,22 +70,14 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
           </div>
 
           {/* Right: content */}
-          <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+          <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5 pr-12">
             {/* Top row */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-bold text-[var(--theme-text)] leading-snug line-clamp-2">{camp.title}</p>
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
-                className="w-10 h-10 flex items-center justify-center rounded-xl text-[var(--theme-text-muted)] active:text-red-400 active:bg-red-500/[0.08] transition-all shrink-0 mt-[-2px]"
-              >
-                <Trash2 size={17} />
-              </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold text-[var(--theme-text)] leading-snug line-clamp-2">{camp.title}</p>
             </div>
 
             {/* Middle */}
-            <div className="flex items-center gap-2 mt-1.5">
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               <span
                 className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border-[var(--theme-accent-border)]"
               >
@@ -95,7 +87,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             </div>
 
             {/* Bottom row */}
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <div className="flex items-center gap-1.5">
                 {isActive ? (
                   <span className="relative flex w-2 h-2">
@@ -121,6 +113,14 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             </div>
           </div>
         </div>
+
+        {/* Delete button - always visible on mobile */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
+          className="absolute top-4 right-4 w-9 h-9 rounded-xl flex items-center justify-center text-[var(--theme-text-muted)] hover:text-red-400 hover:bg-red-500/[0.08] transition-all"
+        >
+          <Trash2 size={17} />
+        </button>
       </motion.div>
 
       {/* ── DESKTOP card ── */}
@@ -128,19 +128,27 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         whileHover={{ y: -4, boxShadow: '0 18px 42px rgba(0,0,0,0.35)' }}
         transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         onClick={() => onEdit(camp)}
-        className="hidden md:block bg-[var(--theme-panel)] backdrop-blur-sm border border-[var(--theme-border)] rounded-[20px] p-6 md:p-7 relative group transition-all overflow-hidden cursor-pointer shadow-[0_4px_32px_rgba(0,0,0,0.35)]"
+        className="hidden md:block bg-[var(--theme-panel)] backdrop-blur-sm border border-[var(--theme-border)] rounded-[20px] p-6 md:p-7 relative transition-all overflow-hidden cursor-pointer shadow-[0_4px_32px_rgba(0,0,0,0.35)]"
       >
-        <div className="absolute top-4 right-4 z-10 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
-            className="w-9 h-9 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center hover:bg-red-500/15 hover:border-red-500/40 text-[var(--theme-text-secondary)] hover:text-red-500 transition-all"
-            title={t('delete_campaign')}
-          >
-            <Trash2 size={18} />
-          </button>
+        {/* Status badges */}
+        <div className="absolute top-4 left-4 flex items-center gap-1.5">
+          {!camp.is_active && (
+            <span className="px-2 py-0.5 rounded-full bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] text-[10px] font-bold uppercase tracking-wider border border-[var(--theme-border)]">
+              {t('combo_inactive') || 'Deaktiv'}
+            </span>
+          )}
         </div>
 
-        <div className="flex items-start gap-4 mb-5">
+        {/* Delete button - always visible */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
+          className="absolute top-4 right-4 w-9 h-9 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-red-500 hover:bg-red-500/[0.08] transition-all"
+          title={t('delete_campaign')}
+        >
+          <Trash2 size={18} />
+        </button>
+
+        <div className="flex items-start gap-4 mb-5 mt-10">
           <div className="w-12 h-12 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-gold flex-shrink-0">
             <Icon size={22} strokeWidth={1.5} />
           </div>

@@ -132,7 +132,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
       >
         {/* Status badges */}
         <div className="absolute top-4 left-4 flex items-center gap-1.5">
-          {!camp.is_active && (
+          {!isActive && (
             <span className="px-2 py-0.5 rounded-full bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] text-[10px] font-bold uppercase tracking-wider border border-[var(--theme-border)]">
               {t('combo_inactive') || 'Deaktiv'}
             </span>

@@ -255,27 +255,28 @@ const CampaignModal = ({
               className="relative w-full max-w-xl rounded-2xl bg-card border border-white/[0.08] shadow-2xl overflow-y-auto max-h-[90vh]"
               onClick={e => e.stopPropagation()}
             >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-card border-b border-white/[0.06]">
-              <div>
-                <h2 className="text-lg font-bold tracking-tight text-white">{campaign ? t('edit_campaign') : t('new_campaign')}</h2>
-                <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-[0.3em]">{t('premium_marketing')}</p>
+              <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-card border-b border-white/[0.06]">
+                <div>
+                  <h2 className="text-lg font-bold tracking-tight text-white">{campaign ? t('edit_campaign') : t('new_campaign')}</h2>
+                  <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-[0.3em]">{t('premium_marketing')}</p>
+                </div>
+                <button onClick={onClose} className="w-8 h-8 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-panel)] transition-all">
+                  <X size={16} />
+                </button>
               </div>
-              <button onClick={onClose} className="w-8 h-8 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-panel)] transition-all">
-                <X size={16} />
-              </button>
-            </div>
-            {formBody}
-            <div className="sticky bottom-0 px-5 py-3.5 bg-card border-t border-white/[0.06]">
-              <button type="button" onClick={onSubmit as any} disabled={isSubmitting}
-                className="w-full py-3 rounded-xl font-bold tracking-[0.1em] uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-40 bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)]"
-              >
-                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : campaign ? <Save size={18} /> : <Zap size={18} />}
-                {campaign ? t('edit_campaign').toUpperCase() : t('new_campaign').toUpperCase()}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+              {formBody}
+              <div className="sticky bottom-0 px-5 py-3.5 bg-card border-t border-white/[0.06]">
+                <button type="button" onClick={onSubmit as any} disabled={isSubmitting}
+                  className="w-full py-3 rounded-xl font-bold tracking-[0.1em] uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-40 bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)]"
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : campaign ? <Save size={18} /> : <Zap size={18} />}
+                  {campaign ? t('edit_campaign').toUpperCase() : t('new_campaign').toUpperCase()}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>,
     document.body
   );

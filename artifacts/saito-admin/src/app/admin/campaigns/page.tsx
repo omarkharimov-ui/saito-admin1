@@ -1,18 +1,20 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Percent, AlertCircle, Search, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Plus, Percent, Search, X } from 'lucide-react';
 import { toast } from '@/lib/toast';
 
 import { PageTransition } from '@/components/PageTransition';
+import { EmptyState } from '@/components/ui/primitives';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import CampaignCard from './components/CampaignCard';
 import CampaignModal from './components/CampaignModal';
 import { DeleteCampaignModal, DeleteAllCampaignsModal } from './components/CampaignModals';
-import { CampaignsSkeleton } from './components/CampaignsSkeleton';
 import { Product, Category } from '@/types';
 
 export default function CampaignsPage() {
+  const { t } = useLanguage();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -22,6 +24,7 @@ export default function CampaignsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [productSearch, setProductSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [form, setForm] = useState<any>({
     title: '',
     type: 'PERCENTAGE',
@@ -55,14 +58,20 @@ export default function CampaignsPage() {
     }
   }, []);
 
+  const filteredCampaigns = campaigns.filter(c => {
+    const q = searchQuery.toLowerCase();
+    return (c.title || '').toLowerCase().includes(q) ||
+           (c.type || '').toLowerCase().includes(q);
+  });
+
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const filteredProducts = products.filter(p =>
     (p.name || '').toLowerCase().includes(productSearch.toLowerCase())
   );
 
-  const activeCampaigns = campaigns.filter(c => c.status === 'active');
-  const inactiveCampaigns = campaigns.filter(c => c.status !== 'active');
+  const activeCampaigns = filteredCampaigns.filter(c => c.status === 'active');
+  const inactiveCampaigns = filteredCampaigns.filter(c => c.status !== 'active');
 
   const openCreate = () => {
     setEditingCampaign(null);
@@ -152,43 +161,72 @@ export default function CampaignsPage() {
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#1e1600,#140f00)', border: '1px solid rgba(212,175,55,0.2)' }}>
-              <Percent size={20} className="text-[#D4AF37]" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-tight leading-none">
-                Qiymət Kampaniyaları
-              </h1>
-              <p className="text-[11px] text-[var(--theme-text-muted)] uppercase tracking-[0.2em] mt-1">
-                Pricing Campaigns
-              </p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-serif font-bold text-[var(--theme-text)]">{t('campaigns_title')}</h1>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] mt-1">
+              {t('campaigns_subtitle')}
+            </p>
           </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all active:scale-[0.97]"
-            style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}
-          >
-            <Plus size={15} /> Yeni Kampaniya
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
+              <input
+                type="text"
+                placeholder={t('search') || 'Axtar...'}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full sm:w-64 pl-9 pr-8 py-2.5 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] hover:brightness-95"
+            >
+              <Plus size={15} />
+              {t('combo_new')}
+            </button>
+          </div>
         </motion.div>
+
+        {/* Stats Summary */}
+        <div className="flex items-center gap-4 mb-6 text-[10px]">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-emerald-400 font-semibold">{activeCampaigns.length} {t('active_campaigns')}</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+            <span className="w-2 h-2 rounded-full bg-white/20" />
+            <span className="text-[var(--theme-text-muted)] font-semibold">{inactiveCampaigns.length} {t('passive') || 'Passiv'}</span>
+          </div>
+        </div>
 
         {/* Content */}
         {loading ? (
           <CampaignsSkeleton />
-        ) : campaigns.length === 0 ? (
-          <div className="text-center py-20">
-            <Percent size={48} className="mx-auto mb-4 opacity-20 text-[var(--theme-text-muted)]" />
-            <p className="text-sm font-medium text-[var(--theme-text-secondary)]">Hələ kampaniya yaradılmayıb</p>
-            <button onClick={openCreate} className="mt-4 px-5 py-2.5 rounded-xl text-sm font-bold"
-              style={{ background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.16)' }}>
-              <Plus size={14} className="inline mr-1.5" />İlk Kampaniyanı Yarat
-            </button>
-          </div>
+        ) : filteredCampaigns.length === 0 ? (
+          <EmptyState
+            icon={<Percent size={20} />}
+            title={campaigns.length === 0 ? 'Hələ kampaniya yaradılmayıb' : t('no_campaigns') || 'Kampaniya tapılmadı'}
+            description={campaigns.length === 0 ? t('campaigns_subtitle') : searchQuery ? `"${searchQuery}" üzərində axtarış...` : ''}
+            action={
+              campaigns.length === 0 ? (
+                <button onClick={openCreate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] hover:brightness-95">
+                  <Plus size={14} />
+                  İlk Kampaniyanı Yarat
+                </button>
+              ) : null
+            }
+          />
         ) : (
           <>
             {activeCampaigns.length > 0 && (

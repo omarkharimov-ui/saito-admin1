@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, ChevronRight } from 'lucide-react';
+import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Campaign, Product, Category } from '@/types';
@@ -31,12 +31,16 @@ interface Props {
 }
 
 const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const Icon = CAMPAIGN_ICONS[camp.type] || Tag;
   const target = camp.target_type === 'product'
     ? products.find(p => p.id === camp.target_id)
     : categories.find(c => c.id === camp.target_id);
   const isActive = camp.status === 'active';
+
+  const discountDisplay = camp.discount_value
+    ? `${camp.discount_value}%`
+    : camp.type === 'BOGO' ? '1+1' : camp.type === 'BUY2GET1' ? '2+1' : '—';
 
   return (
     <>
@@ -44,11 +48,10 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
       <motion.div
         whileTap={{ scale: 0.978 }}
         onClick={() => onEdit(camp)}
-
         className={`md:hidden relative overflow-hidden rounded-3xl cursor-pointer border ${isActive ? 'bg-[var(--theme-panel)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}
       >
         {isActive && (
-          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
         )}
         <div className="flex gap-4 p-4">
           {/* Left: product image or icon */}
@@ -59,7 +62,6 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
               </div>
             ) : (
               <div
-
                 className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)]"
               >
                 <Icon size={26} strokeWidth={1.3} className="text-gold/70" />
@@ -85,14 +87,11 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             {/* Middle */}
             <div className="flex items-center gap-2 mt-1.5">
               <span
-
                 className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border-[var(--theme-accent-border)]"
               >
                 {CAMPAIGN_LABELS[camp.type] ?? camp.type}
               </span>
-              {target && camp.target_type !== 'product' && (
-                <span className="text-[11px] text-[var(--theme-text-secondary)] truncate">{target.name}</span>
-              )}
+              <span className="text-[11px] text-gold font-bold">{discountDisplay}</span>
             </div>
 
             {/* Bottom row */}
@@ -124,30 +123,33 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         </div>
       </motion.div>
 
-      {/* ── DESKTOP card: original rich card ── */}
-<motion.div
+      {/* ── DESKTOP card ── */}
+      <motion.div
         whileHover={{ y: -4, boxShadow: '0 18px 42px rgba(0,0,0,0.35)' }}
         transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         onClick={() => onEdit(camp)}
         className="hidden md:block bg-[var(--theme-panel)] backdrop-blur-sm border border-[var(--theme-border)] rounded-[20px] p-6 md:p-7 relative group transition-all overflow-hidden cursor-pointer shadow-[0_4px_32px_rgba(0,0,0,0.35)]"
       >
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-4 right-4 z-10 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
-            className="w-10 h-10 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center hover:bg-red-500/15 hover:border-red-500/40 text-[var(--theme-text-secondary)] hover:text-red-500 transition-colors"
+            className="w-9 h-9 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center hover:bg-red-500/15 hover:border-red-500/40 text-[var(--theme-text-secondary)] hover:text-red-500 transition-all"
             title={t('delete_campaign')}
           >
             <Trash2 size={18} />
           </button>
         </div>
 
-        <div className="flex items-start gap-4 mb-6">
+        <div className="flex items-start gap-4 mb-5">
           <div className="w-12 h-12 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-gold flex-shrink-0">
             <Icon size={22} strokeWidth={1.5} />
           </div>
           <div className="pr-12 flex-1 min-w-0">
             <h3 className="text-base font-bold text-white mb-1 leading-tight truncate">{camp.title}</h3>
-            <span className="text-[9px] uppercase tracking-widest text-gold/80 font-semibold">{CAMPAIGN_LABELS[camp.type] ?? camp.type}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] uppercase tracking-widest text-gold/80 font-semibold">{CAMPAIGN_LABELS[camp.type] ?? camp.type}</span>
+              <span className="text-[10px] text-gold font-bold">{discountDisplay}</span>
+            </div>
           </div>
         </div>
 

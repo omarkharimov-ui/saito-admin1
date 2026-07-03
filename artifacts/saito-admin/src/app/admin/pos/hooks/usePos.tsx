@@ -472,21 +472,32 @@ export function usePos() {
     let basePrice = combo.effective_price ?? combo.price ?? 0;
 
     const localizedName = langs === 'az' ? combo.name_az : langs === 'en' ? combo.name_en : langs === 'ru' ? combo.name_ru : combo.name;
-    const newItem: PosCartItem = {
-      product_id: combo.id,
-      product_name: `Kombo: ${localizedName || combo.name}`,
-      product_image: combo.image_url ?? null,
-      unit_price: basePrice,
-      total_price: basePrice,
-      quantity: 1,
-      modifiers: [],
-      special_notes: '',
-      is_combo: true,
-      combo_id: combo.id,
-      combo_components: comboComponents,
-    };
 
-    setCart(prev => prev ? { ...prev, items: [...prev.items, newItem] } : null);
+    // Check if combo already exists in cart — increment quantity instead of duplicating
+    const existing = currentCart.items.find(i => i.combo_id === combo.id);
+    if (existing) {
+      setCart(prev => prev ? {
+        ...prev,
+        items: prev.items.map(i =>
+          i === existing ? { ...i, quantity: i.quantity + 1, total_price: i.unit_price * (i.quantity + 1) } : i
+        ),
+      } : null);
+    } else {
+      const newItem: PosCartItem = {
+        product_id: combo.id,
+        product_name: `Kombo: ${localizedName || combo.name}`,
+        product_image: combo.image_url ?? null,
+        unit_price: basePrice,
+        total_price: basePrice,
+        quantity: 1,
+        modifiers: [],
+        special_notes: '',
+        is_combo: true,
+        combo_id: combo.id,
+        combo_components: comboComponents,
+      };
+      setCart(prev => prev ? { ...prev, items: [...prev.items, newItem] } : null);
+    }
     forceUpdate(n => n + 1);
   }, []);
 
@@ -872,7 +883,7 @@ export function usePos() {
     selectTable, backToFloor, performUndo, activateReservedTable,
     addToCart, addComboToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts,
     placeOrder, closeBill, transferTable, mergeTables, splitTables, dismissTable,
-    setActiveView, setCart, setSelectedTable, setTables,
+    setActiveView, setCart, setSelectedTable, setTables, setFloors,
     fetchData,
   };
 }

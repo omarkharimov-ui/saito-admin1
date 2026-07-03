@@ -8,7 +8,10 @@
 -- This fix adds a UNION ALL to include ready products in the inventory
 -- deduction step. Also adds a dashboard view for closed orders stats.
 
--- ─── 1. Recreate process_order_payment to handle ready products ───
+-- ─── 1. Drop old 10-param overload (had p_cash_amount, p_card_amount, p_tip_amount) ───
+DROP FUNCTION IF EXISTS process_order_payment(UUID, TEXT, NUMERIC, NUMERIC, NUMERIC, NUMERIC, UUID, NUMERIC, TEXT, UUID);
+
+-- ─── 2. Recreate process_order_payment to handle ready products ───
 CREATE OR REPLACE FUNCTION process_order_payment(
   p_order_id UUID,
   p_payment_method TEXT,

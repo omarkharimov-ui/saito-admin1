@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle, Globe, GitMerge, Check } from 'lucide-react';
+import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle, Globe, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
@@ -41,7 +41,6 @@ export default function POSPage() {
   const [actionSheetTable, setActionSheetTable] = useState<PosTable | null>(null);
   const [modifierOpen, setModifierOpen] = useState(false);
   const [modifierProduct, setModifierProduct] = useState<PosProduct | null>(null);
-  const [comboModalOpen, setComboModalOpen] = useState(false);
 
   const [orderButtonStatus, setOrderButtonStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isDirty, setIsDirty] = useState(false);
@@ -162,6 +161,25 @@ export default function POSPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto-preview campaign discount when viewing an existing order
+  useEffect(() => {
+    if (pos.activeView === 'order' && pos.selectedTable) {
+      const orderId = (pos.selectedTable as any).order_ids?.[0];
+      if (!orderId) { setCartCampaign(null); return; }
+      supabase.rpc('auto_apply_campaigns', { p_order_id: orderId }).then(({ data }) => {
+        if (data?.applied) {
+          supabase.from('campaigns').select('title').eq('id', data.campaign_id).maybeSingle().then(({ data: camp }) => {
+            setCartCampaign({ id: data.campaign_id, name: camp?.title || '', discount: data.discount_amount, type: data.discount_type });
+          });
+        } else {
+          setCartCampaign(null);
+        }
+      });
+    } else {
+      setCartCampaign(null);
+    }
+  }, [pos.activeView, pos.selectedTable?.table_number, pos.selectedTable?.order_ids]);
+
   const activeFloor = pos.floors.find(f => f.name === selectedFloorName);
   const overdueTables = useMemo(() => {
     const map = new Map<number, boolean>();
@@ -219,6 +237,7 @@ export default function POSPage() {
   }, [pos]);
 
   const [campaignPreview, setCampaignPreview] = useState<{ id: string; name: string; discount: number; type: string } | null>(null);
+  const [cartCampaign, setCartCampaign] = useState<{ id: string; name: string; discount: number; type: string } | null>(null);
 
   const openPayment = useCallback(async (tableNumber: number, amount: number, orderIds: string[]) => {
     const orderId = orderIds[0];
@@ -331,29 +350,26 @@ export default function POSPage() {
               <div className="flex-1 min-w-0 h-full p-6 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold">Məhsullar</h2>
-                  <button onClick={() => setComboModalOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all">
-                    <GitMerge size={16} />
-                    Kombo
-                  </button>
                 </div>
                 <ProductGrid products={pos.products} combos={pos.combos} categories={pos.categories} onAddProduct={handleAddProduct} onAddCombo={(c) => { pos.addComboToCart(c); }} cartCounts={cartCounts} outOfStock={outOfStock} />
               </div>
               <div className={`w-full md:w-[380px] xl:w-[400px] h-full border-l p-6 flex flex-col flex-shrink-0 overflow-hidden ${lightMode ? 'bg-[#fcfcfd] border-zinc-200 shadow-2xl' : 'bg-black border-white/[0.05]'}`}>
-                  <CartPanel
-                    cart={pos.cart}
-                    onUpdateQty={handleUpdateQty}
-                    onPlaceOrder={handlePlaceOrder}
-                    onClearDraft={pos.clearDrafts}
-                    onBack={() => { setIsDirty(false); setReservationCtx(null); pos.backToFloor(); }}
-                    orderButtonStatus={orderButtonStatus}
-                    isDirty={isDirty}
-                    hasExistingOrder={['active', 'cooking', 'waiting_bill', 'occupied'].includes(pos.selectedTable?.status || '')}
-                    isReservationMode={!!reservationCtx}
-                    reservationId={reservationCtx?.resId}
-                    guestName={reservationCtx?.guestName}
-                    onUpdateGuests={(d) => { const c = pos.cart; if (!c) return; const n = Math.max(1, c.guest_count + d); pos.setCart({ ...c, guest_count: n }); pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t)); supabase.from('table_floors').update({ guest_count: n }).eq('table_number', c.table_number).then(() => {}); }}
-                    onRecordLoss={async (items, reason) => { await fetch('/api/finance/loss', { method: 'POST', body: JSON.stringify({ table_number: pos.selectedTable?.table_number, reason, items, source: 'pos' }) }); toast.success(`Itki qeyd edildi`); pos.fetchData(); }}
-                  />
+                    <CartPanel
+                      cart={pos.cart}
+                      campaign={cartCampaign}
+                      onUpdateQty={handleUpdateQty}
+                      onPlaceOrder={handlePlaceOrder}
+                      onClearDraft={pos.clearDrafts}
+                      onBack={() => { setIsDirty(false); setReservationCtx(null); pos.backToFloor(); }}
+                      orderButtonStatus={orderButtonStatus}
+                      isDirty={isDirty}
+                      hasExistingOrder={['active', 'cooking', 'waiting_bill', 'occupied'].includes(pos.selectedTable?.status || '')}
+                      isReservationMode={!!reservationCtx}
+                      reservationId={reservationCtx?.resId}
+                      guestName={reservationCtx?.guestName}
+                      onUpdateGuests={(d) => { const c = pos.cart; if (!c) return; const n = Math.max(1, c.guest_count + d); pos.setCart({ ...c, guest_count: n }); pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t)); supabase.from('table_floors').update({ guest_count: n }).eq('table_number', c.table_number).then(() => {}); }}
+                      onRecordLoss={async (items, reason) => { await fetch('/api/finance/loss', { method: 'POST', body: JSON.stringify({ table_number: pos.selectedTable?.table_number, reason, items, source: 'pos' }) }); toast.success(`Itki qeyd edildi`); pos.fetchData(); }}
+                    />
               </div>
             </motion.div>
           )}
@@ -404,56 +420,6 @@ export default function POSPage() {
         <ReceiptModal order={payOrder} onClose={() => setPaymentOpen(false)} getProductName={(it) => { const p = it.products as any; if (!p) return ''; const transName = p.translations?.[language]?.name; if (transName) return transName; return (language === 'az' ? p.name_az : language === 'en' ? p.name_en : p.name_ru) || p.name || ''; }} onPay={handleCloseBill} campaign={campaignPreview} />
       )}
 
-      <AnimatePresence>
-        {comboModalOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setComboModalOpen(false)}>
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[32px] bg-white dark:bg-zinc-900 shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-black">Kombolar</h3>
-                <button onClick={() => setComboModalOpen(false)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
-              </div>
-              {pos.combos.length === 0 ? (
-                <p className="text-center text-gray-500 py-12">Aktiv kombo tapılmadı</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {pos.combos.map((combo: any) => {
-                    const name = language === 'az' ? combo.name_az : language === 'en' ? combo.name_en : language === 'ru' ? combo.name_ru : combo.name;
-                    const items = combo.items || [];
-                    return (
-                      <div key={combo.id} className={`rounded-[24px] border p-4 transition-all ${combo.is_in_stock ? 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10' : 'bg-gray-100 dark:bg-white/[0.02] border-gray-200 opacity-60'}`}>
-                        {combo.image_url && <img src={combo.image_url} alt={name} className="w-full h-32 object-cover rounded-[20px] mb-3" />}
-                        <h4 className="font-bold text-lg leading-tight mb-1">{name || combo.name}</h4>
-                        <p className="text-xs text-gray-500 mb-3 line-clamp-2">{language === 'az' ? combo.description_az : language === 'en' ? combo.description_en : language === 'ru' ? combo.description_ru : combo.description}</p>
-                        <div className="space-y-1 mb-3">
-                          {items.map((it: any, idx: number) => {
-                            const pName = language === 'az' ? it.product?.name_az : language === 'en' ? it.product?.name_en : language === 'ru' ? it.product?.name_ru : it.product?.name;
-                            return (
-                              <div key={idx} className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                                <span>{it.quantity}x {pName || 'Məhsul'}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-lg font-black">₼{Number(combo.price).toFixed(2)}</span>
-                          <button
-                            disabled={!combo.is_in_stock}
-                            onClick={() => { pos.addComboToCart(combo); setComboModalOpen(false); }}
-                            className="px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all"
-                          >
-                            Əlavə et
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
       <AnimatePresence>
         {pos.lastUndo && (
           <motion.div initial={{ y: 50, opacity: 0, scale: 0.9 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 50, opacity: 0, scale: 0.9 }} className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 px-6 py-3.5 rounded-2xl bg-[#D4AF37] text-black shadow-[0_15px_40px_rgba(212,175,55,0.4)] border border-white/20">

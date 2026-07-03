@@ -11,6 +11,7 @@ import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
 
 interface CartPanelProps {
   cart: PosCart | null;
+  campaign?: { id: string; name: string; discount: number; type: string } | null;
   onUpdateQty: (index: number, delta: number) => void;
   onPlaceOrder: () => void;
   onClearDraft: () => void;
@@ -28,7 +29,7 @@ interface CartPanelProps {
 }
 
 export function CartPanel({
-  cart, onUpdateQty, onPlaceOrder,
+  cart, campaign, onUpdateQty, onPlaceOrder,
   onClearDraft, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
   isReservationMode = false, reservationId, guestName,
@@ -382,6 +383,17 @@ export function CartPanel({
           </div>
         )}
 
+        {/* Active campaign discount badge */}
+        {campaign && (
+          <div className={`flex items-center justify-between px-3 py-2 rounded-2xl ${lightMode ? 'bg-amber-50 border border-amber-200' : 'bg-amber-500/10 border border-amber-500/20'}`}>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Kampaniya</span>
+              <span className={`text-[10px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{campaign.name}</span>
+            </div>
+            <span className="text-xs font-black text-red-500">−{Number(campaign.discount).toFixed(2)} ₼</span>
+          </div>
+        )}
         {/* Footer actions removed from here */}
         <div className="w-full">
           <SendOrderButton

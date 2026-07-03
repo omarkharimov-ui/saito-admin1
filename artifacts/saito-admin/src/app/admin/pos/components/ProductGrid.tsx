@@ -20,11 +20,19 @@ interface ProductGridProps {
   outOfStock?: Set<string>;
 }
 
+const COMBO_TAB = '__combos__';
+
 export function ProductGrid({ products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock }: ProductGridProps) {
   const { language, t } = useLanguage();
   const { lightMode } = useTheme();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+
+  // Add synthetic "Combos" tab to navbar
+  const navbarCategories = useMemo(() => {
+    const comboCat: { id: string; name: string } = { id: COMBO_TAB, name: 'Kombolar' };
+    return [comboCat, ...categories];
+  }, [categories]);
 
   type GridItem = PosProduct & { _isCombo?: boolean; _raw?: any };
 
@@ -50,7 +58,11 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
     }
 
     let list = items;
-    if (categoryFilter) list = list.filter(p => p.category_id === categoryFilter);
+    if (categoryFilter === COMBO_TAB) {
+      list = list.filter(p => p._isCombo);
+    } else if (categoryFilter) {
+      list = list.filter(p => p.category_id === categoryFilter && !p._isCombo);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(p => {
@@ -76,7 +88,7 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
       {/* Categories - Liquid Glass Segmented Control */}
       <div className="mb-4 flex-shrink-0">
         <LiquidCategoryNavbar 
-          categories={categories}
+          categories={navbarCategories}
           activeId={categoryFilter}
           onChange={setCategoryFilter}
           allLabel={t('all' as any)}

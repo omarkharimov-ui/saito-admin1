@@ -3,18 +3,14 @@
   "middleware": {
     "/": {
       "files": [
-        "server/edge/chunks/0rad_next_dist_0m4dzlo._.js",
-        "server/edge/chunks/[root-of-the-server]__0~jhj7y._.js",
-        "server/edge/chunks/11t._next_dist_esm_build_templates_edge-wrapper_0tbzsqs.js"
+        "server/edge/chunks/10qn_next_dist_0rsin12._.js",
+        "server/edge/chunks/[root-of-the-server]__030_p8b._.js",
+        "server/edge/chunks/019~_next_dist_esm_build_templates_edge-wrapper_02~fykc.js"
       ],
       "name": "middleware",
       "page": "/",
-      "entrypoint": "server/edge/chunks/11t._next_dist_esm_build_templates_edge-wrapper_0tbzsqs.js",
+      "entrypoint": "server/edge/chunks/019~_next_dist_esm_build_templates_edge-wrapper_02~fykc.js",
       "matchers": [
-        {
-          "regexp": "/:nextData(_next/data/[^/]{1,})?/(/?index|/?index\\\\.json)?",
-          "originalSource": "/"
-        },
         {
           "regexp": "/:nextData(_next/data/[^/]{1,})?/admin/:path*{(\\\\.json)}?",
           "originalSource": "/admin/:path*"
@@ -22,6 +18,14 @@
         {
           "regexp": "/:nextData(_next/data/[^/]{1,})?/kitchen/:path*{(\\\\.json)}?",
           "originalSource": "/kitchen/:path*"
+        },
+        {
+          "regexp": "/:nextData(_next/data/[^/]{1,})?/api/:path*{(\\\\.json)}?",
+          "originalSource": "/api/:path*"
+        },
+        {
+          "regexp": "/:nextData(_next/data/[^/]{1,})?/(/?index|/?index\\\\.json)?",
+          "originalSource": "/"
         }
       ],
       "wasm": [],
@@ -29,9 +33,9 @@
       "env": {
         "__NEXT_BUILD_ID": "development",
         "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "Hxv/27E9SHPIjG8Rmi/m0WyYNcJig6gxGeZVBkD8AKM=",
-        "__NEXT_PREVIEW_MODE_ID": "f96bd4e69ddf882a7e1671845916c189",
-        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "cf92cb2cf24cecc6733a8858799b1da3c4aafbe14ad2ff273053cc002ba37068",
-        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "c5fc4840e548d3a53953ba7f26cfc4b059e4ff49a5d6316205eb524b6528e98f"
+        "__NEXT_PREVIEW_MODE_ID": "902fcaac40c1a4e60cc88dff2fc70435",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "6679ec28f1a391e72e17dc2e5f97de6ec9e5b99a278c9996e2eefdd0c68b86a2",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "8af7c9346c68c9851563890252d0dd3ab4b133ac29396ccfe57dcf4681c81dd1"
       }
     }
   },

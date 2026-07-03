@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase.rpc('perform_stock_audit', {
       p_ingredient_id: ingredientId,
       p_actual_qty: actualQty,
+      p_performed_by: auth.user?.id || null,
     });
 
     if (error) throw error;

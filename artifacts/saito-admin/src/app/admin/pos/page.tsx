@@ -267,7 +267,6 @@ export default function POSPage() {
 
   const handleCloseBill = useCallback(async (method?: string, tip?: number) => {
     if (!payOrderId) return;
-    setOrderButtonStatus('loading');
     const payment: PaymentInfo = {
       method: (method as any) || (payMethod === 'cash' ? 'cash' : 'card'),
       cash_amount: (method === 'cash' ? payAmount + (tip || 0) : 0),
@@ -276,8 +275,7 @@ export default function POSPage() {
     };
     await pos.closeBill(payOrderId, payment);
     setPaymentOpen(false);
-    setOrderButtonStatus('success');
-    window.setTimeout(() => setOrderButtonStatus('idle'), 1400);
+    pos.fetchData();
   }, [payOrderId, payMethod, payAmount, payTip, pos]);
 
   const handleTableTap = useCallback(async (table: PosTable) => {
@@ -367,7 +365,7 @@ export default function POSPage() {
                       isReservationMode={!!reservationCtx}
                       reservationId={reservationCtx?.resId}
                       guestName={reservationCtx?.guestName}
-                      onUpdateGuests={(d) => { const c = pos.cart; if (!c) return; const n = Math.max(1, c.guest_count + d); pos.setCart({ ...c, guest_count: n }); pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t)); pos.setFloors(p => p.map(f => ({ ...f, tables: (f.tables ?? []).map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t) }))); supabase.from('table_floors').update({ guest_count: n }).eq('table_number', c.table_number).then(() => {}); }}
+                      onUpdateGuests={(d) => { const c = pos.cart; if (!c) return; const n = Math.max(1, c.guest_count + d); pos.setCart({ ...c, guest_count: n }); pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t)); pos.setFloors(p => p.map(f => ({ ...f, tables: (f.tables ?? []).map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t) }))); supabase.from('table_floors').update({ guest_count: n }).eq('table_number', c.table_number).then(() => pos.fetchData()); }}
                       onRecordLoss={async (items, reason) => { await fetch('/api/finance/loss', { method: 'POST', body: JSON.stringify({ table_number: pos.selectedTable?.table_number, reason, items, source: 'pos' }) }); toast.success(`Itki qeyd edildi`); pos.fetchData(); }}
                     />
               </div>

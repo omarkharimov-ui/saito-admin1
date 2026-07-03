@@ -223,15 +223,17 @@ export function usePos() {
     const existing = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
     const saved = existing[table.table_number];
     
+    // Use guest_count from the table object, default to 2
+    const guestCount = table.guest_count || 2;
+
     // If we have a saved cart with items, use it regardless of table status
     if (saved && (saved.items.length > 0 || table.status !== 'empty')) {
-      setCart(saved);
+      setCart({ ...saved, guest_count: saved.guest_count || guestCount });
     } else {
-      // If table is reserved, pull info from the table object
       setCart({
         table_id: table.id,
         table_number: table.table_number,
-        guest_count: table.guest_count || 1,
+        guest_count: guestCount,
         items: [],
         notes: table.reservation_name ? `Rezervasiya: ${table.reservation_name}` : '',
         order_type: 'dine_in',
@@ -366,12 +368,8 @@ export function usePos() {
   const backToFloor = useCallback(() => {
     // 1. Get latest cart from ref
     const currentCart = cartRef.current;
-    
-    // 2. Task 14: Confirm if unsaved changes exist
-    const hasUnsaved = currentCart?.items.some(it => !it.sentQuantity || it.quantity !== it.sentQuantity);
-    if (hasUnsaved && !confirm('Yadda saxlanılmamış dəyişikliklər silinəcək. Davam edək?')) return;
 
-    // 3. Discard draft changes
+    // 2. Discard draft changes
     if (currentCart && currentCart.items.length > 0) {
       const all = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
       const confirmedItems = currentCart.items

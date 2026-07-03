@@ -116,7 +116,6 @@ export default function CampaignsPage() {
         title: form.title.trim(),
         type: form.type,
         discount_value: parseFloat(form.discount_value) || 0,
-        discount_type: form.type === 'FIXED_AMOUNT' ? 'fixed' : 'percentage',
         target_type: form.target_type,
         target_id: form.target_id || null,
         status: form.status || (form.end_date ? 'active' : 'active'),

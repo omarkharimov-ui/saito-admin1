@@ -46,14 +46,14 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
               ? 'bg-rose-500 text-white'
               : isDirty 
                 ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5') 
-                : 'bg-zinc-800 text-white/40'
+                : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-white/40')
         }
         ${className}
       `}
     >
       {/* Dirty dot */}
       {isDirty && !isLoading && !isSuccess && !isError && (
-        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+        <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${lightMode ? 'bg-zinc-900 shadow-[0_0_8px_rgba(0,0,0,0.3)]' : 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]'}`} />
       )}
 
       <AnimatePresence mode="wait" initial={false}>
@@ -70,12 +70,29 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
         ) : isSuccess ? (
           <motion.span
             key="success"
-            initial={{ opacity: 0, scale: 0.4 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0.4, width: 0 }}
+            animate={{ opacity: 1, scale: 1, width: 'auto' }}
             exit={{ opacity: 0, scale: 0.4 }}
             transition={{ type: 'spring', stiffness: 350, damping: 18 }}
+            className="flex items-center gap-2 overflow-hidden whitespace-nowrap"
           >
-            <CheckCircle size={20} className="text-emerald-400" />
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-300">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </motion.span>
+            <motion.span
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, delay: 0.25 }}
+              className="text-emerald-100"
+            >
+              Təsdiqləndi
+            </motion.span>
           </motion.span>
         ) : isError ? (
           <motion.span

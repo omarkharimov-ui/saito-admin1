@@ -200,8 +200,7 @@ BEGIN
   -- Step 4: Unlink merged child tables
   UPDATE table_floors
   SET merged_into_table = NULL
-  WHERE merged_into_table = p_table_number::TEXT
-     OR merged_into_table = p_table_number::INTEGER;
+  WHERE merged_into_table = p_table_number;
 
   -- Step 5: Cancel associated reservation
   SELECT reservation_id INTO v_reservation_id

@@ -160,8 +160,7 @@ BEGIN
     status = 'empty',
     merged_into_table = NULL,
     guest_count = NULL
-  WHERE merged_into_table = v_table_number::TEXT
-     OR merged_into_table = v_table_number::INTEGER;
+  WHERE merged_into_table = v_table_number;
 
   -- Step 11: Audit log
   INSERT INTO audit_log (table_name, record_id, action, old_data, new_data, performed_by, created_at)

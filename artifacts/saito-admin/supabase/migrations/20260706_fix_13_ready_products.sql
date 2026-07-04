@@ -22,6 +22,8 @@ CREATE OR REPLACE FUNCTION process_order_payment(
   p_performed_by UUID DEFAULT NULL
 ) RETURNS JSONB
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_order RECORD;

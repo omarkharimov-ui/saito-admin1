@@ -228,7 +228,7 @@ export function usePos() {
 
     // If we have a saved cart with items, use it regardless of table status
     if (saved && (saved.items.length > 0 || table.status !== 'empty')) {
-      setCart({ ...saved, guest_count: saved.guest_count || guestCount });
+      setCart({ ...saved, guest_count: guestCount });
     } else {
       setCart({
         table_id: table.id,

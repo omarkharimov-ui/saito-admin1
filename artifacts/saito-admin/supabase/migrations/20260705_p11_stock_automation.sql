@@ -18,6 +18,8 @@ CREATE OR REPLACE FUNCTION perform_stock_audit(
   p_performed_by UUID DEFAULT NULL
 ) RETURNS JSONB
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_ingredient RECORD;

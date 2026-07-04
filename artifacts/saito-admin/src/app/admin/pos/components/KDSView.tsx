@@ -62,7 +62,11 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   const handleStatusUpdate = async (orderId: string, status: string) => {
     try {
       if (status === 'ready') {
-        await fetch(`/api/orders/mark-ready?id=${orderId}`, { method: 'POST' });
+        await fetch('/api/orders/mark-ready', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_id: orderId }),
+        });
       } else {
         await fetch('/api/orders', {
           method: 'POST',

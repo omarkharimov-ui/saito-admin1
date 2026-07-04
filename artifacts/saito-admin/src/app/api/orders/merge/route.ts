@@ -199,7 +199,10 @@ export async function POST(request: NextRequest) {
       return { primary_order_id: primaryOrder.id, targetTable, merged_tables: restTables };
     });
 
-    return NextResponse.json(result);
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 500 });
+    }
+    return NextResponse.json({ success: true, data: result.data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

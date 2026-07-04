@@ -567,6 +567,7 @@ export function usePos() {
         if (item.is_combo && item.combo_components && item.combo_components.length > 0) {
           const components = item.combo_components.map(comp => ({
             product_id: comp.product_id,
+            product_name: comp.product_name || 'Məhsul',
             variant_id: comp.variant_id || null,
             quantity: item.quantity * comp.quantity,
             unit_price: comp.unit_price,
@@ -578,6 +579,7 @@ export function usePos() {
         }
         return [{
           product_id: item.product_id,
+          product_name: item.product_name || 'Məhsul',
           variant_id: item.variant_id || null,
           quantity: item.quantity,
           unit_price: item.unit_price,
@@ -686,6 +688,9 @@ export function usePos() {
           cash_amount: payment.cash_amount,
           card_amount: payment.card_amount,
           tip_amount: payment.tip,
+          campaign_id: payment.campaign_id || undefined,
+          discount_amount: payment.discount_amount || 0,
+          discount_type: payment.discount_type || undefined,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Payment failed');

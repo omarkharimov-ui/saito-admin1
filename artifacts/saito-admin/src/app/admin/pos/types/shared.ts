@@ -108,6 +108,9 @@ export interface PaymentInfo {
   cash_amount: number;
   card_amount: number;
   tip: number;
+  campaign_id?: string | null;
+  discount_amount?: number;
+  discount_type?: string | null;
 }
 
 export interface LossItem {

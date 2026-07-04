@@ -272,11 +272,14 @@ export default function POSPage() {
       cash_amount: (method === 'cash' ? payAmount + (tip || 0) : 0),
       card_amount: (method === 'card' ? payAmount + (tip || 0) : 0),
       tip: tip || payTip,
+      campaign_id: campaignPreview?.id || null,
+      discount_amount: campaignPreview?.discount || 0,
+      discount_type: campaignPreview?.type || null,
     };
     await pos.closeBill(payOrderId, payment);
     setPaymentOpen(false);
     pos.fetchData();
-  }, [payOrderId, payMethod, payAmount, payTip, pos]);
+  }, [payOrderId, payMethod, payAmount, payTip, campaignPreview, pos]);
 
   const handleTableTap = useCallback(async (table: PosTable) => {
     if (mergeMode) {

@@ -61,11 +61,15 @@ export function KDSView({ onBack }: { onBack: () => void }) {
 
   const handleStatusUpdate = async (orderId: string, status: string) => {
     try {
-      await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update', id: orderId, data: { kitchen_status: status } }),
-      });
+      if (status === 'ready') {
+        await fetch(`/api/orders/mark-ready?id=${orderId}`, { method: 'POST' });
+      } else {
+        await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update', id: orderId, data: { kitchen_status: status } }),
+        });
+      }
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     } catch {}
   };

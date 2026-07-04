@@ -223,7 +223,7 @@ function CardWithCollapse({
         <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/8 overflow-hidden flex-shrink-0">
           {item.image_url
             ? <img src={item.image_url} alt="" className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center text-white/20 text-[10px] font-black">{item.product_name.slice(0,2).toUpperCase()}</div>
+            : <div className="w-full h-full flex items-center justify-center text-white/20 text-[10px] font-black">{(item.product_name || '??').slice(0,2).toUpperCase()}</div>
           }
         </div>
         <div className="flex-1 min-w-0">

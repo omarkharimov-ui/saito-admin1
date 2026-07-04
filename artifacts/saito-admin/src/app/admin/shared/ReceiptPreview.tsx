@@ -46,7 +46,7 @@ export default function ReceiptPreview({
 
   return (
     <div
-      className="bg-[var(--theme-bg)] text-[var(--theme-text)] shadow-[var(--theme-shadow)] mx-auto"
+      className="bg-white text-black mx-auto"
       style={{
         width,
         fontFamily: "'Courier New', Courier, monospace",

@@ -3,6 +3,7 @@
 -- ============================================================================
 
 -- Update the process_expired_reservations RPC to use 'expired' status
+DROP FUNCTION IF EXISTS process_expired_reservations(INTEGER);
 CREATE OR REPLACE FUNCTION process_expired_reservations(
   p_minutes_past INTEGER DEFAULT 30
 ) RETURNS TABLE(

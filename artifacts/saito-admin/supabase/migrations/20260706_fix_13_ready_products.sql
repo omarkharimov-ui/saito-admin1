@@ -223,7 +223,8 @@ END;
 $$;
 
 -- ─── 2. Dashboard view for closed orders statistics ───
-CREATE OR REPLACE VIEW v_closed_orders AS
+DROP VIEW IF EXISTS v_closed_orders;
+CREATE VIEW v_closed_orders AS
 SELECT
   o.id AS order_id,
   o.table_number,

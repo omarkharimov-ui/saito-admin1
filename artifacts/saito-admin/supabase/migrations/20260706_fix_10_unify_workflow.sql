@@ -259,7 +259,8 @@ $$;
 -- (The existing RPC already does this; just adding a stock-return on cancellation)
 
 -- ─── 10. Create view for closed order analytics ───
-CREATE OR REPLACE VIEW v_closed_orders AS
+DROP VIEW IF EXISTS v_closed_orders;
+CREATE VIEW v_closed_orders AS
 SELECT
   o.id AS order_id,
   o.table_number,

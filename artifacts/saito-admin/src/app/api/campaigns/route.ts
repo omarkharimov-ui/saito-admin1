@@ -24,11 +24,13 @@ export async function GET(req: NextRequest) {
 
     const supabase = await createAuthClient();
 
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     await supabase
       .from('campaigns')
       .update({ status: 'expired' })
       .eq('status', 'active')
-      .or(`end_time.lt.${new Date().toISOString()},end_date.lt.${new Date().toISOString().slice(0, 10)}`);
+      .or(`end_time.lt.${currentTime},end_date.lt.${now.toISOString().slice(0, 10)}`);
 
     const expiredProducts = await supabase
       .from('campaigns')

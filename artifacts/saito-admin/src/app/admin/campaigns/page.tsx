@@ -102,7 +102,7 @@ export default function CampaignsPage() {
       start_time: camp.start_time || '',
       end_time: camp.end_time || '',
       end_date: camp.end_date || '',
-      status: camp.status || 'inactive',
+      status: 'active',
     });
     setModalOpen(true);
   };

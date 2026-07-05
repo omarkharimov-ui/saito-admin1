@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { supabase } from '@/lib/supabase';
 import { executeTransactionalOrderAction } from '@/lib/transaction';
 
 function svc() {
@@ -19,79 +20,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least 2 table numbers required' }, { status: 400 });
     }
 
-    const result = await executeTransactionalOrderAction('TableMerge', async () => {
-      const targetTable = table_numbers[0];
-      const restTables = table_numbers.slice(1);
+      const result = await executeTransactionalOrderAction('TableMerge', async () => {
+        const targetTable = table_numbers[0];
+        const restTables = table_numbers.slice(1);
 
-      const targetOrdersRes = await fetch(
-        `${svc().url}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&status=neq.cancelled&select=*`,
-        { headers: svc().headers }
-      );
-      const targetOrders = await targetOrdersRes.json();
-      let primaryOrder = targetOrders?.[0];
-
-      const sourceOrders: any[] = [];
-      for (const tNum of restTables) {
-        const res = await fetch(
-          `${svc().url}/rest/v1/orders?table_number=eq.${tNum}&status=neq.paid&status=neq.cancelled&select=*`,
+        // Fetch current orders (REST — race mitigated by RPC atomicity)
+        const targetOrdersRes = await fetch(
+          `${svc().url}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&status=neq.cancelled&select=*`,
           { headers: svc().headers }
         );
-        const orders = await res.json();
-        if (orders) sourceOrders.push(...orders);
-      }
+        const targetOrders = await targetOrdersRes.json();
+        let primaryOrder = targetOrders?.[0];
 
-      if (sourceOrders.length === 0 && !primaryOrder) {
-        throw new Error('No active orders to merge');
-      }
+        const sourceOrders: any[] = [];
+        for (const tNum of restTables) {
+          const res = await fetch(
+            `${svc().url}/rest/v1/orders?table_number=eq.${tNum}&status=neq.paid&status=neq.cancelled&select=*`,
+            { headers: svc().headers }
+          );
+          const orders = await res.json();
+          if (orders) sourceOrders.push(...orders);
+        }
 
-      if (!primaryOrder && sourceOrders.length > 0) {
-        primaryOrder = sourceOrders[0];
-        // The first order found becomes the primary one on the target table
-        const upgradeRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${primaryOrder.id}`, {
-          method: 'PATCH',
-          headers: svc().headers,
-          body: JSON.stringify({ 
-            table_number: targetTable,
-            version: (primaryOrder.version || 0) + 1
-          }),
+        if (sourceOrders.length === 0 && !primaryOrder) {
+          throw new Error('No active orders to merge');
+        }
+
+        if (!primaryOrder && sourceOrders.length > 0) {
+          primaryOrder = sourceOrders[0];
+          sourceOrders.shift();
+        }
+
+        // Compute totals before calling atomic RPC
+        let extraTotal = 0;
+        let extraGuests = 0;
+        for (const src of sourceOrders) {
+          extraTotal += Number(src.total_amount || 0);
+          extraGuests += Number(src.guest_count || 0);
+        }
+
+        // Call atomic merge RPC (FOR UPDATE — detects stale reads)
+        const sourceIds = sourceOrders.map(o => o.id);
+        const { data: rpcResult, error: rpcError } = await supabase.rpc('merge_orders_atomic', {
+          p_source_order_ids: sourceIds.length > 0 ? sourceIds : [],
+          p_target_order_id: primaryOrder.id,
+          p_extra_amount: extraTotal,
+          p_extra_guests: extraGuests,
         });
-        if (!upgradeRes.ok) throw new Error('Failed to elevate source order to primary');
-        
-        // Remove from source list so it's not merged into itself
-        sourceOrders.shift();
-      }
+        if (rpcError) throw new Error(rpcError.message);
 
-      let extraTotal = 0;
-      let extraGuests = 0;
-
-      for (const src of sourceOrders) {
-        extraTotal += Number(src.total_amount || 0);
-        extraGuests += Number(src.guest_count || 0);
-        
-        const mergeRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${src.id}`, {
-          method: 'PATCH',
-          headers: svc().headers,
-          body: JSON.stringify({ 
-            merged_into: primaryOrder.id,
-            version: (src.version || 0) + 1
-          }),
-        });
-        if (!mergeRes.ok) throw new Error(`Failed to merge order ${src.id}`);
-      }
-
-      const finalUpdateRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${primaryOrder.id}`, {
-        method: 'PATCH',
-        headers: svc().headers,
-        body: JSON.stringify({
-          total_amount: Number(primaryOrder.total_amount || 0) + extraTotal,
-          guest_count: Number(primaryOrder.guest_count || 1) + extraGuests,
-          version: (primaryOrder.version || 0) + 1
-        }),
-      });
-      if (!finalUpdateRes.ok) throw new Error('Failed to update primary order totals');
-
-      // Determine combined guest count for target table
-      const totalGuests = (Number(primaryOrder?.guest_count || 1)) + extraGuests;
+        // Determine combined guest count for target table
+        const totalGuests = (Number(primaryOrder?.guest_count || 1)) + extraGuests;
 
       // CRITICAL: Merge reservations — transfer source table reservations to target
       const targetFloorRes = await fetch(
@@ -123,7 +102,7 @@ export async function POST(request: NextRequest) {
           if (srcReservation) {
             const isCheckedIn = srcReservation.status === 'checked_in';
             const updateBody: Record<string, any> = {
-              table_ids: [...(typeof targetFloor?.reservation_id === 'string' ? [] : []), targetTable],
+              table_ids: table_numbers,
             };
             if (isCheckedIn) {
               updateBody.status = 'completed';

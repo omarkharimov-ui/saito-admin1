@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       p_order_id: order_id,
       p_payment_method: payment_method || 'card',
       p_paid_amount: paidAmount,
+      p_tip_amount: tip_amount || 0,
       p_campaign_id: effectiveCampaignId,
       p_discount_amount: effectiveDiscountAmount,
       p_discount_type: effectiveDiscountType,
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       paid_amount: data.paid_amount,
+      tip_amount: data.tip_amount,
       cogs: data.cogs,
       profit: data.profit,
       table_number: data.table_number,

@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
     const result = await executeTransactionalOrderAction(`Order${action || 'Create'}`, async () => {
       if (action === 'update') {
-        const orderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=*`, { headers: svc().headers });
+        const orderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=id,version`, { headers: svc().headers });
         const existingOrder = (await orderRes.json())?.[0];
         
         if (!existingOrder) throw new Error('Order not found');
@@ -73,16 +73,26 @@ export async function POST(request: Request) {
           throw new Error('CONCURRENCY_CONFLICT');
         }
 
-        const res = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}`, {
-          method: 'PATCH',
-          headers: svc().headers,
-          body: JSON.stringify({ 
-            ...data, 
-            version: (existingOrder.version || 0) + 1 
-          }),
-        });
-        if (!res.ok) throw new Error('Update failed');
-        return await res.json();
+        // Conditional PATCH with version filter — if another request updated it
+        // between our read and this PATCH, 0 rows will be affected
+        const currentVersion = existingOrder.version || 0;
+        const patchRes = await fetch(
+          `${svc().url}/rest/v1/orders?id=eq.${id}&version=eq.${currentVersion}`,
+          {
+            method: 'PATCH',
+            headers: { ...svc().headers, 'Prefer': 'return=representation' },
+            body: JSON.stringify({ 
+              ...data, 
+              version: currentVersion + 1 
+            }),
+          }
+        );
+        if (!patchRes.ok) throw new Error('Update failed');
+        const patched = await patchRes.json();
+        if (!patched || (Array.isArray(patched) && patched.length === 0)) {
+          throw new Error('CONCURRENCY_CONFLICT');
+        }
+        return Array.isArray(patched) ? patched[0] : patched;
       }
 
       if (action === 'delete') {
@@ -138,18 +148,27 @@ export async function POST(request: Request) {
         activeOrder = (await orderRes.json())?.[0];
         isNewOrder = true;
       } else {
-        // Update existing order totals
+        // Update existing order totals with optimistic locking
         const existingTotal = Number(activeOrder.total_amount || 0);
+        const currentVer = activeOrder.version || 0;
         const newItemsTotal = items.reduce((s: number, i: any) => s + (Number(i.total_price) || (Number(i.unit_price) * Number(i.quantity))), 0);
         
-        await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrder.id}`, {
-          method: 'PATCH',
-          headers: svc().headers,
-          body: JSON.stringify({
-            total_amount: existingTotal + newItemsTotal,
-            version: (activeOrder.version || 0) + 1,
-          }),
-        });
+        const addRes = await fetch(
+          `${svc().url}/rest/v1/orders?id=eq.${activeOrder.id}&version=eq.${currentVer}`,
+          {
+            method: 'PATCH',
+            headers: { ...svc().headers, 'Prefer': 'return=representation' },
+            body: JSON.stringify({
+              total_amount: existingTotal + newItemsTotal,
+              version: currentVer + 1,
+            }),
+          }
+        );
+        if (!addRes.ok) throw new Error('Add items failed');
+        const addPatched = await addRes.json();
+        if (!addPatched || (Array.isArray(addPatched) && addPatched.length === 0)) {
+          throw new Error('CONCURRENCY_CONFLICT');
+        }
       }
 
       // Add items to order (new or existing)

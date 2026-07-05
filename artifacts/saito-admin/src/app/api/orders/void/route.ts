@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     });
     if (rpcErr) {
       console.error('[VOID] Stock reversal failed:', rpcErr);
-      // Non-fatal — continue with item deletion
+      throw new Error('Stock reversal failed — void aborted to prevent inventory loss');
     }
 
     // 2. Delete or reduce voided items

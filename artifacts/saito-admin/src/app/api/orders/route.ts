@@ -165,6 +165,7 @@ export async function POST(request: Request) {
           modifiers: typeof item.modifiers === 'string' ? item.modifiers : JSON.stringify(item.modifiers || []),
         };
         if (item.combo_group_id) payload.combo_group_id = item.combo_group_id;
+        if (item.parent_order_item_id) payload.parent_order_item_id = item.parent_order_item_id;
         if (item.special_notes) payload.special_notes = item.special_notes;
         if (item.variant_id) payload.variant_id = item.variant_id;
         await fetch(`${svc().url}/rest/v1/order_items`, {

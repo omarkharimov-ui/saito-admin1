@@ -50,17 +50,42 @@ ALTER TABLE order_items ADD COLUMN IF NOT EXISTS combo_group_id UUID DEFAULT NUL
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_combo_parent BOOLEAN DEFAULT FALSE;
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS special_notes TEXT;
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_id UUID DEFAULT NULL;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS parent_order_item_id UUID REFERENCES order_items(id) ON DELETE CASCADE;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS served_at TIMESTAMPTZ;
+ALTER TABLE order_items ALTER COLUMN kitchen_status SET DEFAULT 'pending';
+CREATE INDEX IF NOT EXISTS idx_order_items_parent ON order_items(parent_order_item_id);
 
 -- 6. ITEM-LEVEL STOCK TRACKING (Inventory)
 ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS order_item_id UUID REFERENCES order_items(id) ON DELETE SET NULL;
 ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS item_quantity NUMERIC DEFAULT 1;
 CREATE INDEX IF NOT EXISTS idx_inventory_logs_order_item ON inventory_logs(order_item_id);
 
--- 7. MISSING COLUMNS IN TABLE_FLOORS (Workflow Sync)
+-- 7. PAYMENT LEDGER (Multi-method payment support)
+CREATE TABLE IF NOT EXISTS order_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  amount NUMERIC(12,2) NOT NULL,
+  payment_method TEXT NOT NULL,
+  reference TEXT,
+  performed_by UUID,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_order_payments_order ON order_payments(order_id);
+ALTER TABLE order_payments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "order_payments_select" ON order_payments FOR SELECT
+  TO authenticated USING (true);
+CREATE POLICY IF NOT EXISTS "order_payments_insert" ON order_payments FOR INSERT
+  TO authenticated WITH CHECK (true);
+
+-- 8. AUDIT ENRICHMENT (Device tracking)
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS device_id TEXT;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS ip_address TEXT;
+
+-- 9. MISSING COLUMNS IN TABLE_FLOORS (Workflow Sync)
 ALTER TABLE table_floors ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ;
 ALTER TABLE table_floors ADD COLUMN IF NOT EXISTS opened_at TIMESTAMPTZ;
 
--- 8. INDEXES for Performance
+-- 10. INDEXES for Performance
 CREATE INDEX IF NOT EXISTS idx_alerts_status ON discrepancy_alerts(status);
 CREATE INDEX IF NOT EXISTS idx_clock_staff ON clock_events(staff_id);
 CREATE INDEX IF NOT EXISTS idx_orders_reservation ON orders(reservation_id);

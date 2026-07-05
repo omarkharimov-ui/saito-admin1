@@ -29,10 +29,22 @@ export default function POSPage() {
 
   useEffect(() => {
     MeshBroadcaster.startListening();
-    const interval = setInterval(async () => {
-      const offlineTables = await localStore.getAllTables();
-      if (offlineTables.length > 0) {}
-    }, 5000);
+    const syncOffline = async () => {
+      try {
+        const unsynced = await localStore.getUnsyncedLogs();
+        for (const log of unsynced) {
+          if (log.type === 'ORDER_NEW') {
+            const res = await fetch('/api/orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(log.data),
+            });
+            if (res.ok) await localStore.markAsSynced(log.timestamp);
+          }
+        }
+      } catch {}
+    };
+    const interval = setInterval(syncOffline, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -223,6 +235,16 @@ export default function POSPage() {
     return counts;
   }, [pos.cart]);
 
+  const handleUpdateGuests = useCallback((d: number) => {
+    const c = pos.cart;
+    if (!c) return;
+    const n = Math.max(1, c.guest_count + d);
+    pos.setCart({ ...c, guest_count: n });
+    pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t));
+    pos.setFloors(p => p.map(f => ({ ...f, tables: (f.tables ?? []).map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t) })));
+    supabase.from('table_floors').update({ guest_count: n }).eq('table_number', c.table_number);
+  }, [pos.cart, pos.setCart, pos.setTables, pos.setFloors]);
+
   const handlePlaceOrder = useCallback(async () => {
     setOrderButtonStatus('loading');
     try {
@@ -368,7 +390,7 @@ export default function POSPage() {
                       isReservationMode={!!reservationCtx}
                       reservationId={reservationCtx?.resId}
                       guestName={reservationCtx?.guestName}
-                      onUpdateGuests={(d) => { const c = pos.cart; if (!c) return; const n = Math.max(1, c.guest_count + d); pos.setCart({ ...c, guest_count: n }); pos.setTables(p => p.map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t)); pos.setFloors(p => p.map(f => ({ ...f, tables: (f.tables ?? []).map(t => t.table_number === c.table_number ? { ...t, guest_count: n } : t) }))); supabase.from('table_floors').update({ guest_count: n }).eq('table_number', c.table_number).then(() => pos.fetchData()); }}
+                      onUpdateGuests={handleUpdateGuests}
                       onRecordLoss={async (items, reason) => { await fetch('/api/finance/loss', { method: 'POST', body: JSON.stringify({ table_number: pos.selectedTable?.table_number, reason, items, source: 'pos' }) }); toast.success(`Itki qeyd edildi`); pos.fetchData(); }}
                     />
               </div>

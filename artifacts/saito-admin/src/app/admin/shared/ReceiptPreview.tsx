@@ -6,6 +6,7 @@ interface ReceiptItem {
   product_name: string;
   quantity: number;
   total_price: number;
+  indent?: boolean;
 }
 
 interface ReceiptPreviewProps {
@@ -77,10 +78,10 @@ export default function ReceiptPreview({
       <div style={{ borderTop: '1px dashed #000', margin: '3px 0 5px' }} />
 
       {items.map((item, idx) => (
-        <div key={idx} style={{ display: 'flex', fontSize: 10, marginBottom: 2 }}>
+        <div key={idx} style={{ display: 'flex', fontSize: item.indent ? 9 : 10, marginBottom: 1, color: item.indent ? '#555' : 'inherit' }}>
           <span style={{ flex: 1 }}>{item.product_name}</span>
           <span style={{ width: 38, textAlign: 'center' }}>{item.quantity}</span>
-          <span style={{ width: 48, textAlign: 'right', fontWeight: 600 }}>{item.total_price.toFixed(2)}</span>
+          <span style={{ width: 48, textAlign: 'right', fontWeight: item.indent ? 400 : 600 }}>{item.indent ? '' : item.total_price.toFixed(2)}</span>
         </div>
       ))}
 

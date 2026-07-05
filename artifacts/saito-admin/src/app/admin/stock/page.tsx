@@ -368,6 +368,23 @@ export default function StockPage() {
         )}
       </AnimatePresence>
 
+      <InspectorPanel
+        row={selectedRow}
+        onClose={() => setSelectedRow(null)}
+        UNIT_LABELS={UNIT_LABELS}
+        onStockIn={(r) => { setSelectedRow(r); setModalMode('stock_in'); }}
+        onWaste={(r) => { setSelectedRow(r); setModalMode('waste'); }}
+        onAudit={(r) => { setSelectedRow(r); setModalMode('audit'); }}
+        onHistory={(r) => { setSelectedRow(r); }}
+        onDelete={async (r) => {
+          if (!confirm('Bu xammalı silmək istədiyinizə əminsiniz?')) return;
+          const { error } = await supabase.from('ingredients').delete().eq('id', r.id);
+          if (error) toast.error('Silinmə xətası: ' + error.message);
+          else { toast.success('Xammal silindi'); setSelectedRow(null); fetchData(); }
+        }}
+        onUpdate={fetchData}
+      />
+
     </PageTransition>
   );
 }

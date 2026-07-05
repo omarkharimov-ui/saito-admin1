@@ -51,6 +51,15 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
           name_az: c.name_az,
           name_en: c.name_en,
           name_ru: c.name_ru,
+          effective_price: c.effective_price && c.effective_price < c.price ? {
+            base_price: c.price,
+            effective_price: c.effective_price,
+            discount_amount: c.price - c.effective_price,
+            discount_type: null,
+            campaign_id: null,
+            campaign_label: null,
+            campaign_badge: null,
+          } : undefined,
           _isCombo: true,
           _raw: c,
         });

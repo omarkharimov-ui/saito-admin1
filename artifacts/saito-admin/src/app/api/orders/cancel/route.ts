@@ -35,9 +35,22 @@ export async function DELETE(req: NextRequest) {
     if (orders && orders.length > 0) {
       const orderIds = orders.map(o => o.id);
 
-      for (const id of orderIds) {
-        // Use RPC to atomically reverse stock deduction
-        await supabase.rpc('reverse_stock_deduction', { p_order_id: id });
+      // Item-level stock reversal — reverse all non-served items
+      const { data: items } = await supabase
+        .from('order_items')
+        .select('id, quantity')
+        .in('order_id', orderIds)
+        .not('kitchen_status', 'eq', 'cancelled')
+        .or('served_quantity.is.null,served_quantity.eq.0');
+
+      if (items && items.length > 0) {
+        const reversalPayload = items.map(i => ({
+          order_item_id: i.id,
+          reverse_qty: i.quantity,
+        }));
+        await supabase.rpc('reverse_stock_deduction_for_items', {
+          p_items: JSON.stringify(reversalPayload),
+        });
       }
 
       await supabase

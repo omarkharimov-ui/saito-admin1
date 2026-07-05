@@ -101,7 +101,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       )}
 
       {/* Standard Occupied Metadata (Fallback) */}
-      {!isReserved && isOccupied && (
+      {!isReserved && (isOccupied || (table.guest_count ?? 0) > 0) && (
         <div className="absolute top-[72px] left-6 flex flex-col gap-1">
           { (table.guest_count ?? 0) > 0 && (
             <div className="flex items-center gap-1 opacity-60">

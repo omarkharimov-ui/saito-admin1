@@ -83,6 +83,8 @@ export function CartPanel({
   }
 
   const total = cart.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+  const campaignDiscount = campaign ? Number(campaign.discount) : 0;
+  const totalAfterDiscount = Math.max(0, total - campaignDiscount);
   const isEmpty = cart.items.length === 0;
   const hasDraftItems = cart.items.some(item => !item.sentQuantity || item.quantity !== item.sentQuantity);
 
@@ -314,8 +316,13 @@ export function CartPanel({
               exit={{ opacity: 0, y: 4 }}
               className="flex items-center justify-between px-1"
             >
-              <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
-              <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
+                {campaignDiscount > 0 && (
+                  <span className="text-[10px] text-[var(--theme-text-muted)] line-through">{total.toFixed(2)} ₼</span>
+                )}
+              </div>
+              <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{totalAfterDiscount.toFixed(2)} ₼</span>
             </motion.div>
           )}
         </AnimatePresence>

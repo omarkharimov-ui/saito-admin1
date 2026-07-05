@@ -12,7 +12,10 @@ interface OrderItem {
   product_name: string;
   quantity: number;
   unit_price: number;
+  total_price: number;
   modifiers: any;
+  combo_group_id?: string;
+  special_notes?: string;
 }
 
 interface BillSplitModalProps {
@@ -25,11 +28,40 @@ interface BillSplitModalProps {
 
 export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: BillSplitModalProps) {
   const { t } = useLanguage();
-  const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
+  const [selectedComboIds, setSelectedComboIds] = useState<Set<string>>(new Set());
+  const [selectedStandalone, setSelectedStandalone] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
 
-  const updateQty = (id: string, delta: number, max: number) => {
-    setSelectedItems(prev => {
+  // Group items: combos by combo_group_id, standalone as-is
+  const { comboGroups, standaloneItems } = useMemo(() => {
+    const groups = new Map<string, { comboGroupId: string; name: string; children: OrderItem[] }>();
+    const standalone: OrderItem[] = [];
+    for (const item of items) {
+      const cg = item.combo_group_id;
+      if (cg) {
+        if (!groups.has(cg)) {
+          const notes = item.special_notes || '';
+          const name = notes.startsWith('Kombo: ') ? notes.slice(7) : notes || 'Kombo';
+          groups.set(cg, { comboGroupId: cg, name, children: [] });
+        }
+        groups.get(cg)!.children.push(item);
+      } else {
+        standalone.push(item);
+      }
+    }
+    return { comboGroups: Array.from(groups.values()), standaloneItems: standalone };
+  }, [items]);
+
+  const toggleCombo = (comboGroupId: string) => {
+    setSelectedComboIds(prev => {
+      const n = new Set(prev);
+      if (n.has(comboGroupId)) n.delete(comboGroupId); else n.add(comboGroupId);
+      return n;
+    });
+  };
+
+  const updateStandalone = (id: string, delta: number, max: number) => {
+    setSelectedStandalone(prev => {
       const current = prev[id] || 0;
       const next = Math.max(0, Math.min(max, current + delta));
       if (next === 0) {
@@ -41,25 +73,49 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
     });
   };
 
-  const selectedCount = Object.values(selectedItems).reduce((s, q) => s + q, 0);
+  const selectedCount = useMemo(() => {
+    let count = 0;
+    for (const group of comboGroups) {
+      if (selectedComboIds.has(group.comboGroupId)) count += group.children.reduce((s, c) => s + c.quantity, 0);
+    }
+    count += Object.values(selectedStandalone).reduce((s, q) => s + q, 0);
+    return count;
+  }, [selectedComboIds, selectedStandalone, comboGroups]);
+
   const selectedTotal = useMemo(() => {
-    return Object.entries(selectedItems).reduce((sum, [id, qty]) => {
+    let total = 0;
+    for (const group of comboGroups) {
+      if (selectedComboIds.has(group.comboGroupId)) {
+        total += group.children.reduce((s, c) => s + c.total_price, 0);
+      }
+    }
+    for (const [id, qty] of Object.entries(selectedStandalone)) {
       const item = items.find(i => i.id === id);
-      return sum + (item?.unit_price || 0) * qty;
-    }, 0);
-  }, [selectedItems, items]);
+      total += (item?.unit_price || 0) * qty;
+    }
+    return total;
+  }, [selectedComboIds, selectedStandalone, comboGroups, items]);
 
   const handleSplit = async () => {
     if (selectedCount === 0) return;
     setLoading(true);
     try {
-      const itemsToSplit = Object.entries(selectedItems).map(([id, qty]) => {
+      const itemsToSplit: any[] = [];
+
+      // Add all children from selected combos
+      for (const group of comboGroups) {
+        if (selectedComboIds.has(group.comboGroupId)) {
+          for (const child of group.children) {
+            itemsToSplit.push({ ...child });
+          }
+        }
+      }
+
+      // Add selected standalone items
+      for (const [id, qty] of Object.entries(selectedStandalone)) {
         const item = items.find(i => i.id === id);
-        return {
-          ...item,
-          quantity: qty
-        };
-      });
+        if (item) itemsToSplit.push({ ...item, quantity: qty });
+      }
 
       const res = await fetch('/api/orders/bill-split', {
         method: 'POST',
@@ -103,8 +159,28 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
 
               {/* Items List */}
               <div className="flex-1 overflow-y-auto p-6 space-y-3">
-                {items.map(item => {
-                  const selQty = selectedItems[item.id] || 0;
+                {/* Combo groups */}
+                {comboGroups.map(group => {
+                  const isSelected = selectedComboIds.has(group.comboGroupId);
+                  return (
+                    <div key={group.comboGroupId} className={`rounded-2xl border transition-all ${isSelected ? 'bg-blue-500/5 border-blue-500/30' : 'bg-white/[0.02] border-white/5'}`}>
+                      <button onClick={() => toggleCombo(group.comboGroupId)} className="w-full flex items-center justify-between p-4">
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className="text-sm font-bold text-white/80 truncate">{group.name}</p>
+                          <p className="text-xs text-white/30 mt-1">
+                            {group.children.map(c => c.product_name).join(', ')}
+                          </p>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ml-3 ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-white/30'}`}>
+                          {isSelected && <Check size={14} className="text-white" />}
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })}
+                {/* Standalone items */}
+                {standaloneItems.map(item => {
+                  const selQty = selectedStandalone[item.id] || 0;
                   return (
                     <div key={item.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${selQty > 0 ? 'bg-blue-500/5 border-blue-500/30' : 'bg-white/[0.02] border-white/5'}`}>
                       <div className="flex-1 min-w-0">
@@ -113,14 +189,17 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
                       </div>
                       <div className="flex items-center gap-3">
                          <div className="flex items-center bg-black/40 rounded-xl p-1 border border-white/5">
-                            <button onClick={() => updateQty(item.id, -1, item.quantity)} className="w-8 h-8 rounded-lg hover:bg-white/5 text-white/40 flex items-center justify-center transition-all"><Minus size={14} /></button>
+                            <button onClick={() => updateStandalone(item.id, -1, item.quantity)} className="w-8 h-8 rounded-lg hover:bg-white/5 text-white/40 flex items-center justify-center transition-all"><Minus size={14} /></button>
                             <span className="w-8 text-center text-sm font-black tabular-nums">{selQty} <span className="text-[10px] text-white/20">/ {item.quantity}</span></span>
-                            <button onClick={() => updateQty(item.id, 1, item.quantity)} className="w-8 h-8 rounded-lg hover:bg-white/5 text-blue-400 flex items-center justify-center transition-all"><Plus size={14} /></button>
+                            <button onClick={() => updateStandalone(item.id, 1, item.quantity)} className="w-8 h-8 rounded-lg hover:bg-white/5 text-blue-400 flex items-center justify-center transition-all"><Plus size={14} /></button>
                          </div>
                       </div>
                     </div>
                   );
                 })}
+                {comboGroups.length === 0 && standaloneItems.length === 0 && (
+                  <div className="text-center text-white/20 py-8 text-sm">Məhsul tapılmadı</div>
+                )}
               </div>
 
               {/* Footer */}

@@ -449,10 +449,16 @@ export function usePos() {
 
     if (!combo.is_in_stock) return;
 
-    const langs = languageRef.current;
+    // Check stock of all component products
     const comboItems = (combo.items || []) as any[];
-    
     if (comboItems.length === 0) return;
+
+    for (const ci of comboItems) {
+      const product = Array.isArray(ci.product) ? ci.product[0] : ci.product;
+      if (product && !checkStock(product.id, ci.quantity || 1)) return;
+    }
+
+    const langs = languageRef.current;
 
     const comboComponents = comboItems.map(ci => {
       const product = Array.isArray(ci.product) ? ci.product[0] : ci.product;
@@ -471,16 +477,15 @@ export function usePos() {
 
     const localizedName = langs === 'az' ? combo.name_az : langs === 'en' ? combo.name_en : langs === 'ru' ? combo.name_ru : combo.name;
 
-    // Check if combo already exists in cart — increment quantity instead of duplicating
-    const existing = currentCart.items.find(i => i.combo_id === combo.id);
-    if (existing) {
-      setCart(prev => prev ? {
-        ...prev,
-        items: prev.items.map(i =>
-          i === existing ? { ...i, quantity: i.quantity + 1, total_price: i.unit_price * (i.quantity + 1) } : i
-        ),
-      } : null);
-    } else {
+    setCart(prev => {
+      if (!prev) return null;
+      const existingIdx = prev.items.findIndex(i => i.combo_id === combo.id);
+      if (existingIdx >= 0) {
+        const item = prev.items[existingIdx];
+        const newItems = [...prev.items];
+        newItems[existingIdx] = { ...item, quantity: item.quantity + 1, total_price: item.unit_price * (item.quantity + 1) };
+        return { ...prev, items: newItems };
+      }
       const newItem: PosCartItem = {
         product_id: combo.id,
         product_name: `Kombo: ${localizedName || combo.name}`,
@@ -494,10 +499,9 @@ export function usePos() {
         combo_id: combo.id,
         combo_components: comboComponents,
       };
-      setCart(prev => prev ? { ...prev, items: [...prev.items, newItem] } : null);
-    }
-    forceUpdate(n => n + 1);
-  }, []);
+      return { ...prev, items: [...prev.items, newItem] };
+    });
+  }, [checkStock]);
 
   const updateCartItemQty = useCallback((index: number, delta: number) => {
     setCart(prev => {
@@ -507,7 +511,15 @@ export function usePos() {
       const newQty = item.quantity + delta;
       
       // Stock check on increase
-      if (delta > 0 && !checkStock(item.product_id, newQty)) return prev;
+      if (delta > 0) {
+        if (item.is_combo && item.combo_components) {
+          for (const comp of item.combo_components) {
+            if (!checkStock(comp.product_id, comp.quantity * newQty)) return prev;
+          }
+        } else if (!checkStock(item.product_id, newQty)) {
+          return prev;
+        }
+      }
 
       if (newQty <= 0) {
         items.splice(index, 1);
@@ -565,17 +577,21 @@ export function usePos() {
     try {
       const orderItems = currentCart.items.flatMap(item => {
         if (item.is_combo && item.combo_components && item.combo_components.length > 0) {
-          const components = item.combo_components.map(comp => ({
+          const comboGroupId = crypto.randomUUID();
+          const rawSum = item.combo_components.reduce((s, c) => s + c.unit_price * c.quantity, 0);
+          const ratio = rawSum > 0 ? item.unit_price / rawSum : 0;
+          const comboName = item.product_name?.replace(/^Kombo:\s*/i, '') || 'Kombo';
+          return item.combo_components.map(comp => ({
             product_id: comp.product_id,
             product_name: comp.product_name || 'Məhsul',
             variant_id: comp.variant_id || null,
             quantity: item.quantity * comp.quantity,
-            unit_price: comp.unit_price,
-            total_price: comp.unit_price * item.quantity * comp.quantity,
+            unit_price: Math.round(comp.unit_price * ratio * 100) / 100,
+            total_price: Math.round(comp.unit_price * ratio * comp.quantity * item.quantity * 100) / 100,
             modifiers: JSON.stringify([]),
-            special_notes: `Kombo: ${item.product_name}`,
+            special_notes: `Kombo: ${comboName}`,
+            combo_group_id: comboGroupId,
           }));
-          return components;
         }
         return [{
           product_id: item.product_id,
@@ -584,12 +600,13 @@ export function usePos() {
           quantity: item.quantity,
           unit_price: item.unit_price,
           total_price: item.unit_price * item.quantity,
-          modifiers: JSON.stringify(item.modifiers),
-          special_notes: item.special_notes,
+          modifiers: JSON.stringify(item.modifiers ?? []),
+          special_notes: item.special_notes || '',
         }];
       });
 
-      const totalAmount = orderItems.reduce((s, i) => s + i.total_price, 0);
+      // Total = sum of cart item prices (combo uses effective_price, children pro-rated)
+      const totalAmount = currentCart.items.reduce((s, item) => s + item.unit_price * item.quantity, 0);
 
       const orderPayload = {
         id: `offline-${Date.now()}`,
@@ -614,6 +631,7 @@ export function usePos() {
           table_number: currentCart.table_number,
           total_amount: totalAmount,
           status: 'confirmed',
+          order_type: currentCart.order_type || 'dine_in',
           guest_count: currentCart.guest_count,
           customer_note: currentCart.notes || null,
           items: orderItems,
@@ -796,7 +814,8 @@ export function usePos() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    if (data.undo) showUndo('transfer', data.undo, `Masa ${fromTable} → Masa ${toTable}`);
+    const undoData = data.data?.undo;
+    if (undoData) showUndo('transfer', undoData, `Masa ${fromTable} → Masa ${toTable}`);
 
     // 3. Clear fingerprints and sync states
     delete orderFingerprintRef.current[fromTable];
@@ -828,8 +847,9 @@ export function usePos() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      if (data.undo) {
-        showUndo('merge', data.undo, `Masalar ${tableNumbers.join(' + ')} birləşdirildi`);
+      const undoData = data.data?.undo;
+      if (undoData) {
+        showUndo('merge', undoData, `Masalar ${tableNumbers.join(' + ')} birləşdirildi`);
       } else {
         toast.success(`Masalar ${tableNumbers.join(' + ')} birləşdirildi`);
       }

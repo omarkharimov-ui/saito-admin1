@@ -99,7 +99,29 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit, c
   }, []);
 
   const items = order.order_items ?? [];
-  const subtotal = items.reduce((sum, i) => sum + i.total_price, 0);
+
+  // Group combo children by combo_group_id, keep standalone items as-is
+  const displayItems = (() => {
+    const groups = new Map<string, { name: string; comboName: string; children: OrderItem[] }>();
+    const standalone: OrderItem[] = [];
+    for (const item of items) {
+      const cg = item.combo_group_id;
+      if (cg) {
+        if (!groups.has(cg)) {
+          const notes = item.special_notes || '';
+          const comboName = notes.startsWith('Kombo: ') ? notes.slice(7) : notes || 'Kombo';
+          groups.set(cg, { name: comboName, comboName, children: [] });
+        }
+        groups.get(cg)!.children.push(item);
+      } else {
+        standalone.push(item);
+      }
+    }
+    return { groups: Array.from(groups.values()), standalone };
+  })();
+
+  // Subtotal: use order.total_amount directly (combo prices are correct in order total)
+  const subtotal = Number(order.total_amount) || items.reduce((sum, i) => sum + i.total_price, 0);
   const discountAmount = campaign?.discount ?? Number(order.discount_amount || 0);
   const serviceFee = restaurant.receipt_show_service_fee ? subtotal * (restaurant.receipt_service_fee_pct / 100) : 0;
   const total = Math.max(0, subtotal - discountAmount + serviceFee + tipAmount);
@@ -108,14 +130,30 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit, c
     const win = window.open('', '_blank', 'width=400,height=700');
     if (!win) return;
 
-    const itemsHtml = items.map((item) => {
-      const name = getProductName(item);
-      return `<div style="display:flex;font-size:11px;margin-bottom:3px;align-items:flex-start">
-        <span style="flex:1;padding-right:4px;line-height:1.4">${name}</span>
-        <span style="width:44px;text-align:center">${item.quantity}</span>
-        <span style="width:56px;text-align:right;font-weight:600">${item.total_price.toFixed(2)}</span>
-      </div>`;
-    }).join('');
+    const itemsHtml = (() => {
+      const parts: string[] = [];
+      for (const item of displayItems.standalone) {
+        parts.push(`<div style="display:flex;font-size:11px;margin-bottom:3px;align-items:flex-start">
+          <span style="flex:1;padding-right:4px;line-height:1.4">${getProductName(item)}</span>
+          <span style="width:44px;text-align:center">${item.quantity}</span>
+          <span style="width:56px;text-align:right;font-weight:600">${item.total_price.toFixed(2)}</span>
+        </div>`);
+      }
+      for (const group of displayItems.groups) {
+        const childTotal = group.children.reduce((s, c) => s + c.total_price, 0);
+        parts.push(`<div style="display:flex;font-size:12px;margin-bottom:2px;font-weight:700">
+          <span style="flex:1;padding-right:4px">${group.comboName}</span>
+          <span style="width:56px;text-align:right">${childTotal.toFixed(2)}</span>
+        </div>`);
+        for (const child of group.children) {
+          parts.push(`<div style="display:flex;font-size:10px;margin-bottom:1px;padding-left:12px;color:#666">
+            <span style="flex:1;padding-right:4px">• ${getProductName(child)}</span>
+            <span style="width:44px;text-align:center">${child.quantity}</span>
+          </div>`);
+        }
+      }
+      return parts.join('');
+    })();
 
     const discountHtml = discountAmount > 0
       ? `<div style="display:flex;font-size:11px;margin-bottom:4px;color:#BE123C">
@@ -258,11 +296,20 @@ export function ReceiptModal({ order, onClose, getProductName, onPay, onSplit, c
               <ReceiptPreview
                 title={restaurant.name}
                 tableNumber={order.table_number ?? '-'}
-                items={items.map(item => ({
-                  product_name: getProductName(item),
-                  quantity: item.quantity,
-                  total_price: item.total_price,
-                }))}
+                items={(() => {
+                  const result: { product_name: string; quantity: number; total_price: number; indent?: boolean }[] = [];
+                  for (const item of displayItems.standalone) {
+                    result.push({ product_name: getProductName(item), quantity: item.quantity, total_price: item.total_price });
+                  }
+                  for (const group of displayItems.groups) {
+                    const childTotal = group.children.reduce((s, c) => s + c.total_price, 0);
+                    result.push({ product_name: group.comboName, quantity: 1, total_price: childTotal, indent: false });
+                    for (const child of group.children) {
+                      result.push({ product_name: `  • ${getProductName(child)}`, quantity: child.quantity, total_price: 0, indent: true });
+                    }
+                  }
+                  return result;
+                })()}
                 showServiceFee={restaurant.receipt_show_service_fee}
                 serviceFeePct={restaurant.receipt_service_fee_pct}
                 currency={restaurant.receipt_currency}

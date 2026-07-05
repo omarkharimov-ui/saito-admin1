@@ -120,9 +120,9 @@ export async function GET() {
       else status = 'empty';
 
       const totalAmount = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-      let guestCount = activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0) || (activeOrders.length > 0 ? 2 : 0);
+      let guestCount = activeOrders.reduce((s, o) => s + (o.guest_count || 0), 0);
       if (reservation) guestCount = reservation.guests || guestCount;
-      if (!guestCount) guestCount = f.guest_count || 0;
+      if (!guestCount) guestCount = f.guest_count || (activeOrders.length > 0 ? 2 : 0);
 
       floorMap[fn].tables.push({
         id: f.id,

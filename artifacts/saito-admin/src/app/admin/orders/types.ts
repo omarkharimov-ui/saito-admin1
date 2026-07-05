@@ -9,7 +9,10 @@ export interface OrderItem {
   is_on_hold?: boolean;
   prepared_quantity?: number;
   served_quantity?: number;
+  kitchen_status?: string | null;
   course?: string;
+  special_notes?: string;
+  combo_group_id?: string;
 }
 
 export function getOrderTypeLabel(type: string | undefined, t: (key: string) => string): string {

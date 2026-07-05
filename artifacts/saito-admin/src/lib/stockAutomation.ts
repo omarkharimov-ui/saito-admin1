@@ -41,7 +41,7 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
   // 1. Sifarişin item-lərini çək (product tipi ilə birlikdə)
   const { data: items, error } = await supabase
     .from('order_items')
-    .select('quantity, product_id, products(is_ready_product, direct_ingredient_id)')
+    .select('id, quantity, product_id, products(is_ready_product, direct_ingredient_id)')
     .eq('order_id', orderId);
 
   if (error || !items || items.length === 0) {
@@ -51,7 +51,7 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
 
   console.log('[stockAutomation] Order items:', JSON.stringify(items, null, 2));
 
-  const logs: { ingredient_id: string; type: 'order_consumption'; quantity: number; reason: string; order_id: string }[] = [];
+  const logs: { ingredient_id: string; type: 'order_consumption'; quantity: number; reason: string; order_id: string; order_item_id: string; item_quantity: number }[] = [];
 
   // Hazır məhsulların id-lərini topla (resept yox, birbaşa ingredient)
   const readyProductIds: string[] = [];
@@ -79,6 +79,8 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
         type: 'order_consumption',
         quantity: qty,
         order_id: orderId,
+        order_item_id: item.id!,
+        item_quantity: qty,
         reason: `Hazır məhsul satışı — Sifariş #${orderId}`,
       });
     }
@@ -128,6 +130,8 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
             type: 'order_consumption',
             quantity: deductQty,
             order_id: orderId,
+            order_item_id: item.id!,
+            item_quantity: Number(item.quantity) || 1,
             reason: `Reseptli satış — Sifariş #${orderId}`,
           });
 

@@ -200,8 +200,8 @@ export const OrderModal = ({
     return map[reasonKey] ?? fallback ?? reasonKey;
   };
 
-  // @ts-ignore
-  const cfg = (getStatusConfig(t) as any)[order.status] ?? (getStatusConfig(t) as any).new;
+  const statusConfig = getStatusConfig(t) as Record<string, any>;
+  const cfg = statusConfig[order.status] ?? statusConfig.new;
   const isLocked = acting;
   const closeAndRefresh = () => { onClose(); onRefresh(); };
 
@@ -253,6 +253,10 @@ export const OrderModal = ({
       toast.error(`Təhvil verilmiş məhsul azaldıla bilməz (${served} ədəd)`, { id: 'served-qty' });
       return;
     }
+    if (delta < 0 && item.kitchen_status === 'ready') {
+      toast.error('Hazır məhsul azaldıla bilməz. İtki olaraq qeyd edin.', { id: 'ready-qty' });
+      return;
+    }
     const next = current + delta;
     if (next <= 0) { setPendingDeleteItemId(item.id); return; }
     setDraftQty(prev => ({ ...prev, [item.id]: next }));
@@ -268,6 +272,35 @@ export const OrderModal = ({
 
     (async () => {
       try {
+        // Item-level stock reversal — reverse only what changed, proportionally
+        const itemsToReverse: { order_item_id: string; reverse_qty: number }[] = [];
+        for (const id of snapDeleted) {
+          const item = order.order_items?.find(i => i.id === id);
+          if (!item) continue;
+          if ((item.served_quantity ?? 0) > 0) continue;
+          itemsToReverse.push({ order_item_id: id, reverse_qty: item.quantity });
+        }
+        for (const id of snapReturned) {
+          const item = order.order_items?.find(i => i.id === id);
+          if (!item) continue;
+          if ((item.served_quantity ?? 0) > 0) continue;
+          itemsToReverse.push({ order_item_id: id, reverse_qty: item.quantity });
+        }
+        for (const [id, newQty] of Object.entries(snapDraft)) {
+          const item = order.order_items?.find(i => i.id === id);
+          if (!item) continue;
+          const oldQty = item.quantity;
+          if (newQty >= oldQty) continue;
+          const diff = oldQty - newQty;
+          if ((item.served_quantity ?? 0) > 0) continue;
+          itemsToReverse.push({ order_item_id: id, reverse_qty: diff });
+        }
+        if (itemsToReverse.length > 0) {
+          await supabase.rpc('reverse_stock_deduction_for_items', {
+            p_items: JSON.stringify(itemsToReverse),
+          });
+        }
+
         for (const id of snapDeleted) {
           const item = order.order_items?.find(i => i.id === id);
           if (item && (item.served_quantity ?? 0) > 0) continue;
@@ -466,6 +499,10 @@ export const OrderModal = ({
       const served = item.served_quantity ?? 0;
       if (served > 0) {
         toast.error(`Təhvil verilmiş məhsul silinə bilməz — ${served} ədəd artıq təhvil verilib`, { id: 'served-del' });
+        return;
+      }
+      if (item.kitchen_status === 'ready') {
+        toast.error('Hazır məhsul silinə bilməz. İtki olaraq qeyd edin.', { id: 'ready-del' });
         return;
       }
       setPendingDeleteItemId(item.id);

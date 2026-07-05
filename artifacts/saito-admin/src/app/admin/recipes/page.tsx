@@ -335,24 +335,25 @@ export default function RecipesPage() {
   return (
     <PageTransition className="min-h-screen p-6 max-w-5xl mx-auto">
       <GlassCard intensity="light" padding="lg" className="mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gold/10 border border-gold/20 flex items-center justify-center">
               <CookingPot size={18} className="text-gold" />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-xl font-bold text-white">Reseptlər</h1>
               <p className="text-white/30 text-xs">Hər məhsulun hazırlanması üçün tələb olunan xəmmal</p>
             </div>
-            <div className="flex items-center gap-2">
-              {(['recipes', 'intelligence'] as const).map(m => (
-                <button key={m} onClick={() => setViewMode(m)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
-                    viewMode === m ? 'bg-white/10 text-white border border-white/15' : 'text-white/30 hover:text-white/60 border border-transparent'
-                  }`}>
-                  {m === 'recipes' ? 'Reseptlər' : 'İntellekt'}
-                </button>
-              ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(['recipes', 'intelligence'] as const).map(m => (
+              <button key={m} onClick={() => setViewMode(m)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
+                  viewMode === m ? 'bg-white/10 text-white border border-white/15' : 'text-white/30 hover:text-white/60 border border-transparent'
+                }`}>
+                {m === 'recipes' ? 'Reseptlər' : 'İntellekt'}
+              </button>
+            ))}
             <button
               onClick={() => { setEditConstructorProductId(undefined); setConstructorOpen(true); }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 transition-all"
@@ -385,8 +386,7 @@ export default function RecipesPage() {
             </button>
           </div>
         </div>
-      </div>
-    </GlassCard>
+      </GlassCard>
 
       {viewMode === 'intelligence' && (
         <IntelligenceTab />

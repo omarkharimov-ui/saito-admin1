@@ -64,7 +64,9 @@ export async function POST(request: NextRequest) {
             unit_price: item.unit_price,
             total_price: Number(item.unit_price) * Number(item.quantity),
             modifiers: item.modifiers,
-            kitchen_status: 'ready' // Usually split items are already cooked
+            special_notes: item.special_notes || null,
+            combo_group_id: item.combo_group_id || null,
+            kitchen_status: 'ready',
           }),
         });
 

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
     });
 
-    // If there are active orders, cancel them too
+    // If there are active orders, cancel them — no stock reversal (loss = ingredient already consumed)
     const { data: orders } = await supabase
       .from('orders')
       .select('id')

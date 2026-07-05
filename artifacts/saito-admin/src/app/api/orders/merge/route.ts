@@ -196,7 +196,16 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify(targetReservationPatch),
       });
 
-      return { primary_order_id: primaryOrder.id, targetTable, merged_tables: restTables };
+      return {
+        primary_order_id: primaryOrder.id,
+        targetTable,
+        merged_tables: restTables,
+        undo: {
+          sourceOrders: sourceOrders.map(o => ({ id: o.id, version: o.version, total_amount: o.total_amount })),
+          sourceTableNumbers: restTables,
+          targetTable,
+        },
+      };
     });
 
     if (!result.success) {

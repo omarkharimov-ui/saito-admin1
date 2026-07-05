@@ -94,7 +94,14 @@ export async function POST(request: NextRequest) {
         }),
       });
 
-      return { from_table, to_table, moved_count: sourceOrders.length };
+      return {
+        from_table, to_table, moved_count: sourceOrders.length,
+        undo: {
+          orderIds: sourceOrders.map((o: any) => o.id),
+          fromTable: from_table,
+          toTable: to_table,
+        },
+      };
     });
 
     if (!result.success) {

@@ -155,18 +155,22 @@ export async function POST(request: Request) {
       // Add items to order (new or existing)
       for (const item of items) {
         const itemTotal = Number(item.total_price) || (Number(item.unit_price) * Number(item.quantity));
+        const payload: Record<string, any> = {
+          order_id: activeOrder.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: itemTotal,
+          modifiers: typeof item.modifiers === 'string' ? item.modifiers : JSON.stringify(item.modifiers || []),
+        };
+        if (item.combo_group_id) payload.combo_group_id = item.combo_group_id;
+        if (item.special_notes) payload.special_notes = item.special_notes;
+        if (item.variant_id) payload.variant_id = item.variant_id;
         await fetch(`${svc().url}/rest/v1/order_items`, {
           method: 'POST',
           headers: svc().headers,
-          body: JSON.stringify({
-            order_id: activeOrder.id,
-            product_id: item.product_id,
-            product_name: item.product_name,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: itemTotal,
-            modifiers: typeof item.modifiers === 'string' ? item.modifiers : JSON.stringify(item.modifiers || []),
-          }),
+          body: JSON.stringify(payload),
         });
       }
 

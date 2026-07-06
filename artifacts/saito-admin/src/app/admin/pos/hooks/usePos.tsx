@@ -87,14 +87,20 @@ export function usePos() {
         
         // Strictly Group Merged Tables
         const groups: Record<number, any> = {};
-        const allInvolvedTableNumbers = new Set<number>();
+        const childTableNumbers = new Set<number>();
+        const parentTableNumbers = new Set<number>();
 
-        // 1. Identify all child tables
+        // 1. Identify all parent-child relationships first
         rawTables.forEach((t: PosTable) => {
           if (t.status === 'merged' && t.merged_into_table) {
-            allInvolvedTableNumbers.add(t.table_number);
-            allInvolvedTableNumbers.add(t.merged_into_table);
-            
+            childTableNumbers.add(t.table_number);
+            parentTableNumbers.add(t.merged_into_table);
+          }
+        });
+
+        // 2. Build the groups
+        rawTables.forEach((t: PosTable) => {
+          if (t.status === 'merged' && t.merged_into_table) {
             if (!groups[t.merged_into_table]) {
               const parentTable = rawTables.find((pt: PosTable) => pt.table_number === t.merged_into_table);
               groups[t.merged_into_table] = {
@@ -106,8 +112,9 @@ export function usePos() {
               };
             }
             groups[t.merged_into_table].children.push(t);
-            groups[t.merged_into_table].total_amount += (t.total_amount || 0);
-            groups[t.merged_into_table].total_guests += (t.guest_count || 0);
+            // Parent's total_amount in DB is ALREADY the sum (from merge_tables_v3)
+            // So we don't need to add child totals manually here to avoid double counting
+            // unless the DB sum is not updated yet. Let's trust SSOT from parent.
           }
         });
 
@@ -117,8 +124,8 @@ export function usePos() {
           
           return {
             ...f,
-            // ONLY show tables that are NOT part of any group
-            tables: floorTables.filter((t: PosTable) => !allInvolvedTableNumbers.has(t.table_number)),
+            // ONLY show tables that are NOT part of any group (neither child nor a parent that has children)
+            tables: floorTables.filter((t: PosTable) => !childTableNumbers.has(t.table_number) && !parentTableNumbers.has(t.table_number)),
             // Add groups only if the parent belongs to this floor
             merged_groups: Object.values(groups).filter(g => floorTables.some((t: PosTable) => t.table_number === g.parent.table_number))
           };

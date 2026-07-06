@@ -430,7 +430,7 @@ export default function POSPage() {
 
       <ActionSheet 
         table={actionSheetTable} open={actionSheetOpen} onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} onAddOrder={() => { pos.selectTable(actionSheetTable!); setActionSheetOpen(false); }} onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable!.table_number]); setActionSheetOpen(false); }} onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable!.table_number); setActionSheetOpen(false); }} onCloseBill={() => { openPayment(actionSheetTable!.table_number, actionSheetTable!.total_amount, actionSheetTable!.order_ids ?? []); setActionSheetOpen(false); }} 
-        onUnmerge={() => { setSplitMode(true); setSelectedForSplit([actionSheetTable!.table_number]); }}
+        onUnmerge={() => { setSplitMode(true); setSelectedForSplit([]); }}
         onBillSplit={async () => { 
           if (!actionSheetTable?.order_ids?.[0]) return;
           const { data } = await supabase.from('order_items').select('*').eq('order_id', actionSheetTable.order_ids[0]);
@@ -733,9 +733,11 @@ export default function POSPage() {
                     onClick={() => {
                       const detail = mergedGroupDetail;
                       if (!detail) return;
+                      setActionSheetTable(detail.parent);
                       setSplitMode(true);
-                      setSelectedForSplit([detail.parent.table_number, ...detail.children.map(c => c.table_number)]);
+                      setSelectedForSplit(detail.children.map(c => c.table_number));
                       setMergedGroupDetail(null);
+                      setActionSheetOpen(true);
                     }}
                     className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${
                       lightMode ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20'
@@ -747,9 +749,11 @@ export default function POSPage() {
                     onClick={() => {
                       const detail = mergedGroupDetail;
                       if (!detail) return;
+                      setActionSheetTable(detail.parent);
                       setTransferMode(true);
                       setTransferSource(detail.parent.table_number);
                       setMergedGroupDetail(null);
+                      setActionSheetOpen(true);
                     }}
                     className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${
                       lightMode ? 'bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'

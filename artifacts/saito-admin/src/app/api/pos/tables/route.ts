@@ -194,10 +194,17 @@ export async function GET() {
 
     const result = Object.values(floorMap).map(f => ({
       ...f,
-      tables: f.tables.sort((a: any, b: any) => a.sort_order - b.sort_order),
+      tables: f.tables.sort((a: any, b: any) => a.table_number - b.table_number),
+      merged_groups: f.merged_groups
     }));
 
-    return NextResponse.json({ tables: result.flatMap(f => f.tables), floors: result }, {
+    // CRITICAL: Ensure 'tables' flat list also reflects the grouping logic
+    const allTablesFlat = result.flatMap(f => [
+      ...f.tables,
+      ...f.merged_groups.map((mg: any) => mg.parent)
+    ]);
+
+    return NextResponse.json({ tables: allTablesFlat, floors: result }, {
       headers: { 'Cache-Control': 'no-store, must-revalidate' },
     });
   } catch (error: any) {

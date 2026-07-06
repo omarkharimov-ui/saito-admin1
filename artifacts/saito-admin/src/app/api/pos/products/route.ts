@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
-import { supabase } from '@/lib/supabase';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function GET() {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
+
+    const supabase = await createAuthClient();
 
     const [productsRes, categoriesRes, ingredientsRes, recipesRes, variantsRes, combosRes, campaignsRes] = await Promise.all([
       supabase.from('products').select('*, category:category_id(name,name_az,name_en,name_ru)').order('created_at', { ascending: false }),
@@ -19,10 +20,12 @@ export async function GET() {
 
     // Compute effective prices server-side
     const now = new Date().toISOString();
-    const products = (productsRes.data || []).map((p: any) => ({
-      ...p,
-      effective_price: computeEffectivePrice(p, (campaignsRes.data || []), now),
-    }));
+    const products = (productsRes.data || [])
+      .filter((p: any) => p.is_available !== false && p.is_in_stock !== false)
+      .map((p: any) => ({
+        ...p,
+        effective_price: computeEffectivePrice(p, (campaignsRes.data || []), now),
+      }));
 
     // Compute combo pricings server-side
     const combos = (combosRes.data || []).map((c: any) => ({

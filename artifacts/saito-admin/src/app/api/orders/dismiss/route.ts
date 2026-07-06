@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Table number required' }, { status: 400 });
     }
 
-    const { data, error } = await supabase.rpc('dismiss_table_session', {
+    const { data, error } = await supabase.rpc('dismiss_table_v3', {
       p_table_number: table_number,
     });
 

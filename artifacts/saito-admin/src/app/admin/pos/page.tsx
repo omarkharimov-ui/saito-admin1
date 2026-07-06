@@ -389,6 +389,7 @@ export default function POSPage() {
                      <h1 className="text-3xl font-black tracking-tighter mr-2">POS</h1>
                      {pos.floors.length > 0 && <LiquidDropdown options={pos.floors.map(f => ({ id: f.name, label: f.name }))} activeId={selectedFloorName} onChange={(id) => setSelectedFloor(id)} />}
                    </div>
+                   {/* Cleaned Header - Removed messy banners */}
                     <div className="flex items-center gap-3">
                       <button onClick={openArchive} className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white transition-all shadow-sm">
                         <History size={20} />

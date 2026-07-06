@@ -85,18 +85,21 @@ export function usePos() {
         const data = await (tablesRes as Response).json();
         const rawTables = data.tables || [];
         
-        // Group merged tables
+        // Strictly Group Merged Tables
         const groups: Record<number, any> = {};
-        const childTableNumbers = new Set<number>();
+        const allInvolvedTableNumbers = new Set<number>();
 
+        // 1. Identify all child tables
         rawTables.forEach((t: PosTable) => {
           if (t.status === 'merged' && t.merged_into_table) {
-            childTableNumbers.add(t.table_number);
+            allInvolvedTableNumbers.add(t.table_number);
+            allInvolvedTableNumbers.add(t.merged_into_table);
+            
             if (!groups[t.merged_into_table]) {
               const parentTable = rawTables.find((pt: PosTable) => pt.table_number === t.merged_into_table);
               groups[t.merged_into_table] = {
                 id: `group-${t.merged_into_table}`,
-                parent: parentTable || t,
+                parent: parentTable || { ...t, table_number: t.merged_into_table, status: 'occupied' },
                 children: [],
                 total_amount: parentTable?.total_amount || 0,
                 total_guests: parentTable?.guest_count || 0
@@ -108,18 +111,15 @@ export function usePos() {
           }
         });
 
-        // Also identify parents that have children but might not be marked 'merged' themselves
-        const parentTableNumbers = new Set(Object.keys(groups).map(Number));
-
         newTables = rawTables;
         newFloors = (data.floors || []).map((f: any) => {
           const floorTables = (f.tables || []);
           
           return {
             ...f,
-            // ONLY show tables that are NOT part of any group (neither parent nor child)
-            tables: floorTables.filter((t: PosTable) => !childTableNumbers.has(t.table_number) && !parentTableNumbers.has(t.table_number)),
-            // Add groups that belong to this floor
+            // ONLY show tables that are NOT part of any group
+            tables: floorTables.filter((t: PosTable) => !allInvolvedTableNumbers.has(t.table_number)),
+            // Add groups only if the parent belongs to this floor
             merged_groups: Object.values(groups).filter(g => floorTables.some((t: PosTable) => t.table_number === g.parent.table_number))
           };
         });

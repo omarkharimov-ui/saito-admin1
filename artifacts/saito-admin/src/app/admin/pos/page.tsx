@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle, Globe, Check, History } from 'lucide-react';
+import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle, Globe, Check, History, Users } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
@@ -89,6 +89,7 @@ export default function POSPage() {
 
   const [reservedTableDetail, setReservedTableDetail] = useState<PosTable | null>(null);
   const [reservedCountdown, setReservedCountdown] = useState<string>('');
+  const [mergedGroupDetail, setMergedGroupDetail] = useState<{ parent: PosTable; children: PosTable[] } | null>(null);
   const [showArchive, setShowArchive] = useState(false);
   const [paidOrders, setPaidOrders] = useState<any[]>([]);
   const [loadingArchive, setLoadingArchive] = useState(false);
@@ -332,16 +333,11 @@ export default function POSPage() {
       return;
     }
     
-    // Handle Merged Table Tap
-    if (table.status === 'merged') {
-        if (!table.merged_into_table) {
-          pos.selectTable(table);
-          return;
-        }
-        const parent = pos.tables.find(t => t.table_number === table.merged_into_table);
-        if (parent) pos.selectTable(parent);
-        else toast.error("Əsas masa tapılmadı");
-        return;
+    // Handle Merged Group Tap — open detail modal
+    const mergedChildren = (table as any).merged_children as PosTable[] | undefined;
+    if (mergedChildren && mergedChildren.length > 0) {
+      setMergedGroupDetail({ parent: table, children: mergedChildren });
+      return;
     }
 
     // Handle Reserved Table Tap
@@ -352,11 +348,6 @@ export default function POSPage() {
 
     pos.selectTable(table);
   }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleChildTap = useCallback((child: PosTable) => {
-    const parent = pos.tables.find(t => t.table_number === child.merged_into_table);
-    if (parent) pos.selectTable(parent);
-  }, [pos]);
 
   const openArchive = useCallback(async () => {
     setShowArchive(true);
@@ -403,7 +394,7 @@ export default function POSPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                     {(activeFloor.tables ?? []).sort((a, b) => a.table_number - b.table_number).map(table => {
                       return (
-                      <TableCard key={table.table_number} table={table} mergedChildren={(table as any).merged_children ?? []} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} isMergeParent={mergeMode && mergeParent === table.table_number} selectionMode={mergeMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} onChildTap={handleChildTap} />
+                      <TableCard key={table.table_number} table={table} mergedChildren={(table as any).merged_children ?? []} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} selectionMode={mergeMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} />
                       );
                     })}
                   </div>
@@ -615,6 +606,192 @@ export default function POSPage() {
                           Bağla
                       </button>
                   </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── BİRLƏŞMİŞ MASA DETALI MODALI ── */}
+      <AnimatePresence>
+        {mergedGroupDetail && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setMergedGroupDetail(null)}
+          >
+            <motion.div
+              initial={{ y: 60, scale: 0.95 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 60, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              className={`w-full max-w-md rounded-[2.5rem] p-8 flex flex-col gap-6 ${
+                lightMode ? 'bg-white border border-zinc-200 shadow-2xl' : 'bg-[#111] border border-white/10 shadow-2xl'
+              }`}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                      lightMode ? 'bg-indigo-100 text-indigo-600 border-indigo-200' : 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20'
+                    }`}>
+                      BİRLƏŞMİŞ
+                    </span>
+                  </div>
+                  <h2 className="text-4xl font-black tracking-tighter">
+                    Masa {mergedGroupDetail.parent.table_number}
+                  </h2>
+                  <p className={`text-sm font-bold mt-1 ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                    +{mergedGroupDetail.children.length} birləşmiş masa
+                  </p>
+                </div>
+                <button
+                  onClick={() => setMergedGroupDetail(null)}
+                  className={`p-3 rounded-2xl transition-all ${
+                    lightMode ? 'bg-zinc-100 hover:bg-zinc-200' : 'bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Tables in group */}
+              <div className="flex flex-col gap-2">
+                {/* Parent */}
+                <div className={`flex items-center justify-between px-4 py-3 rounded-2xl border ${
+                  lightMode ? 'bg-indigo-50 border-indigo-200' : 'bg-indigo-500/10 border-indigo-500/30'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${
+                      lightMode ? 'bg-indigo-200 text-indigo-700' : 'bg-indigo-500/20 text-indigo-300'
+                    }`}>
+                      {mergedGroupDetail.parent.table_number}
+                    </div>
+                    <div>
+                      <p className="font-black text-sm">Masa {mergedGroupDetail.parent.table_number}</p>
+                      <p className={`text-[10px] font-bold ${lightMode ? 'text-indigo-500' : 'text-indigo-400'}`}>Əsas masa</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <Users size={12} className="opacity-40" />
+                      <span className="text-xs font-bold">{mergedGroupDetail.parent.guest_count ?? 0}</span>
+                    </div>
+                    <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                      ₼{(mergedGroupDetail.parent.total_amount ?? 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Children */}
+                {mergedGroupDetail.children.map(child => (
+                  <div key={child.table_number} className={`flex items-center justify-between px-4 py-3 rounded-2xl border ${
+                    lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${
+                        lightMode ? 'bg-zinc-200 text-zinc-600' : 'bg-white/10 text-zinc-400'
+                      }`}>
+                        {child.table_number}
+                      </div>
+                      <div>
+                        <p className="font-black text-sm">Masa {child.table_number}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1">
+                        <Users size={12} className="opacity-40" />
+                        <span className="text-xs font-bold">{child.guest_count ?? 0}</span>
+                      </div>
+                      <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                        ₼{(child.total_amount ?? 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totals */}
+              <div className={`p-4 rounded-2xl flex items-center justify-between ${
+                lightMode ? 'bg-zinc-50 border border-zinc-100' : 'bg-white/5 border border-white/5'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Users size={16} className="opacity-40" />
+                  <span className="font-black">
+                    {mergedGroupDetail.children.reduce((s, c) => s + (c.guest_count ?? 0), 0) + (mergedGroupDetail.parent.guest_count ?? 0)} nəf.
+                  </span>
+                </div>
+                <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                  ₼{(mergedGroupDetail.children.reduce((s, c) => s + (c.total_amount ?? 0), 0) + (mergedGroupDetail.parent.total_amount ?? 0)).toFixed(2)}
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => {
+                      setSplitMode(true);
+                      setSelectedForSplit([mergedGroupDetail.parent.table_number, ...mergedGroupDetail.children.map(c => c.table_number)]);
+                      setMergedGroupDetail(null);
+                    }}
+                    className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${
+                      lightMode ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20'
+                    }`}
+                  >
+                    Ayır
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTransferMode(true);
+                      setTransferSource(mergedGroupDetail.parent.table_number);
+                      setMergedGroupDetail(null);
+                    }}
+                    className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${
+                      lightMode ? 'bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'
+                    }`}
+                  >
+                    Köçür
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const orderIds = mergedGroupDetail.parent.order_ids ?? [];
+                      if (orderIds.length > 0) {
+                        await openPayment(mergedGroupDetail.parent.table_number, mergedGroupDetail.parent.total_amount ?? 0, orderIds);
+                      }
+                      setMergedGroupDetail(null);
+                    }}
+                    className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${
+                      lightMode ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                    }`}
+                  >
+                    Hesab
+                  </button>
+                  <button
+                    onClick={() => {
+                      pos.selectTable(mergedGroupDetail.parent);
+                      setMergedGroupDetail(null);
+                    }}
+                    className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${
+                      lightMode ? 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20'
+                    }`}
+                  >
+                    Sifariş
+                  </button>
+                </div>
+                <button
+                  onClick={() => setMergedGroupDetail(null)}
+                  className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${
+                    lightMode ? 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 text-white/40 hover:bg-white/10'
+                  }`}
+                >
+                  Bağla
+                </button>
               </div>
             </motion.div>
           </motion.div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreVertical, AlertTriangle, Users, Check, Clock, ChevronRight } from 'lucide-react';
+import { MoreVertical, AlertTriangle, Users, Check, Clock, Link2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -11,10 +11,8 @@ interface TableCardProps {
   table: PosTable;
   onTap: () => void;
   onAction: () => void;
-  onChildTap?: (child: PosTable) => void;
   isSelected?: boolean;
   selectionMode?: boolean;
-  isMergeParent?: boolean;
   isTransferSource?: boolean;
   isTransferTarget?: boolean;
   isOverdue?: boolean;
@@ -23,7 +21,7 @@ interface TableCardProps {
   mergedChildren?: PosTable[];
 }
 
-export function TableCard({ table, onTap, onAction, onChildTap, isSelected, selectionMode, isMergeParent, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, mergedChildren = [] }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, mergedChildren = [] }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
@@ -61,84 +59,93 @@ export function TableCard({ table, onTap, onAction, onChildTap, isSelected, sele
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // --- GROUP CARD ---
+  // --- GROUP CARD (Table X (+N) style) ---
   if (isGroup) {
     return (
       <div
         onClick={onTap}
-        className={`relative h-[220px] rounded-[32px] p-6 text-left transition-all duration-300 group overflow-hidden border-2 cursor-pointer
-          ${lightMode ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-indigo-950/20 border-indigo-500/20 shadow-md'}`}
+        className={`relative h-[260px] rounded-[32px] p-6 text-left transition-all duration-300 overflow-hidden border-2 cursor-pointer
+          ${lightMode ? 'bg-white border-indigo-300 shadow-md hover:shadow-lg' : 'bg-zinc-900 border-indigo-500/40 shadow-md hover:shadow-indigo-500/10'}`}
       >
-        {/* Group badge */}
-        <div className={`absolute top-0 left-0 right-0 h-1 ${lightMode ? 'bg-indigo-400' : 'bg-indigo-500'}`} />
+        {/* Top accent bar */}
+        <div className={`absolute top-0 left-0 right-0 h-1.5 ${lightMode ? 'bg-indigo-400' : 'bg-indigo-500'}`} />
 
-        <div className="flex items-center gap-2 mb-1">
-          <div className={`px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-widest ${lightMode ? 'bg-indigo-200 text-indigo-700' : 'bg-indigo-500/20 text-indigo-300'}`}>
-            QRUP
-          </div>
-          <span className={`text-4xl font-black tracking-tighter ${lightMode ? 'text-indigo-800' : 'text-indigo-300'}`}>
-            {table.table_number}
-          </span>
-        </div>
-
-        {/* Child tables list */}
-        <div className="mt-3 space-y-1.5">
-          {[table, ...mergedChildren].slice(0, 5).map((child) => (
-            <div
-              key={child.table_number}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (child.table_number === table.table_number) onTap();
-                else onChildTap?.(child);
-              }}
-              className={`flex items-center justify-between px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all
-                ${lightMode ? 'bg-white/70 text-zinc-700 hover:bg-white' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
-            >
-              <div className="flex items-center gap-2">
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black ${lightMode ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'}`}>
-                  {child.table_number}
-                </span>
-                <span>{child.table_number === table.table_number ? '(əsas)' : ''}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                {(child.guest_count ?? 0) > 0 && (
-                  <span className="opacity-50">{child.guest_count ?? 0} nəf.</span>
-                )}
-                <span className="tabular-nums">₼{(child.total_amount ?? 0).toFixed(2)}</span>
-              </div>
-            </div>
-          ))}
-          {mergedChildren.length > 4 && (
-            <div className="text-[9px] font-bold opacity-40 text-center">+{mergedChildren.length - 4} daha</div>
-          )}
-        </div>
-
-        {/* Group totals */}
-        <div className="absolute bottom-4 left-6 right-6 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Users size={12} className="opacity-40" />
-            <span className={`text-[10px] font-bold ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>{totalGuest} nəf.</span>
-          </div>
+        {/* Header row: Table X (+N) */}
+        <div className="flex items-center justify-between mt-1">
           <div className="flex items-center gap-2">
-            <div className={`px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest
-              ${lightMode ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/10 text-emerald-400'}`}>
-              Qrup
-            </div>
-            <span className={`text-lg font-black tabular-nums ${lightMode ? 'text-indigo-700' : 'text-indigo-400'}`}>
-              ₼{totalAmount.toFixed(2)}
+            <span className={`text-4xl font-black tracking-tighter ${lightMode ? 'text-indigo-700' : 'text-indigo-300'}`}>
+              Masa {table.table_number}
+            </span>
+            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${lightMode ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'}`}>
+              +{mergedChildren.length}
             </span>
           </div>
-        </div>
-
-        {selectionMode && (
-          <div className="absolute top-4 right-4 z-10">
+          {selectionMode ? (
             <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-              isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'bg-white border-zinc-300' : 'bg-white/5 border-white/10')
+              isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')
             }`}>
               <AnimatePresence>{isSelected && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}><Check size={18} className="text-white" strokeWidth={3} /></motion.div>}</AnimatePresence>
             </div>
+          ) : (
+            <button onClick={(e) => { e.stopPropagation(); onAction(); }} className={`p-2 rounded-full transition-colors ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/10'}`}>
+              <MoreVertical size={20} className="opacity-30 hover:opacity-60" />
+            </button>
+          )}
+        </div>
+
+        {/* Guests + Total row */}
+        <div className="flex items-center gap-4 mt-2">
+          <div className="flex items-center gap-1">
+            <Users size={14} className={lightMode ? 'text-zinc-400' : 'text-zinc-500'} />
+            <span className={`text-xs font-bold ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>{totalGuest} nəf.</span>
           </div>
-        )}
+          <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+            ₼{totalAmount.toFixed(2)}
+          </span>
+        </div>
+
+        {/* Merged tables list */}
+        <div className="mt-3 space-y-1">
+          <div className={`flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+            <Link2 size={10} />
+            Birləşmiş Masalar
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {/* Parent */}
+            <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border
+              ${lightMode ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'}`}>
+              <Check size={9} strokeWidth={3} />
+              Masa {table.table_number}
+              <span className="opacity-50 text-[8px] font-black ml-0.5">(əsas)</span>
+            </div>
+            {/* Children */}
+            {mergedChildren.slice(0, 6).map(child => (
+              <div key={child.table_number} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold
+                ${lightMode ? 'bg-zinc-50 text-zinc-600 border border-zinc-200' : 'bg-white/5 text-zinc-400 border border-white/10'}`}>
+                Masa {child.table_number}
+              </div>
+            ))}
+            {mergedChildren.length > 6 && (
+              <div className={`text-[9px] font-bold opacity-40 px-1 py-1`}>+{mergedChildren.length - 6}</div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom status */}
+        <div className="absolute bottom-5 left-6 right-6 flex items-center justify-between">
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest
+            ${lightMode ? 'bg-indigo-50 border-indigo-200 text-indigo-500' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${lightMode ? 'bg-indigo-400' : 'bg-indigo-500'}`} />
+            Qrup
+          </div>
+          {delaySec > 0 && (
+            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[10px] font-black tabular-nums
+              ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-400' : 'bg-white/5 border-white/5 text-white/40'}`}>
+              <Clock size={10} strokeWidth={3} />
+              {formatDelay(delaySec)}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -207,12 +214,7 @@ export function TableCard({ table, onTap, onAction, onChildTap, isSelected, sele
         </div>
       )}
 
-      <div className="absolute top-4 right-4 flex items-center gap-2">
-        {isMergeParent && (
-          <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${lightMode ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-amber-500/20 border-amber-500/40 text-amber-400'}`}>
-            Əsas
-          </div>
-        )}
+      <div className="absolute top-4 right-4">
         {selectionMode ? (
           <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
             isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')

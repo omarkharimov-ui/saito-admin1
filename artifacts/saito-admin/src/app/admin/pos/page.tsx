@@ -349,6 +349,9 @@ export default function POSPage() {
           return;
         }
         setTransferTarget(table.table_number);
+        // Automatically trigger confirmation modal/action when target is selected
+        setActionSheetTable(pos.tables.find(t => t.table_number === transferSource) || null);
+        setActionSheetOpen(true);
       }
       return;
     }

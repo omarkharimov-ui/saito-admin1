@@ -83,20 +83,48 @@ export function usePos() {
 
       if (tablesRes && 'ok' in tablesRes && tablesRes.ok) {
         const data = await (tablesRes as Response).json();
-        newTables = data.tables || [];
-        newFloors = data.floors || [];
-        // Guard: recently dismissed tables should stay empty regardless of stale API data
-        if (dismissedTablesRef.current.size > 0) {
-          newTables = newTables.map((t: PosTable) =>
-            dismissedTablesRef.current.has(t.table_number) ? resetTable(t) : t
-          );
-          newFloors = newFloors.map((f: any) => ({
+        const rawTables = data.tables || [];
+        
+        // Group merged tables
+        const groups: Record<number, any> = {};
+        const individualTables: PosTable[] = [];
+
+        rawTables.forEach((t: PosTable) => {
+          if (t.status === 'merged' && t.merged_into_table) {
+            if (!groups[t.merged_into_table]) {
+              groups[t.merged_into_table] = {
+                id: `group-${t.merged_into_table}`,
+                parent: rawTables.find((pt: PosTable) => pt.table_number === t.merged_into_table) || t,
+                children: [],
+                total_amount: 0,
+                total_guests: 0
+              };
+            }
+            groups[t.merged_into_table].children.push(t);
+            groups[t.merged_into_table].total_amount += (t.total_amount || 0);
+            groups[t.merged_into_table].total_guests += (t.guest_count || 0);
+          }
+        });
+
+        // Add parent's own totals to groups
+        Object.keys(groups).forEach(parentNum => {
+          const g = groups[Number(parentNum)];
+          g.total_amount += (g.parent.total_amount || 0);
+          g.total_guests += (g.parent.guest_count || 0);
+        });
+
+        newTables = rawTables;
+        newFloors = (data.floors || []).map((f: any) => {
+          const floorTables = (f.tables || []);
+          const mergedIntoSet = new Set(Object.keys(groups).map(Number));
+          
+          return {
             ...f,
-            tables: (f.tables || []).map((t: PosTable) =>
-              dismissedTablesRef.current.has(t.table_number) ? resetTable(t) : t
-            ),
-          }));
-        }
+            tables: floorTables.filter((t: PosTable) => t.status !== 'merged' && !mergedIntoSet.has(t.table_number)),
+            merged_groups: Object.values(groups).filter(g => floorTables.some((t: PosTable) => t.table_number === g.parent.table_number))
+          };
+        });
+
         setTables(newTables);
         setFloors(newFloors);
       }

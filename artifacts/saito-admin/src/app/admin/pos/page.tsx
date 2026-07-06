@@ -316,19 +316,38 @@ export default function POSPage() {
         setMergeParent(table.table_number);
         setSelectedForMerge([table.table_number]);
       } else if (table.table_number === mergeParent) {
+        // Unselecting parent resets everything
         setMergeParent(null);
         setSelectedForMerge([]);
       } else {
-        if (selectedForMerge.includes(table.table_number)) setSelectedForMerge(p => p.filter(n => n !== table.table_number));
-        else setSelectedForMerge(p => [...p, table.table_number]);
+        // Toggle selection for child tables
+        if (selectedForMerge.includes(table.table_number)) {
+          setSelectedForMerge(p => p.filter(n => n !== table.table_number));
+        } else {
+          setSelectedForMerge(p => [...p, table.table_number]);
+        }
       }
       return;
     }
+
     if (transferMode) {
       if (table.status === 'merged') return;
       if (!transferSource) {
+        if (table.status === 'empty') {
+          toast.error('Boş masanı köçürmək olmaz');
+          return;
+        }
         setTransferSource(table.table_number);
-      } else if (!transferTarget && table.table_number !== transferSource) {
+        toast(`Mənbə: Masa ${table.table_number}. İndi hədəf masanı seçin.`);
+      } else if (table.table_number === transferSource) {
+        // Clicking same table cancels transfer
+        setTransferSource(null);
+        setTransferTarget(null);
+      } else {
+        if (table.status !== 'empty') {
+          toast.error('Hədəf masa boş olmalıdır');
+          return;
+        }
         setTransferTarget(table.table_number);
       }
       return;
@@ -341,7 +360,7 @@ export default function POSPage() {
     }
 
     pos.selectTable(table);
-  }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mergeMode, mergeParent, selectedForMerge, transferMode, transferSource, pos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openArchive = useCallback(async () => {
     setShowArchive(true);

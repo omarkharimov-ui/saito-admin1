@@ -42,7 +42,7 @@ export function usePos() {
   const dismissedTablesRef = useRef<Set<number>>(new Set());
 
   const resetTable = useCallback((t: PosTable): PosTable => ({
-    ...t, status: 'empty' as const, reservation_id: null as any, reservation_name: null, reservation_phone: null, reservation_time: null, guest_count: 0, merged_into_table: null, total_amount: 0, order_count: 0, order_ids: [], merged_orders: [], has_pending: false
+    ...t, status: 'empty' as const, reservation_id: null as any, reservation_name: null, reservation_phone: null, reservation_time: null, guest_count: 0, merged_into_table: null, total_amount: 0, order_count: 0, order_ids: [], has_pending: false
   }), []);
 
   /* ── State ── */

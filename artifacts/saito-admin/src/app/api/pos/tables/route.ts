@@ -175,20 +175,20 @@ export async function GET() {
         order_count: activeOrders.length,
         order_ids: activeOrders.map(o => o.id),
         merged_into_table: null,
-        merged_orders: children.map(c => ({ table_number: c.table_number })),
-        merged_children: children,
         has_pending: activeOrders.some(o => o.kitchen_status === 'pending' || o.kitchen_status == null),
       };
 
-      floorMap[fn].tables.push(tableObj);
-
       if (isMergedGroup) {
+        const mergedGroupId = `merged_${f.table_number}`;
         floorMap[fn].merged_groups.push({
+          id: mergedGroupId,
           parent: tableObj,
           children,
           total_guests: guestCount + childGuestTotal,
           total_amount: totalAmount + childAmountTotal,
         });
+      } else {
+        floorMap[fn].tables.push(tableObj);
       }
     }
 

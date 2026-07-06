@@ -7,6 +7,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
 import { TableCard } from './components/TableCard';
+import { MergedGroupCard } from './components/MergedGroupCard';
 import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
@@ -17,7 +18,7 @@ import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
 import SimpleToaster from '@/app/admin/components/layout/SimpleToaster';
 import { supabase } from '@/lib/supabase';
-import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable, LossItem } from './types/shared';
+import type { PosModifierSelection, PaymentInfo, PosProduct, PosTable, LossItem, MergedGroup } from './types/shared';
 
 import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
 import { localStore } from '@/lib/sync/OfflineStore';
@@ -89,7 +90,7 @@ export default function POSPage() {
 
   const [reservedTableDetail, setReservedTableDetail] = useState<PosTable | null>(null);
   const [reservedCountdown, setReservedCountdown] = useState<string>('');
-  const [mergedGroupDetail, setMergedGroupDetail] = useState<{ parent: PosTable; children: PosTable[] } | null>(null);
+  const [mergedGroupDetail, setMergedGroupDetail] = useState<MergedGroup | null>(null);
   const [showArchive, setShowArchive] = useState(false);
   const [paidOrders, setPaidOrders] = useState<any[]>([]);
   const [loadingArchive, setLoadingArchive] = useState(false);
@@ -333,13 +334,6 @@ export default function POSPage() {
       return;
     }
     
-    // Handle Merged Group Tap — open detail modal
-    const mergedChildren = (table as any).merged_children as PosTable[] | undefined;
-    if (mergedChildren && mergedChildren.length > 0) {
-      setMergedGroupDetail({ parent: table, children: mergedChildren });
-      return;
-    }
-
     // Handle Reserved Table Tap
     if (table.status === 'reserved') {
       setReservedTableDetail(table);
@@ -392,11 +386,12 @@ export default function POSPage() {
               <div className="flex-1 overflow-y-auto p-6 pt-2">
                 {activeFloor ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {(activeFloor.tables ?? []).sort((a, b) => a.table_number - b.table_number).map(table => {
-                      return (
-                      <TableCard key={table.table_number} table={table} mergedChildren={(table as any).merged_children ?? []} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} selectionMode={mergeMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} />
-                      );
-                    })}
+                    {(activeFloor.tables ?? []).sort((a, b) => a.table_number - b.table_number).map(table => (
+                      <TableCard key={table.table_number} table={table} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} selectionMode={mergeMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} />
+                    ))}
+                    {(activeFloor.merged_groups ?? []).map(group => (
+                      <MergedGroupCard key={group.id} group={group} onTap={() => setMergedGroupDetail(group)} onAction={() => { setActionSheetTable(group.parent); setActionSheetOpen(true); }} />
+                    ))}
                   </div>
                 ) : <div className="flex items-center justify-center h-full text-[#8e8e93] uppercase tracking-widest font-black text-xs">Mərtəbə tapılmadı</div>}
               </div>
@@ -445,7 +440,7 @@ export default function POSPage() {
           setActionSheetOpen(false);
         }}
         onPrint={() => window.print()} onSaveDraft={() => {}} onCancelTable={() => { if (actionSheetTable) { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); } }}
-        mergeMode={mergeMode} mergeParent={mergeParent} transferMode={transferMode} splitMode={splitMode} allTables={pos.tables} selectedForMerge={selectedForMerge} selectedForSplit={selectedForSplit} transferSource={transferSource} transferTarget={transferTarget}
+        mergeMode={mergeMode} mergeParent={mergeParent} transferMode={transferMode} splitMode={splitMode} allTables={pos.tables} mergedGroupChildren={activeFloor?.merged_groups?.find(g => g.parent.table_number === actionSheetTable?.table_number)?.children} selectedForMerge={selectedForMerge} selectedForSplit={selectedForSplit} transferSource={transferSource} transferTarget={transferTarget}
         onToggleSplit={(n) => { if (selectedForSplit.includes(n)) setSelectedForSplit(p => p.filter(x => x !== n)); else setSelectedForSplit(p => [...p, n]); }}
         onConfirmSplit={async () => { 
           if (!actionSheetTable || selectedForSplit.length === 0) return;
@@ -723,11 +718,11 @@ export default function POSPage() {
                 <div className="flex items-center gap-2">
                   <Users size={16} className="opacity-40" />
                   <span className="font-black">
-                    {mergedGroupDetail.children.reduce((s, c) => s + (c.guest_count ?? 0), 0) + (mergedGroupDetail.parent.guest_count ?? 0)} nəf.
+                    {mergedGroupDetail.total_guests} nəf.
                   </span>
                 </div>
                 <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
-                  ₼{(mergedGroupDetail.children.reduce((s, c) => s + (c.total_amount ?? 0), 0) + (mergedGroupDetail.parent.total_amount ?? 0)).toFixed(2)}
+                  ₼{mergedGroupDetail.total_amount.toFixed(2)}
                 </span>
               </div>
 
@@ -736,8 +731,10 @@ export default function POSPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => {
+                      const detail = mergedGroupDetail;
+                      if (!detail) return;
                       setSplitMode(true);
-                      setSelectedForSplit([mergedGroupDetail.parent.table_number, ...mergedGroupDetail.children.map(c => c.table_number)]);
+                      setSelectedForSplit([detail.parent.table_number, ...detail.children.map(c => c.table_number)]);
                       setMergedGroupDetail(null);
                     }}
                     className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${
@@ -748,8 +745,10 @@ export default function POSPage() {
                   </button>
                   <button
                     onClick={() => {
+                      const detail = mergedGroupDetail;
+                      if (!detail) return;
                       setTransferMode(true);
-                      setTransferSource(mergedGroupDetail.parent.table_number);
+                      setTransferSource(detail.parent.table_number);
                       setMergedGroupDetail(null);
                     }}
                     className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${
@@ -760,9 +759,11 @@ export default function POSPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      const orderIds = mergedGroupDetail.parent.order_ids ?? [];
+                      const detail = mergedGroupDetail;
+                      if (!detail) return;
+                      const orderIds = detail.parent.order_ids ?? [];
                       if (orderIds.length > 0) {
-                        await openPayment(mergedGroupDetail.parent.table_number, mergedGroupDetail.parent.total_amount ?? 0, orderIds);
+                        await openPayment(detail.parent.table_number, detail.parent.total_amount ?? 0, orderIds);
                       }
                       setMergedGroupDetail(null);
                     }}
@@ -774,7 +775,9 @@ export default function POSPage() {
                   </button>
                   <button
                     onClick={() => {
-                      pos.selectTable(mergedGroupDetail.parent);
+                      const detail = mergedGroupDetail;
+                      if (!detail) return;
+                      pos.selectTable(detail.parent);
                       setMergedGroupDetail(null);
                     }}
                     className={`py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${

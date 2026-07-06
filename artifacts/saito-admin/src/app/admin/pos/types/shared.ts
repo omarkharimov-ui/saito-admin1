@@ -54,9 +54,7 @@ export interface PosTable {
   guest_count?: number | null;
   status: TableStatus;
   total_amount: number;
-  merged_orders?: unknown[] | null;
   merged_into_table?: number | null;
-  merged_children?: PosTable[];
   last_activity_at?: string | null;
   lastOrderTime?: string | null;
   opened_at?: string | null;
@@ -74,9 +72,10 @@ export interface PosTable {
   reservation_time?: string | null;
 }
 
-export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'merged' | 'reserved' | string;
+export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'reserved' | string;
 
 export interface MergedGroup {
+  id: string;
   parent: PosTable;
   children: PosTable[];
   total_guests: number;

@@ -112,7 +112,7 @@ export function usePos() {
           };
           
           // Ensure group totals include all children (safety if parent isn't aggregated yet)
-          children.forEach(c => {
+          children.forEach((c: PosTable) => {
             if (c.total_amount > 0 && Number(parentTable?.total_amount || 0) < c.total_amount) {
                groups[parentNum].total_amount += Number(c.total_amount);
             }

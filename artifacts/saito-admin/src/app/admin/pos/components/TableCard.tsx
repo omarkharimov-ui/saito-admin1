@@ -71,9 +71,10 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                     : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
         }`}
     >
-      <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors 
+      <span className={`absolute top-6 left-6 font-black tracking-tighter transition-colors flex flex-col items-start
         ${isSelected || isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
-        {table.table_number}
+        { (table as any).merged_with?.length > 0 && <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 mb-[-6px]">QRUP</span> }
+        <span className="text-5xl">{table.table_number}</span>
       </span>
 
       {isReserved && (

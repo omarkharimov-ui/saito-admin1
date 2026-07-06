@@ -175,6 +175,7 @@ export async function GET() {
         order_count: activeOrders.length,
         order_ids: activeOrders.map(o => o.id),
         merged_into_table: null,
+        merged_with: isMergedGroup ? [f.table_number, ...children.map(c => c.table_number)] : [],
         has_pending: activeOrders.some(o => o.kitchen_status === 'pending' || o.kitchen_status == null),
       };
 

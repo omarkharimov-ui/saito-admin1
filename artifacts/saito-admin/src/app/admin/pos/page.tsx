@@ -412,9 +412,6 @@ export default function POSPage() {
                     {(activeFloor.tables ?? []).sort((a, b) => a.table_number - b.table_number).map(table => (
                       <TableCard key={table.table_number} table={table} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} selectionMode={mergeMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} />
                     ))}
-                    {(activeFloor.merged_groups ?? []).map(group => (
-                      <MergedGroupCard key={group.id} group={group} onTap={() => setMergedGroupDetail(group)} onAction={() => { setActionSheetTable(group.parent); setActionSheetOpen(true); }} />
-                    ))}
                   </div>
                 ) : <div className="flex items-center justify-center h-full text-[#8e8e93] uppercase tracking-widest font-black text-xs">Mərtəbə tapılmadı</div>}
               </div>

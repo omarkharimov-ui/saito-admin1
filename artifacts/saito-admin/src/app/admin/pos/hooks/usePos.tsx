@@ -85,45 +85,45 @@ export function usePos() {
         const data = await (tablesRes as Response).json();
         const rawTables = data.tables || [];
         
-        // Strictly Group Merged Tables - Robust Logic
+        // Strictly Group Merged Tables - Final Robust Logic
         const groups: Record<number, any> = {};
-        const allInvolvedTableNumbers = new Set<number>();
+        const childTableNumbers = new Set<number>();
+        const parentTableNumbers = new Set<number>();
 
-        // 1. First pass: Identify all parent-child links regardless of status
+        // 1. Identify relationships from the entire restaurant data
         rawTables.forEach((t: PosTable) => {
-          const parentNum = t.merged_into_table;
-          if (parentNum) {
-            allInvolvedTableNumbers.add(t.table_number);
-            allInvolvedTableNumbers.add(parentNum);
+          if (t.merged_into_table) {
+            childTableNumbers.add(t.table_number);
+            parentTableNumbers.add(t.merged_into_table);
 
-            if (!groups[parentNum]) {
-              const parentTable = rawTables.find((pt: PosTable) => pt.table_number === parentNum);
-              groups[parentNum] = {
-                id: `group-${parentNum}`,
-                parent: parentTable || { ...t, table_number: parentNum, status: 'occupied' },
+            if (!groups[t.merged_into_table]) {
+              const parentTable = rawTables.find((pt: PosTable) => pt.table_number === t.merged_into_table);
+              groups[t.merged_into_table] = {
+                id: `group-${t.merged_into_table}`,
+                parent: parentTable || { ...t, table_number: t.merged_into_table, status: 'occupied' },
                 children: [],
-                total_amount: parentTable?.total_amount || 0,
-                total_guests: parentTable?.guest_count || 0
+                total_amount: Number(parentTable?.total_amount || 0),
+                total_guests: Number(parentTable?.guest_count || 0)
               };
             }
-            groups[parentNum].children.push(t);
-            // If child has data and parent doesn't reflect it, add it (safety)
-            if (t.total_amount > 0 && (!groups[parentNum].parent.total_amount || groups[parentNum].parent.total_amount < t.total_amount)) {
-                groups[parentNum].total_amount += t.total_amount;
-            }
+            groups[t.merged_into_table].children.push(t);
+            // Safety: ensure parent totals include children if not already aggregated
+            groups[t.merged_into_table].total_amount += Number(t.total_amount || 0);
+            groups[t.merged_into_table].total_guests += Number(t.guest_count || 0);
           }
         });
 
         newTables = rawTables;
         newFloors = (data.floors || []).map((f: any) => {
-          const floorTables = (f.tables || []);
+          const rawFloorTables = (f.tables || []) as PosTable[];
+          const rawFloorTableNumbers = new Set(rawFloorTables.map(t => t.table_number));
           
           return {
             ...f,
-            // Tables that are neither a parent nor a child
-            tables: floorTables.filter((t: PosTable) => !allInvolvedTableNumbers.has(t.table_number)),
-            // Groups where the parent belongs to this floor
-            merged_groups: Object.values(groups).filter((g: any) => floorTables.some((t: PosTable) => t.table_number === g.parent.table_number))
+            // Only show tables that are NOT part of any group (no children, no parents here)
+            tables: rawFloorTables.filter((t: PosTable) => !childTableNumbers.has(t.table_number) && !parentTableNumbers.has(t.table_number)),
+            // Add groups only if the PARENT belongs to this specific floor
+            merged_groups: Object.values(groups).filter((g: any) => rawFloorTableNumbers.has(g.parent.table_number))
           };
         });
 

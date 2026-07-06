@@ -94,12 +94,41 @@ export async function GET() {
       }
     }
 
-    const floorMap: Record<string, { name: string; tables: any[] }> = {};
+    const floorMap: Record<string, { name: string; tables: any[]; merged_groups: any[] }> = {};
+
+    // First pass: build merged child table data for parents
+    const parentToChildren: Record<number, any[]> = {};
+    for (const f of floors) {
+      const tn = f.table_number;
+      const childParent = f.merged_into_table;
+      if (childParent != null) {
+        const childOrders = ordersByTable[tn] || [];
+        const childActiveOrders = childOrders.filter(o => o.status !== 'paid' && o.status !== 'cancelled');
+        const childAmount = childActiveOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+        if (!parentToChildren[childParent]) parentToChildren[childParent] = [];
+        parentToChildren[childParent].push({
+          id: f.id,
+          table_number: tn,
+          status: 'merged',
+          guest_count: f.guest_count || 0,
+          total_amount: childAmount,
+          order_ids: childActiveOrders.map(o => o.id),
+          floor_name: f.floor_name,
+          sort_order: f.sort_order,
+          merged_into_table: childParent,
+          merged_orders: [],
+          has_pending: false,
+        });
+      }
+    }
 
     for (const f of floors) {
       const fn = f.floor_name || 'Main';
-      if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [] };
+      if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [], merged_groups: [] };
       
+      // Skip child tables — they are rendered inside their parent's merged_group
+      if (f.merged_into_table != null) continue;
+
       const tableOrders = ordersByTable[f.table_number] || [];
       const activeOrders = tableOrders.filter(o => o.status !== 'paid' && o.status !== 'cancelled');
       const realActiveOrders = activeOrders.filter(o => !o.is_draft && o.kitchen_status !== 'reserved');
@@ -108,9 +137,12 @@ export async function GET() {
       const currentResId = activeOrders.find(o => o.reservation_id)?.reservation_id || f.reservation_id;
       const reservation = currentResId ? reservationMap[currentResId] : null;
       const isReserved = !hasActiveOrder && (f.status === 'reserved' || reservation != null);
+
+      const children = parentToChildren[f.table_number] || [];
+      const isMergedGroup = children.length > 0;
       
       let status: string;
-      if (f.merged_into_table != null) status = 'merged';
+      if (isMergedGroup) status = 'merged';
       else if (hasActiveOrder) {
         if (activeOrders.some(o => o.kitchen_status === 'ready')) status = 'waiting_bill';
         else if (activeOrders.some(o => o.kitchen_status === 'cooking' || o.kitchen_status === 'preparing')) status = 'cooking';
@@ -124,26 +156,40 @@ export async function GET() {
       if (reservation) guestCount = reservation.guests || guestCount;
       if (!guestCount) guestCount = f.guest_count || (activeOrders.length > 0 ? 2 : 0);
 
-      floorMap[fn].tables.push({
+      const childGuestTotal = children.reduce((s, c) => s + (c.guest_count || 0), 0);
+      const childAmountTotal = children.reduce((s, c) => s + (c.total_amount || 0), 0);
+
+      const tableObj = {
         id: f.id,
         table_number: f.table_number,
         floor_name: f.floor_name,
         sort_order: f.sort_order,
         status,
-        guest_count: guestCount,
-        // THE FIX: Direct data from 'reservations' table
+        guest_count: isMergedGroup ? guestCount + childGuestTotal : guestCount,
         reservation_id: currentResId,
         reservation_name: reservation?.name || f.reservation_name || reservation?.phone || f.reservation_phone || null,
         reservation_phone: reservation?.phone || f.reservation_phone,
         reservation_time: reservation?.time ? reservation.time.split(':').slice(0, 2).join(':') : (f.reservation_time ? f.reservation_time.split(':').slice(0, 2).join(':') : null),
         opened_at: activeOrders[0]?.created_at || null,
-        total_amount: totalAmount,
+        total_amount: isMergedGroup ? totalAmount + childAmountTotal : totalAmount,
         order_count: activeOrders.length,
         order_ids: activeOrders.map(o => o.id),
-        merged_into_table: f.merged_into_table,
-        merged_orders: (mergedChildrenMap[f.table_number] || []).map(tn => ({ table_number: tn })),
+        merged_into_table: null,
+        merged_orders: children.map(c => ({ table_number: c.table_number })),
+        merged_children: children,
         has_pending: activeOrders.some(o => o.kitchen_status === 'pending' || o.kitchen_status == null),
-      });
+      };
+
+      floorMap[fn].tables.push(tableObj);
+
+      if (isMergedGroup) {
+        floorMap[fn].merged_groups.push({
+          parent: tableObj,
+          children,
+          total_guests: guestCount + childGuestTotal,
+          total_amount: totalAmount + childAmountTotal,
+        });
+      }
     }
 
     const result = Object.values(floorMap).map(f => ({

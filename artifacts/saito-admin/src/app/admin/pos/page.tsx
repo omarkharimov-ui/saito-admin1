@@ -401,10 +401,9 @@ export default function POSPage() {
               <div className="flex-1 overflow-y-auto p-6 pt-2">
                 {activeFloor ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {(activeFloor.tables ?? []).filter(t => !t.merged_into_table).sort((a, b) => a.table_number - b.table_number).map(table => {
-                      const mergedChildren = (activeFloor.tables ?? []).filter(t => t.merged_into_table === table.table_number);
+                    {(activeFloor.tables ?? []).sort((a, b) => a.table_number - b.table_number).map(table => {
                       return (
-                      <TableCard key={table.table_number} table={table} mergedChildren={mergedChildren} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} isMergeParent={mergeMode && mergeParent === table.table_number} selectionMode={mergeMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} onChildTap={handleChildTap} />
+                      <TableCard key={table.table_number} table={table} mergedChildren={(table as any).merged_children ?? []} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} isMergeParent={mergeMode && mergeParent === table.table_number} selectionMode={mergeMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} onChildTap={handleChildTap} />
                       );
                     })}
                   </div>

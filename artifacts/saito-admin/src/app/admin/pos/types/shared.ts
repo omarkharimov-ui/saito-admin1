@@ -56,6 +56,7 @@ export interface PosTable {
   total_amount: number;
   merged_orders?: unknown[] | null;
   merged_into_table?: number | null;
+  merged_children?: PosTable[];
   last_activity_at?: string | null;
   lastOrderTime?: string | null;
   opened_at?: string | null;
@@ -75,10 +76,18 @@ export interface PosTable {
 
 export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'merged' | 'reserved' | string;
 
+export interface MergedGroup {
+  parent: PosTable;
+  children: PosTable[];
+  total_guests: number;
+  total_amount: number;
+}
+
 export interface FloorConfig {
   id: string;
   name: string;
   tables?: PosTable[];
+  merged_groups?: MergedGroup[];
   sort_order?: number | null;
 }
 

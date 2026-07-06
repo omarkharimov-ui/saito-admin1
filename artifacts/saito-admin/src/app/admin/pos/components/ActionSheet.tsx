@@ -130,16 +130,34 @@ export function ActionSheet({
                     </div>
                     <button onClick={onClose} className="p-2 text-rose-500 hover:scale-110 transition-transform"><XCircle size={24} /></button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2.5 max-h-[220px] overflow-y-auto pr-1">
-                    {mergedChildren.map(child => (
-                      <button key={child.table_number} onClick={() => onToggleSplit?.(child.table_number)}
-                        className={`flex items-center gap-3 p-4 rounded-[1.2rem] border transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-blue-500 border-blue-500 text-white shadow-lg' : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/5'}`}>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-20'}`}>
-                          {selectedForSplit?.includes(child.table_number) && <Check size={10} className="text-blue-500" strokeWidth={4} />}
+                  <div className="flex flex-col gap-2">
+                    {/* Parent (always visible, not selectable) */}
+                    <div className={`flex items-center gap-3 p-4 rounded-[1.2rem] border ${lightMode ? 'bg-indigo-50 border-indigo-200' : 'bg-indigo-500/10 border-indigo-500/30'}`}>
+                      <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-indigo-400 bg-indigo-400">
+                        <Check size={10} className="text-white" strokeWidth={4} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black">Masa {table?.table_number}</span>
+                        <span className="text-[9px] font-bold uppercase opacity-50 tracking-wider">Əsas Masa</span>
+                      </div>
+                    </div>
+                    {/* Children (selectable) */}
+                    {mergedChildren.length > 0 && (
+                      <>
+                        <span className={`text-[9px] font-black uppercase tracking-widest opacity-40 px-1 ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>Uşaq Masalar</span>
+                        <div className="grid grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1">
+                          {mergedChildren.map(child => (
+                            <button key={child.table_number} onClick={() => onToggleSplit?.(child.table_number)}
+                              className={`flex items-center gap-3 p-4 rounded-[1.2rem] border transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-blue-500 border-blue-500 text-white shadow-lg' : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/5'}`}>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-20'}`}>
+                                {selectedForSplit?.includes(child.table_number) && <Check size={10} className="text-blue-500" strokeWidth={4} />}
+                              </div>
+                              <span className="text-sm font-black">Masa {child.table_number}</span>
+                            </button>
+                          ))}
                         </div>
-                        <span className="text-sm font-black">Masa {child.table_number}</span>
-                      </button>
-                    ))}
+                      </>
+                    )}
                   </div>
                   <div className="flex gap-3 mt-1">
                      <button onClick={onClose} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black bg-[var(--theme-surface-soft)]">Ləğv Et</button>

@@ -493,10 +493,23 @@ export default function POSPage() {
 
       <AnimatePresence>
         {pos.lastUndo && (
-          <motion.div initial={{ y: 50, opacity: 0, scale: 0.9 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 50, opacity: 0, scale: 0.9 }} className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 px-6 py-3.5 rounded-2xl bg-[#D4AF37] text-black shadow-[0_15px_40px_rgba(212,175,55,0.4)] border border-white/20">
-            <div className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Əməliyyat Uğurla İcra Edildi</span>
-            <button onClick={() => pos.performUndo()} className="px-4 py-2 rounded-xl bg-black text-white text-[9px] font-black uppercase tracking-widest hover:bg-black/80 transition-all shadow-md active:scale-95">Geri Al</button>
+          <motion.div 
+            initial={{ y: 50, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            exit={{ y: 50, opacity: 0 }} 
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-6 px-8 py-4 rounded-[2rem] bg-zinc-900/90 text-white shadow-2xl backdrop-blur-xl border border-white/10"
+          >
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Son əməliyyat</span>
+              <span className="text-sm font-bold">{pos.lastUndo.message}</span>
+            </div>
+            <div className="h-8 w-[1px] bg-white/10" />
+            <button 
+              onClick={() => pos.performUndo()} 
+              className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95"
+            >
+              Geri Al
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

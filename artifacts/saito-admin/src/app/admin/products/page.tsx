@@ -217,8 +217,8 @@ const ProductsPage = () => {
       const res = await fetch('/api/admin/products');
       if (!res.ok) throw new Error('Failed to load products');
       const data = await res.json();
-      const freshProducts = Array.isArray(data.products) ? data.products : [];
-      const freshCategories = Array.isArray(data.categories) ? data.categories : [];
+      const freshProducts: Product[] = Array.isArray(data.products) ? data.products : [];
+      const freshCategories: Category[] = Array.isArray(data.categories) ? data.categories : [];
       setProducts(freshProducts);
       setCategories(freshCategories);
       try { localStorage.setItem('saito_products_cache', JSON.stringify(freshProducts)); } catch {}

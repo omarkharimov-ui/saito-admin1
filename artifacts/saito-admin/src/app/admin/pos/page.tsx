@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle, Globe, Check } from 'lucide-react';
+import { LayoutGrid, ShoppingCart, CreditCard, X, CheckCircle, Sun, Moon, Maximize, Minimize, ChevronDown, AlertTriangle, XCircle, Globe, Check, History } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
@@ -57,6 +57,7 @@ export default function POSPage() {
   const [orderButtonStatus, setOrderButtonStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isDirty, setIsDirty] = useState(false);
   const [mergeMode, setMergeMode] = useState(false);
+  const [mergeParent, setMergeParent] = useState<number | null>(null);
   const [selectedForMerge, setSelectedForMerge] = useState<number[]>([]);
   const [splitMode, setSplitMode] = useState(false);
   const [selectedForSplit, setSelectedForSplit] = useState<number[]>([]);
@@ -88,6 +89,9 @@ export default function POSPage() {
 
   const [reservedTableDetail, setReservedTableDetail] = useState<PosTable | null>(null);
   const [reservedCountdown, setReservedCountdown] = useState<string>('');
+  const [showArchive, setShowArchive] = useState(false);
+  const [paidOrders, setPaidOrders] = useState<any[]>([]);
+  const [loadingArchive, setLoadingArchive] = useState(false);
 
   // Restore reservation context: localStorage first (from reservation page), then URL params (fallback)
   useEffect(() => {
@@ -306,19 +310,34 @@ export default function POSPage() {
   const handleTableTap = useCallback(async (table: PosTable) => {
     if (mergeMode) {
       if (table.status === 'merged') return;
-      if (selectedForMerge.includes(table.table_number)) setSelectedForMerge(p => p.filter(n => n !== table.table_number));
-      else setSelectedForMerge(p => [...p, table.table_number]);
+      if (!mergeParent) {
+        setMergeParent(table.table_number);
+        setSelectedForMerge([table.table_number]);
+      } else if (table.table_number === mergeParent) {
+        setMergeParent(null);
+        setSelectedForMerge([]);
+      } else {
+        if (selectedForMerge.includes(table.table_number)) setSelectedForMerge(p => p.filter(n => n !== table.table_number));
+        else setSelectedForMerge(p => [...p, table.table_number]);
+      }
       return;
     }
     if (transferMode) {
       if (table.status === 'merged') return;
-      if (!transferSource) setTransferSource(table.table_number);
-      else if (!transferTarget && table.table_number !== transferSource) setTransferTarget(table.table_number);
+      if (!transferSource) {
+        setTransferSource(table.table_number);
+      } else if (!transferTarget && table.table_number !== transferSource) {
+        setTransferTarget(table.table_number);
+      }
       return;
     }
     
     // Handle Merged Table Tap
     if (table.status === 'merged') {
+        if (!table.merged_into_table) {
+          pos.selectTable(table);
+          return;
+        }
         const parent = pos.tables.find(t => t.table_number === table.merged_into_table);
         if (parent) pos.selectTable(parent);
         else toast.error("Əsas masa tapılmadı");
@@ -332,7 +351,26 @@ export default function POSPage() {
     }
 
     pos.selectTable(table);
-  }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]);
+  }, [mergeMode, selectedForMerge, transferMode, transferSource, transferTarget, pos]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleChildTap = useCallback((child: PosTable) => {
+    const parent = pos.tables.find(t => t.table_number === child.merged_into_table);
+    if (parent) pos.selectTable(parent);
+  }, [pos]);
+
+  const openArchive = useCallback(async () => {
+    setShowArchive(true);
+    setLoadingArchive(true);
+    try {
+      const res = await fetch('/api/orders/paid');
+      if (res.ok) {
+        const data = await res.json();
+        setPaidOrders(data.orders || []);
+      }
+    } catch {} finally {
+      setLoadingArchive(false);
+    }
+  }, []);
 
   return (
     <div ref={posRef} className={`flex-1 min-h-0 w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden ${(actionSheetOpen || modifierOpen) ? 'no-scroll' : ''}`}>
@@ -347,14 +385,17 @@ export default function POSPage() {
                      <h1 className="text-3xl font-black tracking-tighter mr-2">POS</h1>
                      {pos.floors.length > 0 && <LiquidDropdown options={pos.floors.map(f => ({ id: f.name, label: f.name }))} activeId={selectedFloorName} onChange={(id) => setSelectedFloor(id)} />}
                    </div>
-                   <div className="flex items-center gap-3">
-                     <button onClick={() => setLightMode(!lightMode)} className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white transition-all shadow-sm">
-                       {lightMode ? <Moon size={20} /> : <Sun size={20} />}
-                     </button>
-                     <button onClick={toggleFullscreen} className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white transition-all shadow-sm">
-                       {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-                     </button>
-                   </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={openArchive} className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white transition-all shadow-sm">
+                        <History size={20} />
+                      </button>
+                      <button onClick={() => setLightMode(!lightMode)} className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white transition-all shadow-sm">
+                        {lightMode ? <Moon size={20} /> : <Sun size={20} />}
+                      </button>
+                      <button onClick={toggleFullscreen} className="p-3 rounded-full bg-[#efeff4] dark:bg-white/[0.08] border border-transparent dark:border-white/[0.1] text-[#8e8e93] hover:text-zinc-900 dark:hover:text-white transition-all shadow-sm">
+                        {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+                      </button>
+                    </div>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-6 pt-2">
@@ -363,7 +404,7 @@ export default function POSPage() {
                     {(activeFloor.tables ?? []).filter(t => !t.merged_into_table).sort((a, b) => a.table_number - b.table_number).map(table => {
                       const mergedChildren = (activeFloor.tables ?? []).filter(t => t.merged_into_table === table.table_number);
                       return (
-                      <TableCard key={table.table_number} table={table} mergedChildren={mergedChildren} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} selectionMode={mergeMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} />
+                      <TableCard key={table.table_number} table={table} mergedChildren={mergedChildren} onTap={() => handleTableTap(table)} onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }} isSelected={(mergeMode && selectedForMerge.includes(table.table_number))} isMergeParent={mergeMode && mergeParent === table.table_number} selectionMode={mergeMode} isTransferSource={transferMode && transferSource === table.table_number} isTransferTarget={transferMode && transferTarget === table.table_number} onChildTap={handleChildTap} />
                       );
                     })}
                   </div>
@@ -414,7 +455,7 @@ export default function POSPage() {
           setActionSheetOpen(false);
         }}
         onPrint={() => window.print()} onSaveDraft={() => {}} onCancelTable={() => { if (actionSheetTable) { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); } }}
-        mergeMode={mergeMode} transferMode={transferMode} splitMode={splitMode} allTables={pos.tables} selectedForMerge={selectedForMerge} selectedForSplit={selectedForSplit} transferSource={transferSource} transferTarget={transferTarget}
+        mergeMode={mergeMode} mergeParent={mergeParent} transferMode={transferMode} splitMode={splitMode} allTables={pos.tables} selectedForMerge={selectedForMerge} selectedForSplit={selectedForSplit} transferSource={transferSource} transferTarget={transferTarget}
         onToggleSplit={(n) => { if (selectedForSplit.includes(n)) setSelectedForSplit(p => p.filter(x => x !== n)); else setSelectedForSplit(p => [...p, n]); }}
         onConfirmSplit={async () => { 
           if (!actionSheetTable || selectedForSplit.length === 0) return;
@@ -423,8 +464,8 @@ export default function POSPage() {
           setSelectedForSplit([]);
           setActionSheetOpen(false);
         }}
-        onCancelMode={() => { setMergeMode(false); setTransferMode(false); setSplitMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
-        onConfirmMerge={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
+        onCancelMode={() => { setMergeMode(false); setMergeParent(null); setTransferMode(false); setSplitMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
+        onConfirmMerge={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setMergeParent(null); setSelectedForMerge([]); }}
         onConfirmTransfer={async () => { if (transferSource && transferTarget) { await pos.transferTable(transferSource, transferTarget); setTransferMode(false); setTransferSource(null); setTransferTarget(null); } }}
       />
       <ModifierSheet 
@@ -576,6 +617,54 @@ export default function POSPage() {
                       </button>
                   </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ARXIV ── */}
+      <AnimatePresence>
+        {showArchive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setShowArchive(false)}
+          >
+            <motion.div
+              initial={{ y: 60, scale: 0.95 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 60, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              className={`w-full max-w-lg rounded-[2.5rem] p-8 flex flex-col gap-4 max-h-[80vh] ${
+                lightMode ? 'bg-white border border-zinc-200 shadow-2xl' : 'bg-[#111] border border-white/10 shadow-2xl'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black tracking-tighter">Ödənilmiş Sifarişlər</h2>
+                <button onClick={() => setShowArchive(false)} className={`p-3 rounded-2xl transition-all ${lightMode ? 'bg-zinc-100 hover:bg-zinc-200' : 'bg-white/5 hover:bg-white/10'}`}><X size={20} /></button>
+              </div>
+
+              {loadingArchive ? (
+                <div className="text-center py-12 text-sm font-bold opacity-40">Yüklənir...</div>
+              ) : paidOrders.length === 0 ? (
+                <div className="text-center py-12 text-sm font-bold opacity-40">Heç bir ödənilmiş sifariş tapılmadı</div>
+              ) : (
+                <div className="flex flex-col gap-2 overflow-y-auto pr-1">
+                  {paidOrders.map((order: any) => (
+                    <div key={order.id} className={`flex items-center justify-between p-4 rounded-2xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black">Masa {order.table_number}</span>
+                        <span className="text-[10px] font-bold opacity-40 tabular-nums">{new Date(order.updated_at).toLocaleString()}</span>
+                      </div>
+                      <span className={`text-lg font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>₼{Number(order.total_amount || order.paid_amount || 0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

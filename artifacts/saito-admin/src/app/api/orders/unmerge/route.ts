@@ -74,7 +74,23 @@ export async function POST(req: NextRequest) {
         }),
       });
 
-      return { success: true };
+      return {
+        success: true,
+        undo: {
+          parentTable: primary_table_number,
+          parentOrderId: primaryOrder.id,
+          parentOldTotal: primaryOrder.total_amount,
+          parentOldGuests: primaryOrder.guest_count,
+          childTables: child_table_numbers.map((tNum: number) => {
+            const order = childOrders.find(o => o.table_number === tNum);
+            return {
+              tableNumber: tNum,
+              orderId: order?.id || null,
+              oldMergedInto: primaryOrder.id,
+            };
+          }),
+        },
+      };
     });
 
     return NextResponse.json(result);

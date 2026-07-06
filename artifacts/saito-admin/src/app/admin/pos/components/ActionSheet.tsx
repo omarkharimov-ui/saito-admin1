@@ -24,6 +24,7 @@ interface ActionSheetProps {
   onSaveDraft: () => void;
   onCancelTable?: () => void;
   mergeMode?: boolean;
+  mergeParent?: number | null;
   transferMode?: boolean;
   splitMode?: boolean;
   allTables?: PosTable[];
@@ -42,7 +43,7 @@ const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } 
 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onMerge, onTransfer, onUnmerge, onBillSplit, onCloseBill, onPrint, onSaveDraft, onCancelTable,
-  mergeMode, transferMode, splitMode, allTables, selectedForMerge, selectedForSplit, transferSource, transferTarget,
+  mergeMode, mergeParent, transferMode, splitMode, allTables, selectedForMerge, selectedForSplit, transferSource, transferTarget,
   onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, onConfirmTransfer
 }: ActionSheetProps) {
   const { t } = useLanguage();
@@ -56,7 +57,7 @@ export function ActionSheet({
   if (!table && !mergeMode && !transferMode) return null;
 
   const isOccupied = table?.status !== 'empty';
-  const isMerged = (table?.merged_orders && (table?.merged_orders as any[]).length > 0) || false;
+  const isMerged = table ? (allTables?.some(t => t.merged_into_table === table.table_number) ?? false) : false;
 
   const actions = [
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
@@ -147,15 +148,31 @@ export function ActionSheet({
                 </motion.div>
               )}
 
-              {(currentView === 'merge' || currentView === 'transfer') && (
+              {currentView === 'merge' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="ui-bar" className="flex items-center gap-5 w-full">
                   <div className="flex flex-col mr-auto min-w-[140px]">
-                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">{mergeMode ? 'Masaları Birləşdir' : 'Masayı Köçür'}</span>
-                    <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{mergeMode ? `${selectedForMerge?.length} masa seçildi` : (transferSource ? (transferTarget ? `Hədəf: Masa ${transferTarget}` : `Hədəf masanı seçin`) : 'Mənbə masanı seçin')}</span>
+                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">Masaları Birləşdir</span>
+                    <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                      {mergeParent ? `Əsas: Masa ${mergeParent} + ${(selectedForMerge?.length || 1) - 1} uşaq` : 'Əsas masanı seçin'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3">
                     <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><X size={18} strokeWidth={3} /></button>
-                    <button onClick={mergeMode ? onConfirmMerge : onConfirmTransfer} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all`}>Təsdiqlə</button>
+                    <button onClick={onConfirmMerge} disabled={!mergeParent || (selectedForMerge?.length || 0) < 2} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>Təsdiqlə</button>
+                  </div>
+                </motion.div>
+              )}
+              {currentView === 'transfer' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="ui-bar" className="flex items-center gap-5 w-full">
+                  <div className="flex flex-col mr-auto min-w-[140px]">
+                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">Masayı Köçür</span>
+                    <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                      {!transferSource ? 'Mənbə masanı seçin' : !transferTarget ? 'Hədəf masanı seçin' : `Masa ${transferSource} → Masa ${transferTarget}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><X size={18} strokeWidth={3} /></button>
+                    <button onClick={onConfirmTransfer} disabled={!transferSource || !transferTarget} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>Təsdiqlə</button>
                   </div>
                 </motion.div>
               )}

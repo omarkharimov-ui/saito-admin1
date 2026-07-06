@@ -63,6 +63,43 @@ export async function POST(request: NextRequest) {
           break;
         }
 
+        case 'unmerge': {
+          const { parentTable, parentOrderId, parentOldTotal, parentOldGuests, childTables } = data;
+
+          // Re-merge each child table into parent
+          for (const child of childTables) {
+            await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${child.tableNumber}`, {
+              method: 'PATCH',
+              headers: svc().headers,
+              body: JSON.stringify({
+                status: 'merged',
+                merged_into_table: parentTable,
+              }),
+            });
+
+            if (child.orderId) {
+              await fetch(`${svc().url}/rest/v1/orders?id=eq.${child.orderId}`, {
+                method: 'PATCH',
+                headers: svc().headers,
+                body: JSON.stringify({ merged_into: parentOrderId }),
+              });
+            }
+          }
+
+          // Restore parent order totals
+          if (parentOrderId) {
+            await fetch(`${svc().url}/rest/v1/orders?id=eq.${parentOrderId}`, {
+              method: 'PATCH',
+              headers: svc().headers,
+              body: JSON.stringify({
+                total_amount: parentOldTotal,
+                guest_count: parentOldGuests,
+              }),
+            });
+          }
+          break;
+        }
+
         case 'transfer': {
           const { orderIds, fromTable, toTable } = data;
           for (const oid of orderIds) {

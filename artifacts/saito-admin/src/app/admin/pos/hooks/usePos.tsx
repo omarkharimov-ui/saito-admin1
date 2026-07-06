@@ -872,15 +872,20 @@ export function usePos() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ayırma xətası");
-      
-      toast.success(`Masalar ayrıldı`);
+
+      const undoData = data.data?.undo;
+      if (undoData) {
+        showUndo('unmerge', undoData, `Masalar ayrıldı`);
+      } else {
+        toast.success(`Masalar ayrıldı`);
+      }
       await fetchData();
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setLoading(false);
     }
-  }, [fetchData]);
+  }, [fetchData, showUndo]);
 
   const performUndo = useCallback(async () => {
     const log = lastUndo;

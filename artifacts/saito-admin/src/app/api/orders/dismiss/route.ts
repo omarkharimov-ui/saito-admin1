@@ -12,18 +12,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Table number required' }, { status: 400 });
     }
 
-    const { data: rpcData, error: rpcError } = await supabase.rpc('dismiss_table_v3', {
+    // Call atomic v3 RPC
+    const { data, error } = await supabase.rpc('dismiss_table_v3', {
       p_table_number: table_number,
     });
 
-    if (!rpcError) return NextResponse.json({ success: true, result: rpcData });
+    if (error) {
+      console.error('[Dismiss Fatal]', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
-    // FALLBACK
-    console.warn('[Dismiss] RPC failed, using manual fallback...');
-    await supabase.from('orders').update({ status: 'cancelled' }).eq('table_number', table_number).not('status', 'in', '("paid","cancelled","closed")');
-    await supabase.from('table_floors').update({ status: 'empty', guest_count: null, total_amount: 0, merged_into_table: null, reservation_id: null }).or(`table_number.eq.${table_number},merged_into_table.eq.${table_number}`);
-    
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, result: data });
   } catch (error: any) {
     console.error('[API /orders/dismiss] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

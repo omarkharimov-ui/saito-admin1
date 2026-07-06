@@ -214,14 +214,11 @@ const ProductsPage = () => {
   /* ─── Data fetching ─── */
   const fetchData = async () => {
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
-        supabase.from('products').select('*, category:categories(*), variants:product_variants(id,name,price,image_url,variant_type,parent_variant_id,is_in_stock,views_count,translations)').order('created_at', { ascending: false }),
-        supabase.from('categories').select('*').order('name'),
-      ]);
-      if (productsRes.error) throw productsRes.error;
-      if (categoriesRes.error) throw categoriesRes.error;
-      const freshProducts = Array.isArray(productsRes.data) ? productsRes.data : [];
-      const freshCategories = Array.isArray(categoriesRes.data) ? categoriesRes.data : [];
+      const res = await fetch('/api/admin/products');
+      if (!res.ok) throw new Error('Failed to load products');
+      const data = await res.json();
+      const freshProducts = Array.isArray(data.products) ? data.products : [];
+      const freshCategories = Array.isArray(data.categories) ? data.categories : [];
       setProducts(freshProducts);
       setCategories(freshCategories);
       try { localStorage.setItem('saito_products_cache', JSON.stringify(freshProducts)); } catch {}

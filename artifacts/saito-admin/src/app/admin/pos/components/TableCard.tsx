@@ -18,9 +18,10 @@ interface TableCardProps {
   isOverdue?: boolean;
   overdueType?: 'not_accepted' | 'preparing';
   index?: number;
+  mergedChildren?: PosTable[];
 }
 
-export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0 }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, mergedChildren = [] }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
@@ -100,8 +101,23 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         </div>
       )}
 
+      {/* Merged children info */}
+      {mergedChildren.length > 0 && (
+        <div className="absolute top-[72px] left-6 flex flex-col gap-1">
+          <div className={`px-2.5 py-0.5 rounded-full border text-[9px] font-black tracking-wider inline-flex self-start ${lightMode ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'}`}>
+            Qrup: {mergedChildren.map(c => c.table_number).join(', ')}
+          </div>
+          { (table.guest_count ?? 0) > 0 && (
+            <div className="flex items-center gap-1 opacity-60 mt-1">
+              <Users size={12} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
+              <span className={`text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>{table.guest_count}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Standard Occupied Metadata (Fallback) */}
-      {!isReserved && (isOccupied || (table.guest_count ?? 0) > 0) && (
+      {!isReserved && mergedChildren.length === 0 && (isOccupied || (table.guest_count ?? 0) > 0) && (
         <div className="absolute top-[72px] left-6 flex flex-col gap-1">
           { (table.guest_count ?? 0) > 0 && (
             <div className="flex items-center gap-1 opacity-60">

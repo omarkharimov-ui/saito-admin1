@@ -7,7 +7,7 @@ import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Order } from '../types';
 import { CACHE_KEY, DEFAULT_TABLE_COUNT, SETTINGS_CACHE_KEY } from '../utils';
-import { deductStockForOrder } from '@/lib/stockAutomation';
+
 
 /* ─── Extract readable message from any error type ─── */
 function errMsg(e: unknown): string {
@@ -191,11 +191,17 @@ export function useOrders() {
     return () => clearInterval(id);
   }, []);
 
-  /* ─── Action handlers ─── */
+  /* ─── Action handlers — all mutations routed through API/RPC ─── */
+
   const handleConfirm = useCallback(async (id: string) => {
     try {
-      const { error } = await supabase.from('orders').update({ status: 'confirmed' }).eq('id', id);
-      if (error) throw error;
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', id, data: { status: 'confirmed' } }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error || 'Update failed');
       setUpdatedLabels(prev => { const n = new Map(prev); n.set(id, t('updated').toUpperCase()); return n; });
       setFlashIds(prev => new Set(prev).add(id));
       toast.success(t('updated'), { id: 'action-toast' });
@@ -207,34 +213,28 @@ export function useOrders() {
 
   const handlePay = useCallback(async (order: Order, paymentMethod?: string, tipAmount?: number) => {
     try {
-      // Find child orders before paying
       const { data: children } = await supabase
         .from('orders').select('id').eq('merged_into', order.id);
       const childIds = (children || []).map((c: any) => c.id);
       const allIds = [order.id, ...childIds];
-
-      // 1. Optimistic update — remove from UI immediately
+      // Optimistic remove from UI
       setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !allIds.includes(x.id))));
 
-      // 2. DB operations
-      await supabase.from('orders').update({
-        status: 'paid', payment_method: paymentMethod || 'card',
-        paid_amount: order.total_amount || 0,
-        ...(tipAmount !== undefined ? { tip_amount: tipAmount } : {}),
-      }).eq('id', order.id);
-      if (childIds.length > 0) {
-        await supabase.from('order_items').delete().in('order_id', childIds);
-        await supabase.from('orders').delete().in('id', childIds);
-      }
-
-      // 3. Avtomatik stok azaltma (recipes + inventory_logs)
-      try {
-        const result = await deductStockForOrder(order.id);
-        if (result.deducted > 0) {
-          toast.success(`🧾 ${result.deducted} ingredient stockdan çıxıldı`, { id: 'action-toast' });
-        }
-      } catch (stockErr) {
-        console.error('[handlePay] Stock deduction failed:', stockErr);
+      // Route through API — RPC handles lock, validation, stock, table release
+      const res = await fetch('/api/orders/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: order.id,
+          payment_method: paymentMethod || 'card',
+          cash_amount: order.total_amount || 0,
+          card_amount: 0,
+          tip_amount: tipAmount || 0,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Payment failed');
       }
 
       toast.success(t('order_paid'), { id: 'action-toast' });
@@ -248,9 +248,8 @@ export function useOrders() {
   const handleStartPreparing = useCallback(async (id: string) => {
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase.from('orders')
-        .update({ kitchen_status: 'preparing', status: 'confirmed', kitchen_accepted_at: now })
-        .eq('id', id);
+      // Use RPC — the transaction layer, not direct REST
+      const { error } = await supabase.rpc('prepare_order_items', { p_order_id: id });
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === id ? { ...o, kitchen_status: 'preparing', status: 'confirmed', kitchen_accepted_at: now } : o));
     } catch (e: unknown) {
@@ -260,9 +259,8 @@ export function useOrders() {
 
   const handleMarkReady = useCallback(async (id: string) => {
     try {
-      const { error } = await supabase.from('orders')
-        .update({ kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() })
-        .eq('id', id);
+      // Use RPC — FOR UPDATE, deducts stock, maintains audit
+      const { error } = await supabase.rpc('mark_order_ready', { p_order_id: id });
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === id ? { ...o, kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() } : o));
     } catch (e: unknown) {
@@ -272,9 +270,14 @@ export function useOrders() {
 
   const handleDeleteOrder = useCallback(async (id: string) => {
     try {
-      await supabase.from('order_items').delete().eq('order_id', id);
-      const { error } = await supabase.from('orders').delete().eq('id', id);
-      if (error) throw error;
+      // Soft-delete via API (action=delete sets status=cancelled)
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error || 'Delete failed');
       toast.success(t('order_deleted'), { id: 'action-toast' });
       setOrders(prev => prev.filter(o => o.id !== id));
     } catch (e: unknown) {
@@ -284,59 +287,18 @@ export function useOrders() {
 
   const handleClearTable = useCallback(async (tableNum: number) => {
     try {
-      const { data: active, error } = await supabase
-        .from('orders')
-        .select('id, table_number, merged_into')
-        .eq('table_number', tableNum)
-        .in('status', ['new', 'confirmed']);
-
+      // RPC — FOR UPDATE, reverses stock, cancels orders, releases table
+      const { error } = await supabase.rpc('cancel_table_orders', { p_table_number: tableNum });
       if (error) throw error;
-      const primaryOrder = active?.[0];
-      if (!primaryOrder) return;
 
-      const primaryId = primaryOrder.id;
+      // Optimistic remove from UI
+      setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => x.table_number === tableNum)));
+      toast.success(t('table_cleared').replace('{table}', String(tableNum)), { id: 'action-toast' });
 
-      // 2. Bu sifarişə bağlı olan bütün uşaq (merged) masaları tapırıq
-      const { data: mergedChildren } = await supabase
-        .from('orders')
-        .select('id, table_number')
-        .eq('merged_into', primaryId);
-
-      const childIds = (mergedChildren || []).map(r => r.id);
-      const allIdsToClear = [primaryId, ...childIds];
-      const childTableNums = (mergedChildren || [])
-        .map(r => r.table_number)
-        .filter((n): n is number => n !== null);
-
-      // 3. OPTİMİSTİK UPDATE: local state + localStorage dərhal yenilə
-      setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !allIdsToClear.includes(x.id))));
-
-      // 4. BAZA ƏMƏLİYYATLARI — paralel sil
-      const [, { error: delErr }] = await Promise.all([
-        supabase.from('order_items').delete().in('order_id', allIdsToClear),
-        supabase.from('orders').delete().in('id', allIdsToClear),
-      ]);
-
-      if (delErr) throw delErr;
-
-      // 5. DB silməni təsdiqlədi — state-i bir daha təmizlə
-      setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !allIdsToClear.includes(x.id))));
-
-      // 6. BİLDİRİŞ
-      if (childTableNums.length > 0) {
-        const allTableNums = [tableNum, ...childTableNums].sort((a, b) => a - b);
-        toast.success(t('group_cleared').replace('{tables}', allTableNums.join(', ')), { id: 'action-toast', duration: 3000 });
-      } else {
-        toast.success(t('table_cleared').replace('{table}', String(tableNum)), { id: 'action-toast' });
-      }
-
-      // 7. Baza trigerlərinin işini bitirməsi üçün gözlə, sonra fetch et
       setTimeout(() => fetchOrders(false), 500);
-
     } catch (e: unknown) {
       const msg = errMsg(e);
       toast.error(`${t('error')}: ${msg}`, { id: 'action-toast' });
-      // Xəta olsa, datanı geri qaytarmaq üçün fetch edirik
       fetchOrders(false);
     }
   }, [fetchOrders, t, setOrders]);
@@ -346,58 +308,32 @@ export function useOrders() {
     const targetOrder = orders.find(o => o.id === targetId);
     if (!sourceOrder || !targetOrder) return;
     try {
-      const items = sourceOrder.order_items || [];
-      for (const item of items) {
-        const existing = targetOrder.order_items?.find(i => i.product_id === item.product_id);
-        if (existing) {
-          const newQty = existing.quantity + item.quantity;
-          await supabase.from('order_items').update({ quantity: newQty, total_price: existing.unit_price * newQty }).eq('id', existing.id);
-          await supabase.from('order_items').delete().eq('id', item.id);
-        } else {
-          await supabase.from('order_items').update({ order_id: targetOrder.id }).eq('id', item.id);
-        }
+      const sourceTable = sourceOrder.table_number;
+      const targetTable = targetOrder.table_number;
+      if (!sourceTable || !targetTable) throw new Error('Table numbers required');
+
+      // Route through merge API — uses merge_orders_atomic RPC (FOR UPDATE)
+      const res = await fetch('/api/orders/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_numbers: [targetTable, sourceTable] }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Merge failed');
       }
-      const extraTotal = items.reduce((s, i) => s + i.total_price, 0);
-      const updateData: Record<string, unknown> = {
-        total_amount: (targetOrder.total_amount || 0) + extraTotal,
-        kitchen_status: 'pending',
-        is_rush: false,
-        kitchen_accepted_at: null,
-      };
-      if (sourceOrder.customer_note && !targetOrder.customer_note) updateData.customer_note = sourceOrder.customer_note;
-
-      await supabase.from('orders').update(updateData).eq('id', targetOrder.id);
-
-      // Reset prepared_quantity to 0 on all target order items
-      const targetItemIds = (targetOrder.order_items || []).map(i => i.id);
-      if (targetItemIds.length > 0) {
-        await supabase.from('order_items').update({ prepared_quantity: 0 }).in('id', targetItemIds);
-      }
-
-      await supabase.from('orders').update({ 
-        merged_into: targetOrder.id, 
-        status: 'confirmed', 
-        is_rush: false, 
-        kitchen_status: null,
-        kitchen_accepted_at: null,
-        is_served: true 
-      }).eq('id', sourceOrder.id);
 
       const existingMerged = orders
         .filter(o => o.merged_into === targetOrder.id && o.table_number !== null)
         .map(o => o.table_number as number);
       const allNums = Array.from(new Set([
-        targetOrder.table_number, 
-        ...existingMerged, 
-        sourceOrder.table_number
+        targetTable, ...existingMerged, sourceTable,
       ])).filter((n): n is number => n !== null).sort((a, b) => a - b);
-      const tablesStr = allNums.join('+');
-      toast.success(t('tables_merged').replace('{tables}', tablesStr), { id: 'action-toast', duration: 3000 });
+      toast.success(t('tables_merged').replace('{tables}', allNums.join('+')), { id: 'action-toast', duration: 3000 });
 
-      // Optimistic update — reflect merge in local state immediately
       setOrders(prev => applyOrdersUpdate(prev, o => o.map(x => {
-        if (x.id === sourceOrder.id) return { ...x, status: 'confirmed' as const, merged_into: targetOrder.id, kitchen_status: null };
-        if (x.id === targetOrder.id) return { ...x, total_amount: (x.total_amount || 0) + extraTotal, kitchen_status: 'pending' as const };
+        if (x.id === sourceOrder.id) return { ...x, merged_into: targetOrder.id, kitchen_status: null };
+        if (x.id === targetOrder.id) return { ...x, kitchen_status: 'pending' as const };
         return x;
       })));
 
@@ -408,64 +344,60 @@ export function useOrders() {
   }, [orders, fetchOrders, t, setOrders]);
 
   const handleCreateMergedEmptyOrder = useCallback(async (tableNums: number[]) => {
-    // Remove duplicates using Set
     const uniqueTableNums = Array.from(new Set(tableNums));
     if (uniqueTableNums.length < 2) return;
-    const [primary, ...rest] = uniqueTableNums;
-    
     try {
-      const { data: order, error } = await supabase.from('orders')
-        .insert({ table_number: primary, total_amount: 0, status: 'confirmed', kitchen_status: 'pending', is_rush: false, items: [] })
-        .select().single();
-      if (error) throw error;
-      
-      if (rest.length > 0) {
-        const childOrders = rest.map(n => ({ table_number: n, total_amount: 0, status: 'confirmed', merged_into: order.id, kitchen_status: null, is_rush: false }));
-        const { error: e2 } = await supabase.from('orders').insert(childOrders);
-        if (e2) throw e2;
-      }
+      // Use merge API — handles empty table grouping
+      const res = await fetch('/api/orders/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_numbers: uniqueTableNums }),
+      });
+      if (!res.ok) throw new Error('Merge failed');
       toast.success(t('tables_merged').replace('{tables}', uniqueTableNums.join('+')), { id: 'action-toast' });
       await fetchOrders(false);
-      setOrders(current => {
-        const found = current.find(o => o.id === order.id);
-        if (found) setSelectedOrder(found);
-        return current;
-      });
     } catch (e: unknown) {
       toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
-  }, [fetchOrders, t, setSelectedOrder]);
+  }, [fetchOrders, t]);
 
   const handleAddEmptyTable = useCallback(async (emptyTableNum: number, targetOrderId: string) => {
+    const targetOrder = orders.find(o => o.id === targetOrderId);
+    const targetTable = targetOrder?.table_number;
+    if (!targetTable) return;
     try {
-      // Insert a lightweight placeholder so the table appears linked in grid
-      // but filter it out of order cards (no items = no card)
-      const { error } = await supabase.from('orders').insert({
-        table_number: emptyTableNum,
-        total_amount: 0,
-        status: 'confirmed',
-        merged_into: targetOrderId,
-        kitchen_status: null,
-        is_rush: false,
+      // Use merge API — adds empty table to existing merge group
+      const res = await fetch('/api/orders/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_numbers: [targetTable, emptyTableNum] }),
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error('Failed to add table');
       toast.success(t('table_added_to_group').replace('{table}', String(emptyTableNum)), { id: 'action-toast' });
       setTimeout(() => fetchOrders(false), 100);
     } catch (e: unknown) {
       toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
-  }, [fetchOrders, t]);
+  }, [orders, fetchOrders, t]);
 
   const handleMoveOrder = useCallback(async (orderId: string, toTableNum: number) => {
+    const order = orders.find(o => o.id === orderId);
+    const fromTable = order?.table_number;
+    if (!fromTable) return;
     try {
-      const { error } = await supabase.from('orders').update({ table_number: toTableNum }).eq('id', orderId);
-      if (error) throw error;
+      // Route through transfer API — uses transfer_orders_atomic RPC (FOR UPDATE)
+      const res = await fetch('/api/orders/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from_table: fromTable, to_table: toTableNum }),
+      });
+      if (!res.ok) throw new Error('Transfer failed');
       toast.success(t('table_moved').replace('{table}', String(toTableNum)), { id: 'action-toast' });
       setTimeout(() => fetchOrders(false), 100);
     } catch (e: unknown) {
       toast.error(`${t('error')}: ${errMsg(e)}`, { id: 'action-toast' });
     }
-  }, [fetchOrders, t]);
+  }, [orders, fetchOrders, t]);
 
   return {
     /* data */

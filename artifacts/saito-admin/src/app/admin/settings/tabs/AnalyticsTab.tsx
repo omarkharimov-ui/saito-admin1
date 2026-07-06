@@ -48,10 +48,12 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
     setTranslating(true);
     setTranslateResult(null);
     try {
-      const [{ data: products, error: pErr }, { data: cats, error: cErr }] = await Promise.all([
-        supabase.from('products').select('id, name, description, ingredients, name_az, name_en, name_ru, description_az, description_en, description_ru, ingredients_az, ingredients_en, ingredients_ru'),
+      const [productsRes, { data: cats, error: cErr }] = await Promise.all([
+        fetch('/api/admin/products').then(r => r.json()),
         supabase.from('categories').select('id, name, name_az, name_en, name_ru'),
       ]);
+      const products = (productsRes.products || []) as any[];
+      const pErr = productsRes.error;
       if (pErr) throw new Error(pErr.message);
       if (cErr) throw new Error(cErr.message);
 

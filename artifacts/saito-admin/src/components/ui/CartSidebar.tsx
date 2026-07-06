@@ -51,6 +51,10 @@ const CartSidebar = () => {
           total_price: item.unitPrice * item.quantity,
           kitchen_status: 'hot',
           image_url: item.product.image_url || null,
+          modifiers: null,
+          special_notes: null,
+          combo_group_id: null,
+          parent_order_item_id: null,
         }));
 
       if (existingOrder) {
@@ -70,27 +74,30 @@ const CartSidebar = () => {
           );
 
           if (match) {
-            // Increase orderedQuantity, KEEP preparedQuantity unchanged.
-            // kitchen_status flips to 'pending' so the order reopens for kitchen.
+            // Use RPC — FOR UPDATE + quantity update
             const newQty = (match.quantity || 0) + item.quantity;
-            const newTotal = (match.unit_price || item.unit_price) * newQty;
-            const { error: updErr } = await supabase
-              .from('order_items')
-              .update({
-                quantity: newQty,
-                total_price: newTotal,
-                kitchen_status: 'pending',
-              })
-              .eq('id', match.id);
+            const { error: updErr } = await supabase.rpc('update_order_item_quantity', {
+              p_order_item_id: match.id,
+              p_quantity: newQty,
+              p_unit_price: match.unit_price || item.unit_price,
+            });
             if (updErr) throw updErr;
           } else {
-            // Brand new product on this order: insert with prepared_quantity = 0
-            const { error: insErr } = await supabase.from('order_items').insert({
-              ...item,
-              order_id: existingOrder.id,
-              kitchen_status: 'pending',
-              prepared_quantity: 0,
-              created_at: new Date().toISOString(),
+            // Use RPC — atomic insert with FOR UPDATE on parent order
+            const { error: insErr } = await supabase.rpc('add_order_items', {
+              p_order_id: existingOrder.id,
+              p_items: JSON.stringify([{
+                product_id: item.product_id,
+                product_name: item.product_name,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total_price: item.unit_price * item.quantity,
+                modifiers: typeof item.modifiers === 'string' ? item.modifiers : JSON.stringify(item.modifiers || []),
+                special_notes: item.special_notes || null,
+                combo_group_id: item.combo_group_id || null,
+                parent_order_item_id: item.parent_order_item_id || null,
+                variant_id: item.variant_id || null,
+              }]),
             });
             if (insErr) throw insErr;
           }

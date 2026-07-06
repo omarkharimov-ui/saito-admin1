@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createAuthClient } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const supabase = await createAuthClient();
     const { data, error } = await supabase.rpc('process_due_kitchen_schedules');
 
     if (error) {

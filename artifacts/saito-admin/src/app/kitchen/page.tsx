@@ -854,50 +854,36 @@ export default function KitchenPage() {
     if (!recentAction) return;
     setRecentAction(null);
     if (undoTimer.current) clearTimeout(undoTimer.current);
-    await supabase.from('orders').update({ kitchen_status: recentAction.prevStatus, kitchen_ready_at: null }).eq('id', recentAction.orderId);
     for (const it of recentAction.items) {
-      await supabase.from('order_items').update({ prepared_quantity: it.prepared_quantity, kitchen_status: it.kitchen_status }).eq('id', it.id);
+      await supabase.rpc('update_order_item_status', {
+        p_order_item_id: it.id,
+        p_status: it.kitchen_status,
+        p_prepared_quantity: it.prepared_quantity,
+      });
     }
     fetchOrdersRef.current();
   };
 
-  // ── DB actions ─────────────────────────────────────────────────────────────
+  // ── DB actions (all through RPCs — SSOT) ───────────────────────────────────
   const updateOrderStatus = async (id: string, newStatus: 'preparing' | 'ready' | 'completed') => {
     if (newStatus === 'completed') {
       const order = orders.find(o => o.id === id);
       if (order) pushUndo(`MASA ${order.table_number} — tamamlandı`, order);
     }
-    await supabase.from('orders').update({ kitchen_status: newStatus }).eq('id', id);
+    if (newStatus === 'preparing') {
+      await supabase.rpc('prepare_order_items', { p_order_id: id });
+    } else if (newStatus === 'ready') {
+      await supabase.rpc('mark_order_ready', { p_order_id: id });
+    }
     fetchOrdersRef.current();
   };
 
-  // Addım 2: Təhvil Ver — itemləri ready edir + stock deduction
-  // Admin panel realtime subscription bu dəyişikliyi görür → masa flash edir
+  // Addım 2: Təhvil Ver — itemləri ready edir + stock deduction (atomik RPC)
+  // mark_order_ready handles: FOR UPDATE, item status, order status, stock deduction, audit
   const markAllReadyAndNotify = async (order: Order) => {
     pushUndo(`MASA ${order.table_number} — servise verildi`, order);
-    for (const item of order.items) {
-      if (item.preparedQuantity < item.orderedQuantity) {
-        await supabase.from('order_items')
-          .update({ prepared_quantity: item.orderedQuantity, kitchen_status: 'ready', served_quantity: item.orderedQuantity })
-          .eq('id', item.id);
-      }
-    }
-    await supabase.from('orders')
-      .update({ kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() })
-      .eq('id', order.id);
-
-    // Deduct stock immediately when kitchen marks order as ready
-    // Idempotency check prevents double-deduction if pay endpoint also runs
-    try {
-      await fetch('/api/orders/mark-ready', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: order.id }),
-      });
-    } catch (err) {
-      console.error('[kitchen] mark-ready stock deduction failed:', err);
-    }
-
+    const { error } = await supabase.rpc('mark_order_ready', { p_order_id: order.id });
+    if (error) console.error('[kitchen] mark_order_ready failed:', error);
     fetchOrdersRef.current();
   };
 
@@ -942,11 +928,9 @@ export default function KitchenPage() {
     return Array.from(map.values()).sort((a, b) => b.totalPending - a.totalPending);
   }, [activeOrders]);
 
-  // ── Sifarişi qəbul et — birbaxa 'preparing'-ə keçir
+  // ── Sifarişi qəbul et — atomik RPC (FOR UPDATE + status transition)
   const acceptOrder = async (order: Order) => {
-    const { error } = await supabase.from('orders')
-      .update({ kitchen_status: 'preparing', kitchen_accepted_at: new Date().toISOString() })
-      .eq('id', order.id);
+    const { error } = await supabase.rpc('prepare_order_items', { p_order_id: order.id });
     if (error) console.error('[acceptOrder] error:', error);
     fetchOrdersRef.current();
   };

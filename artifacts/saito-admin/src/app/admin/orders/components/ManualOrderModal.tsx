@@ -73,13 +73,10 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
   const [loadingVariants, setLoadingVariants] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      supabase.from('products').select('id, name, name_az, name_en, name_ru, price, image_url, is_available, category_id, category:categories(name)').order('name_az'),
-      supabase.from('categories').select('*').order('sort_order'),
-    ]).then(([pr, cr]) => {
-      setProducts((pr.data || []) as Product[]);
-      setCategories((cr.data || []) as Category[]);
-      if (cr.data?.length) setCat(cr.data[0].id);
+    fetch('/api/admin/products').then(r => r.json()).then(data => {
+      setProducts((data.products || []) as Product[]);
+      setCategories((data.categories || []) as Category[]);
+      if (data.categories?.length) setCat(data.categories[0].id);
       setLoading(false);
     });
     setTimeout(() => searchRef.current?.focus(), 100);
@@ -166,26 +163,46 @@ export function ManualOrderModal({ tableNum, extraTableNums = [], onClose, onCre
       let createdOrderId: string | undefined;
       if (activeOrders && activeOrders.length > 0) {
         const existing = activeOrders[0];
-        await supabase.from('order_items').insert(newItems.map(i => ({ ...i, order_id: existing.id })));
-        await supabase.from('orders').update({
-          total_amount: (existing.total_amount || 0) + total, status: 'confirmed', kitchen_status: 'pending',
-          order_type: orderType,
-          ...(note.trim() ? { customer_note: note.trim() } : {}),
-        }).eq('id', existing.id);
+        // Add items via RPC
+        const { error: rpcErr } = await supabase.rpc('add_order_items', {
+          p_order_id: existing.id,
+          p_items: JSON.stringify(newItems.map(i => ({
+            product_id: i.product_id,
+            product_name: i.product_name,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+            total_price: i.total_price,
+            modifiers: '[]',
+            special_notes: i.note || null,
+          }))),
+        });
+        if (rpcErr) throw rpcErr;
+        // Update order via API
+        const updRes = await fetch('/api/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update', id: existing.id,
+            data: { status: 'confirmed', kitchen_status: 'pending', order_type: orderType, ...(note.trim() ? { customer_note: note.trim() } : {}) },
+          }),
+        });
+        if (!updRes.ok) throw new Error('Order update failed');
         createdOrderId = existing.id;
       } else {
-        const { data: order, error } = await supabase
-          .from('orders')
-          .insert({ table_number: tableNum, total_amount: total, status: 'confirmed', order_type: orderType, customer_note: note.trim() || null })
-          .select().single();
-        if (error) throw error;
-        await supabase.from('order_items').insert(newItems.map(i => ({ ...i, order_id: order.id })));
-        createdOrderId = order.id;
+        // Create order via API
+        const res = await fetch('/api/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table_number: tableNum, items: newItems, total_amount: total, status: 'confirmed', order_type: orderType, customer_note: note.trim() || null }),
+        });
+        const result = await res.json();
+        if (result?.data?.id) createdOrderId = result.data.id;
+        else throw new Error('Order creation failed');
       }
       if (createdOrderId && extraTableNums.length > 0) {
+        // Add extra tables via merge API
         for (const extraNum of extraTableNums) {
-          await supabase.from('orders').insert({
-            table_number: extraNum, total_amount: 0, status: 'paid', merged_into: createdOrderId, kitchen_status: 'pending', is_rush: false, order_type: orderType,
+          await fetch('/api/orders/merge', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ table_numbers: [tableNum, extraNum] }),
           });
         }
       }

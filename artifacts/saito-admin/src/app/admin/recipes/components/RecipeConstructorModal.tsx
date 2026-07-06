@@ -48,11 +48,11 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
     if (!isOpen) return;
     (async () => {
       setLoading(true);
-      const [pRes, iRes] = await Promise.all([
-        supabase.from('products').select('id, name, name_az, price').order('name_az'),
+      const [productsData, iRes] = await Promise.all([
+        fetch('/api/admin/products').then(r => r.json()).then(d => d.products as ProductCatalogItem[]),
         supabase.from('ingredients').select('id, name, unit, average_cost_per_unit, current_stock, cold_waste_percentage').order('name'),
       ]);
-      setProducts((pRes.data || []) as ProductCatalogItem[]);
+      setProducts(productsData);
       setIngredients((iRes.data || []) as Ingredient[]);
 
       if (editProductId) {

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { validateAuth } from '@/lib/api-auth';
+import { validateAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function GET() {
   const auth = await validateAuth();
@@ -9,6 +8,7 @@ export async function GET() {
   }
 
   try {
+    const supabase = await createAuthClient();
     const { data: products, error } = await supabase
       .from('products')
       .select('id, is_ready_product, has_active_recipe, direct_ingredient_id');

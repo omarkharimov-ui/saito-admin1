@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { deductStockForOrder } from '@/lib/stockAutomation';
 import { toast } from '@/lib/toast';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -255,14 +254,14 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
   const fetchAll = useCallback(async () => {
     try {
       const [pr, ir, rr, or, cr, sr] = await Promise.all([
-        supabase.from('products').select('*').order('name_az'),
+        fetch('/api/pos/products').then(r => r.json()),
         supabase.from('ingredients').select('id, current_stock'),
         supabase.from('recipes').select('menu_item_id, ingredient_id, quantity_required, quantity_brutto'),
         supabase.from('orders').select('*, order_items(*)').in('status', ['new', 'confirmed']).order('created_at', { ascending: false }),
         supabase.from('categories').select('*').order('sort_order'),
         supabase.from('settings').select('qr_table_count').limit(1),
       ]);
-      setProducts((pr.data || []) as Product[]);
+      setProducts((pr.products || []) as Product[]);
       setIngredients((ir.data || []) as Ingredient[]);
       setRecipes((rr.data || []) as RecipeIng[]);
       setOrders((or.data || []) as OrderData[]);
@@ -324,18 +323,29 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
     if (!selTable || cart.length === 0) return;
     setBusy(true);
     try {
-      const items = cart.map(i => ({ product_id: i.product.id, product_name: getPName(i.product), quantity: i.qty, unit_price: i.product.price, total_price: i.product.price * i.qty, course: 'main' }));
+      const items = cart.map(i => ({ product_id: i.product.id, product_name: getPName(i.product), quantity: i.qty, unit_price: i.product.price, total_price: i.product.price * i.qty }));
       if (activeOrder) {
-        await supabase.from('order_items').insert(items.map(i => ({ ...i, order_id: activeOrder.id })));
-        await supabase.from('orders').update({ total_amount: (activeOrder.total_amount || 0) + total, status: 'confirmed', kitchen_status: 'pending', order_type: orderType }).eq('id', activeOrder.id);
+        // Add items via RPC + update order total via API
+        const { error: rpcErr } = await supabase.rpc('add_order_items', {
+          p_order_id: activeOrder.id,
+          p_items: JSON.stringify(items.map(i => ({ ...i, modifiers: '[]' }))),
+        });
+        if (rpcErr) throw rpcErr;
+        await fetch('/api/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update', id: activeOrder.id, data: { status: 'confirmed', kitchen_status: 'pending', order_type: orderType } }),
+        });
       } else {
-        const { data: o, error } = await supabase.from('orders').insert({ table_number: selTable, total_amount: total, status: 'confirmed', kitchen_status: 'pending', order_type: orderType }).select().single();
-        if (error) throw error;
-        await supabase.from('order_items').insert(items.map(i => ({ ...i, order_id: o.id })));
+        // Create order via API
+        const res = await fetch('/api/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table_number: selTable, items, total_amount: total, status: 'confirmed', order_type: orderType }),
+        });
+        if (!res.ok) throw new Error('Order creation failed');
       }
       setCart([]); setShowCart(false); fetchAll();
     } catch (e) { console.error(e); } finally { setBusy(false); }
-  }, [selTable, cart, total, activeOrder, fetchAll, getPName]);
+  }, [selTable, cart, total, activeOrder, fetchAll, getPName, orderType]);
 
   const confirmPayment = useCallback(async (p: { method: string; discountType: string; discountValue: number; splitCount: number; tipAmount: number }) => {
     if (!checkoutOrder) return;
@@ -344,10 +354,12 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       const base = checkoutOrder.total_amount || 0;
       const discountAmount = p.discountType === 'percent' ? base * (Math.min(p.discountValue, 100) / 100) : p.discountType === 'amount' ? Math.min(p.discountValue, base) : 0;
       const paidAmount = base - discountAmount;
-      await supabase.from('orders').update({
-        status: 'paid', payment_method: p.method, discount_type: p.discountType, discount_value: p.discountValue, paid_amount: paidAmount, split_count: p.splitCount, tip_amount: p.tipAmount,
-      }).eq('id', checkoutOrder.id);
-      try { const r = await deductStockForOrder(checkoutOrder.id); if (r.deducted > 0) toast.success(`🧾 ${r.deducted} ingredient stockdan çıxıldı`, { id: 'waiter-stock-toast' }); } catch (e) { console.error(e); }
+      // Payment via API — RPC handles FOR UPDATE, stock deduction, table release
+      const res = await fetch('/api/orders/pay', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: checkoutOrder.id, payment_method: p.method, cash_amount: paidAmount, card_amount: 0, tip_amount: p.tipAmount }),
+      });
+      if (!res.ok) throw new Error('Payment failed');
       setPaid({ ...checkoutOrder, payment_method: p.method, discount_type: p.discountType, discount_value: p.discountValue, paid_amount: paidAmount, split_count: p.splitCount, tip_amount: p.tipAmount });
       setCheckoutOrder(null);
       fetchAll();

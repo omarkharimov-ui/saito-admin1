@@ -65,12 +65,12 @@ export default function RecipesPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pRes, iRes, rRes] = await Promise.all([
-        supabase.from('products').select('id, name, name_az, name_en, name_ru, image_url, price').order('name_az'),
+      const [productsData, iRes, rRes] = await Promise.all([
+        fetch('/api/admin/products').then(r => r.json()).then(d => d.products as ProductCatalogItem[]),
         supabase.from('ingredients').select('id, name, unit, current_stock').order('name'),
         supabase.from('recipes').select('id, menu_item_id, ingredient_id, quantity_required, is_ai_suggested'),
       ]);
-      setProducts((pRes.data || []) as ProductCatalogItem[]);
+      setProducts(productsData);
       setIngredients((iRes.data || []) as Ingredient[]);
       setRecipes((rRes.data || []) as RecipeRow[]);
     } finally {

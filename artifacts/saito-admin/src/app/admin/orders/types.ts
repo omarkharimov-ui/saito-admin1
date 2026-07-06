@@ -50,6 +50,7 @@ export interface Order {
   profit?: number;
   cash_amount?: number;
   card_amount?: number;
+  returned_amount?: number;
 }
 
 export interface Reservation {

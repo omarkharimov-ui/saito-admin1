@@ -42,8 +42,65 @@ export async function POST(request: NextRequest) {
           if (orders) sourceOrders.push(...orders);
         }
 
-        if (sourceOrders.length === 0 && !primaryOrder) {
-          throw new Error('No active orders to merge');
+        // Handle empty table grouping — create orders if none exist
+        if (!primaryOrder && sourceOrders.length === 0) {
+          // Create primary order on target table
+          const createRes = await fetch(`${svc().url}/rest/v1/orders`, {
+            method: 'POST',
+            headers: { ...svc().headers, 'Prefer': 'return=representation' },
+            body: JSON.stringify({
+              table_number: targetTable,
+              total_amount: 0,
+              status: 'confirmed',
+              kitchen_status: 'pending',
+              guest_count: 1,
+              version: 1,
+            }),
+          });
+          if (!createRes.ok) throw new Error('Failed to create primary order');
+          primaryOrder = (await createRes.json())?.[0];
+
+          // Create child orders for rest tables (merged into primary)
+          for (const tNum of restTables) {
+            await fetch(`${svc().url}/rest/v1/orders`, {
+              method: 'POST',
+              headers: svc().headers,
+              body: JSON.stringify({
+                table_number: tNum,
+                total_amount: 0,
+                status: 'confirmed',
+                merged_into: primaryOrder.id,
+                kitchen_status: null,
+                guest_count: 0,
+                version: 1,
+              }),
+            });
+          }
+
+          // Update table floors for empty table grouping
+          for (const tNum of restTables) {
+            await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tNum}`, {
+              method: 'PATCH',
+              headers: svc().headers,
+              body: JSON.stringify({
+                status: 'merged',
+                merged_into_table: targetTable,
+                guest_count: null,
+              }),
+            });
+          }
+          await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${targetTable}`, {
+            method: 'PATCH',
+            headers: svc().headers,
+            body: JSON.stringify({ status: 'occupied', guest_count: 1 }),
+          });
+
+          // Return early — no orders to merge, skip RPC
+          return {
+            primary_order_id: primaryOrder.id,
+            targetTable,
+            merged_tables: restTables,
+          };
         }
 
         if (!primaryOrder && sourceOrders.length > 0) {

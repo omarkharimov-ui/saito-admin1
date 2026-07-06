@@ -73,7 +73,10 @@ export const OrderModal = ({
 
   const handleCustomerSelect = async (customerId: string | null) => {
     try {
-      await supabase.from('orders').update({ customer_id: customerId }).eq('id', order.id);
+      await fetch('/api/orders', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', id: order.id, data: { customer_id: customerId } }),
+      });
       if (customerId) {
         const { data } = await supabase.from('customers').select('name').eq('id', customerId).single();
         if (data) setCustomerName(data.name);
@@ -122,18 +125,13 @@ export const OrderModal = ({
     try {
       const childIds = mergedOrders.map(o => o.id);
 
-      // Delete all child orders' items first
-      const { error: itemsErr } = await supabase.from('order_items').delete().in('order_id', childIds);
-      if (itemsErr) {
-        console.error('[Split] Failed to delete order_items:', itemsErr);
-        throw itemsErr;
-      }
-
-      // Delete all child orders — full dismiss, no restore
-      const { error: delErr } = await supabase.from('orders').delete().in('id', childIds);
-      if (delErr) {
-        console.error('[Split] Failed to delete orders:', delErr);
-        throw delErr;
+      // Soft-delete each child order via API (sets status=cancelled + cancelled_at)
+      for (const childId of childIds) {
+        const res = await fetch('/api/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete', id: childId }),
+        });
+        if (!res.ok) throw new Error(`Failed to unmerge order ${childId}`);
       }
 
       toast.success(t('tables_separated').replace('{tables}', mergedOrders.map(o => `${t('table_label')} ${o.table_number}`).join(', ')), { id: 'action-toast' });
@@ -159,20 +157,12 @@ export const OrderModal = ({
     if (merging) return;
     setMerging(true);
     try {
-      const items = order.order_items || [];
-      for (const item of items) {
-        const existing = targetOrder.order_items?.find(i => i.product_id === item.product_id);
-        if (existing) {
-          const newQty = existing.quantity + item.quantity;
-          await supabase.from('order_items').update({ quantity: newQty, total_price: existing.unit_price * newQty }).eq('id', existing.id);
-          await supabase.from('order_items').delete().eq('id', item.id);
-        } else {
-          await supabase.from('order_items').update({ order_id: targetOrder.id }).eq('id', item.id);
-        }
-      }
-      const extraTotal = items.reduce((s, i) => s + i.total_price, 0);
-      await supabase.from('orders').update({ total_amount: (targetOrder.total_amount || 0) + extraTotal, kitchen_status: 'pending' }).eq('id', targetOrder.id);
-      await supabase.from('orders').update({ merged_into: targetOrder.id, status: 'paid' }).eq('id', order.id);
+      // Use merge API — routes through merge_orders_atomic RPC (FOR UPDATE)
+      const res = await fetch('/api/orders/merge', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_numbers: [order.table_number, targetOrder.table_number] }),
+      });
+      if (!res.ok) throw new Error('Merge failed');
       toast.success(`Masa ${order.table_number} → Masa ${targetOrder.table_number} birləşdirildi`, { id: 'action-toast' });
       onRefresh();
       onClose();
@@ -272,20 +262,8 @@ export const OrderModal = ({
 
     (async () => {
       try {
-        // Item-level stock reversal — reverse only what changed, proportionally
-        const itemsToReverse: { order_item_id: string; reverse_qty: number }[] = [];
-        for (const id of snapDeleted) {
-          const item = order.order_items?.find(i => i.id === id);
-          if (!item) continue;
-          if ((item.served_quantity ?? 0) > 0) continue;
-          itemsToReverse.push({ order_item_id: id, reverse_qty: item.quantity });
-        }
-        for (const id of snapReturned) {
-          const item = order.order_items?.find(i => i.id === id);
-          if (!item) continue;
-          if ((item.served_quantity ?? 0) > 0) continue;
-          itemsToReverse.push({ order_item_id: id, reverse_qty: item.quantity });
-        }
+        // Collect stock reversal for qty-reduced items only (deleted items handled by cancel_order_items RPC)
+        const qtyReductionReversal: { order_item_id: string; reverse_qty: number }[] = [];
         for (const [id, newQty] of Object.entries(snapDraft)) {
           const item = order.order_items?.find(i => i.id === id);
           if (!item) continue;
@@ -293,32 +271,47 @@ export const OrderModal = ({
           if (newQty >= oldQty) continue;
           const diff = oldQty - newQty;
           if ((item.served_quantity ?? 0) > 0) continue;
-          itemsToReverse.push({ order_item_id: id, reverse_qty: diff });
+          qtyReductionReversal.push({ order_item_id: id, reverse_qty: diff });
         }
-        if (itemsToReverse.length > 0) {
+        if (qtyReductionReversal.length > 0) {
           await supabase.rpc('reverse_stock_deduction_for_items', {
-            p_items: JSON.stringify(itemsToReverse),
+            p_items: JSON.stringify(qtyReductionReversal),
           });
         }
 
-        for (const id of snapDeleted) {
-          const item = order.order_items?.find(i => i.id === id);
-          if (item && (item.served_quantity ?? 0) > 0) continue;
-          await supabase.from('order_items').delete().eq('id', id);
+        // Cancel deleted/returned items via RPC (handles delete + stock reversal + total recalc)
+        const cancelItemIds = new Set([...snapDeleted, ...snapReturned]);
+        if (cancelItemIds.size > 0) {
+          const cancelItems = [...cancelItemIds]
+            .map(id => {
+              const item = order.order_items?.find(i => i.id === id);
+              if (!item || (item.served_quantity ?? 0) > 0) return null;
+              return { order_item_id: id, quantity: item.quantity };
+            })
+            .filter(Boolean) as { order_item_id: string; quantity: number }[];
+          if (cancelItems.length > 0) {
+            await supabase.rpc('cancel_order_items', {
+              p_order_id: order.id,
+              p_items: JSON.stringify(cancelItems),
+            });
+          }
         }
-        for (const id of snapReturned) {
-          const item = order.order_items?.find(i => i.id === id);
-          if (item && (item.served_quantity ?? 0) > 0) continue;
-          await supabase.from('order_items').delete().eq('id', id);
-        }
+
+        // Update qty-changed items via RPC (FOR UPDATE + kitchen_status reset)
         for (const [id, qty] of Object.entries(snapDraft)) {
           const item = order.order_items?.find(i => i.id === id);
           if (!item) continue;
           const served = item.served_quantity ?? 0;
           if (qty < served) continue;
           const unit = item.unit_price || (item.total_price / item.quantity);
-          await supabase.from('order_items').update({ quantity: qty, total_price: unit * qty }).eq('id', id);
+          await supabase.rpc('update_order_item_quantity', {
+            p_order_item_id: id,
+            p_quantity: qty,
+            p_unit_price: unit,
+          });
         }
+
+        // Compute final values for order update
         const returnedAmount = (order.order_items || [])
           .filter(i => snapReturned.has(i.id))
           .reduce((s, i) => s + (i.unit_price || (i.total_price / i.quantity)) * (snapDraft[i.id] ?? i.quantity), 0);
@@ -328,14 +321,22 @@ export const OrderModal = ({
             const qty = snapDraft[i.id] ?? i.quantity;
             return s + (i.unit_price || (i.total_price / i.quantity)) * qty;
           }, 0);
-        const { data: cur } = await supabase.from('orders').select('returned_amount').eq('id', order.id).single();
-        const prevReturned = Number(cur?.returned_amount) || 0;
         const hasQtyChanges = Object.keys(snapDraft).length > 0 || snapDeleted.size > 0 || snapReturned.size > 0;
-        await supabase.from('orders').update({
-          total_amount: finalTotal, status: 'confirmed',
-          ...(hasQtyChanges ? { kitchen_status: 'pending' } : {}),
-          ...(returnedAmount > 0 ? { returned_amount: prevReturned + returnedAmount } : {}),
-        }).eq('id', order.id);
+
+        // Update order via API (version-safe)
+        const updateData: Record<string, any> = {
+          total_amount: finalTotal,
+          status: 'confirmed',
+        };
+        if (hasQtyChanges) updateData.kitchen_status = 'pending';
+        if (returnedAmount > 0) {
+          updateData.returned_amount = (order.returned_amount || 0) + returnedAmount;
+        }
+        const updRes = await fetch('/api/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update', id: order.id, data: updateData }),
+        });
+        if (!updRes.ok) throw new Error('Order update failed');
       } catch (err: any) {
         onRefresh();
         toast.error(t('error') + ': ' + (err?.message ?? t('error_saving')), { id: 'action-toast' });
@@ -359,10 +360,14 @@ export const OrderModal = ({
       items: order.order_items?.map(i => ({ name: getProductName(i), quantity: i.quantity, price: i.unit_price })) || [],
       created_at: new Date().toISOString(),
     }]);
-    await supabase.from('orders').update({ kitchen_status: 'cancelled', void_reason: reasonLabel }).eq('id', order.id);
+    // Set order as cancelled via API
+    await fetch('/api/orders', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update', id: order.id, data: { kitchen_status: 'cancelled', void_reason: reasonLabel } }),
+    });
     setTimeout(async () => {
-      await supabase.from('order_items').delete().eq('order_id', order.id);
-      await supabase.from('orders').delete().eq('id', order.id);
+      // Deferred: cancel items + release table via cancel_table_orders RPC
+      await supabase.rpc('cancel_table_orders', { p_table_number: order.table_number });
     }, 30000);
     toast.success(t('order_cancelled_reason').replace('{reason}', reasonLabel), { id: 'action-toast' });
     closeAndRefresh();
@@ -382,19 +387,42 @@ export const OrderModal = ({
       order_id: order.id, table_number: order.table_number, total_amount: totalCancelledAmount,
       reason: reasonKey, reason_text: reasonLabel, items: itemsToCancel, created_at: new Date().toISOString(),
     }]);
+    // Split items into fully-cancelled (delete) and partially-cancelled (qty reduce)
+    const fullCancelItems: { order_item_id: string; quantity: number }[] = [];
+    const partialCancelItems: { order_item_id: string; new_qty: number; unit_price: number }[] = [];
     for (const item of itemsToCancel) {
       const orderItem = order.order_items?.find(i => i.id === item.id);
-      if (orderItem) {
-        if (item.quantity >= orderItem.quantity) {
-          await supabase.from('order_items').delete().eq('id', item.id);
-        } else {
-          const newQty = orderItem.quantity - item.quantity;
-          await supabase.from('order_items').update({ quantity: newQty, total_price: newQty * (orderItem.unit_price || 0) }).eq('id', item.id);
-        }
+      if (!orderItem) continue;
+      if (item.quantity >= orderItem.quantity) {
+        fullCancelItems.push({ order_item_id: item.id, quantity: orderItem.quantity });
+      } else {
+        partialCancelItems.push({ order_item_id: item.id, new_qty: orderItem.quantity - item.quantity, unit_price: orderItem.unit_price || 0 });
       }
     }
+    // Full cancel via RPC (handles delete + stock reversal + total recalc)
+    if (fullCancelItems.length > 0) {
+      await supabase.rpc('cancel_order_items', {
+        p_order_id: order.id,
+        p_items: JSON.stringify(fullCancelItems),
+      });
+    }
+    // Partial cancel via RPC (handles qty update + kitchen_status reset)
+    for (const item of partialCancelItems) {
+      await supabase.rpc('update_order_item_quantity', {
+        p_order_item_id: item.order_item_id,
+        p_quantity: item.new_qty,
+        p_unit_price: item.unit_price,
+      });
+      // Reverse stock for the cancelled portion
+      await supabase.rpc('reverse_stock_deduction_for_items', {
+        p_items: JSON.stringify([{ order_item_id: item.order_item_id, reverse_qty: 0 }]),
+      });
+    }
     const newOrderTotal = (order.total_amount || 0) - totalCancelledAmount;
-    await supabase.from('orders').update({ total_amount: Math.max(0, newOrderTotal) }).eq('id', order.id);
+    await fetch('/api/orders', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update', id: order.id, data: { total_amount: Math.max(0, newOrderTotal) } }),
+    });
     const totalQty = itemsToCancel.reduce((sum, i) => sum + (i.quantity || 1), 0);
     toast.success(t('items_cancelled').replace('{count}', String(totalQty)).replace('{reason}', reasonLabel).replace('{amount}', totalCancelledAmount.toFixed(2)), { id: 'action-toast' });
     setCancelStep('none'); setCancelReason(''); setSelectedCancelItems({});
@@ -435,28 +463,20 @@ export const OrderModal = ({
   }, 0);
 
   useEffect(() => {
-    const fetchProducts = async (attempt = 1) => {
+    (async () => {
       try {
-        const [pr, cr] = await Promise.all([
-          supabase.from('products').select('id, name, name_az, name_en, name_ru, price, image_url, is_available, category_id').order('name_az'),
-          supabase.from('categories').select('*').order('sort_order'),
-        ]);
-        if (pr.error) {
-          console.error(`[OrderModal] products fetch error (attempt ${attempt}):`, pr.error.message);
-          if (attempt < 3) { setTimeout(() => fetchProducts(attempt + 1), 1000 * attempt); return; }
-        }
-        setAllProducts((pr.data || []) as Product[]);
-        const cats = (cr.data || []) as { id: string; name: string }[];
+        const res = await fetch('/api/admin/products');
+        const data = await res.json();
+        setAllProducts((data.products || []) as Product[]);
+        const cats = (data.categories || []) as { id: string; name: string }[];
         setCategories(cats);
         if (cats.length && !cat) setCat(cats[0].id);
       } catch (err) {
-        console.error(`[OrderModal] products fetch exception (attempt ${attempt}):`, err);
-        if (attempt < 3) { setTimeout(() => fetchProducts(attempt + 1), 1000 * attempt); return; }
+        console.error('[OrderModal] products fetch exception:', err);
       } finally {
         setLoadingProducts(false);
       }
-    };
-    fetchProducts();
+    })();
     setTimeout(() => addSearchRef.current?.focus(), 100);
   }, []);
 
@@ -513,6 +533,9 @@ export const OrderModal = ({
     if (addItems.length === 0) return;
     setAddSubmitting(true);
     try {
+      // Split into new items and existing-item merges
+      const newItems: any[] = [];
+      const existingUpdates: { id: string; qty: number; unitPrice: number; totalPrice: number }[] = [];
       let extraTotal = 0;
       for (const item of addItems) {
         const unitPrice = item.variant?.price ?? item.product.price;
@@ -521,13 +544,12 @@ export const OrderModal = ({
         );
         if (existing) {
           const newQty = existing.quantity + item.quantity;
-          await supabase.from('order_items').update({ quantity: newQty, total_price: unitPrice * newQty }).eq('id', existing.id);
+          existingUpdates.push({ id: existing.id, qty: newQty, unitPrice, totalPrice: unitPrice * newQty });
         } else {
-          await supabase.from('order_items').insert({
-            order_id: order.id,
+          newItems.push({
             product_id: item.product.id,
-            variant_id: item.variant?.id || null,
             product_name: getAzProductName(item.product, item.variant?.name),
+            variant_id: item.variant?.id || null,
             quantity: item.quantity,
             unit_price: unitPrice,
             total_price: unitPrice * item.quantity,
@@ -535,11 +557,34 @@ export const OrderModal = ({
         }
         extraTotal += unitPrice * item.quantity;
       }
-      await supabase.from('orders').update({
-        total_amount: (order.total_amount || 0) + extraTotal,
-        status: order.status === 'confirmed' ? 'confirmed' : 'new',
-        kitchen_status: 'pending',
-      }).eq('id', order.id);
+
+      // Insert new items via RPC (FOR UPDATE, automatic total recalc)
+      if (newItems.length > 0) {
+        const { error: insErr } = await supabase.rpc('add_order_items', {
+          p_order_id: order.id,
+          p_items: JSON.stringify(newItems),
+        });
+        if (insErr) throw insErr;
+      }
+
+      // Update existing item qty via RPC (FOR UPDATE, kitchen_status reset)
+      for (const upd of existingUpdates) {
+        const { error: updErr } = await supabase.rpc('update_order_item_quantity', {
+          p_order_item_id: upd.id,
+          p_quantity: upd.qty,
+          p_unit_price: upd.unitPrice,
+        });
+        if (updErr) throw updErr;
+      }
+
+      // Update order total via API (add_order_items already added, need to add existing items' extra too)
+      if (existingUpdates.length > 0) {
+        const updRes = await fetch('/api/orders', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update', id: order.id, data: { total_amount: (order.total_amount || 0) + extraTotal } }),
+        });
+        if (!updRes.ok) throw new Error('Order total update failed');
+      }
       setAddItems([]);
     } catch (e: any) {
       toast.error(e?.message || t('error'), { id: 'action-toast' });
@@ -626,10 +671,10 @@ export const OrderModal = ({
             {order.status !== 'paid' && (
               <div className="flex items-center gap-1 text-white/30">
                 <Users size={9} />
-                <button onClick={async () => { const n = Math.max(1, (guestCount || 1) - 1); setGuestCount(n); await supabase.from('orders').update({ guest_count: n }).eq('id', order.id); }}
+                <button onClick={async () => { const n = Math.max(1, (guestCount || 1) - 1); setGuestCount(n); await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', id: order.id, data: { guest_count: n } }) }); }}
                   className="w-4 h-4 rounded flex items-center justify-center hover:bg-white/10 text-[10px] font-bold">−</button>
                 <span className="text-[11px] font-semibold text-white/50 w-4 text-center tabular-nums">{guestCount}</span>
-                <button onClick={async () => { const n = (guestCount || 1) + 1; setGuestCount(n); await supabase.from('orders').update({ guest_count: n }).eq('id', order.id); }}
+                <button onClick={async () => { const n = (guestCount || 1) + 1; setGuestCount(n); await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', id: order.id, data: { guest_count: n } }) }); }}
                   className="w-4 h-4 rounded flex items-center justify-center hover:bg-white/10 text-[10px] font-bold">+</button>
               </div>
             )}
@@ -1315,13 +1360,14 @@ export const OrderModal = ({
                       );
                       const childIds = childOrders.map(o => o.id);
                       
-                      // Delete selected child orders' items first
-                      const { error: itemsErr } = await supabase.from('order_items').delete().in('order_id', childIds);
-                      if (itemsErr) throw itemsErr;
-                      
-                      // Delete selected child orders — dismiss logic
-                      const { error: delErr } = await supabase.from('orders').delete().in('id', childIds);
-                      if (delErr) throw delErr;
+                      // Soft-delete selected child orders via API (sets status=cancelled + cancelled_at)
+                      for (const childId of childIds) {
+                        const res = await fetch('/api/orders', {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'delete', id: childId }),
+                        });
+                        if (!res.ok) throw new Error(`Failed to unmerge order ${childId}`);
+                      }
                       
                       toast.success(t('tables_separated').replace('{tables}', tablesToSplit.map(n => `${t('table_label')} ${n}`).join(', ')), { id: 'action-toast' });
                       

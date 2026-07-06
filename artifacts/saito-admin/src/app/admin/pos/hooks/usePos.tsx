@@ -223,8 +223,8 @@ export function usePos() {
     const existing = loadCache<Record<number, PosCart>>(POS_CART_KEY + '_all', {});
     const saved = existing[table.table_number];
     
-    // Use guest_count from the table object, default to 2
-    const guestCount = table.guest_count || 2;
+    // Use guest_count from the table object, default to 1 for empty tables
+    const guestCount = table.status === 'empty' ? 1 : (table.guest_count || 2);
 
     // If we have a saved cart with items, use it regardless of table status
     if (saved && (saved.items.length > 0 || table.status !== 'empty')) {
@@ -892,6 +892,25 @@ export function usePos() {
         body: JSON.stringify({ action: log.action, data: log.data }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
+
+      // For transfer undo: move local cart data back to source table
+      if (log.action === 'transfer') {
+        try {
+          const { fromTable, toTable } = log.data;
+          const raw = localStorage.getItem(POS_CART_KEY + '_all');
+          if (raw) {
+            const all = JSON.parse(raw);
+            if (all[toTable]) {
+              all[fromTable] = { ...all[toTable], table_number: fromTable };
+              delete all[toTable];
+              localStorage.setItem(POS_CART_KEY + '_all', JSON.stringify(all));
+            }
+          }
+        } catch (e) {
+          console.error('Local cart undo transfer failed:', e);
+        }
+      }
+
       toast.success('Geri alındı');
       setLastUndo(null);
       fetchData();
@@ -901,7 +920,7 @@ export function usePos() {
   }, [lastUndo, fetchData]);
 
   return {
-    language, tables, floors, products, categories, combos, loading,
+    language, tables, floors, products, categories, combos, variants, loading,
     selectedTable, cart, activeView, orderHistory, lastUndo,
     selectTable, backToFloor, performUndo, activateReservedTable,
     addToCart, addComboToCart, updateCartItemQty, removeCartItem, clearCart, clearDrafts,

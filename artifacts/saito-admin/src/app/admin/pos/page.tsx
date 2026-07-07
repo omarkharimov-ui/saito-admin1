@@ -171,6 +171,7 @@ export default function POSPage() {
         onSaveDraft={() => { toast('Qaralama saxlanıldı'); }}
         onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
         mergeMode={mergeMode}
+        mergeParent={selectedForMerge[0]}
         transferMode={transferMode}
         splitMode={splitMode}
         mergedGroupChildren={actionSheetGroup?.children}

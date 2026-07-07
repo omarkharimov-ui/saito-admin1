@@ -138,10 +138,20 @@ export function usePos() {
     });
   };
 
+  const addComboToCart = (combo: any) => {
+    setCart(prev => {
+      if (!prev) return null;
+      const items = [...prev.items];
+      items.push({ product_id: combo.id, product_name: combo.name, unit_price: combo.price, quantity: 1, total_price: combo.price, modifiers: [], is_combo: true });
+      return { ...prev, items };
+    });
+  };
+
   const updateCartItemQty = (idx: number, delta: number) => {
     setCart(prev => {
       if (!prev) return null;
       const items = [...prev.items];
+      if (!items[idx]) return prev;
       items[idx].quantity += delta;
       if (items[idx].quantity <= 0) items.splice(idx, 1);
       else items[idx].total_price = items[idx].unit_price * items[idx].quantity;
@@ -163,9 +173,11 @@ export function usePos() {
     }
   };
 
+  const clearCart = () => setCart(prev => prev ? { ...prev, items: [] } : null);
+
   return {
     floors, products, categories, combos, loading, selectedTable, cart, activeView, lastUndo,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
-    setActiveView, setCart, setSelectedTable, addToCart, updateCartItemQty, placeOrder
+    setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart
   };
 }

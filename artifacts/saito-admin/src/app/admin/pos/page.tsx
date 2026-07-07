@@ -150,11 +150,12 @@ export default function POSPage() {
         onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} 
         onAddOrder={() => { pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
         onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable.table_number]); setActionSheetOpen(false); }}
+        onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable.table_number); setActionSheetOpen(false); }}
         onUnmerge={() => setSplitMode(true)}
         onBillSplit={() => { toast('Hesab bölmə tezliklə...'); }}
         onCloseBill={() => { toast('Ödəniş ekranı...'); setActionSheetOpen(false); }}
         onPrint={() => window.print()}
-        onSaveDraft={() => toast('Qaralama saxlanıldı')}
+        onSaveDraft={() => { toast('Qaralama saxlanıldı'); }}
         onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
         mergeMode={mergeMode}
         transferMode={transferMode}

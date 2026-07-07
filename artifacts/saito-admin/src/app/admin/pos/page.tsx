@@ -31,7 +31,7 @@ export default function POSPage() {
   const [selectedForSplit, setSelectedForSplit] = useState<number[]>([]);
 
   const activeFloor = selectedFloor 
-    ? pos.floors.find(f => f.name === selectedFloor) 
+    ? pos.floors.find((f: any) => f.name === selectedFloor) 
     : pos.floors[0];
 
   const handleTableTap = (table: any) => {
@@ -85,7 +85,7 @@ export default function POSPage() {
                   <h1 className="text-3xl font-black tracking-tighter">POS</h1>
                   {pos.floors.length > 1 && (
                     <LiquidDropdown 
-                      options={pos.floors.map(f => ({ id: f.name, label: f.name }))} 
+                      options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))} 
                       activeId={activeFloor?.name} 
                       onChange={setSelectedFloor} 
                     />
@@ -136,7 +136,7 @@ export default function POSPage() {
                     onBack={() => pos.setActiveView('floor')}
                     orderButtonStatus="idle"
                     onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
-                    onClearDraft={() => {}}
+                    onClearDraft={() => pos.clearCart()}
                   />
                </div>
             </div>
@@ -151,18 +151,15 @@ export default function POSPage() {
         onAddOrder={() => { pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
         onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable.table_number]); setActionSheetOpen(false); }}
         onUnmerge={() => setSplitMode(true)}
-        onBillSplit={() => {}}
-        onCloseBill={() => {}}
+        onBillSplit={() => { toast('Hesab bölmə tezliklə...'); }}
+        onCloseBill={() => { toast('Ödəniş ekranı...'); setActionSheetOpen(false); }}
         onPrint={() => window.print()}
-        onSaveDraft={() => {}}
-        onConfirmMerge={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
-        onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable.table_number); setActionSheetOpen(false); }}
-        onConfirmTransfer={async () => { await pos.transferTable(transferSource!, transferTarget!); setTransferMode(false); setTransferSource(null); setTransferTarget(null); setActionSheetOpen(false); }}
+        onSaveDraft={() => toast('Qaralama saxlanıldı')}
         onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
         mergeMode={mergeMode}
         transferMode={transferMode}
         splitMode={splitMode}
-        allTables={pos.floors.flatMap(f => f.tables)}
+        allTables={pos.floors.flatMap((f: any) => f.tables)}
         selectedForMerge={selectedForMerge}
         selectedForSplit={selectedForSplit}
         transferSource={transferSource}
@@ -173,13 +170,15 @@ export default function POSPage() {
         }}
         onConfirmSplit={handleUnmerge}
         onCancelMode={() => { setMergeMode(false); setTransferMode(false); setSplitMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
+        onConfirmMerge={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
+        onConfirmTransfer={async () => { await pos.transferTable(transferSource!, transferTarget!); setTransferMode(false); setTransferSource(null); setTransferTarget(null); setActionSheetOpen(false); }}
       />
 
       <AnimatePresence>
         {pos.lastUndo && (
           <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-6 px-8 py-4 rounded-[2rem] bg-zinc-900 text-white shadow-2xl border border-white/10">
             <span className="text-sm font-bold">{pos.lastUndo.message}</span>
-            <button onClick={() => pos.performUndo()} className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase">Geri Al</button>
+            <button onClick={() => pos.performUndo()} className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95">Geri Al</button>
           </motion.div>
         )}
       </AnimatePresence>

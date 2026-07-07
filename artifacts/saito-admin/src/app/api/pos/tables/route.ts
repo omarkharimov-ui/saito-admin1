@@ -50,32 +50,65 @@ export async function GET() {
     // 2. Build final structure
     rawFloors.forEach((f: any) => {
       const fn = f.floor_name || 'Main';
-      if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [] };
-
-      // Hide children
-      if (childTableNumbers.has(f.table_number)) return;
+      if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [], merged_groups: [] };
 
       const tableOrders = ordersByTable[f.table_number] || [];
-      const childrenNums = parentToChildren[f.table_number] || [];
       
-      // Aggregate child data into parent
-      let totalAmount = tableOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-      let guestCount = f.guest_count || tableOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0);
-
-      childrenNums.forEach(ctn => {
-        const childOrders = ordersByTable[ctn] || [];
-        totalAmount += childOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-        // Note: guests already in parent floor or accumulated
+      // Determine if this is a parent or a child
+      const isParent = parentToChildren[f.table_number] !== undefined;
+      const isChild = f.merged_into_table !== null;
+      const parentTableNumber = isChild ? f.merged_into_table : f.table_number;
+      
+      const childrenNums = parentToChildren[parentTableNumber] || [];
+      const allInGroup = [parentTableNumber, ...childrenNums];
+      
+      // Aggregate data for the whole group
+      let groupTotalAmount = 0;
+      let groupGuestCount = 0;
+      let groupOrderIds: string[] = [];
+      
+      allInGroup.forEach(tNum => {
+        const tOrders = ordersByTable[tNum] || [];
+        groupTotalAmount += tOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+        
+        const tableObj = rawFloors.find((rf: any) => rf.table_number === tNum);
+        if (tableObj?.guest_count) groupGuestCount += tableObj.guest_count;
+        else if (tOrders.length > 0) groupGuestCount += tOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0);
+        
+        groupOrderIds = [...groupOrderIds, ...tOrders.map(o => o.id)];
       });
 
-      floorMap[fn].tables.push({
+      const processedTable = {
         ...f,
-        status: tableOrders.length > 0 ? 'occupied' : f.status,
-        total_amount: totalAmount,
-        guest_count: guestCount,
-        merged_with: childrenNums.length > 0 ? [f.table_number, ...childrenNums] : [],
-        order_ids: tableOrders.map(o => o.id)
-      });
+        status: (ordersByTable[f.table_number]?.length || 0) > 0 ? 'occupied' : f.status,
+        total_amount: isChild || isParent ? groupTotalAmount : tableOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0),
+        guest_count: isChild || isParent ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0)),
+        merged_with: isChild || isParent ? allInGroup : [],
+        is_group: isChild || isParent,
+        parent_table_number: parentTableNumber,
+        order_ids: isChild || isParent ? groupOrderIds : tableOrders.map(o => o.id)
+      };
+
+      floorMap[fn].tables.push(processedTable);
+
+      // Also maintain a separate merged_groups list for the modal/ActionSheet
+      if (isParent && !floorMap[fn].merged_groups.find((g: any) => g.id === `group-${f.table_number}`)) {
+        const parentOrders = ordersByTable[f.table_number] || [];
+        floorMap[fn].merged_groups.push({
+          id: `group-${f.table_number}`,
+          parent: { ...processedTable, total_amount: parentOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0) },
+          children: childrenNums.map(ctn => {
+            const cTable = rawFloors.find((rf: any) => rf.table_number === ctn);
+            const cOrders = ordersByTable[ctn] || [];
+            return {
+              ...cTable,
+              total_amount: cOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0)
+            };
+          }),
+          total_guests: groupGuestCount,
+          total_amount: groupTotalAmount
+        });
+      }
     });
 
     const result = Object.values(floorMap).map(f => ({

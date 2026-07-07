@@ -74,6 +74,18 @@ export default function POSPage() {
     }
   };
 
+  const actionSheetGroup = activeFloor?.merged_groups?.find((g: any) => 
+    g.parent.table_number === actionSheetTable?.table_number
+  );
+
+  const handleOpenAction = (table: any) => {
+    // If table is part of a group, we open the action sheet for the parent table
+    const parentNum = table.parent_table_number || table.table_number;
+    const parent = activeFloor?.tables?.find((t: any) => t.table_number === parentNum) || table;
+    setActionSheetTable(parent);
+    setActionSheetOpen(true);
+  };
+
   return (
     <div className="flex-1 min-h-0 w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden">
       <div className="flex-1 min-h-0 relative overflow-hidden">
@@ -100,12 +112,12 @@ export default function POSPage() {
 
               <div className="flex-1 overflow-y-auto">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                  {activeFloor?.tables.map((table: any) => (
+                  {activeFloor?.tables?.map((table: any) => (
                     <TableCard 
                       key={table.table_number} 
                       table={table} 
                       onTap={() => handleTableTap(table)} 
-                      onAction={() => { setActionSheetTable(table); setActionSheetOpen(true); }}
+                      onAction={() => handleOpenAction(table)}
                       isSelected={selectedForMerge.includes(table.table_number)}
                       selectionMode={mergeMode}
                       isTransferSource={transferSource === table.table_number}
@@ -137,7 +149,7 @@ export default function POSPage() {
                     orderButtonStatus="idle"
                     onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                     onClearDraft={() => pos.clearCart()}
-                    mergedChildNumbers={activeFloor?.merged_groups?.find(g => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map(c => c.table_number)}
+                    mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
                   />
                </div>
             </div>
@@ -161,6 +173,7 @@ export default function POSPage() {
         mergeMode={mergeMode}
         transferMode={transferMode}
         splitMode={splitMode}
+        mergedGroupChildren={actionSheetGroup?.children}
         selectedForMerge={selectedForMerge}
         selectedForSplit={selectedForSplit}
         transferSource={transferSource}

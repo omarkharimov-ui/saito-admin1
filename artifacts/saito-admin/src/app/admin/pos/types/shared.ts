@@ -65,6 +65,9 @@ export interface PosTable {
   has_pending?: boolean;
   oldest_pending_at?: string | null;
   kitchen_status?: string | null;
+  is_group?: boolean;
+  parent_table_number?: number | null;
+  merged_with?: number[];
   // Rezervasiya sahələri
   reservation_id?: string | null;
   reservation_name?: string | null;

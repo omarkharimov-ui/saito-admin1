@@ -63,7 +63,7 @@ export function ActionSheet({
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
     { id: 'merge', icon: Merge, label: t('merge_tables'), visible: true },
     { id: 'transfer', icon: Move, label: t('move_table'), visible: true },
-    { id: 'unmerge', icon: GitMerge, label: t('unmerge_tables') || 'Masaları Ayır', visible: isMerged },
+    { id: 'unmerge', icon: GitMerge, label: 'Masaları Ayır', visible: isMerged },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'cancel_table', icon: Trash2, label: t('dismiss_table') || 'Masanı boşalt', visible: isOccupied || table?.status === 'reserved' },
   ];
@@ -105,7 +105,21 @@ export function ActionSheet({
               {currentView === 'actions' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="ui-actions">
                   <div className="text-center mb-6">
-                    <p className="text-2xl font-black tracking-tighter mb-1 leading-none">Masa {table?.table_number}</p>
+                    <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
+                      {isMerged ? `Masa ${table?.table_number} Qrupu` : `Masa ${table?.table_number}`}
+                    </p>
+                    {isMerged && (
+                      <div className="flex flex-wrap justify-center gap-1.5 mt-3 mb-4">
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'}`}>
+                          Masa {table?.table_number} (Əsas)
+                        </span>
+                        {mergedGroupChildren?.map(child => (
+                          <span key={child.table_number} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'}`}>
+                            Masa {child.table_number}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">{isOccupied ? `${table?.guest_count} Qonaq · ${table?.total_amount.toFixed(2)} ₼` : 'Boş Masa'}</p>
                   </div>
                   <div className="grid grid-cols-3 gap-3">

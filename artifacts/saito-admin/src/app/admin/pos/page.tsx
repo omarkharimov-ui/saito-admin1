@@ -137,6 +137,7 @@ export default function POSPage() {
                     orderButtonStatus="idle"
                     onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                     onClearDraft={() => pos.clearCart()}
+                    mergedChildNumbers={activeFloor?.merged_groups?.find(g => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map(c => c.table_number)}
                   />
                </div>
             </div>
@@ -160,7 +161,6 @@ export default function POSPage() {
         mergeMode={mergeMode}
         transferMode={transferMode}
         splitMode={splitMode}
-        allTables={pos.floors.flatMap((f: any) => f.tables)}
         selectedForMerge={selectedForMerge}
         selectedForSplit={selectedForSplit}
         transferSource={transferSource}

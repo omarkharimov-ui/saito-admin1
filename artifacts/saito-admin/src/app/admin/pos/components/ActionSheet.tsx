@@ -27,7 +27,6 @@ interface ActionSheetProps {
   mergeParent?: number | null;
   transferMode?: boolean;
   splitMode?: boolean;
-  allTables?: PosTable[];
   mergedGroupChildren?: PosTable[];
   selectedForMerge?: number[];
   selectedForSplit?: number[];
@@ -44,7 +43,7 @@ const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } 
 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onMerge, onTransfer, onUnmerge, onBillSplit, onCloseBill, onPrint, onSaveDraft, onCancelTable,
-  mergeMode, mergeParent, transferMode, splitMode, allTables, mergedGroupChildren, selectedForMerge, selectedForSplit, transferSource, transferTarget,
+  mergeMode, mergeParent, transferMode, splitMode, mergedGroupChildren, selectedForMerge, selectedForSplit, transferSource, transferTarget,
   onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, onConfirmTransfer
 }: ActionSheetProps) {
   const { t } = useLanguage();
@@ -58,8 +57,7 @@ export function ActionSheet({
   if (!table && !mergeMode && !transferMode) return null;
 
   const isOccupied = table?.status !== 'empty';
-  const hasMergedChildren = (mergedGroupChildren?.length ?? 0) > 0;
-  const isMerged = hasMergedChildren || (table ? (allTables?.some(t => t.merged_into_table === table.table_number) ?? false) : false);
+  const isMerged = (mergedGroupChildren?.length ?? 0) > 0;
 
   const actions = [
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
@@ -71,7 +69,7 @@ export function ActionSheet({
   ];
 
   const visibleActions = actions.filter(a => a.visible);
-  const mergedChildren = splitMode && table ? (mergedGroupChildren ?? (allTables?.filter(t => t.merged_into_table === table.table_number) ?? [])) : [];
+  const mergedChildren = splitMode && table ? (mergedGroupChildren ?? []) : [];
   const currentView = mergeMode ? 'merge' : transferMode ? 'transfer' : splitMode ? 'split' : open ? 'actions' : 'none';
 
   return (

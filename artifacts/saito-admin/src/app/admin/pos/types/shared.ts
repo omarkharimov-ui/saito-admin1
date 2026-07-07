@@ -83,7 +83,7 @@ export interface MergedGroup {
 }
 
 export interface FloorConfig {
-  id: string;
+  id?: string;
   name: string;
   tables?: PosTable[];
   merged_groups?: MergedGroup[];

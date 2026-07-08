@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { supabase } from '@/lib/supabase';
-import { executeTransactionalOrderAction } from '@/lib/transaction';
+import { runOrderAction } from '@/lib/transaction';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'original_order_id and items_to_split required' }, { status: 400 });
     }
 
-    const result = await executeTransactionalOrderAction('BillSplit', async () => {
+    const result = await runOrderAction('BillSplit', async () => {
       const splitTotal = items_to_split.reduce((sum: number, item: any) => sum + (Number(item.unit_price) * Number(item.quantity)), 0);
 
       // Build items payload for RPC

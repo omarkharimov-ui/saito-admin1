@@ -28,147 +28,30 @@ export async function POST(req: NextRequest) {
 
     const s = svc();
 
-    // 1. Fetch table
-    const tableRes = await fetch(`${s.url}/rest/v1/table_floors?select=*&id=eq.${table_id}`, { headers: s.headers });
-    if (!tableRes.ok) return NextResponse.json({ error: 'Failed to fetch table' }, { status: 500 });
-    const tables: any[] = await tableRes.json();
-    const currentTable = tables?.[0];
-    if (!currentTable) return NextResponse.json({ error: 'Table not found' }, { status: 404 });
-
-    // 2. Find reservation — check table_floors.reservation_id first, then search reservations
-    let reservationId = currentTable.reservation_id;
-
-    if (!reservationId) {
-      // Search today's reservations with status=confirmed/pending matching this table_number
-      const today = new Date().toISOString().split('T')[0];
-      const resLookup = await fetch(
-        `${s.url}/rest/v1/reservations?select=id,status,table_ids&date=eq.${today}&status=in.(confirmed,pending)&order=created_at.desc`,
-        { headers: s.headers }
-      );
-      if (resLookup.ok) {
-        const resList: any[] = await resLookup.json();
-        // Try matching by table_number first
-        const byNumber = resList.find(r => r.table_number === currentTable.table_number);
-        if (byNumber?.id) {
-          reservationId = byNumber.id;
-        } else {
-          // Fall back to matching by table_ids JSONB array containing this table_id
-          const byIds = resList.find((r: any) => {
-            const ids = typeof r.table_ids === 'string' ? JSON.parse(r.table_ids) : (r.table_ids || []);
-            return Array.isArray(ids) && ids.some((id: any) => String(id) === String(table_id));
-          });
-          if (byIds?.id) reservationId = byIds.id;
-        }
-      }
-    }
-
-    if (!reservationId) {
-      return NextResponse.json({ error: 'Table is not reserved' }, { status: 409 });
-    }
-
-    // 3. Fetch reservation
-    const reservationRes = await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, { headers: s.headers });
-    if (!reservationRes.ok) return NextResponse.json({ error: 'Failed to fetch reservation' }, { status: 500 });
-    const reservations: any[] = await reservationRes.json();
-    const reservation = reservations?.[0];
-    if (!reservation) return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
-
-    if (reservation.status === 'checked_in' || reservation.status === 'completed') {
-      return NextResponse.json({ error: 'Reservation already activated' }, { status: 409 });
-    }
-
-    // 4. Create POS order (simple: just the order, items come from kitchen later)
-    const orderPayload: Record<string, any> = {
-      table_number: currentTable.table_number,
-      reservation_id: reservationId,
-      status: 'confirmed',
-      order_type: 'dine_in',
-      guest_count: guest_count || reservation.guests || currentTable.guest_count || 1,
-      total_amount: Number(reservation.pre_order_total || 0),
-      customer_note: reservation.note || 'Rezervasiya',
-      created_at: new Date().toISOString(),
-    };
-
-    const createRes = await fetch(`${s.url}/rest/v1/orders`, {
+    // Atomic activate via RPC
+    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/activate_table_atomic`, {
       method: 'POST',
       headers: { ...s.headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify(orderPayload),
-    });
-    if (!createRes.ok) {
-      const errText = await createRes.text();
-      return NextResponse.json({ error: `Order creation failed: ${errText}` }, { status: 500 });
-    }
-    const created = await createRes.json();
-    const activeOrder = Array.isArray(created) ? created[0] : created;
-
-    // 5. Transfer pre-order items if any
-    const preItems = typeof reservation.pre_order_items === 'string'
-      ? JSON.parse(reservation.pre_order_items)
-      : (reservation.pre_order_items || []);
-
-    const transferredItems: any[] = [];
-
-    if (Array.isArray(preItems) && preItems.length > 0 && activeOrder?.id) {
-      for (const item of preItems) {
-        const itemRes = await fetch(`${s.url}/rest/v1/order_items`, {
-          method: 'POST',
-          headers: s.headers,
-          body: JSON.stringify({
-            order_id: activeOrder.id,
-            product_id: item.product_id,
-            product_name: item.product_name,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.unit_price * item.quantity,
-            modifiers: JSON.stringify(item.modifiers || []),
-            special_notes: item.special_notes || '',
-            kitchen_status: 'reserved',
-          }),
-        });
-        if (itemRes.ok) {
-          const created = await itemRes.json();
-          transferredItems.push(Array.isArray(created) ? created[0] : created);
-        }
-      }
-    }
-
-    // 6. Update reservation status to checked_in using the RPC/status API
-    // This will trigger normalize_table_after_reservation_change which sets table to 'occupied'
-    const resUpdateRes = await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, {
-      method: 'PATCH',
-      headers: s.headers,
       body: JSON.stringify({
-        status: 'checked_in',
-        checked_in_at: new Date().toISOString(),
+        p_table_id: table_id,
+        p_guest_count: guest_count || null,
       }),
     });
-    if (!resUpdateRes.ok) {
-      console.warn('[activate] Failed to update reservation status, continuing');
+
+    if (!rpcRes.ok) {
+      const errText = await rpcRes.text();
+      const status = rpcRes.status;
+      if (status === 409) return NextResponse.json({ error: 'Table is not reserved' }, { status: 409 });
+      return NextResponse.json({ error: `Activation failed: ${errText}` }, { status: 500 });
     }
 
-    // 7. Update table to occupied (in case the trigger didn't cover it)
-    const tablePatch: Record<string, any> = {
-      status: 'occupied',
-      reservation_id: null,
-      reservation_name: null,
-      reservation_phone: null,
-      reservation_time: null,
-      guest_count: guest_count || reservation.guests || currentTable.guest_count || null,
-    };
-
-    const updatedTableRes = await fetch(`${s.url}/rest/v1/table_floors?id=eq.${table_id}`, {
-      method: 'PATCH',
-      headers: s.headers,
-      body: JSON.stringify(tablePatch),
+    const rpcData = await rpcRes.json();
+    return NextResponse.json({ 
+      success: true, 
+      table: rpcData?.table, 
+      order: rpcData?.order, 
+      items: rpcData?.items 
     });
-    if (!updatedTableRes.ok) {
-      return NextResponse.json({ error: 'Failed to update table' }, { status: 500 });
-    }
-
-    const updatedTables = await updatedTableRes.json();
-    const updatedTable = Array.isArray(updatedTables) ? updatedTables[0] : updatedTables;
-
-    return NextResponse.json({ success: true, table: updatedTable, order: activeOrder, items: transferredItems });
   } catch (error: any) {
     console.error('[API /tables/activate] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

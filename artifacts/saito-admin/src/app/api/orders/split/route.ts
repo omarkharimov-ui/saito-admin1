@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { executeTransactionalOrderAction } from '@/lib/transaction';
+import { runOrderAction } from '@/lib/transaction';
 import { TableStatus } from '@/lib/tableStatus';
 
 function svc() {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'table_numbers required' }, { status: 400 });
     }
 
-    const result = await executeTransactionalOrderAction('TableUnmerge', async () => {
+    const result = await runOrderAction('TableUnmerge', async () => {
       for (const tableNum of table_numbers) {
         const floorRes = await fetch(
           `${svc().url}/rest/v1/table_floors?select=*&table_number=eq.${tableNum}`,

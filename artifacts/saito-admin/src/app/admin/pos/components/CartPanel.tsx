@@ -142,7 +142,8 @@ export function CartPanel({
       setSelectedForLoss(new Map());
       setShowCustomReason(false);
       setCustomReasonText('');
-    } catch {
+    } catch (e: any) {
+      toast.error(e?.message || 'Ləğv edilə bilmədi', { id: 'action-toast' });
     } finally {
       setConfirming(false);
     }

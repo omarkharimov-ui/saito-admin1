@@ -13,6 +13,7 @@ export function usePos() {
   const [categories, setCategories] = useState<any[]>([]);
   const [combos, setCombos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [placingOrder, setPlacingOrder] = useState(false);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
@@ -45,16 +46,74 @@ export function usePos() {
 
   useEffect(() => {
     fetchData();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(fetchData, 500);
+    };
     const channel = createRealtimeChannel('pos-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, debouncedFetch)
       .subscribe();
-    return () => { removeRealtimeChannel(channel); };
+    return () => { 
+      if (debounceTimer) clearTimeout(debounceTimer);
+      removeRealtimeChannel(channel); 
+    };
   }, [fetchData]);
 
-  const selectTable = (table: PosTable) => {
+  const selectTable = async (table: PosTable) => {
     setSelectedTable(table);
     setActiveView('order');
+    
+    // Load existing order items if table has an active order
+    const tableOrders = floors
+      .flatMap((f: any) => f.tables || [])
+      .filter((t: any) => t.table_number === table.table_number);
+    
+    const existingItems = tableOrders.flatMap((t: any) => t.order_ids || []);
+    
+    if (existingItems.length > 0) {
+      try {
+        const res = await fetch('/api/orders');
+        if (res.ok) {
+          const data = await res.json();
+          const orders = data.orders || [];
+          const orderItems = data.orderItems || [];
+          
+          const activeOrder = orders.find((o: any) => 
+            o.table_number === table.table_number && 
+            !['paid', 'cancelled'].includes(o.status)
+          );
+          
+          if (activeOrder) {
+            const items = orderItems
+              .filter((item: any) => item.order_id === activeOrder.id)
+              .map((item: any) => ({
+                product_id: item.product_id,
+                product_name: item.product_name,
+                unit_price: item.unit_price,
+                quantity: item.quantity,
+                total_price: item.total_price,
+                modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
+                special_notes: item.special_notes || ''
+              }));
+            
+            setCart({
+              table_id: table.id,
+              table_number: table.table_number,
+              guest_count: table.guest_count || activeOrder.guest_count || 1,
+              items,
+              notes: activeOrder.customer_note || '',
+              order_type: activeOrder.order_type || 'dine_in'
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load existing order items:', e);
+      }
+    }
+    
     setCart({
       table_id: table.id,
       table_number: table.table_number,
@@ -126,7 +185,7 @@ export function usePos() {
   const addToCart = (p: PosProduct) => {
     setCart(prev => {
       if (!prev) return null;
-      const items = [...prev.items];
+      const items = prev.items.map(i => ({ ...i }));
       const existing = items.find(i => i.product_id === p.id);
       if (existing) {
         existing.quantity += 1;
@@ -150,7 +209,7 @@ export function usePos() {
   const updateCartItemQty = (idx: number, delta: number) => {
     setCart(prev => {
       if (!prev) return null;
-      const items = [...prev.items];
+      const items = prev.items.map(i => ({ ...i }));
       if (!items[idx]) return prev;
       items[idx].quantity += delta;
       if (items[idx].quantity <= 0) items.splice(idx, 1);
@@ -160,23 +219,35 @@ export function usePos() {
   };
 
   const placeOrder = async () => {
-    if (!cart) return;
-    const res = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table_number: cart.table_number, items: cart.items, status: 'confirmed' }),
-    });
-    if (res.ok) {
-      toast.success('Sifariş göndərildi');
-      fetchData();
-      setActiveView('floor');
+    if (!cart || placingOrder) return;
+    setPlacingOrder(true);
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: cart.table_number, items: cart.items, status: 'confirmed' }),
+      });
+      if (res.ok) {
+        toast.success('Sifariş göndərildi');
+        fetchData();
+        setActiveView('floor');
+      } else {
+        const err = await res.json();
+        if (res.status === 409) {
+          toast.error('Sifariş eyni anda başqa terminaldan dəyişdirildi. Yenidən cəhd edin.', { id: 'action-toast' });
+        } else {
+          toast.error(err.error || 'Sifariş göndərilmədi', { id: 'action-toast' });
+        }
+      }
+    } finally {
+      setPlacingOrder(false);
     }
   };
 
   const clearCart = () => setCart(prev => prev ? { ...prev, items: [] } : null);
 
   return {
-    floors, products, categories, combos, loading, selectedTable, cart, activeView, lastUndo,
+    floors, products, categories, combos, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart
   };

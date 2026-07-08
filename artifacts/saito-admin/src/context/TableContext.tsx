@@ -57,7 +57,7 @@ const TableContext = createContext<TableContextType | null>(null);
 export function TableProvider({ children }: { children: React.ReactNode }) {
   const [tables, setTables] = useState<TableRow[]>([]);
   const [floors, setFloors] = useState<FloorConfig[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -152,31 +152,6 @@ export function TableProvider({ children }: { children: React.ReactNode }) {
       toast.error(msg);
       throw e;
     }
-  }, [refresh]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    const debouncedRefresh = () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        refresh();
-      }, 2000);
-    };
-
-    const channel = createRealtimeChannel('tables-context')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, debouncedRefresh)
-      .subscribe();
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      removeRealtimeChannel(channel);
-    };
   }, [refresh]);
 
   const value = useMemo<TableContextType>(

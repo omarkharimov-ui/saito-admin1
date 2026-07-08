@@ -33,7 +33,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
   return (
     <button
       disabled={disabled}
-      onClick={onClick}
+      onClick={handleClick}
       className={`
         relative h-[72px] rounded-[24px] font-black uppercase tracking-[0.2em] text-[13px]
         flex items-center justify-center gap-3 transition-all duration-300

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { executeTransactionalOrderAction } from '@/lib/transaction';
+import { runOrderAction } from '@/lib/transaction';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     const s = svc();
 
-    const result = await executeTransactionalOrderAction('TableUnmerge', async () => {
+    const result = await runOrderAction('TableUnmerge', async () => {
       // 1. Get primary order
       const primaryOrderRes = await fetch(`${s.url}/rest/v1/orders?table_number=eq.${primary_table_number}&status=neq.paid&status=neq.cancelled&merged_into=is.null&select=*`, { headers: s.headers });
       const primaryOrder = (await primaryOrderRes.json())?.[0];

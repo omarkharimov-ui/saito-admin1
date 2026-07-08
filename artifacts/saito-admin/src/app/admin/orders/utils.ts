@@ -1,6 +1,6 @@
 import type { Order } from './types';
 
-export const DEFAULT_TABLE_COUNT = 30;
+export const DEFAULT_TABLE_COUNT = 12;
 export const CACHE_KEY = 'saito_orders_cache';
 export const SETTINGS_CACHE_KEY = 'saito_settings_cache';
 

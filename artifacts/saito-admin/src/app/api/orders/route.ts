@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { executeTransactionalOrderAction } from '@/lib/transaction';
+import { runOrderAction } from '@/lib/transaction';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -41,8 +41,8 @@ export async function GET() {
       orders: orders || [],
       orderItems: orderItems || [],
       tableCount: settings?.[0]?.qr_table_count ?? null,
-      delayThreshold: 20,
-      openingHours: settings?.[0]?.opening_hours || '09:00-23:00',
+      delayThreshold: settings?.[0]?.order_delay_minutes ?? null,
+      openingHours: settings?.[0]?.opening_hours || null,
       tableStatuses: tableFloors || [],
     });
   } catch (error: any) {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kitchen can only update order status' }, { status: 403 });
     }
 
-    const result = await executeTransactionalOrderAction(`Order${action || 'Create'}`, async () => {
+    const result = await runOrderAction(`Order${action || 'Create'}`, async () => {
       if (action === 'update') {
         const orderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=id,version`, { headers: svc().headers });
         const existingOrder = (await orderRes.json())?.[0];
@@ -108,144 +108,52 @@ export async function POST(request: Request) {
         return { success: true };
       }
 
-      const { table_number, total_amount, status, order_type, guest_count, customer_note, items, reservation_id } = body;
+      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id } = body;
 
       if (!table_number || !items?.length) {
         throw new Error('table_number and items required');
       }
 
-      // ── CRITICAL FIX: Find existing active order for this table ──
-      // Instead of creating duplicate orders, add items to the existing one
-      const existingOrderRes = await fetch(
-        `${svc().url}/rest/v1/orders?select=*&table_number=eq.${table_number}&status=neq.paid&status=neq.cancelled&order=created_at.asc`,
-        { headers: svc().headers }
-      );
-      const existingOrders: any[] = await existingOrderRes.json();
-      
-      let activeOrder: any = null;
-      let isNewOrder = false;
-      
-      if (existingOrders.length > 0) {
-        // Use the first active order (oldest = primary)
-        activeOrder = existingOrders[0];
-      }
+      const itemsJson = items.map((i: any) => JSON.stringify({
+        product_id: i.product_id,
+        product_name: i.product_name,
+        quantity: i.quantity || 1,
+        unit_price: i.unit_price || 0,
+        modifiers: i.modifiers || [],
+        special_notes: i.special_notes || '',
+        variant_id: i.variant_id || null
+      }));
 
-      if (!activeOrder) {
-        // No active order → create new one
-         const orderRes = await fetch(`${svc().url}/rest/v1/orders`, {
-           method: 'POST',
-           headers: { ...svc().headers, 'Prefer': 'return=representation' },
-           body: JSON.stringify({
-             table_number,
-             total_amount: total_amount || items.reduce((s: number, i: any) => s + i.total_price, 0),
-             status: status || 'confirmed',
-             guest_count: guest_count || 1,
-             customer_note: customer_note || null,
-             created_at: new Date().toISOString(),
-           }),
-         });
-        if (!orderRes.ok) throw new Error('Order creation failed');
-        activeOrder = (await orderRes.json())?.[0];
-        isNewOrder = true;
-      } else {
-        // Update existing order totals with optimistic locking
-        const existingTotal = Number(activeOrder.total_amount || 0);
-        const currentVer = activeOrder.version || 0;
-        const newItemsTotal = items.reduce((s: number, i: any) => s + (Number(i.total_price) || (Number(i.unit_price) * Number(i.quantity))), 0);
-        
-        const addRes = await fetch(
-          `${svc().url}/rest/v1/orders?id=eq.${activeOrder.id}&version=eq.${currentVer}`,
-          {
-            method: 'PATCH',
-            headers: { ...svc().headers, 'Prefer': 'return=representation' },
-            body: JSON.stringify({
-              total_amount: existingTotal + newItemsTotal,
-              version: currentVer + 1,
-            }),
-          }
-        );
-        if (!addRes.ok) throw new Error('Add items failed');
-        const addPatched = await addRes.json();
-        if (!addPatched || (Array.isArray(addPatched) && addPatched.length === 0)) {
+      const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/create_or_append_order`, {
+        method: 'POST',
+        headers: { ...svc().headers, 'Prefer': 'return=representation' },
+        body: JSON.stringify({
+          p_table_number: table_number,
+          p_items: '[' + itemsJson.join(',') + ']',
+          p_status: status || 'confirmed',
+          p_guest_count: guest_count || 1,
+          p_customer_note: customer_note || null,
+          p_order_type: order_type || 'dine_in',
+          p_reservation_id: reservation_id || null,
+        }),
+      });
+
+      if (!rpcRes.ok) {
+        const errText = await rpcRes.text();
+        if (rpcRes.status === 409 || errText.includes('unique') || errText.includes('duplicate')) {
           throw new Error('CONCURRENCY_CONFLICT');
         }
+        throw new Error(`Order creation failed: ${errText}`);
       }
 
-      // Add items to order (new or existing)
-      for (const item of items) {
-        const itemTotal = Number(item.total_price) || (Number(item.unit_price) * Number(item.quantity));
-        const payload: Record<string, any> = {
-          order_id: activeOrder.id,
-          product_id: item.product_id,
-          product_name: item.product_name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_price: itemTotal,
-          modifiers: typeof item.modifiers === 'string' ? item.modifiers : JSON.stringify(item.modifiers || []),
-        };
-        if (item.combo_group_id) payload.combo_group_id = item.combo_group_id;
-        if (item.parent_order_item_id) payload.parent_order_item_id = item.parent_order_item_id;
-        if (item.special_notes) payload.special_notes = item.special_notes;
-        if (item.variant_id) payload.variant_id = item.variant_id;
-        await fetch(`${svc().url}/rest/v1/order_items`, {
-          method: 'POST',
-          headers: svc().headers,
-          body: JSON.stringify(payload),
-        });
-      }
+      const rpcResult = await rpcRes.json();
+      const activeOrderId = rpcResult?.order_id;
+      if (!activeOrderId) throw new Error('Order creation failed: no id returned');
 
-      // Get current table floor state for reservation handling
-      const floorRes = await fetch(`${svc().url}/rest/v1/table_floors?select=*&table_number=eq.${table_number}`, { headers: svc().headers });
-      const floorData = floorRes.ok ? await floorRes.json() : [];
-      const currentFloor = floorData?.[0];
-
-      // If table has reservation and this is a NEW order, clear reservation tie
-      if (isNewOrder && currentFloor?.reservation_id) {
-        await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
-          method: 'PATCH',
-          headers: svc().headers,
-          body: JSON.stringify({
-            status: 'occupied',
-            reservation_id: null,
-            reservation_name: null,
-            reservation_phone: null,
-            reservation_time: null,
-            last_activity_at: new Date().toISOString(),
-          }),
-        });
-
-        // Link reservation to order and mark as checked_in
-        await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrder.id}`, {
-          method: 'PATCH',
-          headers: svc().headers,
-          body: JSON.stringify({ reservation_id: currentFloor.reservation_id }),
-        }).catch(() => {});
-
-        await fetch(`${svc().url}/rest/v1/reservations?id=eq.${currentFloor.reservation_id}`, {
-          method: 'PATCH',
-          headers: svc().headers,
-          body: JSON.stringify({
-            status: 'checked_in',
-            checked_in_at: new Date().toISOString(),
-          }),
-        }).catch(() => {});
-      } else if (!isNewOrder) {
-        // Existing order — just update activity timestamp
-        await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
-          method: 'PATCH',
-          headers: svc().headers,
-          body: JSON.stringify({
-            status: 'occupied',
-            last_activity_at: new Date().toISOString(),
-          }),
-        }).catch(() => {});
-      }
-
-      // Fetch the updated order with items for response
-      const finalOrderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrder.id}&select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))`, { headers: svc().headers });
+      const finalOrderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))`, { headers: svc().headers });
       const finalOrder = (await finalOrderRes.json())?.[0];
 
-      return finalOrder || activeOrder;
+      return finalOrder || { id: activeOrderId };
     });
 
     if (!result.success && result.error === 'CONCURRENCY_CONFLICT') {

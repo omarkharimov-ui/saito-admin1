@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { Lock, User, ChevronDown, Save, Loader2, Shield, ChefHat, Eye, EyeOff } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 
 interface AccountItem {
@@ -20,17 +19,8 @@ const AccountTab = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
-  const [storedPasswords, setStoredPasswords] = useState({
-    superadmin: 'saito2025',
-    admin: 'admin123',
-    kitchen: 'kitchen2025'
-  });
 
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
-
-  const togglePasswordVisibility = (key: string, field: 'current' | 'new') => {
-    setShowPassword(prev => ({ ...prev, [`${key}_${field}`]: !prev[`${key}_${field}`] }));
-  };
 
   const [accounts, setAccounts] = useState<AccountItem[]>([
     { key: 'superadmin', label: 'Superadmin', icon: <Shield size={18} />, currentPassword: '', newPassword: '' },
@@ -41,42 +31,17 @@ const AccountTab = () => {
   useEffect(() => {
     const storedRole = localStorage.getItem('saito_admin_role') as 'admin' | 'superadmin' | null;
     if (storedRole) setRole(storedRole);
-
-    const loadPasswords = async () => {
-      
-      // First try to get row with id='1'
-      const { data, error } = await supabase
-        .from('settings')
-        .select('*')
-        .eq('id', '1')
-        .single();
-
-
-      if (error) {
-        console.error('[LoadPasswords] Error:', error);
-        // If no row found, we use defaults
-        if (error.message?.includes('0 rows')) {
-        }
-      }
-
-      if (data) {
-        setStoredPasswords({
-          superadmin: data.superadmin_password || 'saito2025',
-          admin: data.admin_password || 'admin123',
-          kitchen: data.kitchen_password || 'kitchen2025'
-        });
-      } else {
-      }
-      setLoading(false);
-    };
-
-    loadPasswords();
+    setLoading(false);
   }, []);
 
   const updateAccountField = (key: string, field: 'currentPassword' | 'newPassword', value: string) => {
     setAccounts(prev => prev.map(acc => 
       acc.key === key ? { ...acc, [field]: value } : acc
     ));
+  };
+
+  const togglePasswordVisibility = (key: string, field: 'current' | 'new') => {
+    setShowPassword(prev => ({ ...prev, [`${key}_${field}`]: !prev[`${key}_${field}`] }));
   };
 
   const savePassword = async (accountKey: 'superadmin' | 'admin' | 'kitchen') => {
@@ -88,9 +53,8 @@ const AccountTab = () => {
     const account = accounts.find(a => a.key === accountKey);
     if (!account) return;
 
-    // Verify superadmin's own password for any change
-    if (account.currentPassword !== storedPasswords.superadmin) {
-      toast.error(`Yanlış cari şifrə! Hazırki superadmin şifrəsi: "${storedPasswords.superadmin}"`, { id: 'action-toast' });
+    if (!account.currentPassword || !account.newPassword) {
+      toast.error('Cari və yeni şifrə tələb olunur', { id: 'action-toast' });
       return;
     }
 
@@ -101,81 +65,35 @@ const AccountTab = () => {
 
     setSaving(accountKey);
 
-    const columnName = `${accountKey}_password`;
+    try {
+      const res = await fetch('/api/auth/change-settings-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountKey,
+          currentPassword: account.currentPassword,
+          newPassword: account.newPassword,
+        }),
+      });
 
+      const data = await res.json();
 
-    // Use upsert to insert or update the settings row
-    // Try to update existing row first (without id filter, update the first row)
-    const { data: allSettings } = await supabase.from('settings').select('id').limit(1);
-    const existingId = allSettings?.[0]?.id;
-    
+      if (!res.ok) {
+        toast.error(data.error || 'Şifrə yenilənmədi', { id: 'action-toast' });
+        setSaving(null);
+        return;
+      }
 
-    let saveError;
-    if (existingId) {
-      // Update existing row
-      const { error } = await supabase
-        .from('settings')
-        .update({ [columnName]: account.newPassword } as any)
-        .eq('id', existingId);
-      saveError = error;
-    } else {
-      // Insert new row
-      const { error } = await supabase
-        .from('settings')
-        .insert({ [columnName]: account.newPassword } as any);
-      saveError = error;
-    }
+      setAccounts(prev => prev.map(acc => 
+        acc.key === accountKey ? { ...acc, currentPassword: '', newPassword: '' } : acc
+      ));
 
-    if (saveError) {
-      console.error('[SavePassword] Save error:', saveError);
-      toast.error(`DB Error: ${saveError.message || 'Unknown error'}`, { id: 'action-toast' });
+      toast.success(t('password_updated').replace('{account}', account.label), { id: 'action-toast', duration: 3000 });
+    } catch (e: any) {
+      toast.error(e.message || 'Şifrə yenilənmədi', { id: 'action-toast' });
+    } finally {
       setSaving(null);
-      return;
     }
-
-    // CRITICAL: Verify the change by fetching from DB
-    
-    // Small delay to ensure DB replication
-    await new Promise(r => setTimeout(r, 200));
-    
-    const { data: verifyData, error: verifyError } = await supabase
-      .from('settings')
-      .select('*')
-      .eq('id', existingId)
-      .single();
-    
-    if (verifyError) {
-      console.error('[SavePassword] Verification error:', verifyError);
-      toast.error(`Verification failed: ${verifyError.message}`, { id: 'action-toast' });
-      setSaving(null);
-      return;
-    }
-    
-    
-    const actualSavedPassword = verifyData?.[columnName];
-    
-    if (actualSavedPassword !== account.newPassword) {
-      console.error('[SavePassword] CRITICAL: Password mismatch!');
-      console.error('  Expected:', account.newPassword);
-      console.error('  Got:', actualSavedPassword);
-      console.error('  This is likely an RLS policy issue!');
-      toast.error('Password update failed! Check Supabase RLS policies.', { id: 'action-toast' });
-      setSaving(null);
-      return;
-    }
-    
-
-    // Update stored passwords to reflect the change immediately
-    const newStoredPasswords = { ...storedPasswords, [accountKey]: actualSavedPassword };
-    setStoredPasswords(newStoredPasswords);
-    
-    // Also update the accounts state for this account
-    setAccounts(prev => prev.map(acc => 
-      acc.key === accountKey ? { ...acc, currentPassword: '', newPassword: '' } : acc
-    ));
-    
-    setSaving(null);
-    toast.success(t('password_updated').replace('{account}', account.label), { id: 'action-toast', duration: 3000 });
   };
 
   const toggleAccordion = (key: string) => {
@@ -201,7 +119,6 @@ const AccountTab = () => {
     );
   }
 
-  // Filter accounts based on role
   const visibleAccounts = role === 'superadmin' 
     ? accounts 
     : accounts.filter(a => a.key === role);

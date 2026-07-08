@@ -18,10 +18,10 @@ interface ActionSheetProps {
   onMerge: () => void;
   onTransfer: () => void;
   onUnmerge: () => void;
-  onBillSplit: () => void;
+  onBillSplit?: () => void;
   onCloseBill: () => void;
   onPrint: () => void;
-  onSaveDraft: () => void;
+  onSaveDraft?: () => void;
   onCancelTable?: () => void;
   mergeMode?: boolean;
   mergeParent?: number | null;

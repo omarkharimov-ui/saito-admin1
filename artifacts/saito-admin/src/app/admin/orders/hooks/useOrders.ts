@@ -29,32 +29,12 @@ export function useOrders() {
   const { t } = useLanguage();
 
   /* ─── Orders state ─── */
-  const [orders, setOrders] = useState<Order[]>(() => {
-    try {
-      const raw = localStorage.getItem(CACHE_KEY);
-      return raw ? (JSON.parse(raw) as Order[]) : [];
-    } catch { return []; }
-  });
+  const [orders, setOrders] = useState<Order[]>([]);
   const [tableStatuses, setTableStatuses] = useState<any[]>([]);
 
   const [loading, setLoading]             = useState(true);
-  const [tableCount, setTableCount]       = useState<number>(() => {
-    try {
-      const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
-      if (raw) { const s = JSON.parse(raw); if (s?.tableCount >= 1) return s.tableCount; }
-      // Fallback: QRTab stores count under its own key
-      const qrRaw = localStorage.getItem('saito_qr_table_count');
-      if (qrRaw) { const n = Number(qrRaw); if (!Number.isNaN(n) && n >= 1 && n <= 200) return n; }
-    } catch {}
-    return DEFAULT_TABLE_COUNT;
-  });
-  const [delayThreshold, setDelayThreshold] = useState<number>(() => {
-    try {
-      const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
-      if (raw) { const s = JSON.parse(raw); if (s?.delayThreshold) return s.delayThreshold; }
-    } catch {}
-    return 30;
-  });
+  const [tableCount, setTableCount]       = useState<number>(DEFAULT_TABLE_COUNT);
+  const [delayThreshold, setDelayThreshold] = useState<number>(20);
   const [isOnline, setIsOnline]           = useState(true);
   const [openingHours, setOpeningHours]   = useState<string>('');
 

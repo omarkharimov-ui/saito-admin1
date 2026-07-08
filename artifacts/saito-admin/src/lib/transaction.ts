@@ -21,9 +21,10 @@ export interface OrderUpdatePayload {
 }
 
 /**
- * Standardized Order Execution Flow
+ * Order action runner with error logging.
+ * Does NOT provide atomicity or rollback — use DB-level RPCs for atomic operations.
  */
-export async function executeTransactionalOrderAction<T>(
+export async function runOrderAction<T>(
   actionName: string,
   businessLogic: () => Promise<T>
 ): Promise<{ success: boolean; data?: T; error?: string }> {

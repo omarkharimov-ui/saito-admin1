@@ -111,12 +111,14 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
             const name = (language === 'az' ? item.name_az : language === 'en' ? item.name_en : item.name_ru) || item.name;
             const count = cartCounts[item.id] || 0;
             const isCombo = item._isCombo;
+            const isOutOfStock = outOfStock?.has(item.id);
             return (
               <motion.button
                 key={`${isCombo ? 'combo-' : ''}${item.id}`}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => { if (isCombo) { if (onAddCombo && item._raw) onAddCombo(item._raw); } else onAddProduct(item); }}
-                className={`group relative flex flex-col rounded-[28px] bg-[#f4f4f7] dark:bg-white/[0.08] p-4 transition-all duration-300 hover:shadow-xl hover:bg-[#ebebef] dark:hover:bg-white/[0.12]`}
+                whileTap={{ scale: isOutOfStock ? 1 : 0.98 }}
+                onClick={() => { if (!isOutOfStock) { if (isCombo) { if (onAddCombo && item._raw) onAddCombo(item._raw); } else onAddProduct(item); } }}
+                disabled={isOutOfStock}
+                className={`group relative flex flex-col rounded-[28px] bg-[#f4f4f7] dark:bg-white/[0.08] p-4 transition-all duration-300 hover:shadow-xl hover:bg-[#ebebef] dark:hover:bg-white/[0.12] ${isOutOfStock ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}
               >
                 <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
                   {item.image_url ? (

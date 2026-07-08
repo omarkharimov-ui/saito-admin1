@@ -30,6 +30,53 @@ export default function POSPage() {
   const [splitMode, setSplitMode] = useState(false);
   const [selectedForSplit, setSelectedForSplit] = useState<number[]>([]);
 
+  const [paying, setPaying] = useState(false);
+
+  const handleCloseBill = async () => {
+    if (!actionSheetTable || paying) return;
+    setPaying(true);
+    try {
+      // Find active order for this table
+      const ordersRes = await fetch('/api/orders');
+      if (!ordersRes.ok) throw new Error('Failed to fetch orders');
+      const ordersData = await ordersRes.json();
+      const activeOrder = (ordersData.orders || []).find((o: any) => 
+        o.table_number === actionSheetTable.table_number && 
+        !['paid', 'cancelled'].includes(o.status)
+      );
+      
+      if (!activeOrder) {
+        toast.error('Aktiv sifariş tapılmadı', { id: 'action-toast' });
+        return;
+      }
+
+      const res = await fetch('/api/orders/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: activeOrder.id,
+          payment_method: 'card',
+          cash_amount: 0,
+          card_amount: activeOrder.total_amount || 0,
+          tip_amount: 0,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success('Ödəniş uğurla tamamlandı', { id: 'action-toast' });
+        setActionSheetOpen(false);
+        pos.fetchData();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Ödəniş uğursuz oldu', { id: 'action-toast' });
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Ödəniş xətası', { id: 'action-toast' });
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const activeFloor = selectedFloor 
     ? pos.floors.find((f: any) => f.name === selectedFloor) 
     : pos.floors[0];
@@ -142,15 +189,15 @@ export default function POSPage() {
                   />
                </div>
                <div className="w-full md:w-[400px] border-l p-6 bg-black/20">
-                  <CartPanel 
-                    cart={pos.cart} 
-                    onPlaceOrder={() => pos.placeOrder()} 
-                    onBack={() => pos.setActiveView('floor')}
-                    orderButtonStatus="idle"
-                    onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
-                    onClearDraft={() => pos.clearCart()}
-                    mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
-                  />
+                   <CartPanel 
+                     cart={pos.cart} 
+                     onPlaceOrder={() => pos.placeOrder()} 
+                     onBack={() => pos.setActiveView('floor')}
+                     orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
+                     onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
+                     onClearDraft={() => pos.clearCart()}
+                     mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
+                   />
                </div>
             </div>
           )}
@@ -165,10 +212,8 @@ export default function POSPage() {
         onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable.table_number]); setActionSheetOpen(false); }}
         onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable.table_number); setActionSheetOpen(false); }}
         onUnmerge={() => setSplitMode(true)}
-        onBillSplit={() => { toast('Hesab bölmə tezliklə...'); }}
-        onCloseBill={() => { toast('Ödəniş ekranı...'); setActionSheetOpen(false); }}
+        onCloseBill={handleCloseBill}
         onPrint={() => window.print()}
-        onSaveDraft={() => { toast('Qaralama saxlanıldı'); }}
         onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
         mergeMode={mergeMode}
         mergeParent={selectedForMerge[0]}

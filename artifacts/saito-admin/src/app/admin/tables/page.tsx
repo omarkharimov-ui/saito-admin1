@@ -90,11 +90,15 @@ const TablesPage = () => {
   const updateTableCount = async (newCount: number) => {
     if (newCount < 1) return;
     setTableCount(newCount);
-    const { data, error } = await supabase
+    const targetId = settingsId || (await supabase.from('settings').select('id').limit(1).then(r => r.data?.[0]?.id)).catch(() => null);
+    if (!targetId) {
+      toast.error('Masa sayı yenilənmədi: settings tapılmadı', { id: 'action-toast' });
+      return;
+    }
+    const { error } = await supabase
       .from('settings')
       .update({ qr_table_count: newCount })
-      .eq('id', '1')
-      .select();
+      .eq('id', targetId);
     if (error) {
       console.error('[Tables] Update FAILED:', error);
       toast.error('Yenilənmədi: ' + error.message, { id: 'action-toast' });

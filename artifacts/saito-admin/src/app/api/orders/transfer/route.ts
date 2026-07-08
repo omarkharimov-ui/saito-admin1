@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         ...data,
-        undo: { fromTable: from_table, toTable: to_table }
+        undo: { fromTable: from_table, toTable: to_table, orderIds: data?.order_ids || [] }
       },
     });
   } catch (error: any) {

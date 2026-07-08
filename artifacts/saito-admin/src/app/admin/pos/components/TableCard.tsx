@@ -30,6 +30,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
 
   const isOccupied = ['occupied', 'cooking', 'waiting_bill'].includes(table.status);
   const isReserved = table.status === 'reserved';
+  const isGroup = groupNumber && mergedChildNumbers && mergedChildNumbers.length > 0 && !isMergedChild;
 
   useEffect(() => {
     if (!isOccupied || !table.last_activity_at) {
@@ -58,92 +59,100 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   return (
     <div
       onClick={onTap}
-      className={`relative h-[180px] rounded-[32px] p-6 text-left transition-all duration-300 group overflow-hidden border-2 cursor-pointer
+      className={`relative h-[180px] rounded-[24px] p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer
         ${isTransferSource
           ? (lightMode ? 'bg-zinc-100 border-transparent opacity-60' : 'bg-zinc-800/50 border-transparent opacity-50')
           : isTransferTarget
             ? (lightMode ? 'bg-white border-zinc-400 border-dashed animate-pulse' : 'bg-zinc-900 border-zinc-400 border-dashed animate-pulse')
             : isSelected 
-              ? (lightMode ? 'bg-white border-blue-500 shadow-[0_20px_40px_rgba(59,130,246,0.1)] scale-[1.02]' : 'bg-zinc-900 border-blue-500 shadow-[0_20px_40px_rgba(59,130,246,0.2)] scale-[1.02]') 
+              ? (lightMode ? 'bg-white border-blue-500 shadow-lg' : 'bg-zinc-900 border-blue-500 shadow-lg') 
               : isReserved
                 ? (lightMode ? 'bg-indigo-50/50 border-indigo-200' : 'bg-indigo-500/5 border-indigo-500/30')
                 : isOverdue 
                   ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
                   : isOccupied
-                    ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-md')
+                    ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-sm')
                     : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
         }`}
     >
-      <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors flex items-start gap-1
+      <span className={`absolute top-5 left-5 text-4xl font-black tracking-tighter transition-colors flex items-start gap-1.5
         ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
-        {groupNumber && !isMergedChild ? `Qrup ${groupNumber}` : table.table_number}
-        {table.is_group && !isMergedChild && (
-          <span className="mt-2 px-2 py-1 rounded-lg text-[9px] bg-blue-500 text-white font-black leading-none uppercase tracking-tighter shadow-lg">
-            Q
-          </span>
-        )}
-        {isMergedChild && (
-          <span className="mt-2 px-2 py-1 rounded-lg text-[9px] bg-blue-500/60 text-white font-black leading-none uppercase tracking-tighter shadow-lg">
-            Q
+        {table.table_number}
+        {isGroup && (
+          <span className="mt-1.5 px-1.5 py-0.5 rounded-md text-[8px] bg-blue-500 text-white font-black leading-none uppercase tracking-tight flex items-center gap-1">
+            Q{groupNumber}
           </span>
         )}
       </span>
 
       {isReserved && (
-        <div className="absolute top-[76px] left-6 right-6 flex flex-col gap-0.5">
-          <span className={`text-lg font-bold truncate leading-tight ${lightMode ? 'text-indigo-950' : 'text-white'}`}>
+        <div className="absolute top-[68px] left-5 right-5 flex flex-col gap-0.5">
+          <span className={`text-base font-bold truncate leading-tight ${lightMode ? 'text-indigo-950' : 'text-white'}`}>
             {table.reservation_name || table.reservation_phone || table.table_number}
           </span>
-          
           <div className="flex items-center gap-3 opacity-60">
             {table.reservation_time && (
               <div className="flex items-center gap-1">
-                <Clock size={12} className="text-indigo-400" />
-                <span className="text-xs font-bold tabular-nums">{table.reservation_time}</span>
+                <Clock size={11} className="text-indigo-400" />
+                <span className="text-[11px] font-bold tabular-nums">{table.reservation_time}</span>
               </div>
             )}
             <div className="flex items-center gap-1">
-              <Users size={12} className="text-indigo-400" />
-              <span className="text-xs font-bold tabular-nums">{table.guest_count}</span>
+              <Users size={11} className="text-indigo-400" />
+              <span className="text-[11px] font-bold tabular-nums">{table.guest_count}</span>
             </div>
           </div>
         </div>
       )}
 
-      {!isReserved && (isOccupied || (table.guest_count ?? 0) > 0) && (
-        <div className="absolute top-[72px] left-6 flex flex-col gap-1">
+      {!isReserved && (isOccupied || (table.guest_count ?? 0) > 0 || isGroup) && (
+        <div className="absolute top-[68px] left-5 flex flex-col gap-1">
           { (table.guest_count ?? 0) > 0 && (
             <div className="flex items-center gap-1 opacity-60">
-              <Users size={12} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
-              <span className={`text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>{table.guest_count}</span>
+              <Users size={11} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
+              <span className={`text-[11px] font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>{table.guest_count}</span>
             </div>
           )}
           {delaySec > 0 && (
-            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[10px] font-black tabular-nums
+            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-black tabular-nums
               ${delaySec > 1200 ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' : 'bg-white/5 border-white/5 text-white/40'}`}>
-              <Clock size={10} strokeWidth={3} />
+              <Clock size={9} strokeWidth={3} />
               {formatDelay(delaySec)}
             </div>
           )}
         </div>
       )}
 
+      {isGroup && mergedChildNumbers && (
+        <div className="absolute top-[68px] right-5 flex flex-wrap gap-1 justify-end">
+          {mergedChildNumbers.map((num: number) => (
+            <span key={num} className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border ${
+              lightMode 
+                ? 'bg-blue-50 border-blue-200 text-blue-700' 
+                : 'bg-blue-500/15 border-blue-500/25 text-blue-300'
+            }`}>
+              {num}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="absolute top-4 right-4">
         {selectionMode ? (
-          <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+          <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
             isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'bg-zinc-100 border-zinc-300' : 'bg-white/5 border-white/10')
           }`}>
-            <AnimatePresence>{isSelected && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}><Check size={18} className="text-white" strokeWidth={3} /></motion.div>}</AnimatePresence>
+            <AnimatePresence>{isSelected && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}><Check size={14} className="text-white" strokeWidth={3} /></motion.div>}</AnimatePresence>
           </div>
         ) : (
-          <button onClick={(e) => { e.stopPropagation(); onAction(); }} className="p-2 rounded-full transition-colors hover:bg-white/10">
-            <MoreVertical size={20} className="text-white/20 group-hover:text-white/40" />
+          <button onClick={(e) => { e.stopPropagation(); onAction(); }} className="p-1.5 rounded-full transition-colors hover:bg-white/10">
+            <MoreVertical size={16} className="text-white/20 group-hover:text-white/40" />
           </button>
         )}
       </div>
 
-      <div className="absolute bottom-4 left-0 right-0 px-6 flex items-center justify-between">
-        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest
+      <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
+        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest
           ${isReserved 
             ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' 
             : isOccupied 
@@ -157,23 +166,10 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
           {isReserved ? (
             <span className="text-[10px] font-bold text-white/20 tabular-nums">{(table as any).reservation_phone || ''}</span>
           ) : table.total_amount > 0 ? (
-            <p className={`text-lg font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{table.total_amount.toFixed(2)}</p>
+            <p className={`text-base font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{table.total_amount.toFixed(2)}</p>
           ) : null}
         </div>
       </div>
-      
-      {mergedChildNumbers && mergedChildNumbers.length > 0 && !isMergedChild && (
-        <div className="absolute bottom-16 left-6 right-6">
-          <div className={`flex flex-wrap gap-1.5 px-3 py-2 rounded-xl border ${lightMode ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
-            <span className={`text-[9px] font-black uppercase tracking-wider ${lightMode ? 'text-blue-600' : 'text-blue-400'}`}>Birləşmiş:</span>
-            {mergedChildNumbers.map((num: number) => (
-              <span key={num} className={`px-2 py-0.5 rounded-md text-[10px] font-black ${lightMode ? 'bg-white text-blue-600 border border-blue-200' : 'bg-blue-500/20 text-blue-300'}`}>
-                Masa {num}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

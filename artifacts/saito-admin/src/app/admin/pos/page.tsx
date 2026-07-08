@@ -81,16 +81,6 @@ export default function POSPage() {
     ? pos.floors.find((f: any) => f.name === selectedFloor) 
     : pos.floors[0];
 
-  const groupNumberMap = useMemo(() => {
-    const map: Record<number, number> = {};
-    if (activeFloor?.merged_groups) {
-      activeFloor.merged_groups.forEach((g: any, idx: number) => {
-        map[g.parent.table_number] = idx + 1;
-      });
-    }
-    return map;
-  }, [activeFloor?.merged_groups]);
-
   const tableGroupInfo = useMemo(() => {
     const info: Record<number, { groupNum: number; children: number[] }> = {};
     if (activeFloor?.merged_groups) {
@@ -103,6 +93,14 @@ export default function POSPage() {
     }
     return info;
   }, [activeFloor?.merged_groups]);
+
+  const visibleTables = useMemo(() => {
+    if (!activeFloor?.tables) return [];
+    return activeFloor.tables.filter((table: any) => {
+      const isChild = table.parent_table_number && table.table_number !== table.parent_table_number;
+      return !isChild;
+    });
+  }, [activeFloor?.tables]);
 
   const handleTableTap = (table: any) => {
     if (mergeMode) {
@@ -176,7 +174,6 @@ export default function POSPage() {
   );
 
   const handleOpenAction = (table: any) => {
-    // If table is part of a group, we open the action sheet for the parent table
     const parentNum = table.parent_table_number || table.table_number;
     const parent = activeFloor?.tables?.find((t: any) => t.table_number === parentNum) || table;
     setActionSheetTable(parent);
@@ -189,7 +186,7 @@ export default function POSPage() {
         <AnimatePresence mode="wait">
           {pos.activeView === 'floor' && (
             <div key="floor" className="h-full flex flex-col p-6">
-               <div className="flex items-center justify-between mb-8">
+               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <h1 className="text-3xl font-black tracking-tighter">POS</h1>
                   {pos.floors.length > 1 && (
@@ -228,26 +225,20 @@ export default function POSPage() {
               </div>
 
                <div className="flex-1 overflow-y-auto">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {activeFloor?.tables?.map((table: any) => {
-                    const isChild = table.parent_table_number && table.table_number !== table.parent_table_number;
-                    const isParent = table.table_number === table.parent_table_number || !table.parent_table_number;
+                <div className="grid grid-cols-4 gap-4">
+                  {visibleTables?.map((table: any) => {
                     const groupInfo = tableGroupInfo[table.table_number];
-                    const parentGroupInfo = tableGroupInfo[table.parent_table_number];
-                    
-                    const colSpan = groupInfo && groupInfo.children.length > 0 
-                      ? 'lg:col-span-2' 
-                      : 'lg:col-span-1';
+                    const isGroup = groupInfo && groupInfo.children.length > 0;
                     
                     return (
                       <motion.div
                         key={table.table_number}
                         layout
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className={`${colSpan}`}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                        className="col-span-1"
                       >
                         <TableCard 
                           table={table} 
@@ -259,15 +250,15 @@ export default function POSPage() {
                           isTransferTarget={transferTarget === table.table_number}
                           groupNumber={groupInfo?.groupNum}
                           mergedChildNumbers={groupInfo?.children}
-                          isMergedChild={isChild}
+                          isMergedChild={false}
                         />
                       </motion.div>
                     );
                   })}
                 </div>
                </div>
-             </div>
-           )}
+            </div>
+          )}
 
           {pos.activeView === 'order' && pos.selectedTable && (
             <div key="order" className="h-full w-full flex flex-col md:flex-row overflow-hidden">

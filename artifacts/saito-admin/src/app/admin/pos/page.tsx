@@ -207,24 +207,37 @@ export default function POSPage() {
 
                <div className="flex-1 overflow-y-auto">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                  {activeFloor?.tables
-                    ?.filter((table: any) => !table.parent_table_number || table.table_number === table.parent_table_number)
-                    ?.map((table: any) => (
-                      <TableCard 
+                  {activeFloor?.tables?.map((table: any) => {
+                    const isChild = table.parent_table_number && table.table_number !== table.parent_table_number;
+                    const isParent = table.table_number === table.parent_table_number || !table.parent_table_number;
+                    
+                    return (
+                      <div 
                         key={table.table_number} 
-                        table={table} 
-                        onTap={() => handleTableTap(table)} 
-                        onAction={() => handleOpenAction(table)}
-                        isSelected={selectedForMerge.includes(table.table_number)}
-                        selectionMode={mergeMode}
-                        isTransferSource={transferSource === table.table_number}
-                        isTransferTarget={transferTarget === table.table_number}
-                      />
-                    ))}
-                </div>
-              </div>
-            </div>
-          )}
+                        className={`relative ${isChild ? 'ml-12' : ''}`}
+                      >
+                        {isChild && (
+                          <div className="absolute left-[-20px] top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <div className="w-3 h-0.5 bg-blue-500/60" />
+                            <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          </div>
+                        )}
+                        <TableCard 
+                          table={table} 
+                          onTap={() => handleTableTap(table)} 
+                          onAction={() => handleOpenAction(table)}
+                          isSelected={selectedForMerge.includes(table.table_number)}
+                          selectionMode={mergeMode}
+                          isTransferSource={transferSource === table.table_number}
+                          isTransferTarget={transferTarget === table.table_number}
+                        />
+                      </div>
+                    );
+                  })}
+                 </div>
+               </div>
+             </div>
+           )}
 
           {pos.activeView === 'order' && pos.selectedTable && (
             <div key="order" className="h-full w-full flex flex-col md:flex-row overflow-hidden">

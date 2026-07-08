@@ -82,6 +82,11 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
             Q
           </span>
         )}
+        {isMergedChild && (
+          <span className="mt-2 px-2 py-1 rounded-lg text-[9px] bg-blue-500/60 text-white font-black leading-none uppercase tracking-tighter shadow-lg">
+            Q
+          </span>
+        )}
       </span>
 
       {isReserved && (
@@ -157,7 +162,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         </div>
       </div>
       
-      {mergedChildNumbers && mergedChildNumbers.length > 0 && (
+      {mergedChildNumbers && mergedChildNumbers.length > 0 && !isMergedChild && (
         <div className="absolute bottom-16 left-6 right-6">
           <div className={`flex flex-wrap gap-1.5 px-3 py-2 rounded-xl border ${lightMode ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
             <span className={`text-[9px] font-black uppercase tracking-wider ${lightMode ? 'text-blue-600' : 'text-blue-400'}`}>Birləşmiş:</span>

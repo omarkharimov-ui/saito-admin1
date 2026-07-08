@@ -231,9 +231,9 @@ export default function POSPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {activeFloor?.tables?.map((table: any) => {
                     const isChild = table.parent_table_number && table.table_number !== table.parent_table_number;
+                    const isParent = table.table_number === table.parent_table_number || !table.parent_table_number;
                     const groupInfo = tableGroupInfo[table.table_number];
-                    
-                    if (isChild) return null;
+                    const parentGroupInfo = tableGroupInfo[table.parent_table_number];
                     
                     const colSpan = groupInfo && groupInfo.children.length > 0 
                       ? 'lg:col-span-2' 
@@ -259,6 +259,7 @@ export default function POSPage() {
                           isTransferTarget={transferTarget === table.table_number}
                           groupNumber={groupInfo?.groupNum}
                           mergedChildNumbers={groupInfo?.children}
+                          isMergedChild={isChild}
                         />
                       </motion.div>
                     );

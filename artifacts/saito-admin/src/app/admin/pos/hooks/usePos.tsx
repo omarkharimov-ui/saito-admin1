@@ -170,15 +170,21 @@ export function usePos() {
 
   const performUndo = async () => {
     if (!lastUndo) return;
-    const res = await fetch('/api/orders/undo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: lastUndo.action, data: lastUndo.data }),
-    });
-    if (res.ok) {
-      toast.success('Geri alındı');
+    try {
+      const res = await fetch('/api/orders/undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: lastUndo.action, data: lastUndo.data }),
+      });
+      if (res.ok) {
+        toast.success('Geri alındı');
+        await fetchData();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Geri alınmadı');
+      }
+    } finally {
       setLastUndo(null);
-      fetchData();
     }
   };
 

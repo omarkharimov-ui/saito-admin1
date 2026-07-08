@@ -31,6 +31,7 @@ export default function POSPage() {
   const [selectedForSplit, setSelectedForSplit] = useState<number[]>([]);
 
   const [paying, setPaying] = useState(false);
+  const [lastUndo, setLastUndo] = useState<any>(null);
 
   const handleCloseBill = async () => {
     if (!actionSheetTable || paying) return;
@@ -95,7 +96,9 @@ export default function POSPage() {
       if (!transferSource) {
         setTransferSource(table.table_number);
         toast(`Mənbə: Masa ${table.table_number}. İndi hədəf seçin.`);
-      } else if (table.table_number !== transferSource) {
+      } else if (table.table_number === transferSource) {
+        toast.error('Eyni masanı seçdiz');
+      } else {
         setTransferTarget(table.table_number);
         handleConfirmTransfer();
       }
@@ -107,10 +110,27 @@ export default function POSPage() {
 
   const handleConfirmTransfer = async () => {
     if (!transferSource || !transferTarget) return;
-    await pos.transferTable(transferSource, transferTarget);
-    setTransferMode(false);
-    setTransferSource(null);
-    setTransferTarget(null);
+    try {
+      const res = await fetch('/api/orders/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from_table: transferSource, to_table: transferTarget }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLastUndo({ action: 'transfer', data: data.data?.undo, message: `Masa ${transferSource} → ${transferTarget}` });
+        toast.success('Masa köçürüldü');
+      } else {
+        toast.error(data.error || 'Köçürmə uğursuz oldu');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Köçürmə xətası');
+    } finally {
+      setTransferMode(false);
+      setTransferSource(null);
+      setTransferTarget(null);
+      pos.fetchData();
+    }
   };
 
   const handleUnmerge = async () => {
@@ -185,51 +205,22 @@ export default function POSPage() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
-                {(mergeMode || transferMode) && (
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className="text-sm font-bold text-white/60">
-                      {mergeMode ? `Birleştirme: ${selectedForMerge.length} masa seçildi` : `Köçürmə: ${transferSource ? `Mənbə: ${transferSource}${transferTarget ? ` → Hədəf: ${transferTarget}` : ', hədəf seçin'}` : 'Mənbə masa seçin'}`}
-                    </span>
-                    <div className="flex items-center gap-2">
-                       {(mergeMode && selectedForMerge.length >= 2) && (
-                        <button 
-                          onClick={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
-                          className="px-4 py-2 bg-blue-500 text-white text-xs font-black rounded-full"
-                        >
-                          Birləşdir
-                        </button>
-                      )}
-                      {transferMode && transferSource && transferTarget && (
-                        <button 
-                          onClick={handleConfirmTransfer}
-                          className="px-4 py-2 bg-emerald-500 text-white text-xs font-black rounded-full"
-                        >
-                          Köçür
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); }}
-                        className="px-4 py-2 bg-white/10 text-white text-xs font-black rounded-full"
-                      >
-                        Ləğv Et
-                      </button>
-                    </div>
-                  </div>
-                )}
+               <div className="flex-1 overflow-y-auto">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                  {activeFloor?.tables?.map((table: any) => (
-                    <TableCard 
-                      key={table.table_number} 
-                      table={table} 
-                      onTap={() => handleTableTap(table)} 
-                      onAction={() => handleOpenAction(table)}
-                      isSelected={selectedForMerge.includes(table.table_number)}
-                      selectionMode={mergeMode}
-                      isTransferSource={transferSource === table.table_number}
-                      isTransferTarget={transferTarget === table.table_number}
-                    />
-                  ))}
+                  {activeFloor?.tables
+                    ?.filter((table: any) => !table.parent_table_number || table.table_number === table.parent_table_number)
+                    ?.map((table: any) => (
+                      <TableCard 
+                        key={table.table_number} 
+                        table={table} 
+                        onTap={() => handleTableTap(table)} 
+                        onAction={() => handleOpenAction(table)}
+                        isSelected={selectedForMerge.includes(table.table_number)}
+                        selectionMode={mergeMode}
+                        isTransferSource={transferSource === table.table_number}
+                        isTransferTarget={transferTarget === table.table_number}
+                      />
+                    ))}
                 </div>
               </div>
             </div>
@@ -284,14 +275,19 @@ export default function POSPage() {
         }}
         onConfirmSplit={handleUnmerge}
         onCancelMode={() => { setMergeMode(false); setTransferMode(false); setSplitMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
-        onConfirmMerge={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
+        onConfirmMerge={async () => { 
+          await pos.mergeTables(selectedForMerge); 
+          setLastUndo(pos.lastUndo);
+          setMergeMode(false); 
+          setSelectedForMerge([]); 
+        }}
       />
 
       <AnimatePresence>
-        {pos.lastUndo && (
+        {lastUndo && (
           <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-6 px-8 py-4 rounded-[2rem] bg-zinc-900 text-white shadow-2xl border border-white/10">
-            <span className="text-sm font-bold">{pos.lastUndo.message}</span>
-            <button onClick={() => pos.performUndo()} className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95">Geri Al</button>
+            <span className="text-sm font-bold">{lastUndo.message}</span>
+            <button onClick={() => { pos.performUndo(); setLastUndo(null); }} className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95">Geri Al</button>
           </motion.div>
         )}
       </AnimatePresence>

@@ -73,7 +73,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
     >
       <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors flex items-start gap-1
         ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
-        {table.table_number}
+        {table.is_group ? `Qrup ${table.table_number}` : table.table_number}
         {table.is_group && (
           <span className="mt-2 px-2 py-1 rounded-lg text-[9px] bg-blue-500 text-white font-black leading-none uppercase tracking-tighter shadow-lg">
             Q

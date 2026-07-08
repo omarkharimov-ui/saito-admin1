@@ -97,12 +97,20 @@ export default function POSPage() {
         toast(`Mənbə: Masa ${table.table_number}. İndi hədəf seçin.`);
       } else if (table.table_number !== transferSource) {
         setTransferTarget(table.table_number);
-        setActionSheetOpen(true);
+        handleConfirmTransfer();
       }
       return;
     }
 
     pos.selectTable(table);
+  };
+
+  const handleConfirmTransfer = async () => {
+    if (!transferSource || !transferTarget) return;
+    await pos.transferTable(transferSource, transferTarget);
+    setTransferMode(false);
+    setTransferSource(null);
+    setTransferTarget(null);
   };
 
   const handleUnmerge = async () => {
@@ -139,7 +147,7 @@ export default function POSPage() {
         <AnimatePresence mode="wait">
           {pos.activeView === 'floor' && (
             <div key="floor" className="h-full flex flex-col p-6">
-              <div className="flex items-center justify-between mb-8">
+               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                   <h1 className="text-3xl font-black tracking-tighter">POS</h1>
                   {pos.floors.length > 1 && (
@@ -151,13 +159,64 @@ export default function POSPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 bg-white/5 rounded-full p-1">
+                    <button 
+                      onClick={() => { setMergeMode(false); setTransferMode(false); }}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${!mergeMode && !transferMode ? 'bg-white text-black' : 'text-white/50 hover:text-white'}`}
+                    >
+                      Normal
+                    </button>
+                    <button 
+                      onClick={() => { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); }}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${mergeMode ? 'bg-blue-500 text-white' : 'text-white/50 hover:text-white'}`}
+                    >
+                      Birleştir
+                    </button>
+                    <button 
+                      onClick={() => { setTransferMode(true); setMergeMode(false); setTransferSource(null); setTransferTarget(null); }}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${transferMode ? 'bg-emerald-500 text-white' : 'text-white/50 hover:text-white'}`}
+                    >
+                      Köçür
+                    </button>
+                  </div>
                    <button onClick={() => setLightMode(!lightMode)} className="p-3 rounded-full bg-white/5 border border-white/10">
-                     {lightMode ? <Moon size={20} /> : <Sun size={20} />}
-                   </button>
+                      {lightMode ? <Moon size={20} /> : <Sun size={20} />}
+                    </button>
                 </div>
               </div>
 
               <div className="flex-1 overflow-y-auto">
+                {(mergeMode || transferMode) && (
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="text-sm font-bold text-white/60">
+                      {mergeMode ? `Birleştirme: ${selectedForMerge.length} masa seçildi` : `Köçürmə: ${transferSource ? `Mənbə: ${transferSource}${transferTarget ? ` → Hədəf: ${transferTarget}` : ', hədəf seçin'}` : 'Mənbə masa seçin'}`}
+                    </span>
+                    <div className="flex items-center gap-2">
+                       {(mergeMode && selectedForMerge.length >= 2) && (
+                        <button 
+                          onClick={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
+                          className="px-4 py-2 bg-blue-500 text-white text-xs font-black rounded-full"
+                        >
+                          Birləşdir
+                        </button>
+                      )}
+                      {transferMode && transferSource && transferTarget && (
+                        <button 
+                          onClick={handleConfirmTransfer}
+                          className="px-4 py-2 bg-emerald-500 text-white text-xs font-black rounded-full"
+                        >
+                          Köçür
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); }}
+                        className="px-4 py-2 bg-white/10 text-white text-xs font-black rounded-full"
+                      >
+                        Ləğv Et
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                   {activeFloor?.tables?.map((table: any) => (
                     <TableCard 
@@ -209,21 +268,16 @@ export default function POSPage() {
         open={actionSheetOpen} 
         onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} 
         onAddOrder={() => { pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
-        onMerge={() => { setMergeMode(true); setSelectedForMerge([actionSheetTable.table_number]); setActionSheetOpen(false); }}
-        onTransfer={() => { setTransferMode(true); setTransferSource(actionSheetTable.table_number); setActionSheetOpen(false); }}
         onUnmerge={() => setSplitMode(true)}
         onCloseBill={handleCloseBill}
         onPrint={() => window.print()}
         onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
         mergeMode={mergeMode}
         mergeParent={selectedForMerge[0]}
-        transferMode={transferMode}
         splitMode={splitMode}
         mergedGroupChildren={actionSheetGroup?.children}
         selectedForMerge={selectedForMerge}
         selectedForSplit={selectedForSplit}
-        transferSource={transferSource}
-        transferTarget={transferTarget}
         onToggleSplit={(n) => {
           if (selectedForSplit.includes(n)) setSelectedForSplit(p => p.filter(x => x !== n));
           else setSelectedForSplit(p => [...p, n]);
@@ -231,7 +285,6 @@ export default function POSPage() {
         onConfirmSplit={handleUnmerge}
         onCancelMode={() => { setMergeMode(false); setTransferMode(false); setSplitMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
         onConfirmMerge={async () => { await pos.mergeTables(selectedForMerge); setMergeMode(false); setSelectedForMerge([]); }}
-        onConfirmTransfer={async () => { await pos.transferTable(transferSource!, transferTarget!); setTransferMode(false); setTransferSource(null); setTransferTarget(null); setActionSheetOpen(false); }}
       />
 
       <AnimatePresence>

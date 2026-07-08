@@ -76,7 +76,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         {table.table_number}
         {table.is_group && (
           <span className="mt-2 px-2 py-1 rounded-lg text-[9px] bg-blue-500 text-white font-black leading-none uppercase tracking-tighter shadow-lg">
-            Qrup
+            Q
           </span>
         )}
       </span>

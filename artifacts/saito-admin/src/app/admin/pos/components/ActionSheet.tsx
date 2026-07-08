@@ -15,62 +15,54 @@ interface ActionSheetProps {
   open: boolean;
   onClose: () => void;
   onAddOrder: () => void;
-  onMerge: () => void;
-  onTransfer: () => void;
   onUnmerge: () => void;
-  onBillSplit?: () => void;
   onCloseBill: () => void;
   onPrint: () => void;
-  onSaveDraft?: () => void;
   onCancelTable?: () => void;
   mergeMode?: boolean;
   mergeParent?: number | null;
-  transferMode?: boolean;
   splitMode?: boolean;
   mergedGroupChildren?: PosTable[];
   selectedForMerge?: number[];
   selectedForSplit?: number[];
-  transferSource?: number | null;
-  transferTarget?: number | null;
   onToggleSplit?: (num: number) => void;
   onConfirmSplit?: () => void;
   onCancelMode?: () => void;
   onConfirmMerge?: () => void;
-  onConfirmTransfer?: () => void;
 }
 
 const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } as const;
 
 export function ActionSheet({ 
-  table, open, onClose, onAddOrder, onMerge, onTransfer, onUnmerge, onBillSplit, onCloseBill, onPrint, onSaveDraft, onCancelTable,
-  mergeMode, mergeParent, transferMode, splitMode, mergedGroupChildren, selectedForMerge, selectedForSplit, transferSource, transferTarget,
-  onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, onConfirmTransfer
+  table, open, onClose, onAddOrder, onUnmerge, onCloseBill, onPrint, onCancelTable,
+  mergeMode, mergeParent, splitMode, mergedGroupChildren, selectedForMerge, selectedForSplit,
+  onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge
 }: ActionSheetProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
 
   useEffect(() => {
-    if (open && !mergeMode && !transferMode) document.body.style.overflow = 'hidden';
+    if (open && !mergeMode) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
-  }, [open, mergeMode, transferMode]);
+  }, [open, mergeMode]);
 
-  if (!table && !mergeMode && !transferMode) return null;
+  if (!table && !mergeMode) return null;
 
   const isOccupied = table?.status !== 'empty';
   const isMerged = (mergedGroupChildren?.length ?? 0) > 0;
 
   const actions = [
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
-    { id: 'merge', icon: Merge, label: t('merge_tables'), visible: true },
-    { id: 'transfer', icon: Move, label: t('move_table'), visible: true },
-    { id: 'unmerge', icon: GitMerge, label: 'Masaları Ayır', visible: isMerged },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'cancel_table', icon: Trash2, label: t('dismiss_table') || 'Masanı boşalt', visible: isOccupied || table?.status === 'reserved' },
   ];
 
   const visibleActions = actions.filter(a => a.visible);
   const mergedChildren = splitMode && table ? (mergedGroupChildren ?? []) : [];
-  const currentView = mergeMode ? 'merge' : transferMode ? 'transfer' : splitMode ? 'split' : open ? 'actions' : 'none';
+  const currentView = mergeMode ? 'merge' : splitMode ? 'split' : open ? 'actions' : 'none';
+
+  // Group name for merged tables
+  const groupName = table?.parent_table_number || table?.table_number;
 
   return (
     <AnimatePresence>
@@ -95,18 +87,18 @@ export function ActionSheet({
             transition={fastTransition}
             className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.3)] border ${
               lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
-            } ${
-              (currentView === 'merge' || currentView === 'transfer') 
+             } ${
+              currentView === 'merge' 
                 ? 'rounded-full px-6 py-3 min-w-[320px] max-w-md mx-auto' 
                 : 'rounded-[2.5rem] p-7 w-[90%] max-w-md mx-auto'
             }`}
           >
             <AnimatePresence mode="wait">
-              {currentView === 'actions' && (
+               {currentView === 'actions' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="ui-actions">
                   <div className="text-center mb-6">
                     <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
-                      {isMerged ? `Masa ${table?.table_number} Qrupu` : `Masa ${table?.table_number}`}
+                      {isMerged ? `${groupName}` : `Masa ${table?.table_number}`}
                     </p>
                     {isMerged && (
                       <div className="flex flex-wrap justify-center gap-1.5 mt-3 mb-4">
@@ -122,15 +114,15 @@ export function ActionSheet({
                     )}
                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">{isOccupied ? `${table?.guest_count} Qonaq · ${table?.total_amount.toFixed(2)} ₼` : 'Boş Masa'}</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {visibleActions.map((action) => (
-                      <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, merge: onMerge, transfer: onTransfer, unmerge: onUnmerge, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
-                        className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
-                        <action.icon size={22} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                   <div className="grid grid-cols-3 gap-3">
+                     {visibleActions.map((action) => (
+                       <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, unmerge: onUnmerge, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
+                         className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
+                         <action.icon size={22} strokeWidth={2.5} />
+                         <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
+                       </button>
+                     ))}
+                   </div>
                   <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Bağla</button>
                 </motion.div>
               )}
@@ -140,7 +132,7 @@ export function ActionSheet({
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">Masaları Ayır</span>
-                       <span className="text-xl font-black tracking-tighter">Masa {table?.table_number} Qrupu</span>
+                       <span className="text-xl font-black tracking-tighter">Qrup {groupName}</span>
                     </div>
                     <button onClick={onClose} className="p-2 text-rose-500 hover:scale-110 transition-transform"><XCircle size={24} /></button>
                   </div>
@@ -191,20 +183,6 @@ export function ActionSheet({
                   <div className="flex items-center gap-3">
                     <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><X size={18} strokeWidth={3} /></button>
                     <button onClick={onConfirmMerge} disabled={!mergeParent || (selectedForMerge?.length || 0) < 2} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>Təsdiqlə</button>
-                  </div>
-                </motion.div>
-              )}
-              {currentView === 'transfer' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="ui-bar" className="flex items-center gap-5 w-full">
-                  <div className="flex flex-col mr-auto min-w-[140px]">
-                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">Masayı Köçür</span>
-                    <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                      {!transferSource ? 'Mənbə masanı seçin' : !transferTarget ? 'Hədəf masanı seçin' : `Masa ${transferSource} → Masa ${transferTarget}`}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><X size={18} strokeWidth={3} /></button>
-                    <button onClick={onConfirmTransfer} disabled={!transferSource || !transferTarget} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>Təsdiqlə</button>
                   </div>
                 </motion.div>
               )}

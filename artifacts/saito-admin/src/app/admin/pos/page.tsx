@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -37,7 +37,6 @@ export default function POSPage() {
     if (!actionSheetTable || paying) return;
     setPaying(true);
     try {
-      // Find active order for this table
       const ordersRes = await fetch('/api/orders');
       if (!ordersRes.ok) throw new Error('Failed to fetch orders');
       const ordersData = await ordersRes.json();
@@ -81,6 +80,29 @@ export default function POSPage() {
   const activeFloor = selectedFloor 
     ? pos.floors.find((f: any) => f.name === selectedFloor) 
     : pos.floors[0];
+
+  const groupNumberMap = useMemo(() => {
+    const map: Record<number, number> = {};
+    if (activeFloor?.merged_groups) {
+      activeFloor.merged_groups.forEach((g: any, idx: number) => {
+        map[g.parent.table_number] = idx + 1;
+      });
+    }
+    return map;
+  }, [activeFloor?.merged_groups]);
+
+  const tableGroupInfo = useMemo(() => {
+    const info: Record<number, { groupNum: number; children: number[] }> = {};
+    if (activeFloor?.merged_groups) {
+      activeFloor.merged_groups.forEach((g: any, idx: number) => {
+        info[g.parent.table_number] = {
+          groupNum: idx + 1,
+          children: g.children?.map((c: any) => c.table_number) || []
+        };
+      });
+    }
+    return info;
+  }, [activeFloor?.merged_groups]);
 
   const handleTableTap = (table: any) => {
     if (mergeMode) {
@@ -206,22 +228,27 @@ export default function POSPage() {
               </div>
 
                <div className="flex-1 overflow-y-auto">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {activeFloor?.tables?.map((table: any) => {
                     const isChild = table.parent_table_number && table.table_number !== table.parent_table_number;
-                    const isParent = table.table_number === table.parent_table_number || !table.parent_table_number;
+                    const groupInfo = tableGroupInfo[table.table_number];
+                    
+                    if (isChild) return null;
+                    
+                    const colSpan = groupInfo && groupInfo.children.length > 0 
+                      ? 'lg:col-span-2' 
+                      : 'lg:col-span-1';
                     
                     return (
-                      <div 
-                        key={table.table_number} 
-                        className={`relative ${isChild ? 'ml-12' : ''}`}
+                      <motion.div
+                        key={table.table_number}
+                        layout
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        className={`${colSpan}`}
                       >
-                        {isChild && (
-                          <div className="absolute left-[-20px] top-1/2 -translate-y-1/2 flex items-center gap-1">
-                            <div className="w-3 h-0.5 bg-blue-500/60" />
-                            <div className="w-2 h-2 rounded-full bg-blue-500" />
-                          </div>
-                        )}
                         <TableCard 
                           table={table} 
                           onTap={() => handleTableTap(table)} 
@@ -230,11 +257,13 @@ export default function POSPage() {
                           selectionMode={mergeMode}
                           isTransferSource={transferSource === table.table_number}
                           isTransferTarget={transferTarget === table.table_number}
+                          groupNumber={groupInfo?.groupNum}
+                          mergedChildNumbers={groupInfo?.children}
                         />
-                      </div>
+                      </motion.div>
                     );
                   })}
-                 </div>
+                </div>
                </div>
              </div>
            )}
@@ -294,6 +323,7 @@ export default function POSPage() {
           setMergeMode(false); 
           setSelectedForMerge([]); 
         }}
+        groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
       />
 
       <AnimatePresence>

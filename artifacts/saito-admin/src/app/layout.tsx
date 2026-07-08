@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { LanguageProvider as LegacyLanguageProvider } from "@/context/LanguageContext";
@@ -9,16 +8,6 @@ import ClientLayout from "@/components/layout/ClientLayout";
 import { CustomNotificationProvider } from "@/components/CustomNotification";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin", "latin-ext"],
-});
-
-const playfairDisplay = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin", "latin-ext", "cyrillic"],
-});
 
 export const metadata: Metadata = {
   title: "SAITO Admin",
@@ -45,7 +34,8 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      className={`${geistSans.variable} ${playfairDisplay.variable} h-full antialiased`}
+      className="h-full antialiased"
+      style={{ fontFamily: "'Noto Sans', 'Geist', system-ui, sans-serif" }}
     >
       <head>
         <meta name="theme-color" content="#d4af37" />

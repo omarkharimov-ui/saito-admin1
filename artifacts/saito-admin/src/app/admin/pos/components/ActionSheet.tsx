@@ -29,6 +29,7 @@ interface ActionSheetProps {
   onConfirmSplit?: () => void;
   onCancelMode?: () => void;
   onConfirmMerge?: () => void;
+  groupNumber?: number;
 }
 
 const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } as const;
@@ -36,7 +37,7 @@ const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCloseBill, onPrint, onCancelTable,
   mergeMode, mergeParent, splitMode, mergedGroupChildren, selectedForMerge, selectedForSplit,
-  onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge
+  onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, groupNumber
 }: ActionSheetProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -96,10 +97,10 @@ export function ActionSheet({
             <AnimatePresence mode="wait">
                {currentView === 'actions' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="ui-actions">
-                  <div className="text-center mb-6">
-                    <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
-                      {isMerged ? `${groupName}` : `Masa ${table?.table_number}`}
-                    </p>
+                   <div className="text-center mb-6">
+                     <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
+                       {isMerged ? `Qrup ${groupNumber || groupName}` : `Masa ${table?.table_number}`}
+                     </p>
                     {isMerged && (
                       <div className="flex flex-wrap justify-center gap-1.5 mt-3 mb-4">
                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'}`}>
@@ -128,17 +129,29 @@ export function ActionSheet({
               )}
 
               {currentView === 'split' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="ui-split" className="flex flex-col gap-5">
+                <motion.div 
+                  initial={{ opacity: 0, y: 30, scale: 0.95 }} 
+                  animate={{ opacity: 1, y: 0, scale: 1 }} 
+                  exit={{ opacity: 0, y: 30, scale: 0.95 }} 
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }} 
+                  key="ui-split" 
+                  className="flex flex-col gap-5"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">Masaları Ayır</span>
-                       <span className="text-xl font-black tracking-tighter">Qrup {groupName}</span>
+                       <span className="text-xl font-black tracking-tighter">Qrup {groupNumber || groupName}</span>
                     </div>
                     <button onClick={onClose} className="p-2 text-rose-500 hover:scale-110 transition-transform"><XCircle size={24} /></button>
                   </div>
                   <div className="flex flex-col gap-2">
                     {/* Parent (always visible, not selectable) */}
-                    <div className={`flex items-center gap-3 p-4 rounded-[1.2rem] border ${lightMode ? 'bg-indigo-50 border-indigo-200' : 'bg-indigo-500/10 border-indigo-500/30'}`}>
+                    <motion.div 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className={`flex items-center gap-3 p-4 rounded-[1.2rem] border ${lightMode ? 'bg-indigo-50 border-indigo-200' : 'bg-indigo-500/10 border-indigo-500/30'}`}
+                    >
                       <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-indigo-400 bg-indigo-400">
                         <Check size={10} className="text-white" strokeWidth={4} />
                       </div>
@@ -146,29 +159,40 @@ export function ActionSheet({
                         <span className="text-sm font-black">Masa {table?.table_number}</span>
                         <span className="text-[9px] font-bold uppercase opacity-50 tracking-wider">Əsas Masa</span>
                       </div>
-                    </div>
+                    </motion.div>
                     {/* Children (selectable) */}
                     {mergedChildren.length > 0 && (
                       <>
                         <span className={`text-[9px] font-black uppercase tracking-widest opacity-40 px-1 ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>Uşaq Masalar</span>
                         <div className="grid grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1">
-                          {mergedChildren.map(child => (
-                            <button key={child.table_number} onClick={() => onToggleSplit?.(child.table_number)}
-                              className={`flex items-center gap-3 p-4 rounded-[1.2rem] border transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-blue-500 border-blue-500 text-white shadow-lg' : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/5'}`}>
+                          {mergedChildren.map((child, i) => (
+                            <motion.button
+                              key={child.table_number}
+                              onClick={() => onToggleSplit?.(child.table_number)}
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.15 + i * 0.05 }}
+                              className={`flex items-center gap-3 p-4 rounded-[1.2rem] border transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-blue-500 border-blue-500 text-white shadow-lg' : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/5'}`}
+                            >
                               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-20'}`}>
                                 {selectedForSplit?.includes(child.table_number) && <Check size={10} className="text-blue-500" strokeWidth={4} />}
                               </div>
                               <span className="text-sm font-black">Masa {child.table_number}</span>
-                            </button>
+                            </motion.button>
                           ))}
                         </div>
                       </>
                     )}
                   </div>
-                  <div className="flex gap-3 mt-1">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex gap-3 mt-1"
+                  >
                      <button onClick={onClose} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black bg-[var(--theme-surface-soft)]">Ləğv Et</button>
                      <button onClick={onConfirmSplit} className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black shadow-xl ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>Seçilənləri Ayır</button>
-                  </div>
+                   </motion.div>
                 </motion.div>
               )}
 

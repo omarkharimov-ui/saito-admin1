@@ -18,9 +18,12 @@ interface TableCardProps {
   isOverdue?: boolean;
   overdueType?: 'not_accepted' | 'preparing';
   index?: number;
+  groupNumber?: number;
+  mergedChildNumbers?: number[];
+  isMergedChild?: boolean;
 }
 
-export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0 }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
@@ -73,9 +76,9 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
     >
       <span className={`absolute top-6 left-6 text-5xl font-black tracking-tighter transition-colors flex items-start gap-1
         ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
-        {table.is_group && table.table_number === table.parent_table_number ? `Qrup ${table.table_number}` : table.table_number}
-        {table.is_group && table.table_number !== table.parent_table_number && (
-          <span className="mt-2 px-2 py-1 rounded-lg text-[9px] bg-blue-500/80 text-white font-black leading-none uppercase tracking-tighter shadow-lg">
+        {groupNumber && !isMergedChild ? `Qrup ${groupNumber}` : table.table_number}
+        {table.is_group && !isMergedChild && (
+          <span className="mt-2 px-2 py-1 rounded-lg text-[9px] bg-blue-500 text-white font-black leading-none uppercase tracking-tighter shadow-lg">
             Q
           </span>
         )}
@@ -153,6 +156,19 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
           ) : null}
         </div>
       </div>
+      
+      {mergedChildNumbers && mergedChildNumbers.length > 0 && (
+        <div className="absolute bottom-16 left-6 right-6">
+          <div className={`flex flex-wrap gap-1.5 px-3 py-2 rounded-xl border ${lightMode ? 'bg-blue-50 border-blue-200' : 'bg-blue-500/10 border-blue-500/20'}`}>
+            <span className={`text-[9px] font-black uppercase tracking-wider ${lightMode ? 'text-blue-600' : 'text-blue-400'}`}>Birləşmiş:</span>
+            {mergedChildNumbers.map((num: number) => (
+              <span key={num} className={`px-2 py-0.5 rounded-md text-[10px] font-black ${lightMode ? 'bg-white text-blue-600 border border-blue-200' : 'bg-blue-500/20 text-blue-300'}`}>
+                Masa {num}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -65,64 +65,62 @@ export function usePos() {
     setSelectedTable(table);
     setActiveView('order');
     
-    // Always fetch fresh order data to avoid stale state issues
-    try {
-      const [ordersRes, tablesRes] = await Promise.all([
-        fetch('/api/orders'),
-        fetch('/api/pos/tables')
-      ]);
-      
-      let items: any[] = [];
-      let guestCount = table.guest_count || 1;
-      let notes = '';
-      let orderType = 'dine_in';
-      
-      if (ordersRes.ok) {
-        const data = await ordersRes.json();
-        const orders = data.orders || [];
-        const orderItems = data.orderItems || [];
-        
-        const activeOrder = orders.find((o: any) => 
-          o.table_number === table.table_number && 
-          !['paid', 'cancelled'].includes(o.status)
-        );
-        
-        if (activeOrder) {
-          items = orderItems
-            .filter((item: any) => item.order_id === activeOrder.id)
-            .map((item: any) => ({
-              product_id: item.product_id,
-              product_name: item.product_name,
-              unit_price: item.unit_price,
-              quantity: item.quantity,
-              total_price: item.total_price,
-              modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
-              special_notes: item.special_notes || ''
-            }));
-          guestCount = activeOrder.guest_count || table.guest_count || 1;
-          notes = activeOrder.customer_note || '';
-          orderType = activeOrder.order_type || 'dine_in';
+    // Show cart immediately with table data - no waiting
+    setCart({
+      table_id: table.id,
+      table_number: table.table_number,
+      guest_count: table.guest_count || 1,
+      items: [],
+      notes: '',
+      order_type: 'dine_in'
+    });
+    
+    // Load existing order items in background if table has orders
+    const tableOrders = floors
+      .flatMap((f: any) => f.tables || [])
+      .filter((t: any) => t.table_number === table.table_number);
+    
+    const existingItems = tableOrders.flatMap((t: any) => t.order_ids || []);
+    
+    if (existingItems.length > 0) {
+      try {
+        const res = await fetch('/api/orders');
+        if (res.ok) {
+          const data = await res.json();
+          const orders = data.orders || [];
+          const orderItems = data.orderItems || [];
+          
+          const activeOrder = orders.find((o: any) => 
+            o.table_number === table.table_number && 
+            !['paid', 'cancelled'].includes(o.status)
+          );
+          
+          if (activeOrder) {
+            const items = orderItems
+              .filter((item: any) => item.order_id === activeOrder.id)
+              .map((item: any) => ({
+                product_id: item.product_id,
+                product_name: item.product_name,
+                unit_price: item.unit_price,
+                quantity: item.quantity,
+                total_price: item.total_price,
+                modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
+                special_notes: item.special_notes || ''
+              }));
+            
+            setCart({
+              table_id: table.id,
+              table_number: table.table_number,
+              guest_count: table.guest_count || activeOrder.guest_count || 1,
+              items,
+              notes: activeOrder.customer_note || '',
+              order_type: activeOrder.order_type || 'dine_in'
+            });
+          }
         }
+      } catch (e) {
+        console.error('Failed to load existing order items:', e);
       }
-      
-      setCart({
-        table_id: table.id,
-        table_number: table.table_number,
-        guest_count: guestCount,
-        items,
-        notes,
-        order_type: (orderType as 'dine_in' | 'takeaway' | 'delivery') || 'dine_in'
-      });
-    } catch (e) {
-      console.error('Failed to load table data:', e);
-      setCart({
-        table_id: table.id,
-        table_number: table.table_number,
-        guest_count: table.guest_count || 1,
-        items: [],
-        notes: '',
-        order_type: 'dine_in'
-      });
     }
   };
 

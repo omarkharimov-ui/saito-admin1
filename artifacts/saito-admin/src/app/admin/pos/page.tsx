@@ -38,7 +38,6 @@ export default function POSPage() {
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
 
   const handleProductTap = (product: PosProduct) => {
-    if (pos.loadingOrder) return;
     const variants = pos.variantsByProduct[product.id] || [];
     if (variants.length > 0) {
       setModalProduct({ product, variants });

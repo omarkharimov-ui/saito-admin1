@@ -14,7 +14,6 @@ export function usePos() {
   const [combos, setCombos] = useState<any[]>([]);
   const [variantsByProduct, setVariantsByProduct] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
-  const [loadingOrder, setLoadingOrder] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<any>(null);
@@ -72,15 +71,23 @@ export function usePos() {
   }, [fetchData]);
 
   const selectTable = async (table: PosTable) => {
-    if (selectedTable?.table_number === table.table_number && cart?.table_number === table.table_number) {
+    const sameTable =
+      selectedTable?.table_number === table.table_number &&
+      cart?.table_number === table.table_number;
+
+    // Already viewing this table's order screen — nothing to do.
+    if (sameTable && activeView === 'order') return;
+
+    // Re-entering the same table from the floor — reopen the existing cart, don't reload.
+    if (sameTable) {
+      setActiveView('order');
       return;
     }
-    
+
     cartInteractionCount.current = 0;
-    
+
     setSelectedTable(table);
     setActiveView('order');
-    setLoadingOrder(true);
 
     setCart({
       table_id: table.id,
@@ -90,14 +97,13 @@ export function usePos() {
       notes: '',
       order_type: 'dine_in'
     });
-    
-    try {
+
     const tableOrders = floors
       .flatMap((f: any) => f.tables || [])
       .filter((t: any) => t.table_number === table.table_number);
-    
+
     const existingItems = tableOrders.flatMap((t: any) => t.order_ids || []);
-    
+
     if (existingItems.length > 0) {
       try {
         const res = await fetch('/api/orders');
@@ -105,14 +111,14 @@ export function usePos() {
           const data = await res.json();
           const orders = data.orders || [];
           const orderItems = data.orderItems || [];
-          
-          const activeOrder = orders.find((o: any) => 
-            o.table_number === table.table_number && 
+
+          const activeOrder = orders.find((o: any) =>
+            o.table_number === table.table_number &&
             !['paid', 'cancelled'].includes(o.status)
           );
-          
+
           if (activeOrder) {
-            const items = orderItems
+            const serverItems = orderItems
               .filter((item: any) => item.order_id === activeOrder.id)
               .map((item: any) => ({
                 product_id: item.product_id,
@@ -123,17 +129,28 @@ export function usePos() {
                 modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
                 special_notes: item.special_notes || ''
               }));
-            
+
             setCart(prev => {
               if (!prev) return null;
-              if (cartInteractionCount.current > 0) {
-                return prev;
+              // Merge server items with anything the user already added during the load
+              // so neither side is silently dropped.
+              const merged = serverItems.map((i: any) => ({ ...i }));
+              for (const u of prev.items) {
+                const found = merged.find(
+                  (m: any) => m.product_id === u.product_id && (m.variant_id ?? null) === (u.variant_id ?? null)
+                );
+                if (found) {
+                  found.quantity += u.quantity;
+                  found.total_price = found.unit_price * found.quantity;
+                } else {
+                  merged.push(u);
+                }
               }
               return {
                 table_id: table.id,
                 table_number: table.table_number,
                 guest_count: table.guest_count || activeOrder.guest_count || 1,
-                items,
+                items: merged,
                 notes: activeOrder.customer_note || '',
                 order_type: activeOrder.order_type || 'dine_in'
               };
@@ -143,9 +160,6 @@ export function usePos() {
       } catch (e) {
         console.error('Failed to load existing order items:', e);
       }
-    }
-    } finally {
-      setLoadingOrder(false);
     }
   };
 
@@ -357,7 +371,7 @@ export function usePos() {
   };
 
   return {
-    floors, products, categories, combos, variantsByProduct, loading, loadingOrder, placingOrder, selectedTable, cart, activeView, lastUndo,
+    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount
   };

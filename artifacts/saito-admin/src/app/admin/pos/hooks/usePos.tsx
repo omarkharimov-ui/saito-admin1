@@ -98,44 +98,54 @@ export function usePos() {
       order_type: 'dine_in'
     });
 
-    const tableOrders = floors
-      .flatMap((f: any) => f.tables || [])
-      .filter((t: any) => t.table_number === table.table_number);
+    try {
+      const res = await fetch('/api/orders');
+      if (res.ok) {
+        const data = await res.json();
+        const orders = data.orders || [];
+        const orderItems = data.orderItems || [];
 
-    const existingItems = tableOrders.flatMap((t: any) => t.order_ids || []);
-
-    if (existingItems.length > 0) {
-      try {
-        const res = await fetch('/api/orders');
-        if (res.ok) {
-          const data = await res.json();
-          const orders = data.orders || [];
-          const orderItems = data.orderItems || [];
-
-          const activeOrder = orders.find((o: any) =>
+        // Primary active order for this table (order_ids column is not maintained,
+        // so we resolve it directly from the orders list).
+        const primary = orders.find(
+          (o: any) =>
             o.table_number === table.table_number &&
-            !['paid', 'cancelled'].includes(o.status)
-          );
+            !['paid', 'cancelled', 'closed'].includes(o.status)
+        );
 
-          if (activeOrder) {
-            const serverItems = orderItems
-              .filter((item: any) => item.order_id === activeOrder.id)
-              .map((item: any) => ({
-                product_id: item.product_id,
-                product_name: item.product_name,
-                unit_price: item.unit_price,
-                quantity: item.quantity,
-                total_price: item.total_price,
-                modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
-                special_notes: item.special_notes || ''
-              }));
+        if (primary) {
+          // A merged group also has child orders linked via merged_into = primary.id
+          const groupOrders = [
+            primary,
+            ...orders.filter(
+              (o: any) =>
+                o.merged_into === primary.id &&
+                !['paid', 'cancelled', 'closed'].includes(o.status)
+            ),
+          ];
+          const groupIds = new Set(groupOrders.map((o: any) => o.id));
 
-            setCart(prev => {
-              if (!prev) return null;
-              // Merge server items with anything the user already added during the load
-              // so neither side is silently dropped.
-              const merged = serverItems.map((i: any) => ({ ...i }));
-              for (const u of prev.items) {
+          const serverItems = orderItems
+            .filter((item: any) => groupIds.has(item.order_id))
+            .map((item: any) => ({
+              product_id: item.product_id,
+              product_name: item.product_name,
+              unit_price: item.unit_price,
+              quantity: item.quantity,
+              total_price: item.total_price,
+              modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
+              special_notes: item.special_notes || '',
+              // Already on the server — placeOrder will only append new/edited deltas.
+              sentQuantity: item.quantity,
+            }));
+
+          setCart(prev => {
+            if (!prev) return null;
+            // Merge server items with anything the user already added during the load
+            // so neither side is silently dropped.
+            const merged = serverItems.map((i: any) => ({ ...i }));
+            for (const u of prev.items) {
+              if ((u.sentQuantity ?? 0) === 0) {
                 const found = merged.find(
                   (m: any) => m.product_id === u.product_id && (m.variant_id ?? null) === (u.variant_id ?? null)
                 );
@@ -146,20 +156,20 @@ export function usePos() {
                   merged.push(u);
                 }
               }
-              return {
-                table_id: table.id,
-                table_number: table.table_number,
-                guest_count: table.guest_count || activeOrder.guest_count || 1,
-                items: merged,
-                notes: activeOrder.customer_note || '',
-                order_type: activeOrder.order_type || 'dine_in'
-              };
-            });
-          }
+            }
+            return {
+              table_id: table.id,
+              table_number: table.table_number,
+              guest_count: table.guest_count || primary.guest_count || 1,
+              items: merged,
+              notes: primary.customer_note || '',
+              order_type: primary.order_type || 'dine_in'
+            };
+          });
         }
-      } catch (e) {
-        console.error('Failed to load existing order items:', e);
       }
+    } catch (e) {
+      console.error('Failed to load existing order items:', e);
     }
   };
 
@@ -309,12 +319,36 @@ export function usePos() {
     if (!cart || placingOrder) return;
     setPlacingOrder(true);
     try {
+      // Only send the delta that hasn't been persisted yet. Items already on the
+      // server keep their sentQuantity, so re-sending a reopened table won't
+      // double-count, and quantity edits are correctly reconciled.
+      const unsent = cart.items
+        .filter(i => (i.quantity || 0) > (i.sentQuantity || 0))
+        .map(i => ({
+          product_id: i.product_id,
+          product_name: i.product_name,
+          unit_price: i.unit_price,
+          quantity: (i.quantity || 0) - (i.sentQuantity || 0),
+          modifiers: i.modifiers || [],
+          special_notes: i.special_notes || i.notes || '',
+          variant_id: i.variant_id || null,
+          is_combo: i.is_combo || false
+        }));
+
+      if (unsent.length === 0) {
+        toast.success('Sifariş göndərildi');
+        setCart(null);
+        setActiveView('floor');
+        fetchData().catch(() => {});
+        return;
+      }
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           table_number: cart.table_number,
-          items: cart.items,
+          items: unsent,
           status: 'confirmed',
           guest_count: cart.guest_count,
           customer_note: cart.notes,
@@ -359,9 +393,14 @@ export function usePos() {
         );
         if (activeOrder) {
           await fetch(`/api/orders`, {
-            method: 'PATCH',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_id: activeOrder.id, guest_count: newCount }),
+            body: JSON.stringify({
+              action: 'update',
+              id: activeOrder.id,
+              version: activeOrder.version,
+              data: { guest_count: newCount }
+            }),
           });
         }
       }

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import type { PosProduct, PosTable, PosCart } from '../types/shared';
+import type { PosProduct, PosTable, PosCart, PosModifierSelection } from '../types/shared';
 
 export function usePos() {
   const { t } = useLanguage();
@@ -12,12 +12,15 @@ export function usePos() {
   const [products, setProducts] = useState<PosProduct[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [combos, setCombos] = useState<any[]>([]);
+  const [variantsByProduct, setVariantsByProduct] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
+  const [loadingOrder, setLoadingOrder] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [cart, setCart] = useState<PosCart | null>(null);
+  const cartInteractionCount = useRef(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -36,6 +39,13 @@ export function usePos() {
         setProducts(data.products || []);
         setCategories(data.categories || []);
         setCombos(data.combos || []);
+        const variantData = data.variants || [];
+        const vmap: Record<string, any[]> = {};
+        for (const v of variantData) {
+          if (!v.product_id) continue;
+          (vmap[v.product_id] ||= []).push(v);
+        }
+        setVariantsByProduct(vmap);
       }
     } catch (e) {
       console.error('POS fetch error:', e);
@@ -62,15 +72,16 @@ export function usePos() {
   }, [fetchData]);
 
   const selectTable = async (table: PosTable) => {
-    // If same table tapped again, don't reset cart
     if (selectedTable?.table_number === table.table_number && cart?.table_number === table.table_number) {
       return;
     }
     
+    cartInteractionCount.current = 0;
+    
     setSelectedTable(table);
     setActiveView('order');
-    
-    // Show cart immediately with table data - no waiting
+    setLoadingOrder(true);
+
     setCart({
       table_id: table.id,
       table_number: table.table_number,
@@ -80,7 +91,7 @@ export function usePos() {
       order_type: 'dine_in'
     });
     
-    // Load existing order items in background if table has orders
+    try {
     const tableOrders = floors
       .flatMap((f: any) => f.tables || [])
       .filter((t: any) => t.table_number === table.table_number);
@@ -113,19 +124,28 @@ export function usePos() {
                 special_notes: item.special_notes || ''
               }));
             
-            setCart({
-              table_id: table.id,
-              table_number: table.table_number,
-              guest_count: table.guest_count || activeOrder.guest_count || 1,
-              items,
-              notes: activeOrder.customer_note || '',
-              order_type: activeOrder.order_type || 'dine_in'
+            setCart(prev => {
+              if (!prev) return null;
+              if (cartInteractionCount.current > 0) {
+                return prev;
+              }
+              return {
+                table_id: table.id,
+                table_number: table.table_number,
+                guest_count: table.guest_count || activeOrder.guest_count || 1,
+                items,
+                notes: activeOrder.customer_note || '',
+                order_type: activeOrder.order_type || 'dine_in'
+              };
             });
           }
         }
       } catch (e) {
         console.error('Failed to load existing order items:', e);
       }
+    }
+    } finally {
+      setLoadingOrder(false);
     }
   };
 
@@ -193,31 +213,73 @@ export function usePos() {
     }
   };
 
-  const addToCart = (p: PosProduct) => {
+  const addToCart = (
+    p: PosProduct,
+    opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[] }
+  ) => {
+    cartInteractionCount.current += 1;
     setCart(prev => {
-      if (!prev) return null;
-      const items = prev.items.map(i => ({ ...i }));
-      const existing = items.find(i => i.product_id === p.id);
+      let base = prev;
+      if (!base) {
+        if (!selectedTable) return null;
+        base = {
+          table_id: selectedTable.id,
+          table_number: selectedTable.table_number,
+          guest_count: selectedTable.guest_count || 1,
+          items: [],
+          notes: '',
+          order_type: 'dine_in' as const
+        };
+      }
+      const items = base.items.map(i => ({ ...i }));
+      const variant = opts?.variantId
+        ? (variantsByProduct[p.id] || []).find(v => v.id === opts.variantId)
+        : undefined;
+      const variantId = opts?.variantId ?? null;
+      const unitPrice = variant ? Number(variant.discount_price ?? variant.price) : (p.price ?? 0);
+      const existing = items.find(
+        i => i.product_id === p.id && (i.variant_id ?? null) === variantId
+      );
       if (existing) {
         existing.quantity += 1;
         existing.total_price = existing.unit_price * existing.quantity;
       } else {
-        items.push({ product_id: p.id, product_name: p.name, unit_price: p.price, quantity: 1, total_price: p.price, modifiers: [] });
+        items.push({
+          product_id: p.id,
+          product_name: p.name,
+          unit_price: unitPrice,
+          quantity: 1,
+          total_price: unitPrice,
+          modifiers: opts?.modifiers ?? [],
+          variant_id: variantId,
+          notes: opts?.notes ?? ''
+        });
       }
-      return { ...prev, items };
+      return { ...base, items };
     });
   };
 
-  const addComboToCart = (combo: any) => {
+  const addComboToCart = (combo: any, opts?: { notes?: string }) => {
+    cartInteractionCount.current += 1;
     setCart(prev => {
       if (!prev) return null;
       const items = [...prev.items];
-      items.push({ product_id: combo.id, product_name: combo.name, unit_price: combo.price, quantity: 1, total_price: combo.price, modifiers: [], is_combo: true });
+      items.push({
+        product_id: combo.id,
+        product_name: combo.name,
+        unit_price: combo.price,
+        quantity: 1,
+        total_price: combo.price,
+        modifiers: [],
+        is_combo: true,
+        notes: opts?.notes ?? ''
+      });
       return { ...prev, items };
     });
   };
 
   const updateCartItemQty = (idx: number, delta: number) => {
+    cartInteractionCount.current += 1;
     setCart(prev => {
       if (!prev) return null;
       const items = prev.items.map(i => ({ ...i }));
@@ -263,14 +325,16 @@ export function usePos() {
     }
   };
 
-  const clearCart = () => setCart(prev => prev ? { ...prev, items: [] } : null);
+  const clearCart = () => {
+    cartInteractionCount.current += 1;
+    setCart(prev => prev ? { ...prev, items: [] } : null);
+  };
 
   const updateGuestCount = async (delta: number) => {
     if (!cart) return;
     const newCount = Math.max(1, (cart.guest_count || 1) + delta);
     setCart(prev => prev ? { ...prev, guest_count: newCount } : prev);
     
-    // Persist to server if table has active order
     try {
       const ordersRes = await fetch('/api/orders');
       if (ordersRes.ok) {
@@ -293,7 +357,7 @@ export function usePos() {
   };
 
   return {
-    floors, products, categories, combos, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
+    floors, products, categories, combos, variantsByProduct, loading, loadingOrder, placingOrder, selectedTable, cart, activeView, lastUndo,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount
   };

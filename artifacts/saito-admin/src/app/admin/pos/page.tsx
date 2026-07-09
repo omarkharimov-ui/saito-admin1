@@ -9,8 +9,10 @@ import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
+import { ModifierSheet } from './components/ModifierSheet';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
+import type { PosProduct } from './types/shared';
 
 export default function POSPage() {
   const { lightMode, setLightMode } = useTheme();
@@ -32,6 +34,18 @@ export default function POSPage() {
 
   const [paying, setPaying] = useState(false);
   const [lastUndo, setLastUndo] = useState<any>(null);
+
+  const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
+
+  const handleProductTap = (product: PosProduct) => {
+    if (pos.loadingOrder) return;
+    const variants = pos.variantsByProduct[product.id] || [];
+    if (variants.length > 0) {
+      setModalProduct({ product, variants });
+    } else {
+      pos.addToCart(product);
+    }
+  };
 
   const handleCloseBill = async () => {
     if (!actionSheetTable || paying) return;
@@ -267,7 +281,8 @@ export default function POSPage() {
                     products={pos.products} 
                     categories={pos.categories}
                     combos={pos.combos}
-                    onAddProduct={(p) => pos.addToCart(p)}
+                    onAddProduct={(p) => handleProductTap(p)}
+                    onAddCombo={(c) => pos.addComboToCart(c)}
                     cartCounts={{}}
                     outOfStock={new Set()}
                   />
@@ -327,6 +342,20 @@ export default function POSPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ModifierSheet
+        open={!!modalProduct}
+        productName={modalProduct?.product.name || ''}
+        productPrice={modalProduct?.product.price || 0}
+        variants={modalProduct?.variants || []}
+        onClose={() => setModalProduct(null)}
+        onConfirm={(_modifiers, notes, variantId) => {
+          if (modalProduct) {
+            pos.addToCart(modalProduct.product, { variantId: variantId || null, notes });
+          }
+          setModalProduct(null);
+        }}
+      />
     </div>
   );
 }

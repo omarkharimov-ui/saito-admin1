@@ -62,6 +62,11 @@ export function usePos() {
   }, [fetchData]);
 
   const selectTable = async (table: PosTable) => {
+    // If same table tapped again, don't reset cart
+    if (selectedTable?.table_number === table.table_number && cart?.table_number === table.table_number) {
+      return;
+    }
+    
     setSelectedTable(table);
     setActiveView('order');
     
@@ -190,7 +195,16 @@ export function usePos() {
 
   const addToCart = (p: PosProduct) => {
     setCart(prev => {
-      if (!prev) return null;
+      if (!prev) {
+        return {
+          table_id: '',
+          table_number: 0,
+          guest_count: 1,
+          items: [{ product_id: p.id, product_name: p.name, unit_price: p.price, quantity: 1, total_price: p.price, modifiers: [] }],
+          notes: '',
+          order_type: 'dine_in' as const
+        };
+      }
       const items = prev.items.map(i => ({ ...i }));
       const existing = items.find(i => i.product_id === p.id);
       if (existing) {
@@ -205,7 +219,16 @@ export function usePos() {
 
   const addComboToCart = (combo: any) => {
     setCart(prev => {
-      if (!prev) return null;
+      if (!prev) {
+        return {
+          table_id: '',
+          table_number: 0,
+          guest_count: 1,
+          items: [{ product_id: combo.id, product_name: combo.name, unit_price: combo.price, quantity: 1, total_price: combo.price, modifiers: [], is_combo: true }],
+          notes: '',
+          order_type: 'dine_in' as const
+        };
+      }
       const items = [...prev.items];
       items.push({ product_id: combo.id, product_name: combo.name, unit_price: combo.price, quantity: 1, total_price: combo.price, modifiers: [], is_combo: true });
       return { ...prev, items };

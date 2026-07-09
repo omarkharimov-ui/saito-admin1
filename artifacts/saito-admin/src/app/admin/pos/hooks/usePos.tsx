@@ -195,16 +195,7 @@ export function usePos() {
 
   const addToCart = (p: PosProduct) => {
     setCart(prev => {
-      if (!prev) {
-        return {
-          table_id: '',
-          table_number: 0,
-          guest_count: 1,
-          items: [{ product_id: p.id, product_name: p.name, unit_price: p.price, quantity: 1, total_price: p.price, modifiers: [] }],
-          notes: '',
-          order_type: 'dine_in' as const
-        };
-      }
+      if (!prev) return null;
       const items = prev.items.map(i => ({ ...i }));
       const existing = items.find(i => i.product_id === p.id);
       if (existing) {
@@ -219,16 +210,7 @@ export function usePos() {
 
   const addComboToCart = (combo: any) => {
     setCart(prev => {
-      if (!prev) {
-        return {
-          table_id: '',
-          table_number: 0,
-          guest_count: 1,
-          items: [{ product_id: combo.id, product_name: combo.name, unit_price: combo.price, quantity: 1, total_price: combo.price, modifiers: [], is_combo: true }],
-          notes: '',
-          order_type: 'dine_in' as const
-        };
-      }
+      if (!prev) return null;
       const items = [...prev.items];
       items.push({ product_id: combo.id, product_name: combo.name, unit_price: combo.price, quantity: 1, total_price: combo.price, modifiers: [], is_combo: true });
       return { ...prev, items };
@@ -254,13 +236,20 @@ export function usePos() {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: cart.table_number, items: cart.items, status: 'confirmed' }),
+        body: JSON.stringify({
+          table_number: cart.table_number,
+          items: cart.items,
+          status: 'confirmed',
+          guest_count: cart.guest_count,
+          customer_note: cart.notes,
+          order_type: cart.order_type
+        }),
       });
       if (res.ok) {
         toast.success('Sifariş göndərildi');
         setCart(null);
-        await fetchData();
         setActiveView('floor');
+        fetchData().catch(() => {});
       } else {
         const err = await res.json();
         if (res.status === 409) {

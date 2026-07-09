@@ -65,63 +65,65 @@ export function usePos() {
     setSelectedTable(table);
     setActiveView('order');
     
-    // Load existing order items if table has an active order
-    const tableOrders = floors
-      .flatMap((f: any) => f.tables || [])
-      .filter((t: any) => t.table_number === table.table_number);
-    
-    const existingItems = tableOrders.flatMap((t: any) => t.order_ids || []);
-    
-    if (existingItems.length > 0) {
-      try {
-        const res = await fetch('/api/orders');
-        if (res.ok) {
-          const data = await res.json();
-          const orders = data.orders || [];
-          const orderItems = data.orderItems || [];
-          
-          const activeOrder = orders.find((o: any) => 
-            o.table_number === table.table_number && 
-            !['paid', 'cancelled'].includes(o.status)
-          );
-          
-          if (activeOrder) {
-            const items = orderItems
-              .filter((item: any) => item.order_id === activeOrder.id)
-              .map((item: any) => ({
-                product_id: item.product_id,
-                product_name: item.product_name,
-                unit_price: item.unit_price,
-                quantity: item.quantity,
-                total_price: item.total_price,
-                modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
-                special_notes: item.special_notes || ''
-              }));
-            
-            setCart({
-              table_id: table.id,
-              table_number: table.table_number,
-              guest_count: table.guest_count || activeOrder.guest_count || 1,
-              items,
-              notes: activeOrder.customer_note || '',
-              order_type: activeOrder.order_type || 'dine_in'
-            });
-            return;
-          }
+    // Always fetch fresh order data to avoid stale state issues
+    try {
+      const [ordersRes, tablesRes] = await Promise.all([
+        fetch('/api/orders'),
+        fetch('/api/pos/tables')
+      ]);
+      
+      let items: any[] = [];
+      let guestCount = table.guest_count || 1;
+      let notes = '';
+      let orderType = 'dine_in';
+      
+      if (ordersRes.ok) {
+        const data = await ordersRes.json();
+        const orders = data.orders || [];
+        const orderItems = data.orderItems || [];
+        
+        const activeOrder = orders.find((o: any) => 
+          o.table_number === table.table_number && 
+          !['paid', 'cancelled'].includes(o.status)
+        );
+        
+        if (activeOrder) {
+          items = orderItems
+            .filter((item: any) => item.order_id === activeOrder.id)
+            .map((item: any) => ({
+              product_id: item.product_id,
+              product_name: item.product_name,
+              unit_price: item.unit_price,
+              quantity: item.quantity,
+              total_price: item.total_price,
+              modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
+              special_notes: item.special_notes || ''
+            }));
+          guestCount = activeOrder.guest_count || table.guest_count || 1;
+          notes = activeOrder.customer_note || '';
+          orderType = activeOrder.order_type || 'dine_in';
         }
-      } catch (e) {
-        console.error('Failed to load existing order items:', e);
       }
+      
+      setCart({
+        table_id: table.id,
+        table_number: table.table_number,
+        guest_count: guestCount,
+        items,
+        notes,
+        order_type: (orderType as 'dine_in' | 'takeaway' | 'delivery') || 'dine_in'
+      });
+    } catch (e) {
+      console.error('Failed to load table data:', e);
+      setCart({
+        table_id: table.id,
+        table_number: table.table_number,
+        guest_count: table.guest_count || 1,
+        items: [],
+        notes: '',
+        order_type: 'dine_in'
+      });
     }
-    
-    setCart({
-      table_id: table.id,
-      table_number: table.table_number,
-      guest_count: table.guest_count || 1,
-      items: [],
-      notes: '',
-      order_type: 'dine_in'
-    });
   };
 
   const mergeTables = async (tableNumbers: number[]) => {
@@ -235,7 +237,8 @@ export function usePos() {
       });
       if (res.ok) {
         toast.success('Sifariş göndərildi');
-        fetchData();
+        setCart(null);
+        await fetchData();
         setActiveView('floor');
       } else {
         const err = await res.json();
@@ -252,9 +255,36 @@ export function usePos() {
 
   const clearCart = () => setCart(prev => prev ? { ...prev, items: [] } : null);
 
+  const updateGuestCount = async (delta: number) => {
+    if (!cart) return;
+    const newCount = Math.max(1, (cart.guest_count || 1) + delta);
+    setCart(prev => prev ? { ...prev, guest_count: newCount } : prev);
+    
+    // Persist to server if table has active order
+    try {
+      const ordersRes = await fetch('/api/orders');
+      if (ordersRes.ok) {
+        const data = await ordersRes.json();
+        const activeOrder = (data.orders || []).find((o: any) => 
+          o.table_number === cart.table_number && 
+          !['paid', 'cancelled'].includes(o.status)
+        );
+        if (activeOrder) {
+          await fetch(`/api/orders`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: activeOrder.id, guest_count: newCount }),
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to update guest count:', e);
+    }
+  };
+
   return {
     floors, products, categories, combos, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
-    setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart
+    setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount
   };
 }

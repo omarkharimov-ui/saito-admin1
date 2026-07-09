@@ -273,15 +273,16 @@ export default function POSPage() {
                   />
                </div>
                <div className="w-full md:w-[400px] border-l p-6 bg-black/20">
-                   <CartPanel 
-                     cart={pos.cart} 
-                     onPlaceOrder={() => pos.placeOrder()} 
-                     onBack={() => pos.setActiveView('floor')}
-                     orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
-                     onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
-                     onClearDraft={() => pos.clearCart()}
-                     mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
-                   />
+                    <CartPanel 
+                      cart={pos.cart} 
+                      onPlaceOrder={() => pos.placeOrder()} 
+                      onBack={() => pos.setActiveView('floor')}
+                      orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
+                      onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
+                      onUpdateGuests={(delta) => pos.updateGuestCount(delta)}
+                      onClearDraft={() => pos.clearCart()}
+                      mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
+                    />
                </div>
             </div>
           )}

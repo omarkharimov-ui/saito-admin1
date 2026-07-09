@@ -73,14 +73,19 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                   : isOccupied
                     ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-sm')
                     : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
+        } ${
+          isGroup ? (lightMode ? 'border-l-[3px] border-l-blue-500 bg-blue-50/30' : 'border-l-[3px] border-l-blue-500 bg-blue-500/[0.03]') : ''
         }`}
+      style={isGroup ? { borderLeftWidth: '3px', borderLeftColor: '#007AFF' } : {}}
     >
       <span className={`absolute top-5 left-5 text-4xl font-black tracking-tighter transition-colors flex items-start gap-1.5
         ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
         {table.table_number}
         {isGroup && (
-          <span className="mt-1.5 px-1.5 py-0.5 rounded-md text-[8px] bg-blue-500 text-white font-black leading-none uppercase tracking-tight flex items-center gap-1">
-            Q{groupNumber}
+          <span className={`mt-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-black leading-none uppercase tracking-tight ${
+            lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
+          }`}>
+            G{groupNumber}
           </span>
         )}
       </span>
@@ -124,12 +129,12 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       )}
 
       {isGroup && mergedChildNumbers && (
-        <div className="absolute top-[68px] right-5 flex flex-wrap gap-1 justify-end">
+        <div className="absolute top-[68px] right-5 flex flex-col gap-1">
           {mergedChildNumbers.map((num: number) => (
-            <span key={num} className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border ${
+            <span key={num} className={`px-1.5 py-0.5 rounded-md text-[11px] font-bold border ${
               lightMode 
                 ? 'bg-blue-50 border-blue-200 text-blue-700' 
-                : 'bg-blue-500/15 border-blue-500/25 text-blue-300'
+                : 'bg-white/5 border-white/10 text-white/60'
             }`}>
               {num}
             </span>

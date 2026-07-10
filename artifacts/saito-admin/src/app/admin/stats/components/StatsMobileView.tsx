@@ -61,21 +61,45 @@ export default function StatsMobileView({ stats, forecast, anomalies, timeFilter
     if (!msg.trim() || chatLoading) return;
     setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
     setChatLoading(true);
-    // Mock response for now - in real implementation this would call an API
-    setTimeout(() => {
-      setChatMessages(prev => [...prev, { role: 'ai', text: 'AI response would appear here.' }]);
+    try {
+      const res = await fetch('/api/sensei/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, stats, language }),
+      });
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: 'ai', text: data.reply || '...' }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'ai', text: 'Xəta baş verdi' }]);
+    } finally {
       setChatLoading(false);
-    }, 1000);
+    }
   };
 
   const handleFetchWhatIf = async () => {
     if (!whatIfProduct || whatIfChange === 0) return;
     setWhatIfLoading(true);
-    // Mock implementation - in real implementation this would call an API
-    setTimeout(() => {
-      setWhatIfResult(`Simulation result for ${whatIfProduct} with ${whatIfChange}% change`);
+    try {
+      const topProduct = stats.productPerformance[0];
+      const res = await fetch('/api/sensei/whatif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product: whatIfProduct,
+          changePercent: whatIfChange,
+          currentSold: topProduct?.sold || 0,
+          currentPrice: topProduct?.revenue ? topProduct.revenue / (topProduct.sold || 1) : 0,
+          totalRevenue: stats.totalRevenue,
+          language,
+        }),
+      });
+      const data = await res.json();
+      setWhatIfResult(data.projection || 'Nəticə alınmadı');
+    } catch {
+      setWhatIfResult('Xəta baş verdi');
+    } finally {
       setWhatIfLoading(false);
-    }, 1500);
+    }
   };
 
   const revDelta = forecast ? forecast.trend : 0;

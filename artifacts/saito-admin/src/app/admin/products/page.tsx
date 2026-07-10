@@ -223,7 +223,6 @@ const ProductsPage = () => {
       setCategories(freshCategories);
       try { localStorage.setItem('saito_products_cache', JSON.stringify(freshProducts)); } catch {}
       try { localStorage.setItem('saito_categories_cache', JSON.stringify(freshCategories)); } catch {}
-      if (language !== 'az') autoTranslateMissing(language, freshProducts, freshCategories);
       const uniqueCatIds = Array.from(new Set(freshProducts.map(p => p.category_id))).filter(Boolean) as string[];
       setExpandedCategories(prev => {
         const merged = Array.from(new Set([...prev, ...uniqueCatIds]));

@@ -954,23 +954,47 @@ export default function KitchenPage() {
   // products.is_available = false edəcək
   const handleSoldOut = async (productId: string, productName: string) => {
     try {
-      const { data: recipeRows } = await supabase
-        .from('recipes')
-        .select('ingredient_id, quantity_required')
-        .eq('menu_item_id', productId);
-      if (recipeRows && recipeRows.length > 0) {
-        for (const r of recipeRows) {
-          await supabase.from('inventory_logs').insert({
-            ingredient_id: r.ingredient_id,
-            type: 'waste',
-            quantity: 999999, // bütün stoku waste et (update_stock_on_log trigger-i current_stock = 0 edəcək)
-            reason: `Kitchen: ${productName} sold out`,
-          });
-        }
+      const { data: product } = await supabase
+        .from('products')
+        .select('is_ready_product, direct_ingredient_id')
+        .eq('id', productId)
+        .maybeSingle();
+
+      const ingredientIds: string[] = [];
+
+      if (product?.is_ready_product && product.direct_ingredient_id) {
+        ingredientIds.push(product.direct_ingredient_id);
       } else {
-        // Resept yoxdursa fallback: product-u bağla
-        await supabase.from('products').update({ is_available: false }).eq('id', productId);
+        const { data: recipeRows } = await supabase
+          .from('recipes')
+          .select('ingredient_id')
+          .eq('menu_item_id', productId);
+        if (recipeRows && recipeRows.length > 0) {
+          ingredientIds.push(...recipeRows.map(r => r.ingredient_id));
+        }
       }
+
+      for (const iid of ingredientIds) {
+        await supabase
+          .from('ingredients')
+          .update({ current_stock: 0, updated_at: new Date().toISOString() })
+          .eq('id', iid);
+
+        await supabase.from('inventory_logs').insert({
+          ingredient_id: iid,
+          type: 'adjustment',
+          quantity: 0,
+          reason: `Kitchen: ${productName} sold out`,
+          reference_type: 'sold_out',
+          reference_id: productId,
+        });
+      }
+
+      await supabase
+        .from('products')
+        .update({ is_available: false })
+        .eq('id', productId);
+
       toast.success(`${productName} bağlandı`, { duration: 3000, style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', fontWeight: 'bold' } });
     } catch {
       toast.error('Xəta', { duration: 2000 });

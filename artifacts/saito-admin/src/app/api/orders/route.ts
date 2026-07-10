@@ -8,7 +8,7 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
     if (!auth.authenticated) return auth;
@@ -18,8 +18,16 @@ export async function GET() {
       return NextResponse.json({ error: 'Missing Supabase configuration. Restart the dev server after creating .env.local' }, { status: 500 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const statusFilter = searchParams.get('status');
+
+    let ordersQuery = `${svc().url}/rest/v1/orders?select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`;
+    if (statusFilter) {
+      ordersQuery += `&status=eq.${encodeURIComponent(statusFilter)}`;
+    }
+
     const [ordersRes, itemsRes, tablesRes, floorsRes] = await Promise.all([
-      fetch(`${svc().url}/rest/v1/orders?select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`, { headers: svc().headers }),
+      fetch(ordersQuery, { headers: svc().headers }),
       fetch(`${svc().url}/rest/v1/order_items?select=*,products(image_url,name_az,name_en,name_ru,translations)`, { headers: svc().headers }),
       fetch(`${svc().url}/rest/v1/settings?select=qr_table_count,opening_hours&limit=1`, { headers: svc().headers }),
       fetch(`${svc().url}/rest/v1/table_floors?select=table_number,status,reservation_name,reservation_time`, { headers: svc().headers }),

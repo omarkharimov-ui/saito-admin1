@@ -76,28 +76,23 @@ export function usePos() {
       selectedTable?.table_number === table.table_number &&
       cart?.table_number === table.table_number;
 
-    // Already viewing this table's order screen — nothing to do.
     if (sameTable && activeView === 'order') return;
-
-    // Re-entering the same table from the floor — reopen the existing cart, don't reload.
-    if (sameTable) {
-      setActiveView('order');
-      return;
-    }
 
     cartInteractionCount.current = 0;
 
     setSelectedTable(table);
     setActiveView('order');
 
-    setCart({
-      table_id: table.id,
-      table_number: table.table_number,
-      guest_count: table.guest_count || 1,
-      items: [],
-      notes: '',
-      order_type: 'dine_in'
-    });
+    if (!sameTable || !cart || cart.items.length === 0) {
+      setCart({
+        table_id: table.id,
+        table_number: table.table_number,
+        guest_count: table.guest_count || 1,
+        items: [],
+        notes: '',
+        order_type: 'dine_in'
+      });
+    }
 
     try {
       const res = await fetch('/api/orders');
@@ -106,8 +101,6 @@ export function usePos() {
         const orders = data.orders || [];
         const orderItems = data.orderItems || [];
 
-        // Primary active order for this table (order_ids column is not maintained,
-        // so we resolve it directly from the orders list).
         const primary = orders.find(
           (o: any) =>
             o.table_number === table.table_number &&
@@ -115,7 +108,6 @@ export function usePos() {
         );
 
         if (primary) {
-          // A merged group also has child orders linked via merged_into = primary.id
           const groupOrders = [
             primary,
             ...orders.filter(
@@ -168,7 +160,6 @@ export function usePos() {
       }
     } catch (e) {
       console.error('Failed to load existing order items:', e);
-      toast.error('Mövcud sifarişlər yüklənərkən xəta', { id: 'action-toast' });
     }
   };
 
@@ -359,7 +350,13 @@ export function usePos() {
       });
       if (res.ok) {
         toast.success('Sifariş göndərildi');
-        setCart(null);
+        setCart(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            items: prev.items.map(i => ({ ...i, sentQuantity: i.quantity }))
+          };
+        });
         setActiveView('floor');
         fetchData().catch(() => {});
       } else {

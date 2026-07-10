@@ -122,45 +122,96 @@ export async function POST(request: Request) {
         throw new Error('table_number and items required');
       }
 
-      const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/create_order_with_items`, {
-        method: 'POST',
-        headers: svc().headers,
-        body: JSON.stringify({
-          p_table_number: table_number,
-          p_items: items.map((i: any) => ({
-            product_id: i.product_id,
-            quantity: i.quantity || 1,
-            unit_price: i.unit_price || 0,
-            total_price: (i.unit_price || 0) * (i.quantity || 1),
-            modifiers: i.modifiers || [],
-            special_notes: i.special_notes || '',
-            variant_id: i.variant_id || null,
-          })),
-          p_status: status || 'confirmed',
-          p_guest_count: guest_count || 1,
-          p_customer_note: customer_note || null,
-          p_order_type: order_type || 'dine_in',
-        }),
-      });
+      // Check for existing active order on this table
+      const existingRes = await fetch(
+        `${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled)&order=created_at.asc&limit=1&select=id,total_amount,version`,
+        { headers: svc().headers }
+      );
+      const existingOrders = existingRes.ok ? await existingRes.json() : [];
+      const existingOrder = existingOrders?.[0];
 
-      if (!rpcRes.ok) {
-        const errText = await rpcRes.text();
-        if (rpcRes.status === 409 || errText.includes('unique') || errText.includes('duplicate')) {
-          throw new Error('CONCURRENCY_CONFLICT');
+      let activeOrderId: string;
+      const ks = kitchen_status || 'pending';
+      const totalFromItems = items.reduce((s: number, i: any) => s + ((i.unit_price || 0) * (i.quantity || 1)), 0);
+
+      if (existingOrder) {
+        // Append to existing order
+        activeOrderId = existingOrder.id;
+        const newTotal = (existingOrder.total_amount || 0) + totalFromItems;
+        const newVersion = (existingOrder.version || 0) + 1;
+
+        const patchRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&version=eq.${existingOrder.version || 0}`, {
+          method: 'PATCH',
+          headers: { ...svc().headers, 'Prefer': 'return=representation' },
+          body: JSON.stringify({ total_amount: newTotal, version: newVersion, kitchen_status: ks, updated_at: new Date().toISOString() }),
+        });
+        if (!patchRes.ok) throw new Error('CONCURRENCY_CONFLICT');
+        const patched = await patchRes.json();
+        if (!patched || (Array.isArray(patched) && patched.length === 0)) throw new Error('CONCURRENCY_CONFLICT');
+      } else {
+        // Create new order
+        const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
+          method: 'POST',
+          headers: { ...svc().headers, 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            table_number,
+            total_amount: totalFromItems,
+            status: status || 'confirmed',
+            guest_count: guest_count || 1,
+            customer_note: customer_note || null,
+            order_type: order_type || 'dine_in',
+            kitchen_status: ks,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            version: 1,
+          }),
+        });
+        if (!insertRes.ok) {
+          const errText = await insertRes.text();
+          if (insertRes.status === 409 || errText.includes('unique') || errText.includes('duplicate')) throw new Error('CONCURRENCY_CONFLICT');
+          throw new Error(`Order creation failed: ${errText}`);
         }
-        throw new Error(`Order creation failed: ${errText}`);
+        const created = await insertRes.json();
+        activeOrderId = created?.[0]?.id;
+        if (!activeOrderId) throw new Error('Order creation failed: no id returned');
+
+        // Mark table as occupied
+        await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+          method: 'PATCH', headers: svc().headers,
+          body: JSON.stringify({ status: 'occupied', last_activity_at: new Date().toISOString() }),
+        });
       }
 
-      const rpcResult = await rpcRes.json();
-      const activeOrderId = rpcResult?.id;
-      if (!activeOrderId) throw new Error('Order creation failed: no id returned');
-
-      // Ensure kitchen_status is set to 'pending' so kitchen sees the order
-      await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, {
-        method: 'PATCH',
-        headers: svc().headers,
-        body: JSON.stringify({ kitchen_status: kitchen_status || 'pending' }),
+      // Insert order items
+      const itemInserts = items.map((i: any) => {
+        const qty = i.quantity || 1;
+        const up = i.unit_price || 0;
+        return {
+          order_id: activeOrderId,
+          product_id: i.product_id,
+          product_name: i.product_name || '',
+          quantity: qty,
+          unit_price: up,
+          total_price: up * qty,
+          modifiers: i.modifiers || [],
+          special_notes: i.special_notes || '',
+          variant_id: i.variant_id || null,
+          created_at: new Date().toISOString(),
+        };
       });
+
+      for (const ins of itemInserts) {
+        const itemRes = await fetch(`${svc().url}/rest/v1/order_items`, {
+          method: 'POST',
+          headers: svc().headers,
+          body: JSON.stringify(ins),
+        });
+        if (!itemRes.ok) {
+          // Rollback: delete the order
+          await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, { method: 'DELETE', headers: svc().headers });
+          throw new Error(`Order item insert failed: ${await itemRes.text()}`);
+        }
+      }
 
       const finalOrderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))`, { headers: svc().headers });
       const finalOrder = (await finalOrderRes.json())?.[0];

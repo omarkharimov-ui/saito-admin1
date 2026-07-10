@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { supabase } from '@/lib/supabase';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key) throw new Error('Missing Supabase configuration');
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
@@ -26,16 +26,23 @@ export async function POST(request: NextRequest) {
       if (Array.isArray(srcData)) sourceOrdersSnapshot.push(...srcData);
     }
 
-    // Call atomic v3 RPC - SSOT for table grouping and order merging
-    const { data, error } = await supabase.rpc('merge_tables_v3', {
-      p_table_numbers: table_numbers,
-      p_performed_by: auth.user?.id || null
+    // Call fixed RPC
+    const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/saito_merge_tables`, {
+      method: 'POST',
+      headers: svc().headers,
+      body: JSON.stringify({
+        p_table_numbers: table_numbers,
+        p_performed_by: auth.user?.id || null
+      }),
     });
 
-    if (error) {
-      console.error('[Merge Fatal]', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!rpcRes.ok) {
+      const errText = await rpcRes.text();
+      console.error('[Merge Fatal]', errText);
+      return NextResponse.json({ error: errText }, { status: 500 });
     }
+
+    const data = await rpcRes.json();
 
     return NextResponse.json({ 
       success: true, 

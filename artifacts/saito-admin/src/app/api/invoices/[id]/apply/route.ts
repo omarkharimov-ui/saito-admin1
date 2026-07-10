@@ -82,7 +82,6 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
             stockSnapshots.push({ ingredient_id: ingredientId, stock_before: stockBefore });
 
             const newQty = stockBefore + item.quantity;
-            await supabase.from('ingredients').update({ current_stock: newQty }).eq('id', ingredientId);
             await supabase.from('inventory_logs').insert({
               ingredient_id: ingredientId,
               type: 'stock_in',

@@ -88,7 +88,6 @@ export async function PATCH(request: NextRequest) {
                 if (ing) {
                   stockSnapshots.push({ review_id: r.id, ingredient_id: r.suggested_ingredient_id, stock_before: ing.current_stock });
                   const newQty = Math.max(0, (ing.current_stock || 0) - r.quantity);
-                  await supabase.from('ingredients').update({ current_stock: newQty }).eq('id', r.suggested_ingredient_id);
                   await supabase.from('inventory_logs').insert({
                     ingredient_id: r.suggested_ingredient_id,
                     type: 'stock_out',
@@ -135,7 +134,6 @@ export async function PATCH(request: NextRequest) {
             stockSnapshots.push({ review_id: r.id, ingredient_id: r.suggested_ingredient_id, stock_before: ing.current_stock });
 
             const newQty = (ing.current_stock || 0) + r.quantity;
-            await supabase.from('ingredients').update({ current_stock: newQty }).eq('id', r.suggested_ingredient_id);
             await supabase.from('inventory_logs').insert({
               ingredient_id: r.suggested_ingredient_id,
               type: 'stock_in',

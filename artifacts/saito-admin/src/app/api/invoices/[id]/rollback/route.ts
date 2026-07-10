@@ -62,7 +62,6 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
             rolledBackEntries.push({ ingredient_id: log.ingredient_id, qty: log.quantity, stock_before: ing.current_stock });
 
             const newQty = Math.max(0, (ing.current_stock || 0) - log.quantity);
-            await supabase.from('ingredients').update({ current_stock: newQty }).eq('id', log.ingredient_id);
             await supabase.from('inventory_logs').insert({
               ingredient_id: log.ingredient_id,
               type: 'stock_out',

@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
     const { error: updateError } = await supabase
       .from('ingredients')
       .update({
-        current_stock: normalizedActualStock,
         theoretical_stock: normalizedTheoreticalStock,
         updated_at: new Date().toISOString(),
       })

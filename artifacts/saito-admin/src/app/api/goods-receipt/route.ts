@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const itemMap = new Map(poItems.map(i => [i.id, i]));
     let allFullyReceived = true;
     const logs: { ingredient_id: string; quantity: number; cost_per_unit: number; reason: string }[] = [];
-    const stockUpdates: { id: string; current_stock: number; addQty: number }[] = [];
+
 
     for (const item of items) {
       const poItem = itemMap.get(item.id);
@@ -70,7 +70,6 @@ export async function POST(request: NextRequest) {
           cost_per_unit: Number(poItem.unit_cost) || 0,
           reason: `Tədarük qəbulu: ${poItem.product_name} (${poItem.purchase_order_id?.substring(0, 8)}...)`,
         });
-        stockUpdates.push({ id: poItem.ingredient_id, current_stock: 0, addQty: diff });
       }
     }
 
@@ -87,20 +86,6 @@ export async function POST(request: NextRequest) {
       );
       if (logError) throw logError;
 
-      // update current_stock
-      for (const s of stockUpdates) {
-        const { data: ing } = await supabase
-          .from('ingredients')
-          .select('current_stock')
-          .eq('id', s.id)
-          .single();
-        if (ing) {
-          await supabase
-            .from('ingredients')
-            .update({ current_stock: Number(ing.current_stock) + s.addQty })
-            .eq('id', s.id);
-        }
-      }
     }
 
     // update PO status

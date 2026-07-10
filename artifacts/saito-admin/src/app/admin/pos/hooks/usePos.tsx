@@ -17,9 +17,17 @@ export function usePos() {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<any>(null);
-  const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
+  const [activeView, _setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [cart, setCart] = useState<PosCart | null>(null);
   const cartInteractionCount = useRef(0);
+  const cartDrafts = useRef<Map<number, PosCart>>(new Map());
+
+  const setActiveView = useCallback((view: 'floor' | 'order' | 'billing') => {
+    if (view === 'floor' && cart && selectedTable) {
+      cartDrafts.current.set(selectedTable.table_number, cart);
+    }
+    _setActiveView(view);
+  }, [cart, selectedTable]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -80,14 +88,26 @@ export function usePos() {
 
     // Re-entering the same table from the floor — reopen the existing cart, don't reload.
     if (sameTable) {
-      setActiveView('order');
+      _setActiveView('order');
       return;
+    }
+
+    // Save current table's draft before switching
+    if (cart && selectedTable) {
+      cartDrafts.current.set(selectedTable.table_number, cart);
     }
 
     cartInteractionCount.current = 0;
 
     setSelectedTable(table);
     setActiveView('order');
+
+    // Restore draft if we have one for this table
+    const savedDraft = cartDrafts.current.get(table.table_number);
+    if (savedDraft) {
+      setCart(savedDraft);
+      return;
+    }
 
     setCart({
       table_id: table.id,
@@ -135,14 +155,11 @@ export function usePos() {
               total_price: item.total_price,
               modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
               special_notes: item.special_notes || '',
-              // Already on the server — placeOrder will only append new/edited deltas.
               sentQuantity: item.quantity,
             }));
 
           setCart(prev => {
             if (!prev) return null;
-            // Merge server items with anything the user already added during the load
-            // so neither side is silently dropped.
             const merged = serverItems.map((i: any) => ({ ...i }));
             for (const u of prev.items) {
               if ((u.sentQuantity ?? 0) === 0) {
@@ -337,6 +354,7 @@ export function usePos() {
 
       if (unsent.length === 0) {
         toast.success('Sifariş göndərildi');
+        cartDrafts.current.delete(cart.table_number);
         setCart(null);
         setActiveView('floor');
         fetchData().catch(() => {});
@@ -357,6 +375,7 @@ export function usePos() {
       });
       if (res.ok) {
         toast.success('Sifariş göndərildi');
+        cartDrafts.current.delete(cart.table_number);
         setCart(null);
         setActiveView('floor');
         fetchData().catch(() => {});
@@ -375,6 +394,7 @@ export function usePos() {
 
   const clearCart = () => {
     cartInteractionCount.current += 1;
+    if (cart) cartDrafts.current.delete(cart.table_number);
     setCart(prev => prev ? { ...prev, items: [] } : null);
   };
 

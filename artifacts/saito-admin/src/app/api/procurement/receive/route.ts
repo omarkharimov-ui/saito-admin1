@@ -142,7 +142,6 @@ export async function POST(request: NextRequest) {
         execute: async () => {
           for (const upd of autoStockUpdates) {
             const newQty = upd.stock_before + upd.quantity;
-            await supabase.from('ingredients').update({ current_stock: newQty }).eq('id', upd.ingredient_id);
             await supabase.from('inventory_logs').insert({
               ingredient_id: upd.ingredient_id,
               type: 'stock_in',

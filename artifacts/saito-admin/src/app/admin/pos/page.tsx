@@ -12,7 +12,6 @@ import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
-import { supabase } from '@/lib/supabase';
 import type { PosProduct, LossItem } from './types/shared';
 
 export default function POSPage() {
@@ -39,39 +38,14 @@ export default function POSPage() {
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
 
   const handleRecordLoss = async (items: LossItem[], reason: string) => {
-    for (const item of items) {
-      const { data: product } = await supabase
-        .from('products')
-        .select('is_ready_product, direct_ingredient_id')
-        .eq('id', item.product_id)
-        .maybeSingle();
-      if (product?.is_ready_product && product.direct_ingredient_id) {
-        const { error } = await supabase.from('inventory_logs').insert({
-          ingredient_id: product.direct_ingredient_id,
-          type: 'waste',
-          quantity: item.quantity,
-          reason: `POS itki: ${reason}`,
-          reference_type: 'loss',
-        });
-        if (error) throw new Error(error.message);
-      } else {
-        const { data: recipes } = await supabase
-          .from('recipes')
-          .select('ingredient_id, quantity_required, quantity_brutto')
-          .eq('menu_item_id', item.product_id)
-          .eq('is_ai_suggested', false);
-        for (const r of recipes || []) {
-          const qty = (r.quantity_brutto ?? r.quantity_required) * item.quantity;
-          const { error } = await supabase.from('inventory_logs').insert({
-            ingredient_id: r.ingredient_id,
-            type: 'waste',
-            quantity: qty,
-            reason: `POS itki: ${reason}`,
-            reference_type: 'loss',
-          });
-          if (error) throw new Error(error.message);
-        }
-      }
+    const res = await fetch('/api/stock/loss', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, reason }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Loss recording failed');
     }
   };
 

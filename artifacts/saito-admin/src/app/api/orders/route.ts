@@ -122,27 +122,23 @@ export async function POST(request: Request) {
         throw new Error('table_number and items required');
       }
 
-      const itemsJson = items.map((i: any) => JSON.stringify({
-        product_id: i.product_id,
-        product_name: i.product_name,
-        quantity: i.quantity || 1,
-        unit_price: i.unit_price || 0,
-        modifiers: i.modifiers || [],
-        special_notes: i.special_notes || '',
-        variant_id: i.variant_id || null
-      }));
-
-      const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/create_or_append_order`, {
+      const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/create_order_with_items`, {
         method: 'POST',
-        headers: { ...svc().headers, 'Prefer': 'return=representation' },
+        headers: svc().headers,
         body: JSON.stringify({
           p_table_number: table_number,
-          p_items: '[' + itemsJson.join(',') + ']',
+          p_items: items.map((i: any) => ({
+            product_id: i.product_id,
+            quantity: i.quantity || 1,
+            unit_price: i.unit_price || 0,
+            modifiers: i.modifiers || [],
+            special_notes: i.special_notes || '',
+            variant_id: i.variant_id || null,
+          })),
           p_status: status || 'confirmed',
           p_guest_count: guest_count || 1,
           p_customer_note: customer_note || null,
           p_order_type: order_type || 'dine_in',
-          p_reservation_id: reservation_id || null,
         }),
       });
 
@@ -155,7 +151,7 @@ export async function POST(request: Request) {
       }
 
       const rpcResult = await rpcRes.json();
-      const activeOrderId = rpcResult?.order_id;
+      const activeOrderId = rpcResult?.id;
       if (!activeOrderId) throw new Error('Order creation failed: no id returned');
 
       const finalOrderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))`, { headers: svc().headers });

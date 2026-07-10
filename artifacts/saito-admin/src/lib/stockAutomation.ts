@@ -1,9 +1,9 @@
 /**
- * STOCK AUTOMATION v2 — Avtomatik Satış Deduction
+ * STOCK AUTOMATION v2 — Avtomatik Satış Deduction (SERVER-ONLY)
  * Yeni sistem: recipes cədvəli + inventory_logs (order_consumption)
- *
- * handlePay çağırıldığında avtomatik işləyir.
  */
+
+import 'server-only';
 
 import { createClient } from '@supabase/supabase-js';
 import { normalizeQuantity } from './units';

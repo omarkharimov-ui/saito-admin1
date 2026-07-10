@@ -86,25 +86,10 @@ const TablesPage = () => {
     return () => { removeRealtimeChannel(channel); };
   }, []);
 
-  // Direct update to Supabase on every change
-  const updateTableCount = async (newCount: number) => {
+  // Only update local state — "Yadda saxla" button persists to DB
+  const updateTableCount = (newCount: number) => {
     if (newCount < 1) return;
     setTableCount(newCount);
-    const targetId = settingsId || (await supabase.from('settings').select('id').limit(1).then(r => r.data?.[0]?.id)).catch(() => null);
-    if (!targetId) {
-      toast.error('Masa sayı yenilənmədi: settings tapılmadı', { id: 'action-toast' });
-      return;
-    }
-    const { error } = await supabase
-      .from('settings')
-      .update({ qr_table_count: newCount })
-      .eq('id', targetId);
-    if (error) {
-      console.error('[Tables] Update FAILED:', error);
-      toast.error('Yenilənmədi: ' + error.message, { id: 'action-toast' });
-    } else {
-      toast.success(`Masa sayı yeniləndi: ${newCount}`, { id: 'action-toast' });
-    }
   };
 
 

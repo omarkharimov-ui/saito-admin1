@@ -270,7 +270,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       const tc = Number((sr.data as any)?.[0]?.qr_table_count);
       if (tc >= 1) setTableCount(tc);
       if (!initialCatRef.current && cr.data?.length) { setCat(cr.data[0].id); initialCatRef.current = true; }
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+    } catch (e) { console.error(e); toast.error('Məlumatlar yüklənərkən xəta', { id: 'action-toast' }); } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchAll(); }, []);
@@ -344,7 +344,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
         if (!res.ok) throw new Error('Order creation failed');
       }
       setCart([]); setShowCart(false); fetchAll();
-    } catch (e) { console.error(e); } finally { setBusy(false); }
+    } catch (e) { console.error(e); toast.error('Sifariş göndərilərkən xəta', { id: 'action-toast' }); } finally { setBusy(false); }
   }, [selTable, cart, total, activeOrder, fetchAll, getPName, orderType]);
 
   const confirmPayment = useCallback(async (p: { method: string; discountType: string; discountValue: number; splitCount: number; tipAmount: number }) => {
@@ -363,7 +363,7 @@ export default function WaiterMode({ onClose }: { onClose: () => void }) {
       setPaid({ ...checkoutOrder, payment_method: p.method, discount_type: p.discountType, discount_value: p.discountValue, paid_amount: paidAmount, split_count: p.splitCount, tip_amount: p.tipAmount });
       setCheckoutOrder(null);
       fetchAll();
-    } catch (e) { console.error(e); } finally { setPayBusy(false); }
+    } catch (e) { console.error(e); toast.error('Ödəniş zamanı xəta', { id: 'action-toast' }); } finally { setPayBusy(false); }
   }, [checkoutOrder, fetchAll]);
 
   const list = useMemo(() => {

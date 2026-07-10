@@ -181,7 +181,10 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
     if (validRows.length === 0) { toast.error('Ən azı 1 inqrediyent əlavə edin', { style: toastStyle }); return; }
     setSaving(true);
     try {
-      await supabase.from('recipes').delete().eq('menu_item_id', selectedProductId).eq('is_ai_suggested', false);
+      const { data: oldRows } = await supabase.from('recipes').select('*').eq('menu_item_id', selectedProductId).eq('is_ai_suggested', false);
+
+      const { error: delErr } = await supabase.from('recipes').delete().eq('menu_item_id', selectedProductId).eq('is_ai_suggested', false);
+      if (delErr) throw delErr;
 
       const inserts = validRows.map(r => ({
         menu_item_id: selectedProductId,
@@ -191,8 +194,13 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
         hot_waste_percentage: r.hot_waste_percentage,
         is_ai_suggested: false,
       }));
-      const { error } = await supabase.from('recipes').insert(inserts);
-      if (error) throw error;
+      const { error: insErr } = await supabase.from('recipes').insert(inserts);
+      if (insErr) {
+        if (oldRows && oldRows.length > 0) {
+          await supabase.from('recipes').insert(oldRows);
+        }
+        throw insErr;
+      }
 
       await supabase.from('products').update({ has_active_recipe: true }).eq('id', selectedProductId);
 

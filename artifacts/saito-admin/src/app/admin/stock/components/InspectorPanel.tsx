@@ -5,7 +5,6 @@ import { X, Package, TrendingUp, TrendingDown, AlertTriangle, History, Trash2, C
 import type { InventoryStatusRow, InventoryLog, Supplier } from '@/types/inventory';
 import React, { useState, useMemo, useEffect } from 'react';
 import { StockStatusBar } from '@/components/StockStatusBadge';
-import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 
 interface InspectorPanelProps {
@@ -48,15 +47,20 @@ export function InspectorPanel({ row, onClose, UNIT_LABELS, onStockIn, onWaste, 
   const handleSave = async () => {
     if (!row) return;
     setSaving(true);
-    const { error } = await supabase.from('ingredients').update({
-      name: editForm.name,
-      critical_limit: editForm.critical_limit,
-      purchase_price: editForm.purchase_price,
-      cold_waste_percentage: editForm.cold_waste_percentage
-    }).eq('id', row.id);
+    const res = await fetch('/api/inventory/' + row.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editForm.name,
+        critical_limit: editForm.critical_limit,
+        purchase_price: editForm.purchase_price,
+        cold_waste_percentage: editForm.cold_waste_percentage,
+      }),
+    });
 
-    if (error) {
-      toast.error('Yadda saxlamaq mümkün olmadı');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      toast.error(errData.error || 'Yadda saxlamaq mümkün olmadı');
     } else {
       toast.success('Xammal yeniləndi');
       setIsEditing(false);

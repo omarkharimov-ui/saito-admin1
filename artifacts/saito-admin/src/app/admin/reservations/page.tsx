@@ -68,6 +68,7 @@ export default function ReservationsPage() {
       }
     } catch (error) {
       console.error(error);
+      toast.error('Rezervasiya məlumatları yüklənərkən xəta', { id: 'action-toast' });
     } finally {
       setLoading(false);
     }

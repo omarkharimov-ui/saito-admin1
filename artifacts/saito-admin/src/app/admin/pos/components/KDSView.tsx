@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, ChefHat, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
@@ -50,7 +51,9 @@ export function KDSView({ onBack }: { onBack: () => void }) {
             elapsed: Date.now() - new Date(o.created_at).getTime(),
           }));
         setOrders(kdsOrders);
-      } catch {} finally {
+      } catch {
+        toast.error('Mətbəx sifarişləri yüklənərkən xəta', { id: 'action-toast' });
+      } finally {
         setLoading(false);
       }
     };
@@ -75,7 +78,9 @@ export function KDSView({ onBack }: { onBack: () => void }) {
         });
       }
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-    } catch {}
+    } catch {
+      toast.error('Status yenilənərkən xəta', { id: 'action-toast' });
+    }
   };
 
   return (

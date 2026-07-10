@@ -48,6 +48,7 @@ export function usePos() {
       }
     } catch (e) {
       console.error('POS fetch error:', e);
+      toast.error('Məlumatlar yüklənərkən xəta baş verdi', { id: 'action-toast' });
     } finally {
       setLoading(false);
     }
@@ -167,6 +168,7 @@ export function usePos() {
       }
     } catch (e) {
       console.error('Failed to load existing order items:', e);
+      toast.error('Mövcud sifarişlər yüklənərkən xəta', { id: 'action-toast' });
     }
   };
 
@@ -406,6 +408,7 @@ export function usePos() {
       }
     } catch (e) {
       console.error('Failed to update guest count:', e);
+      toast.error('Qonaq sayı yenilənərkən xəta', { id: 'action-toast' });
     }
   };
 

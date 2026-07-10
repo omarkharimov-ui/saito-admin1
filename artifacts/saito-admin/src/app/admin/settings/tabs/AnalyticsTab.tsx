@@ -342,7 +342,8 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
 
   const toggleGreeting = async (next: boolean) => {
     setGreetingEnabled(next);
-    await supabase.from('settings').upsert([{ id: '1', morning_greeting_enabled: next }]);
+    const { data: existing } = await supabase.from('settings').select('*').eq('id', '1').maybeSingle();
+    await supabase.from('settings').upsert({ ...existing, id: existing?.id || '1', morning_greeting_enabled: next });
     try { const m = localStorage.getItem('saito_settings_meta'); const p = m ? JSON.parse(m) : {}; localStorage.setItem('saito_settings_meta', JSON.stringify({ ...p, greetingEnabled: next })); } catch {}
     toast.success(next ? t('gen_morning_greeting') + ' aktiv edildi' : t('gen_morning_greeting') + ' deaktiv edildi', { id: 'action-toast' });
   };
@@ -350,7 +351,8 @@ const AnalyticsTab = ({ initialData }: { initialData?: Record<string, any> | nul
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from('settings').upsert([{ id: '1', ...cfg }]);
+    const { data: existing } = await supabase.from('settings').select('*').eq('id', '1').maybeSingle();
+    const { error } = await supabase.from('settings').upsert({ ...existing, id: existing?.id || '1', ...cfg });
     if (error) {
       toast.error(error.message, { id: 'action-toast' });
     } else {

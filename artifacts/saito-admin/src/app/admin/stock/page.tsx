@@ -410,9 +410,11 @@ export default function StockPage() {
         onHistory={handleHistory}
         onDelete={async (r) => {
           if (!confirm('Bu xammalı silmək istədiyinizə əminsiniz?')) return;
-          const { error } = await supabase.from('ingredients').delete().eq('id', r.id);
-          if (error) toast.error('Silinmə xətası: ' + error.message);
-          else { toast.success('Xammal silindi'); setSelectedRow(null); fetchData(); }
+          const res = await fetch('/api/inventory/' + r.id, { method: 'DELETE' });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            toast.error(errData.error || 'Silinmə xətası');
+          } else { toast.success('Xammal silindi'); setSelectedRow(null); fetchData(); }
         }}
         onUpdate={fetchData}
       />

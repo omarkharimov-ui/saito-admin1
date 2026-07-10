@@ -391,14 +391,14 @@ export const OrderModal = ({
     }]);
     // Split items into fully-cancelled (delete) and partially-cancelled (qty reduce)
     const fullCancelItems: { order_item_id: string; quantity: number }[] = [];
-    const partialCancelItems: { order_item_id: string; new_qty: number; unit_price: number }[] = [];
+    const partialCancelItems: { order_item_id: string; new_qty: number; unit_price: number; cancel_qty: number }[] = [];
     for (const item of itemsToCancel) {
       const orderItem = order.order_items?.find(i => i.id === item.id);
       if (!orderItem) continue;
       if (item.quantity >= orderItem.quantity) {
         fullCancelItems.push({ order_item_id: item.id, quantity: orderItem.quantity });
       } else {
-        partialCancelItems.push({ order_item_id: item.id, new_qty: orderItem.quantity - item.quantity, unit_price: orderItem.unit_price || 0 });
+        partialCancelItems.push({ order_item_id: item.id, new_qty: orderItem.quantity - item.quantity, unit_price: orderItem.unit_price || 0, cancel_qty: item.quantity });
       }
     }
     // Full cancel via RPC (handles delete + stock reversal + total recalc)
@@ -417,7 +417,7 @@ export const OrderModal = ({
       });
       // Reverse stock for the cancelled portion
       await supabase.rpc('reverse_stock_deduction_for_items', {
-        p_items: JSON.stringify([{ order_item_id: item.order_item_id, reverse_qty: 0 }]),
+        p_items: JSON.stringify([{ order_item_id: item.order_item_id, reverse_qty: item.cancel_qty }]),
       });
     }
     const newOrderTotal = (order.total_amount || 0) - totalCancelledAmount;

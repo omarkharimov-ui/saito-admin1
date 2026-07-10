@@ -27,7 +27,7 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from('settings').update({ order_delay_minutes: delayMin }).eq('id', '1');
+    const { error } = await supabase.from('settings').upsert({ id: '1', order_delay_minutes: delayMin });
     if (error) toast.error(error.message, { id: 'action-toast' });
     else toast.success(t('kitchen_saved'), { id: 'action-toast', duration: 3000 });
     setSaving(false);

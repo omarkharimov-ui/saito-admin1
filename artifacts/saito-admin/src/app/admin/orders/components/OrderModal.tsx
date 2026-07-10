@@ -1498,17 +1498,19 @@ export const OrderModal = ({
           <BillSplitModal
             open={showSplit}
             orderId={order.id}
-            items={(order.order_items || []).map(i => ({
-              id: i.id,
-              product_id: i.product_id,
-              product_name: i.product_name || '',
-              quantity: i.quantity || 1,
-              unit_price: i.unit_price || 0,
-              total_price: i.total_price || 0,
-              modifiers: i.modifiers,
-              combo_group_id: (i as any).combo_group_id,
-              special_notes: i.special_notes,
-            }))}
+            items={(order.order_items || [])
+              .filter(i => i.product_id)
+              .map(i => ({
+                id: i.id,
+                product_id: i.product_id as string,
+                product_name: i.product_name || '',
+                quantity: i.quantity || 1,
+                unit_price: i.unit_price || 0,
+                total_price: i.total_price || 0,
+                modifiers: i.modifiers,
+                combo_group_id: (i as any).combo_group_id,
+                special_notes: i.special_notes,
+              }))}
             onClose={() => setShowSplit(false)}
             onSuccess={() => { onRefresh(); setShowSplit(false); }}
           />
@@ -1570,17 +1572,19 @@ export const OrderModal = ({
           <BillSplitModal
             open={showSplit}
             orderId={order.id}
-            items={(order.order_items || []).map(i => ({
-              id: i.id,
-              product_id: i.product_id,
-              product_name: i.product_name || '',
-              quantity: i.quantity || 1,
-              unit_price: i.unit_price || 0,
-              total_price: i.total_price || 0,
-              modifiers: i.modifiers,
-              combo_group_id: (i as any).combo_group_id,
-              special_notes: i.special_notes,
-            }))}
+            items={(order.order_items || [])
+              .filter(i => i.product_id)
+              .map(i => ({
+                id: i.id,
+                product_id: i.product_id as string,
+                product_name: i.product_name || '',
+                quantity: i.quantity || 1,
+                unit_price: i.unit_price || 0,
+                total_price: i.total_price || 0,
+                modifiers: i.modifiers,
+                combo_group_id: (i as any).combo_group_id,
+                special_notes: i.special_notes,
+              }))}
             onClose={() => setShowSplit(false)}
             onSuccess={() => { onRefresh(); setShowSplit(false); }}
           />

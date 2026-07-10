@@ -12,7 +12,9 @@ export interface OrderItem {
   kitchen_status?: string | null;
   course?: string;
   special_notes?: string;
+  modifiers?: any;
   combo_group_id?: string;
+  variant_id?: string | null;
 }
 
 export function getOrderTypeLabel(type: string | undefined, t: (key: string) => string): string {

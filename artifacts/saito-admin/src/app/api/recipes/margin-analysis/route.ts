@@ -75,14 +75,14 @@ export async function GET() {
         const ing = recipe.ingredient as any;
         if (!ing) continue;
         const unitCost = ing.average_cost_per_unit || ing.purchase_price || 0;
-        costPrice += recipe.quantity_required * unitCost;
+        costPrice += (recipe.quantity_brutto ?? recipe.quantity_required) * unitCost;
       }
 
       for (const recipe of productRecipes) {
         const ing = recipe.ingredient as any;
         if (!ing) continue;
         const unitCost = ing.average_cost_per_unit || ing.purchase_price || 0;
-        const ingCost = recipe.quantity_required * unitCost;
+        const ingCost = (recipe.quantity_brutto ?? recipe.quantity_required) * unitCost;
         if (costPrice > 0) {
           costDrivers.push({
             ingredient_name: ing.name,

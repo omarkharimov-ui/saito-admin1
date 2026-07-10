@@ -30,7 +30,7 @@ export default function IntelligenceTab() {
   };
 
   const fetchWaste = async () => {
-    try { setWasteData(await (await fetch('/api/recipes/intelligence')).json()); } catch {}
+    try { const r = await fetch('/api/recipes/waste-analysis'); setWasteData((await r.json()).analyses ?? []); } catch {}
   };
 
   const potRank: Record<string, number> = { high: 3, medium: 2, low: 1 };

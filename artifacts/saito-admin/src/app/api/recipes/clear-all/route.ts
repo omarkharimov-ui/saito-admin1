@@ -23,6 +23,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const { error: productError } = await supabase
+      .from('products')
+      .update({ has_active_recipe: false })
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+
+    if (productError) {
+      return NextResponse.json({ error: productError.message }, { status: 500 });
+    }
+
     return NextResponse.json({ success: true });
   } catch (e: any) {
     console.error('[ClearAll Recipes] Error:', e.message);

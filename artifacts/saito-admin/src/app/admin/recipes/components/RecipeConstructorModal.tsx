@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -40,7 +40,6 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const [saving, setSaving] = useState(false);
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const didAutoSuggest = useRef(false);
 
   const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
 
@@ -83,19 +82,8 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
     })();
   }, [isOpen, editProductId]);
 
-  // Auto AI suggest: product seçiləndə və sətir yoxdursa, avtomatik təklif gətir
-  useEffect(() => {
-    if (!loading && selectedProductId && rows.length === 0) {
-      if (didAutoSuggest.current) return;
-      didAutoSuggest.current = true;
-      aiSuggest();
-    }
-  }, [loading, selectedProductId, rows.length]);
-
-  // Yeni məhsul seçiləndə didAutoSuggest-i sıfırla
   const handleProductChange = (id: string) => {
     if (id !== selectedProductId) {
-      didAutoSuggest.current = false;
       setRows([]);
     }
     setSelectedProductId(id);
@@ -221,7 +209,6 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const reset = () => {
     setSelectedProductId(editProductId || '');
     setRows([]);
-    didAutoSuggest.current = false;
   };
 
   const aiSuggest = async () => {

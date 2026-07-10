@@ -36,7 +36,7 @@ export default function IntelligenceTab() {
   };
 
   const fetchSuggestions = async () => {
-    try { const r = await fetch('/api/stock/suggestions'); setSuggestions(await r.json()); } catch {}
+    try { const r = await fetch('/api/stock/suggestions'); setSuggestions((await r.json()).suggestions ?? []); } catch {}
   };
 
   const fetchTrends = async () => {
@@ -44,7 +44,7 @@ export default function IntelligenceTab() {
   };
 
   const fetchAIInsights = async () => {
-    try { const r = await fetch('/api/stock/ai-insights'); setInsights(await r.json()); } catch {}
+    try { const r = await fetch('/api/stock/ai-insights'); setInsights((await r.json()).insights ?? []); } catch {}
   };
 
   const urgencyColors: Record<string, string> = {

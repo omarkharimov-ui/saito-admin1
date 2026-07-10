@@ -626,6 +626,7 @@ const ProductsPage = () => {
       setIsModalOpen(false);
       const { data: freshVariants } = await supabase.from('product_variants').select('*').eq('product_id', savedProduct!.id).order('is_default', { ascending: false });
       if (freshVariants) setProductForm(prev => ({ ...prev, variants: freshVariants.map(v => ({ id: v.id, name: v.name, price: v.price.toString(), is_default: v.is_default, variant_type: 'olcu' as const, translations: null })) }));
+      try { await fetch('/api/products/costs', { method: 'POST' }); } catch { /* maya yenidən hesablanmadı */ }
       fetchData();
     }
     setUpdating(false);

@@ -12,7 +12,8 @@ import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
-import type { PosProduct } from './types/shared';
+import { supabase } from '@/lib/supabase';
+import type { PosProduct, LossItem } from './types/shared';
 
 export default function POSPage() {
   const { lightMode, setLightMode } = useTheme();
@@ -36,6 +37,43 @@ export default function POSPage() {
   const [lastUndo, setLastUndo] = useState<any>(null);
 
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
+
+  const handleRecordLoss = async (items: LossItem[], reason: string) => {
+    for (const item of items) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('is_ready_product, direct_ingredient_id')
+        .eq('id', item.product_id)
+        .maybeSingle();
+      if (product?.is_ready_product && product.direct_ingredient_id) {
+        const { error } = await supabase.from('inventory_logs').insert({
+          ingredient_id: product.direct_ingredient_id,
+          type: 'waste',
+          quantity: item.quantity,
+          reason: `POS itki: ${reason}`,
+          reference_type: 'loss',
+        });
+        if (error) throw new Error(error.message);
+      } else {
+        const { data: recipes } = await supabase
+          .from('recipes')
+          .select('ingredient_id, quantity_required, quantity_brutto')
+          .eq('menu_item_id', item.product_id)
+          .eq('is_ai_suggested', false);
+        for (const r of recipes || []) {
+          const qty = (r.quantity_brutto ?? r.quantity_required) * item.quantity;
+          const { error } = await supabase.from('inventory_logs').insert({
+            ingredient_id: r.ingredient_id,
+            type: 'waste',
+            quantity: qty,
+            reason: `POS itki: ${reason}`,
+            reference_type: 'loss',
+          });
+          if (error) throw new Error(error.message);
+        }
+      }
+    }
+  };
 
   const handleProductTap = (product: PosProduct) => {
     const variants = pos.variantsByProduct[product.id] || [];
@@ -276,14 +314,18 @@ export default function POSPage() {
           {pos.activeView === 'order' && pos.selectedTable && (
             <div key="order" className="h-full w-full flex flex-col md:flex-row overflow-hidden">
                <div className="flex-1 p-6 overflow-hidden">
-                  <ProductGrid 
-                    products={pos.products} 
+                  <ProductGrid
+                    products={pos.products}
                     categories={pos.categories}
                     combos={pos.combos}
                     onAddProduct={(p) => handleProductTap(p)}
                     onAddCombo={(c) => pos.addComboToCart(c)}
-                    cartCounts={{}}
-                    outOfStock={new Set()}
+                    cartCounts={(pos.cart?.items ?? []).reduce((acc: Record<string, number>, item: any) => {
+                      const id = item.product_id;
+                      acc[id] = (acc[id] || 0) + (item.quantity || 0);
+                      return acc;
+                    }, {})}
+                    outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
                   />
                </div>
                <div className="w-full md:w-[400px] border-l p-6 bg-black/20">
@@ -294,6 +336,7 @@ export default function POSPage() {
                       orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                       onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                       onUpdateGuests={(delta) => pos.updateGuestCount(delta)}
+                      onRecordLoss={handleRecordLoss}
                       onClearDraft={() => pos.clearCart()}
                       mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
                     />

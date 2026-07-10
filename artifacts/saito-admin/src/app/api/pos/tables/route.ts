@@ -66,6 +66,7 @@ export async function GET() {
       let groupTotalAmount = 0;
       let groupGuestCount = 0;
       let groupOrderIds: string[] = [];
+      let groupLastActivity: string | null = null;
       
       allInGroup.forEach(tNum => {
         const tOrders = ordersByTable[tNum] || [];
@@ -76,10 +77,16 @@ export async function GET() {
         else if (tOrders.length > 0) groupGuestCount += tOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0);
         
         groupOrderIds = [...groupOrderIds, ...tOrders.map(o => o.id)];
+        tOrders.forEach(o => {
+          if (o.updated_at && (!groupLastActivity || o.updated_at > groupLastActivity)) {
+            groupLastActivity = o.updated_at;
+          }
+        });
       });
 
       const processedTable = {
         ...f,
+        last_activity_at: groupLastActivity,
         status: (ordersByTable[f.table_number]?.length || 0) > 0 ? 'occupied' : f.status,
         total_amount: isChild || isParent ? groupTotalAmount : tableOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0),
         guest_count: isChild || isParent ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0)),

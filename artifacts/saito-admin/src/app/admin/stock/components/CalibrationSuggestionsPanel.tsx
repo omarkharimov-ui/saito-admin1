@@ -69,7 +69,12 @@ export function CalibrationSuggestionsPanel({ suggestions, onApplied, onApplySta
       const res = await fetch('/api/inventory/calibration/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredientId: item.ingredient_id, reason: item.reason }),
+        body: JSON.stringify({
+          ingredientId: item.ingredient_id,
+          actualStock: item.actual_stock,
+          theoreticalStock: item.theoretical_stock,
+          reason: item.reason,
+        }),
       });
       if (!res.ok) throw new Error('API call failed');
       toast.success(`${item.ingredient_name} uğurla kalibrasiya olundu.`);

@@ -78,26 +78,35 @@ export async function GET() {
 
       const totalServings = salesByProduct[product.id] || 0;
       const theoreticalConsumption: Record<string, number> = {};
-      let theoreticalCost = 0;
+
+      let theoreticalCostPerServing = 0;
+      let theoreticalCostTotal = 0;
 
       for (const r of productRecipes) {
         const ing = r.ingredient as any;
         if (!ing) continue;
+        const unitCost = (ing.average_cost_per_unit || ing.purchase_price || 0);
         const qty = (r.quantity_required || 0) * totalServings;
         theoreticalConsumption[ing.name] = (theoreticalConsumption[ing.name] || 0) + qty;
-        theoreticalCost += qty * (ing.average_cost_per_unit || ing.purchase_price || 0);
+        theoreticalCostPerServing += (r.quantity_required || 0) * unitCost;
+        theoreticalCostTotal += qty * unitCost;
       }
 
       const wasteAnalysis: any[] = [];
+      let actualCostTotal = 0;
+
       for (const r of productRecipes) {
         const ing = r.ingredient as any;
         if (!ing) continue;
+        const unitCost = (ing.average_cost_per_unit || ing.purchase_price || 0);
         const theoreticalQty = (r.quantity_required || 0) * totalServings;
         const actualConsumed = consumptionByIngredient[ing.id] || 0;
         const wasted = wasteByIngredient[ing.id] || 0;
         const actualQty = actualConsumed + wasted;
         const wasteQty = wasted;
         const wastePct = actualQty > 0 ? (wasteQty / actualQty) * 100 : 0;
+
+        actualCostTotal += (actualConsumed + wasted) * unitCost;
 
         if (theoreticalQty > 0 || actualQty > 0) {
           wasteAnalysis.push({
@@ -111,25 +120,38 @@ export async function GET() {
       }
 
       const sellingPrice = product.price || 0;
-      const actualCost = totalServings > 0 ? theoreticalCost : 0;
-      const theoreticalMargin = sellingPrice > 0 ? ((sellingPrice - theoreticalCost / Math.max(totalServings, 1)) / sellingPrice) * 100 : 0;
+      const theoreticalCostPerServingFinal = totalServings > 0
+        ? theoreticalCostTotal / totalServings
+        : theoreticalCostPerServing;
+      const actualCostPerServing = totalServings > 0
+        ? actualCostTotal / totalServings
+        : theoreticalCostPerServingFinal;
+      const costVariancePct = theoreticalCostPerServingFinal > 0
+        ? ((actualCostPerServing - theoreticalCostPerServingFinal) / theoreticalCostPerServingFinal) * 100
+        : 0;
+      const theoreticalMargin = sellingPrice > 0
+        ? ((sellingPrice - theoreticalCostPerServingFinal) / sellingPrice) * 100
+        : 0;
+      const actualMargin = sellingPrice > 0
+        ? ((sellingPrice - actualCostPerServing) / sellingPrice) * 100
+        : 0;
 
       analyses.push({
         menu_item_id: product.id,
         product_name: product.name_az || product.name || product.id,
         total_servings: totalServings,
-        theoretical_cost_per_serving: totalServings > 0 ? Math.round((theoreticalCost / totalServings) * 100) / 100 : 0,
-        actual_cost_per_serving: totalServings > 0 ? Math.round((actualCost / totalServings) * 100) / 100 : 0,
-        cost_variance_pct: 0,
+        theoretical_cost_per_serving: Math.round(theoreticalCostPerServingFinal * 100) / 100,
+        actual_cost_per_serving: Math.round(actualCostPerServing * 100) / 100,
+        cost_variance_pct: Math.round(costVariancePct * 100) / 100,
         theoretical_consumption: theoreticalConsumption,
         actual_consumption: consumptionByIngredient,
         waste_analysis: wasteAnalysis,
         margin_analysis: {
           selling_price: sellingPrice,
-          theoretical_cost: Math.round(theoreticalCost * 100) / 100,
-          actual_cost: Math.round(actualCost * 100) / 100,
+          theoretical_cost: Math.round(theoreticalCostTotal * 100) / 100,
+          actual_cost: Math.round(actualCostTotal * 100) / 100,
           theoretical_margin_pct: Math.round(theoreticalMargin * 100) / 100,
-          actual_margin_pct: Math.round(theoreticalMargin * 100) / 100,
+          actual_margin_pct: Math.round(actualMargin * 100) / 100,
         },
       });
     }

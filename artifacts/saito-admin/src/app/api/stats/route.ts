@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         isoStartDate = defaultStart.toISOString();
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_supabaseUrl || '';
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const H = svcHeaders();
 
     const [

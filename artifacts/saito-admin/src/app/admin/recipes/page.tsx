@@ -117,8 +117,12 @@ export default function RecipesPage() {
     const qty = parseFloat(newQuantity);
     if (isNaN(qty) || qty <= 0) { toast.error('Miqdar düzgün deyil'); return; }
     setSaving(true);
+    const ing = ingredients.find(i => i.id === newIngredientId);
+    const coldWaste = ing?.cold_waste_percentage || 0;
+    const qtyBrutto = coldWaste > 0 ? qty / (1 - coldWaste / 100) : qty;
     const { error } = await supabase.from('recipes').insert({
       menu_item_id: productId, ingredient_id: newIngredientId, quantity_required: qty,
+      quantity_brutto: Math.round(qtyBrutto * 100) / 100, hot_waste_percentage: 0,
     });
     if (error) toast.error('Xəta: ' + error.message);
     else { toast.success('Resept əlavə edildi'); setNewIngredientId(''); setNewQuantity(''); setAddingFor(null); fetchData(); }

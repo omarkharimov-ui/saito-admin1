@@ -63,6 +63,8 @@ export default function StockPage() {
   const [filter, setFilter] = useState<'all' | 'critical' | 'out_of_stock'>('all');
   const [viewMode, setViewMode] = useState<'stock' | 'intelligence' | 'suppliers' | 'procurement'>('stock');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [history, setHistory] = useState<Array<Pick<InventoryLog, 'id' | 'type' | 'quantity' | 'cost_per_unit' | 'reason' | 'created_at'>> | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Form states for modals
   const [qtyInput, setQtyInput] = useState('');
@@ -93,6 +95,25 @@ export default function StockPage() {
     return () => { removeRealtimeChannel(ch); };
   }, [fetchData]);
 
+  const handleHistory = async (row: InventoryStatusRow) => {
+    setSelectedRow(row);
+    setHistory(null);
+    setHistoryLoading(true);
+    try {
+      const { data: logs, error } = await supabase
+        .from('inventory_logs')
+        .select('id, type, quantity, cost_per_unit, reason, created_at')
+        .eq('ingredient_id', row.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (!error) setHistory(logs ?? []);
+    } catch {
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const rows = (data?.items ?? []).filter(r => {
     const matchSearch = r.name.toLowerCase().includes(search.toLowerCase());
     const matchFilter = filter === 'all' || r.status === filter;
@@ -110,7 +131,8 @@ export default function StockPage() {
     if (!selectedRow || !qtyInput) return;
     setSaving(true);
     const amount = parseFloat(qtyInput);
-    
+    const unitCost = selectedRow.purchase_price ?? selectedRow.average_cost_per_unit;
+
     try {
       let res: Response;
 
@@ -120,16 +142,26 @@ export default function StockPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ingredientId: selectedRow.id, actualQty: amount })
         });
-      } else {
-        res = await fetch('/api/inventory/logs', {
+      } else if (type === 'stock_in') {
+        res = await fetch('/api/stock/stock-in', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ingredient_id: selectedRow.id,
-            type,
-            quantity: type === 'stock_in' ? amount : -amount,
-            reason: reasonInput || (type === 'stock_in' ? 'Stok artımı' : 'İtki qeydi'),
-            cost_per_unit: selectedRow.purchase_price ?? selectedRow.average_cost_per_unit
+            quantity: amount,
+            unit_cost: unitCost,
+            reason: reasonInput || 'Stok artımı'
+          })
+        });
+      } else {
+        res = await fetch('/api/stock/waste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ingredient_id: selectedRow.id,
+            quantity: amount,
+            unit_cost: unitCost,
+            reason: reasonInput || 'İtki qeydi'
           })
         });
       }
@@ -270,7 +302,7 @@ export default function StockPage() {
                   <p className="text-sm text-[var(--theme-text-muted)] mb-4">{s.contact_person || 'Məsul şəxs yoxdur'}</p>
                   <div className="flex items-center justify-between pt-4 border-t border-[var(--theme-border)]">
                     <span className="text-xs font-mono text-[var(--theme-text-muted)]">{s.phone}</span>
-                    <button className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:text-blue-400">Ətraflı →</button>
+                    <button onClick={() => setViewMode('procurement')} className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:text-blue-400">Ətraflı →</button>
                   </div>
                 </div>
               ))}
@@ -375,7 +407,7 @@ export default function StockPage() {
         onStockIn={(r) => { setSelectedRow(r); setModalMode('stock_in'); }}
         onWaste={(r) => { setSelectedRow(r); setModalMode('waste'); }}
         onAudit={(r) => { setSelectedRow(r); setModalMode('audit'); }}
-        onHistory={(r) => { setSelectedRow(r); }}
+        onHistory={handleHistory}
         onDelete={async (r) => {
           if (!confirm('Bu xammalı silmək istədiyinizə əminsiniz?')) return;
           const { error } = await supabase.from('ingredients').delete().eq('id', r.id);
@@ -384,6 +416,55 @@ export default function StockPage() {
         }}
         onUpdate={fetchData}
       />
+
+      <AnimatePresence>
+        {history !== null && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={() => setHistory(null)} />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative w-full max-w-lg bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[40px] p-8 shadow-2xl max-h-[80vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-black text-[var(--theme-text)]">Stok Tarixçəsi</h2>
+                  <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">{selectedRow?.name}</p>
+                </div>
+                <button onClick={() => setHistory(null)} className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                {historyLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-12 text-[var(--theme-text-muted)]">
+                    <Loader2 size={18} className="animate-spin" /> Yüklənir...
+                  </div>
+                ) : history.length === 0 ? (
+                  <p className="text-center py-12 text-sm text-[var(--theme-text-muted)]">Hələ heç bir stok hərəkəti qeyd edilməyib.</p>
+                ) : (
+                  history.map(log => (
+                    <div key={log.id} className="flex items-center justify-between gap-4 px-4 py-3 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-[var(--theme-text)]">{LOG_LABELS[log.type] || log.type}</p>
+                        <p className="text-[11px] text-[var(--theme-text-muted)] truncate">{log.reason || '—'}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`text-sm font-black tabular-nums ${log.type === 'stock_in' ? 'text-emerald-500' : log.type === 'waste' || log.type === 'adjustment' ? 'text-rose-500' : 'text-[var(--theme-text)]'}`}>
+                          {log.type === 'stock_in' ? '+' : ''}{Number(log.quantity).toFixed(1)}
+                        </p>
+                        <p className="text-[10px] text-[var(--theme-text-muted)]">
+                          {new Date(log.created_at).toLocaleString('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </PageTransition>
   );

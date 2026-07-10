@@ -20,34 +20,10 @@ export async function POST(request: NextRequest) {
     }
 
     const s = svc();
-    const rpcRes = await fetch(
-      `${s.url}/rest/v1/rpc/saito_reverse_payment`,
-      {
-        method: 'POST',
-        headers: s.headers,
-        body: JSON.stringify({ p_order_id: order_id }),
-      }
-    );
 
-    if (!rpcRes.ok) {
-      const errText = await rpcRes.text();
-      let errMsg = errText;
-      try {
-        const errJson = JSON.parse(errText);
-        errMsg = errJson.message || errJson.error || errText;
-      } catch {}
-      if (errMsg.includes('ORDER_NOT_PAID')) {
-        return NextResponse.json({ error: 'Order is not paid' }, { status: 400 });
-      }
-      return NextResponse.json({ error: `Reversal failed: ${errMsg}` }, { status: 500 });
-    }
-
-    const result = await rpcRes.json();
-    return NextResponse.json({
-      success: true,
-      reversed_amount: result.reversed_amount,
-      reversed_inventory: result.reversed_inventory,
-    });
+    // Reverse payment not yet implemented in current DB schema.
+    // For now return a clear error so the UI does not silently fail.
+    return NextResponse.json({ error: 'Reverse payment is not available yet.' }, { status: 501 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

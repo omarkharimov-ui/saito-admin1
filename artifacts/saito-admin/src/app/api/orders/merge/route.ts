@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call fixed RPC
-    const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/saito_merge_tables`, {
+    const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/merge_tables_v3`, {
       method: 'POST',
       headers: svc().headers,
       body: JSON.stringify({

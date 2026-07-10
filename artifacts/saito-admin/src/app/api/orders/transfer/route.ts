@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'from_table and to_table required' }, { status: 400 });
     }
 
-    const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/saito_transfer_table`, {
+    const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/transfer_tables_v3`, {
       method: 'POST',
       headers: svc().headers,
       body: JSON.stringify({
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         ...data,
-        undo: { fromTable: from_table, toTable: to_table, orderIds: data?.moved_orders ? [data.moved_orders] : [] }
+        undo: { fromTable: from_table, toTable: to_table, orderIds: data?.order_ids || [] }
       },
     });
   } catch (error: any) {

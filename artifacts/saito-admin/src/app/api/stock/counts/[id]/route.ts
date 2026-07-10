@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
-import { supabase } from '@/lib/supabase';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const auth = await requireAuth(['admin', 'superadmin', 'manager']);
     if (!auth.authenticated) return auth;
+    const supabase = await createAuthClient();
 
     const { data, error } = await supabase
       .from('stock_counts')
@@ -26,6 +26,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   try {
     const auth = await requireAuth(['admin', 'superadmin', 'manager']);
     if (!auth.authenticated) return auth;
+    const supabase = await createAuthClient();
 
     const body = await request.json();
     const { data, error } = await supabase
@@ -46,6 +47,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   try {
     const auth = await requireAuth(['admin', 'superadmin']);
     if (!auth.authenticated) return auth;
+    const supabase = await createAuthClient();
 
     const { error } = await supabase
       .from('stock_counts')

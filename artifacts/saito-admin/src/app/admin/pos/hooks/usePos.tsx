@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -19,6 +19,7 @@ export function usePos() {
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [activeView, _setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [cart, setCart] = useState<PosCart | null>(null);
+  const [draftVersion, setDraftVersion] = useState(0);
   const cartInteractionCount = useRef(0);
   const cartDrafts = useRef<Map<number, PosCart>>(new Map());
 
@@ -27,7 +28,30 @@ export function usePos() {
       cartDrafts.current.set(selectedTable.table_number, cart);
     }
     _setActiveView(view);
+    setDraftVersion(v => v + 1);
   }, [cart, selectedTable]);
+
+  const draftCounts = useMemo(() => {
+    const counts: Record<number, { items: number; total: number }> = {};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void draftVersion;
+    if (cart && cart.items.length > 0) {
+      counts[cart.table_number] = {
+        items: cart.items.reduce((s, i) => s + i.quantity, 0),
+        total: cart.items.reduce((s, i) => s + i.unit_price * i.quantity, 0),
+      };
+    }
+    for (const [tnum, draft] of cartDrafts.current.entries()) {
+      const draftQty = draft.items.reduce((s, i) => s + i.quantity, 0);
+      if (draftQty > 0 && tnum !== cart?.table_number) {
+        counts[tnum] = {
+          items: draftQty,
+          total: draft.items.reduce((s, i) => s + i.unit_price * i.quantity, 0),
+        };
+      }
+    }
+    return counts;
+  }, [cart, draftVersion]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -430,7 +454,7 @@ export function usePos() {
   };
 
   return {
-    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
+    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, draftCounts,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount
   };

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
-import { supabase } from '@/lib/supabase';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
+    const supabase = await createAuthClient();
 
     const { order_id, payment_method, cash_amount, card_amount, tip_amount, campaign_id, discount_amount, discount_type } = await request.json();
     if (!order_id) {

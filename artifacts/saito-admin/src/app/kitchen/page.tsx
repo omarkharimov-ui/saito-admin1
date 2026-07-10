@@ -954,48 +954,17 @@ export default function KitchenPage() {
   // products.is_available = false edəcək
   const handleSoldOut = async (productId: string, productName: string) => {
     try {
-      const { data: product } = await supabase
-        .from('products')
-        .select('is_ready_product, direct_ingredient_id')
-        .eq('id', productId)
-        .maybeSingle();
-
-      const ingredientIds: string[] = [];
-
-      if (product?.is_ready_product && product.direct_ingredient_id) {
-        ingredientIds.push(product.direct_ingredient_id);
+      const res = await fetch('/api/kitchen/sold-out', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId, product_name: productName }),
+      });
+      if (res.ok) {
+        toast.success(`${productName} bağlandı`, { duration: 3000, style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', fontWeight: 'bold' } });
       } else {
-        const { data: recipeRows } = await supabase
-          .from('recipes')
-          .select('ingredient_id')
-          .eq('menu_item_id', productId);
-        if (recipeRows && recipeRows.length > 0) {
-          ingredientIds.push(...recipeRows.map(r => r.ingredient_id));
-        }
+        const err = await res.json();
+        toast.error(err.error || 'Xəta', { duration: 2000 });
       }
-
-      for (const iid of ingredientIds) {
-        await supabase
-          .from('ingredients')
-          .update({ current_stock: 0, updated_at: new Date().toISOString() })
-          .eq('id', iid);
-
-        await supabase.from('inventory_logs').insert({
-          ingredient_id: iid,
-          type: 'adjustment',
-          quantity: 0,
-          reason: `Kitchen: ${productName} sold out`,
-          reference_type: 'sold_out',
-          reference_id: productId,
-        });
-      }
-
-      await supabase
-        .from('products')
-        .update({ is_available: false })
-        .eq('id', productId);
-
-      toast.success(`${productName} bağlandı`, { duration: 3000, style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', fontWeight: 'bold' } });
     } catch {
       toast.error('Xəta', { duration: 2000 });
     }

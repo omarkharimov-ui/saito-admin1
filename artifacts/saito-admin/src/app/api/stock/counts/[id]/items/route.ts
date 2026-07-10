@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
-import { supabase } from '@/lib/supabase';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const auth = await requireAuth(['admin', 'superadmin', 'manager']);
     if (!auth.authenticated) return auth;
+    const supabase = await createAuthClient();
 
     const { data, error } = await supabase
       .from('stock_count_items')
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   try {
     const auth = await requireAuth(['admin', 'superadmin', 'manager']);
     if (!auth.authenticated) return auth;
+    const supabase = await createAuthClient();
 
     const { ingredient_id, actual_qty, notes } = await request.json();
     if (!ingredient_id || actual_qty === undefined) {

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
-import { supabase } from '@/lib/supabase';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { runOrderAction } from '@/lib/transaction';
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
+    const supabase = await createAuthClient();
 
     const { original_order_id, items_to_split } = await request.json();
 

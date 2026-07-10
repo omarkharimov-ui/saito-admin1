@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
-import { supabase } from '@/lib/supabase';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function GET() {
   try {
     const auth = await requireAuth(['admin', 'superadmin', 'manager']);
     if (!auth.authenticated) return auth;
+    const supabase = await createAuthClient();
 
     const { data, error } = await supabase
       .from('supplier_returns')
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['admin', 'superadmin', 'manager']);
     if (!auth.authenticated) return auth;
+    const supabase = await createAuthClient();
 
     const { supplier_id, return_number, reason, items } = await request.json();
     if (!supplier_id || !return_number) {

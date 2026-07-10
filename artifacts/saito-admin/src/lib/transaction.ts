@@ -1,5 +1,3 @@
-import { supabase } from './supabase';
-
 /**
  * PRODUCTION-GRADE TRANSACTIONAL ORDER ENGINE
  * 
@@ -76,6 +74,7 @@ export async function withTransaction(
  */
 export async function createTransactionLog(action: string, status: 'completed' | 'failed' | 'pending', details?: string): Promise<void> {
   try {
+    const { supabase } = await import('./supabase');
     await supabase.from('transaction_logs').insert({
       action,
       status,

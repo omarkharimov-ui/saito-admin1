@@ -65,7 +65,7 @@ BEGIN
       modifiers, special_notes, created_at
     ) VALUES (
       v_order_id, v_item_rec.product_id, v_item_rec.variant_id,
-      v_item_rec.quantity, v_item_rec.unit_price, v_item_rec.total_price,
+      v_item_rec.quantity, v_item_rec.unit_price, COALESCE(v_item_rec.total_price, v_item_rec.unit_price * v_item_rec.quantity),
       COALESCE(v_item_rec.modifiers, '[]'::jsonb),
       v_item_rec.special_notes, v_now
     );

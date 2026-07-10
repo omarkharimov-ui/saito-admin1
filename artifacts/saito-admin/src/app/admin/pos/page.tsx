@@ -266,7 +266,7 @@ export default function POSPage() {
                         className="col-span-1"
                       >
                         <TableCard 
-                          table={{ ...table, draftTotal: pos.draftCounts[table.table_number]?.total || 0 }}
+                          table={table}
                           onTap={() => handleTableTap(table)} 
                           onAction={() => handleOpenAction(table)}
                           isSelected={selectedForMerge.includes(table.table_number)}
@@ -276,7 +276,6 @@ export default function POSPage() {
                           groupNumber={groupInfo?.groupNum}
                           mergedChildNumbers={groupInfo?.children}
                           isMergedChild={false}
-                          draftItemCount={pos.draftCounts[table.table_number]?.items || 0}
                         />
                       </motion.div>
                     );

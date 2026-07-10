@@ -131,6 +131,7 @@ export async function POST(request: Request) {
             product_id: i.product_id,
             quantity: i.quantity || 1,
             unit_price: i.unit_price || 0,
+            total_price: (i.unit_price || 0) * (i.quantity || 1),
             modifiers: i.modifiers || [],
             special_notes: i.special_notes || '',
             variant_id: i.variant_id || null,

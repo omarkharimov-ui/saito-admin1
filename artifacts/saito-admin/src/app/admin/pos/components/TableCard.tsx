@@ -21,10 +21,9 @@ interface TableCardProps {
   groupNumber?: number;
   mergedChildNumbers?: number[];
   isMergedChild?: boolean;
-  draftItemCount?: number;
 }
 
-export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, draftItemCount = 0 }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
@@ -158,32 +157,17 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       </div>
 
       <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {draftItemCount > 0 && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest bg-orange-500/15 border-orange-500/30 text-orange-500">
-              <span>{t('cart' as any)}</span>
-              <span className="tabular-nums">{draftItemCount}</span>
-            </div>
-          )}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest
-            ${isReserved 
-              ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' 
-              : isOccupied 
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
-                : draftItemCount > 0
-                  ? 'bg-orange-500/10 border-orange-500/20 text-orange-400'
-                  : 'bg-white/5 border-white/5 text-white/30'}`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isReserved ? 'bg-indigo-400' : isOccupied ? 'bg-emerald-500' : draftItemCount > 0 ? 'bg-orange-400' : 'bg-white/20'}`} />
-            {isReserved ? t('reserved' as any) : isOccupied ? t('occupied' as any) : draftItemCount > 0 ? t('draft' as any) : t('empty' as any)}
-          </div>
+        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest
+          ${isReserved 
+            ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' 
+            : isOccupied 
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
+              : 'bg-white/5 border-white/5 text-white/30'}`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${isReserved ? 'bg-indigo-400' : isOccupied ? 'bg-emerald-500' : 'bg-white/20'}`} />
+          {isReserved ? t('reserved' as any) : isOccupied ? t('occupied' as any) : t('empty' as any)}
         </div>
 
-        <div className="text-right flex items-center gap-2">
-          {draftItemCount > 0 && !table.total_amount && (
-            <p className={`text-sm font-black ${lightMode ? 'text-orange-600' : 'text-orange-500'}`}>
-              ₼{(table as any).draftTotal?.toFixed(2) ?? ''}
-            </p>
-          )}
+        <div className="text-right">
           {isReserved ? (
             <span className="text-[10px] font-bold text-white/20 tabular-nums">{(table as any).reservation_phone || ''}</span>
           ) : table.total_amount > 0 ? (

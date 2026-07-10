@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -17,41 +17,9 @@ export function usePos() {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<any>(null);
-  const [activeView, _setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
+  const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [cart, setCart] = useState<PosCart | null>(null);
-  const [draftVersion, setDraftVersion] = useState(0);
   const cartInteractionCount = useRef(0);
-  const cartDrafts = useRef<Map<number, PosCart>>(new Map());
-
-  const setActiveView = useCallback((view: 'floor' | 'order' | 'billing') => {
-    if (view === 'floor' && cart && selectedTable) {
-      cartDrafts.current.set(selectedTable.table_number, cart);
-    }
-    _setActiveView(view);
-    setDraftVersion(v => v + 1);
-  }, [cart, selectedTable]);
-
-  const draftCounts = useMemo(() => {
-    const counts: Record<number, { items: number; total: number }> = {};
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    void draftVersion;
-    if (cart && cart.items.length > 0) {
-      counts[cart.table_number] = {
-        items: cart.items.reduce((s, i) => s + i.quantity, 0),
-        total: cart.items.reduce((s, i) => s + i.unit_price * i.quantity, 0),
-      };
-    }
-    for (const [tnum, draft] of cartDrafts.current.entries()) {
-      const draftQty = draft.items.reduce((s, i) => s + i.quantity, 0);
-      if (draftQty > 0 && tnum !== cart?.table_number) {
-        counts[tnum] = {
-          items: draftQty,
-          total: draft.items.reduce((s, i) => s + i.unit_price * i.quantity, 0),
-        };
-      }
-    }
-    return counts;
-  }, [cart, draftVersion]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -112,26 +80,14 @@ export function usePos() {
 
     // Re-entering the same table from the floor — reopen the existing cart, don't reload.
     if (sameTable) {
-      _setActiveView('order');
+      setActiveView('order');
       return;
-    }
-
-    // Save current table's draft before switching
-    if (cart && selectedTable) {
-      cartDrafts.current.set(selectedTable.table_number, cart);
     }
 
     cartInteractionCount.current = 0;
 
     setSelectedTable(table);
     setActiveView('order');
-
-    // Restore draft if we have one for this table
-    const savedDraft = cartDrafts.current.get(table.table_number);
-    if (savedDraft) {
-      setCart(savedDraft);
-      return;
-    }
 
     setCart({
       table_id: table.id,
@@ -255,6 +211,9 @@ export function usePos() {
     if (res.ok) {
       toast.success('Masa boşaldıldı');
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
+      toast.error(err.error || 'Masa boşaldılmadı');
     }
   };
 
@@ -378,7 +337,6 @@ export function usePos() {
 
       if (unsent.length === 0) {
         toast.success('Sifariş göndərildi');
-        cartDrafts.current.delete(cart.table_number);
         setCart(null);
         setActiveView('floor');
         fetchData().catch(() => {});
@@ -399,7 +357,6 @@ export function usePos() {
       });
       if (res.ok) {
         toast.success('Sifariş göndərildi');
-        cartDrafts.current.delete(cart.table_number);
         setCart(null);
         setActiveView('floor');
         fetchData().catch(() => {});
@@ -418,7 +375,6 @@ export function usePos() {
 
   const clearCart = () => {
     cartInteractionCount.current += 1;
-    if (cart) cartDrafts.current.delete(cart.table_number);
     setCart(prev => prev ? { ...prev, items: [] } : null);
   };
 
@@ -454,7 +410,7 @@ export function usePos() {
   };
 
   return {
-    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, draftCounts,
+    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount
   };

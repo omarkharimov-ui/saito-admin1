@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import {
   X, Search, Plus, Minus, CheckCircle, Loader2,
   CreditCard, MoreVertical, AlertTriangle, Trash2, XCircle, Clock,
-  GitMerge, Layers, Printer, ChevronLeft,
+  GitMerge, Layers, Printer, ChevronLeft, Split,
   Utensils, ShoppingBag, Package, User, Users,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import type { Order, OrderItem, Product, ManualItem } from '../types';
 import { ReceiptModal } from './ReceiptModal';
 import { CustomerSelect } from './CustomerSelect';
+import { BillSplitModal } from '@/app/admin/pos/components/BillSplitModal';
 import { getStatusConfig, timeAgo } from '../utils';
 
 interface OrderModalProps {
@@ -65,6 +66,7 @@ export const OrderModal = ({
   const [merging, setMerging]       = useState(false);
   const [unmerging, setUnmerging]   = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showSplit, setShowSplit] = useState(false);
   const [showCustomerSelect, setShowCustomerSelect] = useState(false);
   const [customerName, setCustomerName] = useState<string | null>(null);
   const [guestCount, setGuestCount] = useState(order.guest_count || 1);
@@ -875,20 +877,26 @@ export const OrderModal = ({
                       {cancelStep !== 'none' ? <X size={16} /> : <AlertTriangle size={16} />}
                     </button>
                   ))}
-                  {/* Masanı Boşalt (ləğv et) */}
-                  <button onClick={() => {
-                    if (confirmClear) { setConfirmClear(false); return; }
-                    if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); }
-                    if (order.kitchen_status && order.kitchen_status !== 'pending' && addItems.length === 0 && !hasDraft) {
-                      toast('Sifariş artıq mətbəxə göndərilib');
-                      return;
-                    }
-                    setConfirmClear(true);
-                  }} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${confirmClear ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-orange-500/10 text-orange-400/60 hover:text-orange-400'}`}
-                    title={t('dismiss_table')}>
-                    <XCircle size={16} />
-                  </button>
-                </div>
+                   {/* Masanı Boşalt (ləğv et) */}
+                   <button onClick={() => {
+                     if (confirmClear) { setConfirmClear(false); return; }
+                     if (cancelStep !== 'none') { setCancelStep('none'); setSelectedCancelItems({}); }
+                     if (order.kitchen_status && order.kitchen_status !== 'pending' && addItems.length === 0 && !hasDraft) {
+                       toast('Sifariş artıq mətbəxə göndərilib');
+                       return;
+                     }
+                     setConfirmClear(true);
+                   }} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${confirmClear ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-orange-500/10 text-orange-400/60 hover:text-orange-400'}`}
+                     title={t('dismiss_table')}>
+                     <XCircle size={16} />
+                   </button>
+                   {/* Hesabı Böl */}
+                   {order.order_items && order.order_items.length > 0 && (
+                     <button onClick={() => setShowSplit(true)} className="w-9 h-9 rounded-xl hover:bg-blue-500/10 text-blue-400/60 hover:text-blue-400 flex items-center justify-center transition-all" title="Hesabı Böl">
+                       <Split size={16} />
+                     </button>
+                   )}
+                 </div>
               )}
             </div>
 
@@ -1486,6 +1494,25 @@ export const OrderModal = ({
             } : undefined}
           />
         )}
+        {showSplit && (
+          <BillSplitModal
+            open={showSplit}
+            orderId={order.id}
+            items={(order.order_items || []).map(i => ({
+              id: i.id,
+              product_id: i.product_id,
+              product_name: i.product_name || '',
+              quantity: i.quantity || 1,
+              unit_price: i.unit_price || 0,
+              total_price: i.total_price || 0,
+              modifiers: i.modifiers,
+              combo_group_id: (i as any).combo_group_id,
+              special_notes: i.special_notes,
+            }))}
+            onClose={() => setShowSplit(false)}
+            onSuccess={() => { onRefresh(); setShowSplit(false); }}
+          />
+        )}
       </div>
       {showCustomerSelect && (
         <CustomerSelect
@@ -1537,6 +1564,25 @@ export const OrderModal = ({
               setShowReceipt(false);
               closeAndRefresh();
             } : undefined}
+          />
+        )}
+        {showSplit && (
+          <BillSplitModal
+            open={showSplit}
+            orderId={order.id}
+            items={(order.order_items || []).map(i => ({
+              id: i.id,
+              product_id: i.product_id,
+              product_name: i.product_name || '',
+              quantity: i.quantity || 1,
+              unit_price: i.unit_price || 0,
+              total_price: i.total_price || 0,
+              modifiers: i.modifiers,
+              combo_group_id: (i as any).combo_group_id,
+              special_notes: i.special_notes,
+            }))}
+            onClose={() => setShowSplit(false)}
+            onSuccess={() => { onRefresh(); setShowSplit(false); }}
           />
         )}
       </motion.div>

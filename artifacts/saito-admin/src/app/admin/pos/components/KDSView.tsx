@@ -32,11 +32,11 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     const fetchKDS = async () => {
       try {
-        const res = await fetch('/api/orders?status=active');
+        const res = await fetch('/api/orders');
         if (!res.ok) return;
         const data = await res.json();
         const kdsOrders: KDSOrder[] = (data.orders || [])
-          .filter((o: any) => o.kitchen_status !== 'ready' && o.kitchen_status !== 'delivered' && o.status !== 'paid')
+          .filter((o: any) => o.status !== 'paid' && o.status !== 'cancelled' && o.kitchen_status !== null && o.kitchen_status !== 'delivered' && o.kitchen_status !== 'cancelled')
           .map((o: any) => ({
             id: o.id,
             table_number: o.table_number,

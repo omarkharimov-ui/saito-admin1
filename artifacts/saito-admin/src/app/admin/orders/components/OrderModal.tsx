@@ -587,6 +587,14 @@ export const OrderModal = ({
         });
         if (!updRes.ok) throw new Error('Order total update failed');
       }
+
+      // Reset kitchen_status to 'pending' so kitchen sees the change
+      const ksRes = await fetch('/api/orders', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', id: order.id, data: { kitchen_status: 'pending' } }),
+      });
+      if (!ksRes.ok) throw new Error('Kitchen status reset failed');
+
       setAddItems([]);
     } catch (e: any) {
       toast.error(e?.message || t('error'), { id: 'action-toast' });

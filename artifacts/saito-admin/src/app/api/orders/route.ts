@@ -116,7 +116,7 @@ export async function POST(request: Request) {
         return { success: true };
       }
 
-      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id } = body;
+      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status } = body;
 
       if (!table_number || !items?.length) {
         throw new Error('table_number and items required');
@@ -154,6 +154,13 @@ export async function POST(request: Request) {
       const rpcResult = await rpcRes.json();
       const activeOrderId = rpcResult?.id;
       if (!activeOrderId) throw new Error('Order creation failed: no id returned');
+
+      // Ensure kitchen_status is set to 'pending' so kitchen sees the order
+      await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, {
+        method: 'PATCH',
+        headers: svc().headers,
+        body: JSON.stringify({ kitchen_status: kitchen_status || 'pending' }),
+      });
 
       const finalOrderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))`, { headers: svc().headers });
       const finalOrder = (await finalOrderRes.json())?.[0];

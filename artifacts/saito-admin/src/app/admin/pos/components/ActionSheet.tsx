@@ -22,6 +22,7 @@ interface ActionSheetProps {
   mergeMode?: boolean;
   mergeParent?: number | null;
   splitMode?: boolean;
+  isMerged?: boolean;
   mergedGroupChildren?: PosTable[];
   selectedForMerge?: number[];
   selectedForSplit?: number[];
@@ -36,7 +37,7 @@ const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } 
 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCloseBill, onPrint, onCancelTable,
-  mergeMode, mergeParent, splitMode, mergedGroupChildren, selectedForMerge, selectedForSplit,
+  mergeMode, mergeParent, splitMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForSplit,
   onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, groupNumber
 }: ActionSheetProps) {
   const { t } = useLanguage();
@@ -50,7 +51,6 @@ export function ActionSheet({
   if (!table && !mergeMode) return null;
 
   const isOccupied = table?.status !== 'empty';
-  const isMerged = (mergedGroupChildren?.length ?? 0) > 0;
 
   const actions = [
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },

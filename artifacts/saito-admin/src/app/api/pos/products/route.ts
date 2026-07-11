@@ -21,7 +21,6 @@ export async function GET() {
     // Compute effective prices server-side
     const now = new Date().toISOString();
     const products = (productsRes.data || [])
-      .filter((p: any) => p.is_available !== false && p.is_in_stock !== false)
       .map((p: any) => ({
         ...p,
         effective_price: computeEffectivePrice(p, (campaignsRes.data || []), now),
@@ -84,7 +83,7 @@ function computeEffectivePrice(product: any, campaigns: Campaign[], now: string)
 
   const sorted = [...campaigns]
     .filter(c => {
-      if (c.status !== 'active') return false;
+      if (c.status && c.status !== 'active') return false;
       if (c.max_uses && c.current_uses !== null && c.current_uses >= c.max_uses) return false;
       if (c.start_date && c.start_date > nowDate) return false;
       if (c.end_date && c.end_date < nowDate) return false;
@@ -133,7 +132,7 @@ function computeEffectivePrice(product: any, campaigns: Campaign[], now: string)
     discount_amount: discount,
     discount_type: displayType,
     campaign_id: best.id,
-    campaign_label: best.label || null,
+    campaign_label: best.label || best.type || null,
     campaign_badge: best.badge_color || null,
   };
 }

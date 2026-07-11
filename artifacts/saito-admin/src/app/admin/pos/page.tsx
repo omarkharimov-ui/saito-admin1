@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -34,6 +34,8 @@ export default function POSPage() {
 
   const [paying, setPaying] = useState(false);
   const [lastUndo, setLastUndo] = useState<any>(null);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [selectedCampaign, setSelectedCampaign] = useState<any>(null);
 
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
 
@@ -48,6 +50,20 @@ export default function POSPage() {
       throw new Error(err.error || 'Loss recording failed');
     }
   };
+
+  // Load active campaigns
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/campaigns');
+        if (res.ok) {
+          const data = await res.json();
+          const active = (data.campaigns || []).filter((c: any) => c.status === 'active');
+          setCampaigns(active);
+        }
+      } catch {}
+    })();
+  }, []);
 
   const handleProductTap = (product: PosProduct) => {
     const variants = pos.variantsByProduct[product.id] || [];
@@ -243,6 +259,21 @@ export default function POSPage() {
                        Köçür
                     </button>
                   </div>
+                  {campaigns.length > 0 && (
+                    <select
+                      value={selectedCampaign?.id || ''}
+                      onChange={(e) => {
+                        const camp = campaigns.find((c: any) => c.id === e.target.value) || null;
+                        setSelectedCampaign(camp);
+                      }}
+                      className="bg-white/5 border border-white/10 rounded-full px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white/70 outline-none cursor-pointer hover:bg-white/10 transition-all"
+                    >
+                      <option value="" className="bg-[#111]">Kampaniya</option>
+                      {campaigns.map((c: any) => (
+                        <option key={c.id} value={c.id} className="bg-[#111]">{c.title}</option>
+                      ))}
+                    </select>
+                  )}
                    <button 
                      onClick={() => setLightMode(!lightMode)} 
                      className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-xs font-black uppercase tracking-wider hover:bg-white/10 transition-all"
@@ -322,17 +353,18 @@ export default function POSPage() {
                   />
                </div>
                <div className="w-full md:w-[400px] border-l p-6 bg-black/20">
-                    <CartPanel 
-                      cart={pos.cart} 
-                      onPlaceOrder={() => pos.placeOrder()} 
-                      onBack={() => pos.setActiveView('floor')}
-                      orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
-                      onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
-                      onUpdateGuests={(delta) => pos.updateGuestCount(delta)}
-                      onRecordLoss={handleRecordLoss}
-                      onClearDraft={() => pos.clearCart()}
-                      mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
-                    />
+                     <CartPanel 
+                       cart={pos.cart} 
+                       campaign={selectedCampaign ? { id: selectedCampaign.id, name: selectedCampaign.title, discount: Number(selectedCampaign.discount_value || 0), type: selectedCampaign.type } : null}
+                       onPlaceOrder={() => pos.placeOrder()} 
+                       onBack={() => pos.setActiveView('floor')}
+                       orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
+                       onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
+                       onUpdateGuests={(delta) => pos.updateGuestCount(delta)}
+                       onRecordLoss={handleRecordLoss}
+                       onClearDraft={() => pos.clearCart()}
+                       mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
+                     />
                </div>
             </div>
           )}

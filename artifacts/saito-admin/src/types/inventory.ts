@@ -217,6 +217,8 @@ export interface Supplier {
   avg_price_stability: number | null;
   created_at: string;
   updated_at: string;
+  whatsapp_number: string | null;
+  auto_order_template: string | null;
 }
 
 export interface CreateSupplierPayload {
@@ -227,6 +229,8 @@ export interface CreateSupplierPayload {
   address?: string;
   tax_id?: string;
   notes?: string;
+  whatsapp_number?: string;
+  auto_order_template?: string;
 }
 
 // ─── Purchase Order ────────────────────────────────────────────────────────────

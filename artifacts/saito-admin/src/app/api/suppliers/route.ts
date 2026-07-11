@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
         address: body.address || null,
         tax_id: body.tax_id || null,
         notes: body.notes || null,
+        whatsapp_number: body.whatsapp_number || null,
+        auto_order_template: body.auto_order_template || null,
         status: 'active',
       })
       .select()

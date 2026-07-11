@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Sidebar from '../Sidebar';
 import { AdminHeader } from '../AdminHeader';
 import SimpleToaster from './SimpleToaster';
@@ -14,22 +14,25 @@ export default function AdminDesktopShell({
   role: 'admin' | 'superadmin' | null;
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const handleToggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
 
   useEffect(() => {
     const onResize = () => {
-      if (window.innerWidth >= 1024) setSidebarOpen(false);
+      if (window.innerWidth >= 1024) setSidebarOpen(true);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [sidebarOpen]);
+  }, []);
 
   useEffect(() => {
     const onFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-      if (document.fullscreenElement) setSidebarOpen(false);
+      const fs = !!document.fullscreenElement;
+      setIsFullscreen(fs);
+      if (!fs) {
+        setSidebarOpen(true);
+      }
     };
     document.addEventListener('fullscreenchange', onFsChange);
     return () => document.removeEventListener('fullscreenchange', onFsChange);
@@ -38,24 +41,7 @@ export default function AdminDesktopShell({
   return (
     <div className="hidden lg:flex h-screen min-h-0 bg-[var(--theme-bg)] text-[var(--theme-text)] font-sans">
       <SimpleToaster />
-      <AnimatePresence>
-        {sidebarOpen && !isFullscreen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <Sidebar role={role} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-            <button
-              type="button"
-              aria-label="Menyunu bağla"
-              className="fixed inset-0 bg-black/55 z-40"
-              onClick={() => setSidebarOpen(false)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Sidebar role={role} isOpen={sidebarOpen && !isFullscreen} onClose={() => setSidebarOpen(false)} />
 
       <motion.main
         animate={{ marginLeft: isFullscreen ? 0 : 290 }}

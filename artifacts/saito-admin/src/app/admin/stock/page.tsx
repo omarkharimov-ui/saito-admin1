@@ -65,6 +65,9 @@ export default function StockPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [history, setHistory] = useState<Array<Pick<InventoryLog, 'id' | 'type' | 'quantity' | 'cost_per_unit' | 'reason' | 'created_at'>> | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [showQuickStockIn, setShowQuickStockIn] = useState(false);
+  const [quickStockSearch, setQuickStockSearch] = useState('');
+  const [quickStockQty, setQuickStockQty] = useState('');
 
   // Form states for modals
   const [qtyInput, setQtyInput] = useState('');
@@ -206,6 +209,12 @@ export default function StockPage() {
                 </div>
               </div>
               <InventoryHealthCard stats={stats} loading={loading} />
+              <button 
+                onClick={() => setShowQuickStockIn(true)}
+                className="flex items-center gap-2 px-5 py-3 bg-gold text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg"
+              >
+                <Plus size={16} /> Yeni Xammal Girişi
+              </button>
             </div>
           </section>
 
@@ -462,6 +471,65 @@ export default function StockPage() {
                     </div>
                   ))
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick Stock In Modal */}
+      <AnimatePresence>
+        {showQuickStockIn && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }} className="absolute inset-0 bg-black/40 backdrop-blur-xl" onClick={() => setShowQuickStockIn(false)} />
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0, y: 24 }} transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 1 }}
+              className="relative w-full max-w-lg bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[40px] p-8 shadow-2xl max-h-[80vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-black text-[var(--theme-text)]">Təzə Xammal Girişi</h2>
+                  <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">Stok artırmaq</p>
+                </div>
+                <button onClick={() => setShowQuickStockIn(false)} className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4 flex-1 overflow-y-auto">
+                <div className="relative">
+                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
+                  <input
+                    value={quickStockSearch}
+                    onChange={e => setQuickStockSearch(e.target.value)}
+                    placeholder="Xammal axtar..."
+                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-gold/30 text-[var(--theme-text)]"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {(data?.items ?? []).filter(i => i.name.toLowerCase().includes(quickStockSearch.toLowerCase())).map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => { setSelectedRow(item); setModalMode('stock_in'); setShowQuickStockIn(false); setQuickStockSearch(''); }}
+                      className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-gold/30 transition-all text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getStatusMeta(item.status).bg}`}>
+                          <Package size={18} className={getStatusMeta(item.status).text} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-[var(--theme-text)]">{item.name}</p>
+                          <p className="text-[10px] text-[var(--theme-text-muted)] font-bold uppercase tracking-widest">{UNIT_LABELS[item.unit]}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-[var(--theme-text)]">{item.current_stock.toFixed(1)}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </motion.div>
           </div>

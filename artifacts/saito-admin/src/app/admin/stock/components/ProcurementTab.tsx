@@ -441,7 +441,7 @@ function SuppliersSection() {
   const [search, setSearch] = useState('');
   const [detailSupplier, setDetailSupplier] = useState<Supplier | null>(null);
 
-  const [form, setForm] = useState<CreateSupplierPayload>({ name: '', contact_person: '', phone: '', email: '', address: '', tax_id: '', notes: '' });
+  const [form, setForm] = useState<CreateSupplierPayload>({ name: '', contact_person: '', phone: '', email: '', address: '', tax_id: '', notes: '', auto_order_template: '' });
 
   useEffect(() => { load(); }, []);
 
@@ -454,13 +454,13 @@ function SuppliersSection() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: '', contact_person: '', phone: '', email: '', address: '', tax_id: '', notes: '' });
+    setForm({ name: '', contact_person: '', phone: '', whatsapp_number: '', email: '', address: '', tax_id: '', notes: '', auto_order_template: '' });
     setShowModal(true);
   };
 
   const openEdit = (s: Supplier) => {
     setEditing(s);
-    setForm({ name: s.name, contact_person: s.contact_person || '', phone: s.phone || '', email: s.email || '', address: s.address || '', tax_id: s.tax_id || '', notes: s.notes || '' });
+    setForm({ name: s.name, contact_person: s.contact_person || '', phone: s.phone || '', whatsapp_number: (s as any).whatsapp_number || '', email: s.email || '', address: s.address || '', tax_id: s.tax_id || '', notes: s.notes || '', auto_order_template: (s as any).auto_order_template || '' });
     setShowModal(true);
   };
 
@@ -546,13 +546,16 @@ function SuppliersSection() {
             className="w-full max-w-lg mx-4 rounded-2xl border border-white/[0.08] bg-[#0C0C0E] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-white/90 mb-4">{editing ? 'Redaktə Et' : 'Yeni Tədarükçü'}</h3>
             <div className="space-y-3">
-              {(['name', 'contact_person', 'phone', 'email', 'address', 'tax_id', 'notes'] as const).map(f => (
+              {(['name', 'contact_person', 'phone', 'whatsapp_number', 'email', 'address', 'tax_id', 'notes', 'auto_order_template'] as const).map(f => (
                 <div key={f}>
                   <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1 block">
-                    {f === 'name' ? 'Ad' : f === 'contact_person' ? 'Əlaqə Şəxs' : f === 'phone' ? 'Telefon' : f === 'email' ? 'Email' : f === 'address' ? 'Ünvan' : f === 'tax_id' ? 'VÖEN' : 'Qeyd'}
+                    {f === 'name' ? 'Ad' : f === 'contact_person' ? 'Əlaqə Şəxs' : f === 'phone' ? 'Telefon' : f === 'whatsapp_number' ? 'WhatsApp Nömrəsi' : f === 'email' ? 'Email' : f === 'address' ? 'Ünvan' : f === 'tax_id' ? 'VÖEN' : f === 'auto_order_template' ? 'Avto Sifariş Şablonu (AI)' : 'Qeyd'}
                   </label>
-                  <input type={f === 'email' ? 'email' : 'text'} value={form[f] || ''} onChange={e => setForm(p => ({ ...p, [f]: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm"
+                  <textarea
+                    value={form[f] || ''}
+                    onChange={e => setForm(p => ({ ...p, [f]: e.target.value }))}
+                    rows={f === 'auto_order_template' ? 3 : 1}
+                    className={`w-full px-4 py-2.5 rounded-xl text-white bg-white/[0.04] border border-white/[0.09] outline-none focus:border-[#D4AF37]/40 transition-colors text-sm ${f === 'auto_order_template' ? 'resize-none' : ''}`}
                   />
                 </div>
               ))}
@@ -613,10 +616,12 @@ function SuppliersSection() {
             <div className="space-y-1.5 text-xs text-white/40">
               {detailSupplier.contact_person && <div>{detailSupplier.contact_person}</div>}
               {detailSupplier.phone && <div>{detailSupplier.phone}</div>}
+              {(detailSupplier as any).whatsapp_number && <div>WhatsApp: {(detailSupplier as any).whatsapp_number}</div>}
               {detailSupplier.email && <div>{detailSupplier.email}</div>}
               {detailSupplier.address && <div>{detailSupplier.address}</div>}
               {detailSupplier.tax_id && <div>VÖEN: {detailSupplier.tax_id}</div>}
-              {detailSupplier.notes && <div className="mt-2 p-2 rounded-lg bg-white/[0.03] text-white/50">{detailSupplier.notes}</div>}
+              {(detailSupplier as any).auto_order_template && <div className="mt-2 p-2 rounded-lg bg-white/[0.03] text-white/50">{(detailSupplier as any).auto_order_template}</div>}
+              {detailSupplier.notes && !(detailSupplier as any).auto_order_template && <div className="mt-2 p-2 rounded-lg bg-white/[0.03] text-white/50">{detailSupplier.notes}</div>}
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <button onClick={() => { setDetailSupplier(null); openEdit(detailSupplier); }} className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10">Redaktə Et</button>

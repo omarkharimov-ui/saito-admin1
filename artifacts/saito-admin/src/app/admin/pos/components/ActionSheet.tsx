@@ -56,6 +56,7 @@ export function ActionSheet({
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'cancel_table', icon: Trash2, label: t('dismiss_table') || 'Masanı boşalt', visible: isOccupied || table?.status === 'reserved' },
+    { id: 'unmerge', icon: Split, label: 'Masaları Ayır', visible: isMerged },
   ];
 
   const visibleActions = actions.filter(a => a.visible);

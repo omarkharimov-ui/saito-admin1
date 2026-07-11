@@ -29,6 +29,8 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
   const [qrDataUrls, setQrDataUrls] = useState<Record<number, string>>({});
   const [preview, setPreview] = useState<number | null>(null);
   const [qrCountReady, setQrCountReady] = useState(false);
+  const [floors, setFloors] = useState<any[]>([]);
+  const [selectedFloor, setSelectedFloor] = useState<string>('all');
 
   useEffect(() => {
     const initQrCount = async () => {
@@ -59,6 +61,17 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
 
     initQrCount();
   }, [initialData]);
+
+  // Load floors for grouping
+  useEffect(() => {
+    (async () => {
+      const res = await fetch('/api/pos/floors');
+      if (res.ok) {
+        const data = await res.json();
+        setFloors(data.floors || []);
+      }
+    })();
+  }, []);
 
   // Draft count – only committed to DB when user presses Təsdiqlə
   const [draftCount, setDraftCount] = useState<number>(getInitialCount);
@@ -120,13 +133,59 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
     });
   };
 
+  const downloadFloor = async (floorName: string, tables: number[]) => {
+    const zip = new JSZip();
+    for (const n of tables) {
+      if (qrDataUrls[n]) {
+        const base64Data = qrDataUrls[n].replace(/^data:image\/png;base64,/, "");
+        zip.file(`masa-${n}-qr.png`, base64Data, { base64: true });
+      }
+    }
+    zip.generateAsync({ type: 'blob' }).then(content => {
+      saveAs(content, `qr-${floorName.replace(/\s+/g, '-').toLowerCase()}.zip`);
+      toast.success(`${floorName} QR paketi endirildi`, { id: 'action-toast', duration: 3000 });
+    }).catch(error => {
+      toast.error('QR paketi endirmək mümkün olmadı: ' + error.message, { id: 'action-toast' });
+    });
+  };
+
+  const getTablesForFloor = (floorName: string) => {
+    const floor = floors.find(f => f.name === floorName);
+    if (!floor) return [];
+    const tables: number[] = [];
+    for (let i = 1; i <= tableCount; i++) {
+      const floorIndex = Math.floor((i - 1) / 10);
+      if (floors[floorIndex]?.name === floorName) tables.push(i);
+    }
+    return tables;
+  };
+
+  const allFloors = ['Zal 1', 'Zal 2', 'VIP', 'Balkon'];
+  const displayFloors = selectedFloor === 'all' ? allFloors : [selectedFloor];
+
   /* ─── Render ─── */
   return (
     <div className="max-w-5xl">
       <div className="mb-4 p-3.5 rounded-xl border border-gold/20 bg-gold/5">
         <p className="text-xs text-[var(--theme-text-secondary)]">{t('qr_note')}</p>
       </div>
+
+      {/* Floor selector */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="flex items-center gap-2 bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-xl px-4 py-3">
+          <span className="text-[var(--theme-text-secondary)] text-sm font-medium">Zal:</span>
+          <select
+            value={selectedFloor}
+            onChange={e => setSelectedFloor(e.target.value)}
+            className="bg-transparent text-[var(--theme-text)] text-sm font-bold outline-none cursor-pointer"
+          >
+            <option value="all" className="bg-[#111]">Hamısı</option>
+            {allFloors.map(f => (
+              <option key={f} value={f} className="bg-[#111]">{f}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex items-center gap-3 bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-xl px-4 py-3">
           <span className="text-[var(--theme-text-secondary)] text-sm font-medium">{t('qr_table_label')}</span>
           <button onClick={() => setDraftCount(c => Math.max(1, c - 1))} className="w-9 h-9 rounded-full bg-[var(--theme-surface)] flex items-center justify-center hover:bg-[var(--theme-panel)] transition-colors"><Minus size={14} /></button>
@@ -155,27 +214,46 @@ const QRTab = ({ initialData }: { initialData?: Record<string, any> | null }) =>
         <button onClick={downloadAll} className="ml-auto flex items-center gap-2 bg-gold text-black px-6 py-3.5 rounded-xl font-bold text-sm tracking-[0.12em] hover:bg-white transition-all"><Download size={16} /> {t('qr_download_all')}</button>
       </div>
 
-      <div className="bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-2xl overflow-hidden overflow-x-auto scrollbar-none">
-        <div className="px-5 py-3.5 bg-[var(--theme-surface-soft)] grid grid-cols-[64px_1fr_auto] min-w-[380px]">
-          <span className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)]">{t('qr_col_table')}</span>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)]">{t('qr_col_link')}</span>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--theme-text-muted)] text-right">{t('qr_col_actions')}</span>
-        </div>
-        <div className="divide-y divide-[var(--theme-border)]">
-          {Array.from({ length: tableCount }, (_, i) => i + 1).map(n => (
-            <div key={n} className="grid grid-cols-[64px_1fr_auto] items-center px-5 py-3.5 hover:bg-[var(--theme-surface-soft)] transition-colors min-w-[380px]">
-              <button onClick={() => setPreview(n)} className="flex items-center gap-2 group">
-                <div className="w-9 h-9 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center transition-colors"><QrCode size={15} className="text-gold" /></div>
-                <span className="text-[var(--theme-text)] font-bold text-base">{n}</span>
-              </button>
-              <span className="text-[var(--theme-text-secondary)] text-sm font-mono truncate px-3">{siteUrl}/menu?table={n}</span>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setPreview(n)} className="px-3 py-2 text-xs text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] rounded-lg transition-all flex items-center gap-1.5"><QrCode size={12} /> {t('qr_preview')}</button>
-                <button onClick={() => download(n)} disabled={!qrDataUrls[n]} className="px-3 py-2 text-xs text-gold border border-gold/20 rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-30"><Download size={12} /> {t('qr_download')}</button>
+      {/* QR Codes by Floor */}
+      <div className="space-y-6">
+        {displayFloors.map(floorName => {
+          const floorTables = getTablesForFloor(floorName);
+          if (floorTables.length === 0) return null;
+
+          return (
+            <div key={floorName} className="bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-2xl overflow-hidden">
+              <div className="px-5 py-3.5 bg-[var(--theme-surface-soft)] flex items-center justify-between">
+                <span className="text-sm font-bold text-[var(--theme-text)]">{floorName}</span>
+                <button
+                  onClick={() => downloadFloor(floorName, floorTables)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gold border border-gold/20 rounded-lg hover:bg-gold/10 transition-all"
+                >
+                  <Download size={12} /> {floorName} QR
+                </button>
+              </div>
+              <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {floorTables.map(n => (
+                  <div key={n} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] hover:border-gold/30 transition-all">
+                    <button onClick={() => setPreview(n)} className="group">
+                      <div className="w-16 h-16 rounded-xl bg-white border border-[var(--theme-border)] flex items-center justify-center p-1 group-hover:scale-105 transition-transform">
+                        {qrDataUrls[n] ? (
+                          <img src={qrDataUrls[n]} alt="" loading="lazy" decoding="async" className="w-full h-full" />
+                        ) : (
+                          <QrCode size={32} className="text-[var(--theme-text-muted)]" />
+                        )}
+                      </div>
+                    </button>
+                    <span className="text-xs font-bold text-[var(--theme-text)]">Masa {n}</span>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setPreview(n)} className="px-2 py-1 text-[10px] text-[var(--theme-text-secondary)] border border-[var(--theme-border)] rounded-md hover:bg-[var(--theme-surface-soft)] transition-all">Bax</button>
+                      <button onClick={() => download(n)} disabled={!qrDataUrls[n]} className="px-2 py-1 text-[10px] text-gold border border-gold/20 rounded-md hover:bg-gold/10 transition-all disabled:opacity-30">Yüklə</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {/* Modal */}

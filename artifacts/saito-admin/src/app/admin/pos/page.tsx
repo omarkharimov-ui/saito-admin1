@@ -36,6 +36,7 @@ export default function POSPage() {
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<any>(null);
+  const [cleanMode, setCleanMode] = useState(false);
 
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
 
@@ -196,17 +197,28 @@ export default function POSPage() {
 
   const handleUnmerge = async () => {
     if (!actionSheetTable) return;
-    const res = await fetch('/api/orders/unmerge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ primary_table_number: actionSheetTable.table_number, child_table_numbers: selectedForSplit }),
-    });
-    if (res.ok) {
-      toast.success('Masalar ayrıldı');
-      setSplitMode(false);
-      setSelectedForSplit([]);
-      setActionSheetOpen(false);
-      pos.fetchData();
+    if (selectedForSplit.length === 0) {
+      toast.error('Zəhmət olmasa ən azı bir masa seçin', { id: 'action-toast' });
+      return;
+    }
+    try {
+      const res = await fetch('/api/orders/unmerge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ primary_table_number: actionSheetTable.table_number, child_table_numbers: selectedForSplit }),
+      });
+      const data = res.ok ? await res.json() : { error: (await res.json()).error || 'Xəta' };
+      if (res.ok) {
+        toast.success('Masalar ayrıldı', { id: 'action-toast' });
+        setSplitMode(false);
+        setSelectedForSplit([]);
+        setActionSheetOpen(false);
+        pos.fetchData();
+      } else {
+        toast.error(data.error || 'Ayırma uğursuz oldu', { id: 'action-toast' });
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Ayırma xətası', { id: 'action-toast' });
     }
   };
 
@@ -226,8 +238,10 @@ export default function POSPage() {
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <AnimatePresence mode="wait">
           {pos.activeView === 'floor' && (
-            <div key="floor" className="h-full flex flex-col p-6">
-               <div className="flex items-center justify-between mb-6">
+             <div key="floor" className="h-full flex flex-col p-6">
+               {!cleanMode && (
+                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
+                    <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <h1 className="text-3xl font-black tracking-tighter">POS</h1>
                   {pos.floors.length > 1 && (
@@ -281,25 +295,32 @@ export default function POSPage() {
                      {lightMode ? <Sun size={16} /> : <Moon size={16} />}
                      <span className="hidden sm:inline">{lightMode ? 'Aydın' : 'Qaranlıq'}</span>
                    </button>
-                   <button 
-                     onClick={() => {
-                       if (!document.fullscreenElement) {
-                         document.documentElement.requestFullscreen().catch(() => {});
-                       } else {
-                         document.exitFullscreen();
-                       }
-                     }}
-                     className="p-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
-                     title="Tam Ekran"
-                   >
-                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                       <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                     </svg>
-                   </button>
+                    <button 
+                      onClick={() => {
+                        if (!document.fullscreenElement) {
+                          document.documentElement.requestFullscreen().catch(() => {});
+                        } else {
+                          document.exitFullscreen();
+                        }
+                        setCleanMode(!cleanMode);
+                      }}
+                      className={`p-3 rounded-full border transition-all ${cleanMode ? 'bg-gold text-black border-gold' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                      title="Tam Ekran / Sadə Rejim"
+                    >
+                      {cleanMode ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                        </svg>
+                      )}
+                    </button>
+                 </div>
                 </div>
-              </div>
-
-               <div className="flex-1 overflow-y-auto">
+              </motion.div>
+              )}
+ 
+                <div className="flex-1 overflow-y-auto">
                 <div className="grid grid-cols-4 gap-4">
                   {visibleTables?.map((table: any) => {
                     const groupInfo = tableGroupInfo[table.table_number];

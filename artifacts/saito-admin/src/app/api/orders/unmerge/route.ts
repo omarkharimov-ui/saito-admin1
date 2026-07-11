@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { runOrderAction } from '@/lib/transaction';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -20,80 +19,30 @@ export async function POST(req: NextRequest) {
     }
 
     const s = svc();
-
-    const result = await runOrderAction('TableUnmerge', async () => {
-      // 1. Get primary order
-      const primaryOrderRes = await fetch(`${s.url}/rest/v1/orders?table_number=eq.${primary_table_number}&status=neq.paid&status=neq.cancelled&merged_into=is.null&select=*`, { headers: s.headers });
-      const primaryOrder = (await primaryOrderRes.json())?.[0];
-      if (!primaryOrder) throw new Error('Primary order not found');
-
-      // 2. Get child orders that were merged into this primary order
-      const childOrdersRes = await fetch(`${s.url}/rest/v1/orders?merged_into=eq.${primaryOrder.id}&select=*`, { headers: s.headers });
-      const childOrders: any[] = await childOrdersRes.json();
-
-      let totalRemovedAmount = 0;
-      let totalRemovedGuests = 0;
-
-      for (const tNum of child_table_numbers) {
-        const order = childOrders.find(o => o.table_number === tNum);
-
-        if (order) {
-          totalRemovedAmount += Number(order.total_amount || 0);
-          totalRemovedGuests += Number(order.guest_count || 0);
-
-          // Restore order as standalone
-          await fetch(`${s.url}/rest/v1/orders?id=eq.${order.id}`, {
-            method: 'PATCH',
-            headers: s.headers,
-            body: JSON.stringify({ 
-              merged_into: null,
-              version: (order.version || 0) + 1
-            }),
-          });
-        }
-
-        // Restore table status: 'occupied' only if it has an order; otherwise 'empty'
-        await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${tNum}`, {
-          method: 'PATCH',
-          headers: s.headers,
-          body: JSON.stringify({ 
-            status: order ? 'occupied' : 'empty', 
-            merged_into_table: null 
-          }),
-        });
-      }
-
-      // 3. Update primary order totals
-      await fetch(`${s.url}/rest/v1/orders?id=eq.${primaryOrder.id}`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({
-          total_amount: Math.max(0, Number(primaryOrder.total_amount || 0) - totalRemovedAmount),
-          guest_count: Math.max(1, Number(primaryOrder.guest_count || 1) - totalRemovedGuests),
-          version: (primaryOrder.version || 0) + 1
-        }),
-      });
-
-      return {
-        success: true,
-        undo: {
-          parentTable: primary_table_number,
-          parentOrderId: primaryOrder.id,
-          parentOldTotal: primaryOrder.total_amount,
-          parentOldGuests: primaryOrder.guest_count,
-          childTables: child_table_numbers.map((tNum: number) => {
-            const order = childOrders.find(o => o.table_number === tNum);
-            return {
-              tableNumber: tNum,
-              orderId: order?.id || null,
-              oldMergedInto: primaryOrder.id,
-            };
-          }),
-        },
-      };
+    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/separate_tables_v1`, {
+      method: 'POST',
+      headers: s.headers,
+      body: JSON.stringify({
+        p_primary_table: primary_table_number,
+        p_child_tables: child_table_numbers,
+        p_performed_by: null,
+      }),
     });
 
-    return NextResponse.json(result);
+    if (!rpcRes.ok) {
+      const errText = await rpcRes.text();
+      return NextResponse.json({ error: `Separate failed: ${errText}` }, { status: 500 });
+    }
+
+    const data = await rpcRes.json();
+    return NextResponse.json({
+      success: true,
+      data,
+      undo: {
+        primaryTable: primary_table_number,
+        childTables: child_table_numbers,
+      },
+    });
   } catch (error: any) {
     console.error('[API /orders/unmerge] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

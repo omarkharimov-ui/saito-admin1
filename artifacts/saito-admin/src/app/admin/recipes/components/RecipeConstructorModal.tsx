@@ -405,141 +405,35 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                     </AnimatePresence>
                   </div>
 
-                  {rows.some(r => r.ingredient_id) && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="rounded-xl p-4 space-y-3"
-                      style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)' }}
-                    >
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-gold/60">Maya Dəyəri Hesabatı</p>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-[var(--theme-text-secondary)]">Maya Dəyəri (porsiya başına)</span>
-                        <motion.span
-                          key={totalCost}
-                          initial={{ scale: 1.3, color: '#D4AF37' }}
-                          animate={{ scale: 1, color: '#ffffff' }}
-                          transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                          className="text-2xl font-black text-white tabular-nums"
-                        >
-                          ₼{totalCost.toFixed(2)}
-                        </motion.span>
+                   {rows.some(r => r.ingredient_id) && (
+                     <div className="rounded-xl p-4 space-y-2"
+                       style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)' }}
+                     >
+                       <div className="flex items-center justify-between">
+                         <span className="text-[10px] font-bold uppercase tracking-wider text-gold/60">Maya Dəyəri</span>
+                         <span className="text-lg font-black text-white tabular-nums">₼{totalCost.toFixed(2)}</span>
+                       </div>
+                       {selectedProduct && salePrice > 0 && (
+                         <div className="flex items-center justify-between text-xs">
+                           <span className="text-white/40">Satış: ₼{salePrice.toFixed(2)}</span>
+                           <span className={`font-bold ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                             Qazanc: ₼{profit.toFixed(2)} ({marginPct.toFixed(1)}%)
+                           </span>
+                         </div>
+                       )}
+                       <div className="text-[9px] text-white/25 space-y-0.5">
+                         {rows.filter(r => r.ingredient_id && r.cost > 0).map((r, idx) => (
+                           <div key={idx} className="flex items-center justify-between">
+                             <span className="truncate">{r.ingredient_name}</span>
+                             <span className="tabular-nums ml-2">₼{r.cost.toFixed(2)}</span>
+                           </div>
+                         ))}
+                        </div>
                       </div>
-
-                      {/* Suggested price range */}
-                      {totalCost > 0 && (
-                        <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                          <p className="text-[9px] text-white/35 uppercase tracking-wider font-semibold">Tövsiyə Olunan Satış Qiyməti Aralığı</p>
-                          <div className="flex items-center justify-between">
-                            <div className="text-center">
-                              <p className="text-[9px] text-white/25">Min</p>
-                              <p className="text-sm font-bold text-white/70 tabular-nums">₼{suggestedMinPrice.toFixed(2)}</p>
-                              <p className="text-[8px] text-white/20">{minMarginPct.toFixed(0)}% marja</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-[9px] text-gold/60">İdeal</p>
-                              <p className="text-base font-black text-gold tabular-nums">₼{suggestedMidPrice.toFixed(2)}</p>
-                              <p className="text-[8px] text-gold/40">{midMarginPct.toFixed(0)}% marja</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-[9px] text-white/25">Max</p>
-                              <p className="text-sm font-bold text-white/70 tabular-nums">₼{suggestedMaxPrice.toFixed(2)}</p>
-                              <p className="text-[8px] text-white/20">{maxMarginPct.toFixed(0)}% marja</p>
-                            </div>
-                          </div>
-                          {selectedProduct && salePrice > 0 && (
-                            <div className={`flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded-lg text-[10px] font-bold ${
-                              priceSafe ? 'text-emerald-400/70 bg-emerald-500/10' :
-                              priceUnderpriced ? 'text-amber-400 bg-amber-500/10' :
-                              'text-red-400 bg-red-500/10'
-                            }`}>
-                              {priceSafe ? 'Cari qiymət təhlükəsiz aralıqdadır' :
-                               priceUnderpriced ? 'Cari qiymət çox aşağıdır — marja riski' :
-                               'Cari qiymət çox yüksəkdir — tələb riski'}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {selectedProduct && salePrice > 0 && (
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                            <p className="text-[9px] text-white/30 uppercase tracking-wider">Satış Qiyməti</p>
-                            <p className="text-sm font-bold text-white/80 tabular-nums">₼{salePrice.toFixed(2)}</p>
-                          </div>
-                          <div className="px-3 py-2 rounded-lg" style={{ background: profit >= 0 ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)' }}>
-                            <p className="text-[9px] text-white/30 uppercase tracking-wider">Xalis Qazanc</p>
-                            <p className={`text-sm font-bold tabular-nums ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {profit >= 0 ? '+' : ''}₼{profit.toFixed(2)}
-                              <span className="ml-1 text-[10px]">({marginPct >= 0 ? '+' : ''}{marginPct.toFixed(1)}%)</span>
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedProduct && salePrice > 0 && (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[9px] text-white/30 uppercase tracking-wider">
-                            <span>Mənfəət Marjı</span>
-                            <span className="tabular-nums font-bold">{marginPct >= 0 ? '+' : ''}{marginPct.toFixed(1)}%</span>
-                          </div>
-                          <div className="w-full h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.min(Math.max(marginPct, 0), 100)}%` }}
-                              transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-                              className="h-full rounded-full"
-                              style={{
-                                background: marginPct <= 0
-                                  ? 'linear-gradient(90deg, #EF4444, #DC2626)'
-                                  : marginPct < 15
-                                    ? 'linear-gradient(90deg, #F59E0B, #D97706)'
-                                    : marginPct < 30
-                                      ? 'linear-gradient(90deg, #D4AF37, #B8960C)'
-                                      : 'linear-gradient(90deg, #22C55E, #16A34A)',
-                                boxShadow: marginPct > 30
-                                  ? '0 0 8px rgba(34,197,94,0.3)'
-                                  : marginPct > 0
-                                    ? '0 0 8px rgba(212,175,55,0.2)'
-                                    : 'none',
-                              }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-[8px] text-white/20">
-                            <span>0%</span>
-                            <span>15%</span>
-                            <span>30%</span>
-                            <span>100%</span>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-1 pt-1">
-                        {rows.filter(r => r.ingredient_id && r.cost > 0).map((r, idx) => {
-                          const diff = Math.round(r.quantity_brutto - r.quantity);
-                          return (
-                            <div key={idx} className="text-[10px] text-white/30">
-                              <div className="flex items-center justify-between">
-                                <span>{r.ingredient_name}</span>
-                                <span className="tabular-nums">₼{r.cost.toFixed(2)}</span>
-                              </div>
-                              <p className="text-[8px] text-white/15">
-                                {r.quantity} {r.unit}
-                                {diff > 0 && ` → brutto ${r.quantity_brutto} ${r.unit} (+${diff} itki)`}
-                                {ingredientMap.get(r.ingredient_id)?.cold_waste_percentage
-                                  ? ` · soyuq itki ${ingredientMap.get(r.ingredient_id)!.cold_waste_percentage}%`
-                                  : ''}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  )}
-                </>
-              )}
-            </div>
+                    )}
+                  </>
+                )}
+              </div>
 
             <div className="flex-shrink-0 p-4 border-t border-white/[0.06] flex items-center gap-3">
               <button onClick={() => { reset(); onClose(); }}

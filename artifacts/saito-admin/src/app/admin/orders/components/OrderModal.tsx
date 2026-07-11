@@ -1540,18 +1540,18 @@ export const OrderModal = ({
     <>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70]"
+        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+        className="fixed inset-0 bg-black/70 backdrop-blur-md z-[70]"
         onClick={isLocked || isConfirming ? undefined : onClose}
       />
 
-      <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 pointer-events-none">
+      <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-4 pointer-events-none">
       <motion.div
         key={`modal-${order.id}`}
-        initial={{ opacity: 0, y: '100%' }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: '100%' }}
-        transition={{ type: 'spring', stiffness: 380, damping: 40, mass: 0.9 }}
+        initial={{ opacity: 0, y: '100%', scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: '100%', scale: 0.96 }}
+        transition={{ type: 'spring', stiffness: 340, damping: 32, mass: 0.95 }}
         onClick={e => e.stopPropagation()}
         onTouchMove={e => e.stopPropagation()}
         style={{

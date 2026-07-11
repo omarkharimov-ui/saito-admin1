@@ -370,7 +370,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .gt('table_number', 0)
         .lt('created_at', cutoff);
       if (data && data.length > 0) {
-        const tables = data.map((o: any) => (o.table_number ? `Masa ${o.table_number}` : '?')).join(', ');
+        const tables = data.map((o: any) => `Masa ${o.table_number}`).join(', ');
         toast((t) => <span onClick={() => dismissToast(t)}>{data.length} gecikən sifariş: {tables}</span>, {
           duration: 5000,
           style: { background: 'var(--theme-error-bg, #1f0d0d)', color: 'var(--theme-error-text, #f87171)', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 'bold', cursor: 'pointer' },

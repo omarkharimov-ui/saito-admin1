@@ -170,8 +170,8 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         <div className="text-right">
           {isReserved ? (
             <span className="text-[10px] font-bold text-white/20 tabular-nums">{(table as any).reservation_phone || ''}</span>
-          ) : table.total_amount > 0 ? (
-            <p className={`text-base font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{table.total_amount.toFixed(2)}</p>
+          ) : isOccupied || (table.total_amount ?? 0) > 0 ? (
+            <p className={`text-base font-black ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>₼{(table.total_amount || 0).toFixed(2)}</p>
           ) : null}
         </div>
       </div>

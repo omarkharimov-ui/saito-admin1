@@ -148,6 +148,15 @@ export async function POST(request: Request) {
         if (!patchRes.ok) throw new Error('CONCURRENCY_CONFLICT');
         const patched = await patchRes.json();
         if (!patched || (Array.isArray(patched) && patched.length === 0)) throw new Error('CONCURRENCY_CONFLICT');
+
+        // Update table_floors total_amount
+        const tableOrdersRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled)`, { headers: svc().headers });
+        const tableOrders = tableOrdersRes.ok ? await tableOrdersRes.json() : [];
+        const tableTotal = tableOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
+        await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+          method: 'PATCH', headers: svc().headers,
+          body: JSON.stringify({ total_amount: tableTotal, status: 'occupied', last_activity_at: new Date().toISOString() }),
+        });
       } else {
         // Create new order
         const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
@@ -175,10 +184,10 @@ export async function POST(request: Request) {
         activeOrderId = created?.[0]?.id;
         if (!activeOrderId) throw new Error('Order creation failed: no id returned');
 
-        // Mark table as occupied
+        // Mark table as occupied with total
         await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
           method: 'PATCH', headers: svc().headers,
-          body: JSON.stringify({ status: 'occupied', last_activity_at: new Date().toISOString() }),
+          body: JSON.stringify({ status: 'occupied', total_amount: totalFromItems, last_activity_at: new Date().toISOString() }),
         });
       }
 

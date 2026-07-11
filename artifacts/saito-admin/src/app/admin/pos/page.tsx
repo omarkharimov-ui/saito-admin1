@@ -383,6 +383,7 @@ export default function POSPage() {
         mergeMode={mergeMode}
         mergeParent={selectedForMerge[0]}
         splitMode={splitMode}
+        isMerged={!!actionSheetGroup}
         mergedGroupChildren={actionSheetGroup?.children}
         selectedForMerge={selectedForMerge}
         selectedForSplit={selectedForSplit}

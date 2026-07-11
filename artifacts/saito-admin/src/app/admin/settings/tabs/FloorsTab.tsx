@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Save, Loader2, MapPin } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Save, Loader2, MapPin, Minus } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { inputCls } from './_shared';
 
@@ -17,6 +17,7 @@ const FloorsTab = () => {
   const [maxTable, setMaxTable] = useState(12);
   const [newFloorName, setNewFloorName] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [savingTableCount, setSavingTableCount] = useState(false);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -45,6 +46,20 @@ const FloorsTab = () => {
     } catch (e) {
       console.error('loadAll error:', e);
       toast.error('Məlumat yüklənərkən xəta');
+    }
+  };
+
+  const saveTableCount = async (count: number) => {
+    setSavingTableCount(true);
+    try {
+      const { error } = await supabase.from('settings').upsert({ id: '1', qr_table_count: count });
+      if (error) throw error;
+      setMaxTable(count);
+      toast.success(`${count} masa saxlanıldı`, { id: 'action-toast' });
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi');
+    } finally {
+      setSavingTableCount(false);
     }
   };
 
@@ -131,6 +146,18 @@ const FloorsTab = () => {
             {t('save_settings')}
           </button>
         )}
+      </div>
+
+      <div className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[var(--theme-text)]">Masa sayı</p>
+          <p className="text-[11px] text-[var(--theme-text-secondary)]">Ümumi masa limiti</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => saveTableCount(Math.max(1, maxTable - 1))} disabled={savingTableCount || maxTable <= 1} className="w-8 h-8 rounded-lg bg-[var(--theme-panel)] flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] disabled:opacity-20"><Minus size={14} /></button>
+          <span className="text-[var(--theme-text)] font-black text-lg w-8 text-center tabular-nums">{maxTable}</span>
+          <button onClick={() => saveTableCount(Math.min(200, maxTable + 1))} disabled={savingTableCount || maxTable >= 200} className="w-8 h-8 rounded-lg bg-[var(--theme-panel)] flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] disabled:opacity-20"><Plus size={14} /></button>
+        </div>
       </div>
 
       <div className="space-y-4">

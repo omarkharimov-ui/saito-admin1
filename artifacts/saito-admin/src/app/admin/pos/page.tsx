@@ -202,12 +202,24 @@ export default function POSPage() {
       return;
     }
     try {
+      const ordersRes = await fetch('/api/orders');
+      if (ordersRes.ok) {
+        const data = await ordersRes.json();
+        const orders = data.orders || [];
+        const primary = orders.find(
+          (o: any) => o.table_number === actionSheetTable.table_number && !['paid', 'cancelled', 'closed'].includes(o.status)
+        );
+        if (!primary) {
+          toast.error('Bu masada aktiv sifariş yoxdur, ayırmaq mümkün deyil', { id: 'action-toast' });
+          return;
+        }
+      }
       const res = await fetch('/api/orders/unmerge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ primary_table_number: actionSheetTable.table_number, child_table_numbers: selectedForSplit }),
       });
-      const data = res.ok ? await res.json() : { error: (await res.json()).error || 'Xəta' };
+      const result = res.ok ? await res.json() : { error: (await res.json()).error || 'Xəta' };
       if (res.ok) {
         toast.success('Masalar ayrıldı', { id: 'action-toast' });
         setSplitMode(false);
@@ -215,7 +227,7 @@ export default function POSPage() {
         setActionSheetOpen(false);
         pos.fetchData();
       } else {
-        toast.error(data.error || 'Ayırma uğursuz oldu', { id: 'action-toast' });
+        toast.error(result.error || 'Ayırma uğursuz oldu', { id: 'action-toast' });
       }
     } catch (e: any) {
       toast.error(e.message || 'Ayırma xətası', { id: 'action-toast' });

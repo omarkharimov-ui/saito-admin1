@@ -173,22 +173,22 @@ export function CartPanel({
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} {t('items')}</span>
               <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
-              <div className="flex items-center gap-1.5">
-                <Users size={12} className="text-[var(--theme-text-secondary)]" />
-                {onUpdateGuests && (
-                  <button onClick={e => { e.stopPropagation(); onUpdateGuests(-1); }}
-                    className="w-10 h-8 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-base font-bold leading-none transition-all active:scale-90">
-                    −
-                  </button>
-                )}
-                <span className="text-sm font-bold tabular-nums text-[var(--theme-text)] min-w-[18px] text-center">{cart.guest_count}</span>
-                {onUpdateGuests && (
-                  <button onClick={e => { e.stopPropagation(); onUpdateGuests(1); }}
-                    className="w-10 h-8 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-base font-bold leading-none transition-all active:scale-90">
-                    +
-                  </button>
-                )}
-              </div>
+                <div className="flex items-center gap-2">
+                  <Users size={14} className="text-[var(--theme-text-secondary)]" />
+                  {onUpdateGuests && (
+                    <button onClick={e => { e.stopPropagation(); onUpdateGuests(-1); }}
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90">
+                      −
+                    </button>
+                  )}
+                  <span className="text-lg font-black tabular-nums text-[var(--theme-text)] min-w-[24px] text-center">{cart.guest_count}</span>
+                  {onUpdateGuests && (
+                    <button onClick={e => { e.stopPropagation(); onUpdateGuests(1); }}
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90">
+                      +
+                    </button>
+                  )}
+                </div>
             </div>
           </div>
         </div>

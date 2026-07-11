@@ -85,7 +85,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
           <span className={`mt-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-black leading-none uppercase tracking-tight ${
             lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
           }`}>
-            G{groupNumber}
+            {t('group_label')} {groupNumber}
           </span>
         )}
       </span>

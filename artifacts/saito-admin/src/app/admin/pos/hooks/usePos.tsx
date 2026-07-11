@@ -280,17 +280,23 @@ export function usePos() {
     cartInteractionCount.current += 1;
     setCart(prev => {
       if (!prev) return null;
-      const items = [...prev.items];
-      items.push({
-        product_id: combo.id,
-        product_name: combo.name,
-        unit_price: combo.price,
-        quantity: 1,
-        total_price: combo.price,
-        modifiers: [],
-        is_combo: true,
-        notes: opts?.notes ?? ''
-      });
+      const items = prev.items.map(i => ({ ...i }));
+      const existing = items.find(i => i.product_id === combo.id && i.is_combo);
+      if (existing) {
+        existing.quantity += 1;
+        existing.total_price = existing.unit_price * existing.quantity;
+      } else {
+        items.push({
+          product_id: combo.id,
+          product_name: combo.name,
+          unit_price: combo.price,
+          quantity: 1,
+          total_price: combo.price,
+          modifiers: [],
+          is_combo: true,
+          notes: opts?.notes ?? ''
+        });
+      }
       return { ...prev, items };
     });
   };
@@ -401,6 +407,7 @@ export function usePos() {
               data: { guest_count: newCount }
             }),
           });
+          await fetchData();
         }
       }
     } catch (e) {

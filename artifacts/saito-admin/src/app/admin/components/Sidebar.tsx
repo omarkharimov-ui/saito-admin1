@@ -77,7 +77,7 @@ const Sidebar = ({
 
   return (
     <div
-      className={`fixed inset-y-0 left-0 z-50 flex flex-col lg:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-50 flex flex-col ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
       style={{ width: 290 }}

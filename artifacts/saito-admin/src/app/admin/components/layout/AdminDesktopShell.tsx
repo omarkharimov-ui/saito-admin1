@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Sidebar from '../Sidebar';
 import { AdminHeader } from '../AdminHeader';
@@ -47,46 +46,23 @@ export default function AdminDesktopShell({
       <SimpleToaster />
       <Sidebar role={role} isOpen={sidebarOpen && !isFullscreen} />
 
-      <AnimatePresence>
-        {sidebarOpen && !isFullscreen && (
-          <motion.button
-            key="sidebar-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            type="button"
-            aria-label="Menyunu bağla"
-            className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <motion.main
-        animate={{ marginLeft: isFullscreen ? 0 : sidebarOpen ? 290 : 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      <main
         className="flex-1 px-8 min-h-0 relative flex flex-col overflow-x-hidden"
-        style={{ maxWidth: isFullscreen ? '100vw' : sidebarOpen ? 'calc(100vw - 290px)' : '100vw' }}
+        style={{
+          marginLeft: isFullscreen ? 0 : sidebarOpen ? 290 : 0,
+          maxWidth: isFullscreen ? '100vw' : sidebarOpen ? 'calc(100vw - 290px)' : '100vw',
+          transition: 'margin-left 0.25s ease, max-width 0.25s ease',
+        }}
       >
         <LayoutProvider>
           <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={pageKey}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="w-full"
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
+            <div key={pageKey} className="w-full">
+              {children}
+            </div>
           </div>
         </LayoutProvider>
-      </motion.main>
+      </main>
     </div>
   );
 }

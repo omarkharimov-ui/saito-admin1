@@ -6,11 +6,14 @@ import toast, { useToaster } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
-import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge } from 'lucide-react';
+import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge, LayoutGrid, Map as MapIcon, Sun, Moon } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { KitchenAIScheduler } from './components/KitchenAIScheduler';
 import { UpcomingReservations } from './components/UpcomingReservations';
+import { CountdownTimer } from './components/CountdownTimer';
+import { TableMapView } from './components/TableMapView';
 import { az } from '@/lib/i18n/locales/az';
 import { en } from '@/lib/i18n/locales/en';
 import { ru } from '@/lib/i18n/locales/ru';
@@ -121,6 +124,22 @@ function elapsedMinutes(createdAt: string): number {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
 }
 
+function isAllItemsReady(order: Order): boolean {
+  return order.items.length > 0 && order.items.every(it => it.preparedQuantity >= it.orderedQuantity);
+}
+
+function isDelayed(order: Order, threshold = 15): boolean {
+  if (!order.kitchen_accepted_at) return false;
+  return elapsedMinutes(order.kitchen_accepted_at) >= threshold && !isAllItemsReady(order);
+}
+
+function priorityWeight(order: Order): number {
+  if (order.is_rush) return 0;
+  if (isDelayed(order)) return 1;
+  if (!['preparing', 'ready', 'completed'].includes(order.kitchen_status)) return 2;
+  return 3;
+}
+
 function mapRawOrder(o: any, lang = 'az'): Order {
   const items: OrderItem[] = (o.order_items || []).map((i: any) => {
     const orderedQuantity = Number(i.quantity) || 0;
@@ -139,7 +158,7 @@ function mapRawOrder(o: any, lang = 'az'): Order {
       orderedQuantity,
       preparedQuantity,
       is_on_hold: false,
-      course: 'main',
+      course: i.course || 'main',
       image_url: i.image_url || prod?.image_url,
       created_at: i.created_at,
     };
@@ -167,6 +186,7 @@ function CardWithCollapse({
   order, pendingItems, readyItems, allItemsReady, kitchenStatusLabel,
   isDelayed, stage, isNewlyAdded, isReadyTab,
   onAccept, onDeliver, onComplete, isAllItemsReady, formatTime, t, onSoldOut,
+  lightMode, delayThreshold,
 }: {
   order: Order;
   pendingItems: OrderItem[];
@@ -184,6 +204,8 @@ function CardWithCollapse({
   formatTime: (c: string) => string;
   t: any;
   onSoldOut: (productId: string, productName: string) => void;
+  lightMode: boolean;
+  delayThreshold: number;
 }) {
   const [showReady, setShowReady] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -308,10 +330,11 @@ function CardWithCollapse({
                 </h2>
                 {order.is_rush && <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-500/15 border border-orange-500/30 text-orange-400">{t.kitchen_rush||'TƏLƏSİR'}</span>}
               </div>
-              <div className={`flex items-center gap-1.5 text-sm ${isDelayed ? 'text-red-400 font-semibold' : 'text-white/35'}`}>
+              <div className={`flex items-center gap-1.5 text-sm ${isDelayed ? 'text-red-400 font-semibold' : lightMode ? 'text-black/50' : 'text-white/35'}`}>
                 {isDelayed ? <AlertTriangle size={13}/> : <Clock size={13}/>}
                 <span>{formatTime(timerBase(order))} əvvəl</span>
                 {isDelayed && <span className="font-black">— {t.kitchen_overdue||'GECİKMƏ!'}</span>}
+                <CountdownTimer createdAt={timerBase(order)} thresholdMinutes={delayThreshold} lightMode={lightMode} />
               </div>
             </div>
             <button onClick={() => setModalOpen(false)} className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/[0.06] border border-white/[0.1] text-white/50 hover:text-white transition-all text-lg">×</button>
@@ -328,14 +351,14 @@ function CardWithCollapse({
             {stage === 'accept' && (
               <button onClick={() => { onAccept(); setModalOpen(false); }}
                 className="w-full rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97]"
-                style={{ background: 'linear-gradient(135deg,#d4a825,#b8891e)', color:'#000', fontSize: 18, padding: '20px 0', letterSpacing: '0.02em', boxShadow:'0 4px 24px rgba(212,175,55,0.3)' }}>
+                style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#d4a825,#b8891e)', color: lightMode ? '#fff' : '#000', fontSize: 18, padding: '20px 0', letterSpacing: '0.02em', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 24px rgba(212,175,55,0.3)' }}>
                 <FlameKindling size={22}/> {t.kitchen_accept||'Qəbul Et'}
               </button>
             )}
             {stage === 'deliver' && (
               <button onClick={() => { onDeliver(); setModalOpen(false); }}
                 className="w-full rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97]"
-                style={{ background: 'linear-gradient(135deg,#0f7a57,#0a5c41)', color:'#fff', border:'1px solid rgba(16,185,129,0.25)', fontSize: 18, padding: '20px 0', boxShadow:'0 4px 24px rgba(16,185,129,0.2)' }}>
+                style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#0f7a57,#0a5c41)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: 18, padding: '20px 0', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 24px rgba(16,185,129,0.2)' }}>
                 <SendHorizonal size={22}/> {t.kitchen_mark_ready||'Hazırdır — Servisə Ver'}
               </button>
             )}
@@ -379,10 +402,11 @@ function CardWithCollapse({
               )}
               {order.is_rush && <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-orange-500/15 border border-orange-500/30 text-orange-400 tracking-widest">{t.kitchen_rush||'TƏLƏSİR'}</span>}
             </div>
-            <div className={`flex items-center gap-1 text-[11px] ${isDelayed ? 'text-red-400/80 font-semibold' : 'text-white/30'}`}>
+            <div className={`flex items-center gap-1 text-[11px] ${isDelayed ? 'text-red-400/80 font-semibold' : lightMode ? 'text-black/40' : 'text-white/30'}`}>
               {isDelayed ? <AlertTriangle size={10}/> : <Clock size={10}/>}
               <span>{formatTime(timerBase(order))} əvvəl</span>
               {isDelayed && <span className="font-black">— GECİKMƏ</span>}
+              <CountdownTimer createdAt={timerBase(order)} thresholdMinutes={delayThreshold} lightMode={lightMode} />
             </div>
           </div>
           <span className={`flex-shrink-0 px-2 py-1 rounded-lg text-[10px] font-black border ${kitchenStatusLabel.color} ${kitchenStatusLabel.badge} ${kitchenStatusLabel.pulse ? 'animate-pulse' : ''}`}>
@@ -421,26 +445,58 @@ function CardWithCollapse({
             {readyItems.length > 4 && <p className="text-[10px] text-emerald-400/50 px-3 py-1">+{readyItems.length - 4} daha</p>}
           </div>
         )}
+
+        {/* Course progress */}
+        {pendingItems.length > 0 && (() => {
+          const courses = new Map<string, { pending: number; ready: number; total: number }>();
+          order.items.forEach(it => {
+            const c = it.course || 'main';
+            const entry = courses.get(c) || { pending: 0, ready: 0, total: 0 };
+            if (it.preparedQuantity < it.orderedQuantity) entry.pending += (it.orderedQuantity - it.preparedQuantity);
+            else entry.ready += it.preparedQuantity;
+            entry.total += it.orderedQuantity;
+            courses.set(c, entry);
+          });
+          if (courses.size <= 1) return null;
+          return (
+            <div className="mt-3 pt-2 border-t border-white/[0.05] space-y-2">
+              {Array.from(courses.entries()).map(([course, data]) => {
+                const pct = data.total > 0 ? (data.ready / data.total) * 100 : 0;
+                return (
+                  <div key={course} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{course}</span>
+                      <span className="text-[10px] font-black text-white/50">{Math.round(pct)}%</span>
+                    </div>
+                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#D4AF37] transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Footer button */}
       {(stage === 'accept' || stage === 'deliver') && (
         <div className="px-3 pb-3 pt-1.5">
           <div className="h-px bg-white/[0.05] mb-2.5" />
-          {stage === 'accept' && (
-            <button onClick={e => { e.stopPropagation(); onAccept(); }}
-              className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
-              style={{ background: 'linear-gradient(135deg,#d4a825,#b8891e)', color:'#000', boxShadow:'0 4px 16px rgba(212,175,55,0.25)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
-              <FlameKindling size={16}/> {t.kitchen_accept||'Qəbul Et'}
-            </button>
-          )}
-          {stage === 'deliver' && (
-            <button onClick={e => { e.stopPropagation(); onDeliver(); }}
-              className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
-              style={{ background: 'linear-gradient(135deg,#0f7a57,#0a5c41)', color:'#fff', boxShadow:'0 4px 16px rgba(16,185,129,0.18)', border:'1px solid rgba(16,185,129,0.3)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
-              <SendHorizonal size={16}/> {t.kitchen_mark_ready||'Hazırdır — Servisə Ver'}
-            </button>
-          )}
+            {stage === 'accept' && (
+              <button onClick={e => { e.stopPropagation(); onAccept(); }}
+                className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
+                style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#d4a825,#b8891e)', color: lightMode ? '#fff' : '#000', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(212,175,55,0.25)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+                <FlameKindling size={16}/> {t.kitchen_accept||'Qəbul Et'}
+              </button>
+            )}
+            {stage === 'deliver' && (
+              <button onClick={e => { e.stopPropagation(); onDeliver(); }}
+                className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
+                style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#0f7a57,#0a5c41)', color: '#fff', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(16,185,129,0.18)', border: lightMode ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(16,185,129,0.3)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+                <SendHorizonal size={16}/> {t.kitchen_mark_ready||'Hazırdır — Servisə Ver'}
+              </button>
+            )}
         </div>
       )}
     </div>
@@ -496,10 +552,14 @@ export default function KitchenPage() {
   const [delayThreshold, setDelayThreshold] = useState(15);
   const prevOrderIds                  = useRef<Set<string>>(new Set());
   const delayAlerted                  = useRef<Set<string>>(new Set());
+  const delay30Alerted                = useRef<Set<string>>(new Set());
   const recentMergeRef                = useRef<{ key: string; time: number }>({ key: '', time: 0 });
   const soundOnRef                    = useRef(soundOn);
   const lastItemToastRef              = useRef<number>(0);
   soundOnRef.current = soundOn;
+
+  const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards');
+  const [kitchenTables, setKitchenTables] = useState<{ table_number: number }[]>([]);
 
   // Newly added items: pending items whose created_at is newer than the order's created_at by >5 s
   // This identifies items added AFTER the original order was placed
@@ -518,6 +578,17 @@ export default function KitchenPage() {
       const val = Number(data?.[0]?.order_delay_minutes);
       if (!isNaN(val) && val >= 1) setDelayThreshold(val);
     });
+  }, []);
+
+  // Load table inventory for map view
+  useEffect(() => {
+    const fetchTables = async () => {
+      try {
+        const { data } = await supabase.from('table_floors').select('table_number').order('table_number');
+        if (data) setKitchenTables(data);
+      } catch {}
+    };
+    fetchTables();
   }, []);
 
   // Polling fallback (hər 30s) — realtime itirilərsə data təzə qalır
@@ -824,16 +895,25 @@ export default function KitchenPage() {
     return () => clearTimeout(timer);
   }, [language]);
 
-  // ── Delay warning sound (15 min) ───────────────────────────────────────────
+  // ── Delay warning sound (15 min + 30 min toast) ───────────────────────────
   useEffect(() => {
     if (!soundOn) return;
     orders.forEach(order => {
-      if (order.status === 'preparing' && order.kitchen_accepted_at && !delayAlerted.current.has(order.id)) {
-        const mins = elapsedMinutes(timerBase(order));
-        if (mins >= 15) {
-          playDelaySound();
-          delayAlerted.current.add(order.id);
-        }
+      const isPreparing = order.kitchen_status === 'preparing' || order.status === 'preparing';
+      if (!isPreparing || !order.kitchen_accepted_at) return;
+      if (!delayAlerted.current.has(order.id) && elapsedMinutes(timerBase(order)) >= 15) {
+        delayAlerted.current.add(order.id);
+        playDelaySound();
+      }
+      if (!delay30Alerted.current.has(order.id) && elapsedMinutes(timerBase(order)) >= 30) {
+        delay30Alerted.current.add(order.id);
+        toast.custom((_t) => (
+          <motion.div initial={{ opacity: 0, y: -16, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: [0, -1, 1, 0] }} transition={{ repeat: Infinity, repeatDelay: 0.8, duration: 0.3 }} exit={{ opacity: 0, x: 100 }} style={{ background: 'linear-gradient(135deg,#2a0a0a,#180808)', border: '1px solid rgba(239,68,68,0.45)', borderRadius: 18, padding: '14px 18px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', minWidth: 260, pointerEvents: 'auto' }} className="flex items-center gap-4">
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><AlertTriangle size={22} color="#f87171" /></div>
+            <div><p style={{ fontSize: 15, fontWeight: 800, color: '#fca5a5', lineHeight: 1.2 }}>Masa {order.table_number}</p><p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2, fontWeight: 600 }}>30 dəqiqədən artıq gecikdi!</p></div>
+          </motion.div>
+        ), { duration: 6000, position: 'top-right' });
+        playDelaySound();
       }
     });
   }, [orders, soundOn]);
@@ -898,7 +978,7 @@ export default function KitchenPage() {
     const cancelled = orders.filter(o => o.kitchen_status === 'cancelled');
     const active = orders
       .filter(o => o.kitchen_status !== 'cancelled' && o.items.length > 0 && o.items.some(it => it.preparedQuantity < it.orderedQuantity))
-      .sort((a, b) => (b.is_rush ? 1 : 0) - (a.is_rush ? 1 : 0));
+      .sort((a, b) => priorityWeight(a) - priorityWeight(b) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     active.push(...cancelled);
     // Hazır: bütün itemlər tam hazırdır
     const ready = orders.filter(o =>
@@ -909,9 +989,6 @@ export default function KitchenPage() {
   }, [orders]);
 
   const display = activeTab === 'active' ? activeOrders : readyOrders;
-
-  const isAllItemsReady = (order: Order) =>
-    order.items.length > 0 && order.items.every(it => it.preparedQuantity >= it.orderedQuantity);
 
   // ── Smart Queue: group items by product across all active orders ───────────
   const groupedQueue = useMemo(() => {
@@ -1019,13 +1096,16 @@ export default function KitchenPage() {
         formatTime={(c: string) => formatTime(c, t)}
         t={t}
         onSoldOut={handleSoldOut}
+        lightMode={lightMode}
+        delayThreshold={delayThreshold}
       />
     );
   };
 
-  // ── Main render ────────────────────────────────────────────────────────────
+   // ── Main render ────────────────────────────────────────────────────────────
+   const { lightMode, setLightMode } = useTheme();
   return (
-    <div className="min-h-screen bg-[#0a0a0a] p-4 sm:p-6 lg:p-8">
+    <div className={`min-h-screen p-4 sm:p-6 lg:p-8 ${lightMode ? 'bg-white text-black' : 'bg-[#0a0a0a] text-white'}`}>
       {showWelcome && (
         <WelcomeScreen role="kitchen" onDismiss={() => setShowWelcome(false)} />
       )}
@@ -1099,40 +1179,51 @@ export default function KitchenPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+         <div className="flex items-center gap-2.5">
+          {/* View mode */}
+          <div className="flex bg-white/[0.04] border border-white/[0.07] rounded-xl p-1">
+            <button onClick={() => setViewMode('cards')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${viewMode === 'cards' ? (lightMode ? 'bg-black text-white' : 'bg-white/10 text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}><LayoutGrid size={12}/>Kart</button>
+            <button onClick={() => setViewMode('map')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${viewMode === 'map' ? (lightMode ? 'bg-black text-white' : 'bg-white/10 text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}><MapIcon size={12}/>Xəritə</button>
+          </div>
+
+          {/* Theme toggle */}
+          <button onClick={() => { try { setLightMode(!lightMode); } catch {} }} className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all ${lightMode ? 'bg-black text-white border-black' : 'bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/70'}`}>
+            {lightMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
           {/* Language switcher */}
-          <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-xl p-1">
+          <div className={`flex items-center rounded-xl p-1 ${lightMode ? 'bg-black/5 border border-black/10' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
             {languages.map(lang => (
               <button key={lang.code}
                 onClick={() => { setTargetLang(lang.code); setLanguage(lang.code as any); }}
-                className={`px-3.5 py-1.5 text-xs font-black rounded-lg transition-all ${language === lang.code ? 'bg-[#D4AF37] text-black' : 'text-white/40 hover:text-white/70'}`}
+                className={`px-3.5 py-1.5 text-xs font-black rounded-lg transition-all ${language === lang.code ? (lightMode ? 'bg-black text-white' : 'bg-[#D4AF37] text-black') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}
               >{lang.label}</button>
             ))}
           </div>
 
           {/* Sound toggle */}
           <button onClick={() => setSoundOn(v => !v)}
-            className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all ${soundOn ? 'bg-[#D4AF37]/10 border-[#D4AF37]/25 text-[#D4AF37]' : 'bg-white/[0.03] border-white/[0.08] text-white/30'}`}>
+            className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all ${soundOn ? (lightMode ? 'bg-black text-white border-black' : 'bg-[#D4AF37]/10 border-[#D4AF37]/25 text-[#D4AF37]') : (lightMode ? 'bg-black/5 text-black/40 border-black/10' : 'bg-white/[0.03] border-white/[0.08] text-white/30')}`}>
             {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
           </button>
 
           {/* Logout */}
           <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/'; }}
-            className="w-11 h-11 rounded-xl border border-white/[0.08] bg-white/[0.03] flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/8 hover:border-red-500/20 transition-all">
+            className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all ${lightMode ? 'bg-black/5 border-black/10 text-black/40 hover:text-red-500 hover:bg-red-50' : 'bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-red-400 hover:bg-red-500/8 hover:border-red-500/20'}`}>
             <LogOut size={18} />
           </button>
 
           {/* Tabs */}
-          <div className="flex bg-white/[0.04] border border-white/[0.07] rounded-2xl p-1">
+          <div className={`flex rounded-2xl p-1 ${lightMode ? 'bg-black/5 border border-black/10' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
             <button onClick={() => setActiveTab('active')}
-              className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'active' ? 'bg-white/[0.1] text-white' : 'text-white/35 hover:text-white/60'}`}>
+              className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'active' ? (lightMode ? 'bg-black text-white' : 'bg-white/[0.1] text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/35 hover:text-white/60')}`}>
               {t.kitchen_active||'Aktiv'}
-              {activeOrders.length > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'active' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/10 text-white/40'}`}>{activeOrders.length}</span>}
+              {activeOrders.length > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'active' ? (lightMode ? 'bg-black/10 text-black' : 'bg-[#D4AF37]/20 text-[#D4AF37]') : (lightMode ? 'bg-black/5 text-black/40' : 'bg-white/10 text-white/40')}`}>{activeOrders.length}</span>}
             </button>
             <button onClick={() => setActiveTab('ready')}
-              className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'ready' ? 'bg-white/[0.1] text-white' : 'text-white/35 hover:text-white/60'}`}>
+              className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'ready' ? (lightMode ? 'bg-black text-white' : 'bg-white/[0.1] text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/35 hover:text-white/60')}`}>
               {t.kitchen_ready||'Hazır'}
-              {readyOrders.length > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'ready' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/40'}`}>{readyOrders.length}</span>}
+              {readyOrders.length > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'ready' ? (lightMode ? 'bg-black/10 text-black' : 'bg-emerald-500/20 text-emerald-400') : (lightMode ? 'bg-black/5 text-black/40' : 'bg-white/10 text-white/40')}`}>{readyOrders.length}</span>}
             </button>
           </div>
         </div>
@@ -1174,10 +1265,14 @@ export default function KitchenPage() {
         </div>
       )}
 
-      {/* ── Order cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 items-start">
-        {display.map(renderOrderCard)}
-      </div>
+      {/* ── Order cards / Map ── */}
+      {viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 items-start">
+          {display.map(renderOrderCard)}
+        </div>
+      ) : (
+        <TableMapView orders={activeTab === 'active' ? activeOrders : readyOrders} tables={kitchenTables} />
+      )}
 
       <KitchenToaster />
 

@@ -202,18 +202,6 @@ export default function POSPage() {
       return;
     }
     try {
-      const ordersRes = await fetch('/api/orders');
-      if (ordersRes.ok) {
-        const data = await ordersRes.json();
-        const orders = data.orders || [];
-        const primary = orders.find(
-          (o: any) => o.table_number === actionSheetTable.table_number && !['paid', 'cancelled', 'closed'].includes(o.status)
-        );
-        if (!primary) {
-          toast.error('Bu masada aktiv sifariş yoxdur, ayırmaq mümkün deyil', { id: 'action-toast' });
-          return;
-        }
-      }
       const res = await fetch('/api/orders/unmerge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

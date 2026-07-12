@@ -19,29 +19,53 @@ export async function POST(req: NextRequest) {
     }
 
     const s = svc();
-    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/separate_tables_v1`, {
-      method: 'POST',
+
+    const primaryHasOrderRes = await fetch(`${s.url}/rest/v1/orders?table_number=eq.${primary_table_number}&status=not.in.(paid,cancelled,closed)&select=id`, { headers: s.headers });
+    const primaryOrders = await primaryHasOrderRes.json();
+    const primaryHasOrder = (primaryOrders || []).length > 0;
+
+    const childTableNumbers = child_table_numbers.map((n: any) => Number(n));
+    const childWhere = `table_number=in.(${childTableNumbers.join(',')})`;
+
+    await fetch(`${s.url}/rest/v1/table_floors?${childWhere}`, {
+      method: 'PATCH',
       headers: s.headers,
       body: JSON.stringify({
-        p_primary_table: primary_table_number,
-        p_child_tables: child_table_numbers,
-        p_performed_by: null,
+        status: 'empty',
+        guest_count: null,
+        total_amount: 0,
+        merged_into_table: null,
+        updated_at: new Date().toISOString(),
       }),
     });
 
-    if (!rpcRes.ok) {
-      const errText = await rpcRes.text();
-      return NextResponse.json({ error: `Separate failed: ${errText}` }, { status: 500 });
+    if (!primaryHasOrder) {
+      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${primary_table_number}`, {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({
+          status: 'empty',
+          guest_count: null,
+          total_amount: 0,
+          merged_into_table: null,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    } else {
+      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${primary_table_number}`, {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({
+          merged_into_table: null,
+          updated_at: new Date().toISOString(),
+        }),
+      });
     }
 
-    const data = await rpcRes.json();
     return NextResponse.json({
       success: true,
-      data,
-      undo: {
-        primaryTable: primary_table_number,
-        childTables: child_table_numbers,
-      },
+      data: { primaryTable: primary_table_number, childTables: childTableNumbers },
+      undo: { primaryTable: primary_table_number, childTables: childTableNumbers },
     });
   } catch (error: any) {
     console.error('[API /orders/unmerge] Error:', error);

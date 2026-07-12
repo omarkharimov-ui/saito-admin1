@@ -45,13 +45,29 @@ export default function AdminDesktopShell({
   return (
     <div className="hidden lg:flex h-screen min-h-0 bg-[var(--theme-bg)] text-[var(--theme-text)] font-sans">
       <SimpleToaster />
-      <Sidebar role={role} isOpen={sidebarOpen && !isFullscreen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar role={role} isOpen={sidebarOpen && !isFullscreen} />
+
+      <AnimatePresence>
+        {sidebarOpen && !isFullscreen && (
+          <motion.button
+            key="sidebar-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            type="button"
+            aria-label="Menyunu bağla"
+            className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       <motion.main
-        animate={{ marginLeft: isFullscreen ? 0 : 290 }}
+        animate={{ marginLeft: isFullscreen ? 0 : sidebarOpen ? 290 : 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className="flex-1 px-8 min-h-0 relative flex flex-col overflow-x-hidden"
-        style={{ maxWidth: isFullscreen ? '100vw' : 'calc(100vw - 290px)' }}
+        style={{ maxWidth: isFullscreen ? '100vw' : sidebarOpen ? 'calc(100vw - 290px)' : '100vw' }}
       >
         <LayoutProvider>
           <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />

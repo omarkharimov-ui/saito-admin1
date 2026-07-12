@@ -49,7 +49,7 @@ const Sidebar = ({
 }: {
   role: 'admin' | 'superadmin' | null;
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
 }) => {
   const pathname = usePathname();
   const { pendingCount, readyOrdersCount } = useNotifications();
@@ -99,7 +99,7 @@ const Sidebar = ({
               >
                 <Link
                   href={link.href}
-                  onClick={onClose}
+                  onClick={onClose ? () => onClose() : undefined}
                   className={`group relative flex items-center gap-3.5 px-4 py-3.5 rounded-[18px] transition-all duration-300 ${
                     isActive 
                       ? 'bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]' 

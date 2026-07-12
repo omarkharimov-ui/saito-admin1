@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect } from 'react';
 import {
-  Plus, Merge, Move, Split, CreditCard,
+  Plus, Merge, Move, Split, CreditCard, Wallet, Banknote, Receipt,
   Printer, Save, XCircle, Check, X, Trash2, GitMerge
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -19,6 +19,12 @@ interface ActionSheetProps {
   onCloseBill: () => void;
   onPrint: () => void;
   onCancelTable?: () => void;
+  onOpenGroupActions?: () => void;
+  onOpenPayment?: () => void;
+  onPaymentMethodSelect?: (method: 'cash' | 'card' | 'split') => void;
+  onDismissGroup?: () => void;
+  onBackFromPayment?: () => void;
+  onBackFromGroup?: () => void;
   mergeMode?: boolean;
   mergeParent?: number | null;
   splitMode?: boolean;
@@ -31,14 +37,19 @@ interface ActionSheetProps {
   onCancelMode?: () => void;
   onConfirmMerge?: () => void;
   groupNumber?: number;
+  groupActionView?: boolean;
+  paymentView?: boolean;
 }
 
 const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } as const;
 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCloseBill, onPrint, onCancelTable,
+  onOpenGroupActions, onOpenPayment, onPaymentMethodSelect, onDismissGroup,
+  onBackFromPayment, onBackFromGroup,
   mergeMode, mergeParent, splitMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForSplit,
-  onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, groupNumber
+  onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, groupNumber,
+  groupActionView, paymentView
 }: ActionSheetProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -48,7 +59,7 @@ export function ActionSheet({
     else document.body.style.overflow = 'unset';
   }, [open, mergeMode]);
 
-  if (!table && !mergeMode) return null;
+  if (!table && !mergeMode && !paymentView && !groupActionView) return null;
 
   const isOccupied = table?.status !== 'empty';
 
@@ -56,14 +67,13 @@ export function ActionSheet({
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'cancel_table', icon: Trash2, label: t('dismiss_table') || 'Masanı boşalt', visible: isOccupied || table?.status === 'reserved' },
-    { id: 'unmerge', icon: Split, label: 'Masaları Ayır', visible: isMerged },
   ];
 
   const visibleActions = actions.filter(a => a.visible);
   const mergedChildren = splitMode && table ? (mergedGroupChildren ?? []) : [];
-  const currentView = mergeMode ? 'merge' : splitMode ? 'split' : open ? 'actions' : 'none';
+  const currentView = groupActionView ? 'group-actions' : paymentView ? 'payment' : mergeMode ? 'merge' : splitMode ? 'split' : open ? 'actions' : 'none';
+  const showGroupButton = isMerged && currentView === 'actions' && visibleActions.length > 0;
 
-  // Group name for merged tables
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
@@ -71,7 +81,7 @@ export function ActionSheet({
       {currentView !== 'none' && (
         <div key="global-pos-root" className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none pb-10">
           {/* Backdrop */}
-          {(currentView === 'actions' || currentView === 'split') && (
+          {(currentView === 'actions' || currentView === 'split' || currentView === 'group-actions' || currentView === 'payment') && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30 backdrop-blur-[2px]"
@@ -90,7 +100,7 @@ export function ActionSheet({
             className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.3)] border ${
               lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
              } ${
-              currentView === 'merge' 
+              currentView === 'merge' || currentView === 'group-actions' || currentView === 'payment'
                 ? 'rounded-full px-6 py-3 min-w-[320px] max-w-md mx-auto' 
                 : 'rounded-[2.5rem] p-7 w-[90%] max-w-md mx-auto'
             }`}
@@ -117,17 +127,65 @@ export function ActionSheet({
                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">{isOccupied ? `${table?.guest_count} Qonaq · ${table?.total_amount.toFixed(2)} ₼` : 'Boş Masa'}</p>
                   </div>
                    <div className="grid grid-cols-3 gap-3">
-                     {visibleActions.map((action) => (
-                       <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, unmerge: onUnmerge, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
-                         className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
-                         <action.icon size={22} strokeWidth={2.5} />
-                         <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
-                       </button>
-                     ))}
+                      {showGroupButton ? (
+                        <button onClick={onOpenGroupActions}
+                          className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'} active:scale-95`}>
+                          <GitMerge size={22} strokeWidth={2.5} />
+                          <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">Qrup</span>
+                        </button>
+                      ) : (
+                       visibleActions.map((action) => (
+                        <button key={action.id} onClick={() => { const fn = { add_order: onAddOrder, close_bill: onCloseBill, cancel_table: onCancelTable }[action.id as string]; if (fn) fn(); }}
+                          className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
+                          <action.icon size={22} strokeWidth={2.5} />
+                          <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
+                        </button>
+                      ))
+                     )}
                    </div>
                   <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Bağla</button>
                 </motion.div>
               )}
+
+              {currentView === 'group-actions' && (
+                <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} key="ui-group" className="flex flex-col gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">Qrup Əməliyyatları</p>
+                  <p className="text-xl font-black tracking-tighter mb-3">Qrup {groupNumber || groupName}</p>
+                  <button onClick={onOpenPayment} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-gold/10 border border-gold/20 text-gold active:scale-[0.98] transition-all">
+                    <CreditCard size={20} strokeWidth={2.5} />
+                    <span className="text-sm font-black tracking-wide">Hesabı Bağla</span>
+                  </button>
+                  <button onClick={onUnmerge} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all">
+                    <Split size={20} strokeWidth={2.5} />
+                    <span className="text-sm font-black tracking-wide">Masaları Ayır</span>
+                  </button>
+                  <button onClick={onDismissGroup} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 active:scale-[0.98] transition-all">
+                    <Trash2 size={20} strokeWidth={2.5} />
+                    <span className="text-sm font-black tracking-wide">Qrupu Boşalt</span>
+                  </button>
+                  <button onClick={onBackFromGroup || onClose} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Geri</button>
+                </motion.div>
+              )}
+
+              {currentView === 'payment' && (
+                <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} key="ui-payment" className="flex flex-col gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Ödəniş Növü</p>
+                  <p className="text-xl font-black tracking-tighter mb-3">{table?.total_amount.toFixed(2)} ₼</p>
+                  <button onClick={() => onPaymentMethodSelect?.('cash')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all">
+                    <Wallet size={20} strokeWidth={2.5} />
+                    <span className="text-sm font-black tracking-wide">Nağd</span>
+                  </button>
+                  <button onClick={() => onPaymentMethodSelect?.('card')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all">
+                    <CreditCard size={20} strokeWidth={2.5} />
+                    <span className="text-sm font-black tracking-wide">Kart</span>
+                  </button>
+                  <button onClick={() => onPaymentMethodSelect?.('split')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-gold/10 border border-gold/20 text-gold active:scale-[0.98] transition-all">
+                    <Receipt size={20} strokeWidth={2.5} />
+                    <span className="text-sm font-black tracking-wide">Böl</span>
+                  </button>
+                   <button onClick={onBackFromPayment || onClose} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Geri</button>
+                 </motion.div>
+               )}
 
               {currentView === 'split' && (
                 <motion.div 

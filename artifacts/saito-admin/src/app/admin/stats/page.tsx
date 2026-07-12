@@ -262,6 +262,15 @@ const StatsPage = () => {
             </div>
           )}
 
+          <StatsPeakHours peakHours={stats.peakHours || []} timeFilter={timeFilter} />
+
+          <StatsCancellationChart
+            cancellationReasons={cancellationDetails}
+            cancellationDetails={cancellationDetails}
+            selectedReason={selectedCancellationReason}
+            onSelectReason={setSelectedCancellationReason}
+          />
+
           <StatsSenseiPanel
             stats={stats}
             aiAnalysis={aiAnalysis}

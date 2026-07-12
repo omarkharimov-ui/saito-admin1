@@ -279,6 +279,7 @@ const StaffTab = () => {
 
 function SalarySection() {
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [staffList, setStaffList] = useState<any[]>([]);
   const [form, setForm] = useState({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
   const [showForm, setShowForm] = useState(false);
 
@@ -288,10 +289,14 @@ function SalarySection() {
     setExpenses(Array.isArray(data) ? data : []);
   };
 
-  useEffect(() => { loadExpenses(); }, []);
+  useEffect(() => {
+    supabase.from('staff').select('id, full_name, role').then(({ data }) => { if (data) setStaffList(data); });
+    loadExpenses();
+  }, []);
 
   const addExpense = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.staff_id) { alert('İşçi seçin'); return; }
     await fetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -314,6 +319,7 @@ function SalarySection() {
         <form onSubmit={addExpense} className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white/5 p-4 rounded-xl">
           <select className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white" value={form.staff_id} onChange={e => setForm({ ...form, staff_id: e.target.value })}>
             <option value="">İşçi seç</option>
+            {staffList.map(s => <option key={s.id} value={s.id}>{s.full_name || s.name} ({s.role})</option>)}
           </select>
           <input type="number" step="0.01" className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white" placeholder="Məbləğ" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
           <input type="date" className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white" value={form.expense_date} onChange={e => setForm({ ...form, expense_date: e.target.value })} />

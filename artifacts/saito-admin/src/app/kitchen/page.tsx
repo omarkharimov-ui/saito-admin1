@@ -6,7 +6,7 @@ import toast, { useToaster } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
-import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge, LayoutGrid, Map as MapIcon, Sun, Moon } from 'lucide-react';
+import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge, LayoutGrid, Map as MapIcon, Sun, Moon, Scissors, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
@@ -480,23 +480,30 @@ function CardWithCollapse({
       </div>
 
       {/* Footer button */}
-      {(stage === 'accept' || stage === 'deliver') && (
+      {(stage === 'accept' || stage === 'deliver' || stage === 'complete') && (
         <div className="px-3 pb-3 pt-1.5">
           <div className="h-px bg-white/[0.05] mb-2.5" />
-            {stage === 'accept' && (
-              <button onClick={e => { e.stopPropagation(); onAccept(); }}
-                className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
-                style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#d4a825,#b8891e)', color: lightMode ? '#fff' : '#000', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(212,175,55,0.25)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
-                <FlameKindling size={16}/> {t.kitchen_accept||'Qəbul Et'}
-              </button>
-            )}
-            {stage === 'deliver' && (
-              <button onClick={e => { e.stopPropagation(); onDeliver(); }}
-                className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
-                style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#0f7a57,#0a5c41)', color: '#fff', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(16,185,129,0.18)', border: lightMode ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(16,185,129,0.3)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
-                <SendHorizonal size={16}/> {t.kitchen_mark_ready||'Hazırdır — Servisə Ver'}
-              </button>
-            )}
+          {stage === 'accept' && (
+            <button onClick={e => { e.stopPropagation(); onAccept(); }}
+              className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
+              style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#d4a825,#b8891e)', color: lightMode ? '#fff' : '#000', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(212,175,55,0.25)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+              <FlameKindling size={16}/> {t.kitchen_accept||'Qəbul Et'}
+            </button>
+          )}
+          {stage === 'deliver' && (
+            <button onClick={e => { e.stopPropagation(); onDeliver(); }}
+              className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
+              style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#0f7a57,#0a5c41)', color: '#fff', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(16,185,129,0.18)', border: lightMode ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(16,185,129,0.3)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+              <SendHorizonal size={16}/> {t.kitchen_mark_ready||'Hazırdır — Servisə Ver'}
+            </button>
+          )}
+          {stage === 'complete' && (
+            <button onClick={e => { e.stopPropagation(); onComplete(); }}
+              className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
+              style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#374151,#1f2937)', color: '#fff', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(0,0,0,0.25)', border: lightMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.08)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+              <CheckCircle2 size={16}/> {t.kitchen_complete||'Tamamla'}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -504,16 +511,17 @@ function CardWithCollapse({
   );
 }
 
+let sharedCtx: AudioContext | null = null;
 function playTone(freq: number, duration: number, vol = 0.4) {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
+    if (!sharedCtx) sharedCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = sharedCtx.createOscillator();
+    const gain = sharedCtx.createGain();
+    osc.connect(gain); gain.connect(sharedCtx.destination);
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(vol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-    osc.start(); osc.stop(ctx.currentTime + duration);
+    gain.gain.setValueAtTime(vol, sharedCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, sharedCtx.currentTime + duration);
+    osc.start(); osc.stop(sharedCtx.currentTime + duration);
   } catch {}
 }
 
@@ -705,7 +713,7 @@ export default function KitchenPage() {
         `)
         .gt('table_number', 0)
         .not('status', 'eq', 'paid')
-        .is('is_draft', 'false') // CRITICAL: hide draft/reservation placeholders from kitchen
+         .is('is_draft', false) // CRITICAL: hide draft/reservation placeholders from kitchen
         .order('created_at', { ascending: false });
 
       if (!error && data) {
@@ -812,7 +820,7 @@ export default function KitchenPage() {
               className="flex items-center gap-4"
             >
               <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(99,179,237,0.1)', border: '1px solid rgba(99,179,237,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 20 }}>Scissors</span>
+                <Scissors size={20} color="#90cdf4" />
               </div>
               <div>
                 <p style={{ fontSize: 15, fontWeight: 800, color: '#90cdf4', lineHeight: 1.2 }}>Masa {tableNum}</p>

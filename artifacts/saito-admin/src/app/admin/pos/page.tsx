@@ -190,7 +190,7 @@ export default function POSPage() {
         toast.error('Eyni masanı seçdiz');
       } else {
         setTransferTarget(table.table_number);
-        handleConfirmTransfer();
+        handleConfirmTransfer(table.table_number);
       }
       return;
     }
@@ -198,28 +198,23 @@ export default function POSPage() {
     pos.selectTable(table);
   };
 
-  const handleConfirmTransfer = async () => {
-    if (!transferSource || !transferTarget) return;
+  const handleConfirmTransfer = async (targetTable?: number) => {
+    if (!transferSource || !targetTable) return;
     try {
       const res = await fetch('/api/orders/transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from_table: transferSource, to_table: transferTarget }),
+        body: JSON.stringify({ from_table: transferSource, to_table: targetTable }),
       });
       const data = await res.json();
       if (res.ok) {
-        setLastUndo({ action: 'transfer', data: data.data?.undo, message: `Masa ${transferSource} → ${transferTarget}` });
+        setLastUndo({ action: 'transfer', data: data.data?.undo, message: `Masa ${transferSource} → ${targetTable}` });
         toast.success('Masa köçürüldü');
       } else {
         toast.error(data.error || 'Köçürmə uğursuz oldu');
       }
     } catch (e: any) {
       toast.error(e.message || 'Köçürmə xətası');
-    } finally {
-      setTransferMode(false);
-      setTransferSource(null);
-      setTransferTarget(null);
-      pos.fetchData();
     }
   };
 
@@ -266,8 +261,8 @@ export default function POSPage() {
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <AnimatePresence mode="wait">
           {pos.activeView === 'floor' && (
-             <div key="floor" className="h-full flex flex-col p-6">
-               {!cleanMode && (
+              <div key="floor" className="h-full flex flex-col p-6">
+                {!cleanMode && (
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
                     <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
@@ -346,6 +341,15 @@ export default function POSPage() {
                  </div>
                 </div>
               </motion.div>
+              )}
+              {cleanMode && (
+                <button
+                  onClick={() => setCleanMode(false)}
+                  className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-black/80 text-white text-xs font-black rounded-full border border-white/10 hover:bg-black transition-all"
+                  title="Sadə rejimi bağla"
+                >
+                  ✕ Sadə rejimi bağla
+                </button>
               )}
  
                 <div className="flex-1 overflow-y-auto">

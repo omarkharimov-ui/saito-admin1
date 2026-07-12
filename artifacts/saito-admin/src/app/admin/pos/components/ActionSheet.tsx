@@ -165,15 +165,11 @@ export function ActionSheet({
                     <Wallet size={20} strokeWidth={2.5} />
                     <span className="text-sm font-black tracking-wide">Nağd</span>
                   </button>
-                  <button onClick={() => onPaymentMethodSelect?.('card')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all">
-                    <CreditCard size={20} strokeWidth={2.5} />
-                    <span className="text-sm font-black tracking-wide">Kart</span>
-                  </button>
-                  <button onClick={() => onPaymentMethodSelect?.('split')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-gold/10 border border-gold/20 text-gold active:scale-[0.98] transition-all">
-                    <Receipt size={20} strokeWidth={2.5} />
-                    <span className="text-sm font-black tracking-wide">Böl</span>
-                  </button>
-                   <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Geri</button>
+                   <button onClick={() => onPaymentMethodSelect?.('card')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all">
+                     <CreditCard size={20} strokeWidth={2.5} />
+                     <span className="text-sm font-black tracking-wide">Kart</span>
+                   </button>
+                    <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Geri</button>
                 </motion.div>
               )}
 

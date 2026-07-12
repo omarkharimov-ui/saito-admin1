@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { GsLoader } from './_shared';
+import { hashPin } from '@/lib/crypto';
 
 type StaffMember = { id: string; name: string; role: string; shift: string; phone: string; pin?: string };
 const ROLES = ['Ofisiant', 'Baş Ofisiant', 'Menecer', 'Barmen', 'Aşpaz', 'Kassa'];
@@ -47,7 +48,9 @@ const StaffTab = () => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error(t('staff_name_required'), { id: 'action-toast' }); return; }
     setSaving(true);
-    const { error } = await supabase.from('staff').update({ name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim(), pin: form.pin || null }).eq('id', editingId!);
+    const updateData: any = { name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() };
+    if (form.pin && form.pin.length === 4) updateData.pin_hash = hashPin(form.pin);
+    const { error } = await supabase.from('staff').update(updateData).eq('id', editingId!);
     if (error) { toast.error(error.message, { id: 'action-toast' }); }
     else {
       setStaff(prev => prev.map(s => s.id === editingId ? { ...s, ...form } : s));
@@ -61,7 +64,9 @@ const StaffTab = () => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error(t('staff_name_required'), { id: 'action-toast' }); return; }
     setSaving(true);
-    const { data, error } = await supabase.from('staff').insert([{ name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim(), pin: form.pin || null }]).select().single();
+    const insertData: any = { name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() };
+    if (form.pin && form.pin.length === 4) insertData.pin_hash = hashPin(form.pin);
+    const { data, error } = await supabase.from('staff').insert([insertData]).select().single();
     if (error) { toast.error(error.message, { id: 'action-toast' }); }
     else { setStaff(prev => [...prev, data as StaffMember]); setForm(emptyForm()); setShowForm(false); toast.success(t('staff_added'), { id: 'action-toast', duration: 3000 }); }
     setSaving(false);

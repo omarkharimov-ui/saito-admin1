@@ -43,8 +43,6 @@ const StatsPage = () => {
   });
 
   /* ─── AI state ─── */
-  const [forecast, setForecast] = useState<any>(null);
-  const [anomalies, setAnomalies] = useState<any[]>([]);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [aiDisplayed, setAiDisplayed] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -182,8 +180,6 @@ const StatsPage = () => {
       <div className="lg:hidden">
         <StatsMobileView
           stats={stats}
-          forecast={forecast}
-          anomalies={anomalies}
           timeFilter={timeFilter}
           loading={loading}
           onTimeFilterChange={setTimeFilter}

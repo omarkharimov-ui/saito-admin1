@@ -27,8 +27,8 @@ interface Props {
     topProduct: string; peakHour: string;
     [key: string]: any;
   };
-  forecast: Forecast | null;
-  anomalies: Anomaly[];
+  forecast?: Forecast | null;
+  anomalies?: Anomaly[];
   timeFilter: string;
   loading: boolean;
   onTimeFilterChange: (f: string) => void;
@@ -43,7 +43,7 @@ interface Props {
 
 const FILTERS = ['today', 'week', 'month', '3months', 'year'] as const;
 
-export default function StatsMobileView({ stats, forecast, anomalies, timeFilter, loading, onTimeFilterChange, aiAnalysis, aiDisplayed, aiLoading, aiClosing, logoFlash, onFetchAiAnalysis, onCloseAiAnalysis }: Props) {
+export default function StatsMobileView({ stats, forecast, anomalies = [], timeFilter, loading, onTimeFilterChange, aiAnalysis, aiDisplayed, aiLoading, aiClosing, logoFlash, onFetchAiAnalysis, onCloseAiAnalysis }: Props) {
   const { t, language } = useLanguage();
   const { lightMode } = useTheme();
   const [activeSection, setActiveSection] = useState<'overview' | 'products' | 'hours' | 'sensei'>('overview');

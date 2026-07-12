@@ -109,8 +109,8 @@ interface Order {
 
 const translations = { az, en, ru };
 
-function timerBase(order: { created_at: string }): string {
-  return order.created_at;
+function timerBase(order: { created_at: string; kitchen_accepted_at?: string | null }): string {
+  return order.kitchen_accepted_at || order.created_at;
 }
 
 function formatTime(createdAt: string, t: any): string {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { verifyPin } from '@/lib/crypto';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     const { data: staff, error } = await supabase
       .from('staff')
-      .select('id, full_name, role, pin, is_active')
+      .select('id, full_name, role, pin_hash, is_active')
       .eq('is_active', true)
       .limit(100);
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Xəta' }, { status: 500 });
     }
 
-    const matched = staff.find((s: any) => s.pin === pin);
+    const matched = staff.find((s: any) => verifyPin(pin, s.pin_hash));
 
     if (!matched) {
       return NextResponse.json({ error: 'Yanlış PIN' }, { status: 401 });

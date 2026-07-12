@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
-import { createClient } from '@/lib/supabase';
-import { notFound } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 interface MenuPageProps {
   searchParams: Promise<{ table?: string }>;
@@ -10,7 +9,6 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
   const params = await searchParams;
   const tableNumber = params.table;
 
-  const supabase = createClient();
   const { data: products, error } = await supabase
     .from('products')
     .select('id, name_az, name_en, name_ru, price, image_url, category:category_id(name_az, name_en, name_ru)')

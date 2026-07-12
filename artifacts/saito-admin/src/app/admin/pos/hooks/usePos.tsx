@@ -351,7 +351,13 @@ export function usePos() {
           status: 'confirmed',
           guest_count: cart.guest_count,
           customer_note: cart.notes,
-          order_type: cart.order_type
+          order_type: cart.order_type,
+          created_by: (() => {
+            try {
+              const session = localStorage.getItem('saito_staff_session');
+              return session ? JSON.parse(session).id : null;
+            } catch { return null; }
+          })()
         }),
       });
       if (res.ok) {

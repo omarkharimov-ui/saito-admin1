@@ -1012,6 +1012,11 @@ export default function KitchenPage() {
 
   // ── Sifarişi qəbul et — atomik RPC (FOR UPDATE + status transition)
   const acceptOrder = async (order: Order) => {
+    try {
+      const session = localStorage.getItem('saito_staff_session');
+      const staffId = session ? JSON.parse(session).id : null;
+      await supabase.from('orders').update({ assigned_to: staffId }).eq('id', order.id);
+    } catch {}
     const { error } = await supabase.rpc('prepare_order_items', { p_order_id: order.id });
     if (error) console.error('[acceptOrder] error:', error);
     fetchOrdersRef.current();

@@ -9,9 +9,9 @@ import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { GsLoader } from './_shared';
 
-type StaffMember = { id: string; name: string; role: string; shift: string; phone: string };
+type StaffMember = { id: string; name: string; role: string; shift: string; phone: string; pin?: string };
 const ROLES = ['Ofisiant', 'Baş Ofisiant', 'Menecer', 'Barmen', 'Aşpaz', 'Kassa'];
-const emptyForm = () => ({ name: '', role: ROLES[0], shift: '', phone: '' });
+const emptyForm = () => ({ name: '', role: ROLES[0], shift: '', phone: '', pin: '' });
 
 const STAFF_CACHE_KEY = 'saito_staff_cache';
 
@@ -37,7 +37,7 @@ const StaffTab = () => {
 
   const openEdit = (s: StaffMember) => {
     setEditingId(s.id);
-    setForm({ name: s.name, role: s.role, shift: s.shift, phone: s.phone || '' });
+    setForm({ name: s.name, role: s.role, shift: s.shift, phone: s.phone || '', pin: (s as any).pin || '' });
     setShowForm(false);
   };
 
@@ -47,7 +47,7 @@ const StaffTab = () => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error(t('staff_name_required'), { id: 'action-toast' }); return; }
     setSaving(true);
-    const { error } = await supabase.from('staff').update({ name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() }).eq('id', editingId!);
+    const { error } = await supabase.from('staff').update({ name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim(), pin: form.pin || null }).eq('id', editingId!);
     if (error) { toast.error(error.message, { id: 'action-toast' }); }
     else {
       setStaff(prev => prev.map(s => s.id === editingId ? { ...s, ...form } : s));
@@ -61,7 +61,7 @@ const StaffTab = () => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error(t('staff_name_required'), { id: 'action-toast' }); return; }
     setSaving(true);
-    const { data, error } = await supabase.from('staff').insert([{ name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() }]).select().single();
+    const { data, error } = await supabase.from('staff').insert([{ name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim(), pin: form.pin || null }]).select().single();
     if (error) { toast.error(error.message, { id: 'action-toast' }); }
     else { setStaff(prev => [...prev, data as StaffMember]); setForm(emptyForm()); setShowForm(false); toast.success(t('staff_added'), { id: 'action-toast', duration: 3000 }); }
     setSaving(false);
@@ -103,6 +103,18 @@ const StaffTab = () => {
               placeholder="050 000 00 00"
               value={form.phone}
               onChange={e => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+            <div className="space-y-1.5">
+             <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+               <span className="text-gold/70">🔒</span> PIN kod
+             </label>
+            <input
+              className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all tracking-widest"
+              placeholder="0000"
+              maxLength={4}
+              value={form.pin}
+              onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
             />
           </div>
           <div className="space-y-1.5">
@@ -189,10 +201,11 @@ const StaffTab = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-base font-semibold text-white leading-tight">{s.name}</p>
                     {s.phone && <p className="text-xs text-[var(--theme-text-secondary)] mt-1 font-mono">{s.phone}</p>}
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <span className="text-[11px] font-bold text-gold/80 bg-gold/8 border border-gold/15 px-2.5 py-1 rounded-lg">{s.role}</span>
-                      {s.shift && <span className="text-[11px] text-[var(--theme-text-secondary)]">{s.shift}</span>}
-                    </div>
+                     <div className="flex flex-wrap items-center gap-2 mt-2">
+                       <span className="text-[11px] font-bold text-gold/80 bg-gold/8 border border-gold/15 px-2.5 py-1 rounded-lg">{s.role}</span>
+                       {s.shift && <span className="text-[11px] text-[var(--theme-text-secondary)]">{s.shift}</span>}
+                       {(s as any).pin && <span className="text-[11px] font-mono text-white/40">PIN: ••••</span>}
+                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
@@ -215,20 +228,21 @@ const StaffTab = () => {
 
           {/* Desktop: cədvəl */}
           <div className="hidden md:block bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-2xl overflow-hidden">
-            <div className="px-7 py-4 bg-[var(--theme-surface-soft)] grid grid-cols-[1.6fr_auto_auto_auto] gap-4 border-b border-[var(--theme-border)]">
-              {[t('staff_col_name'), t('staff_col_role'), t('staff_col_shift'), ''].map((h, i) => <span key={i} className="text-[11px] uppercase tracking-widest text-[var(--theme-text-muted)] font-bold">{h}</span>)}
+            <div className="px-7 py-4 bg-[var(--theme-surface-soft)] grid grid-cols-[1.6fr_auto_auto_auto_auto] gap-4 border-b border-[var(--theme-border)]">
+              {[t('staff_col_name'), t('staff_col_role'), t('staff_col_shift'), 'PIN', ''].map((h, i) => <span key={i} className="text-[11px] uppercase tracking-widest text-[var(--theme-text-muted)] font-bold">{h}</span>)}
             </div>
-            <div className="divide-y divide-white/5">
-              {staff.map(s => (
-                <React.Fragment key={s.id}>
-                  <div className={`px-7 py-5 grid grid-cols-[1.6fr_auto_auto_auto] gap-4 items-center transition-colors ${editingId === s.id ? 'bg-gold/[0.04] border-l-2 border-gold' : 'hover:bg-white/[0.02]'}`}>
-                    <div>
-                      <p className="text-lg font-semibold text-white leading-tight">{s.name}</p>
-                      {s.phone && <p className="text-sm text-[var(--theme-text-secondary)] mt-1 font-mono">{s.phone}</p>}
-                    </div>
-                    <span className="text-sm font-bold text-gold/80 bg-gold/8 border border-gold/15 px-3 py-1.5 rounded-lg whitespace-nowrap">{s.role}</span>
-                    <span className="text-sm text-[var(--theme-text-secondary)] whitespace-nowrap">{s.shift || '—'}</span>
-                    <div className="flex items-center gap-2">
+             <div className="divide-y divide-white/5">
+               {staff.map(s => (
+                 <React.Fragment key={s.id}>
+                   <div className={`px-7 py-5 grid grid-cols-[1.6fr_auto_auto_auto_auto] gap-4 items-center transition-colors ${editingId === s.id ? 'bg-gold/[0.04] border-l-2 border-gold' : 'hover:bg-white/[0.02]'}`}>
+                     <div>
+                       <p className="text-lg font-semibold text-white leading-tight">{s.name}</p>
+                       {s.phone && <p className="text-sm text-[var(--theme-text-secondary)] mt-1 font-mono">{s.phone}</p>}
+                     </div>
+                     <span className="text-sm font-bold text-gold/80 bg-gold/8 border border-gold/15 px-3 py-1.5 rounded-lg whitespace-nowrap">{s.role}</span>
+                     <span className="text-sm text-[var(--theme-text-secondary)] whitespace-nowrap">{s.shift || '—'}</span>
+                     <span className="text-sm font-mono text-white/60">{(s as any).pin ? '••••' : '—'}</span>
+                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => editingId === s.id ? cancelEdit() : openEdit(s)}
@@ -251,11 +265,75 @@ const StaffTab = () => {
               ))}
             </div>
           </div>
-        </>
+          </>
+       )}
+       
+       {/* Salary / Expenses */}
+       <div className="bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-2xl p-6 mt-6">
+         <h3 className="text-white font-bold text-lg mb-4">Maaş və Xərclər</h3>
+         <SalarySection />
+       </div>
+     </div>
+   );
+ };
+
+function SalarySection() {
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [form, setForm] = useState({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+  const [showForm, setShowForm] = useState(false);
+
+  const loadExpenses = async () => {
+    const res = await fetch('/api/expenses');
+    const data = await res.json();
+    setExpenses(Array.isArray(data) ? data : []);
+  };
+
+  useEffect(() => { loadExpenses(); }, []);
+
+  const addExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await fetch('/api/expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    setForm({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+    setShowForm(false);
+    loadExpenses();
+  };
+
+  const total = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-white/50 text-sm">Ümumi xərclər: <span className="text-white font-bold">₼{total.toFixed(2)}</span></p>
+        <button onClick={() => setShowForm(v => !v)} className="px-4 py-2 bg-[#D4AF37] text-black text-xs font-black rounded-xl">+ Yeni</button>
+      </div>
+      {showForm && (
+        <form onSubmit={addExpense} className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white/5 p-4 rounded-xl">
+          <select className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white" value={form.staff_id} onChange={e => setForm({ ...form, staff_id: e.target.value })}>
+            <option value="">İşçi seç</option>
+          </select>
+          <input type="number" step="0.01" className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white" placeholder="Məbləğ" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+          <input type="date" className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white" value={form.expense_date} onChange={e => setForm({ ...form, expense_date: e.target.value })} />
+          <button type="submit" className="bg-black text-white text-xs font-black rounded-xl">Yadda saxla</button>
+        </form>
       )}
+      <div className="space-y-2 max-h-[300px] overflow-y-auto">
+        {expenses.map(e => (
+          <div key={e.id} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
+            <div>
+              <p className="text-white text-sm font-semibold">{e.category === 'salary' ? 'Maaş' : e.category}</p>
+              <p className="text-white/30 text-xs">{e.note || e.expense_date}</p>
+            </div>
+            <span className="text-white font-bold">₼{Number(e.amount || 0).toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
-};
+}
 
 /* ─── Hours Tab ─── */
 const DAYS = ['Bazar ertəsi', 'Çərşənbə axşamı', 'Çərşənbə', 'Cümə axşamı', 'Cümə', 'Şənbə', 'Bazar'];

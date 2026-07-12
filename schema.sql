@@ -283,7 +283,22 @@ CREATE TABLE IF NOT EXISTS clock_events (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 16. suppliers
+-- 16. expenses
+CREATE TABLE IF NOT EXISTS expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  staff_id UUID,
+  category TEXT DEFAULT 'salary',
+  amount NUMERIC NOT NULL DEFAULT 0,
+  note TEXT,
+  expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_by UUID,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_expenses_staff ON expenses(staff_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
+
+-- 17. suppliers
 CREATE TABLE IF NOT EXISTS suppliers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,

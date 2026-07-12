@@ -56,17 +56,11 @@ export function usePos() {
 
   useEffect(() => {
     fetchData();
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    const debouncedFetch = () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(fetchData, 500);
-    };
     const channel = createRealtimeChannel('pos-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, debouncedFetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData)
       .subscribe();
     return () => { 
-      if (debounceTimer) clearTimeout(debounceTimer);
       removeRealtimeChannel(channel); 
     };
   }, [fetchData]);

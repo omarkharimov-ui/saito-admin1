@@ -32,14 +32,10 @@ export default function POSPage() {
   const [splitMode, setSplitMode] = useState(false);
   const [selectedForSplit, setSelectedForSplit] = useState<number[]>([]);
 
-  const [paying, setPaying] = useState(false);
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<any>(null);
   const [cleanMode, setCleanMode] = useState(false);
-
-  const [groupActionView, setGroupActionView] = useState(false);
-  const [paymentView, setPaymentView] = useState(false);
 
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
 
@@ -79,107 +75,27 @@ export default function POSPage() {
   };
 
   const handleCloseBill = async () => {
-    if (!actionSheetTable || paying) return;
-    setPaying(true);
+    if (!actionSheetTable) return;
+    const tableNumbers = actionSheetGroup
+      ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
+      : [actionSheetTable.table_number];
+
+    toast.loading('Ödəniş işlənir...', { id: 'action-toast' });
     try {
       const ordersRes = await fetch('/api/orders');
       if (!ordersRes.ok) throw new Error('Failed to fetch orders');
       const ordersData = await ordersRes.json();
-      const activeOrder = (ordersData.orders || []).find((o: any) => 
-        o.table_number === actionSheetTable.table_number && 
-        !['paid', 'cancelled'].includes(o.status)
+      const activeOrders = (ordersData.orders || []).filter((o: any) => 
+        tableNumbers.includes(o.table_number) && 
+        !['paid', 'cancelled', 'closed'].includes(o.status)
       );
       
-      if (!activeOrder) {
+      if (activeOrders.length === 0) {
         toast.error('Aktiv sifariş tapılmadı', { id: 'action-toast' });
         return;
       }
 
-      const res = await fetch('/api/orders/pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          order_id: activeOrder.id,
-          payment_method: 'card',
-          cash_amount: 0,
-          card_amount: activeOrder.total_amount || 0,
-          tip_amount: 0,
-        }),
-      });
-
-      if (res.ok) {
-        toast.success('Ödəniş uğurla tamamlandı', { id: 'action-toast' });
-        setActionSheetOpen(false);
-        pos.fetchData();
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Ödəniş uğursuz oldu', { id: 'action-toast' });
-      }
-    } catch (e: any) {
-      toast.error(e.message || 'Ödəniş xətası', { id: 'action-toast' });
-    } finally {
-      setPaying(false);
-    }
-  };
-
-  const handleOpenPayment = () => setGroupActionView(false);
-  const handleBackFromGroup = () => setGroupActionView(false);
-  const handleBackFromPayment = () => { setPaymentView(false); };
-
-  const handleDismissGroup = async () => {
-    if (!actionSheetTable) return;
-    const group = actionSheetGroup;
-    const numbers = [actionSheetTable.table_number, ...(group?.children?.map((c: any) => c.table_number) || [])];
-    for (const num of numbers) {
-      await pos.dismissTable(num);
-    }
-    setGroupActionView(false);
-    setActionSheetOpen(false);
-    pos.fetchData();
-    toast.success('Qrup boşaldıldı');
-  };
-
-  const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'split') => {
-    if (!actionSheetTable || paying) return;
-    setPaying(true);
-    try {
-      const ordersRes = await fetch('/api/orders');
-      if (!ordersRes.ok) throw new Error('Failed to fetch orders');
-      const ordersData = await ordersRes.json();
-      const activeOrder = (ordersData.orders || []).find((o: any) => 
-        o.table_number === actionSheetTable.table_number && 
-        !['paid', 'cancelled'].includes(o.status)
-      );
-
-      if (!activeOrder) {
-        toast.error('Aktiv sifariş tapılmadı', { id: 'action-toast' });
-        return;
-      }
-
-      const total = activeOrder.total_amount || 0;
-
-      if (method === 'cash') {
-        const res = await fetch('/api/orders/pay', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            order_id: activeOrder.id,
-            payment_method: 'cash',
-            cash_amount: total,
-            card_amount: 0,
-            tip_amount: 0,
-          }),
-        });
-        if (res.ok) {
-          toast.success('Nağd ödəniş uğurla tamamlandı');
-          setPaymentView(false);
-          setActionSheetOpen(false);
-          pos.fetchData();
-        } else {
-          const err = await res.json();
-          toast.error(err.error || 'Ödəniş uğursuz oldu');
-        }
-      } else if (method === 'card') {
+      for (const activeOrder of activeOrders) {
         const res = await fetch('/api/orders/pay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -187,27 +103,37 @@ export default function POSPage() {
             order_id: activeOrder.id,
             payment_method: 'card',
             cash_amount: 0,
-            card_amount: total,
+            card_amount: activeOrder.total_amount || 0,
             tip_amount: 0,
           }),
         });
-        if (res.ok) {
-          toast.success('Kart ödəniş uğurla tamamlandı');
-          setPaymentView(false);
-          setActionSheetOpen(false);
-          pos.fetchData();
-        } else {
+
+        if (!res.ok) {
           const err = await res.json();
-          toast.error(err.error || 'Ödəniş uğursuz oldu');
+          toast.error(err.error || 'Ödəniş uğursuz oldu', { id: 'action-toast' });
+          return;
         }
-      } else {
-        toast('Bölünmüş ödəniş funksiyası tezliklə əlavə olunacaq', { id: 'action-toast' });
       }
+
+      toast.success('Bütün sifarişlər ödənildi', { id: 'action-toast' });
+      setActionSheetOpen(false);
+      pos.fetchData();
     } catch (e: any) {
-      toast.error(e.message || 'Ödəniş xətası');
-    } finally {
-      setPaying(false);
+      toast.error(e.message || 'Ödəniş xətası', { id: 'action-toast' });
     }
+  };
+
+  const handleDismissGroup = async () => {
+    if (!actionSheetTable) return;
+    const group = actionSheetGroup;
+    const numbers = [actionSheetTable.table_number, ...(group?.children?.map((c: any) => c.table_number) || [])];
+    toast.loading('Qrup boşaldılır...', { id: 'action-toast' });
+    for (const num of numbers) {
+      await pos.dismissTable(num);
+    }
+    setActionSheetOpen(false);
+    pos.fetchData();
+    toast.success('Qrup boşaldıldı', { id: 'action-toast' });
   };
 
   const activeFloor = selectedFloor 
@@ -486,18 +412,13 @@ export default function POSPage() {
       <ActionSheet 
         table={actionSheetTable} 
         open={actionSheetOpen} 
-        onClose={() => { setActionSheetOpen(false); setSplitMode(false); setGroupActionView(false); setPaymentView(false); }} 
+        onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} 
         onAddOrder={() => { pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
         onUnmerge={() => setSplitMode(true)}
         onCloseBill={handleCloseBill}
         onPrint={() => window.print()}
         onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
-        onOpenGroupActions={() => setGroupActionView(true)}
-        onOpenPayment={() => setPaymentView(true)}
-        onPaymentMethodSelect={handlePaymentMethodSelect}
         onDismissGroup={handleDismissGroup}
-        onBackFromPayment={handleBackFromPayment}
-        onBackFromGroup={handleBackFromGroup}
         mergeMode={mergeMode}
         mergeParent={selectedForMerge[0]}
         splitMode={splitMode}
@@ -518,8 +439,6 @@ export default function POSPage() {
           setSelectedForMerge([]); 
         }}
         groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
-        groupActionView={groupActionView}
-        paymentView={paymentView}
       />
 
       <AnimatePresence>

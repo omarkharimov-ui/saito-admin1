@@ -76,6 +76,19 @@ export async function POST(request: NextRequest) {
         }),
       });
 
+      // Update kitchen_schedule table_numbers for transferred tables
+      const scheduleTables = [from_table, ...childNumbers].map(String).join(',');
+      if (scheduleTables) {
+        await fetch(`${s.url}/rest/v1/kitchen_schedule?table_number=in.(${scheduleTables})`, {
+          method: 'PATCH',
+          headers: s.headers,
+          body: JSON.stringify({
+            table_number: to_table,
+            updated_at: new Date().toISOString()
+          }),
+        });
+      }
+
       // Clear source tables
       await fetch(`${s.url}/rest/v1/table_floors?table_number=in.(${[from_table, ...childNumbers].join(',')})`, {
         method: 'PATCH',

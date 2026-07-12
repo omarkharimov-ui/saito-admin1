@@ -32,6 +32,7 @@ toastFn.error = (msg: ToastMsg, opts?: any) => {
 toastFn.custom = (msg: ToastMsg, opts?: any) => hotToast.custom(msg, opts);
 toastFn.dismiss = (id?: string) => hotToast.dismiss(id);
 toastFn.remove = (id?: string) => hotToast.remove(id);
+toastFn.loading = (msg: ToastMsg, opts?: any) => hotToast.loading(msg, opts);
 
 export { toastFn as toast };
 export default toastFn;

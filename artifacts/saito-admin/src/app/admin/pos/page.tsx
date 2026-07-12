@@ -127,8 +127,9 @@ export default function POSPage() {
       setPaymentView(false);
       setActionSheetOpen(false);
       pos.fetchData();
+      setTimeout(() => window.print(), 500);
     } catch (e: any) {
-      toast.error(e.message || 'Ödəniş xətası', { id: 'action-toast' });
+      toast.error(e.message || 'Ödəniş xətası');
     }
   };
 
@@ -208,13 +209,46 @@ export default function POSPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setLastUndo({ action: 'transfer', data: data.data?.undo, message: `Masa ${transferSource} → ${targetTable}` });
+        setLastUndo({ 
+          action: 'transfer', 
+          data: data.data?.undo, 
+          message: `Masa ${transferSource} → ${targetTable}`,
+          timestamp: Date.now()
+        });
         toast.success('Masa köçürüldü');
+        setTimeout(() => setLastUndo(null), 5000);
+        pos.fetchData();
       } else {
         toast.error(data.error || 'Köçürmə uğursuz oldu');
       }
     } catch (e: any) {
       toast.error(e.message || 'Köçürmə xətası');
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!lastUndo || !lastUndo.data) return;
+    try {
+      const res = await fetch('/api/orders/transfer', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_table: lastUndo.data.fromTable,
+          to_table: lastUndo.data.toTable,
+          orders: lastUndo.data.orders,
+          table: lastUndo.data.table
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Köçürmə geri alındı');
+        setLastUndo(null);
+        pos.fetchData();
+      } else {
+        toast.error(data.error || 'Geri alınmadı');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Geri alma xətası');
     }
   };
 
@@ -464,7 +498,7 @@ export default function POSPage() {
         {lastUndo && (
           <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-6 px-8 py-4 rounded-[2rem] bg-zinc-900 text-white shadow-2xl border border-white/10">
             <span className="text-sm font-bold">{lastUndo.message}</span>
-            <button onClick={() => { pos.performUndo(); setLastUndo(null); }} className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95">Geri Al</button>
+            <button onClick={handleUndo} className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95">Geri Al</button>
           </motion.div>
         )}
       </AnimatePresence>

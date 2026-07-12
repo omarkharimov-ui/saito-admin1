@@ -498,6 +498,7 @@ export default function KitchenPage() {
   const delayAlerted                  = useRef<Set<string>>(new Set());
   const recentMergeRef                = useRef<{ key: string; time: number }>({ key: '', time: 0 });
   const soundOnRef                    = useRef(soundOn);
+  const lastItemToastRef              = useRef<number>(0);
   soundOnRef.current = soundOn;
 
   // Newly added items: pending items whose created_at is newer than the order's created_at by >5 s
@@ -535,14 +536,15 @@ export default function KitchenPage() {
 
   // ── Data mapping ───────────────────────────────────────────────────────────
   const prevItemCounts = useRef<Map<string, number>>(new Map());
+  const applySeqRef = useRef(0);
   
   const applyData = useCallback((data: any[], lang: string) => {
     const mapped = data.map(o => mapRawOrder(o, lang)).filter((o: Order) => o.kitchen_status !== 'completed');
+    const seq = ++applySeqRef.current;
 
     // Enrich with merged_from_tables data
     const orderIds = mapped.map(o => o.id);
     if (orderIds.length > 0) {
-      // Bulk query: find all child orders merged into any of our orders
       const orFilter = orderIds.map(id => `merged_into.eq.${id}`).join(',');
       Promise.resolve(
         supabase
@@ -550,6 +552,7 @@ export default function KitchenPage() {
           .select('id,table_number,merged_into')
           .or(orFilter)
       ).then(({ data: childOrders }: any) => {
+        if (seq !== applySeqRef.current) return;
         const mergedMap = new Map<string, number[]>();
         (childOrders || []).forEach((co: any) => {
           if (co.merged_into && co.table_number) {
@@ -571,18 +574,15 @@ export default function KitchenPage() {
       let shouldPlaySound = false;
       
       mapped.forEach((o: Order) => {
-        // New order
         if (!prevOrderIds.current.has(o.id)) {
           shouldPlaySound = true;
         } else {
-          // Existing order - check if items were added
           const prevCount = prevItemCounts.current.get(o.id) || 0;
           const currentCount = o.items.reduce((sum, item) => sum + item.orderedQuantity, 0);
           if (currentCount > prevCount) {
             shouldPlaySound = true;
           }
         }
-        // Update item count tracking
         prevItemCounts.current.set(o.id, o.items.reduce((sum, item) => sum + item.orderedQuantity, 0));
       });
       
@@ -782,8 +782,10 @@ export default function KitchenPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, async (payload: any) => {
         fetchOrdersRef.current();
         if (payload.eventType === 'INSERT' && soundOnRef.current) {
+          const now = Date.now();
+          if (now - lastItemToastRef.current < 2000) return;
+          lastItemToastRef.current = now;
           setTimeout(() => playNewOrderSound(), 100);
-          // Show new item toast
           const productName = payload.new?.product_name || '';
           const qty = payload.new?.quantity || 1;
           if (productName) {
@@ -871,8 +873,9 @@ export default function KitchenPage() {
     if (newStatus === 'completed') {
       const order = orders.find(o => o.id === id);
       if (order) pushUndo(`MASA ${order.table_number} — tamamlandı`, order);
-    }
-    if (newStatus === 'preparing') {
+      await supabase.rpc('mark_order_ready', { p_order_id: id });
+      await supabase.from('orders').update({ status: 'completed', kitchen_status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
+    } else if (newStatus === 'preparing') {
       await supabase.rpc('prepare_order_items', { p_order_id: id });
     } else if (newStatus === 'ready') {
       await supabase.rpc('mark_order_ready', { p_order_id: id });

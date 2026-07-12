@@ -45,14 +45,9 @@ export async function POST(request: NextRequest) {
     }
 
     for (const iid of ingredientIds) {
-      await fetch(`${s.url}/rest/v1/ingredients?id=eq.${iid}`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({
-          current_stock: 0,
-          updated_at: new Date().toISOString(),
-        }),
-      });
+      const ingRes = await fetch(`${s.url}/rest/v1/ingredients?id=eq.${iid}&select=current_stock`, { headers: s.headers });
+      const ingData = (await ingRes.json()) || [];
+      const currentStock = Number(ingData[0]?.current_stock || 0);
 
       await fetch(`${s.url}/rest/v1/inventory_logs`, {
         method: 'POST',
@@ -60,8 +55,8 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           ingredient_id: iid,
           type: 'adjustment',
-          quantity: 0,
-          reason: `Kitchen: ${product_name} sold out`,
+          quantity: -currentStock,
+          reason: `Kitchen: ${product_name} sold out — full stock zeroed`,
           reference_type: 'sold_out',
           reference_id: product_id,
           created_at: new Date().toISOString(),

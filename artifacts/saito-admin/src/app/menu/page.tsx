@@ -68,8 +68,11 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
     }));
   };
 
+  const [sending, setSending] = useState(false);
+
   const sendToKitchen = async () => {
-    if (!tableNumber || cart.length === 0) return;
+    if (!tableNumber || cart.length === 0 || sending) return;
+    setSending(true);
     try {
       const items = cart.map(item => ({
         product_id: item.id,
@@ -97,6 +100,8 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
       }
     } catch {
       toast.error('Xəta baş verdi');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -161,9 +166,18 @@ export default function MenuPage({ searchParams }: { searchParams: Promise<{ tab
               <div className="font-bold">₼{cartTotal.toFixed(2)}</div>
               <button
                 onClick={sendToKitchen}
-                className="bg-gold text-black px-4 py-2 rounded-full font-black text-sm hover:bg-yellow-500 transition-all active:scale-90 flex items-center gap-2"
+                disabled={sending}
+                className="bg-black text-white px-4 py-2 rounded-full font-black text-xs hover:bg-gray-800 transition-all active:scale-90 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Send size={16} /> Göndər
+                {sending ? (
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <Send size={14} />
+                )}
+                {sending ? 'Göndərilir...' : 'Göndər'}
               </button>
             </div>
           </motion.div>

@@ -30,6 +30,13 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto p-6">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+          <span className="text-2xl">ℹ️</span>
+          <div>
+            <p className="text-sm font-semibold text-amber-900">Sifariş üçün ofisiantı çağırın</p>
+            <p className="text-xs text-amber-700">QR menyu yalnız göstərmə üçündür. Sifariş vermək üçün ofisiant ilə əlaqə saxlayın.</p>
+          </div>
+        </div>
         <h1 className="text-3xl font-bold text-center mb-2">Menyu</h1>
         {tableNumber && <p className="text-center text-gray-500 mb-6">Masa {tableNumber}</p>}
         {Object.entries(grouped).map(([cat, items]: any) => (

@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import React, { useState } from 'react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion } from 'framer-motion';
@@ -10,66 +9,32 @@ export default function StaffLogin() {
   const { t } = useLanguage();
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
-  const [staffList, setStaffList] = useState<any[]>([]);
-
-  useEffect(() => {
-    supabase.from('staff').select('id, full_name, role, pin').then(({ data }) => {
-      if (data) setStaffList(data);
-    });
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pin.trim()) return;
+    if (!pin.trim() || pin.length !== 4) {
+      toast.error('4 rəqəmli PIN daxil edin');
+      return;
+    }
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('staff')
-        .select('id, full_name, role, pin')
-        .eq('pin', pin.trim())
-        .eq('is_active', true)
-        .limit(1);
-      
-      if (error || !data || data.length === 0) {
-        toast.error('Yanlış PIN kodu');
+      const res = await fetch('/api/auth/staff-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: pin.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Giriş xətası');
         return;
       }
-
-      const staff = data[0];
-      localStorage.setItem('saito_staff_session', JSON.stringify({
-        id: staff.id,
-        name: staff.full_name,
-        role: staff.role,
-        pin: staff.pin,
-      }));
-      
-      // Create clock event
-      await supabase.from('clock_events').insert({
-        staff_id: staff.id,
-        clock_in: new Date().toISOString(),
-      });
-      
-      toast.success(`Xoş gəldin, ${staff.full_name}!`);
+      toast.success(`Xoş gəldin, ${data.name}!`);
       window.location.href = '/admin/pos';
     } catch {
       toast.error('Giriş xətası');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = async () => {
-    const session = localStorage.getItem('saito_staff_session');
-    if (session) {
-      const { id } = JSON.parse(session);
-      await supabase
-        .from('clock_events')
-        .update({ clock_out: new Date().toISOString() })
-        .eq('staff_id', id)
-        .is('clock_out', null);
-    }
-    localStorage.removeItem('saito_staff_session');
-    toast.success('Çıxış edildi');
   };
 
   return (

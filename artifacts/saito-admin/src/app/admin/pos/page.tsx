@@ -59,7 +59,7 @@ export default function POSPage() {
         const res = await fetch('/api/campaigns');
         if (res.ok) {
           const data = await res.json();
-          const active = (data.campaigns || []).filter((c: any) => c.status === 'active');
+          const active = (data.data || []).filter((c: any) => c.status === 'active');
           setCampaigns(active);
         }
       } catch {}

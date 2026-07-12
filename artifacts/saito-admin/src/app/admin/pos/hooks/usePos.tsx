@@ -131,6 +131,9 @@ export function usePos() {
               sentQuantity: item.quantity,
             }));
 
+          const serverTotal = Number(primary.total_amount || 0);
+          const itemSum = serverItems.reduce((s: number, i: any) => s + (i.total_price || 0), 0);
+
           setCart(prev => {
             if (!prev) return null;
             const merged = serverItems.map((i: any) => ({ ...i }));
@@ -153,7 +156,8 @@ export function usePos() {
               guest_count: table.guest_count || primary.guest_count || 1,
               items: merged,
               notes: primary.customer_note || '',
-              order_type: primary.order_type || 'dine_in'
+              order_type: primary.order_type || 'dine_in',
+              serverTotal: serverTotal !== itemSum ? serverTotal : undefined,
             };
           });
         }

@@ -90,7 +90,7 @@ export function ActionSheet({
             className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.3)] border ${
               lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
              } ${
-              currentView === 'merge' || currentView === 'payment'
+              currentView === 'merge'
                 ? 'rounded-full px-6 py-3 min-w-[320px] max-w-md mx-auto' 
                 : 'rounded-[2.5rem] p-7 w-[90%] max-w-md mx-auto'
             }`}

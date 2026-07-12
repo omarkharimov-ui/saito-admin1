@@ -251,7 +251,9 @@ export function usePos() {
         ? (variantsByProduct[p.id] || []).find(v => v.id === opts.variantId)
         : undefined;
       const variantId = opts?.variantId ?? null;
-      const unitPrice = variant ? Number(variant.discount_price ?? variant.price) : (p.price ?? 0);
+      const basePrice = variant ? Number(variant.discount_price ?? variant.price) : (p.price ?? 0);
+      const effective = (p as any).effective_price;
+      const unitPrice = effective?.effective_price ?? basePrice;
       const existing = items.find(
         i => i.product_id === p.id && (i.variant_id ?? null) === variantId
       );
@@ -378,7 +380,11 @@ export function usePos() {
 
   const clearCart = () => {
     cartInteractionCount.current += 1;
-    setCart(prev => prev ? { ...prev, items: [] } : null);
+    setCart(prev => {
+      if (!prev) return null;
+      const keptItems = prev.items.filter(item => (item.sentQuantity ?? 0) > 0);
+      return { ...prev, items: keptItems };
+    });
   };
 
   const updateGuestCount = async (delta: number) => {
@@ -405,8 +411,23 @@ export function usePos() {
               data: { guest_count: newCount }
             }),
           });
-          await fetchData();
         }
+      }
+      const s = {
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        headers: {
+          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+      };
+      if (s.url && s.headers.Authorization) {
+        await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${cart.table_number}`, {
+          method: 'PATCH',
+          headers: s.headers,
+          body: JSON.stringify({ guest_count: newCount, updated_at: new Date().toISOString() }),
+        });
       }
     } catch (e) {
       console.error('Failed to update guest count:', e);

@@ -113,13 +113,20 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
             const isCombo = item._isCombo;
             const isOutOfStock = outOfStock?.has(item.id);
             return (
-              <motion.button
-                key={`${isCombo ? 'combo-' : ''}${item.id}`}
-                whileTap={{ scale: isOutOfStock ? 1 : 0.98 }}
-                onClick={() => { if (!isOutOfStock) { if (isCombo) { if (onAddCombo && item._raw) onAddCombo(item._raw); } else onAddProduct(item); } }}
-                disabled={isOutOfStock}
-                className={`group relative flex flex-col rounded-[28px] bg-[#f4f4f7] dark:bg-white/[0.08] p-4 transition-all duration-300 hover:shadow-xl hover:bg-[#ebebef] dark:hover:bg-white/[0.12] ${isOutOfStock ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}
-              >
+               <motion.button
+                 key={`${isCombo ? 'combo-' : ''}${item.id}`}
+                 whileTap={{ scale: isOutOfStock ? 1 : 0.98 }}
+                 onClick={() => { if (!isOutOfStock) { if (isCombo) { if (onAddCombo && item._raw) onAddCombo(item._raw); } else onAddProduct(item); } }}
+                 disabled={isOutOfStock}
+                 className={`group relative flex flex-col rounded-[28px] bg-[#f4f4f7] dark:bg-white/[0.08] p-4 transition-all duration-300 hover:shadow-xl hover:bg-[#ebebef] dark:hover:bg-white/[0.12] ${isOutOfStock ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}
+               >
+                 {isOutOfStock && (
+                   <div className="absolute inset-0 z-10 flex items-center justify-center">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-rose-500 bg-white/80 dark:bg-black/60 px-2 py-1 rounded-full">
+                       {t('out_of_stock') || 'Stokda yox'}
+                     </span>
+                   </div>
+                 )}
                 <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
                   {item.image_url ? (
                     <img src={item.image_url} alt={name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />

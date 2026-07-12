@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
     const result = await runOrderAction(`Order${action || 'Create'}`, async () => {
       if (action === 'update') {
-        const orderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=id,version`, { headers: svc().headers });
+        const orderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=id,version,table_number,guest_count`, { headers: svc().headers });
         const existingOrder = (await orderRes.json())?.[0];
         
         if (!existingOrder) throw new Error('Order not found');
@@ -100,7 +100,19 @@ export async function POST(request: Request) {
         if (!patched || (Array.isArray(patched) && patched.length === 0)) {
           throw new Error('CONCURRENCY_CONFLICT');
         }
-        return Array.isArray(patched) ? patched[0] : patched;
+
+        const updatedOrder = Array.isArray(patched) ? patched[0] : patched;
+
+        // If guest_count changed, update table_floors too
+        if (data.guest_count !== undefined && existingOrder.table_number) {
+          await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${existingOrder.table_number}`, {
+            method: 'PATCH',
+            headers: svc().headers,
+            body: JSON.stringify({ guest_count: data.guest_count }),
+          });
+        }
+
+        return updatedOrder;
       }
 
       if (action === 'delete') {

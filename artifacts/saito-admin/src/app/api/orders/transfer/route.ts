@@ -27,23 +27,80 @@ export async function POST(request: NextRequest) {
     const isMergedParent = childNumbers.length > 0;
 
     if (isMergedParent) {
-      const unmergeRes = await fetch(`${s.url}/rest/v1/rpc/separate_tables_v1`, {
-        method: 'POST',
+      // Get all orders in the merged group (primary + children)
+      const ordersRes = await fetch(`${s.url}/rest/v1/orders?table_number=in.(${[from_table, ...childNumbers].join(',')})&status=not.in.(paid,cancelled,closed)&select=id,table_number,status,total_amount,guest_count,merged_into,version`, { headers: s.headers });
+      const groupOrders = await ordersRes.json();
+      
+      // Calculate totals for the entire group
+      const totalAmount = groupOrders.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
+      const totalGuests = groupOrders.reduce((sum: number, o: any) => sum + (o.guest_count || 0), 0);
+      const primaryOrder = groupOrders.find((o: any) => o.table_number === from_table && o.merged_into === null) || groupOrders[0];
+      
+      if (primaryOrder) {
+        // Update primary order with consolidated amounts
+        await fetch(`${s.url}/rest/v1/orders?id=eq.${primaryOrder.id}`, {
+          method: 'PATCH',
+          headers: { ...s.headers, 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            table_number: to_table,
+            total_amount: totalAmount,
+            guest_count: totalGuests,
+            updated_at: new Date().toISOString()
+          }),
+        });
+      }
+
+      // Update all child orders to point to primary table
+      for (const childOrder of groupOrders.filter((o: any) => o.table_number !== from_table)) {
+        await fetch(`${s.url}/rest/v1/orders?id=eq.${childOrder.id}`, {
+          method: 'PATCH',
+          headers: s.headers,
+          body: JSON.stringify({
+            table_number: to_table,
+            merged_into: primaryOrder?.id || childOrder.id,
+            updated_at: new Date().toISOString()
+          }),
+        });
+      }
+
+      // Update table_floors for target table
+      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${to_table}`, {
+        method: 'PATCH',
         headers: s.headers,
         body: JSON.stringify({
-          p_primary_table: from_table,
-          p_child_tables: childNumbers,
-          p_performed_by: auth.user?.id || null,
+          status: 'occupied',
+          total_amount: totalAmount,
+          guest_count: totalGuests,
+          merged_into_table: null,
+          last_activity_at: new Date().toISOString()
         }),
       });
 
-      if (!unmergeRes.ok) {
-        const errText = await unmergeRes.text();
-        return NextResponse.json({ error: `Unmerge failed: ${errText}` }, { status: 500 });
-      }
+      // Clear source tables
+      await fetch(`${s.url}/rest/v1/table_floors?table_number=in.(${[from_table, ...childNumbers].join(',')})`, {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({
+          status: 'empty',
+          total_amount: 0,
+          guest_count: null,
+          merged_into_table: null
+        }),
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          moved_tables: [from_table, ...childNumbers],
+          target_table: to_table,
+          total_amount: totalAmount,
+          total_guests: totalGuests
+        },
+        undo: { fromTable: from_table, toTable: to_table, orderIds: groupOrders.map((o: any) => o.id) }
+      });
     }
 
-    // Now transfer the primary table
+    // Normal transfer (non-merged)
     const rpcRes = await fetch(`${s.url}/rest/v1/rpc/transfer_tables_v3`, {
       method: 'POST',
       headers: s.headers,

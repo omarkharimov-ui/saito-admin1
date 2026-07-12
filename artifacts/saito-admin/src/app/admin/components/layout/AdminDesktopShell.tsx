@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { usePathname, useSearchParams } from 'next/navigation';
 import Sidebar from '../Sidebar';
 import { AdminHeader } from '../AdminHeader';
 import SimpleToaster from './SimpleToaster';
@@ -16,6 +17,9 @@ export default function AdminDesktopShell({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const pageKey = `${pathname}?${searchParams.toString()}`;
   const handleToggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
 
   useEffect(() => {
@@ -52,7 +56,18 @@ export default function AdminDesktopShell({
         <LayoutProvider>
           <AdminHeader role={role} onToggleSidebar={handleToggleSidebar} />
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {children}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={pageKey}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="w-full"
+              >
+                {children}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </LayoutProvider>
       </motion.main>

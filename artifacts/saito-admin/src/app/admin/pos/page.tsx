@@ -36,6 +36,7 @@ export default function POSPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<any>(null);
   const [cleanMode, setCleanMode] = useState(false);
+  const [paymentView, setPaymentView] = useState(false);
 
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
 
@@ -74,7 +75,10 @@ export default function POSPage() {
     }
   };
 
-  const handleCloseBill = async () => {
+  const handleOpenPayment = () => setPaymentView(true);
+  const handleBackFromPayment = () => setPaymentView(false);
+
+  const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'split') => {
     if (!actionSheetTable) return;
     const tableNumbers = actionSheetGroup
       ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
@@ -96,14 +100,18 @@ export default function POSPage() {
       }
 
       for (const activeOrder of activeOrders) {
+        const total = activeOrder.total_amount || 0;
+        const cashAmount = method === 'cash' ? total : 0;
+        const cardAmount = method === 'card' ? total : 0;
+
         const res = await fetch('/api/orders/pay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             order_id: activeOrder.id,
-            payment_method: 'card',
-            cash_amount: 0,
-            card_amount: activeOrder.total_amount || 0,
+            payment_method: method,
+            cash_amount: cashAmount,
+            card_amount: cardAmount,
             tip_amount: 0,
           }),
         });
@@ -116,12 +124,15 @@ export default function POSPage() {
       }
 
       toast.success('Bütün sifarişlər ödənildi', { id: 'action-toast' });
+      setPaymentView(false);
       setActionSheetOpen(false);
       pos.fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Ödəniş xətası', { id: 'action-toast' });
     }
   };
+
+  const handleCloseBill = handleOpenPayment;
 
   const handleDismissGroup = async () => {
     if (!actionSheetTable) return;
@@ -412,13 +423,17 @@ export default function POSPage() {
       <ActionSheet 
         table={actionSheetTable} 
         open={actionSheetOpen} 
-        onClose={() => { setActionSheetOpen(false); setSplitMode(false); }} 
+        onClose={() => { setActionSheetOpen(false); setSplitMode(false); setPaymentView(false); }} 
         onAddOrder={() => { pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
         onUnmerge={() => setSplitMode(true)}
+        onOpenPayment={handleOpenPayment}
+        onPaymentMethodSelect={handlePaymentMethodSelect}
+        onBackFromPayment={handleBackFromPayment}
         onCloseBill={handleCloseBill}
         onPrint={() => window.print()}
         onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
         onDismissGroup={handleDismissGroup}
+        paymentView={paymentView}
         mergeMode={mergeMode}
         mergeParent={selectedForMerge[0]}
         splitMode={splitMode}

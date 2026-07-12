@@ -222,8 +222,8 @@ export function CartPanel({
         </div>
       )}
 
-      {/* Items — no scroll, show all */}
-      <div className="flex-1 py-3 relative">
+       {/* Items — scrollable */}
+       <div className="flex-1 py-3 relative overflow-y-auto">
         <div
           className="absolute inset-0 transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 1 : 0, pointerEvents: isEmpty ? 'auto' : 'none' }}

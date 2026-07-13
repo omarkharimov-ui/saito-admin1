@@ -727,32 +727,44 @@ export default function KitchenPage() {
   const fetchOrders = useCallback(async () => {
     console.log('[Kitchen] fetchOrders called');
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items(
-            *,
-            products(image_url, translations)
-          )
-        `)
-        .gt('table_number', 0)
-        .not('status', 'in', ['paid', 'cancelled', 'closed'])
-        .or('kitchen_status.is.null,kitchen_status.neq.completed')
-        .or('is_draft.is.null,is_draft.eq.false')
-        .order('created_at', { ascending: false });
+      const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        console.error('[Kitchen] Missing Supabase credentials');
+        return;
+      }
 
-      console.log('[Kitchen] Supabase query result:', { dataLength: data?.length, error: error?.message });
+      const queryParams = new URLSearchParams({
+        select: '*,order_items(*,products(image_url,translations))',
+        'table_number': 'gt.0',
+        'status': 'not.in.(paid,cancelled,closed)',
+        or: '(kitchen_status.is.null,kitchen_status.neq.completed),(is_draft.is.null,is_draft.eq.false)',
+        order: 'created_at.desc'
+      });
 
-      if (!error && data) {
-        console.log(`[Kitchen] Fetched ${data.length} orders, items: ${data.reduce((s, o) => s + (o.order_items?.length || 0), 0)}`);
+      console.log('[Kitchen] Fetching from:', `${SUPABASE_URL}/rest/v1/orders?${queryParams.toString()}`);
+
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/orders?${queryParams.toString()}`, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('[Kitchen] Fetch result:', { dataLength: data?.length, error: null });
+
+      if (data) {
+        console.log(`[Kitchen] Fetched ${data.length} orders, items: ${data.reduce((s: any, o: any) => s + (o.order_items?.length || 0), 0)}`);
         applyData(data, languageRef.current);
         localStorage.setItem('saito_kitchen_data', JSON.stringify(data));
-      } else if (error) {
-        console.error('[Kitchen] Fetch error:', error);
-        throw error;
       } else {
-        console.warn('[Kitchen] No error but no data returned');
+        console.warn('[Kitchen] No data returned from fetch');
       }
     } catch (err) {
       console.warn('[Kitchen] Fetch failed, loading from cache:', err);

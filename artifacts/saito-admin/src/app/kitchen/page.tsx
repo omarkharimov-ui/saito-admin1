@@ -734,8 +734,8 @@ export default function KitchenPage() {
         `)
         .gt('table_number', 0)
         .not('status', 'in', ['paid', 'cancelled', 'closed'])
-        .neq('kitchen_status', 'completed')
-        .is('is_draft', false)
+        .or('kitchen_status.is.null,kitchen_status.neq.completed')
+        .or('is_draft.is.null,is_draft.eq.false')
         .order('created_at', { ascending: false });
 
       if (!error && data) {

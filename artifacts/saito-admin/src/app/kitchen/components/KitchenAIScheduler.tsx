@@ -34,16 +34,21 @@ export function KitchenAIScheduler({ lightMode }: { lightMode?: boolean }) {
 
   const fetchSchedule = useCallback(async () => {
     setLoading(true);
+    console.log('[KitchenAI] fetchSchedule called');
     try {
       const res = await fetch('/api/reservations/kitchen-schedule');
+      console.log('[KitchenAI] API response status:', res.status);
       if (res.ok) {
         const data = await res.json();
+        console.log('[KitchenAI] API response data:', data);
         setSuggestions(data.suggestions || []);
         if (data.ai_error) setAiEnabled(false);
       } else {
+        console.warn('[KitchenAI] API returned error status');
         setAiEnabled(false);
       }
-    } catch {
+    } catch (e) {
+      console.warn('[KitchenAI] fetchSchedule failed:', e);
       setAiEnabled(false);
     } finally {
       setLoading(false);

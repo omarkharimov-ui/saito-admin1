@@ -48,7 +48,13 @@ export async function GET() {
     const suggestions = [];
 
     for (const r of allReservations) {
-      const items = typeof r.pre_order_items === 'string' ? JSON.parse(r.pre_order_items) : r.pre_order_items;
+      let items: any[] = [];
+      try {
+        items = typeof r.pre_order_items === 'string' ? JSON.parse(r.pre_order_items) : (r.pre_order_items || []);
+      } catch (e) {
+        console.error('[kitchen-schedule] Failed to parse pre_order_items for reservation', r.id, e);
+        items = [];
+      }
       const suggestion = await suggestPrepTime(r.time, items, r.kitchen_scheduled_at);
       suggestions.push({
         id: r.id,

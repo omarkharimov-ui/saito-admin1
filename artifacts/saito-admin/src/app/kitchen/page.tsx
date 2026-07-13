@@ -320,7 +320,7 @@ function CardWithCollapse({
     {modalOpen && (
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setModalOpen(false)}>
         <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-        <div className="relative z-10 w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.09)' }} onClick={e => e.stopPropagation()}>
+        <div className="relative z-10 w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden" style={{ background: lightMode ? '#fff' : '#111', border: `1px solid ${lightMode ? 'rgba(0,0,0,0.09)' : 'rgba(255,255,255,0.09)'}` }} onClick={e => e.stopPropagation()}>
           <div className="h-[3px]" style={{ background: `linear-gradient(90deg, transparent, ${accentColor.replace('0.5','0.9').replace('0.4','0.9').replace('0.35','0.9')}, transparent)` }} />
           <div className="px-6 pt-6 pb-4 flex items-start justify-between">
             <div>
@@ -337,15 +337,15 @@ function CardWithCollapse({
                 <CountdownTimer createdAt={timerBase(order)} thresholdMinutes={delayThreshold} lightMode={lightMode} />
               </div>
             </div>
-            <button onClick={() => setModalOpen(false)} className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/[0.06] border border-white/[0.1] text-white/50 hover:text-white transition-all text-lg">×</button>
+            <button onClick={() => setModalOpen(false)} className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'bg-black/5 border border-black/10 text-black/40 hover:text-black' : 'bg-white/[0.06] border border-white/[0.1] text-white/50 hover:text-white'}`}>×</button>
           </div>
-          <div className="h-px mx-6" style={{ background: 'rgba(255,255,255,0.07)' }} />
+          <div className="h-px mx-6" style={{ background: lightMode ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.07)' }} />
           <div className="px-4 py-3 space-y-0.5 max-h-[45vh] overflow-y-auto">
             {allItems.map((item, idx) => renderItem(item, idx, allItems, true))}
           </div>
           <div className="px-6 pt-3 pb-6">
             <div className="flex items-center justify-between mb-5">
-              <span className="text-sm text-white/35 uppercase tracking-widest font-bold">{t.kitchen_total||'CƏMİ'}</span>
+              <span className={`text-sm uppercase tracking-widest font-bold ${lightMode ? 'text-black/35' : 'text-white/35'}`}>{t.kitchen_total||'CƏMİ'}</span>
               <span className={`text-3xl font-black ${lightMode ? 'text-black' : 'text-white'}`}>{order.total_amount.toFixed(2)} ₼</span>
             </div>
             {stage === 'accept' && (
@@ -929,16 +929,16 @@ export default function KitchenPage() {
                 initial={{ opacity: 0, y: -16, scale: 0.94 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, x: 100 }}
-                style={{ background: 'linear-gradient(135deg,#1a1500,#110f00)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 18, padding: '12px 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', minWidth: 240, pointerEvents: 'auto' }}
+                style={{ background: lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.03)', border: `1px solid ${lightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 18, padding: '12px 16px', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.1)' : '0 8px 32px rgba(0,0,0,0.3)', minWidth: 240, pointerEvents: 'auto' }}
                 className="flex items-center gap-3"
               >
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>+</div>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)', border: `1px solid ${lightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>+</div>
                 <div>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: '#fbbf24', lineHeight: 1.2 }}>{qty}× {productName}</p>
-                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 2, fontWeight: 600 }}>Yeni əlavə edildi</p>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: lightMode ? '#000' : '#fbbf24', lineHeight: 1.2 }}>{qty}× {productName}</p>
+                  <p style={{ fontSize: 10, color: lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.35)', marginTop: 2, fontWeight: 600 }}>Yeni əlavə edildi</p>
                 </div>
               </motion.div>
-            ), { duration: 3500, position: 'top-right' });
+            ), { duration: 8000, position: 'top-right' });
           }
         }
       })
@@ -1041,6 +1041,7 @@ export default function KitchenPage() {
     const { error } = await supabase.rpc('mark_order_ready', { p_order_id: order.id });
     if (error) console.error('[kitchen] mark_order_ready failed:', error);
     fetchOrdersRef.current();
+    if (activeTab !== 'ready') setActiveTab('ready');
   };
 
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -1282,15 +1283,15 @@ export default function KitchenPage() {
             {lightMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
-          {/* Language switcher */}
-          <div className={`flex items-center rounded-xl p-1 ${lightMode ? 'bg-black/5 border border-black/10' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
-            {languages.map(lang => (
-              <button key={lang.code}
-                onClick={() => { setTargetLang(lang.code); setLanguage(lang.code as any); }}
-                className={`px-3.5 py-1.5 text-xs font-black rounded-lg transition-all ${language === lang.code ? (lightMode ? 'bg-black text-white' : 'bg-white text-black') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}
-              >{lang.label}</button>
-            ))}
-          </div>
+           {/* Language switcher */}
+           <div className={`flex items-center rounded-lg p-0.5 ${lightMode ? 'bg-black/5 border border-black/10' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
+             {languages.map(lang => (
+               <button key={lang.code}
+                 onClick={() => { setTargetLang(lang.code); setLanguage(lang.code as any); }}
+                 className={`px-2.5 py-1 text-[10px] font-black rounded-md transition-all ${language === lang.code ? (lightMode ? 'bg-black text-white' : 'bg-white text-black') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}
+               >{lang.label}</button>
+             ))}
+           </div>
 
           {/* Sound toggle */}
           <button onClick={() => setSoundOn(v => !v)}

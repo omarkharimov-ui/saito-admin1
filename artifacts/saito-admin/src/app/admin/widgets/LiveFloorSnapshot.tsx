@@ -105,8 +105,8 @@ export default function LiveFloorSnapshot() {
   };
 
   const occupiedCount = tables.filter(t => t.status !== 'empty').length;
-  const newCount = tables.filter(t => t.status === 'new').length;
-  const cookingCount = tables.filter(t => t.status === 'order_placed').length;
+  const reservedCount = tables.filter(t => t.status === 'reserved').length;
+  const cookingCount = tables.filter(t => t.kitchenStatus === 'preparing').length;
 
   return (
     <motion.div
@@ -127,38 +127,38 @@ export default function LiveFloorSnapshot() {
           </div>
         </div>
         
-        {/* Legend */}
-        <div className="hidden sm:flex items-center gap-3 text-[10px] text-[var(--theme-text-muted)]">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(0,208,132,0.12)] animate-pulse" />
-            {t('new')}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.12)]" />
-            {t('cooking')}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_0_4px_rgba(0,122,255,0.12)]" />
-            DOLU
-          </span>
-        </div>
+         {/* Legend */}
+         <div className="hidden sm:flex items-center gap-3 text-[10px] text-[var(--theme-text-muted)]">
+           <span className="flex items-center gap-1.5">
+             <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(0,208,132,0.12)]" />
+             {t('occupied' as any)}
+           </span>
+           <span className="flex items-center gap-1.5">
+             <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_0_4px_rgba(99,102,241,0.12)]" />
+             Rezerv
+           </span>
+           <span className="flex items-center gap-1.5">
+             <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.12)]" />
+             Hazırlanır
+           </span>
+         </div>
       </div>
 
-      {/* Compact Stats Row */}
-      <div className="flex gap-3 mb-6">
-        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] border-l-[6px] border-l-blue-500">
-          <p className="text-xl font-black text-[var(--theme-text)]">{occupiedCount}<span className="text-[var(--theme-text-muted)] text-sm font-bold">/{tableCount}</span></p>
-          <p className="text-[10px] text-[var(--theme-text-muted)] font-black uppercase tracking-widest mt-1">{t('occupied' as any)}</p>
-        </div>
-        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] border-l-[6px] border-l-emerald-500">
-          <p className="text-xl font-black text-emerald-500">{newCount}</p>
-          <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mt-1">{t('new_arrivals' as any)}</p>
-        </div>
-        <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] border-l-[6px] border-l-amber-500">
-          <p className="text-xl font-black text-amber-500">{cookingCount}</p>
-          <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest mt-1">{t('in_kitchen' as any)}</p>
-        </div>
-      </div>
+       {/* Compact Stats Row */}
+       <div className="flex gap-3 mb-6">
+         <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] border-l-[6px] border-l-blue-500">
+           <p className="text-xl font-black text-[var(--theme-text)]">{occupiedCount}<span className="text-[var(--theme-text-muted)] text-sm font-bold">/{tableCount}</span></p>
+           <p className="text-[10px] text-[var(--theme-text-muted)] font-black uppercase tracking-widest mt-1">{t('occupied' as any)}</p>
+         </div>
+         <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] border-l-[6px] border-l-indigo-500">
+           <p className="text-xl font-black text-indigo-400">{reservedCount}</p>
+           <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-1">Rezerv</p>
+         </div>
+         <div className="flex-1 p-4 rounded-2xl bg-[var(--theme-nested)] border border-[var(--theme-border)] border-l-[6px] border-l-amber-500">
+           <p className="text-xl font-black text-amber-500">{cookingCount}</p>
+           <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest mt-1">{t('in_kitchen' as any)}</p>
+         </div>
+       </div>
 
       {/* Table Grid */}
       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">

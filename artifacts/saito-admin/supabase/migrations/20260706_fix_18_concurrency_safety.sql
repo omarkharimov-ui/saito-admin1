@@ -326,6 +326,14 @@ BEGIN
     merged_into_table = NULL
   WHERE table_number = p_table_number;
 
+  -- Free any merged child tables
+  UPDATE table_floors
+  SET
+    status = 'empty',
+    merged_into_table = NULL,
+    guest_count = NULL
+  WHERE merged_into_table = p_table_number;
+
   -- Audit
   INSERT INTO audit_log (table_name, record_id, action, old_data, new_data, performed_by, created_at)
   VALUES (

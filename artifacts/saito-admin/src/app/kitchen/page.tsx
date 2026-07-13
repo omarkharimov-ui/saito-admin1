@@ -733,7 +733,7 @@ export default function KitchenPage() {
           )
         `)
         .gt('table_number', 0)
-        .not('status', 'in', '("paid","cancelled","closed")')
+        .not('status', 'in', ['paid', 'cancelled', 'closed'])
         .neq('kitchen_status', 'completed')
         .is('is_draft', false)
         .order('created_at', { ascending: false });

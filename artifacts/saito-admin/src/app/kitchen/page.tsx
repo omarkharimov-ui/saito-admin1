@@ -739,20 +739,30 @@ export default function KitchenPage() {
         .order('created_at', { ascending: false });
 
       if (!error && data) {
+        console.log(`[Kitchen] Fetched ${data.length} orders, items: ${data.reduce((s, o) => s + (o.order_items?.length || 0), 0)}`);
         applyData(data, languageRef.current);
-        // Cache for offline use
         localStorage.setItem('saito_kitchen_data', JSON.stringify(data));
       } else if (error) {
+        console.error('[Kitchen] Fetch error:', error);
         throw error;
       }
     } catch (err) {
-      console.warn('Kitchen fetch error, loading from cache:', err);
+      console.warn('[Kitchen] Fetch failed, loading from cache:', err);
       const cached = localStorage.getItem('saito_kitchen_data');
       if (cached) {
-        applyData(JSON.parse(cached), languageRef.current);
+        try {
+          applyData(JSON.parse(cached), languageRef.current);
+        } catch (e) {
+          console.error('[Kitchen] Cache parse error:', e);
+        }
       }
     }
   }, [applyData]);
+
+  const manualRefresh = useCallback(async () => {
+    console.log('[Kitchen] Manual refresh');
+    await fetchOrdersRef.current();
+  }, []);
 
   // keep ref in sync — also assign immediately after creation
   fetchOrdersRef.current = fetchOrders;
@@ -1229,11 +1239,17 @@ export default function KitchenPage() {
         </div>
 
          <div className="flex items-center gap-2.5">
-          {/* View mode */}
-          <div className="flex bg-white/[0.04] border border-white/[0.07] rounded-xl p-1">
-            <button onClick={() => setViewMode('cards')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${viewMode === 'cards' ? (lightMode ? 'bg-black text-white' : 'bg-white/10 text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}><LayoutGrid size={12}/>Kart</button>
-            <button onClick={() => setViewMode('map')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${viewMode === 'map' ? (lightMode ? 'bg-black text-white' : 'bg-white/10 text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}><MapIcon size={12}/>Xəritə</button>
-          </div>
+           {/* View mode */}
+           <div className="flex bg-white/[0.04] border border-white/[0.07] rounded-xl p-1">
+             <button onClick={() => setViewMode('cards')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${viewMode === 'cards' ? (lightMode ? 'bg-black text-white' : 'bg-white/10 text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}><LayoutGrid size={12}/>Kart</button>
+             <button onClick={() => setViewMode('map')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${viewMode === 'map' ? (lightMode ? 'bg-black text-white' : 'bg-white/10 text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}><MapIcon size={12}/>Xəritə</button>
+           </div>
+
+           {/* Manual refresh */}
+           <button onClick={manualRefresh}
+             className="px-3 py-1.5 rounded-lg text-[10px] font-black bg-white/[0.06] border border-white/[0.1] text-white/60 hover:text-white hover:bg-white/[0.1] transition-all">
+             Yenilə
+           </button>
 
           {/* Theme toggle */}
           <button onClick={() => { try { setLightMode(!lightMode); } catch {} }} className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all ${lightMode ? 'bg-black text-white border-black' : 'bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/70'}`}>

@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { useState } from 'react';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check
 } from 'lucide-react';
@@ -25,13 +24,13 @@ interface ActionSheetProps {
   onBackFromGroup?: () => void;
   mergeMode?: boolean;
   mergeParent?: number | null;
-  splitMode?: boolean;
+  unmergeMode?: boolean;
   isMerged?: boolean;
   mergedGroupChildren?: PosTable[];
   selectedForMerge?: number[];
-  selectedForSplit?: number[];
-  onToggleSplit?: (num: number) => void;
-  onConfirmSplit?: () => void;
+  selectedForUnmerge?: number[];
+  onToggleUnmerge?: (num: number) => void;
+  onConfirmUnmerge?: () => void;
   onCancelMode?: () => void;
   onConfirmMerge?: () => void;
   groupNumber?: number;
@@ -44,8 +43,8 @@ export function ActionSheet({
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
   onBackFromPayment, onBackFromGroup,
-  mergeMode, mergeParent, splitMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForSplit,
-  onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, groupNumber,
+  mergeMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
+  onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, groupNumber,
   paymentView
 }: ActionSheetProps) {
   const { t } = useLanguage();
@@ -68,9 +67,9 @@ export function ActionSheet({
   ];
 
   const visibleActions = actions.filter(a => a.visible);
-  const mergedChildren = splitMode && table ? (mergedGroupChildren ?? []) : [];
+  const mergedChildren = unmergeMode && table ? (mergedGroupChildren ?? []) : [];
   const showSplitForm = !!localSplit;
-  const currentView = showSplitForm ? 'split-payment' : paymentView ? 'payment' : mergeMode ? 'merge' : splitMode ? 'split' : open ? 'actions' : 'none';
+  const currentView = showSplitForm ? 'split-payment' : paymentView ? 'payment' : mergeMode ? 'merge' : unmergeMode ? 'split' : open ? 'actions' : 'none';
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
@@ -78,7 +77,7 @@ export function ActionSheet({
       {currentView !== 'none' && (
         <div key="global-pos-root" className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none pb-10">
           {/* Backdrop */}
-          {(currentView === 'actions' || currentView === 'split' || currentView === 'group-actions' || currentView === 'payment' || currentView === 'split-payment') && (
+          {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment') && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30 backdrop-blur-[2px]"
@@ -97,7 +96,7 @@ export function ActionSheet({
             className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.3)] border ${
               lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
              } ${
-              currentView === 'merge' || currentView === 'group-actions' || currentView === 'split-payment'
+              currentView === 'merge' || currentView === 'split-payment'
                 ? 'rounded-full px-6 py-3 min-w-[320px] max-w-md mx-auto' 
                 : 'rounded-[2.5rem] p-7 w-[90%] max-w-md mx-auto'
             }`}
@@ -245,14 +244,14 @@ export function ActionSheet({
                           {mergedChildren.map((child, i) => (
                             <motion.button
                               key={child.table_number}
-                              onClick={() => onToggleSplit?.(child.table_number)}
+                              onClick={() => onToggleUnmerge?.(child.table_number)}
                               initial={{ opacity: 0, x: 20 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: 0.15 + i * 0.05 }}
-                              className={`flex items-center gap-3 p-4 rounded-[1.2rem] border transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-blue-500 border-blue-500 text-white shadow-lg' : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/5'}`}
+                              className={`flex items-center gap-3 p-4 rounded-[1.2rem] border transition-all ${selectedForUnmerge?.includes(child.table_number) ? 'bg-blue-500 border-blue-500 text-white shadow-lg' : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/5'}`}
                             >
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedForSplit?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-20'}`}>
-                                {selectedForSplit?.includes(child.table_number) && <Check size={10} className="text-blue-500" strokeWidth={4} />}
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedForUnmerge?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-20'}`}>
+                                {selectedForUnmerge?.includes(child.table_number) && <Check size={10} className="text-blue-500" strokeWidth={4} />}
                               </div>
                               <span className="text-sm font-black">Masa {child.table_number}</span>
                             </motion.button>
@@ -268,7 +267,7 @@ export function ActionSheet({
                     className="flex gap-3 mt-1"
                   >
                      <button onClick={onClose} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black bg-[var(--theme-surface-soft)]">Ləğv Et</button>
-                     <button onClick={onConfirmSplit} className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black shadow-xl ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>Seçilənləri Ayır</button>
+                     <button onClick={onConfirmUnmerge} className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black shadow-xl ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>Seçilənləri Ayır</button>
                     </motion.div>
                 </motion.div>
               )}

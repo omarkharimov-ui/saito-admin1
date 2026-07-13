@@ -30,8 +30,8 @@ export default function POSPage() {
   const [transferSource, setTransferSource] = useState<number | null>(null);
   const [transferTarget, setTransferTarget] = useState<number | null>(null);
 
-  const [splitMode, setSplitMode] = useState(false);
-  const [selectedForSplit, setSelectedForSplit] = useState<number[]>([]);
+  const [unmergeMode, setUnmergeMode] = useState(false);
+  const [selectedForUnmerge, setSelectedForUnmerge] = useState<number[]>([]);
 
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -374,7 +374,7 @@ export default function POSPage() {
 
   const handleUnmerge = async () => {
     if (!actionSheetTable) return;
-    if (selectedForSplit.length === 0) {
+    if (selectedForUnmerge.length === 0) {
       toast.error('Zəhmət olmasa ən azı bir masa seçin', { id: 'action-toast' });
       return;
     }
@@ -382,13 +382,13 @@ export default function POSPage() {
       const res = await fetch('/api/orders/unmerge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ primary_table_number: actionSheetTable.table_number, child_table_numbers: selectedForSplit }),
+        body: JSON.stringify({ primary_table_number: actionSheetTable.table_number, child_table_numbers: selectedForUnmerge }),
       });
       const result = res.ok ? await res.json() : { error: (await res.json()).error || 'Xəta' };
       if (res.ok) {
         toast.success('Masalar ayrıldı', { id: 'action-toast' });
-        setSplitMode(false);
-        setSelectedForSplit([]);
+        setUnmergeMode(false);
+        setSelectedForUnmerge([]);
         setActionSheetOpen(false);
         pos.fetchData();
       } else {
@@ -412,10 +412,30 @@ export default function POSPage() {
 
   return (
     <div className="flex-1 min-h-0 w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden">
-      <div className="flex-1 min-h-0 relative overflow-hidden">
-        <AnimatePresence mode="wait">
-          {pos.activeView === 'floor' && (
-              <div key="floor" className="h-full flex flex-col p-6">
+      {pos.loading ? (
+        <div className="flex-1 min-h-0 relative overflow-hidden">
+          <div className="h-full flex flex-col p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="w-24 h-8 bg-white/10 rounded-lg animate-pulse" />
+              <div className="flex items-center gap-3">
+                <div className="w-24 h-8 bg-white/10 rounded-full animate-pulse" />
+                <div className="w-24 h-8 bg-white/10 rounded-full animate-pulse" />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-4 gap-4">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="w-full aspect-[4/5] rounded-[2rem] bg-white/5 border border-white/5 animate-pulse" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 relative overflow-hidden">
+          <AnimatePresence mode="wait">
+            {pos.activeView === 'floor' && (
+                <div key="floor" className="h-full flex flex-col p-6">
                 {!cleanMode && (
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
                     <div className="flex items-center justify-between mb-6">
@@ -584,15 +604,16 @@ export default function POSPage() {
                </div>
             </div>
           )}
-        </AnimatePresence>
-      </div>
-
-      <ActionSheet 
+         </AnimatePresence>
+       </div>
+       )}
+ 
+       <ActionSheet
         table={actionSheetTable} 
         open={actionSheetOpen} 
-        onClose={() => { setActionSheetOpen(false); setSplitMode(false); setPaymentView(false); }} 
+        onClose={() => { setActionSheetOpen(false); setUnmergeMode(false); setPaymentView(false); }} 
         onAddOrder={() => { pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
-        onUnmerge={() => setSplitMode(true)}
+        onUnmerge={() => setUnmergeMode(true)}
         onOpenPayment={handleOpenPayment}
         onPaymentMethodSelect={handlePaymentMethodSelect}
         onSplitConfirm={handleSplitConfirm}
@@ -602,17 +623,17 @@ export default function POSPage() {
         paymentView={paymentView}
         mergeMode={mergeMode}
         mergeParent={selectedForMerge[0]}
-        splitMode={splitMode}
+        unmergeMode={unmergeMode}
         isMerged={!!actionSheetGroup}
         mergedGroupChildren={actionSheetGroup?.children}
         selectedForMerge={selectedForMerge}
-        selectedForSplit={selectedForSplit}
-        onToggleSplit={(n) => {
-          if (selectedForSplit.includes(n)) setSelectedForSplit(p => p.filter(x => x !== n));
-          else setSelectedForSplit(p => [...p, n]);
+        selectedForUnmerge={selectedForUnmerge}
+        onToggleUnmerge={(n) => {
+          if (selectedForUnmerge.includes(n)) setSelectedForUnmerge(p => p.filter(x => x !== n));
+          else setSelectedForUnmerge(p => [...p, n]);
         }}
-        onConfirmSplit={handleUnmerge}
-        onCancelMode={() => { setMergeMode(false); setTransferMode(false); setSplitMode(false); setSelectedForMerge([]); setSelectedForSplit([]); setTransferSource(null); setTransferTarget(null); }}
+        onConfirmUnmerge={handleUnmerge}
+        onCancelMode={() => { setMergeMode(false); setTransferMode(false); setUnmergeMode(false); setSelectedForMerge([]); setSelectedForUnmerge([]); setTransferSource(null); setTransferTarget(null); }}
         onConfirmMerge={async () => { 
           await pos.mergeTables(selectedForMerge); 
           setLastUndo(pos.lastUndo);

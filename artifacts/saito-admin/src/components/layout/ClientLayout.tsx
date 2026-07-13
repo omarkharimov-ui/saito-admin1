@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation';
 import OrderTracker from '@/components/ui/OrderTracker';
-import CartSidebar from '@/components/ui/CartSidebar';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,7 +13,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       {isPublicPage && (
         <>
           <OrderTracker />
-          <CartSidebar />
         </>
       )}
     </>

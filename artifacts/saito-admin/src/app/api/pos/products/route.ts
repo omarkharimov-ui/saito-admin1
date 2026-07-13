@@ -41,7 +41,7 @@ export async function GET() {
       combos,
       campaigns: campaignsRes.data || [],
     }, {
-      headers: { 'Cache-Control': 'no-store, must-revalidate' },
+      headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate' },
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -41,9 +41,10 @@ export async function GET() {
     const floorMap: Record<string, any> = {};
     const childTableNumbers = new Set<number>();
     const parentToChildren: Record<number, number[]> = {};
+    const tableNumberToFloor = new Map<number, any>();
 
-    // 1. Identify relationships
     rawFloors.forEach((f: any) => {
+      tableNumberToFloor.set(f.table_number, f);
       if (f.merged_into_table) {
         childTableNumbers.add(f.table_number);
         if (!parentToChildren[f.merged_into_table]) parentToChildren[f.merged_into_table] = [];
@@ -51,14 +52,12 @@ export async function GET() {
       }
     });
 
-    // 2. Build final structure
     rawFloors.forEach((f: any) => {
       const fn = f.floor_name || 'Main';
       if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [], merged_groups: [] };
 
       const tableOrders = ordersByTable[f.table_number] || [];
       
-      // Determine if this is a parent or a child
       const isParent = parentToChildren[f.table_number] !== undefined;
       const isChild = f.merged_into_table !== null;
       const parentTableNumber = isChild ? f.merged_into_table : f.table_number;
@@ -66,7 +65,6 @@ export async function GET() {
       const childrenNums = parentToChildren[parentTableNumber] || [];
       const allInGroup = [parentTableNumber, ...childrenNums];
       
-      // Aggregate data for the whole group
       let groupTotalAmount = 0;
       let groupGuestCount = 0;
       let groupOrderIds: string[] = [];
@@ -76,7 +74,7 @@ export async function GET() {
         const tOrders = ordersByTable[tNum] || [];
         groupTotalAmount += tOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
         
-        const tableObj = rawFloors.find((rf: any) => rf.table_number === tNum);
+        const tableObj = tableNumberToFloor.get(tNum);
         if (tableObj?.guest_count) groupGuestCount += tableObj.guest_count;
         else if (tOrders.length > 0) groupGuestCount += tOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0);
         
@@ -103,14 +101,13 @@ export async function GET() {
 
       floorMap[fn].tables.push(processedTable);
 
-      // Also maintain a separate merged_groups list for the modal/ActionSheet
       if (isParent && !floorMap[fn].merged_groups.find((g: any) => g.id === `group-${f.table_number}`)) {
         const parentOrders = ordersByTable[f.table_number] || [];
         floorMap[fn].merged_groups.push({
           id: `group-${f.table_number}`,
           parent: { ...processedTable, total_amount: parentOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0) },
           children: childrenNums.map(ctn => {
-            const cTable = rawFloors.find((rf: any) => rf.table_number === ctn);
+            const cTable = tableNumberToFloor.get(ctn);
             const cOrders = ordersByTable[ctn] || [];
             return {
               ...cTable,
@@ -129,7 +126,7 @@ export async function GET() {
     }));
 
     return NextResponse.json({ floors: result }, {
-      headers: { 'Cache-Control': 'no-store, must-revalidate' },
+      headers: { 'Cache-Control': 's-maxage=5, stale-while-revalidate' },
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

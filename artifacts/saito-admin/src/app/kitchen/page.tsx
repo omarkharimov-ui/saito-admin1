@@ -565,6 +565,7 @@ export default function KitchenPage() {
   const recentMergeRef                = useRef<{ key: string; time: number }>({ key: '', time: 0 });
   const soundOnRef                    = useRef(soundOn);
   const lastItemToastRef              = useRef<number>(0);
+  const recentlyInsertedRef           = useRef<Set<string>>(new Set());
   soundOnRef.current = soundOn;
 
   const [viewMode, setViewMode] = useState<'cards' | 'map'>(() => {
@@ -620,6 +621,14 @@ export default function KitchenPage() {
   // Polling fallback (hər 30s) — realtime itirilərsə data təzə qalır
   useEffect(() => {
     const id = setInterval(() => fetchOrdersRef.current(), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Cleanup recently inserted order IDs after 5 seconds
+  useEffect(() => {
+    const id = setInterval(() => {
+      recentlyInsertedRef.current.clear();
+    }, 5000);
     return () => clearInterval(id);
   }, []);
 
@@ -865,7 +874,8 @@ export default function KitchenPage() {
 
         // New order inserted
         const isNewOrder = payload.eventType === 'INSERT' && !payload.old;
-        if (isNewOrder) {
+        if (isNewOrder && payload.new?.id) {
+          recentlyInsertedRef.current.add(payload.new.id);
           const tableNum = payload.new?.table_number;
           const tableName = await getMergedTableName(tableNum, payload.new?.id);
           toast.custom((_t) => (
@@ -893,6 +903,12 @@ export default function KitchenPage() {
           !payload.new?.merged_into &&
           payload.new?.kitchen_status === 'pending' &&
           (payload.old?.kitchen_status !== 'pending' || payload.new?.total_amount !== payload.old?.total_amount);
+        
+        // Skip reset toast for recently inserted orders to avoid duplicate notifications
+        if (isReset && payload.new?.id && recentlyInsertedRef.current.has(payload.new.id)) {
+          return;
+        }
+        
         if (isReset) {
           const tableNum = payload.new?.table_number;
           const tableName = await getMergedTableName(tableNum, payload.new?.id);

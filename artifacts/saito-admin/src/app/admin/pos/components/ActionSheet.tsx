@@ -16,8 +16,6 @@ interface ActionSheetProps {
   onClose: () => void;
   onAddOrder: () => void;
   onUnmerge: () => void;
-  onCloseBill: () => void;
-  onPrint: () => void;
   onCancelTable?: () => void;
   onOpenPayment?: () => void;
   onPaymentMethodSelect?: (method: 'cash' | 'card' | 'split') => void;
@@ -37,19 +35,18 @@ interface ActionSheetProps {
   onCancelMode?: () => void;
   onConfirmMerge?: () => void;
   groupNumber?: number;
-  groupActionView?: boolean;
   paymentView?: boolean;
 }
 
 const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } as const;
 
 export function ActionSheet({ 
-  table, open, onClose, onAddOrder, onUnmerge, onCloseBill, onPrint, onCancelTable,
+  table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
   onBackFromPayment, onBackFromGroup,
   mergeMode, mergeParent, splitMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForSplit,
   onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, groupNumber,
-  groupActionView, paymentView
+  paymentView
 }: ActionSheetProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -60,7 +57,7 @@ export function ActionSheet({
     else document.body.style.overflow = 'unset';
   }, [open, mergeMode]);
 
-  if (!table && !mergeMode && !paymentView && !groupActionView) return null;
+  if (!table && !mergeMode && !paymentView) return null;
 
   const isOccupied = table?.status !== 'empty';
 

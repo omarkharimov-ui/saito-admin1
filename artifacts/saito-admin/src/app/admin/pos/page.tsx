@@ -255,8 +255,6 @@ export default function POSPage() {
     }
   };
 
-  const handleCloseBill = handleOpenPayment;
-
   const handleDismissGroup = async () => {
     if (!actionSheetTable) return;
     const group = actionSheetGroup;
@@ -599,8 +597,6 @@ export default function POSPage() {
         onPaymentMethodSelect={handlePaymentMethodSelect}
         onSplitConfirm={handleSplitConfirm}
         onBackFromPayment={handleBackFromPayment}
-        onCloseBill={handleCloseBill}
-        onPrint={() => window.print()}
         onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
         onDismissGroup={handleDismissGroup}
         paymentView={paymentView}

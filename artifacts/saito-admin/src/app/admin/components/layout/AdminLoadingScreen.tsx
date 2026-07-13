@@ -1,8 +1,17 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 const PHRASES = ['SİSTEM OYANIR', 'MƏLUMATLAR YÜKLƏNİR', 'HAZIR OLUR'];
 
 export default function AdminLoadingScreen() {
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setIdx(i => (i + 1) % PHRASES.length), 2200);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center gap-8 px-6">
       <p className="text-[10px] font-black tracking-[0.55em] uppercase text-gold/30">SAITO ADMIN</p>
@@ -11,7 +20,7 @@ export default function AdminLoadingScreen() {
         aria-hidden
       />
       <p className="text-[11px] font-bold tracking-[0.2em] uppercase text-gold/50 text-center">
-        {PHRASES[0]}
+        {PHRASES[idx]}
       </p>
     </div>
   );

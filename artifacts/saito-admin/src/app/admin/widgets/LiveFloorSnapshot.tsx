@@ -8,9 +8,13 @@ import { supabase } from '@/lib/supabase';
 
 interface TableStatus {
   tableNumber: number;
-  status: 'empty' | 'occupied' | 'new' | 'order_placed' | 'payment_pending' | 'reserved';
+  status: 'empty' | 'occupied' | 'reserved';
   orderCount?: number;
   startTime?: number;
+  kitchenStatus?: string | null;
+  reservationName?: string | null;
+  reservationTime?: string | null;
+  totalAmount?: number;
 }
 
 function TableTimer({ startTime, status }: { startTime?: number, status: string }) {
@@ -38,67 +42,66 @@ export default function LiveFloorSnapshot() {
   const [loading, setLoading] = useState(true);
 
    useEffect(() => {
-     const fetchFloorStatus = async () => {
-       setLoading(true);
-       try {
-         const res = await fetch('/api/pos/tables');
-         if (!res.ok) throw new Error('Failed to fetch tables');
-         const data = await res.json();
-         const tables = data.tables || [];
+      const fetchFloorStatus = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch('/api/pos/tables');
+          if (!res.ok) throw new Error('Failed to fetch tables');
+          const data = await res.json();
+          const floors = data.floors || [];
+          const tables = floors.flatMap((f: any) => (f.tables || []).map((t: any) => t.table_number));
+          setTableCount(tables.length);
 
-         setTableCount(tables.length);
-         setTables(tables.map((t: any) => ({
-           tableNumber: t.table_number,
-           status: t.status,
-           orderCount: t.order_count,
-           startTime: t.opened_at ? new Date(t.opened_at).getTime() : undefined,
-         })));
-       } catch (error) {
-         console.error("An unexpected error occurred in fetchFloorStatus:", error);
-         setTables([]);
-       } finally {
-         setLoading(false);
-       }
-     };
+          setTables(floors.flatMap((f: any) => (f.tables || []).map((t: any) => ({
+            tableNumber: t.table_number,
+            status: t.status,
+            orderCount: t.order_count,
+            startTime: t.last_activity_at ? new Date(t.last_activity_at).getTime() : undefined,
+            kitchenStatus: t.kitchen_status,
+            reservationName: t.reservation_name,
+            reservationTime: t.reservation_time,
+            totalAmount: t.total_amount,
+          }))));
+        } catch (error) {
+          console.error("An unexpected error occurred in fetchFloorStatus:", error);
+          setTables([]);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-     fetchFloorStatus();
-     const interval = setInterval(fetchFloorStatus, 5000);
-     return () => clearInterval(interval);
-    }, []);
+      fetchFloorStatus();
+      const interval = setInterval(fetchFloorStatus, 5000);
+      return () => clearInterval(interval);
+     }, []);
 
-  const getStatusColor = (status: TableStatus['status']) => {
-    switch (status) {
-      case 'empty': return 'bg-white/[0.03] text-white/30';
-      case 'reserved': return 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30';
-      case 'new': return 'bg-emerald-500/10 text-emerald-400';
-      case 'order_placed': return 'bg-amber-500/10 text-amber-400';
-      case 'payment_pending': return 'bg-blue-500/10 text-blue-400';
-      case 'occupied': return 'bg-white/[0.06] text-white/50';
-      default: return 'bg-white/[0.03] text-white/30';
+  const getStatusColor = (status: TableStatus['status'], kitchenStatus?: string | null) => {
+    if (status === 'reserved') return 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30';
+    if (status === 'occupied') {
+      if (kitchenStatus === 'ready') return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+      if (kitchenStatus === 'preparing') return 'bg-blue-500/15 text-blue-400 border border-blue-500/30';
+      return 'bg-white/[0.06] text-white/50 border border-white/10';
     }
+    return 'bg-white/[0.03] text-white/30 border border-white/5';
   };
 
   const getStatusIcon = (status: TableStatus['status']) => {
     switch (status) {
       case 'empty': return <Armchair size={14} />;
-      case 'new': return <Users size={14} />;
-      case 'order_placed': return <Utensils size={14} />;
-      case 'payment_pending': return <CheckCircle2 size={14} />;
-      case 'occupied': return <Clock size={14} />;
+      case 'reserved': return <Users size={14} />;
+      case 'occupied': return <Utensils size={14} />;
       default: return <Armchair size={14} />;
     }
   };
 
-  const getStatusLabel = (status: TableStatus['status']) => {
-    switch (status) {
-      case 'empty': return t('empty');
-      case 'reserved': return 'Bron edilib';
-      case 'new': return t('new_guests');
-      case 'order_placed': return t('cooking');
-      case 'payment_pending': return t('payment_pending');
-      case 'occupied': return t('occupied');
-      default: return t('empty');
+  const getStatusLabel = (status: TableStatus['status'], kitchenStatus?: string | null) => {
+    if (status === 'reserved') return 'Rezerv';
+    if (status === 'occupied') {
+      if (kitchenStatus === 'ready') return 'Hazır';
+      if (kitchenStatus === 'preparing') return 'Hazırlanır';
+      return 'Dolu';
     }
+    return t('empty');
   };
 
   const occupiedCount = tables.filter(t => t.status !== 'empty').length;
@@ -164,13 +167,25 @@ export default function LiveFloorSnapshot() {
             key={table.tableNumber}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`relative flex flex-col items-center justify-center rounded-2xl p-3 transition-all ${getStatusColor(table.status)}`}
+            className={`relative flex flex-col items-center justify-center rounded-2xl p-2 transition-all ${getStatusColor(table.status, table.kitchenStatus)}`}
           >
-            <div className="flex items-center gap-1 mb-1">
+            <div className="flex items-center gap-1 mb-0.5">
               {getStatusIcon(table.status)}
               <span className="text-[9px] font-black tabular-nums">{table.tableNumber}</span>
             </div>
-            <TableTimer startTime={(table as any).startTime} status={table.status} />
+            {table.status === 'reserved' && table.reservationName && (
+              <p className="text-[7px] font-bold text-indigo-300 truncate w-full text-center leading-tight">{table.reservationName}</p>
+            )}
+            {table.status === 'reserved' && table.reservationTime && (
+              <p className="text-[7px] font-bold text-indigo-400/70 truncate w-full text-center leading-tight">{table.reservationTime}</p>
+            )}
+            {table.status === 'occupied' && table.kitchenStatus === 'ready' && (
+              <p className="text-[7px] font-bold text-emerald-400 truncate w-full text-center leading-tight">Hazır</p>
+            )}
+            {table.status === 'occupied' && table.kitchenStatus === 'preparing' && (
+              <p className="text-[7px] font-bold text-blue-400 truncate w-full text-center leading-tight">Hazırlanır</p>
+            )}
+            <TableTimer startTime={table.startTime} status={table.status} />
           </motion.div>
         ))}
       </div>

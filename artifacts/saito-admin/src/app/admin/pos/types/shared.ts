@@ -75,7 +75,7 @@ export interface PosTable {
   reservation_time?: string | null;
 }
 
-export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'reserved' | string;
+export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'reserved' | 'waiting' | 'occupied' | string;
 
 export interface MergedGroup {
   id: string;

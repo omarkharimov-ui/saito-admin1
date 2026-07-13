@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface DashboardStats {
@@ -351,49 +352,62 @@ export default function HeroBanner() {
             </div>
           </div>
 
-          {/* Stock intelligence strip */}
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4">
-              <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Calibration</div>
-              <div className="flex items-end justify-between gap-3">
-                <div>
-                  <div className="text-2xl font-semibold text-[var(--theme-text)]">{stats.calibrationSuggestions}</div>
-                  <div className="text-xs text-[var(--theme-text-secondary)]">AI reverse-inventory təklifi</div>
-                </div>
-                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.calibrationSuggestions > 0 ? 'border-amber-500/30 text-amber-300 bg-amber-500/10' : 'border-white/10 text-[var(--theme-text-muted)] bg-white/[0.03]'}`}>
-                  {stats.calibrationSuggestions > 0 ? 'Needs review' : 'Synced'}
-                </div>
-              </div>
-            </div>
+           {/* Stock intelligence strip */}
+           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+             <Link href="/admin/stock?tab=intelligence" className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4 block hover:border-white/20 transition-all">
+               <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Calibration</div>
+               <div className="flex items-end justify-between gap-3">
+                 <div>
+                   <div className="text-2xl font-semibold text-[var(--theme-text)]">{stats.calibrationSuggestions}</div>
+                   <div className="text-xs text-[var(--theme-text-secondary)]">AI reverse-inventory təklifi</div>
+                 </div>
+                 <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.calibrationSuggestions > 0 ? 'border-amber-500/30 text-amber-300 bg-amber-500/10' : 'border-white/10 text-[var(--theme-text-muted)] bg-white/[0.03]'}`}>
+                   {stats.calibrationSuggestions > 0 ? 'Needs review' : 'Synced'}
+                 </div>
+               </div>
+             </Link>
 
-            <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4" title="Net margin <15% or food cost >45% = critical | Net margin <25% or food cost >35% = tight | Otherwise healthy">
-              <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Margin pressure</div>
+             <Link href="/admin/stats" className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4 block hover:border-white/20 transition-all">
+              <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Mənfəət Marjası</div>
               <div className="flex items-end justify-between gap-3">
                 <div>
-                  <div className="text-2xl font-semibold text-[var(--theme-text)] capitalize">{stats.marginInsight.marginPressure}</div>
+                  <div className="text-2xl font-semibold text-[var(--theme-text)] capitalize">{stats.marginInsight.marginPressure === 'healthy' ? 'Normal' : stats.marginInsight.marginPressure === 'tight' ? 'Zəif' : 'Kritik'}</div>
                   <div className="text-xs text-[var(--theme-text-secondary)]">Gross {stats.marginInsight.grossMarginPct.toFixed(1)}% · Net {stats.marginInsight.netMarginPct.toFixed(1)}%</div>
                 </div>
                 <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.marginInsight.marginPressure === 'critical' ? 'border-rose-500/30 text-rose-300 bg-rose-500/10' : stats.marginInsight.marginPressure === 'tight' ? 'border-amber-500/30 text-amber-300 bg-amber-500/10' : 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10'}`}>
                   FC {stats.marginInsight.foodCostPct.toFixed(1)}%
                 </div>
               </div>
-            </div>
+            </Link>
 
-            <div className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4">
-              <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Critical stock</div>
+            <Link href="/admin/stock?filter=critical" className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4 block hover:border-white/20 transition-all">
+              <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Kritik Stok</div>
               <div className="flex items-end justify-between gap-3">
                 <div>
                   <div className="text-2xl font-semibold text-[var(--theme-text)]">{stats.criticalStockCount}</div>
-                  <div className="text-xs text-[var(--theme-text-secondary)]">Immediate alerts</div>
+                  <div className="text-xs text-[var(--theme-text-secondary)]">Dərhal diqqət tələb edən</div>
                 </div>
                 <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.criticalStockCount > 0 ? 'border-rose-500/30 text-rose-300 bg-rose-500/10' : 'border-white/10 text-[var(--theme-text-muted)] bg-white/[0.03]'}`}>
                   {stats.criticalStockCount > 0 ? 'Action' : 'Clear'}
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </motion.div>
+            </Link>
+
+            <Link href="/admin/stats" className="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-nested)]/70 p-4 block hover:border-white/20 transition-all">
+              <div className="text-[9px] uppercase tracking-[0.28em] text-[var(--theme-text-muted)] mb-2">Satış</div>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <div className="text-2xl font-semibold text-[var(--theme-text)]">₼{stats.dailyRevenue.toLocaleString('az-AZ', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                  <div className="text-xs text-[var(--theme-text-secondary)]">Bu gün</div>
+                </div>
+                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${stats.dailyNetProfit >= 0 ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10' : 'border-rose-500/30 text-rose-300 bg-rose-500/10'}`}>
+                  {stats.dailyNetProfit >= 0 ? 'Profit' : 'Loss'}
+                </div>
+              </div>
+            </Link>
+           </div>
+         </div>
+       </div>
+     </motion.div>
   );
 }

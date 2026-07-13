@@ -186,18 +186,47 @@ export default function ReservationsPage() {
     }
   };
 
+  const handleGuestArrived = async () => {
+    if (!selectedRes) return;
+    try {
+      const res = await fetch('/api/reservations/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedRes.id, status: 'waiting' }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Status yenilənərkən xəta');
+      }
+      toast.success('Qonaq qeydə alındı — masa hazırlanır');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleSendToKitchen = async () => {
+    if (!selectedRes) return;
+    try {
+      const res = await fetch('/api/reservations/send-kitchen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservation_id: selectedRes.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Köhrana göndərilərkən xəta');
+      }
+      toast.success('Öncədən sifariş aşpaza göndərildi');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   const handleConfirmReservation = async () => {
     if (!selectedRes) return;
     if (selectedTableIds.length === 0) return toast.error("Zəhmət olmasa masa seçin");
-
-    // Capacity validation (use actual table capacity if available)
-    const totalCapacity = selectedTableIds.reduce((sum, id) => {
-      const t = tables.find(t => t.id === id);
-      return sum + (t?.capacity || 4);
-    }, 0);
-    if (selectedRes.guests > totalCapacity) {
-      return toast.error(`Seçilmiş ${selectedTableIds.length} masa ${selectedRes.guests} nəfər üçün yetərli deyil.`);
-    }
 
     try {
       const res = await fetch('/api/reservations/reserve-table', {
@@ -277,7 +306,7 @@ export default function ReservationsPage() {
 
 
   const goToPOSPreOrder = () => {
-    if (selectedTableIds.length === 0) return toast.error("Əvvəlcə masanı təyin edin");
+    if (!Array.isArray(selectedTableIds) || selectedTableIds.length === 0) return toast.error("Əvvəlcə masanı təyin edin");
     const tablesLabel = selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).join(' + ');
     // Save to localStorage for primary consumption
     localStorage.setItem('saito_pos_preorder_context', JSON.stringify({
@@ -349,7 +378,7 @@ export default function ReservationsPage() {
                   onToggleSelect={(id) => {
                     setSelectedArchiveIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
                   }}
-                  onSelect={(r) => { setSelectedRes(r); setModalView('main'); setSelectedTableIds(r.table_ids || []); }}
+                   onSelect={(r) => { setSelectedRes(r); setModalView('main'); setSelectedTableIds(Array.isArray(r.table_ids) ? r.table_ids : []); }}
                   statusBadge={(s) => {
                     const colors: Record<string, string> = {
                       pending: 'bg-amber-500/10 text-amber-500',
@@ -410,9 +439,37 @@ export default function ReservationsPage() {
                              <span className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 ${lightMode ? 'bg-zinc-100 text-zinc-700' : 'bg-white/10 text-white/80'}`}>
                                <Users size={14} /> {selectedRes.guests} Nəfər
                              </span>
-                          </div>
+                           </div>
 
-                          {(() => {
+                           {selectedRes.pre_order_items && (() => {
+                             const items = typeof selectedRes.pre_order_items === 'string' ? JSON.parse(selectedRes.pre_order_items) : selectedRes.pre_order_items;
+                             const total = (items || []).reduce((s: number, i: any) => s + (i.unit_price * i.quantity), 0);
+                             if (!items || items.length === 0) return null;
+                             return (
+                               <div className={`p-6 rounded-[2rem] border mb-6 ${lightMode ? 'bg-amber-50 border-amber-200' : 'bg-amber-500/5 border-amber-500/20'}`}>
+                                 <div className="flex items-center justify-between mb-3">
+                                   <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Öncədən Sifariş</span>
+                                   <span className="text-sm font-black text-amber-500">₼{total.toFixed(2)}</span>
+                                 </div>
+                                 <div className="flex flex-col gap-1.5 mb-4">
+                                   {items.slice(0, 5).map((item: any, i: number) => (
+                                     <div key={i} className="flex items-center justify-between text-xs">
+                                       <span className="font-bold truncate">{item.quantity}x {item.product_name}</span>
+                                       <span className="text-[10px] opacity-60">₼{(item.unit_price * item.quantity).toFixed(2)}</span>
+                                     </div>
+                                   ))}
+                                   {items.length > 5 && <span className="text-[10px] opacity-40">+{items.length - 5} daha</span>}
+                                 </div>
+                                 {selectedRes.status === 'waiting' && (
+                                   <button onClick={handleSendToKitchen} className="w-full py-4 rounded-2xl bg-blue-500 text-white text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg">
+                                     Aşpaza Göndər
+                                   </button>
+                                 )}
+                               </div>
+                             );
+                           })()}
+
+                           {(() => {
                             const isExpired = selectedRes.date < new Date().toISOString().split('T')[0] || 
                               (selectedRes.date === new Date().toISOString().split('T')[0] && selectedRes.time && (() => {
                                 const [h, m] = selectedRes.time.split(':').map(Number);
@@ -463,9 +520,21 @@ export default function ReservationsPage() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                                   <div className="flex gap-4">
-                                    <button onClick={handleConfirmReservation} className="flex-[2] py-6 rounded-[2.2rem] bg-green-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
-                                      <CheckCircle size={24} /> Təsdiqlə
-                                    </button>
+                                    {selectedRes.status === 'confirmed' && (
+                                      <button onClick={handleGuestArrived} className="flex-[2] py-6 rounded-[2.2rem] bg-amber-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-amber-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+                                        <Users size={24} /> Qonaq Gəldi
+                                      </button>
+                                    )}
+                                    {selectedRes.status === 'waiting' && (
+                                      <button onClick={handleSendToKitchen} className="flex-[2] py-6 rounded-[2.2rem] bg-blue-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+                                        <Zap size={24} /> Aşpaza Göndər
+                                      </button>
+                                    )}
+                                    {selectedRes.status !== 'confirmed' && selectedRes.status !== 'waiting' && (
+                                      <button onClick={handleConfirmReservation} className="flex-[2] py-6 rounded-[2.2rem] bg-green-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+                                        <CheckCircle size={24} /> Təsdiqlə
+                                      </button>
+                                    )}
                                   </div>
                                   
                                   <div className={`p-6 rounded-[2.5rem] flex items-center justify-center gap-4 ${lightMode ? 'bg-zinc-50/50' : 'bg-white/5'}`}>

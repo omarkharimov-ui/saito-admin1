@@ -304,6 +304,9 @@ export function TableStatusGrid({
       if (dbStatus?.status === 'reserved') {
         return { status: 'reserved', order: { table_number: num, is_draft: true, reservation_name: dbStatus.reservation_name, reservation_time: dbStatus.reservation_time } as any };
       }
+      if (dbStatus?.status === 'waiting') {
+        return { status: 'waiting', order: null };
+      }
       return { status: 'empty', order: null };
     }
 

@@ -54,13 +54,14 @@ type ModalMode = 'stock_in' | 'waste' | 'audit' | 'new_ingredient' | null;
 
 export default function StockPage() {
   const { lightMode } = useTheme();
+  const searchParams = useSearchParams();
   const [data, setData] = useState<InventoryDashboardData & { alerts: LowStockAlert[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState<InventoryStatusRow | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'critical' | 'out_of_stock'>('all');
+  const [filter, setFilter] = useState<'all' | 'critical' | 'out_of_stock'>(searchParams.get('filter') === 'critical' || searchParams.get('filter') === 'out_of_stock' ? searchParams.get('filter') as any : 'all');
   const [viewMode, setViewMode] = useState<'stock' | 'intelligence' | 'suppliers' | 'procurement'>('stock');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [history, setHistory] = useState<Array<Pick<InventoryLog, 'id' | 'type' | 'quantity' | 'cost_per_unit' | 'reason' | 'created_at'>> | null>(null);

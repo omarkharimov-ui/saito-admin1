@@ -9,7 +9,8 @@ function svc() {
 
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled', 'expired'],
-  confirmed: ['checked_in', 'cancelled', 'no_show', 'expired'],
+  confirmed: ['waiting', 'cancelled', 'no_show', 'expired'],
+  waiting: ['checked_in', 'cancelled', 'no_show'],
   checked_in: ['completed', 'cancelled'],
   completed: ['archived'],
   cancelled: ['pending'],
@@ -25,6 +26,7 @@ function isValidTransition(from: string, to: string): boolean {
 
 const TABLE_STATUS_MAP: Record<string, string | null> = {
   confirmed: 'reserved',
+  waiting: 'waiting',
   checked_in: 'occupied',
   completed: 'empty',
   cancelled: 'empty',
@@ -94,8 +96,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Handle check-in: if checked_in, try to activate table (idempotent)
-    if (status === 'checked_in' && current.status === 'confirmed') {
+    // 4. Handle guest arrival: if waiting or checked_in, activate table and clear reservation markers
+    if ((status === 'waiting' || status === 'checked_in') && (current.status === 'confirmed' || current.status === 'waiting')) {
       if (current.table_ids) {
         const tableIds = typeof current.table_ids === 'string' ? JSON.parse(current.table_ids) : current.table_ids;
         for (const tId of tableIds) {
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
             method: 'PATCH',
             headers: s.headers,
             body: JSON.stringify({
-              status: 'occupied',
+              status: status === 'waiting' ? 'waiting' : 'occupied',
               reservation_id: null,
               reservation_name: null,
               reservation_phone: null,

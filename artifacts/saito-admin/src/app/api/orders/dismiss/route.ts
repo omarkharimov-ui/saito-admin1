@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     const s = svc();
+
     const rpcRes = await fetch(`${s.url}/rest/v1/rpc/cancel_table_orders`, {
       method: 'POST',
       headers: s.headers,
@@ -31,8 +32,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: errText }, { status: 500 });
     }
 
+    const tablesRes = await fetch(`${s.url}/rest/v1/table_floors?select=id,reservation_id,status&table_number=eq.${table_number}`, { headers: s.headers });
+    const tables = await tablesRes.json();
+    const reservationIds = Array.from(new Set((tables || []).filter((t: any) => t.reservation_id && t.status === 'reserved').map((t: any) => t.reservation_id)));
+
+    for (const resId of reservationIds) {
+      await fetch(`${s.url}/rest/v1/reservations?id=eq.${resId}`, {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({ status: 'cancelled', note: 'Masa boşaldıldı' }),
+      });
+    }
+
     const data = await rpcRes.json();
-    return NextResponse.json({ success: true, result: data });
+    return NextResponse.json({ success: true, result: data, cancelledReservations: reservationIds.length });
   } catch (error: any) {
     console.error('[API /orders/dismiss] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

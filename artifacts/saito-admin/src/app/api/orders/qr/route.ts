@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
         total_amount: totalFromItems,
         status: 'confirmed',
         kitchen_status: 'pending',
+        is_draft: false,
         order_type,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

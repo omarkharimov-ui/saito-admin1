@@ -182,6 +182,7 @@ export async function POST(request: Request) {
             customer_note: customer_note || null,
             order_type: order_type || 'dine_in',
             kitchen_status: ks,
+            is_draft: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             version: 1,

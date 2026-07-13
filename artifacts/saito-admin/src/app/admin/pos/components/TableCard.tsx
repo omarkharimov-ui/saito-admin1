@@ -21,9 +21,10 @@ interface TableCardProps {
   groupNumber?: number;
   mergedChildNumbers?: number[];
   isMergedChild?: boolean;
+  kitchenStatus?: string | null;
 }
 
-export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
@@ -157,14 +158,27 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       </div>
 
       <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
-        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest
-          ${isReserved 
-            ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' 
-            : isOccupied 
-              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
-              : 'bg-white/5 border-white/5 text-white/30'}`}>
-          <div className={`w-1.5 h-1.5 rounded-full ${isReserved ? 'bg-indigo-400' : isOccupied ? 'bg-emerald-500' : 'bg-white/20'}`} />
-          {isReserved ? t('reserved' as any) : isOccupied ? t('occupied' as any) : t('empty' as any)}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest
+            ${isReserved 
+              ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' 
+              : isOccupied 
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
+                : 'bg-white/5 border-white/5 text-white/30'}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${isReserved ? 'bg-indigo-400' : isOccupied ? 'bg-emerald-500' : 'bg-white/20'}`} />
+            {isReserved ? t('reserved' as any) : isOccupied ? t('occupied' as any) : t('empty' as any)}
+          </div>
+          {kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' && (
+            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black border ${
+              kitchenStatus === 'preparing' || kitchenStatus === 'cooking'
+                ? 'bg-blue-500/15 border-blue-400/30 text-blue-400'
+                : kitchenStatus === 'ready'
+                  ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-400'
+                  : 'bg-white/5 border-white/10 text-white/50'
+            }`}>
+              {kitchenStatus === 'preparing' || kitchenStatus === 'cooking' ? 'HAZIRLANIR' : kitchenStatus === 'ready' ? 'HAZIR' : 'YENI'}
+            </span>
+          )}
         </div>
 
         <div className="text-right">

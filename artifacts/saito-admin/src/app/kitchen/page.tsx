@@ -238,7 +238,7 @@ function CardWithCollapse({
           isFullyReady && !forceNormal
             ? 'opacity-30'
             : isGlowing
-              ? 'bg-[#D4AF37]/10 border border-[#D4AF37]/35 shadow-[0_0_12px_rgba(212,175,55,0.15)]'
+              ? `bg-[${lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'}] border ${lightMode ? 'border-gray-200' : 'border-white/10'}`
               : ''
         } ${idx !== list.length - 1 ? 'border-b border-white/[0.06]' : ''}`}
       >
@@ -251,30 +251,30 @@ function CardWithCollapse({
         <div className="flex-1 min-w-0">
           {hasSplit ? (
             <div className="flex items-center gap-2">
-              <div className="w-0.5 self-stretch rounded-full bg-[#D4AF37]/60 flex-shrink-0" />
+              <div className={`w-0.5 self-stretch rounded-full flex-shrink-0 ${lightMode ? 'bg-gray-300' : 'bg-white/40'}`} />
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-sm leading-tight truncate text-white tracking-wide">{item.product_name}</p>
                 <p className="text-xs mt-0.5">
                   <span className="text-emerald-400 font-semibold">{ready}</span>
                   <span className="text-white/25 font-normal">/{item.orderedQuantity}</span>
                   <span className="text-white/30 font-normal ml-1 text-[10px]">hazır</span>
-                  <span className="ml-1.5 text-[#c9a035] font-bold text-[10px] tracking-wide">+{pending} yeni</span>
+                  <span className={`ml-1.5 font-bold text-[10px] tracking-wide ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>+{pending} yeni</span>
                 </p>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              {isGlowing && <div className="w-0.5 self-stretch rounded-full bg-[#D4AF37]/60 flex-shrink-0" />}
+              {isGlowing && <div className={`w-0.5 self-stretch rounded-full flex-shrink-0 ${lightMode ? 'bg-gray-300' : 'bg-white/40'}`} />}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className={`font-bold text-sm leading-tight truncate tracking-wide ${
                     isFullyReady && !inModal && !forceNormal ? 'text-white/30' : item.is_on_hold ? 'text-white/40' : 'text-white'
                   }`}>{item.product_name}</p>
-                  {item.is_on_hold && <span className="flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-black bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 tracking-wider">GÖZLƏT</span>}
+                   {item.is_on_hold && <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-black border tracking-wider ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-500' : 'bg-white/[0.06] border-white/[0.1] text-white/50'}`}>GÖZLƏT</span>}
                 </div>
                 <p className="text-xs mt-0.5">
                   <span className={`font-bold text-sm ${isFullyReady ? 'text-white/20' : 'text-white/60'}`}>×{item.orderedQuantity}</span>
-                  {isGlowing && <span className="ml-1.5 text-[#c9a035] font-bold text-[10px] tracking-wide">· yeni</span>}
+                   {isGlowing && <span className={`ml-1.5 font-bold text-[10px] tracking-wide ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>· yeni</span>}
                 </p>
               </div>
             </div>
@@ -290,13 +290,13 @@ function CardWithCollapse({
     ? 'rgba(16,185,129,0.5)'
     : isDelayed
       ? 'rgba(239,68,68,0.5)'
-      : 'rgba(212,175,55,0.35)';
+      : lightMode ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.3)';
 
   const cardBg = allDone
-    ? '#0b120e'
+    ? lightMode ? '#f0fdf4' : '#0b120e'
     : isDelayed
-      ? '#120b0b'
-      : '#0f0f0f';
+      ? lightMode ? '#fef2f2' : '#120b0b'
+      : lightMode ? '#f9fafb' : '#0f0f0f';
 
   return (
     <>
@@ -325,7 +325,7 @@ function CardWithCollapse({
           <div className="px-6 pt-6 pb-4 flex items-start justify-between">
             <div>
               <div className="flex items-center gap-3 mb-1.5">
-                <h2 className="text-4xl font-black tracking-tight" style={{ color: allDone ? '#10b981' : isDelayed ? '#f87171' : '#D4AF37' }}>
+                <h2 className="text-4xl font-black tracking-tight" style={{ color: allDone ? '#10b981' : isDelayed ? '#f87171' : (lightMode ? '#000' : '#fff') }}>
                   {t.kitchen_masa || 'MASA'} {(order.merged_from_tables||[]).length > 0 ? `${order.table_number}+${order.merged_from_tables!.join('+')}` : order.table_number}
                 </h2>
                 {order.is_rush && <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-500/15 border border-orange-500/30 text-orange-400">{t.kitchen_rush||'TƏLƏSİR'}</span>}
@@ -346,19 +346,19 @@ function CardWithCollapse({
           <div className="px-6 pt-3 pb-6">
             <div className="flex items-center justify-between mb-5">
               <span className="text-sm text-white/35 uppercase tracking-widest font-bold">{t.kitchen_total||'CƏMİ'}</span>
-              <span className="text-3xl font-black text-[#D4AF37]">{order.total_amount.toFixed(2)} ₼</span>
+              <span className={`text-3xl font-black ${lightMode ? 'text-black' : 'text-white'}`}>{order.total_amount.toFixed(2)} ₼</span>
             </div>
             {stage === 'accept' && (
               <button onClick={() => { onAccept(); setModalOpen(false); }}
-                className="w-full rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97]"
-                style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#d4a825,#b8891e)', color: lightMode ? '#fff' : '#000', fontSize: 18, padding: '20px 0', letterSpacing: '0.02em', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 24px rgba(212,175,55,0.3)' }}>
+                className="w-full rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97] hover:brightness-110"
+                style={{ background: lightMode ? '#000' : '#fff', color: lightMode ? '#fff' : '#000', fontSize: 18, padding: '20px 0', letterSpacing: '0.02em', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(255,255,255,0.1)' }}>
                 <FlameKindling size={22}/> {t.kitchen_accept||'Qəbul Et'}
               </button>
             )}
             {stage === 'deliver' && (
               <button onClick={() => { onDeliver(); setModalOpen(false); }}
-                className="w-full rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97]"
-                style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#0f7a57,#0a5c41)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: 18, padding: '20px 0', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 24px rgba(16,185,129,0.2)' }}>
+                className="w-full rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97] hover:brightness-110"
+                style={{ background: lightMode ? '#000' : '#fff', color: lightMode ? '#fff' : '#000', fontSize: 18, padding: '20px 0', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(255,255,255,0.1)', border: lightMode ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.15)' }}>
                 <SendHorizonal size={22}/> {t.kitchen_mark_ready||'Hazırdır — Servisə Ver'}
               </button>
             )}
@@ -389,14 +389,14 @@ function CardWithCollapse({
         <div className="flex items-start justify-between gap-1.5">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-              <h2 className="text-xl font-black leading-none tracking-tight" style={{ color: allDone ? '#10b981' : isDelayed ? '#f87171' : '#D4AF37' }}>
+              <h2 className="text-xl font-black leading-none tracking-tight" style={{ color: allDone ? '#10b981' : isDelayed ? '#f87171' : (lightMode ? '#000' : '#fff') }}>
                 {t.kitchen_masa||'MASA'} {order.table_number}
               </h2>
               {(order.merged_from_tables||[]).length > 0 && (
                 <div className="flex items-center gap-1">
-                  <GitMerge size={10} className="text-amber-400/60" />
+                  <GitMerge size={10} className={lightMode ? 'text-gray-400' : 'text-white/40'} />
                   {order.merged_from_tables!.map(n => (
-                    <span key={n} className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-500/12 border border-amber-500/25 text-amber-300/80">+{n}</span>
+                    <span key={n} className={`px-1.5 py-0.5 rounded text-[10px] font-black border ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-white/[0.06] border-white/[0.1] text-white/60'}`}>+{n}</span>
                   ))}
                 </div>
               )}
@@ -414,8 +414,8 @@ function CardWithCollapse({
           </span>
         </div>
         {order.customer_note && (
-          <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-amber-500/[0.07] border border-amber-400/15">
-            <p className="text-amber-300/80 text-[11px] leading-snug">{order.customer_note}</p>
+          <div className={`mt-2 px-2.5 py-1.5 rounded-lg border ${lightMode ? 'bg-gray-100 border-gray-200' : 'bg-white/[0.04] border-white/[0.08]'}`}>
+            <p className={`text-[11px] leading-snug font-medium ${lightMode ? 'text-gray-700' : 'text-white/70'}`}>{order.customer_note}</p>
           </div>
         )}
       </div>
@@ -468,9 +468,9 @@ function CardWithCollapse({
                       <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{course}</span>
                       <span className="text-[10px] font-black text-white/50">{Math.round(pct)}%</span>
                     </div>
-                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#D4AF37] transition-all" style={{ width: `${pct}%` }} />
-                    </div>
+                     <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                       <div className={`h-full transition-all ${lightMode ? 'bg-black' : 'bg-white'}`} style={{ width: `${pct}%` }} />
+                     </div>
                   </div>
                 );
               })}
@@ -483,13 +483,13 @@ function CardWithCollapse({
       {(stage === 'accept' || stage === 'deliver' || stage === 'complete') && (
         <div className="px-3 pb-3 pt-1.5">
           <div className="h-px bg-white/[0.05] mb-2.5" />
-          {stage === 'accept' && (
-            <button onClick={e => { e.stopPropagation(); onAccept(); }}
-              className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
-              style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#d4a825,#b8891e)', color: lightMode ? '#fff' : '#000', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(212,175,55,0.25)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
-              <FlameKindling size={16}/> {t.kitchen_accept||'Qəbul Et'}
-            </button>
-          )}
+           {stage === 'accept' && (
+             <button onClick={e => { e.stopPropagation(); onAccept(); }}
+               className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
+               style={{ background: lightMode ? '#000' : '#fff', color: lightMode ? '#fff' : '#000', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(255,255,255,0.1)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+               <FlameKindling size={16}/> {t.kitchen_accept||'Qəbul Et'}
+             </button>
+           )}
           {stage === 'deliver' && (
             <button onClick={e => { e.stopPropagation(); onDeliver(); }}
               className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
@@ -733,8 +733,9 @@ export default function KitchenPage() {
           )
         `)
         .gt('table_number', 0)
-        .not('status', 'eq', 'paid')
-         .is('is_draft', false) // CRITICAL: hide draft/reservation placeholders from kitchen
+        .not('status', 'in', '("paid","cancelled","closed")')
+        .neq('kitchen_status', 'completed')
+        .is('is_draft', false)
         .order('created_at', { ascending: false });
 
       if (!error && data) {
@@ -810,15 +811,15 @@ export default function KitchenPage() {
               initial={{ opacity: 0, y: -16, scale: 0.94 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, x: 100 }}
-              style={{ background: 'linear-gradient(135deg,#1a1200,#120e00)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: 18, padding: '14px 18px', boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(212,175,55,0.08)', minWidth: 260, pointerEvents: 'auto' }}
+              style={{ background: lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.03)', border: `1px solid ${lightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 18, padding: '14px 18px', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.1)' : '0 8px 32px rgba(0,0,0,0.3)', minWidth: 260, pointerEvents: 'auto' }}
               className="flex items-center gap-4"
             >
-              <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <GitMerge size={20} color="#D4AF37" />
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)', border: `1px solid ${lightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <GitMerge size={20} color={lightMode ? '#000' : '#fff'} />
               </div>
               <div>
-                <p style={{ fontSize: 15, fontWeight: 800, color: '#D4AF37', lineHeight: 1.2 }}>
-                  {targetTable ? `Masa ${targetTable}` : ''}{targetTable && targetTableNum ? <span style={{ color: 'rgba(212,175,55,0.5)' }}> + </span> : ''}{targetTableNum}
+                <p style={{ fontSize: 15, fontWeight: 800, color: lightMode ? '#000' : '#fff', lineHeight: 1.2 }}>
+                  {targetTable ? `Masa ${targetTable}` : ''}{targetTable && targetTableNum ? <span style={{ color: lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}> + </span> : ''}{targetTableNum}
                 </p>
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2, fontWeight: 600 }}>Masalar birləşdirildi</p>
               </div>
@@ -1010,13 +1011,9 @@ export default function KitchenPage() {
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const { activeOrders, readyOrders } = useMemo(() => {
-    // Aktiv: hər hansı item hələ hazır deyilsə (preparedQuantity < orderedQuantity)
-    const cancelled = orders.filter(o => o.kitchen_status === 'cancelled');
     const active = orders
-      .filter(o => o.kitchen_status !== 'cancelled' && o.items.length > 0 && o.items.some(it => it.preparedQuantity < it.orderedQuantity))
+      .filter(o => o.items.length > 0 && o.items.some(it => it.preparedQuantity < it.orderedQuantity))
       .sort((a, b) => priorityWeight(a) - priorityWeight(b) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    active.push(...cancelled);
-    // Hazır: bütün itemlər tam hazırdır
     const ready = orders.filter(o =>
       o.items.length > 0 &&
       o.items.every(it => it.preparedQuantity >= it.orderedQuantity)
@@ -1096,11 +1093,11 @@ export default function KitchenPage() {
     const allItemsReady = order.items.length > 0 && order.items.every(it => it.preparedQuantity >= it.orderedQuantity);
     const kitchenStatusLabel = (() => {
       if (order.is_draft || order.kitchen_status === 'reserved') {
-        return { text: 'RESERV', color: 'text-indigo-300', badge: 'bg-indigo-500/20 border-indigo-400/30', pulse: true };
+        return { text: 'RESERV', color: lightMode ? 'text-gray-500' : 'text-indigo-300', badge: lightMode ? 'bg-gray-100 border-gray-300' : 'bg-indigo-500/20 border-indigo-400/30', pulse: true };
       }
       if (allItemsReady)                         return { text: 'Hazırdır',   color: 'text-emerald-300', badge: 'bg-emerald-500/15 border-emerald-400/30', pulse: false };
       if (order.kitchen_status === 'preparing')  return { text: 'Hazırlanır', color: 'text-blue-300',    badge: 'bg-blue-500/15 border-blue-400/30',       pulse: false };
-      return { text: 'YENİ', color: 'text-amber-300', badge: 'bg-amber-500/15 border-amber-400/30', pulse: true };
+      return { text: 'YENİ', color: lightMode ? 'text-gray-500' : 'text-white/60', badge: lightMode ? 'bg-gray-100 border-gray-300' : 'bg-white/[0.08] border-white/[0.12]', pulse: true };
     })();
 
     const mins = elapsedMinutes(timerBase(order));
@@ -1195,7 +1192,7 @@ export default function KitchenPage() {
                   <motion.span key={i}
                     animate={{ opacity: [0.15, 1, 0.15] }}
                     transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut', delay: i * 0.07 }}
-                    style={{ fontSize: ch === ' ' ? 8 : 13, fontWeight: 800, letterSpacing: '0.05em', color: '#D4AF37', width: ch === ' ' ? 6 : 'auto', display: 'inline-block' }}
+                     style={{ fontSize: ch === ' ' ? 8 : 13, fontWeight: 800, letterSpacing: '0.05em', color: lightMode ? '#000' : '#fff', width: ch === ' ' ? 6 : 'auto', display: 'inline-block' }}
                   >{ch === ' ' ? '\u00A0' : ch}</motion.span>
                 ))}
               </div>
@@ -1208,15 +1205,26 @@ export default function KitchenPage() {
       <header className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
-            <ChefHat size={22} className="text-[#D4AF37]" />
+            <ChefHat size={22} className={lightMode ? 'text-black' : 'text-white'} />
           </div>
           <div>
             <h1 suppressHydrationWarning className="text-xl font-black text-white/90 leading-none tracking-wide">{t.kitchen_panel || 'Mətbəx'}</h1>
             <p suppressHydrationWarning className="text-sm text-white/30 mt-1">{activeOrders.length} aktiv · {readyOrders.length} hazır</p>
           </div>
+          {/* Chef Dashboard Stats */}
+          <div className="hidden lg:flex items-center gap-3 ml-4">
+            <div className="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-center">
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">Aktiv</p>
+              <p className="text-sm font-black text-white">{activeOrders.length}</p>
+            </div>
+            <div className="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-center">
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">Hazır</p>
+              <p className="text-sm font-black text-emerald-400">{readyOrders.length}</p>
+            </div>
+          </div>
           {/* AI Scheduler */}
           <div className="hidden md:block">
-            <KitchenAIScheduler />
+            <KitchenAIScheduler lightMode={lightMode} />
           </div>
         </div>
 
@@ -1237,14 +1245,14 @@ export default function KitchenPage() {
             {languages.map(lang => (
               <button key={lang.code}
                 onClick={() => { setTargetLang(lang.code); setLanguage(lang.code as any); }}
-                className={`px-3.5 py-1.5 text-xs font-black rounded-lg transition-all ${language === lang.code ? (lightMode ? 'bg-black text-white' : 'bg-[#D4AF37] text-black') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}
+                className={`px-3.5 py-1.5 text-xs font-black rounded-lg transition-all ${language === lang.code ? (lightMode ? 'bg-black text-white' : 'bg-white text-black') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/40 hover:text-white/70')}`}
               >{lang.label}</button>
             ))}
           </div>
 
           {/* Sound toggle */}
           <button onClick={() => setSoundOn(v => !v)}
-            className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all ${soundOn ? (lightMode ? 'bg-black text-white border-black' : 'bg-[#D4AF37]/10 border-[#D4AF37]/25 text-[#D4AF37]') : (lightMode ? 'bg-black/5 text-black/40 border-black/10' : 'bg-white/[0.03] border-white/[0.08] text-white/30')}`}>
+            className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all ${soundOn ? (lightMode ? 'bg-black text-white border-black' : 'bg-white text-black border-white') : (lightMode ? 'bg-black/5 text-black/40 border-black/10' : 'bg-white/[0.03] border-white/[0.08] text-white/30')}`}>
             {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
           </button>
 
@@ -1255,18 +1263,18 @@ export default function KitchenPage() {
           </button>
 
           {/* Tabs */}
-          <div className={`flex rounded-2xl p-1 ${lightMode ? 'bg-black/5 border border-black/10' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
-            <button onClick={() => setActiveTab('active')}
-              className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'active' ? (lightMode ? 'bg-black text-white' : 'bg-white/[0.1] text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/35 hover:text-white/60')}`}>
-              {t.kitchen_active||'Aktiv'}
-              {activeOrders.length > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'active' ? (lightMode ? 'bg-black/10 text-black' : 'bg-[#D4AF37]/20 text-[#D4AF37]') : (lightMode ? 'bg-black/5 text-black/40' : 'bg-white/10 text-white/40')}`}>{activeOrders.length}</span>}
-            </button>
-            <button onClick={() => setActiveTab('ready')}
-              className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'ready' ? (lightMode ? 'bg-black text-white' : 'bg-white/[0.1] text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/35 hover:text-white/60')}`}>
-              {t.kitchen_ready||'Hazır'}
-              {readyOrders.length > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'ready' ? (lightMode ? 'bg-black/10 text-black' : 'bg-emerald-500/20 text-emerald-400') : (lightMode ? 'bg-black/5 text-black/40' : 'bg-white/10 text-white/40')}`}>{readyOrders.length}</span>}
-            </button>
-          </div>
+           <div className={`flex rounded-2xl p-1 ${lightMode ? 'bg-black/5 border border-black/10' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
+             <button onClick={() => setActiveTab('active')}
+               className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'active' ? (lightMode ? 'bg-black text-white' : 'bg-white/[0.1] text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/35 hover:text-white/60')}`}>
+               {t.kitchen_active||'Aktiv'}
+               {activeOrders.length > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'active' ? (lightMode ? 'bg-black/10 text-black' : 'bg-white/10 text-white/70') : (lightMode ? 'bg-black/5 text-black/40' : 'bg-white/10 text-white/40')}`}>{activeOrders.length}</span>}
+             </button>
+             <button onClick={() => setActiveTab('ready')}
+               className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all ${activeTab === 'ready' ? (lightMode ? 'bg-black text-white' : 'bg-white/[0.1] text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/35 hover:text-white/60')}`}>
+               {t.kitchen_ready||'Hazır'}
+               {readyOrders.length > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'ready' ? (lightMode ? 'bg-black/10 text-black' : 'bg-emerald-500/20 text-emerald-400') : (lightMode ? 'bg-black/5 text-black/40' : 'bg-white/10 text-white/40')}`}>{readyOrders.length}</span>}
+              </button>
+            </div>
         </div>
       </header>
 
@@ -1283,7 +1291,7 @@ export default function KitchenPage() {
                 {g.image_url && <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0"><img src={g.image_url} alt="" className="w-full h-full object-cover" /></div>}
                 <div>
                   <p className="text-white/60 text-[10px] font-semibold leading-tight">{g.product_name}</p>
-                  <p className="text-[#D4AF37] text-sm font-black leading-tight">
+                   <p className={`text-sm font-black leading-tight ${lightMode ? 'text-black' : 'text-white'}`}>
                     {g.totalPending}×
                     <span className="text-white/30 text-[9px] font-normal ml-1">{g.tables.sort((a,b)=>a-b).join(', ')}</span>
                   </p>
@@ -1312,7 +1320,7 @@ export default function KitchenPage() {
           {display.map(renderOrderCard)}
         </div>
       ) : (
-        <TableMapView orders={activeTab === 'active' ? activeOrders : readyOrders} tables={kitchenTables} />
+        <TableMapView orders={display} tables={kitchenTables} />
       )}
 
       <KitchenToaster />
@@ -1330,7 +1338,7 @@ export default function KitchenPage() {
             <span className="text-white/70 text-sm font-medium">{recentAction.label}</span>
             <button
               onClick={handleUndo}
-              className="px-3.5 py-1.5 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] text-sm font-black hover:bg-[#D4AF37]/30 transition-all"
+              className={`px-3.5 py-1.5 rounded-xl text-sm font-black transition-all ${lightMode ? 'bg-black text-white hover:bg-gray-800' : 'bg-white text-black hover:bg-gray-200'}`}
             >↩ Geri qaytar</button>
             <button
               onClick={() => { setRecentAction(null); if (undoTimer.current) clearTimeout(undoTimer.current); }}

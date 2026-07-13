@@ -24,12 +24,13 @@ interface ScheduleSuggestion {
   };
 }
 
-export function KitchenAIScheduler() {
+export function KitchenAIScheduler({ lightMode }: { lightMode?: boolean }) {
   const { t } = useLanguage();
   const [suggestions, setSuggestions] = useState<ScheduleSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
   const fetchSchedule = useCallback(async () => {
     setLoading(true);
@@ -38,8 +39,13 @@ export function KitchenAIScheduler() {
       if (res.ok) {
         const data = await res.json();
         setSuggestions(data.suggestions || []);
+        if (data.ai_error) setAiEnabled(false);
+      } else {
+        setAiEnabled(false);
       }
-    } catch {} finally {
+    } catch {
+      setAiEnabled(false);
+    } finally {
       setLoading(false);
     }
   }, []);
@@ -140,12 +146,12 @@ export function KitchenAIScheduler() {
           initial={{ opacity: 0, y: -16, scale: 0.94 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, x: 100 }}
-          style={{ background: 'linear-gradient(135deg,#1a1500,#110f00)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 18, padding: '12px 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', minWidth: 240, pointerEvents: 'auto' }}
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 18, padding: '12px 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', minWidth: 240, pointerEvents: 'auto' }}
           className="flex items-center gap-3"
         >
-          <ChefHat size={18} className="text-amber-400 flex-shrink-0" />
+          <ChefHat size={18} className="text-white flex-shrink-0" />
           <div>
-            <p className="font-bold text-sm text-amber-200">Hazırlamağa başla!</p>
+            <p className="font-bold text-sm text-white">Hazırlamağa başla!</p>
             <p className="text-xs text-white/50">{data.message}</p>
           </div>
         </motion.div>
@@ -172,21 +178,28 @@ export function KitchenAIScheduler() {
     }
   };
 
-  if (suggestions.length === 0 && !loading) return null;
+  if (suggestions.length === 0 && !loading && aiEnabled) return null;
 
   const todaySuggestions = suggestions.filter(s => s.type === 'today');
   const tomorrowSuggestions = suggestions.filter(s => s.type === 'tomorrow');
 
   return (
     <div className="relative">
+      {!aiEnabled ? (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-white/[0.06] border border-white/[0.1] text-white/50">
+          <Sparkles size={16} className="text-white/40" />
+          <span>Mətbəx AI — Hazırlıq Planı</span>
+        </div>
+      ) : (
+        <>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all bg-white/[0.06] border border-white/[0.1] text-white hover:bg-white/[0.1]"
       >
-        <Sparkles size={16} className="text-amber-400" />
+        <Sparkles size={16} className="text-white/60" />
         <span>Mətbəx AI — Hazırlıq Planı</span>
         {suggestions.length > 0 && (
-          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-amber-500/20 text-amber-300">
+          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-white/10 text-white/70">
             {suggestions.length}
           </span>
         )}
@@ -200,7 +213,7 @@ export function KitchenAIScheduler() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border bg-[#151515] border-amber-500/20 shadow-2xl overflow-hidden"
+            className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border bg-[#151515] border-white/[0.1] shadow-2xl overflow-hidden"
           >
             {loading ? (
               <div className="p-6 text-center text-white/30 text-sm">Yüklənir...</div>
@@ -208,7 +221,7 @@ export function KitchenAIScheduler() {
               <div className="max-h-[60vh] overflow-y-auto p-3 space-y-3">
                 {todaySuggestions.length > 0 && (
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest font-bold text-amber-400/60 px-2 mb-2">Bugün</p>
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-white/40 px-2 mb-2">Bugün</p>
                     {todaySuggestions.map(s => renderSuggestionCard(s))}
                   </div>
                 )}
@@ -231,6 +244,8 @@ export function KitchenAIScheduler() {
           </motion.div>
         )}
       </AnimatePresence>
+        </>
+      )}
     </div>
   );
 
@@ -240,7 +255,7 @@ export function KitchenAIScheduler() {
       <div
         key={s.id}
         className={`rounded-xl border p-4 transition-all ${
-          isToday ? 'bg-amber-500/5 border-amber-500/20' : 'bg-white/[0.03] border-white/[0.08]'
+          isToday ? 'bg-white/[0.04] border-white/[0.1]' : 'bg-white/[0.03] border-white/[0.08]'
         }`}
       >
         <div className="flex items-start justify-between gap-3 mb-3">
@@ -248,7 +263,7 @@ export function KitchenAIScheduler() {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-white font-bold text-sm">{s.name}</span>
               {s.table_number && (
-                <span className="px-2 py-0.5 rounded text-[9px] font-black bg-amber-500/15 border border-amber-500/25 text-amber-400">
+                <span className={`px-2 py-0.5 rounded text-[9px] font-black border ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-white/[0.06] border-white/[0.1] text-white/60'}`}>
                   Masa {s.table_number}
                 </span>
               )}
@@ -260,19 +275,19 @@ export function KitchenAIScheduler() {
             </div>
           </div>
           <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${
-            isToday ? 'bg-amber-500/15 text-amber-300 border border-amber-500/25' : 'bg-white/5 text-white/30 border border-white/10'
+            isToday ? 'bg-white/10 text-white/70 border border-white/20' : 'bg-white/5 text-white/30 border border-white/10'
           }`}>
             {isToday ? 'Bugün' : 'Sabah'}
           </span>
         </div>
 
-        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10 mb-3">
-          <Sparkles size={12} className="text-amber-400 flex-shrink-0" />
-          <div className="text-xs text-amber-300/80">
+        <div className={`flex items-center gap-2 p-2.5 rounded-lg mb-3 ${lightMode ? 'bg-gray-50 border border-gray-200' : 'bg-white/[0.04] border border-white/[0.08]'}`}>
+          <Sparkles size={12} className={lightMode ? 'text-gray-500' : 'text-white/50'} />
+          <div className={`text-xs ${lightMode ? 'text-gray-600' : 'text-white/60'}`}>
             <span className="font-semibold">Təklif: </span>
             {s.suggestion.minutes_before} dəqiqə əvvəl başla
             <span className="text-white/40 mx-1">·</span>
-            <span>Hazırlanma vaxtı <strong className="text-amber-200">{s.suggestion.prepare_at}</strong></span>
+            <span>Hazırlanma vaxtı <strong className={lightMode ? 'text-gray-800' : 'text-white/80'}>{s.suggestion.prepare_at}</strong></span>
           </div>
         </div>
 
@@ -294,7 +309,7 @@ export function KitchenAIScheduler() {
           <button
             onClick={() => handleStartPreparing(s)}
             disabled={sending === s.id}
-            className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.97] bg-gradient-to-r from-amber-500 to-amber-400 text-black disabled:opacity-50"
+            className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.97] bg-white text-black disabled:opacity-50 hover:bg-gray-200"
           >
             {sending === s.id ? (
               <span className="animate-pulse">Göndərilir...</span>

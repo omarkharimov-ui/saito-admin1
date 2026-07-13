@@ -29,9 +29,13 @@ export async function GET() {
     const rawOrders = await ordersRes.json();
 
     const ordersByTable: Record<number, any[]> = {};
+    const kitchenStatusByTable: Record<number, string> = {};
     rawOrders.forEach((o: any) => {
       if (!ordersByTable[o.table_number]) ordersByTable[o.table_number] = [];
       ordersByTable[o.table_number].push(o);
+      if (o.kitchen_status && !kitchenStatusByTable[o.table_number]) {
+        kitchenStatusByTable[o.table_number] = o.kitchen_status;
+      }
     });
 
     const floorMap: Record<string, any> = {};
@@ -93,7 +97,8 @@ export async function GET() {
         merged_with: isChild || isParent ? allInGroup : [],
         is_group: isChild || isParent,
         parent_table_number: parentTableNumber,
-        order_ids: isChild || isParent ? groupOrderIds : tableOrders.map(o => o.id)
+        order_ids: isChild || isParent ? groupOrderIds : tableOrders.map(o => o.id),
+        kitchen_status: kitchenStatusByTable[f.table_number] || null
       };
 
       floorMap[fn].tables.push(processedTable);

@@ -574,6 +574,7 @@ export default function POSPage() {
                           groupNumber={groupInfo?.groupNum}
                           mergedChildNumbers={groupInfo?.children}
                           isMergedChild={false}
+                          kitchenStatus={table.kitchen_status}
                         />
                       </motion.div>
                     );

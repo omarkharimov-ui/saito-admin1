@@ -36,7 +36,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
         if (!res.ok) return;
         const data = await res.json();
         const kdsOrders: KDSOrder[] = (data.orders || [])
-          .filter((o: any) => o.status !== 'paid' && o.status !== 'cancelled' && o.kitchen_status !== null && o.kitchen_status !== 'delivered' && o.kitchen_status !== 'cancelled')
+          .filter((o: any) => o.status !== 'paid' && o.status !== 'cancelled' && o.kitchen_status !== null && o.kitchen_status !== 'completed' && o.kitchen_status !== 'cancelled')
           .map((o: any) => ({
             id: o.id,
             table_number: o.table_number,

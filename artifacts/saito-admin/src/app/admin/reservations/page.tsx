@@ -19,6 +19,8 @@ export default function ReservationsPage() {
   const { t, language } = useLanguage();
   const { lightMode } = useTheme();
   const { clearNotifications } = useNotifications();
+  const clearNotificationsRef = useRef(clearNotifications);
+  clearNotificationsRef.current = clearNotifications;
   
   /* ─── State ─── */
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -76,7 +78,7 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     fetchData();
-    clearNotifications();
+    clearNotificationsRef.current();
   }, []);
 
   /* ─── Realtime: sync with POS / other sources ─── */

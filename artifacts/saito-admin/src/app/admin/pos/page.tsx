@@ -63,7 +63,9 @@ export default function POSPage() {
           const active = (data.data || []).filter((c: any) => c.status === 'active');
           setCampaigns(active);
         }
-      } catch {}
+      } catch (e) {
+        console.error('Failed to load campaigns:', e);
+      }
     })();
   }, []);
 

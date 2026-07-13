@@ -194,7 +194,7 @@ function CardWithCollapse({
   allItemsReady: boolean;
   kitchenStatusLabel: { text: string; color: string; badge: string; pulse: boolean };
   isDelayed: boolean;
-  stage: string;
+  stage: string | null;
   isNewlyAdded: (item: OrderItem, order: Order) => boolean;
   isReadyTab: boolean;
   onAccept: () => void;
@@ -649,8 +649,8 @@ export default function KitchenPage() {
   
   const applyData = useCallback((data: any[], lang: string) => {
     console.log('[Kitchen] applyData called with', data.length, 'orders');
-    const mapped = data.map(o => mapRawOrder(o, lang)).filter((o: Order) => o.kitchen_status !== 'completed');
-    console.log('[Kitchen] After mapping and filtering:', mapped.length, 'orders');
+    const mapped = data.map(o => mapRawOrder(o, lang));
+    console.log('[Kitchen] After mapping:', mapped.length, 'orders');
     const seq = ++applySeqRef.current;
 
     // Enrich with merged_from_tables data
@@ -1046,8 +1046,18 @@ export default function KitchenPage() {
     if (newStatus === 'completed') {
       const order = orders.find(o => o.id === id);
       if (order) pushUndo(`MASA ${order.table_number} — tamamlandı`, order);
-      await supabase.rpc('mark_order_ready', { p_order_id: id });
-      await supabase.from('orders').update({ status: 'completed', kitchen_status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
+      const { error: rpcError } = await supabase.rpc('mark_order_ready', { p_order_id: id });
+      if (rpcError) {
+        console.error('[updateOrderStatus] mark_order_ready failed:', rpcError);
+        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
+        return;
+      }
+      const { error: updateError } = await supabase.from('orders').update({ status: 'completed', kitchen_status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
+      if (updateError) {
+        console.error('[updateOrderStatus] order update failed:', updateError);
+        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
+        return;
+      }
     } else if (newStatus === 'preparing') {
       const { error } = await supabase.rpc('prepare_order_items', { p_order_id: id });
       if (error) {
@@ -1135,11 +1145,12 @@ export default function KitchenPage() {
   // Mərhələ 1: kitchen_status = null | 'pending' | 'cooking' → "Sifarişi Qəbul Et"
   // Mərhələ 2: kitchen_status = 'preparing'                  → "Təhvil Ver"
   // Mərhələ 3: kitchen_status = 'ready'                       → Hazır tabı
-  const getSmartButtonStage = (order: Order): 'accept' | 'deliver' | 'complete' => {
+  const getSmartButtonStage = (order: Order): 'accept' | 'deliver' | 'complete' | null => {
     const allReady = isAllItemsReady(order);
     if (allReady) return 'complete';
     if (order.kitchen_status === 'preparing') return 'deliver';
-    return 'accept';
+    if (['pending', 'cooking'].includes(order.kitchen_status)) return 'accept';
+    return null;
   };
 
   // ── Sold Out handler ───────────────────────────────────────────────────────

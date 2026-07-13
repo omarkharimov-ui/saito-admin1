@@ -21,7 +21,6 @@ interface ActionSheetProps {
   onSplitConfirm?: (split: { cash: string; card: string }) => void;
   onDismissGroup?: () => void;
   onBackFromPayment?: () => void;
-  onBackFromGroup?: () => void;
   mergeMode?: boolean;
   mergeParent?: number | null;
   unmergeMode?: boolean;
@@ -42,7 +41,7 @@ const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
-  onBackFromPayment, onBackFromGroup,
+  onBackFromPayment,
   mergeMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, groupNumber,
   paymentView

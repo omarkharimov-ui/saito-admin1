@@ -230,13 +230,6 @@ export const OrderModal = ({
 
   const persistedItems = (order.order_items || []).filter(i => !deletedIds.has(i.id) && !returnedIds.has(i.id));
 
-  const act = async (fn: () => Promise<void>) => {
-    setActing(true);
-    await fn();
-    setActing(false);
-    closeAndRefresh();
-  };
-
   const handleChangeItemQty = (e: React.MouseEvent, item: OrderItem, delta: number) => {
     e.stopPropagation();
     const served = item.served_quantity ?? 0;
@@ -999,7 +992,7 @@ export const OrderModal = ({
                 </div>
               )}
               {order.customer_note && (
-                <p className="text-white/25 text-xs italic px-1 pt-1">{t('note_label')}: "{order.customer_note}"</p>
+                <p className="text-white/25 text-xs italic px-1 pt-1">{t('note_label')}: &ldquo;{order.customer_note}&rdquo;</p>
               )}
             </div>
 

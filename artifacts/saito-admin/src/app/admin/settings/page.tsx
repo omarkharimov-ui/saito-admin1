@@ -60,8 +60,28 @@ const SettingsPage = () => {
   const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>('general');
   const [mobileTab, setMobileTab] = useState<Tab | null>(null);
-  const isSuperadmin = typeof window !== 'undefined' && getCookieRole() === 'superadmin';
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [settingsData, setSettingsData] = useState<Record<string, any> | null>(null);
+  const [loadingRole, setLoadingRole] = useState(true);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          setIsSuperadmin(data.role === 'superadmin');
+        }
+      } catch {
+        // fallback to cookie check
+        const cookieRole = getCookieRole();
+        setIsSuperadmin(cookieRole === 'superadmin');
+      } finally {
+        setLoadingRole(false);
+      }
+    };
+    fetchRole();
+  }, []);
 
   useEffect(() => {
     supabase.from('settings').select('*').single().then(({ data }) => {
@@ -80,6 +100,14 @@ const SettingsPage = () => {
     }
     return () => { document.body.style.overflow = ''; };
   }, [mobileTab]);
+
+  if (loadingRole) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="pb-4 lg:pb-20">

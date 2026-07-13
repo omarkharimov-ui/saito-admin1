@@ -81,10 +81,21 @@ export default function StockPage() {
         fetch('/api/inventory'),
         fetch('/api/suppliers')
       ]);
-      if (invRes.ok) setData(await invRes.json());
-      if (supRes.ok) setSuppliers(await supRes.json());
+      if (invRes.ok) {
+        setData(await invRes.json());
+      } else {
+        const err = await invRes.json().catch(() => ({ error: 'Inventory load failed' }));
+        toast.error(err.error || 'Anbar məlumatları yüklənərkən xəta', { id: 'action-toast' });
+      }
+      if (supRes.ok) {
+        setSuppliers(await supRes.json());
+      } else {
+        const err = await supRes.json().catch(() => ({ error: 'Suppliers load failed' }));
+        toast.error(err.error || 'Tədarükçü məlumatları yüklənərkən xəta', { id: 'action-toast' });
+      }
     } catch (error) {
       console.error("Fetch error:", error);
+      toast.error('Məlumatlar yüklənərkən gözlənilməz xəta', { id: 'action-toast' });
     } finally {
       setLoading(false);
     }
@@ -111,8 +122,10 @@ export default function StockPage() {
         .order('created_at', { ascending: false })
         .limit(100);
       if (!error) setHistory(logs ?? []);
+      else toast.error('Tarixçə yüklənərkən xəta baş verdi', { id: 'action-toast' });
     } catch {
       setHistory([]);
+      toast.error('Tarixçə yüklənərkən gözlənilməz xəta', { id: 'action-toast' });
     } finally {
       setHistoryLoading(false);
     }
@@ -133,8 +146,12 @@ export default function StockPage() {
 
   const handleAction = async (type: 'stock_in' | 'waste' | 'adjustment' | 'audit') => {
     if (!selectedRow || !qtyInput) return;
-    setSaving(true);
     const amount = parseFloat(qtyInput);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Məbləğ 0-dan böyük olmalıdır');
+      return;
+    }
+    setSaving(true);
     const unitCost = selectedRow.purchase_price ?? selectedRow.average_cost_per_unit;
 
     try {

@@ -72,6 +72,16 @@ export function usePos() {
 
     if (sameTable && activeView === 'order') return;
 
+    if (table.status === 'reserved') {
+      toast.error('Bu masa rezerv edilib. Öncə rezervasiyanı aktivləşdirməlisiniz.', { id: 'action-toast' });
+      return;
+    }
+
+    if (table.status === 'waiting') {
+      toast.error('Bu masada qonaq gözlənilir. Məsələni yönləndirin.', { id: 'action-toast' });
+      return;
+    }
+
     cartInteractionCount.current = 0;
 
     setSelectedTable(table);

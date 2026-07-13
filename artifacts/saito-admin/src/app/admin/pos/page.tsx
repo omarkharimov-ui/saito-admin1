@@ -131,10 +131,11 @@ export default function POSPage() {
 
       if (failedOrders.length > 0) {
         toast.error(`${failedOrders.length} sifariş ödənilərkən xəta baş verdi. Yenidən cəhd edin.`, { id: 'action-toast' });
+        return;
       } else {
         toast.success('Bütün sifarişlər ödənildi', { id: 'action-toast' });
       }
-      
+
       setPaymentView(false);
       setActionSheetOpen(false);
       pos.fetchData();
@@ -221,9 +222,11 @@ export default function POSPage() {
 
       if (failedOrders.length > 0) {
         toast.error(`${failedOrders.length} sifariş ödənilərkən xəta baş verdi.`, { id: 'action-toast' });
+        return;
       } else {
         toast.success('Bölünmüş ödəniş tamamlandı', { id: 'action-toast' });
       }
+
       setPaymentView(false);
       setActionSheetOpen(false);
       pos.fetchData();
@@ -365,8 +368,8 @@ export default function POSPage() {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from_table: lastUndo.data.fromTable,
-          to_table: lastUndo.data.toTable,
+          from_table: lastUndo.data.from_table,
+          to_table: lastUndo.data.to_table,
           orders: lastUndo.data.orders,
           table: lastUndo.data.table
         }),

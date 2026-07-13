@@ -747,8 +747,8 @@ export default function KitchenPage() {
       const queryParams = new URLSearchParams({
         select: '*,order_items(*,products(image_url,translations))',
         'table_number': 'gt.0',
-        'status': 'not.in.(paid,cancelled,closed)',
-        or: '(kitchen_status.is.null,kitchen_status.neq.completed),(is_draft.is.null,is_draft.eq.false)',
+        'status': 'not.in.(paid,cancelled,closed,completed)',
+        'kitchen_status': 'neq.completed',
         order: 'created_at.desc'
       });
 
@@ -1049,9 +1049,19 @@ export default function KitchenPage() {
       await supabase.rpc('mark_order_ready', { p_order_id: id });
       await supabase.from('orders').update({ status: 'completed', kitchen_status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
     } else if (newStatus === 'preparing') {
-      await supabase.rpc('prepare_order_items', { p_order_id: id });
+      const { error } = await supabase.rpc('prepare_order_items', { p_order_id: id });
+      if (error) {
+        console.error('[updateOrderStatus] prepare_order_items failed:', error);
+        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
+        return;
+      }
     } else if (newStatus === 'ready') {
-      await supabase.rpc('mark_order_ready', { p_order_id: id });
+      const { error } = await supabase.rpc('mark_order_ready', { p_order_id: id });
+      if (error) {
+        console.error('[updateOrderStatus] mark_order_ready failed:', error);
+        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
+        return;
+      }
     }
     fetchOrdersRef.current();
   };
@@ -1061,7 +1071,11 @@ export default function KitchenPage() {
   const markAllReadyAndNotify = async (order: Order) => {
     pushUndo(`MASA ${order.table_number} — servise verildi`, order);
     const { error } = await supabase.rpc('mark_order_ready', { p_order_id: order.id });
-    if (error) console.error('[kitchen] mark_order_ready failed:', error);
+    if (error) {
+      console.error('[kitchen] mark_order_ready failed:', error);
+      toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
+      return;
+    }
     fetchOrdersRef.current();
     if (activeTab !== 'ready') setActiveTab('ready');
   };
@@ -1110,7 +1124,10 @@ export default function KitchenPage() {
       await supabase.from('orders').update({ assigned_to: staffId }).eq('id', order.id);
     } catch {}
     const { error } = await supabase.rpc('prepare_order_items', { p_order_id: order.id });
-    if (error) console.error('[acceptOrder] error:', error);
+    if (error) {
+      console.error('[acceptOrder] error:', error);
+      toast.error('Sifariş qəbul edilərkən xəta baş verdi', { duration: 2500 });
+    }
     fetchOrdersRef.current();
   };
 

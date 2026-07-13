@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       await fetch(`${s.url}/rest/v1/orders?id=eq.${order.id}`, {
         method: 'PATCH',
         headers: s.headers,
-        body: JSON.stringify({ kitchen_status: 'pending', kitchen_accepted_at: now, status: 'confirmed' }),
+        body: JSON.stringify({ kitchen_status: 'pending', kitchen_accepted_at: now, status: 'confirmed', is_draft: false }),
       });
       await fetch(`${s.url}/rest/v1/order_items?order_id=eq.${order.id}&kitchen_status=eq.reserved`, {
         method: 'PATCH',

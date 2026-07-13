@@ -90,6 +90,10 @@ export async function POST(request: NextRequest) {
         guest_count: totalGuests,
         total_amount: totalAmount,
         merged_into_table: null,
+        reservation_id: null,
+        reservation_name: null,
+        reservation_phone: null,
+        reservation_time: null,
         last_activity_at: now
       }),
     });
@@ -120,6 +124,10 @@ export async function POST(request: NextRequest) {
         guest_count: null,
         total_amount: 0,
         merged_into_table: null,
+        reservation_id: null,
+        reservation_name: null,
+        reservation_phone: null,
+        reservation_time: null,
         updated_at: now
       }),
     });

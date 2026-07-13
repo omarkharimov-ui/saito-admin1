@@ -460,11 +460,11 @@ export default function ReservationsPage() {
                                    ))}
                                    {items.length > 5 && <span className="text-[10px] opacity-40">+{items.length - 5} daha</span>}
                                  </div>
-                                 {selectedRes.status === 'waiting' && (
-                                   <button onClick={handleSendToKitchen} className="w-full py-4 rounded-2xl bg-blue-500 text-white text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg">
-                                     Aşpaza Göndər
-                                   </button>
-                                 )}
+                                  {(selectedRes.status === 'confirmed' || selectedRes.status === 'waiting') && (
+                                    <button onClick={handleSendToKitchen} className="w-full py-4 rounded-2xl bg-blue-500 text-white text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg">
+                                      Aşpaza Göndər
+                                    </button>
+                                  )}
                                </div>
                              );
                            })()}

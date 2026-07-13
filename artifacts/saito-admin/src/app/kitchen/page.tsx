@@ -19,7 +19,7 @@ import { en } from '@/lib/i18n/locales/en';
 import { ru } from '@/lib/i18n/locales/ru';
 
 function KitchenToaster() {
-  const { toasts, handlers } = useToaster({ duration: 3000 });
+  const { toasts, handlers } = useToaster({ duration: 2500 });
   const { startPause, endPause } = handlers;
   return (
     <div
@@ -858,9 +858,60 @@ export default function KitchenPage() {
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2, fontWeight: 600 }}>Masalar birləşdirildi</p>
               </div>
             </motion.div>
-          ), { duration: 5000, position: 'top-right' });
+          ), { duration: 2500, position: 'top-right' });
           if (soundOnRef.current) playNewOrderSound();
           return;
+        }
+
+        // New order inserted
+        const isNewOrder = payload.eventType === 'INSERT' && !payload.old;
+        if (isNewOrder) {
+          const tableNum = payload.new?.table_number;
+          const tableName = await getMergedTableName(tableNum, payload.new?.id);
+          toast.custom((_t) => (
+            <motion.div
+              initial={{ opacity: 0, y: -16, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 100 }}
+              style={{ background: lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.03)', border: `1px solid ${lightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 18, padding: '14px 18px', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.1)' : '0 8px 32px rgba(0,0,0,0.3)', minWidth: 260, pointerEvents: 'auto' }}
+              className="flex items-center gap-4"
+            >
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)', border: `1px solid ${lightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 22 }}>+</div>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 800, color: lightMode ? '#000' : '#fff', lineHeight: 1.2 }}>{tableName}</p>
+                <p style={{ fontSize: 11, color: lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)', marginTop: 2, fontWeight: 600 }}>Yeni sifariş</p>
+              </div>
+            </motion.div>
+          ), { duration: 2500, position: 'top-right' });
+          if (soundOnRef.current) playNewOrderSound();
+          return;
+        }
+        
+        // Admin sifarişi dəyişdirdisə — yenilənmə bildirişi
+        const isReset =
+          payload.eventType === 'UPDATE' &&
+          !payload.new?.merged_into &&
+          payload.new?.kitchen_status === 'pending' &&
+          (payload.old?.kitchen_status !== 'pending' || payload.new?.total_amount !== payload.old?.total_amount);
+        if (isReset) {
+          const tableNum = payload.new?.table_number;
+          const tableName = await getMergedTableName(tableNum, payload.new?.id);
+          toast.custom((_t) => (
+            <motion.div
+              initial={{ opacity: 0, y: -16, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 100 }}
+              style={{ background: 'linear-gradient(135deg,#101a10,#080e08)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 18, padding: '14px 18px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', minWidth: 260, pointerEvents: 'auto' }}
+              className="flex items-center gap-4"
+            >
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 22 }}>⟳</div>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 800, color: '#6ee7b7', lineHeight: 1.2 }}>{tableName}</p>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2, fontWeight: 600 }}>Sifariş yeniləndi</p>
+              </div>
+            </motion.div>
+          ), { duration: 2500, position: 'top-right' });
+          if (soundOnRef.current) playNewOrderSound();
         }
 
         // Unmerge: merged_into was set, now cleared
@@ -883,36 +934,10 @@ export default function KitchenPage() {
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2, fontWeight: 600 }}>Ayrıldı — öz sifarişi var</p>
               </div>
             </motion.div>
-          ), { duration: 4000, position: 'top-right' });
+          ), { duration: 2500, position: 'top-right' });
           return;
         }
-        
-        // Admin sifarişi dəyişdirdisə — yenilənmə bildirişi
-        const isReset =
-          !payload.new?.merged_into &&
-          payload.new?.kitchen_status === 'pending' &&
-          (payload.old?.kitchen_status !== 'pending' || payload.new?.total_amount !== payload.old?.total_amount);
-        if (isReset) {
-          const tableNum = payload.new?.table_number;
-          const orderId = payload.new?.id;
-          const tableName = await getMergedTableName(tableNum, orderId);
-          toast.custom((_t) => (
-            <motion.div
-              initial={{ opacity: 0, y: -16, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 100 }}
-              style={{ background: 'linear-gradient(135deg,#101a10,#080e08)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 18, padding: '14px 18px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', minWidth: 260, pointerEvents: 'auto' }}
-              className="flex items-center gap-4"
-            >
-              <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 22 }}>⟳</div>
-              <div>
-                <p style={{ fontSize: 15, fontWeight: 800, color: '#6ee7b7', lineHeight: 1.2 }}>{tableName}</p>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2, fontWeight: 600 }}>Sifariş yeniləndi</p>
-              </div>
-            </motion.div>
-          ), { duration: 4000, position: 'top-right' });
-          if (soundOnRef.current) playNewOrderSound();
-        }
+
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, async (payload: any) => {
         fetchOrdersRef.current();
@@ -921,25 +946,6 @@ export default function KitchenPage() {
           if (now - lastItemToastRef.current < 2000) return;
           lastItemToastRef.current = now;
           setTimeout(() => playNewOrderSound(), 100);
-          const productName = payload.new?.product_name || '';
-          const qty = payload.new?.quantity || 1;
-          if (productName) {
-            toast.custom((_t) => (
-              <motion.div
-                initial={{ opacity: 0, y: -16, scale: 0.94 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 100 }}
-                style={{ background: lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.03)', border: `1px solid ${lightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 18, padding: '12px 16px', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.1)' : '0 8px 32px rgba(0,0,0,0.3)', minWidth: 240, pointerEvents: 'auto' }}
-                className="flex items-center gap-3"
-              >
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: lightMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)', border: `1px solid ${lightMode ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>+</div>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: lightMode ? '#000' : '#fbbf24', lineHeight: 1.2 }}>{qty}× {productName}</p>
-                  <p style={{ fontSize: 10, color: lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.35)', marginTop: 2, fontWeight: 600 }}>Yeni əlavə edildi</p>
-                </div>
-              </motion.div>
-            ), { duration: 8000, position: 'top-right' });
-          }
         }
       })
       .subscribe();
@@ -976,7 +982,7 @@ export default function KitchenPage() {
             <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><AlertTriangle size={22} color="#f87171" /></div>
             <div><p style={{ fontSize: 15, fontWeight: 800, color: '#fca5a5', lineHeight: 1.2 }}>Masa {order.table_number}</p><p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2, fontWeight: 600 }}>30 dəqiqədən artıq gecikdi!</p></div>
           </motion.div>
-        ), { duration: 6000, position: 'top-right' });
+        ), { duration: 2500, position: 'top-right' });
         playDelaySound();
       }
     });
@@ -1115,13 +1121,13 @@ export default function KitchenPage() {
         body: JSON.stringify({ product_id: productId, product_name: productName }),
       });
       if (res.ok) {
-        toast.success(`${productName} bağlandı`, { duration: 3000, style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', fontWeight: 'bold' } });
+        toast.success(`${productName} bağlandı`, { duration: 2500, style: { background: '#1a0a0a', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', fontWeight: 'bold' } });
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Xəta', { duration: 2000 });
+        toast.error(err.error || 'Xəta', { duration: 2500 });
       }
     } catch {
-      toast.error('Xəta', { duration: 2000 });
+      toast.error('Xəta', { duration: 2500 });
     }
   };
 

@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check
 } from 'lucide-react';
@@ -20,6 +21,7 @@ interface ActionSheetProps {
   onCancelTable?: () => void;
   onOpenPayment?: () => void;
   onPaymentMethodSelect?: (method: 'cash' | 'card' | 'split') => void;
+  onSplitConfirm?: (split: { cash: string; card: string }) => void;
   onDismissGroup?: () => void;
   onBackFromPayment?: () => void;
   onBackFromGroup?: () => void;
@@ -43,7 +45,7 @@ const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } 
 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCloseBill, onPrint, onCancelTable,
-  onOpenPayment, onPaymentMethodSelect, onDismissGroup,
+  onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
   onBackFromPayment, onBackFromGroup,
   mergeMode, mergeParent, splitMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForSplit,
   onToggleSplit, onConfirmSplit, onCancelMode, onConfirmMerge, groupNumber,
@@ -51,6 +53,7 @@ export function ActionSheet({
 }: ActionSheetProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
+  const [localSplit, setLocalSplit] = useState<{ cash: string; card: string } | null>(null);
 
   useEffect(() => {
     if (open && !mergeMode) document.body.style.overflow = 'hidden';
@@ -69,7 +72,8 @@ export function ActionSheet({
 
   const visibleActions = actions.filter(a => a.visible);
   const mergedChildren = splitMode && table ? (mergedGroupChildren ?? []) : [];
-  const currentView = groupActionView ? 'group-actions' : paymentView ? 'payment' : mergeMode ? 'merge' : splitMode ? 'split' : open ? 'actions' : 'none';
+  const showSplitForm = !!localSplit;
+  const currentView = showSplitForm ? 'split-payment' : paymentView ? 'payment' : mergeMode ? 'merge' : splitMode ? 'split' : open ? 'actions' : 'none';
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
@@ -77,7 +81,7 @@ export function ActionSheet({
       {currentView !== 'none' && (
         <div key="global-pos-root" className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none pb-10">
           {/* Backdrop */}
-          {(currentView === 'actions' || currentView === 'split' || currentView === 'group-actions' || currentView === 'payment') && (
+          {(currentView === 'actions' || currentView === 'split' || currentView === 'group-actions' || currentView === 'payment' || currentView === 'split-payment') && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30 backdrop-blur-[2px]"
@@ -96,7 +100,7 @@ export function ActionSheet({
             className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.3)] border ${
               lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
              } ${
-              currentView === 'merge' || currentView === 'group-actions'
+              currentView === 'merge' || currentView === 'group-actions' || currentView === 'split-payment'
                 ? 'rounded-full px-6 py-3 min-w-[320px] max-w-md mx-auto' 
                 : 'rounded-[2.5rem] p-7 w-[90%] max-w-md mx-auto'
             }`}
@@ -166,12 +170,43 @@ export function ActionSheet({
                     <span className="text-sm font-black tracking-wide">Nağd</span>
                   </button>
                    <button onClick={() => onPaymentMethodSelect?.('card')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all">
-                     <CreditCard size={20} strokeWidth={2.5} />
-                     <span className="text-sm font-black tracking-wide">Kart</span>
-                   </button>
-                    <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Geri</button>
-                </motion.div>
-              )}
+                      <CreditCard size={20} strokeWidth={2.5} />
+                      <span className="text-sm font-black tracking-wide">Kart</span>
+                    </button>
+                    <button onClick={() => setLocalSplit({ cash: '', card: (table?.total_amount || 0).toFixed(2) })} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-gold/10 border border-gold/20 text-gold active:scale-[0.98] transition-all">
+                      <Receipt size={20} strokeWidth={2.5} />
+                      <span className="text-sm font-black tracking-wide">Böl</span>
+                    </button>
+                     <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] opacity-80 hover:opacity-100">Geri</button>
+                 </motion.div>
+               )}
+
+               {currentView === 'split-payment' && localSplit && (
+                 <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} key="ui-split-payment" className="flex flex-col gap-3">
+                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">Bölünmüş Ödəniş</p>
+                   <p className="text-xl font-black tracking-tighter mb-2">{table?.total_amount.toFixed(2)} ₼</p>
+                   <div className="space-y-2">
+                     <input
+                       type="number"
+                       step="0.01"
+                       value={localSplit.cash}
+                       onChange={e => setLocalSplit({ ...localSplit, cash: e.target.value })}
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
+                       placeholder="Nağd"
+                     />
+                     <input
+                       type="number"
+                       step="0.01"
+                       value={localSplit.card}
+                       onChange={e => setLocalSplit({ ...localSplit, card: e.target.value })}
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
+                       placeholder="Kart"
+                     />
+                   </div>
+                   <button onClick={() => { setLocalSplit(null); }} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">Geri</button>
+                    <button onClick={() => { onSplitConfirm?.(localSplit); setLocalSplit(null); }} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gold text-black">Təsdiqlə</button>
+                 </motion.div>
+               )}
 
                {currentView === 'split' && (
                 <motion.div 

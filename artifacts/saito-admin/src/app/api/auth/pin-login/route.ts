@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { verifyPin } from '@/lib/crypto';
 
 function svc() {
   return createClient(
@@ -19,12 +20,13 @@ export async function POST(req: NextRequest) {
 
     const supabase = svc();
 
-    const { data: user } = await supabase
+    const { data: users } = await supabase
       .from('admin_users')
-      .select('id, role')
-      .eq('pin', pin)
+      .select('id, role, pin_hash')
       .eq('is_active', true)
-      .maybeSingle();
+      .limit(1000);
+
+    const user = (users || []).find((u: any) => u.pin_hash && verifyPin(pin, u.pin_hash));
 
     if (!user) {
       return NextResponse.json({ error: 'PIN yanlışdır' }, { status: 401 });

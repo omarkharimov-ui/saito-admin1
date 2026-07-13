@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock } from 'lucide-react';
+import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { AnimatedTabs } from '../components/ui/MotionControls';
 import { supabase } from '@/lib/supabase';
@@ -13,9 +13,10 @@ import AnalyticsTab from './tabs/AnalyticsTab';
 import KitchenTab from './tabs/KitchenTab';
 import UsersTab from './tabs/UsersTab';
 import ReceiptTab from './tabs/ReceiptTab';
+import PrinterTab from './tabs/PrinterTab';
 import FloorsTab from './tabs/FloorsTab';
 
-type Tab = 'general' | 'staff' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'users' | 'floors' | 'hours';
+type Tab = 'general' | 'staff' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'users' | 'floors' | 'hours';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
@@ -27,6 +28,7 @@ const TAB_DEFS: TabDef[] = [
   { key: 'analytics', labelKey: 'tab_analytics', icon: <BrainCircuit size={20} />,desc: 'Statistika parametrləri' },
   { key: 'kitchen',   labelKey: 'tab_kitchen',   icon: <Timer size={20} />,       desc: 'Mətbəx ayarları' },
   { key: 'receipt',   labelKey: 'tab_receipt',   icon: <Receipt size={20} />,     desc: 'Çek və çıxarış' },
+  { key: 'printer',   labelKey: 'tab_printer',   icon: <Printer size={20} />,     desc: 'Printer ayarları' },
   { key: 'users',     labelKey: 'tab_users',     icon: <ShieldCheck size={20} />, desc: 'Admin hesabları', superadminOnly: true },
   { key: 'floors',    labelKey: 'tab_floors',    icon: <MapPin size={20} />,      desc: 'Zallar, mərtəbələr, masa planı' },
 ];
@@ -47,6 +49,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'analytics' && <AnalyticsTab initialData={settingsData} />}
       {tab === 'kitchen'   && <KitchenTab initialData={settingsData} />}
       {tab === 'receipt'   && <ReceiptTab initialData={settingsData} />}
+      {tab === 'printer'   && <PrinterTab initialData={settingsData} />}
       {tab === 'users'     && isSuperadmin && <UsersTab />}
       {tab === 'floors'    && <FloorsTab />}
     </>

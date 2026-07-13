@@ -12,6 +12,7 @@ import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
+import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
 import type { PosProduct, LossItem } from './types/shared';
 
 export default function POSPage() {
@@ -84,6 +85,10 @@ export default function POSPage() {
       ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
       : [actionSheetTable.table_number];
 
+    if (method === 'split') {
+      return;
+    }
+
     toast.loading('Ödəniş işlənir...', { id: 'action-toast' });
     try {
       const ordersRes = await fetch('/api/orders');
@@ -127,7 +132,124 @@ export default function POSPage() {
       setPaymentView(false);
       setActionSheetOpen(false);
       pos.fetchData();
-      setTimeout(() => window.print(), 500);
+
+      const settings = await getReceiptSettings();
+      if (settings.autoPrintReceipt) {
+        for (const activeOrder of activeOrders) {
+          const items = (activeOrder.order_items || []).map((item: any) => ({
+            name: item.product_name || item.products?.name_az || item.products?.name_en || 'Məhsul',
+            quantity: item.quantity || 1,
+            price: Number(item.total_price || item.price || 0),
+          }));
+          await printReceipt({
+            restaurantName: settings.restaurantName,
+            address: settings.address,
+            receiptTitle: settings.receiptTitle,
+            currency: settings.receiptCurrency,
+            serviceFeePct: settings.serviceFeePct,
+            showServiceFee: settings.showServiceFee,
+            footerText: settings.footerText,
+            tableNumber: activeOrder.table_number,
+            orderId: activeOrder.id,
+            items,
+            subtotal: Number(activeOrder.total_amount) || 0,
+            discount: Number(activeOrder.discount_amount) || 0,
+            discountName: activeOrder.campaigns?.name,
+            tip: 0,
+            total: Number(activeOrder.total_amount) || 0,
+            paymentMethod: method,
+            cashAmount: method === 'cash' ? Number(activeOrder.total_amount) || 0 : 0,
+            cardAmount: method === 'card' ? Number(activeOrder.total_amount) || 0 : 0,
+            date: new Date().toISOString(),
+            time: new Date().toISOString(),
+            paperWidth: settings.paperWidth,
+            copies: settings.copies,
+          });
+        }
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Ödəniş xətası');
+    }
+  };
+
+  const handleSplitConfirm = async (split: { cash: string; card: string }) => {
+    if (!actionSheetTable) return;
+    const cash = parseFloat(split.cash) || 0;
+    const card = parseFloat(split.card) || 0;
+    const total = actionSheetTable.total_amount || 0;
+    if (Math.abs((cash + card) - total) > 0.01) {
+      toast.error('Məbləğlər ümumi ilə uyğun deyil', { id: 'action-toast' });
+      return;
+    }
+    const tableNumbers = actionSheetGroup
+      ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
+      : [actionSheetTable.table_number];
+    toast.loading('Ödəniş işlənir...', { id: 'action-toast' });
+    try {
+      const ordersRes = await fetch('/api/orders');
+      if (!ordersRes.ok) throw new Error('Failed to fetch orders');
+      const ordersData = await ordersRes.json();
+      const activeOrders = (ordersData.orders || []).filter((o: any) => 
+        tableNumbers.includes(o.table_number) && 
+        !['paid', 'cancelled', 'closed'].includes(o.status)
+      );
+      for (const activeOrder of activeOrders) {
+        const res = await fetch('/api/orders/pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            order_id: activeOrder.id,
+            payment_method: 'split',
+            cash_amount: cash / activeOrders.length,
+            card_amount: card / activeOrders.length,
+            tip_amount: 0,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          toast.error(err.error || 'Ödəniş uğursuz oldu', { id: 'action-toast' });
+          return;
+        }
+      }
+      toast.success('Bölünmüş ödəniş tamamlandı', { id: 'action-toast' });
+      setPaymentView(false);
+      setActionSheetOpen(false);
+      pos.fetchData();
+
+      const settings = await getReceiptSettings();
+      if (settings.autoPrintReceipt) {
+        for (const activeOrder of activeOrders) {
+          const items = (activeOrder.order_items || []).map((item: any) => ({
+            name: item.product_name || item.products?.name_az || item.products?.name_en || 'Məhsul',
+            quantity: item.quantity || 1,
+            price: Number(item.total_price || item.price || 0),
+          }));
+          await printReceipt({
+            restaurantName: settings.restaurantName,
+            address: settings.address,
+            receiptTitle: settings.receiptTitle,
+            currency: settings.receiptCurrency,
+            serviceFeePct: settings.serviceFeePct,
+            showServiceFee: settings.showServiceFee,
+            footerText: settings.footerText,
+            tableNumber: activeOrder.table_number,
+            orderId: activeOrder.id,
+            items,
+            subtotal: Number(activeOrder.total_amount) || 0,
+            discount: Number(activeOrder.discount_amount) || 0,
+            discountName: activeOrder.campaigns?.name,
+            tip: 0,
+            total: Number(activeOrder.total_amount) || 0,
+            paymentMethod: 'split',
+            cashAmount: cash / activeOrders.length,
+            cardAmount: card / activeOrders.length,
+            date: new Date().toISOString(),
+            time: new Date().toISOString(),
+            paperWidth: settings.paperWidth,
+            copies: settings.copies,
+          });
+        }
+      }
     } catch (e: any) {
       toast.error(e.message || 'Ödəniş xətası');
     }
@@ -466,6 +588,7 @@ export default function POSPage() {
         onUnmerge={() => setSplitMode(true)}
         onOpenPayment={handleOpenPayment}
         onPaymentMethodSelect={handlePaymentMethodSelect}
+        onSplitConfirm={handleSplitConfirm}
         onBackFromPayment={handleBackFromPayment}
         onCloseBill={handleCloseBill}
         onPrint={() => window.print()}

@@ -557,6 +557,7 @@ export default function KitchenPage() {
   const prevLang                      = useRef(language);
   const languageRef                   = useRef(language);
   const [, forceUpdate]               = useState(0);
+  const [tick, setTick]               = useState(0);
   const [delayThreshold, setDelayThreshold] = useState(15);
   const prevOrderIds                  = useRef<Set<string>>(new Set());
   const delayAlerted                  = useRef<Set<string>>(new Set());
@@ -607,7 +608,10 @@ export default function KitchenPage() {
 
   // 60-second tick — reduced frequency for CPU relief
   useEffect(() => {
-    const id = setInterval(() => forceUpdate(x => x + 1), 60_000);
+    const id = setInterval(() => {
+      forceUpdate(x => x + 1);
+      setTick(t => t + 1);
+    }, 60_000);
     return () => clearInterval(id);
   }, []);
 
@@ -924,7 +928,14 @@ export default function KitchenPage() {
         playDelaySound();
       }
     });
-  }, [orders, soundOn]);
+  }, [orders, soundOn, tick]);
+
+  // Clear stale delay-alert dedupe refs for orders no longer present
+  useEffect(() => {
+    const currentIds = new Set(orders.map(o => o.id));
+    delayAlerted.current = new Set([...delayAlerted.current].filter(id => currentIds.has(id)));
+    delay30Alerted.current = new Set([...delay30Alerted.current].filter(id => currentIds.has(id)));
+  }, [orders]);
 
   // ── Undo helper ────────────────────────────────────────────────────────────
   const pushUndo = (label: string, order: Order) => {

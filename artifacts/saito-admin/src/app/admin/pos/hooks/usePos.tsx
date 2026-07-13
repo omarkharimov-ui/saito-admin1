@@ -81,7 +81,7 @@ export function usePos() {
       setCart({
         table_id: table.id,
         table_number: table.table_number,
-        guest_count: table.guest_count || 1,
+        guest_count: cart?.guest_count || table.guest_count || 1,
         items: [],
         notes: '',
         order_type: 'dine_in'
@@ -147,7 +147,7 @@ export function usePos() {
             return {
               table_id: table.id,
               table_number: table.table_number,
-              guest_count: table.guest_count || primary.guest_count || 1,
+              guest_count: primary.guest_count || table.guest_count || 1,
               items: merged,
               notes: primary.customer_note || '',
               order_type: primary.order_type || 'dine_in',
@@ -404,7 +404,7 @@ export function usePos() {
         const data = await ordersRes.json();
         const activeOrder = (data.orders || []).find((o: any) => 
           o.table_number === cart.table_number && 
-          !['paid', 'cancelled'].includes(o.status)
+          !['paid', 'cancelled', 'closed'].includes(o.status)
         );
         if (activeOrder) {
           await fetch(`/api/orders`, {
@@ -418,22 +418,6 @@ export function usePos() {
             }),
           });
         }
-      }
-      const s = {
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        headers: {
-          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-      };
-      if (s.url && s.headers.Authorization) {
-        await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${cart.table_number}`, {
-          method: 'PATCH',
-          headers: s.headers,
-          body: JSON.stringify({ guest_count: newCount, updated_at: new Date().toISOString() }),
-        });
       }
     } catch (e) {
       console.error('Failed to update guest count:', e);

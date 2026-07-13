@@ -104,6 +104,7 @@ export default function POSPage() {
         return;
       }
 
+      const failedOrders: string[] = [];
       for (const activeOrder of activeOrders) {
         const total = activeOrder.total_amount || 0;
         const cashAmount = method === 'cash' ? total : 0;
@@ -123,12 +124,17 @@ export default function POSPage() {
 
         if (!res.ok) {
           const err = await res.json();
-          toast.error(err.error || 'Ödəniş uğursuz oldu', { id: 'action-toast' });
-          return;
+          failedOrders.push(activeOrder.id);
+          console.error(`Payment failed for order ${activeOrder.id}:`, err);
         }
       }
 
-      toast.success('Bütün sifarişlər ödənildi', { id: 'action-toast' });
+      if (failedOrders.length > 0) {
+        toast.error(`${failedOrders.length} sifariş ödənilərkən xəta baş verdi. Yenidən cəhd edin.`, { id: 'action-toast' });
+      } else {
+        toast.success('Bütün sifarişlər ödənildi', { id: 'action-toast' });
+      }
+      
       setPaymentView(false);
       setActionSheetOpen(false);
       pos.fetchData();
@@ -193,6 +199,7 @@ export default function POSPage() {
         tableNumbers.includes(o.table_number) && 
         !['paid', 'cancelled', 'closed'].includes(o.status)
       );
+      const failedOrders: string[] = [];
       for (const activeOrder of activeOrders) {
         const res = await fetch('/api/orders/pay', {
           method: 'POST',
@@ -207,11 +214,16 @@ export default function POSPage() {
         });
         if (!res.ok) {
           const err = await res.json();
-          toast.error(err.error || 'Ödəniş uğursuz oldu', { id: 'action-toast' });
-          return;
+          failedOrders.push(activeOrder.id);
+          console.error(`Split payment failed for order ${activeOrder.id}:`, err);
         }
       }
-      toast.success('Bölünmüş ödəniş tamamlandı', { id: 'action-toast' });
+
+      if (failedOrders.length > 0) {
+        toast.error(`${failedOrders.length} sifariş ödənilərkən xəta baş verdi.`, { id: 'action-toast' });
+      } else {
+        toast.success('Bölünmüş ödəniş tamamlandı', { id: 'action-toast' });
+      }
       setPaymentView(false);
       setActionSheetOpen(false);
       pos.fetchData();

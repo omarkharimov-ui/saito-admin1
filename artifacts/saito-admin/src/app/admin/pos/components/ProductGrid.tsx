@@ -27,6 +27,7 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
   const { lightMode } = useTheme();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   // Add synthetic "Combos" tab to navbar
   const navbarCategories = useMemo(() => {
@@ -127,13 +128,13 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
                      </span>
                    </div>
                  )}
-                <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xl font-black opacity-20 uppercase">{name.slice(0, 2)}</div>
-                  )}
-                </div>
+                 <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
+                   {item.image_url && !failedImages.has(item.image_url) ? (
+                     <img src={item.image_url} alt={name} onError={() => setFailedImages(prev => new Set(prev).add(item.image_url!))} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                   ) : (
+                     <div className="w-full h-full flex items-center justify-center text-xl font-black opacity-20 uppercase">{name.slice(0, 2)}</div>
+                   )}
+                 </div>
                   <div className="pt-4 px-1">
                     {isCombo && (
                       <span className="inline-block text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full mb-1">Kombo</span>

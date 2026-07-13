@@ -507,7 +507,16 @@ export default function POSPage() {
                   ✕ Sadə rejimi bağla
                 </button>
               )}
- 
+              {transferMode && transferSource && !transferTarget && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-emerald-500 text-white text-xs font-black rounded-full border border-emerald-400 shadow-lg flex items-center gap-2"
+                >
+                  <span>Hədəf masanı seçin (Mənbə: Masa {transferSource})</span>
+                </motion.div>
+              )}
+  
                 <div className="flex-1 overflow-y-auto">
                 <div className="grid grid-cols-4 gap-4">
                   {visibleTables?.map((table: any) => {

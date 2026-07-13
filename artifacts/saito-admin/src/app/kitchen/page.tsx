@@ -567,8 +567,25 @@ export default function KitchenPage() {
   const lastItemToastRef              = useRef<number>(0);
   soundOnRef.current = soundOn;
 
-  const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'map'>(() => {
+    if (typeof window === 'undefined') return 'cards';
+    try {
+      const stored = window.localStorage.getItem('saito_kitchen_view_mode');
+      if (stored === 'map' || stored === 'cards') return stored;
+    } catch {
+      // ignore
+    }
+    return 'cards';
+  });
   const [kitchenTables, setKitchenTables] = useState<{ table_number: number }[]>([]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('saito_kitchen_view_mode', viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   // Newly added items: pending items whose created_at is newer than the order's created_at by >5 s
   // This identifies items added AFTER the original order was placed

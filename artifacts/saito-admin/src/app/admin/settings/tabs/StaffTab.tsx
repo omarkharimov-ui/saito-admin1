@@ -301,7 +301,7 @@ function SalarySection() {
 
   const addExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.staff_id) { alert('İşçi seçin'); return; }
+    if (!form.staff_id) { toast.error('İşçi seçin', { id: 'action-toast' }); return; }
     await fetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

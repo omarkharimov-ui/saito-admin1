@@ -144,9 +144,9 @@ export const OrderModal = ({
         onOrdersUpdate(prev => prev.filter(o => !deleteIds.has(o.id)));
       }
 
+      // Wait for DB operations to complete before closing
+      await onRefresh();
       onClose();
-      // Delay refresh to ensure DB deletion is complete and Supabase triggers have fired
-      setTimeout(() => onRefresh(), 500);
     } catch (e: any) {
       toast.error(e?.message || t('error'), { id: 'action-toast' });
     } finally {
@@ -1380,16 +1380,16 @@ export const OrderModal = ({
                       
                       toast.success(t('tables_separated').replace('{tables}', tablesToSplit.map(n => `${t('table_label')} ${n}`).join(', ')), { id: 'action-toast' });
                       
-                      // Update local state
-                      if (onOrdersUpdate) {
-                        const deleteIds = new Set(childIds);
-                        onOrdersUpdate(prev => prev.filter(o => !deleteIds.has(o.id)));
-                      }
-                      
-                      setShowMerge(false);
-                      setSelectedTablesToSplit(new Set());
-                      setTimeout(() => onRefresh(), 500);
-                    } catch (e: any) {
+                       // Update local state
+                       if (onOrdersUpdate) {
+                         const deleteIds = new Set(childIds);
+                         onOrdersUpdate(prev => prev.filter(o => !deleteIds.has(o.id)));
+                       }
+                       
+                       setShowMerge(false);
+                       setSelectedTablesToSplit(new Set());
+                       await onRefresh();
+                     } catch (e: any) {
                       toast.error(e?.message || t('error'), { id: 'action-toast' });
                     } finally {
                       setUnmerging(false);

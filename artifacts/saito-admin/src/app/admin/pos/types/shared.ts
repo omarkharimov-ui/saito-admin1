@@ -20,9 +20,11 @@ export interface PosCartItem {
   product_name?: string;
   product_image?: string | null;
   variant_id?: string | null;
+  category_id?: string | null;
   quantity: number;
   sentQuantity?: number;
   unit_price: number;
+  original_unit_price?: number;
   total_price: number;
   modifiers?: PosModifierSelection[];
   notes?: string;

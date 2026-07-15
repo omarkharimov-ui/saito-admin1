@@ -288,6 +288,7 @@ export function usePos() {
           product_id: p.id,
           product_name: p.name,
           unit_price: unitPrice,
+          original_unit_price: basePrice,
           quantity: 1,
           total_price: unitPrice,
           modifiers: opts?.modifiers ?? [],
@@ -338,13 +339,10 @@ export function usePos() {
     });
   };
 
-  const placeOrder = async () => {
+  const placeOrder = async (campaign?: { id?: string; type: string; target_type: string; target_id?: string; buy_quantity?: number; get_quantity?: number }) => {
     if (!cart || placingOrder) return;
     setPlacingOrder(true);
     try {
-      // Only send the delta that hasn't been persisted yet. Items already on the
-      // server keep their sentQuantity, so re-sending a reopened table won't
-      // double-count, and quantity edits are correctly reconciled.
       const unsent = cart.items
         .filter(i => (i.quantity || 0) > (i.sentQuantity || 0))
         .map(i => ({
@@ -379,6 +377,7 @@ export function usePos() {
           customer_id: cart.customer_id || null,
           discount_amount: cart.discount_amount || 0,
           discount_type: cart.discount_type || null,
+          campaign_id: campaign?.id || null,
           created_by: (() => {
             try {
               const session = localStorage.getItem('saito_staff_session');

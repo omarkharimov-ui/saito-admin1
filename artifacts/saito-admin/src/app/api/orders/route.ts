@@ -128,7 +128,7 @@ export async function POST(request: Request) {
         return { success: true };
       }
 
-      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, discount_amount, discount_type } = body;
+      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, discount_amount, discount_type, campaign_id } = body;
 
       if (!table_number || !items?.length) {
         throw new Error('table_number and items required');
@@ -163,6 +163,7 @@ export async function POST(request: Request) {
             customer_id: customer_id || null,
             discount_amount: discount_amount || 0,
             discount_type: discount_type || null,
+            campaign_id: campaign_id || null,
           }),
         });
         if (!patchRes.ok) throw new Error('CONCURRENCY_CONFLICT');
@@ -192,6 +193,7 @@ export async function POST(request: Request) {
             customer_id: customer_id || null,
             discount_amount: discount_amount || 0,
             discount_type: discount_type || null,
+            campaign_id: campaign_id || null,
             kitchen_status: ks,
             is_draft: false,
             created_at: new Date().toISOString(),

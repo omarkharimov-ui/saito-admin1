@@ -91,6 +91,22 @@ export interface Campaign {
   badge_color?: string;
   image_url?: string;
   created_at?: string;
+  buy_quantity?: number;
+  get_quantity?: number;
+  get_same_product?: boolean;
+  get_product_id?: string;
+  get_category_id?: string;
+  max_uses_per_customer?: number;
+  max_uses_per_day?: number;
+  target_customer_type?: string;
+  min_visit_count?: number;
+  applicable_days?: number[];
+  applicable_tables?: number[];
+  applicable_rooms?: string[];
+  stackable?: boolean;
+  stack_with_ids?: string[];
+  combo_discount_type?: string;
+  combo_discount_value?: number;
 }
 
 export interface ComboItem {

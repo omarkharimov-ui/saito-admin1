@@ -8,6 +8,13 @@ const ALLOWED_FIELDS = [
   'target_type', 'target_id', 'combo_id',
   'max_discount_amount', 'current_uses', 'max_uses',
   'label', 'badge_color', 'image_url', 'translations',
+  'buy_quantity', 'get_quantity', 'get_same_product',
+  'get_product_id', 'get_category_id',
+  'max_uses_per_customer', 'max_uses_per_day',
+  'target_customer_type', 'min_visit_count',
+  'applicable_days', 'applicable_tables', 'applicable_rooms',
+  'stackable', 'stack_with_ids',
+  'combo_discount_type', 'combo_discount_value',
 ];
 
 export async function GET(req: NextRequest) {

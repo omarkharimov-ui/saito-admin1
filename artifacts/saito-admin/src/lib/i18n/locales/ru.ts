@@ -141,6 +141,8 @@ export const ru: TranslationMap = {
   no_campaigns_yet: 'Пока нет активных акций',
   campaign_title_label: 'Название акции',
   discount_percent_label: 'Процент скидки (%)',
+  discount_amount_label: 'Сумма скидки (₼)',
+  savings: 'Вы экономите',
   confirm_delete_all_text: 'Вы уверены? Это действие нельзя отменить!',
   yes_delete: 'Да, удалить',
   products_stock_updated: 'продуктов обновлено',

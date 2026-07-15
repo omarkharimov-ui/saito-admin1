@@ -137,6 +137,8 @@ export const az = {
   no_campaigns_yet: 'Hələlik aktiv kampaniya yoxdur',
   campaign_title_label: 'Kampaniya Başlığı',
   discount_percent_label: 'Endirim Faizi (%)',
+  discount_amount_label: 'Endirim Məbləği (₼)',
+  savings: 'Qazanılan',
   confirm_delete_all_text: 'Bütün məhsulları silmək istədiyinizə əminsiniz? Bu geri qaytarıla bilməz!',
   yes_delete: 'Bəli, Sil',
   products_stock_updated: 'məhsulun stok vəziyyəti yeniləndi',

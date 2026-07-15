@@ -11,9 +11,9 @@ import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
 
 interface CartPanelProps {
   cart: PosCart | null;
-  campaign?: { id: string; name: string; discount: number; type: string } | null;
+  campaign?: { id: string; name: string; discount: number; type: string; target_type?: string; target_id?: string } | null;
   onUpdateQty: (index: number, delta: number) => void;
-  onPlaceOrder: () => void;
+  onPlaceOrder: (campaign?: { type: string; target_type: string; target_id?: string; buy_quantity?: number; get_quantity?: number }) => void;
   onClearDraft: () => void;
   onBack: () => void;
   orderButtonStatus: SendOrderButtonStatus;
@@ -85,12 +85,46 @@ export function CartPanel({
     );
   }
 
-  const total = cart.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+  const originalTotal = cart.items.reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
   const isEmpty = cart.items.length === 0;
   const hasDraftItems = cart.items.some(item => !item.sentQuantity || item.quantity !== item.sentQuantity);
 
+  let total = originalTotal;
+  let campaignDiscount = 0;
+  if (campaign && (campaign.type === 'BOGO' || campaign.type === 'BUY2GET1')) {
+    const buyQty = campaign.type === 'BOGO' ? 1 : 2;
+    const getQty = campaign.type === 'BOGO' ? 1 : 1;
+    const applicableItems = cart.items.filter(i => {
+      if (campaign.target_type === 'product') return i.product_id === campaign.target_id;
+      if (campaign.target_type === 'category') return i.category_id === campaign.target_id;
+      return true;
+    });
+    const applicableCount = applicableItems.reduce((s, i) => s + i.quantity, 0);
+    const freeItems = Math.floor(applicableCount / (buyQty + getQty)) * getQty;
+    if (freeItems > 0) {
+      const sorted = [...applicableItems].sort((a, b) => (b.original_unit_price ?? b.unit_price) - (a.original_unit_price ?? a.unit_price));
+      let remaining = freeItems;
+      for (const item of sorted) {
+        if (remaining <= 0) break;
+        const take = Math.min(remaining, item.quantity);
+        campaignDiscount += take * (item.original_unit_price ?? item.unit_price);
+        remaining -= take;
+      }
+    }
+    total = originalTotal - campaignDiscount;
+  } else {
+    const discountAmount = cart.discount_amount ?? 0;
+    if (discountAmount > 0) {
+      if (cart.discount_type === 'percentage') {
+        total = originalTotal * (1 - discountAmount / 100);
+      } else {
+        total = Math.max(0, originalTotal - discountAmount);
+      }
+    }
+  }
+
   const lossTotal = Array.from(selectedForLoss.entries()).reduce((sum, [idx, qty]) => {
-    return sum + cart.items[idx].unit_price * qty;
+    return sum + (cart.items[idx].original_unit_price ?? cart.items[idx].unit_price) * qty;
   }, 0);
 
   const toggleLossSelection = (idx: number) => {
@@ -336,7 +370,7 @@ export function CartPanel({
               <span className="text-xs uppercase tracking-widest font-semibold text-red-400">{t('cancelled_amount')}</span>
               <span className="text-xl font-black tracking-tight tabular-nums text-red-400">{lossTotal.toFixed(2)} ₼</span>
             </motion.div>
-          ) : (
+           ) : (
             <motion.div
               key="std-total"
               initial={{ opacity: 0, y: -4 }}
@@ -344,13 +378,25 @@ export function CartPanel({
               exit={{ opacity: 0, y: 4 }}
               className="flex items-center justify-between px-1"
             >
-               <div className="flex items-center gap-2">
-                 <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
-                 {campaign && (
-                   <span className="text-[10px] text-gold/70 font-bold uppercase tracking-wider">{campaign.name}</span>
+               <div className="flex flex-col gap-0.5">
+                 <div className="flex items-center gap-2">
+                   <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
+                   {campaign && (
+                     <span className="text-[10px] text-gold/70 font-bold uppercase tracking-wider">{campaign.name}</span>
+                   )}
+                 </div>
+                 {campaignDiscount > 0 && (
+                   <span className="text-[10px] text-emerald-400 font-bold">
+                     {t('savings') || 'You save'} {campaignDiscount.toFixed(2)} ₼
+                   </span>
                  )}
                </div>
-               <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
+               <div className="text-right">
+                 {campaignDiscount > 0 && (
+                   <p className="text-[11px] font-medium line-through text-[var(--theme-text-muted)]">{originalTotal.toFixed(2)} ₼</p>
+                 )}
+                 <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
+               </div>
             </motion.div>
           )}
         </AnimatePresence>

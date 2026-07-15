@@ -141,6 +141,8 @@ export const en: TranslationMap = {
   no_campaigns_yet: 'No active campaigns yet',
   campaign_title_label: 'Campaign Title',
   discount_percent_label: 'Discount Percentage (%)',
+  discount_amount_label: 'Discount Amount (₼)',
+  savings: 'You save',
   confirm_delete_all_text: 'Are you sure you want to delete all products? This cannot be undone!',
   yes_delete: 'Yes, Delete',
   products_stock_updated: 'products stock status updated',

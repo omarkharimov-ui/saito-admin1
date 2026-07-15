@@ -17,6 +17,8 @@ interface FormState {
   target_type: 'category' | 'product';
   target_id: string;
   discount_value: string;
+  buy_quantity?: number;
+  get_quantity?: number;
   start_time: string;
   end_time: string;
   end_date: string;
@@ -109,6 +111,28 @@ const CampaignModal = ({
               <input type="number" min="1" max="100" value={form.discount_value} onChange={(e) => onFormChange({...form, discount_value: e.target.value})}
                 className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
                 placeholder={language === 'en' ? 'e.g: 20' : language === 'ru' ? 'напр: 20' : 'Məs: 20'} />
+            </div>
+          )}
+          {form.type === 'FIXED_AMOUNT' && (
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('discount_amount_label') || 'Endirim məbləği (₼)'}</label>
+              <input type="number" min="0" step="0.01" value={form.discount_value} onChange={(e) => onFormChange({...form, discount_value: e.target.value})}
+                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+                placeholder="Məs: 5.00" />
+            </div>
+          )}
+          {(form.type === 'BOGO' || form.type === 'BUY2GET1') && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Al</label>
+                <input type="number" min="1" value={form.buy_quantity || (form.type === 'BOGO' ? 1 : 2)} onChange={(e) => onFormChange({...form, buy_quantity: parseInt(e.target.value) || 1})}
+                  className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Ödə</label>
+                <input type="number" min="1" value={form.get_quantity || 1} onChange={(e) => onFormChange({...form, get_quantity: parseInt(e.target.value) || 1})}
+                  className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
+              </div>
             </div>
           )}
         </div>

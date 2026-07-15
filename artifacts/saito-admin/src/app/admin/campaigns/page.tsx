@@ -82,6 +82,8 @@ export default function CampaignsPage() {
       target_type: 'product',
       target_id: '',
       discount_value: '',
+      buy_quantity: 1,
+      get_quantity: 1,
       start_time: '',
       end_time: '',
       end_date: '',
@@ -99,6 +101,8 @@ export default function CampaignsPage() {
       target_type: camp.target_type || 'product',
       target_id: camp.target_id || '',
       discount_value: String(camp.discount_value || ''),
+      buy_quantity: camp.buy_quantity || (camp.type === 'BUY2GET1' ? 2 : 1),
+      get_quantity: camp.get_quantity || 1,
       start_time: camp.start_time || '',
       end_time: camp.end_time || '',
       end_date: camp.end_date || '',
@@ -109,7 +113,10 @@ export default function CampaignsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.discount_value) return;
+    if (!form.title.trim()) return;
+    if (form.type === 'PERCENTAGE' || form.type === 'HAPPY_HOUR' || form.type === 'FIXED_AMOUNT') {
+      if (!form.discount_value || parseFloat(form.discount_value) <= 0) return;
+    }
     setIsSubmitting(true);
     try {
       const payload: Record<string, any> = {
@@ -122,6 +129,8 @@ export default function CampaignsPage() {
         start_time: form.start_time || null,
         end_time: form.end_time || null,
         end_date: form.end_date || null,
+        buy_quantity: form.buy_quantity || 1,
+        get_quantity: form.get_quantity || 1,
       };
 
       if (editingCampaign) payload.id = editingCampaign.id;

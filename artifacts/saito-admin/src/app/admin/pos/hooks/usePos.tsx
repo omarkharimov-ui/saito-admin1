@@ -276,7 +276,7 @@ export function usePos() {
       const variantId = opts?.variantId ?? null;
       const basePrice = variant ? Number(variant.discount_price ?? variant.price) : (p.price ?? 0);
       const effective = (p as any).effective_price;
-      const unitPrice = effective?.effective_price ?? basePrice;
+      const unitPrice = typeof effective === 'number' ? effective : effective?.effective_price ?? basePrice;
       const existing = items.find(
         i => i.product_id === p.id && (i.variant_id ?? null) === variantId
       );
@@ -309,12 +309,13 @@ export function usePos() {
         existing.quantity += 1;
         existing.total_price = existing.unit_price * existing.quantity;
       } else {
+        const effectiveComboPrice = (combo as any).effective_price ?? combo.price;
         items.push({
           product_id: combo.id,
           product_name: combo.name,
-          unit_price: combo.price,
+          unit_price: effectiveComboPrice,
           quantity: 1,
-          total_price: combo.price,
+          total_price: effectiveComboPrice,
           modifiers: [],
           is_combo: true,
           notes: opts?.notes ?? ''

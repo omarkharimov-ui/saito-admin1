@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
 import { TableCard } from './components/TableCard';
@@ -30,6 +30,7 @@ export default function POSPage() {
   const [transferMode, setTransferMode] = useState(false);
   const [transferSource, setTransferSource] = useState<number | null>(null);
   const [transferTarget, setTransferTarget] = useState<number | null>(null);
+  const [transferConfirm, setTransferConfirm] = useState(false);
 
   const [unmergeMode, setUnmergeMode] = useState(false);
   const [selectedForUnmerge, setSelectedForUnmerge] = useState<number[]>([]);
@@ -332,10 +333,11 @@ export default function POSPage() {
         toast(`Mənbə: Masa ${table.table_number}. İndi hədəf seçin.`);
       } else if (table.table_number === transferSource) {
         toast.error('Eyni masanı seçdiz');
-      } else if (table.status === 'empty') {
-        toast.error('Boş masaya köçürə bilməzsiniz');
+      } else if (table.status !== 'empty') {
+        toast.error('Yalnız boş masaya köçürə bilərsiniz');
       } else {
         setTransferTarget(table.table_number);
+        setTransferConfirm(true);
       }
       return;
     }
@@ -491,27 +493,37 @@ export default function POSPage() {
                     />
                   )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 bg-white/5 rounded-full p-1">
-                    <button 
-                      onClick={() => { setMergeMode(false); setTransferMode(false); }}
-                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${!mergeMode && !transferMode ? 'bg-white text-black' : 'text-white/50 hover:text-white'}`}
-                    >
-                      Normal
-                    </button>
-                    <button 
-                      onClick={() => { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); }}
-                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${mergeMode ? 'bg-blue-500 text-white' : 'text-white/50 hover:text-white'}`}
-                    >
-                      Birleştir
-                    </button>
-                    <button 
-                      onClick={() => { setTransferMode(true); setMergeMode(false); setTransferSource(null); setTransferTarget(null); }}
-                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${transferMode ? 'bg-emerald-500 text-white' : 'text-white/50 hover:text-white'}`}
-                    >
-                       Köçür
-                    </button>
-                  </div>
+                 <div className="flex items-center gap-3">
+                   <div className="flex items-center gap-1 bg-white/5 rounded-full p-1">
+                     <button 
+                       onClick={() => { setMergeMode(false); setTransferMode(false); }}
+                       className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${!mergeMode && !transferMode ? 'bg-white text-black' : 'text-white/50 hover:text-white'}`}
+                     >
+                       Normal
+                     </button>
+                     <button 
+                       onClick={() => { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); }}
+                       className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${mergeMode ? 'bg-blue-500 text-white' : 'text-white/50 hover:text-white'}`}
+                     >
+                       Birleştir
+                     </button>
+                     <button 
+                       onClick={() => { setTransferMode(true); setMergeMode(false); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); }}
+                       className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${transferMode ? 'bg-emerald-500 text-white' : 'text-white/50 hover:text-white'}`}
+                     >
+                        Köçür
+                     </button>
+                   </div>
+                   {transferMode && (
+                     <div className="flex items-center gap-2">
+                       <div className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                         {transferSource ? `Mənbə: Masa ${transferSource}` : 'Mənbə seçin'}
+                       </div>
+                       <button onClick={() => { setTransferMode(false); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); }} className="px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-wider hover:bg-rose-500/20 transition-all">
+                         Ləğv
+                       </button>
+                     </div>
+                   )}
                   {campaigns.length > 0 && (
                     <select
                       value={selectedCampaign?.id || ''}
@@ -566,6 +578,30 @@ export default function POSPage() {
                 >
                   ✕ Sadə rejimi bağla
                 </button>
+              )}
+              {transferConfirm && transferSource && transferTarget && (
+                <motion.div
+                  initial={{ opacity: 0, y: 100 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 100 }}
+                  className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+                >
+                  <div className="pointer-events-auto w-full max-w-md bg-white text-black rounded-2xl shadow-2xl border border-white/20 p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-1">Köçürmə Təsdiqi</p>
+                        <p className="text-sm font-bold">Masa {transferSource} → Masa {transferTarget}</p>
+                      </div>
+                      <button onClick={() => { setTransferConfirm(false); }} className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-all">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setTransferConfirm(false); setTransferTarget(null); }} className="flex-1 py-4 rounded-2xl border border-zinc-200 text-zinc-600 text-xs font-black hover:bg-zinc-50 transition-all">Ləğv</button>
+                      <button onClick={() => { handleConfirmTransfer(transferTarget); setTransferConfirm(false); }} className="flex-1 py-4 rounded-2xl bg-emerald-500 text-white text-xs font-black hover:bg-emerald-600 transition-all">Təsdiqlə</button>
+                    </div>
+                  </div>
+                </motion.div>
               )}
   
                 <div className="flex-1 overflow-y-auto">

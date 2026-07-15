@@ -198,14 +198,22 @@ export function CartPanel({
                 {cart.customer_phone && <span className="text-[10px] text-[var(--theme-text-muted)]">· {cart.customer_phone}</span>}
               </div>
             )}
-            {(cart.discount_amount ?? 0) > 0 && (
+            {(cart.discount_amount ?? 0) > 0 ? (
               <div className="flex items-center gap-1.5 mt-1">
                 <Receipt size={12} className="text-emerald-400" />
                 <span className="text-[10px] font-bold text-emerald-400">
                   Endirim: {cart.discount_type === 'percentage' ? '%' : '₼'}{cart.discount_amount}
                 </span>
               </div>
-            )}
+            ) : campaign && campaign.discount > 0 ? (
+              <div className="flex items-center gap-1.5 mt-1">
+                <Receipt size={12} className="text-gold/70" />
+                <span className="text-[10px] font-bold text-gold/70">
+                  Kampaniya: {campaign.discount}
+                  {campaign.type === 'FIXED_AMOUNT' ? ' ₼' : '%'}
+                </span>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

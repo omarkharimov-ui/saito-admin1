@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { paymentRateLimit } from '@/lib/rate-limit';
+import { validateCsrfToken } from '@/lib/csrf';
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
+    
+    if (!validateCsrfToken(request)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
     
     const rateLimitResult = paymentRateLimit(request);
     if (rateLimitResult) return rateLimitResult;

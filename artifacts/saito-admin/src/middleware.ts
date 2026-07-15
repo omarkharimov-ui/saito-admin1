@@ -64,6 +64,20 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Set CSRF cookie for authenticated users
+  if (valid && token) {
+    const csrfToken = crypto.randomUUID();
+    const response = NextResponse.next();
+    response.cookies.set('saito_csrf', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 3600,
+    });
+    return response;
+  }
+
   return NextResponse.next();
 }
 

@@ -13,6 +13,7 @@ import { ModifierSheet } from './components/ModifierSheet';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
 import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
+import { apiFetch } from '@/lib/api-fetch';
 import type { PosProduct, LossItem } from './types/shared';
 
 export default function POSPage() {
@@ -93,7 +94,7 @@ export default function POSPage() {
 
     toast.loading('Ödəniş işlənir...', { id: 'action-toast' });
     try {
-      const ordersRes = await fetch('/api/orders');
+      const ordersRes = await apiFetch('/api/orders');
       if (!ordersRes.ok) throw new Error('Failed to fetch orders');
       const ordersData = await ordersRes.json();
       const activeOrders = (ordersData.orders || []).filter((o: any) => 
@@ -112,7 +113,7 @@ export default function POSPage() {
         const cashAmount = method === 'cash' ? total : 0;
         const cardAmount = method === 'card' ? total : 0;
 
-        const res = await fetch('/api/orders/pay', {
+        const res = await apiFetch('/api/orders/pay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -195,7 +196,7 @@ export default function POSPage() {
       : [actionSheetTable.table_number];
     toast.loading('Ödəniş işlənir...', { id: 'action-toast' });
     try {
-      const ordersRes = await fetch('/api/orders');
+      const ordersRes = await apiFetch('/api/orders');
       if (!ordersRes.ok) throw new Error('Failed to fetch orders');
       const ordersData = await ordersRes.json();
       const activeOrders = (ordersData.orders || []).filter((o: any) => 
@@ -204,7 +205,7 @@ export default function POSPage() {
       );
       const failedOrders: string[] = [];
       for (const activeOrder of activeOrders) {
-        const res = await fetch('/api/orders/pay', {
+        const res = await apiFetch('/api/orders/pay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -339,10 +340,13 @@ export default function POSPage() {
   const handleConfirmTransfer = async (targetTable?: number) => {
     if (!transferSource || !targetTable) return;
     try {
-      const res = await fetch('/api/orders/transfer', {
+      const res = await apiFetch('/api/orders/transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from_table: transferSource, to_table: targetTable }),
+        body: JSON.stringify({
+          from_table: sourceTable.table_number,
+          to_table: targetTable.table_number,
+        }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -366,14 +370,14 @@ export default function POSPage() {
   const handleUndo = async () => {
     if (!lastUndo || !lastUndo.data) return;
     try {
-      const res = await fetch('/api/orders/transfer', {
+      const res = await apiFetch('/api/orders/transfer', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from_table: lastUndo.data.from_table,
           to_table: lastUndo.data.to_table,
           orders: lastUndo.data.orders,
-          table: lastUndo.data.table
+          table: lastUndo.data.table,
         }),
       });
       const data = await res.json();
@@ -396,7 +400,7 @@ export default function POSPage() {
       return;
     }
     try {
-      const res = await fetch('/api/orders/unmerge', {
+      const res = await apiFetch('/api/orders/unmerge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ primary_table_number: actionSheetTable.table_number, child_table_numbers: selectedForUnmerge }),

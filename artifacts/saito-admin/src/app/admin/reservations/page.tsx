@@ -10,6 +10,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
+import { apiFetch } from '@/lib/api-fetch';
 import ReservationFilters from './components/ReservationFilters';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { ReservationTableRow, ReservationCard } from './components/ReservationRow';
@@ -104,7 +105,7 @@ export default function ReservationsPage() {
         }
       };
 
-      const res = await fetch('/api/reservations', {
+      const res = await apiFetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -126,119 +127,12 @@ export default function ReservationsPage() {
 
   const updateStatus = async (id: string, status: string) => {
     try {
-      const res = await fetch('/api/reservations/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Status update failed');
-      toast.success(`Status: ${status}`);
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-
-  const handleDelete = async () => {
-    if (!confirmDeleteReservation) return;
-    try {
-      const res = await fetch('/api/reservations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', id: confirmDeleteReservation.id }),
-      });
-      if (!res.ok) throw new Error('Silinmə zamanı xəta');
-      toast.success('Rezervasiya silindi');
-      setConfirmDeleteReservation(null);
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const handleArchive = async (id: string) => {
-    try {
-      const res = await fetch('/api/reservations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'archive', id }),
-      });
-      if (!res.ok) throw new Error('Arxivləmə zamanı xəta');
-      toast.success('Rezervasiya arxivləndi');
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const handleRestore = async (id: string) => {
-    try {
-      const res = await fetch('/api/reservations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'restore', id }),
-      });
-      if (!res.ok) throw new Error('Bərpa zamanı xəta');
-      toast.success('Rezervasiya bərpa edildi');
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const handleGuestArrived = async () => {
-    if (!selectedRes) return;
-    try {
-      const res = await fetch('/api/reservations/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedRes.id, status: 'waiting' }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Status yenilənərkən xəta');
-      }
-      toast.success('Qonaq qeydə alındı — masa hazırlanır');
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const handleSendToKitchen = async () => {
-    if (!selectedRes) return;
-    try {
-      const res = await fetch('/api/reservations/send-kitchen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reservation_id: selectedRes.id }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Köhrana göndərilərkən xəta');
-      }
-      toast.success('Öncədən sifariş aşpaza göndərildi');
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const handleConfirmReservation = async () => {
-    if (!selectedRes) return;
-    if (selectedTableIds.length === 0) return toast.error("Zəhmət olmasa masa seçin");
-
-    try {
-      const res = await fetch('/api/reservations/reserve-table', {
-
+      const res = await apiFetch('/api/reservations/reserve-table', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reservation_id: selectedRes.id,
           table_ids: selectedTableIds,
-          // Eger artiq pre_order_items varsa onlari da gonder
           pre_order_items: selectedRes.pre_order_items
             ? (typeof selectedRes.pre_order_items === 'string'
                 ? JSON.parse(selectedRes.pre_order_items)

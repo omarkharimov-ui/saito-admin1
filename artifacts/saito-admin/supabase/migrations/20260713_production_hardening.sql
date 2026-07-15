@@ -39,3 +39,25 @@ END $$;
 
 -- 7. Backfill table_floors status to ensure consistency
 UPDATE table_floors SET status = 'empty' WHERE status IS NULL OR status NOT IN ('empty', 'reserved', 'occupied', 'waiting');
+
+-- 8. Add FK constraint for order_items.order_id (if column exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'order_id') THEN
+    ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_order_id_fkey;
+    ALTER TABLE order_items
+      ADD CONSTRAINT order_items_order_id_fkey
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+-- 9. Add FK constraint for order_items.product_id (if column exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'product_id') THEN
+    ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_product_id_fkey;
+    ALTER TABLE order_items
+      ADD CONSTRAINT order_items_product_id_fkey
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL;
+  END IF;
+END $$;

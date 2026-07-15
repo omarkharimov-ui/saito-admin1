@@ -67,8 +67,11 @@ export default function StockPage() {
   const [history, setHistory] = useState<Array<Pick<InventoryLog, 'id' | 'type' | 'quantity' | 'cost_per_unit' | 'reason' | 'created_at'>> | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showQuickStockIn, setShowQuickStockIn] = useState(false);
+  const [showNewIngredient, setShowNewIngredient] = useState(false);
   const [quickStockSearch, setQuickStockSearch] = useState('');
   const [quickStockQty, setQuickStockQty] = useState('');
+
+  const [newIngredient, setNewIngredient] = useState({ name: '', unit: 'gram', current_stock: 0, critical_limit: 0, average_cost_per_unit: 0, purchase_price: 0, supplier_id: '' });
 
   // Form states for modals
   const [qtyInput, setQtyInput] = useState('');
@@ -204,35 +207,64 @@ export default function StockPage() {
     }
   };
 
+  const handleCreateIngredient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newIngredient.name.trim()) { toast.error('Xammal adı tələb olunur'); return; }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/ingredients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newIngredient),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Xəta');
+      toast.success('Xammal əlavə edildi');
+      setShowNewIngredient(false);
+      setNewIngredient({ name: '', unit: 'gram', current_stock: 0, critical_limit: 0, average_cost_per_unit: 0, purchase_price: 0, supplier_id: '' });
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <PageTransition className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] pb-24">
-      <div className="absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.08),transparent_42%)] pointer-events-none" />
+      <div className="absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.06),transparent_42%)] pointer-events-none" />
       
       <div className="max-w-none mx-auto px-4 sm:px-6 pt-6 sm:pt-10 relative">
-        <div className="space-y-6">
+        <div className="space-y-8">
           
           {/* Hero Section */}
-          <section className="relative overflow-hidden rounded-[32px] border border-[var(--theme-border)] bg-[var(--theme-surface)] px-8 py-8 shadow-[var(--theme-shadow)]">
-            <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <section className="relative overflow-hidden rounded-[32px] border border-[var(--theme-border)] bg-[var(--theme-surface)] px-6 sm:px-8 py-6 sm:py-8">
+            <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 rounded-full border border-gold/10 bg-gold/5 px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-gold uppercase">
                   <Sparkles size={12} /> PRO INVENTORY
                 </div>
-                <h1 className="text-5xl font-black tracking-tighter text-[var(--theme-text)]">Stok Paneli</h1>
-                <div className="flex gap-2">
-                  <button onClick={() => setViewMode('stock')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'stock' ? (lightMode ? 'bg-gray-900 text-white' : 'bg-[var(--theme-surface)] text-[var(--theme-text)]') : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Anbar</button>
-                  <button onClick={() => setViewMode('intelligence')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'intelligence' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Ağıllı Analiz</button>
-                  <button onClick={() => setViewMode('suppliers')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'suppliers' ? 'bg-blue-500 text-white' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarükçülər</button>
-                  <button onClick={() => setViewMode('procurement')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${viewMode === 'procurement' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarük</button>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-[var(--theme-text)]">Stok Paneli</h1>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setViewMode('stock')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'stock' ? 'bg-[var(--theme-text)] text-[var(--theme-bg)]' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Anbar</button>
+                  <button onClick={() => setViewMode('intelligence')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'intelligence' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Ağıllı Analiz</button>
+                  <button onClick={() => setViewMode('suppliers')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'suppliers' ? 'bg-blue-500 text-white' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarükçülər</button>
+                  <button onClick={() => setViewMode('procurement')} className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${viewMode === 'procurement' ? 'bg-gold text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] hover:bg-[var(--theme-surface-hover)]'}`}>Tədarük</button>
                 </div>
               </div>
-              <InventoryHealthCard stats={stats} loading={loading} />
-              <button 
-                onClick={() => setShowQuickStockIn(true)}
-                className="flex items-center gap-2 px-5 py-3 bg-gold text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg"
-              >
-                <Plus size={16} /> Yeni Xammal Girişi
-              </button>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setShowNewIngredient(true)}
+                  className="flex items-center gap-2 px-5 py-3 bg-[var(--theme-surface)] text-[var(--theme-text)] border border-[var(--theme-border)] rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-white transition-all"
+                >
+                  <Plus size={16} /> Yeni Xammal
+                </button>
+                <button 
+                  onClick={() => setShowQuickStockIn(true)}
+                  className="flex items-center gap-2 px-5 py-3 bg-gold text-black rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-white transition-all shadow-lg"
+                >
+                  <Plus size={16} /> Xammal Girişi
+                </button>
+              </div>
             </div>
           </section>
 
@@ -256,56 +288,56 @@ export default function StockPage() {
                     </div>
                   </div>
 
-                  <div className="hidden md:grid grid-cols-12 px-8 py-4 bg-[var(--theme-bg)] border-b border-[var(--theme-border)] text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em]">
-                    <div className="col-span-4">Xammal Adı</div>
-                    <div className="col-span-2 text-center">Birim Qiymət</div>
-                    <div className="col-span-2 text-center">Mövcud Stok</div>
-                    <div className="col-span-2 text-center">Status</div>
-                    <div className="col-span-2 text-right">Əməliyyat</div>
-                  </div>
+                   <div className="hidden md:grid grid-cols-12 px-6 sm:px-8 py-4 bg-[var(--theme-bg)] border-b border-[var(--theme-border)] text-[10px] font-bold text-[var(--theme-text-muted)] uppercase tracking-[0.15em]">
+                     <div className="col-span-4">Xammal Adı</div>
+                     <div className="col-span-2 text-center">Birim Qiymət</div>
+                     <div className="col-span-2 text-center">Mövcud Stok</div>
+                     <div className="col-span-2 text-center">Status</div>
+                     <div className="col-span-2 text-right">Əməliyyat</div>
+                   </div>
 
-                  <div className="divide-y divide-[var(--theme-border)]">
-                    {rows.map(row => {
-                      const meta = getStatusMeta(row.status);
-                      return (
-                        <motion.div 
-                          key={row.id} 
-                          className={`px-8 py-5 grid grid-cols-1 md:grid-cols-12 items-center transition-all hover:bg-[var(--theme-surface-soft)]/50 ${selectedRow?.id === row.id ? 'bg-gold/5' : ''}`}
-                        >
-                          <div className="col-span-4 flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-[18px] flex items-center justify-center ${meta.bg}`}>
-                              <Package size={22} className={meta.text} />
+                   <div className="divide-y divide-[var(--theme-border)]">
+                     {rows.map(row => {
+                       const meta = getStatusMeta(row.status);
+                       return (
+                         <motion.div 
+                           key={row.id} 
+                           className={`px-6 sm:px-8 py-4 grid grid-cols-1 md:grid-cols-12 items-center transition-colors hover:bg-[var(--theme-surface-soft)]/40 ${selectedRow?.id === row.id ? 'bg-gold/5' : ''}`}
+                         >
+                            <div className="col-span-4 flex items-center gap-4">
+                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${meta.bg}`}>
+                                <Package size={20} className={meta.text} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-[var(--theme-text)]">{row.name}</p>
+                                <p className="text-[10px] text-[var(--theme-text-muted)] font-medium uppercase tracking-wider mt-0.5">{UNIT_LABELS[row.unit]}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-black text-[var(--theme-text)]">{row.name}</p>
-                              <p className="text-[10px] text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">{UNIT_LABELS[row.unit]}</p>
+                            <div className="col-span-2 text-center hidden md:block">
+                              <p className="text-sm font-medium text-[var(--theme-text-secondary)]">₼{row.average_cost_per_unit.toFixed(2)}</p>
                             </div>
-                          </div>
-                          <div className="col-span-2 text-center hidden md:block">
-                            <p className="text-sm font-bold text-[var(--theme-text-secondary)]">₼{row.average_cost_per_unit.toFixed(2)}</p>
-                          </div>
-                          <div className="col-span-2 text-center">
-                            <p className="text-lg font-black tabular-nums text-[var(--theme-text)]">{row.current_stock.toFixed(1)}</p>
-                          </div>
-                          <div className="col-span-2 flex justify-center">
-                            <div className="w-24">
-                              <StockStatusBar status={row.status} pct={Math.round(row.stock_ratio)} />
+                            <div className="col-span-2 text-center">
+                              <p className="text-lg font-bold tabular-nums text-[var(--theme-text)]">{row.current_stock.toFixed(1)}</p>
                             </div>
-                          </div>
-                          <div className="col-span-2 flex justify-end gap-3">
-                             <button onClick={() => setSelectedRow(row)} className="p-2.5 rounded-xl bg-[var(--theme-bg)] hover:bg-[var(--theme-surface)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all shadow-sm">
-                               <Pencil size={14} />
-                             </button>
-                             <button onClick={() => { setSelectedRow(row); setModalMode('stock_in'); }} className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 transition-all border border-emerald-500/20">
-                                <TrendingUp size={14} />
-                              </button>
-                              <button onClick={() => { setSelectedRow(row); setModalMode('waste'); }} className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all border border-rose-500/20">
-                                <TrendingDown size={14} />
-                              </button>
-                              <button onClick={() => { setSelectedRow(row); setModalMode('audit'); }} className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 transition-all border border-amber-500/20">
-                                <ClipboardCheck size={14} />
-                              </button>
-                          </div>
+                            <div className="col-span-2 flex justify-center">
+                              <div className="w-28">
+                                <StockStatusBar status={row.status} pct={Math.round(row.stock_ratio)} />
+                              </div>
+                            </div>
+                            <div className="col-span-2 flex justify-end gap-2">
+                               <button onClick={() => setSelectedRow(row)} className="p-2 rounded-xl text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface)] transition-all" title="Redaktə">
+                                 <Pencil size={14} />
+                               </button>
+                               <button onClick={() => { setSelectedRow(row); setModalMode('stock_in'); }} className="p-2 rounded-xl text-emerald-600 hover:bg-emerald-500/10 transition-all" title="Stok Girişi">
+                                  <TrendingUp size={14} />
+                                </button>
+                                <button onClick={() => { setSelectedRow(row); setModalMode('waste'); }} className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all" title="İtki">
+                                  <TrendingDown size={14} />
+                                </button>
+                                <button onClick={() => { setSelectedRow(row); setModalMode('audit'); }} className="p-2 rounded-xl text-amber-500 hover:bg-amber-500/10 transition-all" title="Audit">
+                                  <ClipboardCheck size={14} />
+                                </button>
+                            </div>
                         </motion.div>
                       );
                     })}
@@ -350,7 +382,7 @@ export default function StockPage() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }} className="absolute inset-0 bg-black/40 backdrop-blur-xl" onClick={() => setModalMode(null)} />
             <motion.div 
               initial={{ scale: 0.92, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0, y: 24 }} transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 1 }}
-              className="relative w-full max-w-md bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[40px] p-10 shadow-2xl"
+              className="relative w-full max-w-md bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[32px] p-8 shadow-2xl"
             >
               <div className="flex items-center gap-4 mb-8">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${modalMode === 'stock_in' ? 'bg-emerald-500/10 text-emerald-600' : modalMode === 'audit' ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-600'}`}>
@@ -365,10 +397,10 @@ export default function StockPage() {
                 </div>
               </div>
 
-              <div className="space-y-8">
+              <div className="space-y-6">
                 {modalMode === 'audit' ? (
                   <>
-                    <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                    <div className="flex items-center justify-between px-5 py-4 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
                       <span className="text-xs font-bold text-[var(--theme-text-muted)] uppercase tracking-widest">Sistem stoku</span>
                       <span className="text-lg font-black text-[var(--theme-text)]">{selectedRow.current_stock.toFixed(1)} {UNIT_LABELS[selectedRow.unit]}</span>
                     </div>
@@ -410,12 +442,12 @@ export default function StockPage() {
                   </>
                 )}
 
-                <div className="flex gap-4 pt-4">
-                  <button onClick={() => setModalMode(null)} className="flex-1 py-5 rounded-3xl border border-[var(--theme-border)] text-[var(--theme-text-muted)] font-black uppercase tracking-widest text-[10px] hover:bg-[var(--theme-bg)] transition-all">Ləğv Et</button>
+                <div className="flex gap-4 pt-2">
+                  <button onClick={() => setModalMode(null)} className="flex-1 py-4 rounded-2xl border border-[var(--theme-border)] text-[var(--theme-text-muted)] font-black uppercase tracking-widest text-[10px] hover:bg-[var(--theme-bg)] transition-all">Ləğv Et</button>
                   <button 
                     onClick={() => handleAction(modalMode === 'stock_in' ? 'stock_in' : modalMode === 'audit' ? 'audit' : 'waste')} 
                     disabled={saving || !qtyInput}
-                    className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${modalMode === 'stock_in' ? 'bg-gray-900 text-white hover:bg-black' : modalMode === 'audit' ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-rose-500 text-white hover:bg-rose-600'}`}
+                    className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${modalMode === 'stock_in' ? 'bg-gray-900 text-white hover:bg-black' : modalMode === 'audit' ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-rose-500 text-white hover:bg-rose-600'}`}
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     Təsdiqlə
@@ -549,6 +581,113 @@ export default function StockPage() {
                   ))}
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* New Ingredient Modal */}
+      <AnimatePresence>
+        {showNewIngredient && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }} className="absolute inset-0 bg-black/40 backdrop-blur-xl" onClick={() => setShowNewIngredient(false)} />
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0, y: 24 }} transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 1 }}
+              className="relative w-full max-w-lg bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[32px] p-8 shadow-2xl max-h-[80vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-black text-[var(--theme-text)]">Yeni Xammal</h2>
+                  <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">Yeni ingredient əlavə et</p>
+                </div>
+                <button onClick={() => setShowNewIngredient(false)} className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateIngredient} className="space-y-5 flex-1 overflow-y-auto">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Xammal Adı *</label>
+                  <input
+                    type="text"
+                    value={newIngredient.name}
+                    onChange={e => setNewIngredient({ ...newIngredient, name: e.target.value })}
+                    placeholder="Məs: Domates"
+                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-5 py-3.5 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Vahid</label>
+                    <select
+                      value={newIngredient.unit}
+                      onChange={e => setNewIngredient({ ...newIngredient, unit: e.target.value as any })}
+                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                    >
+                      <option value="gram">Gram</option>
+                      <option value="kg">Kilogram</option>
+                      <option value="ml">Mililitr</option>
+                      <option value="liter">Litr</option>
+                      <option value="piece">Ədəd</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Başlanğıc Stok</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newIngredient.current_stock}
+                      onChange={e => setNewIngredient({ ...newIngredient, current_stock: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Kritik Limit</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newIngredient.critical_limit}
+                      onChange={e => setNewIngredient({ ...newIngredient, critical_limit: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Birim Qiymət (₼)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newIngredient.average_cost_per_unit}
+                      onChange={e => setNewIngredient({ ...newIngredient, average_cost_per_unit: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[var(--theme-text-muted)] uppercase tracking-[0.2em] ml-2">Alış Qiyməti (₼)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newIngredient.purchase_price}
+                    onChange={e => setNewIngredient({ ...newIngredient, purchase_price: parseFloat(e.target.value) || 0 })}
+                    className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] rounded-2xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 transition-all"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setShowNewIngredient(false)} className="flex-1 py-4 rounded-2xl border border-[var(--theme-border)] text-[var(--theme-text-muted)] font-black uppercase tracking-widest text-[10px] hover:bg-[var(--theme-bg)] transition-all">Ləğv Et</button>
+                  <button type="submit" disabled={saving} className="flex-1 py-4 rounded-2xl bg-gold text-black font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-40">
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Yadda Saxla
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

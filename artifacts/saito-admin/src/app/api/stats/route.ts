@@ -69,6 +69,7 @@ export async function GET(request: Request) {
       activeOrdersRes,
       clockEventsRes,
       staffRes,
+      expensesRes,
     ] = await Promise.all([
       fetch(`${supabaseUrl}/rest/v1/orders?select=id,total_amount,created_at,status,table_number,created_by,assigned_to&status=eq.paid&created_at=gte.${isoStartDate}&created_at=lte.${isoEndDate}&order=created_at.asc`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/order_items?select=*,order:orders!inner(id,status,created_at)&order.status=eq.paid&order.created_at=gte.${isoStartDate}&order.created_at=lte.${isoEndDate}`, { headers: H }),
@@ -81,9 +82,10 @@ export async function GET(request: Request) {
       fetch(`${supabaseUrl}/rest/v1/orders?select=table_number&or=(status.eq.new,status.eq.confirmed)`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/clock_events?select=*&clock_in=gte.${isoStartDate}`, { headers: H }),
       fetch(`${supabaseUrl}/rest/v1/staff?select=id,full_name,role,phone`, { headers: H }),
+      fetch(`${supabaseUrl}/rest/v1/expenses?select=amount,category,expense_date&expense_date=gte.${isoStartDate}&expense_date=lte.${isoEndDate}`, { headers: H }),
     ]);
 
-    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders, clockEvents, staff] = await Promise.all([
+    const [orders, orderItems, products, categories, cancelledOrders, recipes, ingredients, wasteLogs, activeOrders, clockEvents, staff, expenses] = await Promise.all([
       ordersRes.json(),
       orderItemsRes.json(),
       productsRes.json(),
@@ -95,21 +97,28 @@ export async function GET(request: Request) {
       activeOrdersRes.json(),
       clockEventsRes.json(),
       staffRes.json(),
+      expensesRes.json(),
     ]);
 
-    // Real Labor Cost Calculation
+    // Real Labor Cost Calculation — use actual expenses if available, fallback to clock_events estimate
     let calculatedLaborCost = 0;
-    const HOURLY_RATE = 5; // Target hourly rate in AZN
-    (Array.isArray(clockEvents) ? clockEvents : []).forEach((ev: any) => {
+    const HOURLY_RATE = 5;
+    const clockLaborCost = (Array.isArray(clockEvents) ? clockEvents : []).reduce((sum: number, ev: any) => {
       if (ev.clock_in && ev.clock_out) {
         const durationHours = (new Date(ev.clock_out).getTime() - new Date(ev.clock_in).getTime()) / (1000 * 60 * 60);
-        calculatedLaborCost += Math.max(0, durationHours) * HOURLY_RATE;
+        return sum + Math.max(0, durationHours) * HOURLY_RATE;
       } else if (ev.clock_in) {
-        // Still working? Estimate until now
         const durationHours = (new Date().getTime() - new Date(ev.clock_in).getTime()) / (1000 * 60 * 60);
-        calculatedLaborCost += Math.max(0, durationHours) * HOURLY_RATE;
+        return sum + Math.max(0, durationHours) * HOURLY_RATE;
       }
-    });
+      return sum;
+    }, 0);
+
+    const expenseLaborCost = (Array.isArray(expenses) ? expenses : []).reduce((sum: number, exp: any) => {
+      return sum + (Number(exp.amount) || 0);
+    }, 0);
+
+    calculatedLaborCost = expenseLaborCost > 0 ? expenseLaborCost : clockLaborCost;
 
     const totalRevenue = orders?.reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0) || 0;
     const totalOrders = orders?.length || 0;

@@ -648,9 +648,7 @@ export default function KitchenPage() {
   const applySeqRef = useRef(0);
   
   const applyData = useCallback((data: any[], lang: string) => {
-    console.log('[Kitchen] applyData called with', data.length, 'orders');
     const mapped = data.map(o => mapRawOrder(o, lang));
-    console.log('[Kitchen] After mapping:', mapped.length, 'orders');
     const seq = ++applySeqRef.current;
 
     // Enrich with merged_from_tables data
@@ -702,7 +700,6 @@ export default function KitchenPage() {
     }
 
     setOrders(mapped);
-    console.log('[Kitchen] setOrders called with', mapped.length, 'orders');
   }, []);
 
   // ── Helper: Get merged table display name (e.g., "9+7" if tables are merged)
@@ -734,7 +731,6 @@ export default function KitchenPage() {
   const fetchOrdersRef = useRef<() => Promise<void>>(async () => {});
 
   const fetchOrders = useCallback(async () => {
-    console.log('[Kitchen] fetchOrders called');
     try {
       const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
       const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -752,8 +748,6 @@ export default function KitchenPage() {
         order: 'created_at.desc'
       });
 
-      console.log('[Kitchen] Fetching from:', `${SUPABASE_URL}/rest/v1/orders?${queryParams.toString()}`);
-
       const response = await fetch(`${SUPABASE_URL}/rest/v1/orders?${queryParams.toString()}`, {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
@@ -766,33 +760,26 @@ export default function KitchenPage() {
       }
 
       const data = await response.json();
-      console.log('[Kitchen] Fetch result:', { dataLength: data?.length, error: null });
 
       if (data) {
-        console.log(`[Kitchen] Fetched ${data.length} orders, items: ${data.reduce((s: any, o: any) => s + (o.order_items?.length || 0), 0)}`);
         applyData(data, languageRef.current);
         localStorage.setItem('saito_kitchen_data', JSON.stringify(data));
       } else {
-        console.warn('[Kitchen] No data returned from fetch');
       }
     } catch (err) {
-      console.warn('[Kitchen] Fetch failed, loading from cache:', err);
       const cached = localStorage.getItem('saito_kitchen_data');
       if (cached) {
-        console.log('[Kitchen] Loading from cache, length:', cached.length);
         try {
           applyData(JSON.parse(cached), languageRef.current);
         } catch (e) {
           console.error('[Kitchen] Cache parse error:', e);
         }
       } else {
-        console.warn('[Kitchen] No cache available');
       }
     }
   }, [applyData]);
 
   const manualRefresh = useCallback(async () => {
-    console.log('[Kitchen] Manual refresh');
     await fetchOrdersRef.current();
   }, []);
 
@@ -802,7 +789,6 @@ export default function KitchenPage() {
 
   // ── Initial fetch — guaranteed with latest reference
   useEffect(() => { 
-    console.log('[Kitchen] Component mounted, calling fetchOrders');
     fetchOrders(); 
     
     // Start listening for Mesh (Offline) orders
@@ -1092,7 +1078,6 @@ export default function KitchenPage() {
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const { activeOrders, readyOrders } = useMemo(() => {
-    console.log('[Kitchen] useMemo recalculating, orders count:', orders.length);
     const active = orders
       .filter(o => o.items.length > 0 && o.items.some(it => it.preparedQuantity < it.orderedQuantity))
       .sort((a, b) => priorityWeight(a) - priorityWeight(b) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -1100,7 +1085,6 @@ export default function KitchenPage() {
       o.items.length > 0 &&
       o.items.every(it => it.preparedQuantity >= it.orderedQuantity)
     );
-    console.log('[Kitchen] Derived state - active:', active.length, 'ready:', ready.length);
     return { activeOrders: active, readyOrders: ready };
   }, [orders]);
 

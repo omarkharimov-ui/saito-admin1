@@ -462,10 +462,4 @@ export function usePos() {
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
     updateCartCustomer, updateCartDiscount
   };
-
-  return {
-    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
-    fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
-    setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount
-  };
 }

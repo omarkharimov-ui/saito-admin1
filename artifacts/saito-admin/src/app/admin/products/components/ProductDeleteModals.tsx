@@ -56,7 +56,7 @@ export function DeleteProductModal({ product, updating, onClose, onConfirm }: De
           <Trash2 size={32} className="text-red-500" />
         </div>
         <h3 className="text-xl font-serif font-bold text-white mb-2">{t('delete_product')}</h3>
-        <p className="text-white/60 text-sm mb-6">"{product?.name}" {t('confirm_delete_product')}</p>
+        <p className="text-white/60 text-sm mb-6">&ldquo;{product?.name}&rdquo; {t('confirm_delete_product')}</p>
         <div className="flex gap-3 w-full">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-white/10 text-white/60 text-sm font-medium">{t('no')}</button>
           <button onClick={onConfirm} disabled={updating} className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-semibold disabled:opacity-40 flex items-center justify-center gap-2">
@@ -77,7 +77,7 @@ export function DeleteCategoryModal({ category, loading, onClose, onConfirm }: D
           <AlertCircle size={32} className="text-red-500" />
         </div>
         <h3 className="text-xl font-serif font-bold text-white mb-2">{t('delete_category')}</h3>
-        <p className="text-white/60 text-sm mb-6">"{category?.name}" {t('confirm_delete_category')}</p>
+        <p className="text-white/60 text-sm mb-6">&ldquo;{category?.name}&rdquo; {t('confirm_delete_category')}</p>
         <div className="flex gap-3 w-full">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-white/10 text-white/60 text-sm font-medium">{t('no')}</button>
           <button onClick={onConfirm} disabled={loading} className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-semibold disabled:opacity-40 flex items-center justify-center gap-2">

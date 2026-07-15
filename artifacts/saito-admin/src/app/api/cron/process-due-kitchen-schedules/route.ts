@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    console.log(`[cron/process-due-kitchen-schedules] Processed ${data?.length || 0} due kitchen schedules`);
     return NextResponse.json({ processed: data?.length || 0, schedules: data });
   } catch (err) {
     console.error('[cron/process-due-kitchen-schedules] error:', err);

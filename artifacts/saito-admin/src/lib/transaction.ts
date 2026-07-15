@@ -26,13 +26,10 @@ export async function runOrderAction<T>(
   actionName: string,
   businessLogic: () => Promise<T>
 ): Promise<{ success: boolean; data?: T; error?: string }> {
-  console.log(`[OrderEngine] Executing ${actionName}...`);
-  
   try {
     const result = await businessLogic();
     return { success: true, data: result };
   } catch (error: any) {
-    console.error(`[OrderEngine] ${actionName} FAILED:`, error.message);
     return { success: false, error: error.message };
   }
 }
@@ -49,20 +46,16 @@ export async function withTransaction(
   
   try {
     for (let i = 0; i < steps.length; i++) {
-      console.log(`[Transaction] Step ${i + 1}/${steps.length}: ${steps[i].name}`);
       const res = await steps[i].execute();
       results.push(res);
       completedSteps.push(i);
     }
     return { success: true, results };
   } catch (error) {
-    console.error('[Transaction] FAILED. Rolling back completed steps...');
     for (const idx of completedSteps.reverse()) {
       try {
-        console.log(`[Transaction] Rolling back: ${steps[idx].name}`);
         await steps[idx].rollback();
       } catch (rbError) {
-        console.error(`[Transaction] Rollback failed for ${steps[idx].name}:`, rbError);
       }
     }
     throw error;

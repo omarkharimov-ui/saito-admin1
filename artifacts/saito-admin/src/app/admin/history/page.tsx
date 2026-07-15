@@ -247,7 +247,7 @@ export default function HistoryPage() {
                                     <div className="flex items-center gap-3 mt-1">
                                         {ev.quantity && <span className={`text-[10px] font-black ${ev.quantity.startsWith('+') ? 'text-emerald-400' : 'text-rose-400'}`}>{ev.quantity}</span>}
                                         {ev.cost !== null && <span className="text-[10px] text-white/20 font-bold">₼{Number(ev.cost).toFixed(2)}</span>}
-                                        {ev.detail && <span className="text-[10px] text-white/20 truncate italic">"{ev.detail}"</span>}
+                                         {ev.detail && <span className="text-[10px] text-white/20 truncate italic">&ldquo;{ev.detail}&rdquo;</span>}
                                     </div>
                                 </div>
                                 <span className="text-[9px] text-white/10 font-mono mt-1 whitespace-nowrap">{timeAgo(ev.date)}</span>

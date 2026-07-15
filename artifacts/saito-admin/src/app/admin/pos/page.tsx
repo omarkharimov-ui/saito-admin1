@@ -344,8 +344,8 @@ export default function POSPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from_table: sourceTable.table_number,
-          to_table: targetTable.table_number,
+          from_table: transferSource,
+          to_table: targetTable,
         }),
       });
       const data = await res.json();
@@ -622,9 +622,9 @@ export default function POSPage() {
                         onRecordLoss={handleRecordLoss}
                         onClearDraft={() => pos.clearCart()}
                         mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
-                        customerId={pos.cart.customer_id}
-                        customerName={pos.cart.customer_name}
-                        currentDiscount={pos.cart.discount_amount ? { amount: pos.cart.discount_amount, type: pos.cart.discount_type || 'fixed' } : null}
+                        customerId={pos.cart?.customer_id}
+                        customerName={pos.cart?.customer_name}
+                        currentDiscount={pos.cart?.discount_amount ? { amount: pos.cart.discount_amount, type: pos.cart.discount_type || 'fixed' } : null}
                       />
                </div>
             </div>
@@ -666,12 +666,12 @@ export default function POSPage() {
            setSelectedForMerge([]); 
          }}
          groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
-         customerId={cart.customer_id}
-         customerName={cart.customer_name}
-         onSelectCustomer={(customerId, customerName) => {
-           pos.updateCartCustomer(customerId, customerName);
-         }}
-         currentDiscount={cart.discount_amount ? { amount: cart.discount_amount, type: cart.discount_type || 'fixed' } : null}
+          customerId={pos.cart?.customer_id}
+          customerName={pos.cart?.customer_name}
+          onSelectCustomer={(customerId, customerName) => {
+            pos.updateCartCustomer(customerId, customerName);
+          }}
+          currentDiscount={pos.cart?.discount_amount ? { amount: pos.cart.discount_amount, type: pos.cart.discount_type || 'fixed' } : null}
         onApplyDiscount={({ amount, type }) => {
            pos.updateCartDiscount(amount, type);
          }}

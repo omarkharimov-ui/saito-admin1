@@ -34,7 +34,6 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
     .eq('type', 'order_consumption')
     .eq('order_id', orderId);
   if (existingCount && existingCount > 0) {
-    console.log(`[stockAutomation] Order ${orderId} already processed (${existingCount} logs), skipping`);
     return { deducted: 0, ingredientIds: [] };
   }
 
@@ -45,11 +44,8 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
     .eq('order_id', orderId);
 
   if (error || !items || items.length === 0) {
-    console.error('[stockAutomation] Failed to fetch order items:', error);
     return { deducted: 0, ingredientIds: [] };
   }
-
-  console.log('[stockAutomation] Order items:', JSON.stringify(items, null, 2));
 
   const logs: { ingredient_id: string; type: 'order_consumption'; quantity: number; reason: string; order_id: string; order_item_id: string; item_quantity: number; reference_type: string; reference_id: string }[] = [];
 
@@ -66,14 +62,11 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
     }
   }
 
-  console.log('[stockAutomation] Ready IDs:', readyProductIds, 'Recipe IDs:', recipeProductIds);
-
   // 2a. HAZIR MƏHSULLAR: birbaşa direct_ingredient_id ilə stock azalt
   for (const item of items) {
     const prod = Array.isArray(item.products) ? item.products[0] : item.products;
     if (prod?.is_ready_product && prod?.direct_ingredient_id) {
       const qty = Number(item.quantity) || 1;
-      console.log(`[stockAutomation] Ready deduct: product=${item.product_id}, ingredient=${prod.direct_ingredient_id}, qty=${qty}`);
       logs.push({
         ingredient_id: prod.direct_ingredient_id,
         type: 'order_consumption',
@@ -94,8 +87,6 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
       .from('recipes')
       .select('menu_item_id, ingredient_id, quantity_required, quantity_brutto')
       .in('menu_item_id', recipeProductIds);
-
-    console.log('[stockAutomation] Recipes found:', recipes?.length || 0, JSON.stringify(recipes, null, 2));
 
     if (recipes && recipes.length > 0) {
       // Fetch ingredient units and name for alerting
@@ -167,10 +158,7 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
     }
   }
 
-  console.log('[stockAutomation] Logs to insert:', JSON.stringify(logs, null, 2));
-
   if (logs.length === 0) {
-    console.log(`[stockAutomation] No stock to deduct for order ${orderId}`);
     return { deducted: 0, ingredientIds: [] };
   }
 
@@ -178,10 +166,8 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
   const ingredientIds = [...new Set(logs.map(l => l.ingredient_id))];
   const { error: insertError } = await supabase.from('inventory_logs').insert(logs);
   if (insertError) {
-    console.error('[stockAutomation] inventory_logs insert error:', insertError);
     return { deducted: 0, ingredientIds: [] };
   } else {
-    console.log(`[stockAutomation] ${logs.length} inventory log(s) written for order ${orderId}`);
     return { deducted: logs.length, ingredientIds };
   }
 }

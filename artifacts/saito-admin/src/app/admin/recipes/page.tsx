@@ -352,42 +352,43 @@ export default function RecipesPage() {
           <div className="flex flex-wrap items-center gap-2">
             {(['recipes', 'intelligence'] as const).map(m => (
               <button key={m} onClick={() => setViewMode(m)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-95 ${
                   viewMode === m ? 'bg-white/10 text-white border border-white/15' : 'text-white/30 hover:text-white/60 border border-transparent'
                 }`}>
                 {m === 'recipes' ? 'Reseptlər' : 'İntellekt'}
               </button>
             ))}
-            <button
-              onClick={() => { setEditConstructorProductId(undefined); setConstructorOpen(true); }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 transition-all"
-            >
-              <CookingPot size={14} /> Resept Konstruktoru
-            </button>
-            <button
-              onClick={() => setShowCookbookPanel(!showCookbookPanel)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-all"
-            >
-              <BookOpen size={14} /> Kokbuk Yüklä {cookbookResults.length > 0 && (
-                <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{cookbookResults.length}</span>
-              )}
-            </button>
-            <button
-              onClick={() => setShowAiPanel(!showAiPanel)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-all"
-            >
-              <BrainCircuit size={14} /> AI Təkliflər {aiSuggestedRecipes.length > 0 && (
-                <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
-              )}
-            </button>
-            <button
-              onClick={() => setClearConfirmOpen(true)} disabled={clearingAll}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
-            >
-              {clearingAll ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-              Hamısını Sil
-            </button>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <button
+                onClick={() => { setEditConstructorProductId(undefined); setConstructorOpen(true); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 transition-all"
+              >
+                <Plus size={14} /> Yeni Resept
+              </button>
+              <button
+                onClick={() => setShowAiPanel(!showAiPanel)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all ${showAiPanel ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' : 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20'}`}
+              >
+                <BrainCircuit size={14} /> AI {aiSuggestedRecipes.length > 0 && (
+                  <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{aiSuggestedRecipes.length}</span>
+                )}
+              </button>
+              <button
+                onClick={() => setShowCookbookPanel(!showCookbookPanel)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all ${showCookbookPanel ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'}`}
+              >
+                <BookOpen size={14} /> PDF {cookbookResults.length > 0 && (
+                  <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{cookbookResults.length}</span>
+                )}
+              </button>
+              <button
+                onClick={() => setClearConfirmOpen(true)} disabled={clearingAll}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all active:scale-[0.97] disabled:opacity-30"
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}
+              >
+                {clearingAll ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              </button>
+            </div>
           </div>
         </div>
       </GlassCard>
@@ -442,7 +443,7 @@ export default function RecipesPage() {
               </div>
 
               {aiSuggestedRecipes.length === 0 && (
-                <p className="text-white/30 text-xs py-2">Hazırda AI təklif yoxdur. "Yeni təkliflər yarat" basaraq satış data-sına əsasən təkliflər ala bilərsən.</p>
+                <p className="text-white/30 text-xs py-2">Hazırda AI təklif yoxdur. &ldquo;Yeni təkliflər yarat&rdquo; basaraq satış data-sına əsasən təkliflər ala bilərsən.</p>
               )}
 
               <div className="space-y-2">
@@ -625,155 +626,86 @@ export default function RecipesPage() {
             const hasAi = recs.some(r => r.is_ai_suggested);
             const name = getProductName(product);
             return (
-              <div key={product.id} className={`rounded-2xl border ${hasAi ? 'border-purple-500/20' : 'border-white/[0.06]'} bg-white/[0.02] overflow-hidden`}>
-                <button
-                  onClick={() => setExpandedProduct(isExpanded ? null : product.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-all text-left"
-                >
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-lg bg-white/[0.05] flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-white truncate">{name}</p>
-                      {hasAi && <Sparkles size={11} className="text-purple-400 flex-shrink-0" />}
-                    </div>
-                    <p className="text-white/30 text-xs">{product.price.toFixed(2)} ₼ · {recs.length} resept {hasAi && '· AI təklif var'}</p>
-                  </div>
-                  {isExpanded ? <ChevronUp size={16} className="text-white/30" /> : <ChevronDown size={16} className="text-white/30" />}
-                </button>
+               <div key={product.id} className={`rounded-2xl border ${hasAi ? 'border-purple-500/15' : 'border-white/[0.06]'} bg-white/[0.02] overflow-hidden`}>
+                 <button
+                   onClick={() => setExpandedProduct(isExpanded ? null : product.id)}
+                   className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.03] transition-all text-left"
+                 >
+                   {product.image_url ? (
+                     <img src={product.image_url} alt={name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                   ) : (
+                     <div className="w-10 h-10 rounded-xl bg-white/[0.05] flex-shrink-0" />
+                   )}
+                   <div className="flex-1 min-w-0">
+                     <div className="flex items-center gap-2">
+                       <p className="text-sm font-semibold text-white truncate">{name}</p>
+                     </div>
+                     <p className="text-white/30 text-xs mt-0.5">{product.price.toFixed(2)} ₼ · {recs.length} resept</p>
+                   </div>
+                   {isExpanded ? <ChevronUp size={16} className="text-white/30" /> : <ChevronDown size={16} className="text-white/30" />}
+                 </button>
 
-                {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-white/[0.05]">
-                    {/* Document Upload Zone */}
-                    <div className="mt-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <FileText size={13} className="text-white/30" />
-                        <span className="text-[10px] uppercase tracking-wider text-white/30 font-semibold">AI Resept Parser</span>
-                      </div>
-                      {uploadTarget === product.id ? (
-                        <div className="space-y-2">
-                          <div
-                            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                            onDragLeave={() => setDragOver(false)}
-                            onDrop={handleFileDrop}
-                            className={`rounded-lg border border-dashed p-4 text-center transition-all ${dragOver ? 'border-blue-500/40 bg-blue-500/5' : 'border-white/10 bg-white/[0.02]'}`}
-                          >
-                            <Upload size={20} className="mx-auto mb-1 text-white/20" />
-                            <p className="text-white/30 text-xs">PDF, Word və ya TXT faylını bura sürüklə</p>
-                            <input type="file" accept=".txt,.pdf,.doc,.docx" onChange={handleFileSelect} className="hidden" id={`file-${product.id}`} />
-                            <label htmlFor={`file-${product.id}`} className="text-blue-400/70 text-xs cursor-pointer hover:text-blue-400">və ya kliklə seç</label>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-white/20 text-[10px]">və ya yaz:</span>
-                            <input
-                              value={uploadText}
-                              onChange={e => setUploadText(e.target.value)}
-                              placeholder="Resept mətnini bura yaz..."
-                              className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2 py-1 text-xs text-white placeholder:text-white/15 outline-none focus:border-white/20"
-                            />
-                            <button
-                              onClick={parseFromText}
-                              disabled={uploadLoading || !uploadText.trim()}
-                              className="px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold hover:bg-blue-500/20 transition-all disabled:opacity-30"
-                            >
-                              {uploadLoading ? <Loader2 size={10} className="animate-spin" /> : 'Parse'}
-                            </button>
-                            <button
-                              onClick={() => { setUploadTarget(null); setUploadText(''); }}
-                              className="text-[var(--theme-text-muted)] text-[10px] hover:text-[var(--theme-text-secondary)]"
-                            >
-                              Ləğv
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setUploadTarget(product.id)}
-                          className="flex items-center gap-2 text-blue-400/60 text-xs hover:text-blue-400 transition-all"
-                        >
-                          <Upload size={12} /> Resept sənədini yüklə (AI parse)
-                        </button>
-                      )}
-                    </div>
+                 {isExpanded && (
+                   <div className="px-4 pb-4 border-t border-white/[0.05]">
+                     {recs.length > 0 && (
+                       <div className="space-y-1.5 mt-3">
+                         {recs.map(r => (
+                           <div key={r.id} className={`flex items-center justify-between px-3 py-2.5 rounded-xl border ${r.is_ai_suggested ? 'bg-purple-500/[0.04] border-purple-500/15' : 'bg-white/[0.03] border-white/[0.05]'}`}>
+                             <div className="flex items-center gap-2">
+                               <span className={`w-1.5 h-1.5 rounded-full ${r.is_ai_suggested ? 'bg-purple-400/60' : 'bg-amber-400/60'}`} />
+                               <span className="text-white/80 text-sm">{r.ingredient?.name || getIngredientName(r.ingredient_id)}</span>
+                               <span className="text-white/30 text-xs">× {r.quantity_required} {r.ingredient?.unit || ''}</span>
+                             </div>
+                             <button onClick={() => handleDelete(r.id)} className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all flex items-center justify-center">
+                               <Trash2 size={13} />
+                             </button>
+                           </div>
+                         ))}
+                       </div>
+                     )}
 
-                    {recs.length > 0 && (
-                      <div className="space-y-1.5 mt-3">
-                        {recs.map(r => (
-                          <div key={r.id} className={`flex items-center justify-between px-3 py-2 rounded-xl border ${r.is_ai_suggested ? 'bg-purple-500/[0.04] border-purple-500/15' : 'bg-white/[0.03] border-white/[0.05]'}`}>
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${r.is_ai_suggested ? 'bg-purple-400/60' : 'bg-amber-400/60'}`} />
-                              <span className="text-white/70 text-sm">{r.ingredient?.name || getIngredientName(r.ingredient_id)}</span>
-                              <span className="text-white/30 text-xs">× {r.quantity_required} {r.ingredient?.unit || ''}</span>
-                              {r.is_ai_suggested && <span className="text-[9px] text-purple-400/50 bg-purple-500/10 px-1 py-0.5 rounded">AI</span>}
-                            </div>
-                            <button onClick={() => handleDelete(r.id)} className="w-7 h-7 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all flex items-center justify-center">
-                              <Trash2 size={13} />
+                     <div className="mt-3 pt-3 border-t border-white/[0.05]">
+                       {addingFor === product.id ? (
+                         <div className="flex items-center gap-2">
+                           <select
+                             value={newIngredientId}
+                             onChange={e => setNewIngredientId(e.target.value)}
+                             className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-white/25"
+                           >
+                             <option value="" className="bg-[#1a1a1a]">Xəmmal seç</option>
+                             {ingredients.map(i => (
+                               <option key={i.id} value={i.id} className="bg-[#1a1a1a]">{i.name} ({i.unit}) — {i.current_stock}</option>
+                             ))}
+                           </select>
+                           <input
+                             type="number"
+                             value={newQuantity}
+                             onChange={e => setNewQuantity(e.target.value)}
+                             placeholder="Miqdar"
+                             className="w-28 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/25"
+                           />
+                            <button onClick={() => handleAdd(product.id)} disabled={saving || !newIngredientId || !newQuantity} className="px-4 py-2.5 rounded-xl bg-gold text-black text-xs font-black hover:bg-white transition-all disabled:opacity-30">
+                              {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                             </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Quick-add row */}
-                    {addingFor === product.id ? (
-                      <div className="mt-3 flex items-center gap-2">
-                        <select
-                          value={newIngredientId}
-                          onChange={e => setNewIngredientId(e.target.value)}
-                          className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25"
-                        >
-                          <option value="" className="bg-[#1a1a1a]">Xəmmal seç</option>
-                          {ingredients.map(i => (
-                            <option key={i.id} value={i.id} className="bg-[#1a1a1a]">{i.name} ({i.unit}) — {i.current_stock}</option>
-                          ))}
-                        </select>
-                        <input
-                          type="number"
-                          value={newQuantity}
-                          onChange={e => setNewQuantity(e.target.value)}
-                          placeholder="Miqdar"
-                          className="w-28 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/25"
-                        />
-                        <button
-                          onClick={() => handleAdd(product.id)}
-                          disabled={saving || !newIngredientId || !newQuantity}
-                          className="px-3 py-2 rounded-xl bg-gold/10 border border-gold/20 text-gold text-xs font-bold hover:bg-gold/20 transition-all disabled:opacity-30"
-                        >
-                          {saving ? <Loader2 size={13} className="animate-spin" /> : 'Əlavə et'}
-                        </button>
-                        <button
-                          onClick={() => { setAddingFor(null); setNewIngredientId(''); setNewQuantity(''); }}
-                          className="px-3 py-2 rounded-xl text-white/30 text-xs hover:text-white/60 transition-all"
-                        >
-                          Ləğv
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-3 flex items-center gap-2">
-                        <button
-                          onClick={() => { setEditConstructorProductId(product.id); setConstructorOpen(true); }}
-                          className="flex items-center gap-2 text-gold/70 text-xs font-bold hover:text-gold transition-all"
-                        >
-                          <CookingPot size={13} /> Resept Konstruktoru
-                        </button>
-                        <span className="text-white/10 text-[10px]">|</span>
-                        <button
-                          onClick={() => setAddingFor(product.id)}
-                          className="flex items-center gap-2 text-[var(--theme-text-secondary)] text-xs font-bold hover:text-[var(--theme-text)] transition-all"
-                        >
-                          <Plus size={13} /> Sətir əlavə et
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {filteredProducts.length === 0 && (
+                           <button onClick={() => { setAddingFor(null); setNewIngredientId(''); setNewQuantity(''); }} className="px-3 py-2.5 rounded-xl border border-white/10 text-white/50 text-xs hover:text-white hover:bg-white/5 transition-all">
+                             <X size={13} />
+                           </button>
+                         </div>
+                       ) : (
+                         <button
+                           onClick={() => { setAddingFor(product.id); setNewIngredientId(''); setNewQuantity(''); }}
+                           className="flex items-center gap-2 text-gold/70 text-xs hover:text-gold transition-all py-2"
+                         >
+                           <Plus size={13} /> Xəmmal əlavə et
+                         </button>
+                       )}
+                     </div>
+                   </div>
+                 )}
+                </div>
+              );
+            })}
+            {filteredProducts.length === 0 && (
             <GlassCard intensity="light" padding="xl" className="text-center">
               <CookingPot size={36} className="mx-auto mb-3 opacity-20 text-white/30" />
               <p className="text-white/30 text-sm font-medium">

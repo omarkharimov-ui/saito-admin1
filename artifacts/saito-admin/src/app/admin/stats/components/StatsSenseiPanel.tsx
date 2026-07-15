@@ -281,24 +281,22 @@ export default function StatsSenseiPanel({
   const fetchAllDeepData = async () => {
     if (stats.totalOrders === 0) return;
     setDeepScanLoading(true);
-    
-    // Add timeout for mobile reliability
-    const timeoutPromise = new Promise((_, reject) => 
+
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Request timeout')), 30000)
     );
-    
+
     try {
       const [behRes, corrRes] = await Promise.all([
         Promise.race([
           fetch('/api/sensei/behavioral', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              orderItems: orderItems || [], 
-              peakHours: stats.peakHours || [], 
-              totalOrders: stats.totalOrders, 
-              aov: stats.aov, 
+            body: JSON.stringify({
+              orderItems: orderItems || [],
+              peakHours: stats.peakHours || [],
+              totalOrders: stats.totalOrders,
+              aov: stats.aov,
               language,
-              // Add mobile flag for better server handling
               isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
             }),
           }),
@@ -308,56 +306,41 @@ export default function StatsSenseiPanel({
           fetch('/api/sensei/correlator', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              totalOrders: stats.totalOrders, 
-              totalRevenue: stats.totalRevenue, 
+              totalOrders: stats.totalOrders,
+              totalRevenue: stats.totalRevenue,
               aov: stats.aov,
-              chartData: stats.chartData || [], 
-              peakHours: stats.peakHours || [], 
+              chartData: stats.chartData || [],
+              peakHours: stats.peakHours || [],
               language,
               categoryPerformance: stats.categoryPerformance || [],
               city: restaurantCity,
-              // Add mobile flag for better server handling
               isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
             }),
           }),
           timeoutPromise
         ]).catch(() => null),
       ]);
-      
-      // Process behavioral data
+
       if (behRes && behRes !== null && typeof behRes === 'object' && 'ok' in behRes && behRes.ok) {
         try {
           const behData = await (behRes as Response).json();
           if (!behData.error && behData) {
             setBehavioralData(behData);
           }
-        } catch (error) {
-          console.warn('Failed to parse behavioral data:', error);
+        } catch {
         }
       }
-      
-      // Process correlator data
+
       if (corrRes && corrRes !== null && typeof corrRes === 'object' && 'ok' in corrRes && corrRes.ok) {
         try {
           const corrData = await (corrRes as Response).json();
           if (!corrData.error && corrData) {
             setCorrelatorData(corrData);
           }
-        } catch (error) {
-          console.warn('Failed to parse correlator data:', error);
+        } catch {
         }
       }
-      
-      // If no data was successfully fetched, show error state
-      const behSuccess = behRes && behRes !== null && typeof behRes === 'object' && 'ok' in behRes && behRes.ok;
-      const corrSuccess = corrRes && corrRes !== null && typeof corrRes === 'object' && 'ok' in corrRes && corrRes.ok;
-      
-      if (!behSuccess && !corrSuccess) {
-        console.warn('Deep scan failed to fetch any data');
-      }
-      
-    } catch (error) {
-      console.warn('Deep scan fetch error:', error);
+    } catch {
     } finally {
       setDeepScanLoading(false);
     }
@@ -388,20 +371,15 @@ export default function StatsSenseiPanel({
     try {
       // Fetch deep data if not already loaded
       if (!behavioralData && !correlatorData && !deepScanLoading) {
-        fetchAllDeepData().catch(error => {
-          console.warn('Deep scan data fetch failed:', error);
-        });
+        fetchAllDeepData();
       }
       
       // Trigger AI analysis with error handling
       try {
         onFetchAiAnalysis();
-      } catch (error) {
-        console.warn('AI analysis trigger failed:', error);
-        // Continue with deep scan even if AI analysis fails
+      } catch {
       }
-    } catch (error) {
-      console.error('Deep scan click handler failed:', error);
+    } catch {
     }
   };
 

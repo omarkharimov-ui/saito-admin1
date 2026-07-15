@@ -84,17 +84,9 @@ export default function PWAInstallPrompt() {
     }
 
     try {
-      console.log('Starting PWA installation...');
-      
-      // Show the install prompt
       await deferredPrompt.prompt();
       
-      console.log('Install prompt shown, waiting for user choice...');
-      
-      // Wait for the user to respond to the prompt
       const { outcome } = await deferredPrompt.userChoice;
-      
-      console.log('User choice:', outcome);
       
       if (outcome === 'accepted') {
         // User accepted the install prompt
@@ -107,8 +99,6 @@ export default function PWAInstallPrompt() {
           duration: 4000,
         });
       } else {
-        // User dismissed the install prompt
-        console.log('User dismissed the install prompt');
         setShowPrompt(false);
       }
       

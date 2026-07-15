@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    console.log(`[cron/process-expired-reservations] Processed ${data?.length || 0} expired reservations`);
     return NextResponse.json({ processed: data?.length || 0, reservations: data });
   } catch (err) {
     console.error('[cron/process-expired-reservations] error:', err);

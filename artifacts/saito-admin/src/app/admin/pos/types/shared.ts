@@ -57,21 +57,12 @@ export interface PosTable {
   id: string;
   table_number: number;
   status: TableStatus;
-  guest_count?: number;
+  guest_count?: number | null;
   total_amount?: number;
   reservation_name?: string | null;
   reservation_time?: string | null;
   kitchen_status?: string | null;
   parent_table_number?: number | null;
-  merged_into_table?: number | null;
-}
-
-export interface PosTable {
-  id: string;
-  table_number: number;
-  guest_count?: number | null;
-  status: TableStatus;
-  total_amount: number;
   merged_into_table?: number | null;
   last_activity_at?: string | null;
   lastOrderTime?: string | null;
@@ -82,15 +73,10 @@ export interface PosTable {
   sort_order?: number | null;
   has_pending?: boolean;
   oldest_pending_at?: string | null;
-  kitchen_status?: string | null;
   is_group?: boolean;
-  parent_table_number?: number | null;
   merged_with?: number[];
-  // Rezervasiya sahələri
   reservation_id?: string | null;
-  reservation_name?: string | null;
   reservation_phone?: string | null;
-  reservation_time?: string | null;
 }
 
 export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'reserved' | 'waiting' | 'occupied' | string;

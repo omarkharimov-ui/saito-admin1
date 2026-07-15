@@ -45,26 +45,70 @@ const alertTypeLabels: Record<string, string> = {
 
 export default function ProcurementTab() {
   const [tab, setTab] = useState<ProcTab>('receive');
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loadingNotifs, setLoadingNotifs] = useState(false);
+
+  const loadNotifications = async () => {
+    setLoadingNotifs(true);
+    try {
+      const res = await fetch('/api/notifications?type=supplier_auto_order&limit=20');
+      if (res.ok) setNotifications(await res.json());
+    } catch {}
+    setLoadingNotifs(false);
+  };
+
+  useEffect(() => { loadNotifications(); }, []);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        {(['receive', 'anomalies', 'suppliers'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className="relative px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-colors"
-            style={{ color: tab === t ? '#ffffff' : 'rgba(255,255,255,0.3)' }}>
-            {tab === t && (
-              <motion.div
-                layoutId="proc-tab-indicator"
-                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                className="absolute inset-0 rounded-lg"
-                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
-              />
-            )}
-            <span className="relative z-10">{t === 'receive' ? 'Faktura' : t === 'anomalies' ? 'Anomaliyalar' : 'Tədarükçülər'}</span>
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          {(['receive', 'anomalies', 'suppliers'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className="relative px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-colors"
+              style={{ color: tab === t ? '#ffffff' : 'rgba(255,255,255,0.3)' }}>
+              {tab === t && (
+                <motion.div
+                  layoutId="proc-tab-indicator"
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  className="absolute inset-0 rounded-lg"
+                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
+                />
+              )}
+              <span className="relative z-10">{t === 'receive' ? 'Faktura' : t === 'anomalies' ? 'Anomaliyalar' : 'Tədarükçülər'}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={loadNotifications} disabled={loadingNotifs} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all border border-white/10">
+          <RefreshCw size={14} className={loadingNotifs ? 'animate-spin' : ''} /> Yenilə
+        </button>
       </div>
+
+      {notifications.length > 0 && tab === 'receive' && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--theme-text-muted)]">Avto-sifariş Bildirişləri</p>
+          {notifications.map((n: any) => (
+            <div key={n.id} className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-emerald-500/[0.04] border border-emerald-500/20">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white">{n.title}</p>
+                <p className="text-[11px] text-white/50 mt-1">{n.body}</p>
+                {n.data?.items?.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {n.data.items.map((item: any, idx: number) => (
+                      <p key={idx} className="text-[11px] text-white/40">• {item.name}: {item.current_stock} {item.unit} (min: {item.min_stock_level || 0})</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {n.data?.whatsapp_url && (
+                <a href={n.data.whatsapp_url} target="_blank" rel="noopener noreferrer" className="shrink-0 px-4 py-2 rounded-xl bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all">
+                  WhatsApp
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {tab === 'receive' && <InvoiceUploadSection />}
       {tab === 'anomalies' && <AnomaliesSection />}

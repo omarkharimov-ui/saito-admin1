@@ -314,7 +314,7 @@ export default function StockCountsPage() {
             </p>
             {!search && (
               <div className="mt-4 space-y-2 text-xs text-[var(--theme-text-muted)]">
-                <p>"Yeni Sayım" düyməsi ilə ilk fiziki sayımı yaradın</p>
+                 <p>&ldquo;Yeni Sayım&rdquo; düyməsi ilə ilk fiziki sayımı yaradın</p>
               </div>
             )}
           </GlassCard>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Reservation } from '@/types';
 import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, ArrowRight, Clock, ChevronLeft, Plus, Trash2 } from 'lucide-react';
@@ -123,6 +123,51 @@ export default function ReservationsPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleArchive = async (id: string) => {
+    try {
+      await apiFetch('/api/reservations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'archive', id }) });
+      fetchData();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleRestore = async (id: string) => {
+    try {
+      await apiFetch('/api/reservations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'restore', id }) });
+      fetchData();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleSendToKitchen = async (id: string) => {
+    try {
+      await apiFetch('/api/reservations/send-kitchen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id }) });
+      toast.success('Mətbəxə göndərildi');
+      fetchData();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleGuestArrived = async (id: string) => {
+    try {
+      await apiFetch('/api/reservations/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id, status: 'confirmed' }) });
+      fetchData();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleConfirmReservation = async (id: string) => {
+    try {
+      await apiFetch('/api/reservations/reserve-table', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id, table_ids: selectedTableIds }) });
+      toast.success('Rezervasiya təsdiqləndi');
+      fetchData();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await apiFetch('/api/reservations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id }) });
+      toast.success('Rezervasiya silindi');
+      fetchData();
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const updateStatus = async (id: string, status: string) => {
@@ -363,7 +408,7 @@ export default function ReservationsPage() {
                                    {items.length > 5 && <span className="text-[10px] opacity-40">+{items.length - 5} daha</span>}
                                  </div>
                                   {(selectedRes.status === 'confirmed' || selectedRes.status === 'waiting') && (
-                                    <button onClick={handleSendToKitchen} className="w-full py-4 rounded-2xl bg-blue-500 text-white text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg">
+                                     <button onClick={() => handleSendToKitchen(selectedRes.id)} className="w-full py-4 rounded-2xl bg-blue-500 text-white text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg">
                                       Aşpaza Göndər
                                     </button>
                                   )}
@@ -423,17 +468,17 @@ export default function ReservationsPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                                   <div className="flex gap-4">
                                     {selectedRes.status === 'confirmed' && (
-                                      <button onClick={handleGuestArrived} className="flex-[2] py-6 rounded-[2.2rem] bg-amber-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-amber-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+                                       <button onClick={() => handleGuestArrived(selectedRes.id)} className="flex-[2] py-6 rounded-[2.2rem] bg-amber-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-amber-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
                                         <Users size={24} /> Qonaq Gəldi
                                       </button>
                                     )}
                                     {selectedRes.status === 'waiting' && (
-                                      <button onClick={handleSendToKitchen} className="flex-[2] py-6 rounded-[2.2rem] bg-blue-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+                                       <button onClick={() => handleSendToKitchen(selectedRes.id)} className="flex-[2] py-6 rounded-[2.2rem] bg-blue-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
                                         <Zap size={24} /> Aşpaza Göndər
                                       </button>
                                     )}
                                     {selectedRes.status !== 'confirmed' && selectedRes.status !== 'waiting' && (
-                                      <button onClick={handleConfirmReservation} className="flex-[2] py-6 rounded-[2.2rem] bg-green-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+                                       <button onClick={() => handleConfirmReservation(selectedRes.id)} className="flex-[2] py-6 rounded-[2.2rem] bg-green-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
                                         <CheckCircle size={24} /> Təsdiqlə
                                       </button>
                                     )}
@@ -505,7 +550,7 @@ export default function ReservationsPage() {
 
       <DeleteReservationModal 
         reservation={confirmDeleteReservation} 
-        onConfirm={handleDelete} 
+        onConfirm={() => confirmDeleteReservation ? handleDelete(confirmDeleteReservation.id) : Promise.resolve()} 
         onCancel={() => setConfirmDeleteReservation(null)} 
       />
       

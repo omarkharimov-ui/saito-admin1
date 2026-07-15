@@ -194,15 +194,15 @@ const StatsPage = () => {
       </div>
 
       <div className="hidden lg:block space-y-10 pb-20">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-2 bg-gold/10 text-gold rounded-xl flex-shrink-0"><BarChart3 size={18} /></div>
-            <h2 className="text-xl md:text-3xl font-serif font-bold text-white truncate">{t('statistics_title')}</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gold/10 text-gold rounded-2xl"><BarChart3 size={20} /></div>
+            <h2 className="text-2xl md:text-3xl font-serif font-bold text-white tracking-tight">{t('statistics_title')}</h2>
           </div>
-          <div className="flex items-center gap-1 bg-card border border-white/8 p-1 rounded-xl">
+          <div className="flex items-center gap-1 bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] p-1 rounded-2xl w-fit">
             {['today', 'week', 'month', 'year'].map(f => (
               <button key={f} onClick={() => setTimeFilter(f)}
-                className={`px-4 py-2 text-[10px] uppercase tracking-widest font-bold rounded-lg transition-colors ${timeFilter === f ? 'bg-white/10 text-gold' : 'text-white/35'}`}>
+                className={`px-5 py-2.5 text-[10px] uppercase tracking-widest font-bold rounded-xl transition-all ${timeFilter === f ? 'bg-[var(--theme-surface)] text-[var(--theme-text)] shadow-sm' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}>
                 {f}
               </button>
             ))}
@@ -224,13 +224,13 @@ const StatsPage = () => {
           />
 
           {stats.staffPerformance?.length > 0 && (
-            <div className="bg-[#1c1c1e] border border-white/5 rounded-2xl p-6">
-              <h3 className="text-white font-bold text-lg mb-4">Komanda Performansı</h3>
+            <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-3xl p-6 sm:p-8">
+              <h3 className="text-white font-bold text-lg mb-6">Komanda Performansı</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {stats.staffPerformance.map((s: any) => (
-                  <div key={s.id} className="bg-white/5 rounded-xl p-4 border border-white/5">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-gold/20 text-gold flex items-center justify-center font-bold text-sm">
+                  <div key={s.id} className="bg-[var(--theme-surface-soft)] rounded-2xl p-5 border border-[var(--theme-border)]">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-gold/15 text-gold flex items-center justify-center font-bold text-sm">
                         {s.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <div>
@@ -238,18 +238,18 @@ const StatsPage = () => {
                         <p className="text-white/40 text-xs">{s.role}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="bg-white/5 rounded-lg p-2">
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="bg-[var(--theme-bg)] rounded-xl p-3">
                         <p className="text-white font-bold text-sm">{s.orders}</p>
-                        <p className="text-white/30 text-[10px] uppercase">Sifariş</p>
+                        <p className="text-white/30 text-[10px] uppercase tracking-wider mt-1">Sifariş</p>
                       </div>
-                      <div className="bg-white/5 rounded-lg p-2">
+                      <div className="bg-[var(--theme-bg)] rounded-xl p-3">
                         <p className="text-white font-bold text-sm">₼{fmt(s.revenue)}</p>
-                        <p className="text-white/30 text-[10px] uppercase">Gəlir</p>
+                        <p className="text-white/30 text-[10px] uppercase tracking-wider mt-1">Gəlir</p>
                       </div>
-                      <div className="bg-white/5 rounded-lg p-2">
+                      <div className="bg-[var(--theme-bg)] rounded-xl p-3">
                         <p className="text-white font-bold text-sm">₼{fmt(s.avgCheck)}</p>
-                        <p className="text-white/30 text-[10px] uppercase">Orta çek</p>
+                        <p className="text-white/30 text-[10px] uppercase tracking-wider mt-1">Orta çek</p>
                       </div>
                     </div>
                   </div>

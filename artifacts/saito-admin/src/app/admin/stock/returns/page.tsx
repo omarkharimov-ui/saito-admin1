@@ -325,7 +325,7 @@ export default function SupplierReturnsPage() {
             </p>
             {!search && (
               <div className="mt-4 space-y-2 text-xs text-[var(--theme-text-muted)]">
-                <p>"Yeni Qaytarma" düyməsi ilə ilk təchizatçı qaytarmasını yaradın</p>
+                 <p>&ldquo;Yeni Qaytarma&rdquo; düyməsi ilə ilk təchizatçı qaytarmasını yaradın</p>
               </div>
             )}
           </GlassCard>

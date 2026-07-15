@@ -20,7 +20,7 @@ export const DeleteReservationModal = ({ reservation, onConfirm, onCancel }: Del
           <Trash2 size={32} className="text-red-500" />
         </div>
         <h3 className="text-xl font-serif font-bold text-white mb-2">{t('delete')}</h3>
-        <p className="text-white/60 text-sm mb-6">"{reservation?.guest}" - {t('confirm_delete')}</p>
+        <p className="text-white/60 text-sm mb-6">&ldquo;{reservation?.guest}&rdquo; - {t('confirm_delete')}</p>
         <div className="flex gap-3 w-full">
           <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-white/10 text-white/60 text-sm font-medium">
             {t('no')}

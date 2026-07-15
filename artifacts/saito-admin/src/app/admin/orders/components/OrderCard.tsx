@@ -195,7 +195,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
           )}
 
           {order.customer_note && (
-            <p className="text-white/20 text-[10px] italic mt-1 font-mono truncate">// {order.customer_note}</p>
+            <p className="text-white/20 text-[10px] italic mt-1 font-mono truncate">{order.customer_note}</p>
           )}
         </div>
       </div>
@@ -282,7 +282,7 @@ export const ActiveOrderCard = React.memo(function ActiveOrderCard({
             <p className="text-white/55 text-xs">+{order.order_items.length - 3} {t('more_products').replace('{count}', '').trim()}</p>
           )}
           {order.customer_note && (
-            <p className="text-white/55 text-xs italic pt-2 border-t border-white/[0.08] mt-1">"{order.customer_note}"</p>
+            <p className="text-white/55 text-xs italic pt-2 border-t border-white/[0.08] mt-1">&ldquo;{order.customer_note}&rdquo;</p>
           )}
         </div>
         <div className="px-5 py-3.5 border-t border-white/[0.05] bg-white/[0.015]">

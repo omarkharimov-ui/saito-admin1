@@ -47,7 +47,8 @@ const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
-  onBackFromPayment,
+  onBackFromPayment, onSelectCustomer, customerId, customerName,
+  onApplyDiscount, currentDiscount,
   mergeMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, groupNumber,
   paymentView
@@ -104,7 +105,7 @@ export function ActionSheet({
   const actions = [
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
     { id: 'customer', icon: User, label: customerName ? `${customerName}` : t('select_customer') || 'Müştəri', visible: true },
-    { id: 'discount', icon: Receipt, label: currentDiscount ? `Endirim: ${currentDiscount.type === 'percentage' ? '%' : '₼'}${currentDiscount.amount}` : (t('apply_discount') || 'Endirim'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
+    { id: 'discount', icon: Receipt, label: currentDiscount ? `Endirim: ${currentDiscount.type === 'percentage' ? '%' : '₼'}${currentDiscount.amount}` : (t('apply_discount_btn') || 'Endirim'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'cancel_table', icon: Trash2, label: t('dismiss_table') || 'Masanı boşalt', visible: isOccupied || table?.status === 'reserved' },
   ];
@@ -164,7 +165,7 @@ export function ActionSheet({
                         ))}
                       </div>
                     )}
-                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">{isOccupied ? `${table?.guest_count} Qonaq · ${table?.total_amount.toFixed(2)} ₼` : 'Boş Masa'}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">{isOccupied ? `${table?.guest_count} Qonaq · ₼${(table?.total_amount || 0).toFixed(2)}` : 'Boş Masa'}</p>
                   </div>
                   {isMerged ? (
                     <div className="grid grid-cols-3 gap-3">
@@ -224,7 +225,7 @@ export function ActionSheet({
               {currentView === 'payment' && (
                 <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} key="ui-payment" className="flex flex-col gap-2">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Ödəniş Növü</p>
-                  <p className="text-xl font-black tracking-tighter mb-3">{table?.total_amount.toFixed(2)} ₼</p>
+                   <p className="text-xl font-black tracking-tighter mb-3">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <button onClick={() => onPaymentMethodSelect?.('cash')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all">
                     <Wallet size={20} strokeWidth={2.5} />
                     <span className="text-sm font-black tracking-wide">Nağd</span>
@@ -241,10 +242,10 @@ export function ActionSheet({
                  </motion.div>
                )}
 
-                {currentView === 'split-payment' && localSplit && (
-                  <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} key="ui-split-payment" className="flex flex-col gap-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">Bölünmüş Ödəniş</p>
-                    <p className="text-xl font-black tracking-tighter mb-2">{table?.total_amount.toFixed(2)} ₼</p>
+                 {currentView === 'split-payment' && localSplit && (
+                   <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} key="ui-split-payment" className="flex flex-col gap-3">
+                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">Bölünmüş Ödəniş</p>
+                     <p className="text-xl font-black tracking-tighter mb-2">₼{(table?.total_amount || 0).toFixed(2)}</p>
                     <div className="space-y-2">
                       <input
                         type="number"
@@ -308,7 +309,7 @@ export function ActionSheet({
                 {currentView === 'discount' && (
                   <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} key="ui-discount" className="flex flex-col gap-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Endirim</p>
-                    <p className="text-xl font-black tracking-tighter mb-2">{table?.total_amount.toFixed(2)} ₼</p>
+                     <p className="text-xl font-black tracking-tighter mb-2">₼{(table?.total_amount || 0).toFixed(2)}</p>
                     <div className="flex gap-2 mb-2">
                       <button onClick={() => setDiscountType('fixed')} className={`flex-1 py-2 rounded-xl text-xs font-black border ${discountType === 'fixed' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/10 text-[var(--theme-text-muted)]'}`}>Sabit (₼)</button>
                       <button onClick={() => setDiscountType('percentage')} className={`flex-1 py-2 rounded-xl text-xs font-black border ${discountType === 'percentage' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/10 text-[var(--theme-text-muted)]'}`}>%</button>

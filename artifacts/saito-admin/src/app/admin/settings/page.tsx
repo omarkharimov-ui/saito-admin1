@@ -173,33 +173,36 @@ const SettingsPage = () => {
         )}
       </div>
 
-      {/* ── DESKTOP layout ── */}
-      <div className="hidden lg:block space-y-8">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gold/10 text-gold rounded-2xl">
-            <Settings2 size={26} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-serif font-bold text-white">{t('settings')}</h1>
-            <p className="text-sm text-white/35 uppercase tracking-[0.2em] mt-0.5">{t('settings_subtitle')}</p>
-          </div>
-        </div>
+       {/* ── DESKTOP layout ── */}
+       <div className="hidden lg:block space-y-8">
+         <div className="flex items-center gap-4">
+           <div className="p-3 bg-gold/10 text-gold rounded-2xl">
+             <Settings2 size={26} />
+           </div>
+           <div>
+             <h1 className="text-3xl font-serif font-bold text-white">{t('settings')}</h1>
+             <p className="text-sm text-white/35 uppercase tracking-[0.2em] mt-0.5">{t('settings_subtitle')}</p>
+           </div>
+         </div>
 
-        <AnimatedTabs
-          className="w-full overflow-x-auto"
-          activeKey={tab}
-          onChange={(key) => setTab(key as Tab)}
-          tabs={visibleTabs.map((tb) => ({
-            key: tb.key,
-            label: t(tb.labelKey as any),
-            icon: tb.icon,
-          }))}
-        />
+         <div className="flex items-center gap-1 bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] p-1 rounded-2xl w-fit">
+           {visibleTabs.map((tb) => (
+             <button
+               key={tb.key}
+               type="button"
+               onClick={() => setTab(tb.key)}
+               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${tab === tb.key ? 'bg-[var(--theme-surface)] text-[var(--theme-text)] shadow-sm' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`}
+             >
+               {tb.icon}
+               <span className="hidden xl:inline">{t(tb.labelKey as any)}</span>
+             </button>
+           ))}
+         </div>
 
-        <div key={tab}>
-          <TabContent tab={tab} settingsData={settingsData} isSuperadmin={isSuperadmin} />
-        </div>
-      </div>
+         <div key={tab} className="animate-in fade-in duration-200">
+           <TabContent tab={tab} settingsData={settingsData} isSuperadmin={isSuperadmin} />
+         </div>
+       </div>
     </div>
   );
 };

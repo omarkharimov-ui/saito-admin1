@@ -161,21 +161,9 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-// API calls (implement these with your backend)
+// API calls (server sync not implemented in this version)
 async function saveSubscriptionToServer(subscription: PushSubscription) {
-  // TODO: Send to your backend API
-  // await fetch('/api/push/subscribe', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify(subscription),
-  // });
 }
 
 async function removeSubscriptionFromServer(endpoint: string) {
-  // TODO: Remove from your backend
-  // await fetch('/api/push/unsubscribe', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ endpoint }),
-  // });
 }

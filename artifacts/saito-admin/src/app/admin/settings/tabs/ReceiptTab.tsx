@@ -82,7 +82,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
     <form noValidate onSubmit={save} className="space-y-8 max-w-2xl">
 
       {/* ── Görünüş ── */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--theme-text-muted)]">{t('receipt_section_display')}</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -116,9 +116,9 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
         </div>
 
         {/* Servis haqqı */}
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+        <div className="flex items-center justify-between px-5 py-4 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
           <div className="flex items-center gap-3">
-            <Percent size={15} className="text-gold/70" />
+            <Percent size={16} className="text-gold/70" />
             <div>
               <p className="text-sm font-semibold text-[var(--theme-text)]">{t('receipt_show_service_fee')}</p>
               <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">{t('receipt_service_fee_hint')}</p>

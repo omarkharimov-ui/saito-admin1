@@ -7,7 +7,6 @@ import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { GsLoader } from './_shared';
 import { hashPin } from '@/lib/crypto';
 
 type StaffMember = { id: string; name: string; role: string; shift: string; phone: string; pin?: string };
@@ -21,11 +20,10 @@ const StaffTab = () => {
   const [staff, setStaff] = useState<StaffMember[]>(() => {
     try { const r = localStorage.getItem(STAFF_CACHE_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
   });
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [form, setForm] = useState(emptyForm());
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.from('staff').select('*').order('name').then(({ data }) => {
@@ -36,40 +34,50 @@ const StaffTab = () => {
     });
   }, []);
 
+  const openAdd = () => {
+    setEditingStaff(null);
+    setForm(emptyForm());
+    setModalOpen(true);
+  };
+
   const openEdit = (s: StaffMember) => {
-    setEditingId(s.id);
+    setEditingStaff(s);
     setForm({ name: s.name, role: s.role, shift: s.shift, phone: s.phone || '', pin: (s as any).pin || '' });
-    setShowForm(false);
+    setModalOpen(true);
   };
 
-  const cancelEdit = () => { setEditingId(null); setForm(emptyForm()); };
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingStaff(null);
+    setForm(emptyForm());
+  };
 
-  const saveEdit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error(t('staff_name_required'), { id: 'action-toast' }); return; }
     setSaving(true);
-    const updateData: any = { name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() };
-    if (form.pin && form.pin.length === 4) updateData.pin_hash = hashPin(form.pin);
-    const { error } = await supabase.from('staff').update(updateData).eq('id', editingId!);
-    if (error) { toast.error(error.message, { id: 'action-toast' }); }
-    else {
-      setStaff(prev => prev.map(s => s.id === editingId ? { ...s, ...form } : s));
-      toast.success(t('staff_saved'), { id: 'action-toast', duration: 3000 });
-      cancelEdit();
+    try {
+      if (editingStaff) {
+        const updateData: any = { name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() };
+        if (form.pin && form.pin.length === 4) updateData.pin_hash = hashPin(form.pin);
+        const { error } = await supabase.from('staff').update(updateData).eq('id', editingStaff.id);
+        if (error) throw error;
+        setStaff(prev => prev.map(s => s.id === editingStaff.id ? { ...s, ...form } : s));
+        toast.success(t('staff_saved'), { id: 'action-toast', duration: 3000 });
+      } else {
+        const insertData: any = { name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() };
+        if (form.pin && form.pin.length === 4) insertData.pin_hash = hashPin(form.pin);
+        const { data, error } = await supabase.from('staff').insert([insertData]).select().single();
+        if (error) throw error;
+        setStaff(prev => [...prev, data as StaffMember]);
+        toast.success(t('staff_added'), { id: 'action-toast', duration: 3000 });
+      }
+      closeModal();
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi', { id: 'action-toast' });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-  };
-
-  const addStaff = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim()) { toast.error(t('staff_name_required'), { id: 'action-toast' }); return; }
-    setSaving(true);
-    const insertData: any = { name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() };
-    if (form.pin && form.pin.length === 4) insertData.pin_hash = hashPin(form.pin);
-    const { data, error } = await supabase.from('staff').insert([insertData]).select().single();
-    if (error) { toast.error(error.message, { id: 'action-toast' }); }
-    else { setStaff(prev => [...prev, data as StaffMember]); setForm(emptyForm()); setShowForm(false); toast.success(t('staff_added'), { id: 'action-toast', duration: 3000 }); }
-    setSaving(false);
   };
 
   const removeStaff = async (id: string) => {
@@ -79,114 +87,19 @@ const StaffTab = () => {
     toast.success(t('staff_deleted'), { id: 'action-toast', duration: 3000 });
   };
 
-  const staffForm = (onSubmit: (e: React.FormEvent) => void, submitLabel: string, onCancel: () => void) => (
-    <motion.form
-      initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.2 }}
-      onSubmit={onSubmit}
-      className="overflow-visible"
-    >
-      <div className="mt-3 rounded-2xl bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] p-6 space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-              <User size={10} className="text-gold/70" /> {t('staff_full_name')}
-            </label>
-            <input
-              className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
-              placeholder="Tural Məmmədov"
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-              <Phone size={10} className="text-gold/70" /> {t('staff_phone')}
-            </label>
-            <input
-              className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
-              placeholder="050 000 00 00"
-              value={form.phone}
-              onChange={e => setForm({ ...form, phone: e.target.value })}
-            />
-          </div>
-            <div className="space-y-1.5">
-             <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-               <span className="text-gold/70">🔒</span> PIN kod
-             </label>
-            <input
-              className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all tracking-widest"
-              placeholder="0000"
-              maxLength={4}
-              value={form.pin}
-              onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-              <Briefcase size={10} className="text-gold/70" /> {t('staff_position')}
-            </label>
-            <GoldSelect
-              value={form.role}
-              options={ROLES.map(r => ({ value: r, label: r }))}
-              onChange={(val) => setForm({ ...form, role: val })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-              <Clock size={10} className="text-gold/70" /> {t('staff_shift')}
-            </label>
-            <input
-              className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
-              placeholder="12:00 – 20:00"
-              value={form.shift}
-              onChange={e => setForm({ ...form, shift: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-3 pt-1 border-t border-[var(--theme-border)]">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 text-xs text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]"
-          >
-            {t('staff_cancel')}
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 bg-[var(--theme-surface)] text-[var(--theme-text)] px-5 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-[var(--theme-panel)]"
-          >
-            {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-            {submitLabel}
-          </button>
-        </div>
-      </div>
-    </motion.form>
-  );
-
-  // Loading spinner removed - instant render
-
   return (
     <div className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-[var(--theme-text-secondary)] text-base">{t('staff_count').replace('{n}', String(staff.length))}</p>
-        {!editingId && (
-          <button
-            onClick={() => { setShowForm(v => !v); setEditingId(null); setForm(emptyForm()); }}
-            className="flex items-center gap-2 px-5 py-3 bg-[var(--theme-surface)] text-[var(--theme-text)] text-sm font-bold rounded-2xl hover:bg-[var(--theme-panel)] transition-all shadow-[0_10px_28px_rgba(0,0,0,0.12)]"
-          >
-            <Plus size={16} /> {t('staff_new')}
-          </button>
-        )}
+        <button
+          onClick={openAdd}
+          className="flex items-center gap-2 px-5 py-3 bg-[var(--theme-surface)] text-[var(--theme-text)] text-sm font-bold rounded-2xl hover:bg-[var(--theme-panel)] transition-all shadow-[0_10px_28px_rgba(0,0,0,0.12)]"
+        >
+          <Plus size={16} /> {t('staff_new')}
+        </button>
       </div>
 
-      <AnimatePresence>
-        {showForm && !editingId && staffForm(addStaff, t('staff_add'), () => setShowForm(false))}
-      </AnimatePresence>
-
-      {staff.length === 0 && !showForm && (
+      {staff.length === 0 && (
         <div className="text-center py-16 text-[var(--theme-text-muted)]">
           <Users size={40} className="mx-auto mb-3 opacity-20" />
           <p className="text-sm uppercase tracking-widest">{t('staff_empty')}</p>
@@ -195,12 +108,12 @@ const StaffTab = () => {
 
       {staff.length > 0 && (
         <>
-          {/* Mobil: şaquli kartlar, horizontal scroll yox */}
+          {/* Mobil: şaquli kartlar */}
           <div className="md:hidden space-y-3">
             {staff.map((s) => (
               <div
                 key={s.id}
-                className={`rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-muted)] p-4 ${editingId === s.id ? 'border-gold/30 bg-gold/[0.04]' : ''}`}
+                className={`rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-muted)] p-4 ${editingStaff?.id === s.id ? 'border-gold/30 bg-gold/[0.04]' : ''}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -215,18 +128,17 @@ const StaffTab = () => {
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => (editingId === s.id ? cancelEdit() : openEdit(s))}
-                      className={`w-9 h-9 rounded-lg flex items-center justify-center ${editingId === s.id ? 'bg-[var(--theme-surface)] text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)]'}`}
+                      onClick={() => openEdit(s)}
+                      className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all"
                       title="Redaktə et"
                     >
-                      {editingId === s.id ? <X size={14} /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </button>
                     <button type="button" onClick={() => removeStaff(s.id)} className="w-9 h-9 rounded-lg hover:bg-red-500/10 flex items-center justify-center text-[var(--theme-text-muted)] hover:text-red-400" title="Sil">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                {editingId === s.id && <div className="mt-3 pt-1">{staffForm(saveEdit, t('staff_save'), cancelEdit)}</div>}
               </div>
             ))}
           </div>
@@ -238,49 +150,148 @@ const StaffTab = () => {
             </div>
              <div className="divide-y divide-white/5">
                {staff.map(s => (
-                 <React.Fragment key={s.id}>
-                   <div className={`px-7 py-5 grid grid-cols-[1.6fr_auto_auto_auto_auto] gap-4 items-center transition-colors ${editingId === s.id ? 'bg-gold/[0.04] border-l-2 border-gold' : 'hover:bg-white/[0.02]'}`}>
-                     <div>
-                       <p className="text-lg font-semibold text-white leading-tight">{s.name}</p>
-                       {s.phone && <p className="text-sm text-[var(--theme-text-secondary)] mt-1 font-mono">{s.phone}</p>}
-                     </div>
-                     <span className="text-sm font-bold text-gold/80 bg-gold/8 border border-gold/15 px-3 py-1.5 rounded-lg whitespace-nowrap">{s.role}</span>
-                     <span className="text-sm text-[var(--theme-text-secondary)] whitespace-nowrap">{s.shift || '—'}</span>
-                     <span className="text-sm font-mono text-white/60">{(s as any).pin ? '••••' : '—'}</span>
-                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => editingId === s.id ? cancelEdit() : openEdit(s)}
-                        className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all text-xs ${editingId === s.id ? 'bg-[var(--theme-surface)] text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)]'}`}
-                        title="Redaktə et"
-                      >
-                        {editingId === s.id ? <X size={14} /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
-                      </button>
-                      <button type="button" onClick={() => removeStaff(s.id)} className="w-9 h-9 rounded-lg hover:bg-red-500/10 flex items-center justify-center text-[var(--theme-text-muted)] hover:text-red-400 transition-all" title="Sil">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                 <div key={s.id} className={`px-7 py-5 grid grid-cols-[1.6fr_auto_auto_auto_auto] gap-4 items-center transition-colors ${editingStaff?.id === s.id ? 'bg-gold/[0.04] border-l-2 border-gold' : 'hover:bg-white/[0.02]'}`}>
+                   <div>
+                     <p className="text-lg font-semibold text-white leading-tight">{s.name}</p>
+                     {s.phone && <p className="text-sm text-[var(--theme-text-secondary)] mt-1 font-mono">{s.phone}</p>}
+                   </div>
+                   <span className="text-sm font-bold text-gold/80 bg-gold/8 border border-gold/15 px-3 py-1.5 rounded-lg whitespace-nowrap">{s.role}</span>
+                   <span className="text-sm text-[var(--theme-text-secondary)] whitespace-nowrap">{s.shift || '—'}</span>
+                   <span className="text-sm font-mono text-white/60">{(s as any).pin ? '••••' : '—'}</span>
+                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(s)}
+                      className="w-9 h-9 rounded-lg flex items-center justify-center transition-all text-xs text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]"
+                      title="Redaktə et"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button type="button" onClick={() => removeStaff(s.id)} className="w-9 h-9 rounded-lg hover:bg-red-500/10 flex items-center justify-center text-[var(--theme-text-muted)] hover:text-red-400 transition-all" title="Sil">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  <AnimatePresence>
-                    {editingId === s.id && (
-                      <div className="px-4 pb-3">{staffForm(saveEdit, t('staff_save'), cancelEdit)}</div>
-                    )}
-                  </AnimatePresence>
-                </React.Fragment>
-              ))}
-            </div>
+                 </div>
+               ))}
+             </div>
           </div>
           </>
-       )}
-       
-       {/* Salary / Expenses */}
-       <div className="bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-2xl p-6 mt-6">
-         <h3 className="text-white font-bold text-lg mb-4">Maaş və Xərclər</h3>
-         <SalarySection />
-       </div>
-     </div>
-   );
- };
+        )}
+
+        {/* Salary / Expenses */}
+        <div className="bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-2xl p-6 mt-6">
+          <h3 className="text-white font-bold text-lg mb-4">Maaş və Xərclər</h3>
+          <SalarySection />
+        </div>
+
+      {/* Staff Modal */}
+      <AnimatePresence>
+        {modalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }} className="absolute inset-0 bg-black/40 backdrop-blur-xl" onClick={closeModal} />
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0, y: 24 }} transition={{ type: 'spring', stiffness: 320, damping: 28, mass: 1 }}
+              className="relative w-full max-w-lg bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[40px] p-8 shadow-2xl max-h-[80vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-black text-[var(--theme-text)]">{editingStaff ? 'İşçi Redaktə' : 'Yeni İşçi'}</h2>
+                  <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">{editingStaff ? 'Məlumatları dəyişdir' : 'Yeni işçi əlavə et'}</p>
+                </div>
+                <button onClick={closeModal} className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto">
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                    <User size={10} className="text-gold/70" /> {t('staff_full_name')}
+                  </label>
+                  <input
+                    className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
+                    placeholder="Tural Məmmədov"
+                    value={form.name}
+                    onChange={e => setForm({ ...form, name: e.target.value })}
+                    autoFocus
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                      <Phone size={10} className="text-gold/70" /> {t('staff_phone')}
+                    </label>
+                    <input
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
+                      placeholder="050 000 00 00"
+                      value={form.phone}
+                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                      <span className="text-gold/70">🔒</span> PIN kod
+                    </label>
+                    <input
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all tracking-widest"
+                      placeholder="0000"
+                      maxLength={4}
+                      value={form.pin}
+                      onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                      <Briefcase size={10} className="text-gold/70" /> {t('staff_position')}
+                    </label>
+                    <GoldSelect
+                      value={form.role}
+                      options={ROLES.map(r => ({ value: r, label: r }))}
+                      onChange={(val) => setForm({ ...form, role: val })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                      <Clock size={10} className="text-gold/70" /> {t('staff_shift')}
+                    </label>
+                    <input
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
+                      placeholder="12:00 – 20:00"
+                      value={form.shift}
+                      onChange={e => setForm({ ...form, shift: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-1 border-t border-[var(--theme-border)]">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-2 text-xs text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]"
+                  >
+                    {t('staff_cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex items-center gap-2 bg-[var(--theme-surface)] text-[var(--theme-text)] px-5 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-[var(--theme-panel)]"
+                  >
+                    {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                    {editingStaff ? t('staff_save') : t('staff_add')}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 function SalarySection() {
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -345,8 +356,5 @@ function SalarySection() {
     </div>
   );
 }
-
-/* ─── Hours Tab ─── */
-const DAYS = ['Bazar ertəsi', 'Çərşənbə axşamı', 'Çərşənbə', 'Cümə axşamı', 'Cümə', 'Şənbə', 'Bazar'];
 
 export default StaffTab;

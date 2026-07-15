@@ -37,9 +37,9 @@ const KitchenTab = ({ initialData }: { initialData?: Record<string, any> | null 
 
   return (
     <div className="space-y-6">
-      <div className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl p-6 space-y-6">
+      <div className="bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-3xl p-6 sm:p-8 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-red-500/10 text-red-400 rounded-xl"><AlertTriangle size={18} /></div>
+          <div className="p-2.5 bg-red-500/10 text-red-400 rounded-2xl"><AlertTriangle size={20} /></div>
           <div>
             <p className="text-sm font-bold text-white">{t('kitchen_delay_title')}</p>
             <p className="text-[11px] text-[var(--theme-text-secondary)] mt-0.5">{t('kitchen_delay_desc')}</p>

@@ -47,9 +47,7 @@ export class MeshBroadcaster {
     bc.onmessage = async (event) => {
       const { type, data } = event.data;
       if (type === 'TABLE_UPDATE') {
-        // Automatically merges with local state via CRDT logic inside saveTableState
         await localStore.saveTableState(data as TableState);
-        console.log(`[Mesh] Reconciled Table ${data.id} from peer`);
       }
       if (type === 'ORDER_NEW' && onOrderReceived) {
         onOrderReceived(data);

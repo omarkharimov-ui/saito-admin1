@@ -309,15 +309,21 @@ export default function ReservationsPage() {
 
   const goToPOSPreOrder = () => {
     if (!Array.isArray(selectedTableIds) || selectedTableIds.length === 0) return toast.error("Əvvəlcə masanı təyin edin");
+    
+    const occupiedIds = new Set(tables.filter(t => t.status && t.status !== 'empty').map(t => t.id));
+    const alreadyTaken = selectedTableIds.filter(id => occupiedIds.has(id));
+    if (alreadyTaken.length > 0) {
+      const nums = alreadyTaken.map(id => tables.find(t => t.id === id)?.table_number).filter(Boolean).join(', ');
+      return toast.error(`Masa ${nums} artıq doludur. Başqa masa seçin.`);
+    }
+    
     const tablesLabel = selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).join(' + ');
-    // Save to localStorage for primary consumption
     localStorage.setItem('saito_pos_preorder_context', JSON.stringify({
       resId: selectedRes.id,
       tableIds: selectedTableIds,
       guestName: selectedRes.name,
       tablesLabel,
     }));
-    // Also pass via URL params as fallback in case localStorage is cleared
     const params = new URLSearchParams({
       resId: selectedRes.id,
       tableIds: selectedTableIds.join(','),

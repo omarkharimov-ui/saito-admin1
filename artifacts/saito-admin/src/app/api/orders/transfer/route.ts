@@ -204,10 +204,10 @@ export async function DELETE(request: NextRequest) {
       method: 'PATCH',
       headers: s.headers,
       body: JSON.stringify({
-        status: 'occupied',
-        guest_count: table?.guest_count || 0,
-        total_amount: table?.total_amount || 0,
-        merged_into_table: null,
+        status: table?.status || 'occupied',
+        guest_count: table?.guest_count ?? null,
+        total_amount: table?.total_amount ?? 0,
+        merged_into_table: table?.merged_into_table ?? null,
         updated_at: now
       }),
     });

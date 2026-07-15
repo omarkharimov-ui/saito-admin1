@@ -21,11 +21,24 @@ export function usePos() {
   const [cart, setCart] = useState<PosCart | null>(null);
   const cartInteractionCount = useRef(0);
 
+  const retryWithBackoff = async (fn: () => Promise<Response>, retries = 3, delay = 1000): Promise<Response> => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fn();
+        if (res.ok) return res;
+      } catch (e) {
+        if (i === retries - 1) throw e;
+      }
+      await new Promise(r => setTimeout(r, delay * Math.pow(2, i)));
+    }
+    return Promise.reject(new Error('Max retries exceeded'));
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const [tablesRes, productsRes] = await Promise.all([
-        fetch('/api/pos/tables').catch(() => ({ ok: false })),
-        fetch('/api/pos/products').catch(() => ({ ok: false })),
+        retryWithBackoff(() => fetch('/api/pos/tables')).catch(() => ({ ok: false } as Response)),
+        retryWithBackoff(() => fetch('/api/pos/products')).catch(() => ({ ok: false } as Response)),
       ]);
 
       if (tablesRes && 'ok' in tablesRes && tablesRes.ok) {

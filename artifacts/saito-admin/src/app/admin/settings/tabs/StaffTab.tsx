@@ -312,12 +312,12 @@ const StaffTab = () => {
                     <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
                       <Calendar size={10} className="text-gold/70" /> Tarix
                     </label>
-                    <input
-                      type="date"
-                      value={expenseForm.expense_date}
-                      onChange={e => setExpenseForm({ ...expenseForm, expense_date: e.target.value })}
-                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
-                    />
+                     <input
+                       type="date"
+                       value={expenseForm.expense_date}
+                       onChange={e => setExpenseForm({ ...expenseForm, expense_date: e.target.value })}
+                       className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all [color-scheme:dark]"
+                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">

@@ -407,7 +407,7 @@ export function CartPanel({
           </div>
         )}
 
-        {/* Active campaign discount badge */}
+        {/* Active campaign badge */}
         {campaign && (
           <div className={`flex items-center justify-between px-3 py-2 rounded-2xl ${lightMode ? 'bg-amber-50 border border-amber-200' : 'bg-amber-500/10 border border-amber-500/20'}`}>
             <div className="flex items-center gap-2">
@@ -415,7 +415,6 @@ export function CartPanel({
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Kampaniya</span>
               <span className={`text-[10px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{campaign.name}</span>
             </div>
-            <span className="text-xs font-black text-red-500">−{Number(campaign.discount).toFixed(2)} ₼</span>
           </div>
         )}
         {/* Footer actions removed from here */}

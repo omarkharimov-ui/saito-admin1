@@ -36,7 +36,7 @@ const defaultHours = (): HoursConfig => ({
   peakStart: '18:00',
   peakEnd: '21:00',
 });
-const timeCls = 'bg-transparent border-b border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-2 py-1.5 text-sm text-[var(--theme-text)] outline-none transition-all w-[90px] tabular-nums';
+const timeCls = 'bg-transparent border-b border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-2 py-1.5 text-sm text-[var(--theme-text)] outline-none transition-all w-[90px] tabular-nums [color-scheme:dark]';
 
 const HoursTab = () => {
   const [config, setConfig] = useState<HoursConfig>(defaultHours());

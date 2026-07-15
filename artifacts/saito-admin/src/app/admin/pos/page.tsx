@@ -567,36 +567,6 @@ export default function POSPage() {
                   ✕ Sadə rejimi bağla
                 </button>
               )}
-              {transferMode && transferSource && !transferTarget && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-6 py-4 bg-white text-black p-4 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-4 min-w-[320px]"
-                >
-                  <div className="flex-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-1">Köçürmə Rejimi</p>
-                    <p className="text-sm font-bold">Mənbə: Masa {transferSource}</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">Hədəf masanı seçin</p>
-                  </div>
-                  <button onClick={handleCancelTransfer} className="px-4 py-2 rounded-xl bg-zinc-100 text-zinc-600 text-xs font-black hover:bg-zinc-200 transition-all">Ləğv Et</button>
-                </motion.div>
-              )}
-              {transferMode && transferSource && transferTarget && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white text-black p-4 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-4 min-w-[360px]"
-                >
-                  <div className="flex-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-1">Köçürmə Təsdiqi</p>
-                    <p className="text-sm font-bold">Masa {transferSource} → Masa {transferTarget}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={handleCancelTransfer} className="px-4 py-2 rounded-xl bg-zinc-100 text-zinc-600 text-xs font-black hover:bg-zinc-200 transition-all">Ləğv</button>
-                    <button onClick={() => handleConfirmTransfer(transferTarget)} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-black hover:bg-emerald-600 transition-all">Təsdiqlə</button>
-                  </div>
-                </motion.div>
-              )}
   
                 <div className="flex-1 overflow-y-auto">
                 <div className="grid grid-cols-4 gap-4">
@@ -681,31 +651,31 @@ export default function POSPage() {
        </div>
        )}
  
-       <ActionSheet
-        table={actionSheetTable} 
-        open={actionSheetOpen} 
-        onClose={() => { setActionSheetOpen(false); setUnmergeMode(false); setPaymentView(false); }} 
-        onAddOrder={() => { pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
-        onUnmerge={() => setUnmergeMode(true)}
-        onOpenPayment={handleOpenPayment}
-        onPaymentMethodSelect={handlePaymentMethodSelect}
-        onSplitConfirm={handleSplitConfirm}
-        onBackFromPayment={handleBackFromPayment}
-        onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
-        onDismissGroup={handleDismissGroup}
-        paymentView={paymentView}
-        mergeMode={mergeMode}
-        mergeParent={selectedForMerge[0]}
-        unmergeMode={unmergeMode}
-        isMerged={!!actionSheetGroup}
-        mergedGroupChildren={actionSheetGroup?.children}
-        selectedForMerge={selectedForMerge}
-        selectedForUnmerge={selectedForUnmerge}
-        onToggleUnmerge={(n) => {
-          if (selectedForUnmerge.includes(n)) setSelectedForUnmerge(p => p.filter(x => x !== n));
-          else setSelectedForUnmerge(p => [...p, n]);
-        }}
-        onConfirmUnmerge={handleUnmerge}
+        <ActionSheet
+         table={actionSheetTable} 
+         open={actionSheetOpen} 
+         onClose={() => { setActionSheetOpen(false); setUnmergeMode(false); setPaymentView(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }} 
+         onAddOrder={() => { pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
+         onUnmerge={() => setUnmergeMode(true)}
+         onOpenPayment={handleOpenPayment}
+         onPaymentMethodSelect={handlePaymentMethodSelect}
+         onSplitConfirm={handleSplitConfirm}
+         onBackFromPayment={handleBackFromPayment}
+         onCancelTable={() => { pos.dismissTable(actionSheetTable.table_number); setActionSheetOpen(false); }}
+         onDismissGroup={handleDismissGroup}
+         paymentView={paymentView}
+         mergeMode={mergeMode}
+         mergeParent={selectedForMerge[0]}
+         unmergeMode={unmergeMode}
+         isMerged={!!actionSheetGroup}
+         mergedGroupChildren={actionSheetGroup?.children}
+         selectedForMerge={selectedForMerge}
+         selectedForUnmerge={selectedForUnmerge}
+         onToggleUnmerge={(n) => {
+           if (selectedForUnmerge.includes(n)) setSelectedForUnmerge(p => p.filter(x => x !== n));
+           else setSelectedForUnmerge(p => [...p, n]);
+         }}
+         onConfirmUnmerge={handleUnmerge}
          onCancelMode={() => { setMergeMode(false); setTransferMode(false); setUnmergeMode(false); setSelectedForMerge([]); setSelectedForUnmerge([]); setTransferSource(null); setTransferTarget(null); }}
          onConfirmMerge={async () => { 
            await pos.mergeTables(selectedForMerge); 
@@ -714,6 +684,19 @@ export default function POSPage() {
            setSelectedForMerge([]); 
          }}
          groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
+         transferMode={transferMode}
+         transferSource={transferSource}
+         transferTarget={transferTarget}
+         onConfirmTransfer={async () => {
+           if (transferSource && transferTarget) {
+             await handleConfirmTransfer(transferTarget);
+           }
+         }}
+         onCancelTransfer={() => {
+           setTransferMode(false);
+           setTransferSource(null);
+           setTransferTarget(null);
+         }}
           customerId={pos.cart?.customer_id}
           customerName={pos.cart?.customer_name}
           onSelectCustomer={(customerId, customerName) => {
@@ -723,7 +706,7 @@ export default function POSPage() {
         onApplyDiscount={({ amount, type }) => {
            pos.updateCartDiscount(amount, type);
          }}
-       />
+        />
 
       <AnimatePresence>
         {lastUndo && (

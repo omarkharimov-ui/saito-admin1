@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Save, Loader2, Plus, X, Trash2, User, Users, Briefcase, Phone, Clock } from 'lucide-react';
+import { Save, Loader2, Plus, X, Trash2, User, Users, Briefcase, Phone, Clock, DollarSign, Calendar, FileText } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoldSelect from '@/components/GoldSelect';
@@ -15,6 +15,8 @@ const emptyForm = () => ({ name: '', role: ROLES[0], shift: '', phone: '', pin: 
 
 const STAFF_CACHE_KEY = 'saito_staff_cache';
 
+type ModalMode = 'staff' | 'expense';
+
 const StaffTab = () => {
   const { t } = useLanguage();
   const [staff, setStaff] = useState<StaffMember[]>(() => {
@@ -22,37 +24,59 @@ const StaffTab = () => {
   });
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<ModalMode>('staff');
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [form, setForm] = useState(emptyForm());
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [expenseForm, setExpenseForm] = useState({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
 
   useEffect(() => {
     supabase.from('staff').select('*').order('name').then(({ data }) => {
       if (data) {
         setStaff(data as StaffMember[]);
+        setStaffList(data as any[]);
         try { localStorage.setItem(STAFF_CACHE_KEY, JSON.stringify(data)); } catch {}
       }
     });
+    loadExpenses();
   }, []);
 
-  const openAdd = () => {
+  const loadExpenses = async () => {
+    const res = await fetch('/api/expenses');
+    const data = await res.json();
+    setExpenses(Array.isArray(data) ? data : []);
+  };
+
+  const openAddStaff = () => {
+    setModalMode('staff');
     setEditingStaff(null);
     setForm(emptyForm());
     setModalOpen(true);
   };
 
   const openEdit = (s: StaffMember) => {
+    setModalMode('staff');
     setEditingStaff(s);
     setForm({ name: s.name, role: s.role, shift: s.shift, phone: s.phone || '', pin: (s as any).pin || '' });
     setModalOpen(true);
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingStaff(null);
-    setForm(emptyForm());
+  const openAddExpense = () => {
+    setModalMode('expense');
+    setExpenseForm({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+    setModalOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalMode('staff');
+    setEditingStaff(null);
+    setForm(emptyForm());
+    setExpenseForm({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+  };
+
+  const handleStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) { toast.error(t('staff_name_required'), { id: 'action-toast' }); return; }
     setSaving(true);
@@ -80,6 +104,28 @@ const StaffTab = () => {
     }
   };
 
+  const handleExpenseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expenseForm.staff_id) { toast.error('İşçi seçin', { id: 'action-toast' }); return; }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expenseForm),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Xəta');
+      toast.success('Xərc əlavə edildi', { id: 'action-toast', duration: 3000 });
+      setExpenseForm({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+      closeModal();
+      loadExpenses();
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta baş verdi', { id: 'action-toast' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const removeStaff = async (id: string) => {
     const { error } = await supabase.from('staff').delete().eq('id', id);
     if (error) { toast.error(error.message, { id: 'action-toast' }); return; }
@@ -87,16 +133,26 @@ const StaffTab = () => {
     toast.success(t('staff_deleted'), { id: 'action-toast', duration: 3000 });
   };
 
+  const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+
   return (
     <div className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-[var(--theme-text-secondary)] text-base">{t('staff_count').replace('{n}', String(staff.length))}</p>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-5 py-3 bg-[var(--theme-surface)] text-[var(--theme-text)] text-sm font-bold rounded-2xl hover:bg-[var(--theme-panel)] transition-all shadow-[0_10px_28px_rgba(0,0,0,0.12)]"
-        >
-          <Plus size={16} /> {t('staff_new')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openAddExpense}
+            className="flex items-center gap-2 px-4 py-3 bg-[var(--theme-surface-soft)] text-[var(--theme-text)] text-xs font-bold rounded-2xl hover:bg-[var(--theme-surface-hover)] transition-all border border-[var(--theme-border)]"
+          >
+            <Plus size={16} /> + Xərc
+          </button>
+          <button
+            onClick={openAddStaff}
+            className="flex items-center gap-2 px-5 py-3 bg-[var(--theme-surface)] text-[var(--theme-text)] text-sm font-bold rounded-2xl hover:bg-[var(--theme-panel)] transition-all shadow-[0_10px_28px_rgba(0,0,0,0.12)]"
+          >
+            <Plus size={16} /> {t('staff_new')}
+          </button>
+        </div>
       </div>
 
       {staff.length === 0 && (
@@ -174,17 +230,34 @@ const StaffTab = () => {
                  </div>
                ))}
              </div>
-          </div>
-          </>
-        )}
+           </div>
+           </>
+         )}
 
         {/* Salary / Expenses */}
         <div className="bg-[var(--theme-surface-muted)] border border-[var(--theme-border)] rounded-2xl p-6 mt-6">
-          <h3 className="text-white font-bold text-lg mb-4">Maaş və Xərclər</h3>
-          <SalarySection />
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-bold text-lg">Maaş və Xərclər</h3>
+            <p className="text-white/50 text-sm">Ümumi: <span className="text-white font-bold">₼{totalExpenses.toFixed(2)}</span></p>
+          </div>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {expenses.length === 0 ? (
+              <p className="text-white/30 text-xs text-center py-4">Hələ xərc yoxdur</p>
+            ) : (
+              expenses.map(e => (
+                <div key={e.id} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-white text-sm font-semibold">{e.category === 'salary' ? 'Maaş' : e.category}</p>
+                    <p className="text-white/30 text-xs">{e.note || e.expense_date}</p>
+                  </div>
+                  <span className="text-white font-bold">₼{Number(e.amount || 0).toFixed(2)}</span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
-      {/* Staff Modal */}
+      {/* Unified Modal */}
       <AnimatePresence>
         {modalOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -195,96 +268,161 @@ const StaffTab = () => {
             >
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-black text-[var(--theme-text)]">{editingStaff ? 'İşçi Redaktə' : 'Yeni İşçi'}</h2>
-                  <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">{editingStaff ? 'Məlumatları dəyişdir' : 'Yeni işçi əlavə et'}</p>
+                  <h2 className="text-xl font-black text-[var(--theme-text)]">
+                    {modalMode === 'expense' ? 'Yeni Xərc' : editingStaff ? 'İşçi Redaktə' : 'Yeni İşçi'}
+                  </h2>
+                  <p className="text-xs text-[var(--theme-text-muted)] font-bold uppercase tracking-widest mt-1">
+                    {modalMode === 'expense' ? 'Maaş və ya xərc əlavə et' : editingStaff ? 'Məlumatları dəyişdir' : 'Yeni işçi əlavə et'}
+                  </p>
                 </div>
                 <button onClick={closeModal} className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-all">
                   <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto">
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-                    <User size={10} className="text-gold/70" /> {t('staff_full_name')}
-                  </label>
-                  <input
-                    className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
-                    placeholder="Tural Məmmədov"
-                    value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })}
-                    autoFocus
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {modalMode === 'expense' ? (
+                <form onSubmit={handleExpenseSubmit} className="space-y-4 flex-1 overflow-y-auto">
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-                      <Phone size={10} className="text-gold/70" /> {t('staff_phone')}
+                      <User size={10} className="text-gold/70" /> İşçi
+                    </label>
+                    <select
+                      value={expenseForm.staff_id}
+                      onChange={e => setExpenseForm({ ...expenseForm, staff_id: e.target.value })}
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] outline-none rounded-xl transition-all"
+                    >
+                      <option value="">İşçi seçin</option>
+                      {staffList.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                      <DollarSign size={10} className="text-gold/70" /> Məbləğ (₼)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={expenseForm.amount}
+                      onChange={e => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                      <Calendar size={10} className="text-gold/70" /> Tarix
+                    </label>
+                    <input
+                      type="date"
+                      value={expenseForm.expense_date}
+                      onChange={e => setExpenseForm({ ...expenseForm, expense_date: e.target.value })}
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                      <FileText size={10} className="text-gold/70" /> Qeyd
+                    </label>
+                    <textarea
+                      value={expenseForm.note}
+                      onChange={e => setExpenseForm({ ...expenseForm, note: e.target.value })}
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all resize-none h-20"
+                      placeholder="Məs: Maaş, bonus, kassa..."
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-3 pt-1 border-t border-[var(--theme-border)]">
+                    <button type="button" onClick={closeModal} className="px-4 py-2 text-xs text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]">
+                      Ləğv Et
+                    </button>
+                    <button type="submit" disabled={saving} className="flex items-center gap-2 bg-[var(--theme-surface)] text-[var(--theme-text)] px-5 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-[var(--theme-panel)]">
+                      {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                      Yadda Saxla
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleStaffSubmit} className="space-y-4 flex-1 overflow-y-auto">
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                      <User size={10} className="text-gold/70" /> {t('staff_full_name')}
                     </label>
                     <input
                       className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
-                      placeholder="050 000 00 00"
-                      value={form.phone}
-                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                      placeholder="Tural Məmmədov"
+                      value={form.name}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-                      <span className="text-gold/70">🔒</span> PIN kod
-                    </label>
-                    <input
-                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all tracking-widest"
-                      placeholder="0000"
-                      maxLength={4}
-                      value={form.pin}
-                      onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-                      <Briefcase size={10} className="text-gold/70" /> {t('staff_position')}
-                    </label>
-                    <GoldSelect
-                      value={form.role}
-                      options={ROLES.map(r => ({ value: r, label: r }))}
-                      onChange={(val) => setForm({ ...form, role: val })}
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                        <Phone size={10} className="text-gold/70" /> {t('staff_phone')}
+                      </label>
+                      <input
+                        className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
+                        placeholder="050 000 00 00"
+                        value={form.phone}
+                        onChange={e => setForm({ ...form, phone: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                        <span className="text-gold/70">🔒</span> PIN kod
+                      </label>
+                      <input
+                        className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all tracking-widest"
+                        placeholder="0000"
+                        maxLength={4}
+                        value={form.pin}
+                        onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
-                      <Clock size={10} className="text-gold/70" /> {t('staff_shift')}
-                    </label>
-                    <input
-                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
-                      placeholder="12:00 – 20:00"
-                      value={form.shift}
-                      onChange={e => setForm({ ...form, shift: e.target.value })}
-                    />
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-end gap-3 pt-1 border-t border-[var(--theme-border)]">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-4 py-2 text-xs text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]"
-                  >
-                    {t('staff_cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex items-center gap-2 bg-[var(--theme-surface)] text-[var(--theme-text)] px-5 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-[var(--theme-panel)]"
-                  >
-                    {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                    {editingStaff ? t('staff_save') : t('staff_add')}
-                  </button>
-                </div>
-              </form>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                        <Briefcase size={10} className="text-gold/70" /> {t('staff_position')}
+                      </label>
+                      <GoldSelect
+                        value={form.role}
+                        options={ROLES.map(r => ({ value: r, label: r }))}
+                        onChange={(val) => setForm({ ...form, role: val })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                        <Clock size={10} className="text-gold/70" /> {t('staff_shift')}
+                      </label>
+                      <input
+                        className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] focus:bg-[var(--theme-surface-muted)] px-4 py-2.5 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-xl transition-all"
+                        placeholder="12:00 – 20:00"
+                        value={form.shift}
+                        onChange={e => setForm({ ...form, shift: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-1 border-t border-[var(--theme-border)]">
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="px-4 py-2 text-xs text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-lg hover:bg-[var(--theme-surface-muted)]"
+                    >
+                      {t('staff_cancel')}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="flex items-center gap-2 bg-[var(--theme-surface)] text-[var(--theme-text)] px-5 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-[0_10px_28px_rgba(0,0,0,0.12)] hover:bg-[var(--theme-panel)]"
+                    >
+                      {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                      {editingStaff ? t('staff_save') : t('staff_add')}
+                    </button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </div>
         )}
@@ -292,69 +430,5 @@ const StaffTab = () => {
     </div>
   );
 };
-
-function SalarySection() {
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [staffList, setStaffList] = useState<any[]>([]);
-  const [form, setForm] = useState({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
-  const [showForm, setShowForm] = useState(false);
-
-  const loadExpenses = async () => {
-    const res = await fetch('/api/expenses');
-    const data = await res.json();
-    setExpenses(Array.isArray(data) ? data : []);
-  };
-
-  useEffect(() => {
-    supabase.from('staff').select('id, full_name, role').then(({ data }) => { if (data) setStaffList(data); });
-    loadExpenses();
-  }, []);
-
-  const addExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.staff_id) { toast.error('İşçi seçin', { id: 'action-toast' }); return; }
-    await fetch('/api/expenses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    setForm({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
-    setShowForm(false);
-    loadExpenses();
-  };
-
-  const total = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-white/50 text-sm">Ümumi xərclər: <span className="text-white font-bold">₼{total.toFixed(2)}</span></p>
-        <button onClick={() => setShowForm(v => !v)} className="px-4 py-2 bg-[#D4AF37] text-black text-xs font-black rounded-xl">+ Yeni</button>
-      </div>
-      {showForm && (
-        <form onSubmit={addExpense} className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white/5 p-4 rounded-xl">
-          <select className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white" value={form.staff_id} onChange={e => setForm({ ...form, staff_id: e.target.value })}>
-            <option value="">İşçi seç</option>
-            {staffList.map(s => <option key={s.id} value={s.id}>{s.full_name || s.name} ({s.role})</option>)}
-          </select>
-          <input type="number" step="0.01" className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white" placeholder="Məbləğ" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
-          <input type="date" className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white" value={form.expense_date} onChange={e => setForm({ ...form, expense_date: e.target.value })} />
-          <button type="submit" className="bg-black text-white text-xs font-black rounded-xl">Yadda saxla</button>
-        </form>
-      )}
-      <div className="space-y-2 max-h-[300px] overflow-y-auto">
-        {expenses.map(e => (
-          <div key={e.id} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
-            <div>
-              <p className="text-white text-sm font-semibold">{e.category === 'salary' ? 'Maaş' : e.category}</p>
-              <p className="text-white/30 text-xs">{e.note || e.expense_date}</p>
-            </div>
-            <span className="text-white font-bold">₼{Number(e.amount || 0).toFixed(2)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default StaffTab;

@@ -30,6 +30,7 @@ export default function POSPage() {
   const [transferMode, setTransferMode] = useState(false);
   const [transferSource, setTransferSource] = useState<number | null>(null);
   const [transferTarget, setTransferTarget] = useState<number | null>(null);
+  const [transferConfirm, setTransferConfirm] = useState(false);
 
   const [unmergeMode, setUnmergeMode] = useState(false);
   const [selectedForUnmerge, setSelectedForUnmerge] = useState<number[]>([]);
@@ -329,7 +330,7 @@ export default function POSPage() {
         toast.error('Eyni masanı seçdiz');
       } else {
         setTransferTarget(table.table_number);
-        handleConfirmTransfer(table.table_number);
+        setTransferConfirm(true);
       }
       return;
     }
@@ -358,6 +359,10 @@ export default function POSPage() {
         });
         toast.success('Masa köçürüldü');
         setTimeout(() => setLastUndo(null), 5000);
+        setTransferMode(false);
+        setTransferSource(null);
+        setTransferTarget(null);
+        setTransferConfirm(false);
         pos.fetchData();
       } else {
         toast.error(data.error || 'Köçürmə uğursuz oldu');
@@ -555,6 +560,22 @@ export default function POSPage() {
                   <span>Hədəf masanı seçin (Mənbə: Masa {transferSource})</span>
                 </motion.div>
               )}
+              {transferConfirm && transferSource && transferTarget && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white text-black p-4 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-4 min-w-[320px]"
+                >
+                  <div className="flex-1">
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-600 mb-1">Köçürmə Təsdiqi</p>
+                    <p className="text-sm font-bold">Masa {transferSource} → Masa {transferTarget}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => { setTransferConfirm(false); setTransferTarget(null); }} className="px-4 py-2 rounded-xl bg-zinc-100 text-zinc-600 text-xs font-black hover:bg-zinc-200 transition-all">Ləğv</button>
+                    <button onClick={() => handleConfirmTransfer(transferTarget)} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-black hover:bg-emerald-600 transition-all">Təsdiqlə</button>
+                  </div>
+                </motion.div>
+              )}
   
                 <div className="flex-1 overflow-y-auto">
                 <div className="grid grid-cols-4 gap-4">
@@ -658,7 +679,7 @@ export default function POSPage() {
           else setSelectedForUnmerge(p => [...p, n]);
         }}
         onConfirmUnmerge={handleUnmerge}
-        onCancelMode={() => { setMergeMode(false); setTransferMode(false); setUnmergeMode(false); setSelectedForMerge([]); setSelectedForUnmerge([]); setTransferSource(null); setTransferTarget(null); }}
+         onCancelMode={() => { setMergeMode(false); setTransferMode(false); setUnmergeMode(false); setSelectedForMerge([]); setSelectedForUnmerge([]); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); }}
          onConfirmMerge={async () => { 
            await pos.mergeTables(selectedForMerge); 
            setLastUndo(pos.lastUndo);

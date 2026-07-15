@@ -46,6 +46,24 @@ export interface PosCart {
   items: PosCartItem[];
   notes: string;
   order_type: 'dine_in' | 'takeaway' | 'delivery';
+  customer_id?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  discount_amount?: number;
+  discount_type?: 'percentage' | 'fixed' | null;
+}
+
+export interface PosTable {
+  id: string;
+  table_number: number;
+  status: TableStatus;
+  guest_count?: number;
+  total_amount?: number;
+  reservation_name?: string | null;
+  reservation_time?: string | null;
+  kitchen_status?: string | null;
+  parent_table_number?: number | null;
+  merged_into_table?: number | null;
 }
 
 export interface PosTable {

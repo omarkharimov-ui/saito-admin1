@@ -128,7 +128,7 @@ export async function POST(request: Request) {
         return { success: true };
       }
 
-      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status } = body;
+      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, discount_amount, discount_type } = body;
 
       if (!table_number || !items?.length) {
         throw new Error('table_number and items required');
@@ -155,7 +155,15 @@ export async function POST(request: Request) {
         const patchRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&version=eq.${existingOrder.version || 0}`, {
           method: 'PATCH',
           headers: { ...svc().headers, 'Prefer': 'return=representation' },
-          body: JSON.stringify({ total_amount: newTotal, version: newVersion, kitchen_status: ks, updated_at: new Date().toISOString() }),
+          body: JSON.stringify({ 
+            total_amount: newTotal, 
+            version: newVersion, 
+            kitchen_status: ks, 
+            updated_at: new Date().toISOString(),
+            customer_id: customer_id || null,
+            discount_amount: discount_amount || 0,
+            discount_type: discount_type || null,
+          }),
         });
         if (!patchRes.ok) throw new Error('CONCURRENCY_CONFLICT');
         const patched = await patchRes.json();
@@ -181,6 +189,9 @@ export async function POST(request: Request) {
             guest_count: guest_count || 1,
             customer_note: customer_note || null,
             order_type: order_type || 'dine_in',
+            customer_id: customer_id || null,
+            discount_amount: discount_amount || 0,
+            discount_type: discount_type || null,
             kitchen_status: ks,
             is_draft: false,
             created_at: new Date().toISOString(),

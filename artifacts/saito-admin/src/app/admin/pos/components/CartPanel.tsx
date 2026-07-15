@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -22,10 +22,12 @@ interface CartPanelProps {
   onRecordLoss?: (items: LossItem[], reason: string) => Promise<void>;
   hasExistingOrder?: boolean;
   isDirty?: boolean;
-  /** Rezervasiya rejimi: true olduqda button "Bron Et" kimi gorunur, metbexe gondermek olmur */
   isReservationMode?: boolean;
   reservationId?: string;
   guestName?: string;
+  customerId?: string | null;
+  customerName?: string | null;
+  currentDiscount?: { amount: number; type: 'percentage' | 'fixed' } | null;
 }
 
 export function CartPanel({
@@ -33,6 +35,7 @@ export function CartPanel({
   onClearDraft, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
   isReservationMode = false, reservationId, guestName,
+  customerId, customerName, currentDiscount,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -190,6 +193,21 @@ export function CartPanel({
                   )}
                 </div>
             </div>
+            {cart.customer_name && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <User size={12} className="text-blue-400" />
+                <span className="text-[10px] font-bold text-blue-400 truncate">{cart.customer_name}</span>
+                {cart.customer_phone && <span className="text-[10px] text-[var(--theme-text-muted)]">· {cart.customer_phone}</span>}
+              </div>
+            )}
+            {(cart.discount_amount ?? 0) > 0 && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <Receipt size={12} className="text-emerald-400" />
+                <span className="text-[10px] font-bold text-emerald-400">
+                  Endirim: {cart.discount_type === 'percentage' ? '%' : '₼'}{cart.discount_amount}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

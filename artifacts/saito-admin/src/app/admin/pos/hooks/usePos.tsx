@@ -375,6 +375,9 @@ export function usePos() {
           guest_count: cart.guest_count,
           customer_note: cart.notes,
           order_type: cart.order_type,
+          customer_id: cart.customer_id || null,
+          discount_amount: cart.discount_amount || 0,
+          discount_type: cart.discount_type || null,
           created_by: (() => {
             try {
               const session = localStorage.getItem('saito_staff_session');
@@ -419,33 +422,45 @@ export function usePos() {
   const updateGuestCount = async (delta: number) => {
     if (!cart) return;
     const newCount = Math.max(1, (cart.guest_count || 1) + delta);
-    setCart(prev => prev ? { ...prev, guest_count: newCount } : prev);
-    
+    setCart(prev => prev ? { ...prev, guest_count: newCount } : null);
     try {
-      const ordersRes = await fetch('/api/orders');
-      if (ordersRes.ok) {
-        const data = await ordersRes.json();
-        const activeOrder = (data.orders || []).find((o: any) => 
-          o.table_number === cart.table_number && 
-          !['paid', 'cancelled', 'closed'].includes(o.status)
-        );
-        if (activeOrder) {
-          await fetch(`/api/orders`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'update',
-              id: activeOrder.id,
-              version: activeOrder.version,
-              data: { guest_count: newCount }
-            }),
-          });
-        }
-      }
+      await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          id: cart.table_id,
+          data: { guest_count: newCount }
+        }),
+      });
     } catch (e) {
       console.error('Failed to update guest count:', e);
       toast.error('Qonaq sayı yenilənərkən xəta', { id: 'action-toast' });
     }
+  };
+
+  const updateCartCustomer = (customerId: string | null, customerName: string | null) => {
+    setCart(prev => prev ? {
+      ...prev,
+      customer_id: customerId,
+      customer_name: customerName,
+      customer_phone: null,
+    } : null);
+  };
+
+  const updateCartDiscount = (discountAmount: number, discountType: 'percentage' | 'fixed') => {
+    setCart(prev => prev ? {
+      ...prev,
+      discount_amount: discountAmount,
+      discount_type: discountType,
+    } : null);
+  };
+
+  return {
+    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
+    fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
+    setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
+    updateCartCustomer, updateCartDiscount
   };
 
   return {

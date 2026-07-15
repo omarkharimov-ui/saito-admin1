@@ -611,18 +611,21 @@ export default function POSPage() {
                   />
                </div>
                <div className="w-full md:w-[400px] border-l p-6 bg-black/20">
-                     <CartPanel 
-                       cart={pos.cart} 
-                       campaign={selectedCampaign ? { id: selectedCampaign.id, name: selectedCampaign.title, discount: Number(selectedCampaign.discount_value || 0), type: selectedCampaign.type } : null}
-                       onPlaceOrder={() => pos.placeOrder()} 
-                       onBack={() => pos.setActiveView('floor')}
-                       orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
-                       onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
-                       onUpdateGuests={(delta) => pos.updateGuestCount(delta)}
-                       onRecordLoss={handleRecordLoss}
-                       onClearDraft={() => pos.clearCart()}
-                       mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
-                     />
+                      <CartPanel 
+                        cart={pos.cart} 
+                        campaign={selectedCampaign ? { id: selectedCampaign.id, name: selectedCampaign.title, discount: Number(selectedCampaign.discount_value || 0), type: selectedCampaign.type } : null}
+                        onPlaceOrder={() => pos.placeOrder()} 
+                        onBack={() => pos.setActiveView('floor')}
+                        orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
+                        onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
+                        onUpdateGuests={(delta) => pos.updateGuestCount(delta)}
+                        onRecordLoss={handleRecordLoss}
+                        onClearDraft={() => pos.clearCart()}
+                        mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
+                        customerId={pos.cart.customer_id}
+                        customerName={pos.cart.customer_name}
+                        currentDiscount={pos.cart.discount_amount ? { amount: pos.cart.discount_amount, type: pos.cart.discount_type || 'fixed' } : null}
+                      />
                </div>
             </div>
           )}
@@ -656,14 +659,23 @@ export default function POSPage() {
         }}
         onConfirmUnmerge={handleUnmerge}
         onCancelMode={() => { setMergeMode(false); setTransferMode(false); setUnmergeMode(false); setSelectedForMerge([]); setSelectedForUnmerge([]); setTransferSource(null); setTransferTarget(null); }}
-        onConfirmMerge={async () => { 
-          await pos.mergeTables(selectedForMerge); 
-          setLastUndo(pos.lastUndo);
-          setMergeMode(false); 
-          setSelectedForMerge([]); 
-        }}
-        groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
-      />
+         onConfirmMerge={async () => { 
+           await pos.mergeTables(selectedForMerge); 
+           setLastUndo(pos.lastUndo);
+           setMergeMode(false); 
+           setSelectedForMerge([]); 
+         }}
+         groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
+         customerId={cart.customer_id}
+         customerName={cart.customer_name}
+         onSelectCustomer={(customerId, customerName) => {
+           pos.updateCartCustomer(customerId, customerName);
+         }}
+         currentDiscount={cart.discount_amount ? { amount: cart.discount_amount, type: cart.discount_type || 'fixed' } : null}
+        onApplyDiscount={({ amount, type }) => {
+           pos.updateCartDiscount(amount, type);
+         }}
+       />
 
       <AnimatePresence>
         {lastUndo && (

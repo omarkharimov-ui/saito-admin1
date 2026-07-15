@@ -205,12 +205,15 @@ export function CartPanel({
                   Endirim: {cart.discount_type === 'percentage' ? '%' : '₼'}{cart.discount_amount}
                 </span>
               </div>
-            ) : campaign && campaign.discount > 0 ? (
+            ) : campaign ? (
               <div className="flex items-center gap-1.5 mt-1">
                 <Receipt size={12} className="text-gold/70" />
                 <span className="text-[10px] font-bold text-gold/70">
-                  Kampaniya: {campaign.discount}
-                  {campaign.type === 'FIXED_AMOUNT' ? ' ₼' : '%'}
+                  {campaign.type === 'BOGO' && '1 al 1 ödə'}
+                  {campaign.type === 'BUY2GET1' && '2 al 1 ödə'}
+                  {campaign.type === 'FREE_DELIVERY' && 'Pulsuz çatdırılma'}
+                  {(campaign.type === 'PERCENTAGE' || campaign.type === 'HAPPY_HOUR') && `Kampaniya: ${campaign.discount}%`}
+                  {campaign.type === 'FIXED_AMOUNT' && `Kampaniya: ${campaign.discount} ₼`}
                 </span>
               </div>
             ) : null}

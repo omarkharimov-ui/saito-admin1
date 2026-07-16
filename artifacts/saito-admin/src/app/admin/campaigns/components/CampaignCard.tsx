@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles } from 'lucide-react';
+import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, Users, ShoppingBag } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Campaign, Product, Category } from '@/types';
@@ -23,7 +23,13 @@ const CAMPAIGN_LABELS: Record<string, string> = {
 };
 
 interface Props {
-  camp: Campaign;
+  camp: Campaign & {
+    total_orders?: number | null;
+    unique_customers?: number | null;
+    total_discount_given?: number | null;
+    total_items_sold?: number | null;
+    last_used_at?: string | null;
+  };
   products: Product[];
   categories: Category[];
   onEdit: (c: Campaign) => void;
@@ -41,6 +47,10 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
   const discountDisplay = camp.discount_value
     ? `${camp.discount_value}%`
     : camp.type === 'BOGO' ? '1+1' : camp.type === 'BUY2GET1' ? '2+1' : '—';
+
+  const totalOrders = camp.total_orders ?? 0;
+  const uniqueCustomers = camp.unique_customers ?? 0;
+  const totalDiscount = camp.total_discount_given ?? 0;
 
   return (
     <>
@@ -87,6 +97,29 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
               <span className="text-[11px] text-gold font-bold">{discountDisplay}</span>
             </div>
 
+            {/* Performance metrics */}
+            {(totalOrders > 0 || totalDiscount > 0) && (
+              <div className="flex items-center gap-3 mt-2">
+                {totalOrders > 0 && (
+                  <div className="flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
+                    <ShoppingBag size={10} />
+                    <span className="font-bold">{totalOrders}</span>
+                  </div>
+                )}
+                {uniqueCustomers > 0 && (
+                  <div className="flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
+                    <Users size={10} />
+                    <span className="font-bold">{uniqueCustomers}</span>
+                  </div>
+                )}
+                {totalDiscount > 0 && (
+                  <div className="flex items-center gap-1 text-[10px] text-emerald-400">
+                    <span className="font-bold">-₼{totalDiscount.toFixed(0)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Bottom row */}
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <div className="flex items-center gap-1.5">
@@ -102,12 +135,12 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
                   {isActive ? t('active') : t('passive')}
                 </span>
               </div>
-              {(camp as any).end_date && (
+              {camp.end_date && (
                 <>
                   <span className="w-px h-3 bg-[var(--theme-border)]" />
                   <div className="flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
                     <CalendarOff size={9} />
-                    {new Date((camp as any).end_date).toLocaleDateString('az-AZ')}
+                    {new Date(camp.end_date).toLocaleDateString('az-AZ')}
                   </div>
                 </>
               )}
@@ -179,6 +212,38 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
           </div>
         </div>
 
+        {/* Performance metrics */}
+        {(totalOrders > 0 || totalDiscount > 0) && (
+          <div className="mb-5 p-3 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl">
+            <p className="text-[8px] uppercase tracking-widest text-[var(--theme-text-muted)] mb-2 font-bold">Performans</p>
+            <div className="flex items-center gap-4">
+              {totalOrders > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <ShoppingBag size={12} className="text-gold/70" />
+                  <span className="text-[11px] font-bold text-white">{totalOrders} sifariş</span>
+                </div>
+              )}
+              {uniqueCustomers > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Users size={12} className="text-gold/70" />
+                  <span className="text-[11px] font-bold text-white">{uniqueCustomers} müştəri</span>
+                </div>
+              )}
+              {totalDiscount > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Percent size={12} className="text-emerald-400" />
+                  <span className="text-[11px] font-bold text-emerald-400">-₼{totalDiscount.toFixed(0)}</span>
+                </div>
+              )}
+            </div>
+            {camp.last_used_at && (
+              <p className="text-[9px] text-[var(--theme-text-muted)] mt-1.5">
+                Son istifadə: {new Date(camp.last_used_at).toLocaleDateString('az-AZ')}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center justify-between pt-4 border-t border-white/[0.06]">
           <div className="flex items-center gap-2">
             <div className="relative flex items-center justify-center w-5 h-5">
@@ -190,9 +255,9 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             </span>
           </div>
           <div className="text-right">
-            {(camp as any).end_date && (
+            {camp.end_date && (
               <div className="flex items-center gap-1 text-[9px] font-medium text-gold/60 mb-0.5">
-                <CalendarOff size={9} />{new Date((camp as any).end_date).toLocaleDateString('az-AZ')}
+                <CalendarOff size={9} />{new Date(camp.end_date).toLocaleDateString('az-AZ')}
               </div>
             )}
             <span className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-tight">{new Date(camp.created_at!).toLocaleDateString('az-AZ')}</span>

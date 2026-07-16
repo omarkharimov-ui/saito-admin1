@@ -9,12 +9,12 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import GoldSelect from '@/components/GoldSelect';
 import GoldCalendar from '@/components/GoldCalendar';
 
-interface FormState {
+export interface FormState {
   title: string;
   title_en?: string;
   title_ru?: string;
   type: Campaign['type'];
-  target_type: 'category' | 'product';
+  target_type: Campaign['target_type'];
   target_id: string;
   discount_value: string;
   buy_quantity?: number;

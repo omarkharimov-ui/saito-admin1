@@ -12,26 +12,37 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import CampaignCard from './components/CampaignCard';
 import CampaignModal from './components/CampaignModal';
 import { DeleteCampaignModal, DeleteAllCampaignsModal } from './components/CampaignModals';
-import { Product, Category } from '@/types';
+import { Campaign, Product, Category } from '@/types';
+import type { FormState } from './components/CampaignModal';
+
+type CampaignWithPerformance = Campaign & {
+  total_orders?: number | null;
+  unique_customers?: number | null;
+  total_discount_given?: number | null;
+  total_items_sold?: number | null;
+  last_used_at?: string | null;
+};
 
 export default function CampaignsPage() {
   const { t } = useLanguage();
-  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignWithPerformance[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingCampaign, setEditingCampaign] = useState<any | null>(null);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [productSearch, setProductSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [form, setForm] = useState<any>({
+  const [form, setForm] = useState<FormState>({
     title: '',
     type: 'PERCENTAGE',
     target_type: 'product',
     target_id: '',
     discount_value: '',
+    buy_quantity: 1,
+    get_quantity: 1,
     start_time: '',
     end_time: '',
     end_date: '',
@@ -41,15 +52,24 @@ export default function CampaignsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [campRes, prodRes, catRes] = await Promise.all([
+      const [campRes, prodRes, catRes, perfRes] = await Promise.all([
         fetch('/api/campaigns'),
         fetch('/api/pos/products'),
         fetch('/api/categories'),
+        fetch('/api/campaigns/performance'),
       ]);
       const campData = await campRes.json();
       const prodData = await prodRes.json();
       const catData = await catRes.json();
-      setCampaigns(campData.data || []);
+      const perfData = perfRes.ok ? await perfRes.json() : { data: [] };
+
+      const performanceMap = new Map((perfData.data || []).map((p: any) => [p.id, p]));
+      const campaignsWithPerformance = (campData.data || []).map((c: Campaign) => ({
+        ...c,
+        ...(performanceMap.get(c.id) || {}),
+      }));
+
+      setCampaigns(campaignsWithPerformance);
       setProducts(prodData.products || []);
       setCategories(catData || []);
     } catch {
@@ -93,7 +113,7 @@ export default function CampaignsPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (camp: any) => {
+  const openEdit = (camp: Campaign) => {
     setEditingCampaign(camp);
     setForm({
       title: camp.title || '',

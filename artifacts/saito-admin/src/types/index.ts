@@ -93,6 +93,9 @@ export interface Campaign {
   created_at?: string;
   updated_at?: string;
   current_uses?: number;
+  rules?: any[];
+  targets?: any[];
+  schedules?: any[];
 }
 
 export interface CampaignRule {

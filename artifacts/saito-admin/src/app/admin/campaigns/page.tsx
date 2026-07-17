@@ -336,6 +336,38 @@ export default function CampaignsPage() {
                       categories={categories}
                       onEdit={openEdit}
                       onDelete={(id, title) => setDeleteTarget({ id, title })}
+                      onDuplicate={(camp) => {
+                        const newCampaign = {
+                          ...camp,
+                          id: undefined,
+                          name: `${camp.name || camp.title} (Kopya)`,
+                          title: `${camp.title} (Kopya)`,
+                          status: 'draft',
+                          rules: camp.rules,
+                          targets: camp.targets,
+                          schedules: camp.schedules,
+                        };
+                        setEditingCampaign(newCampaign as any);
+                        setForm({
+                          ...form,
+                          name: newCampaign.name || newCampaign.title,
+                          title: newCampaign.title || newCampaign.name,
+                          status: 'draft',
+                          rules: newCampaign.rules || form.rules,
+                          targets: newCampaign.targets || form.targets,
+                          schedules: newCampaign.schedules || form.schedules,
+                        });
+                        setModalOpen(true);
+                      }}
+                      onToggleActive={async (camp) => {
+                        const newStatus = camp.status === 'active' ? 'inactive' : 'active';
+                        await fetch('/api/campaigns', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: camp.id, status: newStatus, is_active: newStatus === 'active' }),
+                        });
+                        fetchData();
+                      }}
                     />
                   ))}
                 </div>
@@ -355,6 +387,38 @@ export default function CampaignsPage() {
                       categories={categories}
                       onEdit={openEdit}
                       onDelete={(id, title) => setDeleteTarget({ id, title })}
+                      onDuplicate={(camp) => {
+                        const newCampaign = {
+                          ...camp,
+                          id: undefined,
+                          name: `${camp.name || camp.title} (Kopya)`,
+                          title: `${camp.title} (Kopya)`,
+                          status: 'draft',
+                          rules: camp.rules,
+                          targets: camp.targets,
+                          schedules: camp.schedules,
+                        };
+                        setEditingCampaign(newCampaign as any);
+                        setForm({
+                          ...form,
+                          name: newCampaign.name || newCampaign.title,
+                          title: newCampaign.title || newCampaign.name,
+                          status: 'draft',
+                          rules: newCampaign.rules || form.rules,
+                          targets: newCampaign.targets || form.targets,
+                          schedules: newCampaign.schedules || form.schedules,
+                        });
+                        setModalOpen(true);
+                      }}
+                      onToggleActive={async (camp) => {
+                        const newStatus = camp.status === 'active' ? 'inactive' : 'active';
+                        await fetch('/api/campaigns', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: camp.id, status: newStatus, is_active: newStatus === 'active' }),
+                        });
+                        fetchData();
+                      }}
                     />
                   ))}
                 </div>

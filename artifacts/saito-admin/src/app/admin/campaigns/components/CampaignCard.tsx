@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, Users, ShoppingBag } from 'lucide-react';
+import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, Users, ShoppingBag, Copy, Power, PowerOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Campaign, Product, Category } from '@/types';
@@ -41,9 +41,11 @@ interface Props {
   categories: Category[];
   onEdit: (c: Campaign) => void;
   onDelete: (id: string, title: string) => void;
+  onDuplicate?: (c: Campaign) => void;
+  onToggleActive?: (c: Campaign) => void;
 }
 
-const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) => {
+const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicate, onToggleActive }: Props) => {
   const { t, language } = useLanguage();
   const Icon = CAMPAIGN_ICONS[camp.type] || Tag;
   const rule = camp.rules?.[0];
@@ -164,6 +166,22 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         >
           <Trash2 size={17} />
         </button>
+        
+        {/* Quick actions */}
+        <div className="absolute bottom-4 left-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onDuplicate && (
+            <button onClick={(e) => { e.stopPropagation(); onDuplicate(camp); }}
+              className="flex-1 py-2 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[10px] font-bold uppercase tracking-wider text-[var(--theme-text-secondary)] hover:text-[var(--theme-accent)] hover:border-[var(--theme-accent-border)] transition-all">
+              <Copy size={12} className="inline mr-1" /> Kopyala
+            </button>
+          )}
+          {onToggleActive && (
+            <button onClick={(e) => { e.stopPropagation(); onToggleActive(camp); }}
+              className={`flex-1 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${isActive ? 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'}`}>
+              {isActive ? <><PowerOff size={12} className="inline mr-1" /> Deaktiv</> : <><Power size={12} className="inline mr-1" /> Aktiv</>}
+            </button>
+          )}
+        </div>
       </motion.div>
 
       {/* ── DESKTOP card ── */}
@@ -189,6 +207,24 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         >
           <Trash2 size={18} />
         </button>
+        
+        {/* Quick actions */}
+        <div className="absolute top-4 left-4 flex items-center gap-1.5">
+          {onDuplicate && (
+            <button onClick={(e) => { e.stopPropagation(); onDuplicate(camp); }}
+              className="w-8 h-8 rounded-lg bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-accent)] hover:border-[var(--theme-accent-border)] transition-all"
+              title="Kopyala">
+              <Copy size={14} />
+            </button>
+          )}
+          {onToggleActive && (
+            <button onClick={(e) => { e.stopPropagation(); onToggleActive(camp); }}
+              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${isActive ? 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'}`}
+              title={isActive ? 'Deaktiv et' : 'Aktiv et'}>
+              {isActive ? <PowerOff size={14} /> : <Power size={14} />}
+            </button>
+          )}
+        </div>
 
         <div className="flex items-start gap-4 mb-5 mt-10">
           <div className="w-12 h-12 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-gold flex-shrink-0">

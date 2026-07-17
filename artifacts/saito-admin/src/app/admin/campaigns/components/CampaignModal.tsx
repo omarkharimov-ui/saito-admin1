@@ -6,6 +6,7 @@ import { X, Save, Zap, Loader2, Search, CheckCircle2, CalendarOff, Percent, Gift
 import { motion, AnimatePresence } from 'framer-motion';
 import { Campaign, Product, Category } from '@/types';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { toast } from '@/lib/toast';
 import GoldSelect from '@/components/GoldSelect';
 import GoldCalendar from '@/components/GoldCalendar';
 
@@ -142,8 +143,71 @@ const CampaignModal = ({
     onFormChange({ ...form, dining_type: next });
   };
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!form.name.trim() && !form.title.trim()) {
+      newErrors.name = 'Kampaniya adı tələb olunur';
+    }
+    
+    const rule = form.rules[0];
+    if (!rule) {
+      newErrors.rule = 'Qaydalar tələb olunur';
+    } else {
+      if (rule.rule_type === 'percentage' || rule.rule_type === 'happy_hour') {
+        const pct = rule.percentage || 0;
+        if (pct <= 0 || pct > 100) {
+          newErrors.percentage = 'Faiz 1 ilə 100 arasında olmalıdır';
+        }
+      }
+      if (rule.rule_type === 'fixed_amount') {
+        const amount = rule.fixed_amount || 0;
+        if (amount < 0) {
+          newErrors.fixed_amount = 'Məbləğ mənfi ola bilməz';
+        }
+      }
+      if (rule.rule_type === 'buy_x_pay_y') {
+        const buy = rule.buy_quantity || 0;
+        const pay = rule.pay_quantity || 0;
+        if (buy <= 0 || pay <= 0) {
+          newErrors.buy_pay = 'Al və Ödə mütləqdir';
+        } else if (pay >= buy) {
+          newErrors.buy_pay = 'Ödə məbləği Al məbləğindən kiçik olmalıdır';
+        }
+      }
+      if (rule.rule_type === 'buy_x_get_y') {
+        const buy = rule.buy_quantity || 0;
+        const free = rule.free_quantity || 0;
+        if (buy <= 0 || free < 0) {
+          newErrors.buy_get = 'Al məbləği mütləqdir';
+        }
+      }
+    }
+    
+    if (!form.targets[0]?.target_id && form.targets[0]?.target_type !== 'whole_order') {
+      newErrors.target = 'Hədəf seçilməlidir';
+    }
+    
+    if (form.requires_coupon && !form.coupon_code.trim()) {
+      newErrors.coupon = 'Kupon kodu tələb olunur';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    if (!validate()) {
+      toast.error('Zəhmət olmasa xətaları düzəldin');
+      return;
+    }
+    onSubmit(e);
+  };
+
   const formBody = (
-    <form noValidate onSubmit={onSubmit} className="space-y-6 px-4 md:px-6 py-6 w-full overflow-hidden">
+    <form noValidate onSubmit={handleSubmit} className="space-y-6 px-4 md:px-6 py-6 w-full overflow-hidden">
       <div className="space-y-5">
         <div className="space-y-2">
           <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('campaign_name')}</label>
@@ -286,15 +350,59 @@ const CampaignModal = ({
         </div>
 
         {(form.targets[0]?.target_type === 'product' || form.targets[0]?.target_type === 'category') && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">
-              {form.targets[0]?.target_type === 'product' ? 'Məhsul seç' : 'Kateqoriya seç'}
+              {form.targets[0]?.target_type === 'product' ? 'Məhsullar' : 'Kateqoriyalar'}
             </label>
+            
+            {/* Category tabs - only for products */}
+            {form.targets[0]?.target_type === 'product' && categories.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                <button type="button" onClick={() => onProductSearch('')}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all ${!productSearch ? 'bg-[var(--theme-accent)] text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] border border-[var(--theme-border)]'}`}>
+                  Hamısı
+                </button>
+                {categories.map(cat => (
+                  <button key={cat.id} type="button" onClick={() => onProductSearch(cat.name)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all ${productSearch === cat.name ? 'bg-[var(--theme-accent)] text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] border border-[var(--theme-border)]'}`}>
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Search input */}
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
               <input type="text" placeholder={form.targets[0]?.target_type === 'product' ? 'Məhsul axtar...' : 'Kateqoriya axtar...'} value={productSearch} onChange={(e) => onProductSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-3 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl text-[13px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
             </div>
+
+            {/* Selected items chips */}
+            {form.targets[0]?.target_id && (
+              <div className="flex flex-wrap gap-2">
+                {(() => {
+                  const selected = form.targets[0]?.target_type === 'product' 
+                    ? products.find(p => p.id === form.targets[0]?.target_id)
+                    : categories.find(c => c.id === form.targets[0]?.target_id);
+                  if (!selected) return null;
+                  return (
+                    <span key={selected.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)] text-[11px] font-semibold text-[var(--theme-text)]">
+                      {'image_url' in selected && selected.image_url && (
+                        <img src={selected.image_url as string} alt="" className="w-4 h-4 rounded object-cover" />
+                      )}
+                      {selected.name}
+                      <button type="button" onClick={() => updateTargets([{ ...form.targets[0], target_id: '' }])}
+                        className="ml-1 text-[var(--theme-text-muted)] hover:text-red-400 transition-colors">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Items grid */}
             <div className="max-h-[200px] overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
               <div className="grid grid-cols-2 gap-2">
                 {(form.targets[0]?.target_type === 'product' ? filteredProducts : categories).map(item => (

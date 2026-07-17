@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, Users, ShoppingBag, Copy, Power, PowerOff } from 'lucide-react';
+import { Tag, Trash2, CalendarOff, Percent, Gift, Zap, Sparkles, Copy, Power, PowerOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Campaign, Product, Category } from '@/types';
@@ -70,10 +70,6 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
   const targetDisplay = product?.name || category?.name || (camp.targets?.some((t: any) => t.target_type === 'whole_order') ? 'Bütün sifariş' : 'Seçilməmiş');
   const dateDisplay = schedule?.end_date ? new Date(schedule.end_date).toLocaleDateString('az-AZ') : null;
 
-  const totalOrders = camp.total_orders ?? 0;
-  const uniqueCustomers = camp.unique_customers ?? 0;
-  const totalDiscount = camp.total_discount_given ?? 0;
-
   return (
     <>
       {/* ── MOBILE card ── */}
@@ -110,28 +106,6 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
               </span>
               <span className="text-[11px] text-gold font-bold">{discountDisplay}</span>
             </div>
-
-            {(totalOrders > 0 || totalDiscount > 0) && (
-              <div className="flex items-center gap-3 mt-2">
-                {totalOrders > 0 && (
-                  <div className="flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
-                    <ShoppingBag size={10} />
-                    <span className="font-bold">{totalOrders}</span>
-                  </div>
-                )}
-                {uniqueCustomers > 0 && (
-                  <div className="flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
-                    <Users size={10} />
-                    <span className="font-bold">{uniqueCustomers}</span>
-                  </div>
-                )}
-                {totalDiscount > 0 && (
-                  <div className="flex items-center gap-1 text-[10px] text-emerald-400">
-                    <span className="font-bold">-₼{totalDiscount.toFixed(0)}</span>
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <div className="flex items-center gap-1.5">
@@ -256,37 +230,6 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
             </div>
           </div>
         </div>
-
-        {(totalOrders > 0 || totalDiscount > 0) && (
-          <div className="mb-5 p-3 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl">
-            <p className="text-[8px] uppercase tracking-widest text-[var(--theme-text-muted)] mb-2 font-bold">Performans</p>
-            <div className="flex items-center gap-4">
-              {totalOrders > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <ShoppingBag size={12} className="text-gold/70" />
-                  <span className="text-[11px] font-bold text-white">{totalOrders} sifariş</span>
-                </div>
-              )}
-              {uniqueCustomers > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <Users size={12} className="text-gold/70" />
-                  <span className="text-[11px] font-bold text-white">{uniqueCustomers} müştəri</span>
-                </div>
-              )}
-              {totalDiscount > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <Percent size={12} className="text-emerald-400" />
-                  <span className="text-[11px] font-bold text-emerald-400">-₼{totalDiscount.toFixed(0)}</span>
-                </div>
-              )}
-            </div>
-            {camp.last_used_at && (
-              <p className="text-[9px] text-[var(--theme-text-muted)] mt-1.5">
-                Son istifadə: {new Date(camp.last_used_at).toLocaleDateString('az-AZ')}
-              </p>
-            )}
-          </div>
-        )}
 
         <div className="flex items-center justify-between pt-4 border-t border-white/[0.06]">
           <div className="flex items-center gap-2">

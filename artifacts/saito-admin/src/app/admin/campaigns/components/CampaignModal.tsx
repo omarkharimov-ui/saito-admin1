@@ -4,35 +4,78 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Zap, Loader2, Search, CheckCircle2, CalendarOff, Percent, Gift, Sparkles, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Campaign, Product } from '@/types';
+import { Campaign, Product, Category } from '@/types';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import GoldSelect from '@/components/GoldSelect';
 import GoldCalendar from '@/components/GoldCalendar';
 
-export interface FormState {
-  title: string;
-  title_en?: string;
-  title_ru?: string;
-  type: Campaign['type'];
-  target_type: Campaign['target_type'];
-  target_id: string;
-  discount_value: string;
+export interface RuleForm {
+  rule_type: 'percentage' | 'fixed_amount' | 'buy_x_pay_y' | 'buy_x_get_y' | 'happy_hour' | 'free_delivery' | 'combo';
+  percentage?: number;
+  fixed_amount?: number;
   buy_quantity?: number;
-  get_quantity?: number;
-  start_time: string;
-  end_time: string;
+  pay_quantity?: number;
+  free_quantity?: number;
+  start_time?: string;
+  end_time?: string;
+  weekdays?: number[];
+  is_recurring?: boolean;
+  delivery_min_order?: number;
+  delivery_zones?: string[];
+  combo_discount_type?: string;
+  combo_discount_value?: number;
+}
+
+export interface TargetForm {
+  target_type: 'product' | 'category' | 'whole_order' | 'combo';
+  target_id?: string;
+}
+
+export interface ScheduleForm {
+  start_date?: string;
+  end_date?: string;
+  start_time?: string;
+  end_time?: string;
+  weekdays?: number[];
+  is_recurring?: boolean;
+}
+
+export interface FormState {
+  name: string;
+  title: string;
+  description: string;
+  type: Campaign['type'];
+  status: 'active' | 'inactive' | 'draft';
+  priority: number;
+  stackable: boolean;
+  exclusive: boolean;
+  max_uses: number | null;
+  max_uses_per_customer: number | null;
+  max_uses_per_day: number | null;
+  max_uses_per_order: number | null;
+  min_order_amount: number | null;
+  max_order_amount: number | null;
+  dining_type: string[];
+  table_numbers: number[];
+  auto_apply: boolean;
+  requires_coupon: boolean;
+  coupon_code: string;
+  start_date: string;
   end_date: string;
-  status?: 'active' | 'inactive';
+  rules: RuleForm[];
+  targets: TargetForm[];
+  schedules: ScheduleForm[];
 }
 
 interface Props {
   open: boolean;
-  campaign: Campaign | null;
+  campaign: (Campaign & { rules?: any[]; targets?: any[]; schedules?: any[] }) | null;
   form: FormState;
   isSubmitting: boolean;
   productSearch: string;
   filteredProducts: Product[];
   products: Product[];
+  categories: Category[];
   onClose: () => void;
   onFormChange: React.Dispatch<React.SetStateAction<any>>;
   onProductSearch: (v: string) => void;
@@ -40,58 +83,71 @@ interface Props {
 }
 
 const CAMPAIGN_TYPES = (t: Function) => [
-  { id: 'PERCENTAGE' as const, label: t('percentage_discount'), icon: Percent },
-  { id: 'BOGO' as const, label: t('campaign_type_bogo'), icon: Gift },
-  { id: 'BUY2GET1' as const, label: t('campaign_type_buy2'), icon: Gift },
-  { id: 'HAPPY_HOUR' as const, label: t('campaign_type_happy_hour'), icon: Zap },
-  { id: 'FREE_DELIVERY' as const, label: t('campaign_type_free_delivery'), icon: Sparkles },
+  { id: 'PERCENTAGE' as const, label: t('percentage_discount') || 'Faiz Endirimi', icon: Percent },
+  { id: 'FIXED_AMOUNT' as const, label: 'Sabit Məbləğ', icon: Percent },
+  { id: 'BUY_X_PAY_Y' as const, label: 'Al Ödə', icon: Gift },
+  { id: 'BUY_X_GET_Y' as const, label: 'Al Pulsuz', icon: Gift },
+  { id: 'HAPPY_HOUR' as const, label: t('campaign_type_happy_hour') || 'Happy Hour', icon: Zap },
+  { id: 'FREE_DELIVERY' as const, label: t('campaign_type_free_delivery') || 'Pulsuz Çatdırılma', icon: Sparkles },
+  { id: 'COMBO' as const, label: 'Kombo', icon: Gift },
+];
+
+const WEEKDAYS = [
+  { id: 1, label: 'Baz' },
+  { id: 2, label: 'Çax' },
+  { id: 3, label: 'Çər' },
+  { id: 4, label: 'Cax' },
+  { id: 5, label: 'Cüm' },
+  { id: 6, label: 'Şən' },
+  { id: 0, label: 'Bə' },
 ];
 
 const CampaignModal = ({
   open, campaign, form, isSubmitting, productSearch,
-  filteredProducts, products, onClose, onFormChange, onProductSearch, onSubmit,
+  filteredProducts, products, categories, onClose, onFormChange, onProductSearch, onSubmit,
 }: Props) => {
   const { t, language } = useLanguage();
   const campaignTypes = CAMPAIGN_TYPES(t);
-  const titleLang = 'az';
   const [translating, setTranslating] = useState(false);
 
-  const titleValue = form.title;
-  const setTitleValue = (val: string) => onFormChange({ ...form, title: val });
+  const rule = form.rules[0] || { rule_type: form.type.toLowerCase().replace('buy_x_get_y', 'buy_x_get_y').replace('buy_x_pay_y', 'buy_x_pay_y') };
 
-  const handleAiTranslate = async () => {
-    if (!form.title.trim()) return;
-    setTranslating(true);
-    try {
-      const res = await fetch('/api/translate-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: { name: form.title }, languages: ['English', 'Russian'] }),
-      });
-      const d = await res.json();
-      onFormChange({
-        ...form,
-        title_en: d.result?.English?.name || form.title_en || '',
-        title_ru: d.result?.Russian?.name || form.title_ru || '',
-      });
-    } catch { /* silent */ } finally { setTranslating(false); }
+  const updateRule = (patch: Partial<RuleForm>) => {
+    const newRules = [...form.rules];
+    if (newRules.length === 0) {
+      newRules.push({ rule_type: 'percentage', ...patch });
+    } else {
+      newRules[0] = { ...newRules[0], ...patch };
+    }
+    onFormChange({ ...form, rules: newRules });
+  };
+
+  const updateTargets = (targets: TargetForm[]) => {
+    onFormChange({ ...form, targets });
+  };
+
+  const updateSchedules = (schedules: ScheduleForm[]) => {
+    onFormChange({ ...form, schedules });
+  };
+
+  const toggleWeekday = (day: number) => {
+    const current = rule.weekdays || [];
+    const next = current.includes(day) ? current.filter(d => d !== day) : [...current, day];
+    updateRule({ weekdays: next });
+  };
+
+  const toggleDiningType = (type: string) => {
+    const current = form.dining_type || [];
+    const next = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
+    onFormChange({ ...form, dining_type: next });
   };
 
   const formBody = (
     <form noValidate onSubmit={onSubmit} className="space-y-6 px-4 md:px-6 py-6 w-full overflow-hidden">
       <div className="space-y-5">
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('campaign_name')}</label>
-            {translating && (
-              <div className="flex items-center gap-1.5">
-                <Loader2 size={10} className="animate-spin text-[var(--theme-text-secondary)]" />
-                <span className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-widest">EN · RU</span>
-              </div>
-            )}
-          </div>
-          <input type="text" value={titleValue} onChange={(e) => setTitleValue(e.target.value)}
-            onBlur={() => { if (form.title.trim()) handleAiTranslate(); }}
+          <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('campaign_name')}</label>
+          <input type="text" value={form.name || form.title} onChange={(e) => onFormChange({ ...form, name: e.target.value, title: e.target.value })}
             className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
             placeholder={language === 'en' ? 'e.g: Roll Week Discount' : language === 'ru' ? 'напр: Скидка Недели Роллов' : 'Məs: Roll Həftəsi Endirimi'} />
         </div>
@@ -102,109 +158,200 @@ const CampaignModal = ({
             <GoldSelect
               value={form.type}
               options={campaignTypes.map((ct: {id: string, label: string, icon: React.ComponentType<{size: number, strokeWidth: number}>}) => ({ value: ct.id, label: ct.label, icon: <ct.icon size={13} strokeWidth={1.5} /> }))}
-              onChange={(val) => onFormChange({...form, type: val as Campaign['type']})}
+              onChange={(val) => {
+                const newType = val as Campaign['type'];
+                let defaultRule: RuleForm = { rule_type: 'percentage' };
+                if (newType === 'FIXED_AMOUNT') defaultRule = { rule_type: 'fixed_amount', fixed_amount: 0 };
+                else if (newType === 'BUY_X_PAY_Y') defaultRule = { rule_type: 'buy_x_pay_y', buy_quantity: 2, pay_quantity: 1 };
+                else if (newType === 'BUY_X_GET_Y') defaultRule = { rule_type: 'buy_x_get_y', buy_quantity: 2, free_quantity: 1 };
+                else if (newType === 'HAPPY_HOUR') defaultRule = { rule_type: 'happy_hour', percentage: 20, start_time: '14:00', end_time: '17:00', weekdays: [1,2,3,4,5] };
+                else if (newType === 'FREE_DELIVERY') defaultRule = { rule_type: 'free_delivery', delivery_min_order: 30 };
+                else if (newType === 'COMBO') defaultRule = { rule_type: 'combo', combo_discount_type: 'fixed', combo_discount_value: 0 };
+
+                onFormChange({
+                  ...form,
+                  type: newType,
+                  rules: [defaultRule],
+                  targets: [{ target_type: 'whole_order' }],
+                });
+              }}
             />
           </div>
-          {(form.type === 'PERCENTAGE' || form.type === 'HAPPY_HOUR') && (
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('discount_percent_label')}</label>
-              <input type="number" min="1" max="100" value={form.discount_value} onChange={(e) => onFormChange({...form, discount_value: e.target.value})}
-                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
-                placeholder={language === 'en' ? 'e.g: 20' : language === 'ru' ? 'напр: 20' : 'Məs: 20'} />
-            </div>
-          )}
-          {form.type === 'FIXED_AMOUNT' && (
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('discount_amount_label') || 'Endirim məbləği (₼)'}</label>
-              <input type="number" min="0" step="0.01" value={form.discount_value} onChange={(e) => onFormChange({...form, discount_value: e.target.value})}
-                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
-                placeholder="Məs: 5.00" />
-            </div>
-          )}
-          {(form.type === 'BOGO' || form.type === 'BUY2GET1') && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Al</label>
-                <input type="number" min="1" value={form.buy_quantity || (form.type === 'BOGO' ? 1 : 2)} onChange={(e) => onFormChange({...form, buy_quantity: parseInt(e.target.value) || 1})}
-                  className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Ödə</label>
-                <input type="number" min="1" value={form.get_quantity || 1} onChange={(e) => onFormChange({...form, get_quantity: parseInt(e.target.value) || 1})}
-                  className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
-              </div>
-            </div>
-          )}
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Status</label>
+            <GoldSelect
+              value={form.status}
+              options={[
+                { value: 'active', label: 'Aktiv' },
+                { value: 'inactive', label: 'Deaktiv' },
+                { value: 'draft', label: 'Qaralama' },
+              ]}
+              onChange={(val) => onFormChange({ ...form, status: val as any })}
+            />
+          </div>
         </div>
 
-        {form.type === 'HAPPY_HOUR' && (
+        {rule.rule_type === 'percentage' && (
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('discount_percent_label') || 'Endirim Faizi (%)'}</label>
+            <input type="number" min="1" max="100" value={rule.percentage || ''} onChange={(e) => updateRule({ percentage: parseFloat(e.target.value) || 0 })}
+              className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+              placeholder={language === 'en' ? 'e.g: 20' : language === 'ru' ? 'напр: 20' : 'Məs: 20'} />
+          </div>
+        )}
+
+        {rule.rule_type === 'fixed_amount' && (
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('discount_amount_label') || 'Endirim Məbləği (₼)'}</label>
+            <input type="number" min="0" step="0.01" value={rule.fixed_amount || ''} onChange={(e) => updateRule({ fixed_amount: parseFloat(e.target.value) || 0 })}
+              className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+              placeholder="Məs: 5.00" />
+          </div>
+        )}
+
+        {(rule.rule_type === 'buy_x_pay_y' || rule.rule_type === 'buy_x_get_y') && (
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('start_time_label')}</label>
-              <input type="time" value={form.start_time} onChange={(e) => onFormChange({...form, start_time: e.target.value})}
-                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] rounded-xl px-3 py-2.5 text-[13px] text-[var(--theme-text)] outline-none transition-all" />
+              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Al</label>
+              <input type="number" min="1" value={rule.buy_quantity || 1} onChange={(e) => updateRule({ buy_quantity: parseInt(e.target.value) || 1 })}
+                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('end_time_label')}</label>
-              <input type="time" value={form.end_time} onChange={(e) => onFormChange({...form, end_time: e.target.value})}
-                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] rounded-xl px-3 py-2.5 text-[13px] text-[var(--theme-text)] outline-none transition-all" />
+              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">
+                {rule.rule_type === 'buy_x_pay_y' ? 'Ödə' : 'Pulsuz'}
+              </label>
+              <input type="number" min="0" value={rule.rule_type === 'buy_x_pay_y' ? (rule.pay_quantity || 1) : (rule.free_quantity || 1)} onChange={(e) => updateRule(rule.rule_type === 'buy_x_pay_y' ? { pay_quantity: parseInt(e.target.value) || 1 } : { free_quantity: parseInt(e.target.value) || 0 })}
+                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
             </div>
           </div>
         )}
 
-        <div className="space-y-3">
-          <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
-            <input type="text" placeholder={t('search_products')} value={productSearch} onChange={(e) => onProductSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-3 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl text-[13px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
+        {(rule.rule_type === 'percentage' || rule.rule_type === 'happy_hour') && (
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('discount_percent_label') || 'Endirim Faizi (%)'}</label>
+            <input type="number" min="1" max="100" value={rule.percentage || ''} onChange={(e) => updateRule({ percentage: parseFloat(e.target.value) || 0 })}
+              className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+              placeholder="Məs: 20" />
           </div>
-          <div className="max-h-[280px] overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
-            {filteredProducts.length === 0 ? (
-              <p className="text-center py-8 text-[11px] text-[var(--theme-text-muted)]">{t('no_products') || 'Məhsul tapılmadı'}</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {filteredProducts.map(p => (
-                  <button key={p.id} type="button" onClick={() => onFormChange({...form, target_id: p.id, target_type: 'product'})}
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-                      form.target_id === p.id
-                        ? 'bg-[var(--theme-accent-soft)] border-[var(--theme-accent-border)]'
-                        : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] hover:bg-[var(--theme-panel)]'
-                    }`}>
-                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                      {p.image_url
-                        ? <img src={p.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center text-[var(--theme-text-muted)] text-[9px] font-black">{p.name.slice(0,2).toUpperCase()}</div>
-                      }
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className={`text-[12px] font-semibold truncate ${form.target_id === p.id ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)]'}`}>{(language === 'en' && (p as any).translations?.en?.name) || (language === 'ru' && (p as any).translations?.ru?.name) || p.name}</p>
-                      <p className="text-[11px] text-[var(--theme-text-muted)] mt-0.5">₼{p.price}</p>
-                    </div>
-                    {form.target_id === p.id && <CheckCircle2 size={14} className="text-white flex-shrink-0" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        )}
 
-        {form.type === 'PERCENTAGE' && form.target_type === 'product' && form.target_id && (
-          <div className="p-3 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl flex justify-between items-center">
-            <span className="text-[10px] uppercase text-[var(--theme-text-muted)] font-bold tracking-widest">{t('new_price')}</span>
-            <span className="text-lg font-bold text-white">₼{(() => {
-              const p = products.find(prod => prod.id === form.target_id);
-              const disc = parseFloat(form.discount_value) || 0;
-              return p ? (p.price * (1 - disc / 100)).toFixed(2) : '0.00';
-            })()}</span>
+        {rule.rule_type === 'happy_hour' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Başlanğıc</label>
+              <input type="time" value={rule.start_time || '14:00'} onChange={(e) => updateRule({ start_time: e.target.value })}
+                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] outline-none transition-all" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Bitiş</label>
+              <input type="time" value={rule.end_time || '17:00'} onChange={(e) => updateRule({ end_time: e.target.value })}
+                className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] outline-none transition-all" />
+            </div>
+          </div>
+        )}
+
+        {rule.rule_type === 'happy_hour' && (
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Günlər</label>
+            <div className="flex gap-2">
+              {WEEKDAYS.map(day => (
+                <button key={day.id} type="button" onClick={() => toggleWeekday(day.id)}
+                  className={`w-10 h-10 rounded-xl text-[11px] font-bold transition-all ${(rule.weekdays || []).includes(day.id) ? 'bg-[var(--theme-accent)] text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] border border-[var(--theme-border)]'}`}>
+                  {day.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {rule.rule_type === 'free_delivery' && (
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Minimum sifariş (₼)</label>
+            <input type="number" min="0" step="0.01" value={rule.delivery_min_order || ''} onChange={(e) => updateRule({ delivery_min_order: parseFloat(e.target.value) || 0 })}
+              className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl px-4 py-3 text-[14px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+              placeholder="Məs: 30" />
           </div>
         )}
 
         <div className="space-y-2">
-          <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold flex items-center gap-2">
-            <CalendarOff size={11} />{t('end_date_optional')}
+          <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Hədəf</label>
+          <div className="flex gap-2">
+            {['whole_order', 'product', 'category', 'combo'].map(targetType => (
+              <button key={targetType} type="button" onClick={() => updateTargets([{ target_type: targetType as any, target_id: form.targets[0]?.target_id }])}
+                className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${form.targets[0]?.target_type === targetType ? 'bg-[var(--theme-accent)] text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] border border-[var(--theme-border)]'}`}>
+                {targetType === 'whole_order' ? 'Sifariş' : targetType === 'product' ? 'Məhsul' : targetType === 'category' ? 'Kateqoriya' : 'Kombo'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {(form.targets[0]?.target_type === 'product' || form.targets[0]?.target_type === 'category') && (
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">
+              {form.targets[0]?.target_type === 'product' ? 'Məhsul seç' : 'Kateqoriya seç'}
+            </label>
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
+              <input type="text" placeholder={form.targets[0]?.target_type === 'product' ? 'Məhsul axtar...' : 'Kateqoriya axtar...'} value={productSearch} onChange={(e) => onProductSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-3 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] focus:border-[var(--theme-border-strong)] rounded-xl text-[13px] text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all" />
+            </div>
+            <div className="max-h-[200px] overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+              <div className="grid grid-cols-2 gap-2">
+                {(form.targets[0]?.target_type === 'product' ? filteredProducts : categories).map(item => (
+                  <button key={item.id} type="button" onClick={() => {
+                    const newTargets = [...form.targets];
+                    newTargets[0] = { ...newTargets[0], target_id: item.id };
+                    updateTargets(newTargets);
+                  }}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${form.targets[0]?.target_id === item.id ? 'bg-[var(--theme-accent-soft)] border-[var(--theme-accent-border)]' : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] hover:bg-[var(--theme-panel)]'}`}>
+                    <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                      {'image_url' in item && item.image_url ? (
+                        <img src={item.image_url as string} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[var(--theme-text-muted)] text-[9px] font-black">{item.name.slice(0,2).toUpperCase()}</div>
+                      )}
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <p className={`text-[11px] font-semibold truncate ${form.targets[0]?.target_id === item.id ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)]'}`}>{item.name}</p>
+                      {'price' in item && <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">₼{(item as any).price}</p>}
+                    </div>
+                    {form.targets[0]?.target_id === item.id && <CheckCircle2 size={14} className="text-white flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Zaman</label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-[9px] uppercase tracking-widest text-[var(--theme-text-muted)]">Başlanğıc tarix</label>
+              <GoldCalendar value={form.schedules[0]?.start_date || ''} min={new Date().toISOString().split('T')[0]} onChange={(val) => updateSchedules([{ ...form.schedules[0], start_date: val }])} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[9px] uppercase tracking-widest text-[var(--theme-text-muted)]">Bitiş tarix</label>
+              <GoldCalendar value={form.schedules[0]?.end_date || ''} min={new Date().toISOString().split('T')[0]} onChange={(val) => updateSchedules([{ ...form.schedules[0], end_date: val }])} />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 mt-2">
+            <input type="checkbox" checked={form.schedules[0]?.is_recurring || false} onChange={(e) => updateSchedules([{ ...form.schedules[0], is_recurring: e.target.checked }])}
+              className="w-4 h-4 rounded border-[var(--theme-border)] bg-[var(--theme-surface-soft)] text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]" />
+            <span className="text-[11px] text-[var(--theme-text-secondary)]">Təkrarlayan (həftəlik)</span>
           </label>
-          <GoldCalendar value={form.end_date} min={new Date().toISOString().split('T')[0]} onChange={(val) => onFormChange({...form, end_date: val})} />
-          {form.end_date && <p className="text-[10px] text-[var(--theme-text-muted)]">{t('campaign_auto_deactivate')}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Mətbəx növü</label>
+          <div className="flex gap-2">
+            {['dine_in', 'takeaway', 'delivery'].map(type => (
+              <button key={type} type="button" onClick={() => toggleDiningType(type)}
+                className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${(form.dining_type || []).includes(type) ? 'bg-[var(--theme-accent)] text-black' : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] border border-[var(--theme-border)]'}`}>
+                {type === 'dine_in' ? 'İçəridə' : type === 'takeaway' ? 'Götür' : 'Çatdır'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </form>
@@ -215,7 +362,6 @@ const CampaignModal = ({
 
   return createPortal(
     <>
-      {/* ── MOBILE: slide-in from right ── */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -228,7 +374,6 @@ const CampaignModal = ({
             className="fixed inset-0 z-[120] flex flex-col bg-card md:hidden"
             style={{ overflowY: 'auto' }}
           >
-            {/* Mobile Header */}
             <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.08] bg-card">
               <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-all">
                 <ChevronLeft size={20} />
@@ -240,18 +385,16 @@ const CampaignModal = ({
               <div className="w-9" />
             </div>
 
-            {/* Mobile Body */}
             <div className="flex-1 pb-28">
               {formBody}
             </div>
 
-            {/* Mobile Footer */}
             <div className="fixed bottom-0 inset-x-0 px-4 pb-7 pt-3 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/95 to-transparent z-10">
               <button
                 type="button" onClick={onSubmit as any} disabled={isSubmitting}
                 className="w-full py-3.5 rounded-xl font-bold tracking-[0.1em] uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-40 bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)]"
               >
-                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : campaign ? <Save size={18} /> : <Zap size={18} />}
+                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                 {campaign ? t('edit_campaign').toUpperCase() : t('new_campaign').toUpperCase()}
               </button>
             </div>
@@ -259,7 +402,6 @@ const CampaignModal = ({
         )}
       </AnimatePresence>
 
-      {/* ── DESKTOP: centered modal ── */}
       <AnimatePresence>
         {open && (
           <div className="fixed inset-0 z-[120] hidden md:flex items-center justify-center p-4">
@@ -293,7 +435,7 @@ const CampaignModal = ({
                 <button type="button" onClick={onSubmit as any} disabled={isSubmitting}
                   className="w-full py-3 rounded-xl font-bold tracking-[0.1em] uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-40 bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)]"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : campaign ? <Save size={18} /> : <Zap size={18} />}
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                   {campaign ? t('edit_campaign').toUpperCase() : t('new_campaign').toUpperCase()}
                 </button>
               </div>

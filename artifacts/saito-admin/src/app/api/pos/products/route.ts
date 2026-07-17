@@ -15,18 +15,22 @@ export async function GET() {
       supabase.from('recipes').select('*'),
       supabase.from('product_variants').select('*'),
       supabase.from('combos').select('*, items:combo_items(*, product:products(*))').eq('is_active', true),
-      supabase.from('campaigns').select('*').eq('status', 'active'),
+      supabase.from('campaigns').select('*, rules:campaign_rules(*), targets:campaign_targets(*)').eq('is_active', true).eq('deleted_at', null),
     ]);
 
-    // Compute effective prices server-side
     const now = new Date().toISOString();
+    const campaigns = (campaignsRes.data || []).map((c: any) => ({
+      ...c,
+      rule: c.rules?.[0],
+      target: c.targets?.find((t: any) => t.target_type === 'product' || t.target_type === 'category' || t.target_type === 'whole_order'),
+    }));
+
     const products = (productsRes.data || [])
       .map((p: any) => ({
         ...p,
-        effective_price: computeEffectivePrice(p, (campaignsRes.data || []), now),
+        effective_price: computeEffectivePrice(p, campaigns, now),
       }));
 
-    // Compute combo pricings server-side
     const combos = (combosRes.data || []).map((c: any) => ({
       ...c,
       effective_price: computeComboEffectivePrice(c, now),
@@ -50,22 +54,33 @@ export async function GET() {
 
 interface Campaign {
   id: string;
+  name?: string;
+  title?: string;
   status: string;
-  type: string | null;
-  discount_type: string | null;
-  discount_value: number | null;
-  target_type: string | null;
-  target_id: string | null;
-  start_time: string | null;
-  end_time: string | null;
-  start_date: string | null;
-  end_date: string | null;
+  type: string;
   priority: number | null;
-  max_discount_amount: number | null;
   max_uses: number | null;
   current_uses: number | null;
-  label: string | null;
-  badge_color: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  rule?: {
+    rule_type: string;
+    percentage?: number;
+    fixed_amount?: number;
+    buy_quantity?: number;
+    pay_quantity?: number;
+    free_quantity?: number;
+    start_time?: string;
+    end_time?: string;
+    weekdays?: number[];
+    is_recurring?: boolean;
+  };
+  target?: {
+    target_type: string;
+    target_id?: string;
+  };
 }
 
 function computeEffectivePrice(product: any, campaigns: Campaign[], now: string): {
@@ -80,23 +95,33 @@ function computeEffectivePrice(product: any, campaigns: Campaign[], now: string)
   const basePrice = Number(product.price) || 0;
   const nowDate = now.split('T')[0];
   const nowTime = now.split('T')[1]?.slice(0, 5) || '00:00';
+  const dayOfWeek = new Date().getDay();
 
-  const sorted = [...campaigns]
+  const sorted = campaigns
     .filter(c => {
-      if (c.status && c.status !== 'active') return false;
+      if (c.status !== 'active') return false;
       if (c.max_uses && c.current_uses !== null && c.current_uses >= c.max_uses) return false;
       if (c.start_date && c.start_date > nowDate) return false;
       if (c.end_date && c.end_date < nowDate) return false;
-      if (c.start_time && c.start_time > nowTime) return false;
-      if (c.end_time && c.end_time < nowTime) return false;
-      if (c.target_type === 'product' && c.target_id !== product.id) return false;
-      if (c.target_type === 'category' && c.target_id !== (product.category_id || '')) return false;
+      if (!c.rule) return false;
+
+      if (c.rule.rule_type === 'happy_hour') {
+        if (c.rule.start_time && c.rule.start_time > nowTime) return false;
+        if (c.rule.end_time && c.rule.end_time < nowTime) return false;
+        if (c.rule.weekdays && !c.rule.weekdays.includes(dayOfWeek)) return false;
+      }
+
+      if (c.target?.target_type === 'product' && c.target.target_id !== product.id) return false;
+      if (c.target?.target_type === 'category' && c.target.target_id !== product.category_id) return false;
+      if (c.target?.target_type === 'whole_order') return true;
+      if (!c.target) return false;
+
       return true;
     })
     .sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
   const best = sorted[0];
-  if (!best) {
+  if (!best || !best.rule) {
     return {
       base_price: basePrice,
       effective_price: basePrice,
@@ -108,32 +133,29 @@ function computeEffectivePrice(product: any, campaigns: Campaign[], now: string)
     };
   }
 
-  const dt = best.discount_type || (best.type === 'FIXED_AMOUNT' ? 'fixed' : 'percentage');
-
   let discount = 0;
-  if (best.type === 'BOGO') {
-    discount = Math.round(basePrice * 0.5 * 100) / 100;
-  } else if (best.type === 'BUY2GET1') {
+  const rule = best.rule;
+
+  if (rule.rule_type === 'percentage') {
+    discount = Math.round(basePrice * (rule.percentage || 0) / 100 * 100) / 100;
+  } else if (rule.rule_type === 'fixed_amount') {
+    discount = Math.min(rule.fixed_amount || 0, basePrice);
+  } else if (rule.rule_type === 'happy_hour') {
+    discount = Math.round(basePrice * (rule.percentage || 0) / 100 * 100) / 100;
+  } else if (rule.rule_type === 'buy_x_pay_y' || rule.rule_type === 'buy_x_get_y') {
     discount = Math.round(basePrice / 3 * 100) / 100;
-  } else if (dt === 'percentage' || best.type === 'PERCENTAGE' || best.type === 'HAPPY_HOUR') {
-    discount = Math.round(basePrice * (best.discount_value || 0) / 100 * 100) / 100;
-  } else {
-    discount = Math.min(best.discount_value || 0, basePrice);
-  }
-  if (best.max_discount_amount && discount > best.max_discount_amount) {
-    discount = best.max_discount_amount;
   }
 
-  const displayType = best.type || best.discount_type;
+  const campaignLabel = best.name || best.title || rule.rule_type;
 
   return {
     base_price: basePrice,
     effective_price: Math.max(0, basePrice - discount),
     discount_amount: discount,
-    discount_type: displayType,
+    discount_type: rule.rule_type,
     campaign_id: best.id,
-    campaign_label: best.label || best.type || null,
-    campaign_badge: best.badge_color || null,
+    campaign_label: campaignLabel,
+    campaign_badge: '#D4AF37',
   };
 }
 

@@ -16,11 +16,16 @@ import { Campaign, Product, Category } from '@/types';
 import type { FormState } from './components/CampaignModal';
 
 type CampaignWithPerformance = Campaign & {
+  rules?: any[];
+  targets?: any[];
+  schedules?: any[];
   total_orders?: number | null;
   unique_customers?: number | null;
   total_discount_given?: number | null;
   total_items_sold?: number | null;
   last_used_at?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
 };
 
 export default function CampaignsPage() {
@@ -30,23 +35,36 @@ export default function CampaignsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [editingCampaign, setEditingCampaign] = useState<CampaignWithPerformance | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [productSearch, setProductSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [form, setForm] = useState<FormState>({
+    name: '',
     title: '',
+    description: '',
     type: 'PERCENTAGE',
-    target_type: 'product',
-    target_id: '',
-    discount_value: '',
-    buy_quantity: 1,
-    get_quantity: 1,
-    start_time: '',
-    end_time: '',
-    end_date: '',
     status: 'active',
+    priority: 0,
+    stackable: false,
+    exclusive: false,
+    max_uses: null,
+    max_uses_per_customer: null,
+    max_uses_per_day: null,
+    max_uses_per_order: null,
+    min_order_amount: null,
+    max_order_amount: null,
+    dining_type: ['dine_in', 'takeaway', 'delivery'],
+    table_numbers: [],
+    auto_apply: true,
+    requires_coupon: false,
+    coupon_code: '',
+    start_date: '',
+    end_date: '',
+    rules: [{ rule_type: 'percentage', percentage: 0 }],
+    targets: [{ target_type: 'whole_order' }],
+    schedules: [{ is_recurring: false, weekdays: [1,2,3,4,5,6,7] }],
   });
 
   const fetchData = useCallback(async () => {
@@ -64,7 +82,7 @@ export default function CampaignsPage() {
       const perfData = perfRes.ok ? await perfRes.json() : { data: [] };
 
       const performanceMap = new Map((perfData.data || []).map((p: any) => [p.id, p]));
-      const campaignsWithPerformance = (campData.data || []).map((c: Campaign) => ({
+      const campaignsWithPerformance = (campData.data || []).map((c: any) => ({
         ...c,
         ...(performanceMap.get(c.id) || {}),
       }));
@@ -97,60 +115,102 @@ export default function CampaignsPage() {
   const openCreate = () => {
     setEditingCampaign(null);
     setForm({
+      name: '',
       title: '',
+      description: '',
       type: 'PERCENTAGE',
-      target_type: 'product',
-      target_id: '',
-      discount_value: '',
-      buy_quantity: 1,
-      get_quantity: 1,
-      start_time: '',
-      end_time: '',
-      end_date: '',
       status: 'active',
+      priority: 0,
+      stackable: false,
+      exclusive: false,
+      max_uses: null,
+      max_uses_per_customer: null,
+      max_uses_per_day: null,
+      max_uses_per_order: null,
+      min_order_amount: null,
+      max_order_amount: null,
+      dining_type: ['dine_in', 'takeaway', 'delivery'],
+      table_numbers: [],
+      auto_apply: true,
+      requires_coupon: false,
+      coupon_code: '',
+      start_date: '',
+      end_date: '',
+      rules: [{ rule_type: 'percentage', percentage: 0 }],
+      targets: [{ target_type: 'whole_order' }],
+      schedules: [{ is_recurring: false, weekdays: [1,2,3,4,5,6,7] }],
     });
     setProductSearch('');
     setModalOpen(true);
   };
 
-  const openEdit = (camp: Campaign) => {
+  const openEdit = (camp: CampaignWithPerformance) => {
     setEditingCampaign(camp);
+    const rule = camp.rules?.[0] || { rule_type: 'percentage', percentage: 0 };
+    const target = camp.targets?.[0] || { target_type: 'whole_order' };
+    const schedule = camp.schedules?.[0] || {};
+    const startDate = schedule.start_date || camp.start_date || '';
+    const endDate = schedule.end_date || camp.end_date || '';
+
     setForm({
+      name: camp.name || camp.title || '',
       title: camp.title || '',
+      description: camp.description || '',
       type: camp.type || 'PERCENTAGE',
-      target_type: camp.target_type || 'product',
-      target_id: camp.target_id || '',
-      discount_value: String(camp.discount_value || ''),
-      buy_quantity: camp.buy_quantity || (camp.type === 'BUY2GET1' ? 2 : 1),
-      get_quantity: camp.get_quantity || 1,
-      start_time: camp.start_time || '',
-      end_time: camp.end_time || '',
-      end_date: camp.end_date || '',
-      status: 'active',
+      status: camp.status === 'expired' ? 'inactive' : (camp.status || 'active'),
+      priority: camp.priority || 0,
+      stackable: camp.stackable || false,
+      exclusive: camp.exclusive || false,
+      max_uses: camp.max_uses || null,
+      max_uses_per_customer: camp.max_uses_per_customer || null,
+      max_uses_per_day: camp.max_uses_per_day || null,
+      max_uses_per_order: camp.max_uses_per_order || null,
+      min_order_amount: camp.min_order_amount || null,
+      max_order_amount: camp.max_order_amount || null,
+      dining_type: camp.dining_type || ['dine_in', 'takeaway', 'delivery'],
+      table_numbers: camp.table_numbers || [],
+      auto_apply: camp.auto_apply ?? true,
+      requires_coupon: camp.requires_coupon || false,
+      coupon_code: camp.coupon_code || '',
+      start_date: startDate,
+      end_date: endDate,
+      rules: [rule],
+      targets: [target],
+      schedules: [schedule],
     });
     setModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim()) return;
-    if (form.type === 'PERCENTAGE' || form.type === 'HAPPY_HOUR' || form.type === 'FIXED_AMOUNT') {
-      if (!form.discount_value || parseFloat(form.discount_value) <= 0) return;
-    }
+    if (!form.name.trim() && !form.title.trim()) return;
     setIsSubmitting(true);
     try {
       const payload: Record<string, any> = {
-        title: form.title.trim(),
+        name: form.name.trim() || form.title.trim(),
+        title: form.title.trim() || form.name.trim(),
+        description: form.description.trim() || null,
         type: form.type,
-        discount_value: parseFloat(form.discount_value) || 0,
-        target_type: form.target_type,
-        target_id: form.target_id || null,
-        status: form.status || (form.end_date ? 'active' : 'active'),
-        start_time: form.start_time || null,
-        end_time: form.end_time || null,
+        status: form.status,
+        priority: form.priority,
+        stackable: form.stackable,
+        exclusive: form.exclusive,
+        max_uses: form.max_uses,
+        max_uses_per_customer: form.max_uses_per_customer,
+        max_uses_per_day: form.max_uses_per_day,
+        max_uses_per_order: form.max_uses_per_order,
+        min_order_amount: form.min_order_amount,
+        max_order_amount: form.max_order_amount,
+        dining_type: form.dining_type,
+        table_numbers: form.table_numbers,
+        auto_apply: form.auto_apply,
+        requires_coupon: form.requires_coupon,
+        coupon_code: form.coupon_code || null,
+        start_date: form.start_date || null,
         end_date: form.end_date || null,
-        buy_quantity: form.buy_quantity || 1,
-        get_quantity: form.get_quantity || 1,
+        rules: form.rules,
+        targets: form.targets,
+        schedules: form.schedules,
       };
 
       if (editingCampaign) payload.id = editingCampaign.id;
@@ -306,12 +366,13 @@ export default function CampaignsPage() {
 
       <CampaignModal
         open={modalOpen}
-        campaign={editingCampaign}
+        campaign={editingCampaign as any}
         form={form}
         isSubmitting={isSubmitting}
         productSearch={productSearch}
         filteredProducts={filteredProducts}
         products={products}
+        categories={categories}
         onClose={() => setModalOpen(false)}
         onFormChange={setForm}
         onProductSearch={setProductSearch}

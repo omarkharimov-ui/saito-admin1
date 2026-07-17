@@ -68,45 +68,73 @@ export interface ProductVariant {
 export interface Campaign {
   id: string;
   title: string;
+  name?: string;
   description?: string;
-  type: 'BOGO' | 'BUY2GET1' | 'PERCENTAGE' | 'HAPPY_HOUR' | 'FIXED_AMOUNT' | 'FREE_DELIVERY';
-  discount_value?: number;
-  target_type: 'category' | 'product' | 'combo' | 'all';
+  type: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'BUY_X_PAY_Y' | 'BUY_X_GET_Y' | 'HAPPY_HOUR' | 'FREE_DELIVERY' | 'COMBO';
+  status: 'active' | 'inactive' | 'draft' | 'expired';
+  priority?: number;
+  stackable?: boolean;
+  exclusive?: boolean;
+  max_uses?: number;
+  max_uses_per_customer?: number;
+  max_uses_per_day?: number;
+  max_uses_per_order?: number;
+  min_order_amount?: number;
+  max_order_amount?: number;
+  customer_tags?: string[];
+  dining_type?: string[];
+  table_numbers?: number[];
+  branch_id?: string;
+  auto_apply?: boolean;
+  requires_coupon?: boolean;
+  coupon_code?: string;
+  is_active?: boolean;
+  deleted_at?: string;
+  created_at?: string;
+  updated_at?: string;
+  current_uses?: number;
+}
+
+export interface CampaignRule {
+  id: string;
+  campaign_id: string;
+  rule_type: 'percentage' | 'fixed_amount' | 'buy_x_pay_y' | 'buy_x_get_y' | 'happy_hour' | 'free_delivery' | 'combo';
+  percentage?: number;
+  fixed_amount?: number;
+  min_purchase_amount?: number;
+  buy_quantity?: number;
+  pay_quantity?: number;
+  free_quantity?: number;
+  reward_product_id?: string;
+  reward_category_id?: string;
+  reward_same_as_buy?: boolean;
+  start_time?: string;
+  end_time?: string;
+  weekdays?: number[];
+  is_recurring?: boolean;
+  delivery_min_order?: number;
+  delivery_zones?: string[];
+  combo_id?: string;
+  combo_discount_type?: string;
+  combo_discount_value?: number;
+}
+
+export interface CampaignTarget {
+  id: string;
+  campaign_id: string;
+  target_type: 'product' | 'category' | 'whole_order' | 'combo';
   target_id?: string;
+}
+
+export interface CampaignSchedule {
+  id: string;
+  campaign_id: string;
   start_date?: string;
   end_date?: string;
   start_time?: string;
   end_time?: string;
-  status: 'active' | 'inactive' | 'draft' | 'expired';
-  priority?: number;
-  min_purchase_amount?: number;
-  min_items?: number;
-  applicable_categories?: string[];
-  applicable_products?: string[];
-  combo_id?: string;
-  max_discount_amount?: number;
-  current_uses?: number;
-  max_uses?: number;
-  label?: string;
-  badge_color?: string;
-  image_url?: string;
-  created_at?: string;
-  buy_quantity?: number;
-  get_quantity?: number;
-  get_same_product?: boolean;
-  get_product_id?: string;
-  get_category_id?: string;
-  max_uses_per_customer?: number;
-  max_uses_per_day?: number;
-  target_customer_type?: string;
-  min_visit_count?: number;
-  applicable_days?: number[];
-  applicable_tables?: number[];
-  applicable_rooms?: string[];
-  stackable?: boolean;
-  stack_with_ids?: string[];
-  combo_discount_type?: string;
-  combo_discount_value?: number;
+  weekdays?: number[];
+  is_recurring?: boolean;
 }
 
 export interface ComboItem {

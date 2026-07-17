@@ -8,22 +8,29 @@ import { Campaign, Product, Category } from '@/types';
 
 const CAMPAIGN_ICONS: Record<string, React.ElementType> = {
   PERCENTAGE: Percent,
-  BOGO: Gift,
-  BUY2GET1: Gift,
+  BUY_X_PAY_Y: Gift,
+  BUY_X_GET_Y: Gift,
   HAPPY_HOUR: Zap,
   FREE_DELIVERY: Sparkles,
+  FIXED_AMOUNT: Percent,
+  COMBO: Tag,
 };
 
 const CAMPAIGN_LABELS: Record<string, string> = {
   PERCENTAGE: 'Faiz Endirimi',
-  BOGO: 'Al 1, 1 Pulsuz',
-  BUY2GET1: '2 Al, 1 Pulsuz',
+  BUY_X_PAY_Y: 'Al Ödə',
+  BUY_X_GET_Y: 'Al Pulsuz',
   HAPPY_HOUR: 'Happy Hour',
   FREE_DELIVERY: 'Pulsuz Çatdırılma',
+  FIXED_AMOUNT: 'Sabit Endirim',
+  COMBO: 'Kombo',
 };
 
 interface Props {
   camp: Campaign & {
+    rules?: any[];
+    targets?: any[];
+    schedules?: any[];
     total_orders?: number | null;
     unique_customers?: number | null;
     total_discount_given?: number | null;
@@ -39,14 +46,27 @@ interface Props {
 const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) => {
   const { t, language } = useLanguage();
   const Icon = CAMPAIGN_ICONS[camp.type] || Tag;
-  const target = camp.target_type === 'product'
-    ? products.find(p => p.id === camp.target_id)
-    : categories.find(c => c.id === camp.target_id);
-  const isActive = camp.status === 'active';
+  const rule = camp.rules?.[0];
+  const target = camp.targets?.find((t: any) => t.target_type === 'product');
+  const categoryTarget = camp.targets?.find((t: any) => t.target_type === 'category');
+  const schedule = camp.schedules?.[0];
+  const isActive = camp.status === 'active' && camp.is_active !== false;
 
-  const discountDisplay = camp.discount_value
-    ? `${camp.discount_value}%`
-    : camp.type === 'BOGO' ? '1+1' : camp.type === 'BUY2GET1' ? '2+1' : '—';
+  const product = target ? products.find(p => p.id === target.target_id) : null;
+  const category = categoryTarget ? categories.find(c => c.id === categoryTarget.target_id) : null;
+
+  let discountDisplay = '—';
+  if (rule) {
+    if (rule.rule_type === 'percentage') discountDisplay = `${rule.percentage}%`;
+    else if (rule.rule_type === 'fixed_amount') discountDisplay = `₼${rule.fixed_amount}`;
+    else if (rule.rule_type === 'buy_x_pay_y') discountDisplay = `${rule.buy_quantity} al ${rule.pay_quantity} ödə`;
+    else if (rule.rule_type === 'buy_x_get_y') discountDisplay = `${rule.buy_quantity} al ${rule.free_quantity} pulsuz`;
+    else if (rule.rule_type === 'happy_hour') discountDisplay = `Happy Hour`;
+    else if (rule.rule_type === 'free_delivery') discountDisplay = 'Pulsuz çatdırılma';
+  }
+
+  const targetDisplay = product?.name || category?.name || (camp.targets?.some((t: any) => t.target_type === 'whole_order') ? 'Bütün sifariş' : 'Seçilməmiş');
+  const dateDisplay = schedule?.end_date ? new Date(schedule.end_date).toLocaleDateString('az-AZ') : null;
 
   const totalOrders = camp.total_orders ?? 0;
   const uniqueCustomers = camp.unique_customers ?? 0;
@@ -65,39 +85,30 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
         )}
         <div className="flex gap-4 p-4">
-          {/* Left: product image or icon */}
           <div className="shrink-0">
-            {camp.target_type === 'product' && (target as Product)?.image_url ? (
+            {product?.image_url ? (
               <div className="w-[72px] h-[72px] rounded-2xl overflow-hidden border border-[var(--theme-border)] bg-[var(--theme-surface-soft)]">
-                <img src={(target as Product).image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                <img src={product.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div
-                className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)]"
-              >
+              <div className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)]">
                 <Icon size={26} strokeWidth={1.3} className="text-gold/70" />
               </div>
             )}
           </div>
 
-          {/* Right: content */}
           <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5 pr-12">
-            {/* Top row */}
             <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-bold text-[var(--theme-text)] leading-snug line-clamp-2">{camp.title}</p>
+              <p className="text-[15px] font-bold text-[var(--theme-text)] leading-snug line-clamp-2">{camp.name || camp.title}</p>
             </div>
 
-            {/* Middle */}
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <span
-                className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border-[var(--theme-accent-border)]"
-              >
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border-[var(--theme-accent-border)]">
                 {CAMPAIGN_LABELS[camp.type] ?? camp.type}
               </span>
               <span className="text-[11px] text-gold font-bold">{discountDisplay}</span>
             </div>
 
-            {/* Performance metrics */}
             {(totalOrders > 0 || totalDiscount > 0) && (
               <div className="flex items-center gap-3 mt-2">
                 {totalOrders > 0 && (
@@ -120,7 +131,6 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
               </div>
             )}
 
-            {/* Bottom row */}
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <div className="flex items-center gap-1.5">
                 {isActive ? (
@@ -135,12 +145,12 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
                   {isActive ? t('active') : t('passive')}
                 </span>
               </div>
-              {camp.end_date && (
+              {dateDisplay && (
                 <>
                   <span className="w-px h-3 bg-[var(--theme-border)]" />
                   <div className="flex items-center gap-1 text-[10px] text-[var(--theme-text-muted)]">
                     <CalendarOff size={9} />
-                    {new Date(camp.end_date).toLocaleDateString('az-AZ')}
+                    {dateDisplay}
                   </div>
                 </>
               )}
@@ -148,9 +158,8 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
           </div>
         </div>
 
-        {/* Delete button - always visible on mobile */}
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
+          onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title || camp.name || ''); }}
           className="absolute top-4 right-4 w-9 h-9 rounded-xl flex items-center justify-center text-[var(--theme-text-muted)] hover:text-red-400 hover:bg-red-500/[0.08] transition-all"
         >
           <Trash2 size={17} />
@@ -165,20 +174,18 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         onClick={() => onEdit(camp)}
         className="hidden md:block bg-[var(--theme-panel)] backdrop-blur-sm border border-[var(--theme-border)] rounded-[20px] p-6 md:p-7 relative transition-all overflow-hidden cursor-pointer shadow-[0_4px_32px_rgba(0,0,0,0.35)]"
       >
-        {/* Status badges */}
         <div className="absolute top-4 left-4 flex items-center gap-1.5">
           {!isActive && (
             <span className="px-2 py-0.5 rounded-full bg-[var(--theme-surface-soft)] text-[var(--theme-text-secondary)] text-[10px] font-bold uppercase tracking-wider border border-[var(--theme-border)]">
-              {t('combo_inactive') || 'Deaktiv'}
+              Deaktiv
             </span>
           )}
         </div>
 
-        {/* Delete button - always visible */}
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title); }}
+          onClick={(e) => { e.stopPropagation(); onDelete(camp.id, camp.title || camp.name || ''); }}
           className="absolute top-4 right-4 w-9 h-9 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-red-500 hover:bg-red-500/[0.08] transition-all"
-          title={t('delete_campaign')}
+          title="Sil"
         >
           <Trash2 size={18} />
         </button>
@@ -188,7 +195,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             <Icon size={22} strokeWidth={1.5} />
           </div>
           <div className="pr-12 flex-1 min-w-0">
-            <h3 className="text-base font-bold text-white mb-1 leading-tight truncate">{camp.title}</h3>
+            <h3 className="text-base font-bold text-white mb-1 leading-tight truncate">{camp.name || camp.title}</h3>
             <div className="flex items-center gap-2">
               <span className="text-[9px] uppercase tracking-widest text-gold/80 font-semibold">{CAMPAIGN_LABELS[camp.type] ?? camp.type}</span>
               <span className="text-[10px] text-gold font-bold">{discountDisplay}</span>
@@ -199,20 +206,21 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
         <div className="mb-5">
           <div className="flex items-center gap-3 p-2.5 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl">
             <div className="w-9 h-9 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] overflow-hidden flex-shrink-0">
-              {camp.target_type === 'product' && (target as Product)?.image_url ? (
-                <img src={(target as Product).image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+              {product?.image_url ? (
+                <img src={product.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-[var(--theme-text-muted)]"><Tag size={14} /></div>
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-[8px] uppercase tracking-widest text-[var(--theme-text-muted)] mb-0.5">{camp.target_type === 'product' ? t('product') : t('category')}</p>
-              <p className="text-xs font-semibold text-[var(--theme-text-secondary)] truncate">{target?.name || t('error_not_found')}</p>
+              <p className="text-[8px] uppercase tracking-widest text-[var(--theme-text-muted)] mb-0.5">
+                {target ? 'Məhsul' : category ? 'Kateqoriya' : 'Hedef'}
+              </p>
+              <p className="text-xs font-semibold text-[var(--theme-text-secondary)] truncate">{targetDisplay}</p>
             </div>
           </div>
         </div>
 
-        {/* Performance metrics */}
         {(totalOrders > 0 || totalDiscount > 0) && (
           <div className="mb-5 p-3 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl">
             <p className="text-[8px] uppercase tracking-widest text-[var(--theme-text-muted)] mb-2 font-bold">Performans</p>
@@ -255,9 +263,9 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete }: Props) =
             </span>
           </div>
           <div className="text-right">
-            {camp.end_date && (
+            {dateDisplay && (
               <div className="flex items-center gap-1 text-[9px] font-medium text-gold/60 mb-0.5">
-                <CalendarOff size={9} />{new Date(camp.end_date).toLocaleDateString('az-AZ')}
+                <CalendarOff size={9} />{dateDisplay}
               </div>
             )}
             <span className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-tight">{new Date(camp.created_at!).toLocaleDateString('az-AZ')}</span>

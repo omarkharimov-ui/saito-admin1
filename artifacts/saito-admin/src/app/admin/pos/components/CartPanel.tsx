@@ -11,9 +11,9 @@ import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
 
 interface CartPanelProps {
   cart: PosCart | null;
-  campaign?: { id: string; name: string; discount: number; type: string; target_type?: string; target_id?: string } | null;
+  campaign?: { id: string; name: string; discount: number; type: string; rule_type?: string; target_type?: string; target_id?: string; buy_quantity?: number; pay_quantity?: number; free_quantity?: number } | null;
   onUpdateQty: (index: number, delta: number) => void;
-  onPlaceOrder: (campaign?: { type: string; target_type: string; target_id?: string; buy_quantity?: number; get_quantity?: number }) => void;
+  onPlaceOrder: (campaign?: { id?: string; type: string; target_type: string; target_id?: string; buy_quantity?: number; pay_quantity?: number; free_quantity?: number }) => void;
   onClearDraft: () => void;
   onBack: () => void;
   orderButtonStatus: SendOrderButtonStatus;
@@ -91,27 +91,38 @@ export function CartPanel({
 
   let total = originalTotal;
   let campaignDiscount = 0;
-  if (campaign && (campaign.type === 'BOGO' || campaign.type === 'BUY2GET1')) {
-    const buyQty = campaign.type === 'BOGO' ? 1 : 2;
-    const getQty = campaign.type === 'BOGO' ? 1 : 1;
-    const applicableItems = cart.items.filter(i => {
-      if (campaign.target_type === 'product') return i.product_id === campaign.target_id;
-      if (campaign.target_type === 'category') return i.category_id === campaign.target_id;
-      return true;
-    });
-    const applicableCount = applicableItems.reduce((s, i) => s + i.quantity, 0);
-    const freeItems = Math.floor(applicableCount / (buyQty + getQty)) * getQty;
-    if (freeItems > 0) {
-      const sorted = [...applicableItems].sort((a, b) => (b.original_unit_price ?? b.unit_price) - (a.original_unit_price ?? a.unit_price));
-      let remaining = freeItems;
-      for (const item of sorted) {
-        if (remaining <= 0) break;
-        const take = Math.min(remaining, item.quantity);
-        campaignDiscount += take * (item.original_unit_price ?? item.unit_price);
-        remaining -= take;
+  if (campaign) {
+    const ruleType = campaign.rule_type || campaign.type;
+    if (ruleType === 'buy_x_pay_y' || ruleType === 'buy_x_get_y') {
+      const buyQty = campaign.buy_quantity || (ruleType === 'buy_x_pay_y' ? 2 : 2);
+      const payQty = campaign.pay_quantity || 1;
+      const freeQty = campaign.free_quantity || 1;
+      const applicableItems = cart.items.filter(i => {
+        if (campaign.target_type === 'product') return i.product_id === campaign.target_id;
+        if (campaign.target_type === 'category') return i.category_id === campaign.target_id;
+        return true;
+      });
+      const applicableCount = applicableItems.reduce((s, i) => s + i.quantity, 0);
+      const groupSize = ruleType === 'buy_x_pay_y' ? buyQty : buyQty + freeQty;
+      const freeItems = Math.floor(applicableCount / groupSize) * (ruleType === 'buy_x_pay_y' ? (buyQty - payQty) : freeQty);
+      if (freeItems > 0) {
+        const sorted = [...applicableItems].sort((a, b) => (b.original_unit_price ?? b.unit_price) - (a.original_unit_price ?? a.unit_price));
+        let remaining = freeItems;
+        for (const item of sorted) {
+          if (remaining <= 0) break;
+          const take = Math.min(remaining, item.quantity);
+          campaignDiscount += take * (item.original_unit_price ?? item.unit_price);
+          remaining -= take;
+        }
       }
+      total = originalTotal - campaignDiscount;
+    } else if (ruleType === 'percentage' || ruleType === 'happy_hour') {
+      campaignDiscount = originalTotal * ((campaign.discount || 0) / 100);
+      total = originalTotal - campaignDiscount;
+    } else if (ruleType === 'fixed_amount') {
+      campaignDiscount = Math.min(campaign.discount || 0, originalTotal);
+      total = originalTotal - campaignDiscount;
     }
-    total = originalTotal - campaignDiscount;
   } else {
     const discountAmount = cart.discount_amount ?? 0;
     if (discountAmount > 0) {

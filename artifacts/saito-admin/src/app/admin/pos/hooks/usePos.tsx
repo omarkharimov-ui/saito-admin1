@@ -339,7 +339,7 @@ export function usePos() {
     });
   };
 
-  const placeOrder = async (campaign?: { id?: string; type: string; target_type: string; target_id?: string; buy_quantity?: number; get_quantity?: number }) => {
+  const placeOrder = async (campaign?: { id?: string; type: string; target_type: string; target_id?: string; rule_type?: string; buy_quantity?: number; pay_quantity?: number; free_quantity?: number }) => {
     if (!cart || placingOrder) return;
     setPlacingOrder(true);
     try {

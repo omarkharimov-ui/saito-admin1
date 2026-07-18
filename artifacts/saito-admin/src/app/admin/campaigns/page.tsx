@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Percent, Search, X } from 'lucide-react';
+import { Plus, Percent, Search, X, BarChart3 } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from '@/lib/toast';
 
 import { PageTransition } from '@/components/PageTransition';
@@ -169,11 +170,16 @@ export default function CampaignsPage() {
   const openEdit = (camp: CampaignWithPerformance) => {
     setEditingCampaign(camp);
     const rule = camp.rules?.[0] || { rule_type: 'percentage', percentage: 0 };
-    const target = camp.targets?.[0] || { target_type: 'product' };
     const schedule = camp.schedules?.[0] || {};
     const startDate = schedule.start_date || camp.start_date || '';
     const endDate = schedule.end_date || camp.end_date || '';
-    const existingIds = target.target_ids || (target.target_id ? [target.target_id] : []);
+    const allTargetIds = (camp.targets || [])
+      .filter((t: any) => t.target_type === 'product')
+      .map((t: any) => t.target_id)
+      .filter(Boolean);
+    const categoryTarget = (camp.targets || []).find((t: any) => t.target_type === 'category');
+    const targetType = allTargetIds.length > 0 ? 'product' : categoryTarget ? 'category' : camp.targets?.[0]?.target_type || 'product';
+    const targetId = allTargetIds.length > 0 ? allTargetIds[0] : categoryTarget?.target_id || camp.targets?.[0]?.target_id || '';
 
     setForm({
       name: camp.name || camp.title || '',
@@ -198,7 +204,7 @@ export default function CampaignsPage() {
       start_date: startDate,
       end_date: endDate,
       rules: [rule],
-      targets: [{ ...target, target_ids: existingIds, target_id: existingIds[0] || target.target_id || '' }],
+      targets: [{ target_type: targetType, target_ids: allTargetIds, target_id: targetId }],
       schedules: [schedule],
     });
     setModalOpen(true);
@@ -328,6 +334,13 @@ export default function CampaignsPage() {
                 <Plus size={15} />
                 {t('combo_new')}
               </button>
+              <Link
+                href="/admin/campaigns/analytics"
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all whitespace-nowrap bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-border-strong)]`}
+              >
+                <BarChart3 size={14} />
+                Performans
+              </Link>
             </div>
           </div>
         </motion.div>

@@ -143,7 +143,11 @@ function computeEffectivePrice(product: any, campaigns: Campaign[], now: string)
   } else if (rule.rule_type === 'happy_hour') {
     discount = Math.round(basePrice * (rule.percentage || 0) / 100 * 100) / 100;
   } else if (rule.rule_type === 'buy_x_pay_y' || rule.rule_type === 'buy_x_get_y') {
-    discount = Math.round(basePrice / 3 * 100) / 100;
+    const buy = rule.buy_quantity || 2;
+    const pay = rule.pay_quantity || 1;
+    const free = rule.free_quantity || 1;
+    const freePerGroup = rule.rule_type === 'buy_x_pay_y' ? (buy - pay) : free;
+    discount = Math.round(basePrice * (freePerGroup / buy) * 100) / 100;
   }
 
   const campaignLabel = best.name || best.title || rule.rule_type;

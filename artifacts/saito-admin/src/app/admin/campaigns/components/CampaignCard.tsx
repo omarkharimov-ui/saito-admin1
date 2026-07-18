@@ -79,7 +79,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
       <motion.div
         whileTap={{ scale: 0.978 }}
         onClick={() => onEdit(camp)}
-        className={`md:hidden relative overflow-hidden rounded-3xl cursor-pointer border ${isActive ? 'bg-[var(--theme-panel)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}
+        className={`md:hidden group relative overflow-hidden rounded-3xl cursor-pointer border ${isActive ? 'bg-[var(--theme-panel)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}
       >
         {isActive && (
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />

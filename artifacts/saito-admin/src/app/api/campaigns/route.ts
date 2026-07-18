@@ -80,9 +80,11 @@ export async function POST(req: NextRequest) {
 
       if (error) throw error;
 
-      const productTarget = (campaign as any)?.targets?.find((t: any) => t.target_type === 'product');
-      if (productTarget?.target_id) {
-        await supabase.from('products').update({ discount_price: null }).eq('id', productTarget.target_id);
+      const productTargets = (campaign as any)?.targets?.filter((t: any) => t.target_type === 'product') || [];
+      for (const pt of productTargets) {
+        if (pt.target_id) {
+          await supabase.from('products').update({ discount_price: null }).eq('id', pt.target_id);
+        }
       }
 
       return NextResponse.json({ success: true });

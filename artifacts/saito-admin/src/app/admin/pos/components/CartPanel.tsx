@@ -17,6 +17,7 @@ interface CartPanelProps {
   onBack: () => void;
   orderButtonStatus: SendOrderButtonStatus;
   onUpdateGuests?: (delta: number) => void;
+  onUpdateCustomer?: (name: string | null) => void;
   mergedChildNumbers?: number[];
   onRecordLoss?: (items: LossItem[], reason: string) => Promise<void>;
   hasExistingOrder?: boolean;
@@ -26,15 +27,14 @@ interface CartPanelProps {
   guestName?: string;
   customerId?: string | null;
   customerName?: string | null;
-  currentDiscount?: { amount: number; type: 'percentage' | 'fixed' } | null;
 }
 
 export function CartPanel({
   cart, onUpdateQty, onPlaceOrder,
-  onClearDraft, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
+  onClearDraft, onBack, orderButtonStatus, onUpdateGuests, onUpdateCustomer, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
   isReservationMode = false, reservationId, guestName,
-  customerId, customerName, currentDiscount,
+  customerId, customerName,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -46,6 +46,8 @@ export function CartPanel({
   const [showCustomReason, setShowCustomReason] = useState(false);
   const [customReasonText, setCustomReasonText] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const [customerInput, setCustomerInput] = useState('');
   const lossExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const exitLossMode = useCallback(() => {
@@ -207,21 +209,46 @@ export function CartPanel({
                   )}
                 </div>
             </div>
-            {cart.customer_name && (
+            {editingCustomer ? (
               <div className="flex items-center gap-1.5 mt-1">
                 <User size={12} className="text-blue-400" />
+                <input
+                  autoFocus
+                  value={customerInput}
+                  onChange={(e) => setCustomerInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      onUpdateCustomer?.(customerInput.trim() || null);
+                      setEditingCustomer(false);
+                    }
+                    if (e.key === 'Escape') {
+                      setEditingCustomer(false);
+                      setCustomerInput('');
+                    }
+                  }}
+                  onBlur={() => {
+                    onUpdateCustomer?.(customerInput.trim() || null);
+                    setEditingCustomer(false);
+                  }}
+                  placeholder="Müştəri adı yazın..."
+                  className={`flex-1 min-w-0 rounded-lg px-2 py-0.5 text-[10px] font-bold outline-none border ${lightMode ? 'bg-white border-blue-300 text-black' : 'bg-white/5 border-blue-500/30 text-white'}`}
+                />
+              </div>
+            ) : cart.customer_name ? (
+              <button onClick={() => { setEditingCustomer(true); setCustomerInput(cart.customer_name || ''); }}
+                className="flex items-center gap-1.5 mt-1 group">
+                <User size={12} className="text-blue-400" />
                 <span className="text-[10px] font-bold text-blue-400 truncate">{cart.customer_name}</span>
-                {cart.customer_phone && <span className="text-[10px] text-[var(--theme-text-muted)]">· {cart.customer_phone}</span>}
-              </div>
+                <span className="text-[9px] text-[var(--theme-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">dəyiş</span>
+              </button>
+            ) : (
+              <button onClick={() => { setEditingCustomer(true); setCustomerInput(''); }}
+                className="flex items-center gap-1.5 mt-1 text-[var(--theme-text-muted)] hover:text-blue-400 transition-colors">
+                <User size={12} />
+                <span className="text-[10px] font-bold">Müştəri əlavə et</span>
+              </button>
             )}
-            {(cart.discount_amount ?? 0) > 0 ? (
-              <div className="flex items-center gap-1.5 mt-1">
-                <Receipt size={12} className="text-emerald-400" />
-                <span className="text-[10px] font-bold text-emerald-400">
-                  Endirim: {cart.discount_type === 'percentage' ? '%' : '₼'}{cart.discount_amount}
-                </span>
-              </div>
-            ) : campaignDiscount > 0 ? (
+            {campaignDiscount > 0 ? (
               <div className="flex items-center gap-1.5 mt-1">
                 <Receipt size={12} className="text-[var(--theme-text-secondary)]" />
                 <span className="text-[10px] font-bold text-[var(--theme-text-secondary)]">

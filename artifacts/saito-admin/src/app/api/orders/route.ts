@@ -128,7 +128,7 @@ export async function POST(request: Request) {
         return { success: true };
       }
 
-      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, discount_amount, discount_type, campaign_id } = body;
+      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id } = body;
       
       if (!table_number || !items?.length) {
         throw new Error('table_number and items required');
@@ -171,6 +171,7 @@ export async function POST(request: Request) {
             kitchen_status: ks, 
             updated_at: new Date().toISOString(),
             customer_id: customer_id || null,
+            customer_name: customer_name || null,
             discount_amount: rawDiscount,
             discount_type: discount_type || null,
             campaign_id: campaign_id || null,
@@ -201,6 +202,7 @@ export async function POST(request: Request) {
             customer_note: customer_note || null,
             order_type: order_type || 'dine_in',
             customer_id: customer_id || null,
+            customer_name: customer_name || null,
             discount_amount: rawDiscount,
             discount_type: discount_type || null,
             campaign_id: campaign_id || null,

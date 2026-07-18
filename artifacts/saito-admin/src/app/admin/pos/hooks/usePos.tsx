@@ -457,6 +457,7 @@ export function usePos() {
           customer_note: cart.notes,
           order_type: cart.order_type,
           customer_id: cart.customer_id || null,
+          customer_name: cart.customer_name || null,
           discount_amount: computedDiscount.amount,
           discount_type: computedDiscount.type,
           campaign_id: campaign?.id || null,
@@ -530,18 +531,10 @@ export function usePos() {
     } : null);
   };
 
-  const updateCartDiscount = (discountAmount: number, discountType: 'percentage' | 'fixed') => {
-    setCart(prev => prev ? {
-      ...prev,
-      discount_amount: discountAmount,
-      discount_type: discountType,
-    } : null);
-  };
-
   return {
     floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
-    updateCartCustomer, updateCartDiscount, getAutoCampaign
+    updateCartCustomer, getAutoCampaign
   };
 }

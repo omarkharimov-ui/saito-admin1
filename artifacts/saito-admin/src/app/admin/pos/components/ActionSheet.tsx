@@ -25,8 +25,6 @@ interface ActionSheetProps {
   onSelectCustomer?: (customerId: string | null, customerName: string | null) => void;
   customerId?: string | null;
   customerName?: string | null;
-  onApplyDiscount?: (discount: { amount: number; type: 'percentage' | 'fixed' }) => void;
-  currentDiscount?: { amount: number; type: 'percentage' | 'fixed' } | null;
   mergeMode?: boolean;
   mergeParent?: number | null;
   unmergeMode?: boolean;
@@ -53,7 +51,6 @@ export function ActionSheet({
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
   onBackFromPayment, onSelectCustomer, customerId, customerName,
-  onApplyDiscount, currentDiscount,
   mergeMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, groupNumber,
   paymentView,
@@ -66,9 +63,6 @@ export function ActionSheet({
   const [customers, setCustomers] = useState<any[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
-  const [discountAmount, setDiscountAmount] = useState('');
-  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('fixed');
-  const [showDiscountForm, setShowDiscountForm] = useState(false);
 
   const loadCustomers = async (q: string) => {
     setLoadingCustomers(true);
@@ -91,14 +85,6 @@ export function ActionSheet({
     setCustomerSearch('');
   };
 
-  const handleApplyDiscount = () => {
-    const amount = parseFloat(discountAmount);
-    if (isNaN(amount) || amount <= 0) return;
-    onApplyDiscount?.({ amount, type: discountType });
-    setShowDiscountForm(false);
-    setDiscountAmount('');
-  };
-
   useEffect(() => {
     if (open && !mergeMode) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
@@ -111,7 +97,6 @@ export function ActionSheet({
   const actions = [
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: true },
     { id: 'customer', icon: User, label: customerName ? `${customerName}` : t('select_customer') || 'Müştəri', visible: true },
-    { id: 'discount', icon: Receipt, label: currentDiscount ? `Endirim: ${currentDiscount.type === 'percentage' ? '%' : '₼'}${currentDiscount.amount}` : (t('apply_discount_btn') || 'Endirim'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'cancel_table', icon: Trash2, label: t('dismiss_table') || 'Masanı boşalt', visible: isOccupied || table?.status === 'reserved' },
   ];
@@ -120,7 +105,7 @@ export function ActionSheet({
   const mergedChildren = unmergeMode && table ? (mergedGroupChildren ?? []) : [];
   const showSplitForm = !!localSplit;
   const showCustomerForm = showCustomerSearch;
-  const currentView = showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : showDiscountForm ? 'discount' : paymentView ? 'payment' : mergeMode ? 'merge' : unmergeMode ? 'split' : open ? 'actions' : 'none';
+  const currentView = showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : unmergeMode ? 'split' : open ? 'actions' : 'none';
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
@@ -202,15 +187,6 @@ export function ActionSheet({
                               className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
                               <User size={22} strokeWidth={2.5} />
                               <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{customerName || 'Müştəri'}</span>
-                            </button>
-                          );
-                        }
-                        if (action.id === 'discount') {
-                          return (
-                            <button key={action.id} onClick={() => setShowDiscountForm(true)}
-                              className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
-                              <Receipt size={22} strokeWidth={2.5} />
-                              <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
                             </button>
                           );
                         }
@@ -309,27 +285,6 @@ export function ActionSheet({
                       )}
                     </div>
                     <button onClick={() => setShowCustomerSearch(false)} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">Geri</button>
-                  </motion.div>
-                )}
-
-                {currentView === 'discount' && (
-                  <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} key="ui-discount" className="flex flex-col gap-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Endirim</p>
-                     <p className="text-xl font-black tracking-tighter mb-2">₼{(table?.total_amount || 0).toFixed(2)}</p>
-                    <div className="flex gap-2 mb-2">
-                      <button onClick={() => setDiscountType('fixed')} className={`flex-1 py-2 rounded-xl text-xs font-black border ${discountType === 'fixed' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/10 text-[var(--theme-text-muted)]'}`}>Sabit (₼)</button>
-                      <button onClick={() => setDiscountType('percentage')} className={`flex-1 py-2 rounded-xl text-xs font-black border ${discountType === 'percentage' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/10 text-[var(--theme-text-muted)]'}`}>%</button>
-                    </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={discountAmount}
-                      onChange={e => setDiscountAmount(e.target.value)}
-                      className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
-                      placeholder={discountType === 'fixed' ? '₼ məbləğ' : '% faiz'}
-                    />
-                    <button onClick={handleApplyDiscount} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gold text-black">Təsdiqlə</button>
-                    <button onClick={() => { setShowDiscountForm(false); setDiscountAmount(''); }} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">Geri</button>
                   </motion.div>
                 )}
 

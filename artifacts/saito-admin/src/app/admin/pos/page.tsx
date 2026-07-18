@@ -648,12 +648,12 @@ export default function POSPage() {
                           orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                           onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                           onUpdateGuests={(delta) => pos.updateGuestCount(delta)}
+                          onUpdateCustomer={(name) => pos.updateCartCustomer(pos.cart?.customer_id || null, name)}
                           onRecordLoss={handleRecordLoss}
                           onClearDraft={() => pos.clearCart()}
                           mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
                           customerId={pos.cart?.customer_id}
                           customerName={pos.cart?.customer_name}
-                          currentDiscount={pos.cart?.discount_amount ? { amount: pos.cart.discount_amount, type: pos.cart.discount_type || 'fixed' } : null}
                         />
                </div>
             </div>
@@ -708,15 +708,11 @@ export default function POSPage() {
            setTransferSource(null);
            setTransferTarget(null);
          }}
-          customerId={pos.cart?.customer_id}
-          customerName={pos.cart?.customer_name}
-          onSelectCustomer={(customerId, customerName) => {
-            pos.updateCartCustomer(customerId, customerName);
-          }}
-          currentDiscount={pos.cart?.discount_amount ? { amount: pos.cart.discount_amount, type: pos.cart.discount_type || 'fixed' } : null}
-        onApplyDiscount={({ amount, type }) => {
-           pos.updateCartDiscount(amount, type);
-         }}
+           customerId={pos.cart?.customer_id}
+           customerName={pos.cart?.customer_name}
+           onSelectCustomer={(customerId, customerName) => {
+             pos.updateCartCustomer(customerId, customerName);
+           }}
         />
 
       <AnimatePresence>

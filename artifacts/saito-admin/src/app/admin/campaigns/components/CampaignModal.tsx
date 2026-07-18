@@ -78,6 +78,7 @@ interface Props {
   filteredProducts: Product[];
   products: Product[];
   categories: Category[];
+  combos: any[];
   onClose: () => void;
   onFormChange: React.Dispatch<React.SetStateAction<any>>;
   onProductSearch: (v: string) => void;
@@ -106,7 +107,7 @@ const WEEKDAYS = [
 
 const CampaignModal = ({
   open, campaign, form, isSubmitting, productSearch,
-  filteredProducts, products, categories, onClose, onFormChange, onProductSearch, onSubmit,
+  filteredProducts, products, categories, combos, onClose, onFormChange, onProductSearch, onSubmit,
 }: Props) => {
   const { t, language } = useLanguage();
   const { lightMode } = useTheme();
@@ -379,6 +380,55 @@ const CampaignModal = ({
                     })}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {form.targets[0]?.target_type === 'combo' && (
+              <div className="space-y-3">
+                {selectedProductIds.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProductIds.map(id => {
+                      const combo = combos.find((c: any) => c.id === id);
+                      if (!combo) return null;
+                      return (
+                        <span key={id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--theme-surface)] border border-[var(--theme-border-strong)] text-[11px] font-semibold text-[var(--theme-text)]">
+                          {combo.name}
+                          <button type="button" onClick={() => {
+                            const nextIds = selectedProductIds.filter(sid => sid !== id);
+                            updateTargets([{ ...form.targets[0], target_ids: nextIds, target_id: nextIds[0] || '' }]);
+                          }}
+                            className="ml-1 text-[var(--theme-text-muted)] hover:text-red-400 transition-colors"><X size={12} /></button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="max-h-[240px] overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+                  <div className="grid grid-cols-2 gap-2">
+                    {combos.map((combo: any) => {
+                      const isSelected = selectedProductIds.includes(combo.id);
+                      return (
+                        <button key={combo.id} type="button" onClick={() => {
+                          const nextIds = isSelected
+                            ? selectedProductIds.filter(id => id !== combo.id)
+                            : [...selectedProductIds, combo.id];
+                          updateTargets([{ ...form.targets[0], target_ids: nextIds, target_id: nextIds[0] || '' }]);
+                        }}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${isSelected ? 'bg-[var(--theme-surface)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] hover:bg-[var(--theme-panel)]'}`}>
+                          <div className="flex-1 overflow-hidden">
+                            <p className={`text-[11px] font-semibold truncate ${isSelected ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-secondary)]'}`}>{combo.name}</p>
+                            <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">₼{combo.price}</p>
+                          </div>
+                          {isSelected && <CheckCircle2 size={14} className="text-[var(--theme-text)] flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {combos.length === 0 && (
+                  <p className="text-center text-[12px] text-[var(--theme-text-muted)] py-4">Kombo yoxdur</p>
+                )}
               </div>
             )}
           </div>

@@ -36,6 +36,7 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<CampaignWithPerformance[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [combos, setCombos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<CampaignWithPerformance | null>(null);
@@ -93,6 +94,7 @@ export default function CampaignsPage() {
       setCampaigns(campaignsWithPerformance);
       setProducts(prodData.products || []);
       setCategories(catData || []);
+      setCombos(prodData.combos || []);
     } catch {
       toast.error('Məlumatlar yüklənərkən xəta baş verdi');
     } finally {
@@ -488,6 +490,7 @@ export default function CampaignsPage() {
         filteredProducts={filteredProducts}
         products={products}
         categories={categories}
+        combos={combos}
         onClose={() => setModalOpen(false)}
         onFormChange={setForm}
         onProductSearch={setProductSearch}

@@ -408,7 +408,11 @@ export default function CampaignsPage() {
                           const res = await fetch('/api/campaigns', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: camp.id, status: newStatus, is_active: newStatus === 'active' }),
+                            body: JSON.stringify(
+                              newStatus === 'inactive'
+                                ? { action: 'deactivate', id: camp.id }
+                                : { id: camp.id, status: newStatus, is_active: true }
+                            ),
                           });
                           if (!res.ok) throw new Error((await res.json()).error);
                           fetchData();
@@ -464,7 +468,11 @@ export default function CampaignsPage() {
                           const res = await fetch('/api/campaigns', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: camp.id, status: newStatus, is_active: newStatus === 'active' }),
+                            body: JSON.stringify(
+                              newStatus === 'inactive'
+                                ? { action: 'deactivate', id: camp.id }
+                                : { id: camp.id, status: newStatus, is_active: true }
+                            ),
                           });
                           if (!res.ok) throw new Error((await res.json()).error);
                           fetchData();

@@ -31,6 +31,8 @@ export interface PosCartItem {
   special_notes?: string;
   is_combo?: boolean;
   combo_id?: string | null;
+  campaign_id?: string | null;
+  campaign_discount_amount?: number;
   combo_components?: Array<{
     product_id: string;
     product_name?: string;

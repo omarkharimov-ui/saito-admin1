@@ -36,8 +36,6 @@ export default function POSPage() {
   const [selectedForUnmerge, setSelectedForUnmerge] = useState<number[]>([]);
 
   const [lastUndo, setLastUndo] = useState<any>(null);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [selectedCampaign, setSelectedCampaign] = useState<any>(null);
   const [cleanMode, setCleanMode] = useState(false);
   const [paymentView, setPaymentView] = useState(false);
 
@@ -54,33 +52,6 @@ export default function POSPage() {
       throw new Error(err.error || 'Loss recording failed');
     }
   };
-
-  // Derive the campaign discount value from the actual rule (percentage / fixed),
-  // falling back to the denormalized discount_value column when no rule is present.
-  const campaignDiscountValue = (camp: any): number => {
-    const rule = camp?.rules?.[0];
-    if (rule) {
-      if (rule.rule_type === 'percentage' || rule.rule_type === 'happy_hour') return Number(rule.percentage) || 0;
-      if (rule.rule_type === 'fixed_amount') return Number(rule.fixed_amount) || 0;
-    }
-    return Number(camp?.discount_value) || 0;
-  };
-
-  // Load active campaigns
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/campaigns');
-        if (res.ok) {
-          const data = await res.json();
-          const active = (data.data || []).filter((c: any) => c.status === 'active');
-          setCampaigns(active);
-        }
-      } catch (e) {
-        console.error('Failed to load campaigns:', e);
-      }
-    })();
-  }, []);
 
   const handleProductTap = (product: PosProduct) => {
     const variants = pos.variantsByProduct[product.id] || [];
@@ -134,6 +105,9 @@ export default function POSPage() {
             cash_amount: cashAmount,
             card_amount: cardAmount,
             tip_amount: 0,
+            campaign_id: activeOrder.campaign_id || undefined,
+            discount_amount: activeOrder.discount_amount || 0,
+            discount_type: activeOrder.discount_type || 'fixed',
           }),
         });
 
@@ -226,6 +200,9 @@ export default function POSPage() {
             cash_amount: cash / activeOrders.length,
             card_amount: card / activeOrders.length,
             tip_amount: 0,
+            campaign_id: activeOrder.campaign_id || undefined,
+            discount_amount: activeOrder.discount_amount || 0,
+            discount_type: activeOrder.discount_type || 'fixed',
           }),
         });
         if (!res.ok) {
@@ -535,21 +512,6 @@ export default function POSPage() {
                        </button>
                      </div>
                    )}
-                  {campaigns.length > 0 && (
-                    <select
-                      value={selectedCampaign?.id || ''}
-                      onChange={(e) => {
-                        const camp = campaigns.find((c: any) => c.id === e.target.value) || null;
-                        setSelectedCampaign(camp);
-                      }}
-                      className="bg-white/5 border border-white/10 rounded-full px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white/70 outline-none cursor-pointer hover:bg-white/10 transition-all"
-                    >
-                      <option value="" className="bg-[#111]">Kampaniya</option>
-                      {campaigns.map((c: any) => (
-                        <option key={c.id} value={c.id} className="bg-[#111]">{c.title}</option>
-                      ))}
-                    </select>
-                  )}
                    <button 
                      onClick={() => setLightMode(!lightMode)} 
                      className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-xs font-black uppercase tracking-wider hover:bg-white/10 transition-all"
@@ -678,8 +640,10 @@ export default function POSPage() {
                <div className="w-full md:w-[400px] border-l p-6 bg-black/20">
                         <CartPanel 
                           cart={pos.cart} 
-                          campaign={selectedCampaign ? { id: selectedCampaign.id, name: selectedCampaign.title || selectedCampaign.name, discount: campaignDiscountValue(selectedCampaign), type: selectedCampaign.type, rule_type: selectedCampaign.rules?.[0]?.rule_type, target_type: selectedCampaign.target_type, target_id: selectedCampaign.target_id, buy_quantity: selectedCampaign.rules?.[0]?.buy_quantity, pay_quantity: selectedCampaign.rules?.[0]?.pay_quantity, free_quantity: selectedCampaign.rules?.[0]?.free_quantity } : null}
-                          onPlaceOrder={() => pos.placeOrder(selectedCampaign ? { id: selectedCampaign.id, type: selectedCampaign.type, target_type: selectedCampaign.target_type, target_id: selectedCampaign.target_id, rule_type: selectedCampaign.rules?.[0]?.rule_type, buy_quantity: selectedCampaign.rules?.[0]?.buy_quantity, pay_quantity: selectedCampaign.rules?.[0]?.pay_quantity, free_quantity: selectedCampaign.rules?.[0]?.free_quantity } : undefined)} 
+                          onPlaceOrder={() => {
+                            const autoCampaign = pos.getAutoCampaign(pos.cart);
+                            pos.placeOrder(autoCampaign ? { id: autoCampaign.id, type: 'AUTO' } : undefined);
+                          }} 
                           onBack={() => pos.setActiveView('floor')}
                           orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                           onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}

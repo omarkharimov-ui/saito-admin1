@@ -304,6 +304,28 @@ export function usePos() {
     return { amount: 0, type: null };
   };
 
+  const getAutoCampaign = (c: PosCart | null): { id: string; discount: number; type: string } | null => {
+    if (!c || c.items.length === 0) return null;
+    const itemsWithCampaign = c.items.filter(i => i.campaign_id);
+    if (itemsWithCampaign.length === 0) return null;
+    const totalsByCampaign = new Map<string, number>();
+    for (const item of itemsWithCampaign) {
+      const disc = (item.campaign_discount_amount || 0) * item.quantity;
+      totalsByCampaign.set(item.campaign_id!, (totalsByCampaign.get(item.campaign_id!) || 0) + disc);
+    }
+    let bestId = '';
+    let bestDisc = 0;
+    for (const [id, disc] of totalsByCampaign) {
+      if (disc > bestDisc) { bestDisc = disc; bestId = id; }
+    }
+    if (!bestId || bestDisc <= 0) return null;
+    const originalTotal = c.items
+      .filter(i => i.campaign_id === bestId)
+      .reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
+    const pct = originalTotal > 0 ? (bestDisc / originalTotal) * 100 : 0;
+    return { id: bestId, discount: Math.round(pct * 10) / 10, type: pct > 0 ? 'PERCENTAGE' : 'FIXED' };
+  };
+
   const addToCart = (
     p: PosProduct,
     opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[] }
@@ -330,6 +352,8 @@ export function usePos() {
       const basePrice = variant ? Number(variant.discount_price ?? variant.price) : (p.price ?? 0);
       const effective = (p as any).effective_price;
       const unitPrice = typeof effective === 'number' ? effective : effective?.effective_price ?? basePrice;
+      const campaignId = typeof effective === 'object' && effective?.campaign_id ? effective.campaign_id : null;
+      const campaignDiscount = typeof effective === 'object' && effective?.discount_amount ? effective.discount_amount : 0;
       const existing = items.find(
         i => i.product_id === p.id && (i.variant_id ?? null) === variantId
       );
@@ -346,7 +370,9 @@ export function usePos() {
           total_price: unitPrice,
           modifiers: opts?.modifiers ?? [],
           variant_id: variantId,
-          notes: opts?.notes ?? ''
+          notes: opts?.notes ?? '',
+          campaign_id: campaignId,
+          campaign_discount_amount: campaignDiscount,
         });
       }
       return { ...base, items };
@@ -392,7 +418,7 @@ export function usePos() {
     });
   };
 
-  const placeOrder = async (campaign?: { id?: string; type: string; target_type: string; target_id?: string; rule_type?: string; buy_quantity?: number; pay_quantity?: number; free_quantity?: number }) => {
+  const placeOrder = async (campaign?: { id?: string; type?: string }) => {
     if (!cart || placingOrder) return;
     setPlacingOrder(true);
     try {
@@ -417,9 +443,8 @@ export function usePos() {
         return;
       }
 
-      // Compute the effective discount so the order + receipt reflect the
-      // real (possibly campaign-driven) discounted total.
-      const computedDiscount = computeCampaignDiscount(cart, campaign);
+      const itemBasedDiscount = cart.items.reduce((s, i) => s + Math.max(0, ((i.original_unit_price ?? i.unit_price) - i.unit_price) * i.quantity), 0);
+      const computedDiscount = { amount: itemBasedDiscount, type: itemBasedDiscount > 0 ? 'fixed' as const : null };
 
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -517,6 +542,6 @@ export function usePos() {
     floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
-    updateCartCustomer, updateCartDiscount
+    updateCartCustomer, updateCartDiscount, getAutoCampaign
   };
 }

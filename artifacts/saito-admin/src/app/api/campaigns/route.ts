@@ -112,6 +112,29 @@ export async function POST(req: NextRequest) {
 
       if (error) throw error;
 
+      if (body.is_active === true && data) {
+        const productTargets = data.targets?.filter((t: any) => t.target_type === 'product') || [];
+        for (const pt of productTargets) {
+          if (pt.target_id) {
+            const rules = data.rules || [];
+            const rule = rules[0];
+            if (rule) {
+              let discountPrice: number | null = null;
+              const product = await supabase.from('products').select('price').eq('id', pt.target_id).maybeSingle();
+              const basePrice = Number(product.data?.price || 0);
+              if (rule.rule_type === 'percentage' && basePrice > 0) {
+                discountPrice = Math.round(basePrice * (1 - Number(rule.percentage || 0) / 100) * 100) / 100;
+              } else if (rule.rule_type === 'fixed_amount') {
+                discountPrice = Math.max(0, basePrice - Number(rule.fixed_amount || 0));
+              }
+              if (discountPrice !== null && discountPrice < basePrice) {
+                await supabase.from('products').update({ discount_price: discountPrice }).eq('id', pt.target_id);
+              }
+            }
+          }
+        }
+      }
+
       if (body.rules) {
         await supabase.from('campaign_rules').delete().eq('campaign_id', body.id);
         for (const rule of body.rules) {

@@ -11,9 +11,8 @@ import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
 
 interface CartPanelProps {
   cart: PosCart | null;
-  campaign?: { id: string; name: string; discount: number; type: string; rule_type?: string; target_type?: string; target_id?: string; buy_quantity?: number; pay_quantity?: number; free_quantity?: number } | null;
   onUpdateQty: (index: number, delta: number) => void;
-  onPlaceOrder: (campaign?: { id?: string; type: string; target_type: string; target_id?: string; buy_quantity?: number; pay_quantity?: number; free_quantity?: number }) => void;
+  onPlaceOrder: () => void;
   onClearDraft: () => void;
   onBack: () => void;
   orderButtonStatus: SendOrderButtonStatus;
@@ -31,7 +30,7 @@ interface CartPanelProps {
 }
 
 export function CartPanel({
-  cart, campaign, onUpdateQty, onPlaceOrder,
+  cart, onUpdateQty, onPlaceOrder,
   onClearDraft, onBack, orderButtonStatus, onUpdateGuests, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
   isReservationMode = false, reservationId, guestName,
@@ -91,38 +90,10 @@ export function CartPanel({
 
   let total = originalTotal;
   let campaignDiscount = 0;
-  if (campaign) {
-    const ruleType = campaign.rule_type || campaign.type;
-    if (ruleType === 'buy_x_pay_y' || ruleType === 'buy_x_get_y') {
-      const buyQty = campaign.buy_quantity || (ruleType === 'buy_x_pay_y' ? 2 : 2);
-      const payQty = campaign.pay_quantity || 1;
-      const freeQty = campaign.free_quantity || 1;
-      const applicableItems = cart.items.filter(i => {
-        if (campaign.target_type === 'product') return i.product_id === campaign.target_id;
-        if (campaign.target_type === 'category') return i.category_id === campaign.target_id;
-        return true;
-      });
-      const applicableCount = applicableItems.reduce((s, i) => s + i.quantity, 0);
-      const groupSize = ruleType === 'buy_x_pay_y' ? buyQty : buyQty + freeQty;
-      const freeItems = Math.floor(applicableCount / groupSize) * (ruleType === 'buy_x_pay_y' ? (buyQty - payQty) : freeQty);
-      if (freeItems > 0) {
-        const sorted = [...applicableItems].sort((a, b) => (b.original_unit_price ?? b.unit_price) - (a.original_unit_price ?? a.unit_price));
-        let remaining = freeItems;
-        for (const item of sorted) {
-          if (remaining <= 0) break;
-          const take = Math.min(remaining, item.quantity);
-          campaignDiscount += take * (item.original_unit_price ?? item.unit_price);
-          remaining -= take;
-        }
-      }
-      total = originalTotal - campaignDiscount;
-    } else if (ruleType === 'percentage' || ruleType === 'happy_hour') {
-      campaignDiscount = originalTotal * ((campaign.discount || 0) / 100);
-      total = originalTotal - campaignDiscount;
-    } else if (ruleType === 'fixed_amount') {
-      campaignDiscount = Math.min(campaign.discount || 0, originalTotal);
-      total = originalTotal - campaignDiscount;
-    }
+  const itemBasedDiscount = cart.items.reduce((s, i) => s + Math.max(0, ((i.original_unit_price ?? i.unit_price) - i.unit_price) * i.quantity), 0);
+  if (itemBasedDiscount > 0) {
+    campaignDiscount = itemBasedDiscount;
+    total = originalTotal - campaignDiscount;
   } else {
     const discountAmount = cart.discount_amount ?? 0;
     if (discountAmount > 0) {
@@ -250,17 +221,11 @@ export function CartPanel({
                   Endirim: {cart.discount_type === 'percentage' ? '%' : '₼'}{cart.discount_amount}
                 </span>
               </div>
-            ) : campaign ? (
+            ) : campaignDiscount > 0 ? (
               <div className="flex items-center gap-1.5 mt-1">
                 <Receipt size={12} className="text-[var(--theme-text-secondary)]" />
                 <span className="text-[10px] font-bold text-[var(--theme-text-secondary)]">
-                  {campaign.type === 'BUY_X_PAY_Y' && `${campaign.buy_quantity || 2} al ${campaign.pay_quantity || 1} ödə`}
-                  {campaign.type === 'BUY_X_GET_Y' && `${campaign.buy_quantity || 2} al ${campaign.free_quantity || 1} pulsuz`}
-                  {campaign.type === 'FREE_DELIVERY' && 'Pulsuz çatdırılma'}
-                  {campaign.type === 'PERCENTAGE' && `Kampaniya: ${campaign.discount}%`}
-                  {campaign.type === 'HAPPY_HOUR' && `Kampaniya: ${campaign.discount}%`}
-                  {campaign.type === 'FIXED_AMOUNT' && `Kampaniya: ${campaign.discount} ₼`}
-                  {campaign.type === 'COMBO' && 'Kampaniya'}
+                  Kampaniya: −{campaignDiscount.toFixed(2)} ₼
                 </span>
               </div>
             ) : null}
@@ -393,11 +358,8 @@ export function CartPanel({
             >
                <div className="flex flex-col gap-0.5">
                  <div className="flex items-center gap-2">
-                   <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
-                   {campaign && (
-                     <span className="text-[10px] text-[var(--theme-text-muted)] font-bold uppercase tracking-wider">{campaign.name}</span>
-                   )}
-                 </div>
+                    <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
+                  </div>
                  {campaignDiscount > 0 && (
                    <span className="text-[10px] text-emerald-400 font-bold">
                      {t('savings') || 'You save'} {campaignDiscount.toFixed(2)} ₼
@@ -478,12 +440,11 @@ export function CartPanel({
         )}
 
         {/* Active campaign badge */}
-        {campaign && (
+        {campaignDiscount > 0 && (
           <div className={`flex items-center justify-between px-3 py-2 rounded-2xl ${lightMode ? 'bg-zinc-100 border border-zinc-200' : 'bg-white/5 border border-white/10'}`}>
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full animate-pulse ${lightMode ? 'bg-zinc-600' : 'bg-white/60'}`} />
-              <span className={`text-[10px] font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>Kampaniya</span>
-              <span className={`text-[10px] font-medium ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>{campaign.name}</span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>Kampaniya tətbiq olundu</span>
             </div>
           </div>
         )}

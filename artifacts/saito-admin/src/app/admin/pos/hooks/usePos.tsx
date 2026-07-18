@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { apiFetch } from '@/lib/api-fetch';
 import type { PosProduct, PosTable, PosCart, PosModifierSelection } from '../types/shared';
 
 export function usePos() {
-  const { t } = useLanguage();
   const [floors, setFloors] = useState<any[]>([]);
   const [products, setProducts] = useState<PosProduct[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -19,7 +18,6 @@ export function usePos() {
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [cart, setCart] = useState<PosCart | null>(null);
-  const cartInteractionCount = useRef(0);
 
   const retryWithBackoff = async (fn: () => Promise<Response>, retries = 3, delay = 1000): Promise<Response> => {
     for (let i = 0; i < retries; i++) {
@@ -95,7 +93,7 @@ export function usePos() {
       return;
     }
 
-    cartInteractionCount.current = 0;
+
 
     setSelectedTable(table);
     setActiveView('order');
@@ -194,9 +192,11 @@ export function usePos() {
       const data = await res.json();
       setLastUndo({ action: 'merge', data: data.data?.undo, message: 'Masalar birləşdirildi' });
       fetchData();
+      return { action: 'merge' as const, data: data.data?.undo, message: 'Masalar birləşdirildi' };
     } else {
       const err = await res.json();
       toast.error(err.error);
+      return null;
     }
   };
 
@@ -251,59 +251,6 @@ export function usePos() {
     }
   };
 
-  // Mirror of CartPanel discount math — used to persist the real
-  // (campaign-driven) discount on the order so the receipt reflects it.
-  const computeCampaignDiscount = (
-    c: PosCart | null,
-    camp?: { id?: string; type: string; target_type?: string; target_id?: string; rule_type?: string; buy_quantity?: number; pay_quantity?: number; free_quantity?: number; discount?: number }
-  ): { amount: number; type: 'percentage' | 'fixed' | null } => {
-    if (!c) return { amount: 0, type: null };
-    const originalTotal = c.items.reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
-
-    if (camp) {
-      const ruleType = camp.rule_type || camp.type;
-      if (ruleType === 'buy_x_pay_y' || ruleType === 'buy_x_get_y') {
-        const buyQty = camp.buy_quantity || (ruleType === 'buy_x_pay_y' ? 2 : 2);
-        const payQty = camp.pay_quantity || 1;
-        const freeQty = camp.free_quantity || 1;
-        const applicableItems = c.items.filter(i => {
-          if (camp.target_type === 'product') return i.product_id === camp.target_id;
-          if (camp.target_type === 'category') return (i as any).category_id === camp.target_id;
-          return true;
-        });
-        const applicableCount = applicableItems.reduce((s, i) => s + i.quantity, 0);
-        const groupSize = ruleType === 'buy_x_pay_y' ? buyQty : buyQty + freeQty;
-        const freeItems = Math.floor(applicableCount / groupSize) * (ruleType === 'buy_x_pay_y' ? (buyQty - payQty) : freeQty);
-        if (freeItems > 0) {
-          const sorted = [...applicableItems].sort((a, b) => (b.original_unit_price ?? b.unit_price) - (a.original_unit_price ?? a.unit_price));
-          let remaining = freeItems;
-          let discount = 0;
-          for (const item of sorted) {
-            if (remaining <= 0) break;
-            const take = Math.min(remaining, item.quantity);
-            discount += take * (item.original_unit_price ?? item.unit_price);
-            remaining -= take;
-          }
-          return { amount: discount, type: 'fixed' };
-        }
-        return { amount: 0, type: null };
-      }
-      const disc = camp.discount || 0;
-      if (ruleType === 'percentage' || ruleType === 'happy_hour') {
-        return { amount: originalTotal * (disc / 100), type: 'percentage' };
-      }
-      if (ruleType === 'fixed_amount') {
-        return { amount: Math.min(disc, originalTotal), type: 'fixed' };
-      }
-      return { amount: 0, type: null };
-    }
-
-    if ((c.discount_amount ?? 0) > 0) {
-      return { amount: c.discount_amount || 0, type: (c.discount_type === 'percentage' ? 'percentage' : 'fixed') as 'percentage' | 'fixed' };
-    }
-    return { amount: 0, type: null };
-  };
-
   const getAutoCampaign = (c: PosCart | null): { id: string; discount: number; type: string } | null => {
     if (!c || c.items.length === 0) return null;
     const itemsWithCampaign = c.items.filter(i => i.campaign_id);
@@ -330,7 +277,7 @@ export function usePos() {
     p: PosProduct,
     opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[] }
   ) => {
-    cartInteractionCount.current += 1;
+
     setCart(prev => {
       let base = prev;
       if (!base) {
@@ -380,7 +327,7 @@ export function usePos() {
   };
 
   const addComboToCart = (combo: any, opts?: { notes?: string }) => {
-    cartInteractionCount.current += 1;
+
     setCart(prev => {
       if (!prev) return null;
       const items = prev.items.map(i => ({ ...i }));
@@ -406,7 +353,7 @@ export function usePos() {
   };
 
   const updateCartItemQty = (idx: number, delta: number) => {
-    cartInteractionCount.current += 1;
+
     setCart(prev => {
       if (!prev) return null;
       const items = prev.items.map(i => ({ ...i }));
@@ -494,7 +441,7 @@ export function usePos() {
   };
 
   const clearCart = () => {
-    cartInteractionCount.current += 1;
+
     setCart(prev => {
       if (!prev) return null;
       const keptItems = prev.items.filter(item => (item.sentQuantity ?? 0) > 0);
@@ -507,12 +454,16 @@ export function usePos() {
     const newCount = Math.max(1, (cart.guest_count || 1) + delta);
     setCart(prev => prev ? { ...prev, guest_count: newCount } : null);
     try {
-      await fetch('/api/orders', {
+      const orderRes = await apiFetch(`/api/orders?table_number=eq.${cart.table_number}&status=not.in.(paid,cancelled)&select=id&order=created_at.desc&limit=1`);
+      const orderData = await orderRes.json();
+      const activeOrder = Array.isArray(orderData) ? orderData[0] : orderData.orders?.[0];
+      if (!activeOrder?.id) return;
+      await apiFetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'update',
-          id: cart.table_id,
+          id: activeOrder.id,
           data: { guest_count: newCount }
         }),
       });

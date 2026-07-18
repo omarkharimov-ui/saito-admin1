@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, Moon, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -42,7 +42,7 @@ export default function POSPage() {
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
 
   const handleRecordLoss = async (items: LossItem[], reason: string) => {
-    const res = await fetch('/api/stock/loss', {
+    const res = await apiFetch('/api/stock/loss', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items, reason }),
@@ -688,12 +688,13 @@ export default function POSPage() {
          }}
          onConfirmUnmerge={handleUnmerge}
          onCancelMode={() => { setMergeMode(false); setTransferMode(false); setUnmergeMode(false); setSelectedForMerge([]); setSelectedForUnmerge([]); setTransferSource(null); setTransferTarget(null); }}
-         onConfirmMerge={async () => { 
-           await pos.mergeTables(selectedForMerge); 
-           setLastUndo(pos.lastUndo);
-           setMergeMode(false); 
-           setSelectedForMerge([]); 
-         }}
+          onConfirmMerge={async () => { 
+            const undoResult = await pos.mergeTables(selectedForMerge); 
+            if (undoResult) setLastUndo({ ...undoResult, timestamp: Date.now() });
+            setTimeout(() => setLastUndo(null), 5000);
+            setMergeMode(false); 
+            setSelectedForMerge([]); 
+          }}
          groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
          transferMode={transferMode}
          transferSource={transferSource}

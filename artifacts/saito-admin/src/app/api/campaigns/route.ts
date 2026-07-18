@@ -240,11 +240,15 @@ export async function DELETE(req: NextRequest) {
 
     const supabase = await createAuthClient();
     
-    await supabase.from('campaign_rules').delete().eq('campaign_id', id);
-    await supabase.from('campaign_targets').delete().eq('campaign_id', id);
-    await supabase.from('campaign_schedules').delete().eq('campaign_id', id);
+    const { error: rErr } = await supabase.from('campaign_rules').delete().eq('campaign_id', id);
+    if (rErr) throw rErr;
+    const { error: tErr } = await supabase.from('campaign_targets').delete().eq('campaign_id', id);
+    if (tErr) throw tErr;
+    const { error: sErr } = await supabase.from('campaign_schedules').delete().eq('campaign_id', id);
+    if (sErr) throw sErr;
     
-    await supabase.from('campaigns').delete().eq('id', id);
+    const { error: cErr } = await supabase.from('campaigns').delete().eq('id', id);
+    if (cErr) throw cErr;
 
     return NextResponse.json({ success: true });
   } catch (e: any) {

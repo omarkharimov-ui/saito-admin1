@@ -252,13 +252,15 @@ export function CartPanel({
               </div>
             ) : campaign ? (
               <div className="flex items-center gap-1.5 mt-1">
-                <Receipt size={12} className="text-gold/70" />
-                <span className="text-[10px] font-bold text-gold/70">
-                  {campaign.type === 'BOGO' && '1 al 1 ödə'}
-                  {campaign.type === 'BUY2GET1' && '2 al 1 ödə'}
+                <Receipt size={12} className="text-[var(--theme-text-secondary)]" />
+                <span className="text-[10px] font-bold text-[var(--theme-text-secondary)]">
+                  {campaign.type === 'BUY_X_PAY_Y' && `${campaign.buy_quantity || 2} al ${campaign.pay_quantity || 1} ödə`}
+                  {campaign.type === 'BUY_X_GET_Y' && `${campaign.buy_quantity || 2} al ${campaign.free_quantity || 1} pulsuz`}
                   {campaign.type === 'FREE_DELIVERY' && 'Pulsuz çatdırılma'}
-                  {(campaign.type === 'PERCENTAGE' || campaign.type === 'HAPPY_HOUR') && `Kampaniya: ${campaign.discount}%`}
+                  {campaign.type === 'PERCENTAGE' && `Kampaniya: ${campaign.discount}%`}
+                  {campaign.type === 'HAPPY_HOUR' && `Kampaniya: ${campaign.discount}%`}
                   {campaign.type === 'FIXED_AMOUNT' && `Kampaniya: ${campaign.discount} ₼`}
+                  {campaign.type === 'COMBO' && 'Kampaniya'}
                 </span>
               </div>
             ) : null}
@@ -393,7 +395,7 @@ export function CartPanel({
                  <div className="flex items-center gap-2">
                    <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
                    {campaign && (
-                     <span className="text-[10px] text-gold/70 font-bold uppercase tracking-wider">{campaign.name}</span>
+                     <span className="text-[10px] text-[var(--theme-text-muted)] font-bold uppercase tracking-wider">{campaign.name}</span>
                    )}
                  </div>
                  {campaignDiscount > 0 && (
@@ -477,11 +479,11 @@ export function CartPanel({
 
         {/* Active campaign badge */}
         {campaign && (
-          <div className={`flex items-center justify-between px-3 py-2 rounded-2xl ${lightMode ? 'bg-amber-50 border border-amber-200' : 'bg-amber-500/10 border border-amber-500/20'}`}>
+          <div className={`flex items-center justify-between px-3 py-2 rounded-2xl ${lightMode ? 'bg-zinc-100 border border-zinc-200' : 'bg-white/5 border border-white/10'}`}>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Kampaniya</span>
-              <span className={`text-[10px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{campaign.name}</span>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${lightMode ? 'bg-zinc-600' : 'bg-white/60'}`} />
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>Kampaniya</span>
+              <span className={`text-[10px] font-medium ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>{campaign.name}</span>
             </div>
           </div>
         )}

@@ -22,7 +22,7 @@ export async function GET() {
     const campaigns = (campaignsRes.data || []).map((c: any) => ({
       ...c,
       rule: c.rules?.[0],
-      target: c.targets?.find((t: any) => t.target_type === 'product' || t.target_type === 'category' || t.target_type === 'whole_order'),
+      target: c.targets?.find((t: any) => t.target_type === 'product' || t.target_type === 'category'),
     }));
 
     const products = (productsRes.data || [])
@@ -113,7 +113,6 @@ function computeEffectivePrice(product: any, campaigns: Campaign[], now: string)
 
       if (c.target?.target_type === 'product' && c.target.target_id !== product.id) return false;
       if (c.target?.target_type === 'category' && c.target.target_id !== product.category_id) return false;
-      if (c.target?.target_type === 'whole_order') return true;
       if (!c.target) return false;
 
       return true;
@@ -159,7 +158,7 @@ function computeEffectivePrice(product: any, campaigns: Campaign[], now: string)
     discount_type: rule.rule_type,
     campaign_id: best.id,
     campaign_label: campaignLabel,
-    campaign_badge: '#D4AF37',
+    campaign_badge: null,
   };
 }
 

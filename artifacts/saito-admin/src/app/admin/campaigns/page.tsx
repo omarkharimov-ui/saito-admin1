@@ -281,7 +281,7 @@ export default function CampaignsPage() {
 
   return (
     <PageTransition className="min-h-screen bg-[var(--theme-bg)] text-[var(--theme-text)] pb-20">
-      <div className="absolute inset-x-0 top-0 h-[20rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.08),transparent_50%)] pointer-events-none" />
+      <div className="absolute inset-x-0 top-0 h-[20rem] bg-[radial-gradient(circle_at_top,rgba(128,128,128,0.08),transparent_50%)] pointer-events-none" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 space-y-8">
         {/* Hero Section - styled like Stock page */}
@@ -389,7 +389,7 @@ export default function CampaignsPage() {
                           targets: camp.targets,
                           schedules: camp.schedules,
                         };
-                        setEditingCampaign(newCampaign as any);
+                        setEditingCampaign(null);
                         setForm({
                           ...form,
                           name: newCampaign.name || newCampaign.title,
@@ -403,12 +403,17 @@ export default function CampaignsPage() {
                       }}
                       onToggleActive={async (camp) => {
                         const newStatus = camp.status === 'active' ? 'inactive' : 'active';
-                        await fetch('/api/campaigns', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: camp.id, status: newStatus, is_active: newStatus === 'active' }),
-                        });
-                        fetchData();
+                        try {
+                          const res = await fetch('/api/campaigns', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: camp.id, status: newStatus, is_active: newStatus === 'active' }),
+                          });
+                          if (!res.ok) throw new Error((await res.json()).error);
+                          fetchData();
+                        } catch (err: any) {
+                          toast.error(err.message);
+                        }
                       }}
                     />
                   ))}
@@ -440,7 +445,7 @@ export default function CampaignsPage() {
                           targets: camp.targets,
                           schedules: camp.schedules,
                         };
-                        setEditingCampaign(newCampaign as any);
+                        setEditingCampaign(null);
                         setForm({
                           ...form,
                           name: newCampaign.name || newCampaign.title,
@@ -454,12 +459,17 @@ export default function CampaignsPage() {
                       }}
                       onToggleActive={async (camp) => {
                         const newStatus = camp.status === 'active' ? 'inactive' : 'active';
-                        await fetch('/api/campaigns', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: camp.id, status: newStatus, is_active: newStatus === 'active' }),
-                        });
-                        fetchData();
+                        try {
+                          const res = await fetch('/api/campaigns', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: camp.id, status: newStatus, is_active: newStatus === 'active' }),
+                          });
+                          if (!res.ok) throw new Error((await res.json()).error);
+                          fetchData();
+                        } catch (err: any) {
+                          toast.error(err.message);
+                        }
                       }}
                     />
                   ))}

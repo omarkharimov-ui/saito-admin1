@@ -509,7 +509,7 @@ const CardWithCollapse = memo(function CardWithCollapse({
     </div>
     </>
   );
-}
+});
 
 let sharedCtx: AudioContext | null = null;
 function playTone(freq: number, duration: number, vol = 0.4) {

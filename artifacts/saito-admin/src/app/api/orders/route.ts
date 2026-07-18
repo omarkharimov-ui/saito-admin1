@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status');
 
-    let ordersQuery = `${svc().url}/rest/v1/orders?select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`;
+    let ordersQuery = `${svc().url}/rest/v1/orders?select=*,campaigns(name),order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`;
     if (statusFilter) {
       ordersQuery += `&status=eq.${encodeURIComponent(statusFilter)}`;
     }
@@ -129,9 +129,20 @@ export async function POST(request: Request) {
       }
 
       const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, discount_amount, discount_type, campaign_id } = body;
-
+      
       if (!table_number || !items?.length) {
         throw new Error('table_number and items required');
+      }
+
+      // Apply a discount (manual or campaign-driven) to the order total so the
+      // stored total_amount reflects the real, discounted price.
+      const rawDiscount = Number(discount_amount) || 0;
+      const totalFromItems = items.reduce((s: number, i: any) => s + ((i.unit_price || 0) * (i.quantity || 1)), 0);
+      let discountedTotal = totalFromItems;
+      if (rawDiscount > 0) {
+        discountedTotal = discount_type === 'percentage'
+          ? totalFromItems * (1 - rawDiscount / 100)
+          : Math.max(0, totalFromItems - rawDiscount);
       }
 
       // Check for existing active order on this table
@@ -144,12 +155,11 @@ export async function POST(request: Request) {
 
       let activeOrderId: string;
       const ks = kitchen_status || 'pending';
-      const totalFromItems = items.reduce((s: number, i: any) => s + ((i.unit_price || 0) * (i.quantity || 1)), 0);
 
       if (existingOrder) {
         // Append to existing order
         activeOrderId = existingOrder.id;
-        const newTotal = (existingOrder.total_amount || 0) + totalFromItems;
+        const newTotal = (existingOrder.total_amount || 0) + discountedTotal;
         const newVersion = (existingOrder.version || 0) + 1;
 
         const patchRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&version=eq.${existingOrder.version || 0}`, {
@@ -161,7 +171,7 @@ export async function POST(request: Request) {
             kitchen_status: ks, 
             updated_at: new Date().toISOString(),
             customer_id: customer_id || null,
-            discount_amount: discount_amount || 0,
+            discount_amount: rawDiscount,
             discount_type: discount_type || null,
             campaign_id: campaign_id || null,
           }),
@@ -185,13 +195,13 @@ export async function POST(request: Request) {
           headers: { ...svc().headers, 'Prefer': 'return=representation' },
           body: JSON.stringify({
             table_number,
-            total_amount: totalFromItems,
+            total_amount: discountedTotal,
             status: status || 'confirmed',
             guest_count: guest_count || 1,
             customer_note: customer_note || null,
             order_type: order_type || 'dine_in',
             customer_id: customer_id || null,
-            discount_amount: discount_amount || 0,
+            discount_amount: rawDiscount,
             discount_type: discount_type || null,
             campaign_id: campaign_id || null,
             kitchen_status: ks,
@@ -213,7 +223,7 @@ export async function POST(request: Request) {
         // Mark table as occupied with total
         await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
           method: 'PATCH', headers: svc().headers,
-          body: JSON.stringify({ status: 'occupied', total_amount: totalFromItems, last_activity_at: new Date().toISOString() }),
+          body: JSON.stringify({ status: 'occupied', total_amount: discountedTotal, last_activity_at: new Date().toISOString() }),
         });
       }
 

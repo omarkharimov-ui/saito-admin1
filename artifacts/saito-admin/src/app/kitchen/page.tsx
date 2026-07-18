@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { useToaster } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
@@ -176,13 +176,13 @@ function mapRawOrder(o: any, lang = 'az'): Order {
     customer_note: o.customer_note || '',
     status: o.status || 'new',
     is_rush: o.is_rush ?? false,
-    merged_from_tables: [],
+    merged_from_tables: o.merged_into_table ? [o.merged_into_table] : [],
     items,
   };
 }
 
 // ─── CardWithCollapse — glassmorphism card with modal on click ────────
-function CardWithCollapse({
+const CardWithCollapse = memo(function CardWithCollapse({
   order, pendingItems, readyItems, allItemsReady, kitchenStatusLabel,
   isDelayed, stage, isNewlyAdded, isReadyTab,
   onAccept, onDeliver, onComplete, isAllItemsReady, formatTime, t, onSoldOut,
@@ -618,9 +618,9 @@ export default function KitchenPage() {
     fetchTables();
   }, []);
 
-  // Polling fallback (hər 30s) — realtime itirilərsə data təzə qalır
+  // Polling fallback (hər 15s) — realtime itirilərsə data təzə qalır
   useEffect(() => {
-    const id = setInterval(() => fetchOrdersRef.current(), 30_000);
+    const id = setInterval(() => fetchOrdersRef.current(), 15_000);
     return () => clearInterval(id);
   }, []);
 
@@ -632,12 +632,12 @@ export default function KitchenPage() {
     return () => clearInterval(id);
   }, []);
 
-  // 60-second tick — reduced frequency for CPU relief
+  // 30-second tick — refresh relative timestamps ("əvvəl") without full refetch
   useEffect(() => {
     const id = setInterval(() => {
       forceUpdate(x => x + 1);
       setTick(t => t + 1);
-    }, 60_000);
+    }, 30_000);
     return () => clearInterval(id);
   }, []);
 
@@ -650,32 +650,6 @@ export default function KitchenPage() {
   const applyData = useCallback((data: any[], lang: string) => {
     const mapped = data.map(o => mapRawOrder(o, lang));
     const seq = ++applySeqRef.current;
-
-    // Enrich with merged_from_tables data
-    const orderIds = mapped.map(o => o.id);
-    if (orderIds.length > 0) {
-      const orFilter = orderIds.map(id => `merged_into.eq.${id}`).join(',');
-      Promise.resolve(
-        supabase
-          .from('orders')
-          .select('id,table_number,merged_into')
-          .or(orFilter)
-      ).then(({ data: childOrders }: any) => {
-        if (seq !== applySeqRef.current) return;
-        const mergedMap = new Map<string, number[]>();
-        (childOrders || []).forEach((co: any) => {
-          if (co.merged_into && co.table_number) {
-            const existing = mergedMap.get(co.merged_into) || [];
-            if (!existing.includes(co.table_number)) existing.push(co.table_number);
-            mergedMap.set(co.merged_into, existing);
-          }
-        });
-        setOrders(prev => prev.map(o => ({
-          ...o,
-          merged_from_tables: mergedMap.get(o.id) || [],
-        })));
-      }).catch(() => {});
-    }
 
     // Sound: new order arrived OR new items added to existing order
     if (soundOnRef.current) {
@@ -741,7 +715,7 @@ export default function KitchenPage() {
       }
 
       const queryParams = new URLSearchParams({
-        select: '*,order_items(*,products(image_url,translations))',
+        select: '*,order_items(*,products(image_url,translations)),merged_into_table:orders!merged_into(table_number)',
         'table_number': 'gt.0',
         'status': 'not.in.(paid,cancelled,closed,completed)',
         'kitchen_status': 'neq.completed',
@@ -817,7 +791,7 @@ export default function KitchenPage() {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const debouncedFetch = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => fetchOrdersRef.current(), 800);
+      debounceTimer = setTimeout(() => fetchOrdersRef.current(), 400);
     };
     
     const channel = createRealtimeChannel('kitchen_realtime')

@@ -9,6 +9,7 @@ import { PageTransition } from '@/components/PageTransition';
 import { EmptyState } from '@/components/ui/primitives';
 import { CampaignsSkeleton } from './components/CampaignsSkeleton';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import CampaignCard from './components/CampaignCard';
 import CampaignModal from './components/CampaignModal';
 import { DeleteCampaignModal, DeleteAllCampaignsModal } from './components/CampaignModals';
@@ -30,6 +31,7 @@ type CampaignWithPerformance = Campaign & {
 
 export default function CampaignsPage() {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [campaigns, setCampaigns] = useState<CampaignWithPerformance[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -108,6 +110,24 @@ export default function CampaignsPage() {
   const filteredProducts = products.filter(p =>
     (p.name || '').toLowerCase().includes(productSearch.toLowerCase())
   );
+
+  // Derive denormalized columns used by POS from the rule/target form so the
+  // discount value is persisted and reflected on POS + receipts.
+  function deriveCampaignColumns(form: FormState) {
+    const rule = form.rules?.[0] || {};
+    const target = form.targets?.[0] || {};
+    let discountValue: number | null = null;
+    if (rule.rule_type === 'percentage' || rule.rule_type === 'happy_hour') {
+      discountValue = Number(rule.percentage) || 0;
+    } else if (rule.rule_type === 'fixed_amount') {
+      discountValue = Number(rule.fixed_amount) || 0;
+    }
+    return {
+      discount_value: discountValue,
+      target_type: target.target_type || null,
+      target_id: target.target_id || null,
+    };
+  }
 
   const activeCampaigns = filteredCampaigns.filter(c => c.status === 'active');
   const inactiveCampaigns = filteredCampaigns.filter(c => c.status !== 'active');
@@ -211,6 +231,7 @@ export default function CampaignsPage() {
         rules: form.rules,
         targets: form.targets,
         schedules: form.schedules,
+        ...deriveCampaignColumns(form),
       };
 
       if (editingCampaign) payload.id = editingCampaign.id;
@@ -256,7 +277,7 @@ export default function CampaignsPage() {
         >
           <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-gold/10 bg-gold/5 px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-gold uppercase">
+               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-[var(--theme-text-secondary)] uppercase">
                 <Percent size={12} /> PREMIUM MARKETING
               </div>
               <h1 className="text-3xl sm:text-4xl font-serif font-bold text-[var(--theme-text)]">{t('campaigns_title')}</h1>
@@ -281,7 +302,7 @@ export default function CampaignsPage() {
                   placeholder={t('search') || 'Axtar...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full sm:w-64 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl pl-12 pr-10 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-gold/30 placeholder:text-[var(--theme-text-muted)] transition-all"
+                  className="w-full sm:w-64 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-2xl pl-12 pr-10 py-3 text-sm text-[var(--theme-text)] outline-none focus:border-[var(--theme-text-muted)] placeholder:text-[var(--theme-text-muted)] transition-all"
                 />
                 {searchQuery && (
                   <button
@@ -294,7 +315,7 @@ export default function CampaignsPage() {
               </div>
               <button
                 onClick={openCreate}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] hover:brightness-95 whitespace-nowrap"
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all whitespace-nowrap ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-black hover:bg-zinc-200'}`}
               >
                 <Plus size={15} />
                 {t('combo_new')}
@@ -313,7 +334,7 @@ export default function CampaignsPage() {
             description={campaigns.length === 0 ? t('campaigns_subtitle') : searchQuery ? `"${searchQuery}" üzərində axtarış...` : ''}
             action={
               campaigns.length === 0 ? (
-                <button onClick={openCreate} className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all bg-[var(--theme-accent)] text-black border border-[var(--theme-accent-border)] hover:brightness-95">
+                <button onClick={openCreate} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all ${lightMode ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-white text-black hover:bg-zinc-200'}`}>
                   <Plus size={14} />
                   İlk Kampaniyanı Yarat
                 </button>

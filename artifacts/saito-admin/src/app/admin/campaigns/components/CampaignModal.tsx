@@ -562,7 +562,7 @@ const CampaignModal = ({
               </button>
               <div className="flex-1 text-center">
                 <h2 className="text-[15px] font-serif font-bold text-white">{campaign ? t('edit_campaign') : t('new_campaign')}</h2>
-                <p className="text-[8px] uppercase tracking-[0.2em] text-gold/60 mt-0.5">{t('premium_marketing')}</p>
+                <p className="text-[8px] uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mt-0.5">{t('premium_marketing')}</p>
               </div>
               <div className="w-9" />
             </div>

@@ -89,8 +89,8 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
                 <img src={product.image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center bg-[var(--theme-accent-soft)] border border-[var(--theme-accent-border)]">
-                <Icon size={26} strokeWidth={1.3} className="text-gold/70" />
+              <div className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
+                <Icon size={26} strokeWidth={1.3} className="text-[var(--theme-text-secondary)]" />
               </div>
             )}
           </div>
@@ -104,7 +104,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
               <span className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border bg-[var(--theme-accent-soft)] text-[var(--theme-accent)] border-[var(--theme-accent-border)]">
                 {CAMPAIGN_LABELS[camp.type] ?? camp.type}
               </span>
-              <span className="text-[11px] text-gold font-bold">{discountDisplay}</span>
+              <span className="text-[11px] text-[var(--theme-text-secondary)] font-bold">{discountDisplay}</span>
             </div>
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -201,14 +201,14 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
         </div>
 
         <div className="flex items-start gap-4 mb-5 mt-10">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-gold flex-shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-text-secondary)] flex-shrink-0">
             <Icon size={22} strokeWidth={1.5} />
           </div>
           <div className="pr-12 flex-1 min-w-0">
-            <h3 className="text-base font-bold text-white mb-1 leading-tight truncate">{camp.name || camp.title}</h3>
+            <h3 className="text-base font-bold text-[var(--theme-text)] mb-1 leading-tight truncate">{camp.name || camp.title}</h3>
             <div className="flex items-center gap-2">
-              <span className="text-[9px] uppercase tracking-widest text-gold/80 font-semibold">{CAMPAIGN_LABELS[camp.type] ?? camp.type}</span>
-              <span className="text-[10px] text-gold font-bold">{discountDisplay}</span>
+              <span className="text-[9px] uppercase tracking-widest text-[var(--theme-text-muted)] font-semibold">{CAMPAIGN_LABELS[camp.type] ?? camp.type}</span>
+              <span className="text-[10px] text-[var(--theme-text-secondary)] font-bold">{discountDisplay}</span>
             </div>
           </div>
         </div>
@@ -243,7 +243,7 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
           </div>
           <div className="text-right">
             {dateDisplay && (
-              <div className="flex items-center gap-1 text-[9px] font-medium text-gold/60 mb-0.5">
+              <div className="flex items-center gap-1 text-[9px] font-medium text-[var(--theme-text-muted)] mb-0.5">
                 <CalendarOff size={9} />{dateDisplay}
               </div>
             )}

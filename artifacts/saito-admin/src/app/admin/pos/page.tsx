@@ -55,6 +55,17 @@ export default function POSPage() {
     }
   };
 
+  // Derive the campaign discount value from the actual rule (percentage / fixed),
+  // falling back to the denormalized discount_value column when no rule is present.
+  const campaignDiscountValue = (camp: any): number => {
+    const rule = camp?.rules?.[0];
+    if (rule) {
+      if (rule.rule_type === 'percentage' || rule.rule_type === 'happy_hour') return Number(rule.percentage) || 0;
+      if (rule.rule_type === 'fixed_amount') return Number(rule.fixed_amount) || 0;
+    }
+    return Number(camp?.discount_value) || 0;
+  };
+
   // Load active campaigns
   useEffect(() => {
     (async () => {
@@ -667,7 +678,7 @@ export default function POSPage() {
                <div className="w-full md:w-[400px] border-l p-6 bg-black/20">
                         <CartPanel 
                           cart={pos.cart} 
-                          campaign={selectedCampaign ? { id: selectedCampaign.id, name: selectedCampaign.title || selectedCampaign.name, discount: Number(selectedCampaign.discount_value || 0), type: selectedCampaign.type, rule_type: selectedCampaign.rules?.[0]?.rule_type, target_type: selectedCampaign.target_type, target_id: selectedCampaign.target_id, buy_quantity: selectedCampaign.rules?.[0]?.buy_quantity, pay_quantity: selectedCampaign.rules?.[0]?.pay_quantity, free_quantity: selectedCampaign.rules?.[0]?.free_quantity } : null}
+                          campaign={selectedCampaign ? { id: selectedCampaign.id, name: selectedCampaign.title || selectedCampaign.name, discount: campaignDiscountValue(selectedCampaign), type: selectedCampaign.type, rule_type: selectedCampaign.rules?.[0]?.rule_type, target_type: selectedCampaign.target_type, target_id: selectedCampaign.target_id, buy_quantity: selectedCampaign.rules?.[0]?.buy_quantity, pay_quantity: selectedCampaign.rules?.[0]?.pay_quantity, free_quantity: selectedCampaign.rules?.[0]?.free_quantity } : null}
                           onPlaceOrder={() => pos.placeOrder(selectedCampaign ? { id: selectedCampaign.id, type: selectedCampaign.type, target_type: selectedCampaign.target_type, target_id: selectedCampaign.target_id, rule_type: selectedCampaign.rules?.[0]?.rule_type, buy_quantity: selectedCampaign.rules?.[0]?.buy_quantity, pay_quantity: selectedCampaign.rules?.[0]?.pay_quantity, free_quantity: selectedCampaign.rules?.[0]?.free_quantity } : undefined)} 
                           onBack={() => pos.setActiveView('floor')}
                           orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}

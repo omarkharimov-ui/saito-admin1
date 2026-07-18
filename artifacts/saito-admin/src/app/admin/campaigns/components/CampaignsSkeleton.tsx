@@ -20,7 +20,7 @@ export function CampaignsSkeleton() {
         </div>
         <div className="flex items-center gap-2">
           <div className="h-8 w-40 bg-white/[0.05] rounded-xl" />
-          <div className="h-9 w-28 bg-gold/20 rounded-xl" />
+          <div className="h-9 w-28 bg-white/[0.08] rounded-xl" />
         </div>
       </div>
 
@@ -34,11 +34,11 @@ export function CampaignsSkeleton() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              className="bg-gradient-to-br from-white/[0.04] to-white/[0.02] border border-gold/20 rounded-2xl p-5 space-y-4"
+              className="bg-gradient-to-br from-white/[0.04] to-white/[0.02] border border-white/[0.08] rounded-2xl p-5 space-y-4"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-gold/10 rounded-xl" />
+                  <div className="h-10 w-10 bg-white/[0.08] rounded-xl" />
                   <div className="space-y-1.5">
                     <div className="h-4 w-28 bg-white/[0.08] rounded" />
                     <div className="h-3 w-20 bg-white/[0.05] rounded" />

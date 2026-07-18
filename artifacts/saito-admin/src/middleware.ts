@@ -45,7 +45,7 @@ export async function middleware(request: NextRequest) {
     if (isAdmin && !['admin', 'superadmin'].includes(role || '')) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
-    if (isKitchen && !['kitchen', 'superadmin'].includes(role || '')) {
+    if (isKitchen && !['kitchen', 'superadmin', 'admin'].includes(role || '')) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
   }

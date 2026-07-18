@@ -251,6 +251,59 @@ export function usePos() {
     }
   };
 
+  // Mirror of CartPanel discount math — used to persist the real
+  // (campaign-driven) discount on the order so the receipt reflects it.
+  const computeCampaignDiscount = (
+    c: PosCart | null,
+    camp?: { id?: string; type: string; target_type?: string; target_id?: string; rule_type?: string; buy_quantity?: number; pay_quantity?: number; free_quantity?: number; discount?: number }
+  ): { amount: number; type: 'percentage' | 'fixed' | null } => {
+    if (!c) return { amount: 0, type: null };
+    const originalTotal = c.items.reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
+
+    if (camp) {
+      const ruleType = camp.rule_type || camp.type;
+      if (ruleType === 'buy_x_pay_y' || ruleType === 'buy_x_get_y') {
+        const buyQty = camp.buy_quantity || (ruleType === 'buy_x_pay_y' ? 2 : 2);
+        const payQty = camp.pay_quantity || 1;
+        const freeQty = camp.free_quantity || 1;
+        const applicableItems = c.items.filter(i => {
+          if (camp.target_type === 'product') return i.product_id === camp.target_id;
+          if (camp.target_type === 'category') return (i as any).category_id === camp.target_id;
+          return true;
+        });
+        const applicableCount = applicableItems.reduce((s, i) => s + i.quantity, 0);
+        const groupSize = ruleType === 'buy_x_pay_y' ? buyQty : buyQty + freeQty;
+        const freeItems = Math.floor(applicableCount / groupSize) * (ruleType === 'buy_x_pay_y' ? (buyQty - payQty) : freeQty);
+        if (freeItems > 0) {
+          const sorted = [...applicableItems].sort((a, b) => (b.original_unit_price ?? b.unit_price) - (a.original_unit_price ?? a.unit_price));
+          let remaining = freeItems;
+          let discount = 0;
+          for (const item of sorted) {
+            if (remaining <= 0) break;
+            const take = Math.min(remaining, item.quantity);
+            discount += take * (item.original_unit_price ?? item.unit_price);
+            remaining -= take;
+          }
+          return { amount: discount, type: 'fixed' };
+        }
+        return { amount: 0, type: null };
+      }
+      const disc = camp.discount || 0;
+      if (ruleType === 'percentage' || ruleType === 'happy_hour') {
+        return { amount: originalTotal * (disc / 100), type: 'percentage' };
+      }
+      if (ruleType === 'fixed_amount') {
+        return { amount: Math.min(disc, originalTotal), type: 'fixed' };
+      }
+      return { amount: 0, type: null };
+    }
+
+    if ((c.discount_amount ?? 0) > 0) {
+      return { amount: c.discount_amount || 0, type: (c.discount_type === 'percentage' ? 'percentage' : 'fixed') as 'percentage' | 'fixed' };
+    }
+    return { amount: 0, type: null };
+  };
+
   const addToCart = (
     p: PosProduct,
     opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[] }
@@ -364,6 +417,10 @@ export function usePos() {
         return;
       }
 
+      // Compute the effective discount so the order + receipt reflect the
+      // real (possibly campaign-driven) discounted total.
+      const computedDiscount = computeCampaignDiscount(cart, campaign);
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -375,8 +432,8 @@ export function usePos() {
           customer_note: cart.notes,
           order_type: cart.order_type,
           customer_id: cart.customer_id || null,
-          discount_amount: cart.discount_amount || 0,
-          discount_type: cart.discount_type || null,
+          discount_amount: computedDiscount.amount,
+          discount_type: computedDiscount.type,
           campaign_id: campaign?.id || null,
           created_by: (() => {
             try {

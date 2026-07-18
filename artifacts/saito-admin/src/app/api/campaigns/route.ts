@@ -9,6 +9,7 @@ const ALLOWED_FIELDS = [
   'customer_tags', 'dining_type', 'table_numbers', 'branch_id',
   'auto_apply', 'requires_coupon', 'coupon_code',
   'is_active', 'start_date', 'end_date',
+  'discount_value', 'target_type', 'target_id',
 ];
 
 export async function GET(req: NextRequest) {

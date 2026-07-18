@@ -65,8 +65,8 @@ export default function CampaignsPage() {
     start_date: '',
     end_date: '',
     rules: [{ rule_type: 'percentage', percentage: 0 }],
-    targets: [{ target_type: 'whole_order' }],
-    schedules: [{ is_recurring: false, weekdays: [1,2,3,4,5,6,7] }],
+      targets: [{ target_type: 'product', target_ids: [], target_id: '' }],
+      schedules: [{ is_recurring: false, weekdays: [1,2,3,4,5,6,7] }],
   });
 
   const fetchData = useCallback(async () => {
@@ -122,10 +122,12 @@ export default function CampaignsPage() {
     } else if (rule.rule_type === 'fixed_amount') {
       discountValue = Number(rule.fixed_amount) || 0;
     }
+    const targetIds = target.target_ids || (target.target_id ? [target.target_id] : []);
     return {
       discount_value: discountValue,
       target_type: target.target_type || null,
-      target_id: target.target_id || null,
+      target_id: targetIds[0] || target.target_id || null,
+      target_ids: targetIds,
     };
   }
 
@@ -157,7 +159,7 @@ export default function CampaignsPage() {
       start_date: '',
       end_date: '',
       rules: [{ rule_type: 'percentage', percentage: 0 }],
-      targets: [{ target_type: 'whole_order' }],
+      targets: [{ target_type: 'product', target_ids: [], target_id: '' }],
       schedules: [{ is_recurring: false, weekdays: [1,2,3,4,5,6,7] }],
     });
     setProductSearch('');
@@ -167,10 +169,11 @@ export default function CampaignsPage() {
   const openEdit = (camp: CampaignWithPerformance) => {
     setEditingCampaign(camp);
     const rule = camp.rules?.[0] || { rule_type: 'percentage', percentage: 0 };
-    const target = camp.targets?.[0] || { target_type: 'whole_order' };
+    const target = camp.targets?.[0] || { target_type: 'product' };
     const schedule = camp.schedules?.[0] || {};
     const startDate = schedule.start_date || camp.start_date || '';
     const endDate = schedule.end_date || camp.end_date || '';
+    const existingIds = target.target_ids || (target.target_id ? [target.target_id] : []);
 
     setForm({
       name: camp.name || camp.title || '',
@@ -195,7 +198,7 @@ export default function CampaignsPage() {
       start_date: startDate,
       end_date: endDate,
       rules: [rule],
-      targets: [target],
+      targets: [{ ...target, target_ids: existingIds, target_id: existingIds[0] || target.target_id || '' }],
       schedules: [schedule],
     });
     setModalOpen(true);
@@ -229,7 +232,12 @@ export default function CampaignsPage() {
         start_date: form.start_date || null,
         end_date: form.end_date || null,
         rules: form.rules,
-        targets: form.targets,
+        targets: form.targets.flatMap(t => {
+          if (t.target_ids && t.target_ids.length > 1) {
+            return t.target_ids.map(id => ({ target_type: t.target_type, target_id: id }));
+          }
+          return [{ target_type: t.target_type, target_id: t.target_id || t.target_ids?.[0] || null }];
+        }),
         schedules: form.schedules,
         ...deriveCampaignColumns(form),
       };

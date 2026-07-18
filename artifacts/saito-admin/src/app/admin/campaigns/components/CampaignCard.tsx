@@ -54,8 +54,11 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
   const schedule = camp.schedules?.[0];
   const isActive = camp.status === 'active' && camp.is_active !== false;
 
-  const product = target ? products.find(p => p.id === target.target_id) : null;
+  const targetIds = target?.target_ids || (target?.target_id ? [target.target_id] : []);
+  const product = targetIds.length > 0 ? products.find(p => p.id === targetIds[0]) : null;
   const category = categoryTarget ? categories.find(c => c.id === categoryTarget.target_id) : null;
+
+  const multiCount = targetIds.length;
 
   let discountDisplay = '—';
   if (rule) {
@@ -67,14 +70,13 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
     else if (rule.rule_type === 'free_delivery') discountDisplay = 'Pulsuz çatdırılma';
   }
 
-  const targetDisplay = product?.name || category?.name || (camp.targets?.some((t: any) => t.target_type === 'whole_order') ? 'Bütün sifariş' : 'Seçilməmiş');
+  const targetDisplay = product?.name || category?.name || (multiCount > 1 ? `${multiCount} məhsul` : 'Seçilməmiş');
   const dateDisplay = schedule?.end_date ? new Date(schedule.end_date).toLocaleDateString('az-AZ') : null;
 
   return (
     <>
       {/* ── MOBILE card ── */}
       <motion.div
-        layoutId={`campaign-${camp.id}`}
         whileTap={{ scale: 0.978 }}
         onClick={() => onEdit(camp)}
         className={`md:hidden relative overflow-hidden rounded-3xl cursor-pointer border ${isActive ? 'bg-[var(--theme-panel)] border-[var(--theme-border-strong)]' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}
@@ -160,7 +162,6 @@ const CampaignCard = ({ camp, products, categories, onEdit, onDelete, onDuplicat
 
       {/* ── DESKTOP card ── */}
       <motion.div
-        layoutId={`campaign-${camp.id}`}
         whileHover={{ y: -4, boxShadow: '0 18px 42px rgba(0,0,0,0.35)' }}
         transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         onClick={() => onEdit(camp)}

@@ -11,7 +11,6 @@ import {
   Monitor,
   ShieldAlert,
   ShoppingCart,
-  ChefHat,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -52,7 +51,7 @@ export function getAdminNavItems(
     { id: 'products', name: t('products'), href: '/admin/products', icon: ShoppingBag, roles: ['superadmin'] },
     { id: 'combos', name: t('combos'), href: '/admin/products', icon: PackagePlus, roles: ['superadmin'] },
     { id: 'campaigns', name: t('campaigns'), href: '/admin/campaigns', icon: Percent, roles: ['admin', 'superadmin'] },
-    { id: 'kitchen', name: t('tab_kitchen') || 'Mətbəx', href: '/kitchen', icon: ChefHat, roles: ['admin', 'superadmin'] },
+
     { id: 'stock', name: 'Stok', href: '/admin/stock', icon: Warehouse, roles: ['superadmin'] },
     { id: 'purchase-orders', name: 'Alış Sifarişləri', href: '/admin/purchase-orders', icon: ShoppingCart, roles: ['superadmin'] },
     { id: 'recipes', name: 'Reseptlər', href: '/admin/recipes', icon: ScrollText, roles: ['superadmin'] },

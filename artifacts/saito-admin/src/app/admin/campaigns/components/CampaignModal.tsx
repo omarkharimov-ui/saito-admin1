@@ -116,10 +116,10 @@ const CampaignModal = ({
 
   useEffect(() => {
     if (open) {
-      setStep(1);
+      setStep(campaign ? 3 : 1);
       setShowAdvanced(false);
     }
-  }, [open]);
+  }, [open, !!campaign]);
 
   const updateRule = (patch: Partial<RuleForm>) => {
     const newRules = [...form.rules];
@@ -259,9 +259,10 @@ const CampaignModal = ({
         })}
       </div>
 
-      <div className="flex-1 px-4 md:px-6 py-2 space-y-5 overflow-y-auto" style={{ maxHeight: '62vh' }}>
+      <div className="flex-1 px-4 md:px-6 py-2 overflow-y-auto" style={{ maxHeight: '62vh' }}>
+        <AnimatePresence mode="wait">
         {/* STEP 1 — TYPE */}
-        {step === 1 && (
+        {step === 1 && (<motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-5">
           <div className="space-y-3">
             <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Kampaniya nə üçündür?</label>
             <div className="grid grid-cols-2 gap-2.5">
@@ -286,10 +287,10 @@ const CampaignModal = ({
               ))}
             </div>
           </div>
-        )}
+        </motion.div>)}
 
         {/* STEP 2 — TARGET (no whole_order / Sifariş tab) */}
-        {step === 2 && (
+        {step === 2 && (<motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-5">
           <div className="space-y-4">
             <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Harada işləsin?</label>
             <div className="flex gap-2">
@@ -381,11 +382,10 @@ const CampaignModal = ({
               </div>
             )}
           </div>
-        )}
+        </motion.div>)}
 
         {/* STEP 3 — PARAMETERS */}
-        {step === 3 && (
-          <div className="space-y-5">
+        {step === 3 && (<motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-5">
             <div className="space-y-2">
               <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">{t('campaign_name')}</label>
               <input type="text" value={form.name || form.title} onChange={(e) => onFormChange({ ...form, name: e.target.value, title: e.target.value })}
@@ -462,11 +462,10 @@ const CampaignModal = ({
                 </div>
               </>
             )}
-          </div>
-        )}
+          </motion.div>)}
 
         {/* STEP 4 — SCHEDULE */}
-        {step === 4 && (
+        {step === 4 && (<motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-5">
           <div className="space-y-4">
             <label className="text-[10px] uppercase tracking-widest text-[var(--theme-text-secondary)] font-semibold">Vaxt (İstəyə bağlı)</label>
             <div className="grid grid-cols-2 gap-3">
@@ -543,7 +542,8 @@ const CampaignModal = ({
               )}
             </div>
           </div>
-        )}
+        </motion.div>)}
+        </AnimatePresence>
       </div>
     </form>
   );

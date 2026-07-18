@@ -128,7 +128,6 @@ export default function CampaignsPage() {
       discount_value: discountValue,
       target_type: target.target_type || null,
       target_id: targetIds[0] || target.target_id || null,
-      target_ids: targetIds,
     };
   }
 

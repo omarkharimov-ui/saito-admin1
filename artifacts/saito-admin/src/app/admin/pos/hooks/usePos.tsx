@@ -34,18 +34,35 @@ export function usePos() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [tablesRes, productsRes] = await Promise.all([
-        retryWithBackoff(() => fetch('/api/pos/tables')).catch(() => ({ ok: false } as Response)),
-        retryWithBackoff(() => fetch('/api/pos/products')).catch(() => ({ ok: false } as Response)),
+      const [tablesRes, productsRes] = await Promise.allSettled([
+        retryWithBackoff(() => fetch('/api/pos/tables')),
+        retryWithBackoff(() => fetch('/api/pos/products')),
       ]);
 
-      if (tablesRes && 'ok' in tablesRes && tablesRes.ok) {
-        const data = await (tablesRes as Response).json();
+      // A transiently-failed fetch must NOT silently leave the UI stale.
+      // A non-ok response (e.g. a transient 401 while the session token is
+      // being renewed) previously fell through both branches and skipped
+      // setFloors, so the POS only refreshed on a manual page reload.
+      const tables = tablesRes.status === 'fulfilled' ? tablesRes.value : null;
+      const products = productsRes.status === 'fulfilled' ? productsRes.value : null;
+
+      if (tables && 'ok' in tables && (tables as Response).ok) {
+        const data = await (tables as Response).json();
         setFloors(data.floors || []);
+      } else {
+        const reason = tablesRes.status === 'rejected'
+          ? tablesRes.reason
+          : `tables HTTP ${(tables as Response)?.status}`;
+        console.error('POS tables fetch failed:', reason);
+        // Surface the failure so the operator knows the floor is stale and a
+        // manual refresh may be needed, instead of silently showing old data.
+        if (tablesRes.status === 'fulfilled') {
+          toast.error('Masa məlumatları yenilənə bilmədi', { id: 'pos-tables-stale' });
+        }
       }
-      
-      if (productsRes && 'ok' in productsRes && productsRes.ok) {
-        const data = await (productsRes as Response).json();
+
+      if (products && 'ok' in products && (products as Response).ok) {
+        const data = await (products as Response).json();
         setProducts(data.products || []);
         setCategories(data.categories || []);
         setCombos(data.combos || []);
@@ -56,6 +73,8 @@ export function usePos() {
           (vmap[v.product_id] ||= []).push(v);
         }
         setVariantsByProduct(vmap);
+      } else if (productsRes.status === 'rejected') {
+        console.error('POS products fetch failed:', productsRes.reason);
       }
     } catch (e) {
       console.error('POS fetch error:', e);
@@ -95,10 +114,16 @@ export function usePos() {
 
 
 
+    const switchingToDifferentTable = selectedTable?.table_number !== table.table_number;
+
     setSelectedTable(table);
     setActiveView('order');
 
-    if (!sameTable || !cart || cart.items.length === 0) {
+    // Only reset the cart when switching to a DIFFERENT table. Re-selecting the
+    // same table (e.g. after going back to the floor and returning) must keep
+    // the existing cart — including items that have not been sent to the
+    // kitchen yet — otherwise they silently disappear.
+    if (switchingToDifferentTable || !cart) {
       setCart({
         table_id: table.id,
         table_number: table.table_number,
@@ -270,7 +295,7 @@ export function usePos() {
       .filter(i => i.campaign_id === bestId)
       .reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
     const pct = originalTotal > 0 ? (bestDisc / originalTotal) * 100 : 0;
-    return { id: bestId, discount: Math.round(pct * 10) / 10, type: pct > 0 ? 'PERCENTAGE' : 'FIXED' };
+    return { id: bestId, discount: Math.round(pct * 10) / 10, type: pct > 0 ? 'percentage' : 'fixed' };
   };
 
   const addToCart = (
@@ -301,6 +326,7 @@ export function usePos() {
       const unitPrice = typeof effective === 'number' ? effective : effective?.effective_price ?? basePrice;
       const campaignId = typeof effective === 'object' && effective?.campaign_id ? effective.campaign_id : null;
       const campaignDiscount = typeof effective === 'object' && effective?.discount_amount ? effective.discount_amount : 0;
+      const campaignDiscountType = typeof effective === 'object' && effective?.discount_type ? effective.discount_type : null;
       const existing = items.find(
         i => i.product_id === p.id && (i.variant_id ?? null) === variantId
       );
@@ -320,6 +346,7 @@ export function usePos() {
           notes: opts?.notes ?? '',
           campaign_id: campaignId,
           campaign_discount_amount: campaignDiscount,
+          campaign_discount_type: campaignDiscountType,
         });
       }
       return { ...base, items };
@@ -391,7 +418,22 @@ export function usePos() {
       }
 
       const itemBasedDiscount = cart.items.reduce((s, i) => s + Math.max(0, ((i.original_unit_price ?? i.unit_price) - i.unit_price) * i.quantity), 0);
-      const computedDiscount = { amount: itemBasedDiscount, type: itemBasedDiscount > 0 ? 'fixed' as const : null };
+      // Determine the real discount type from the per-item campaign deltas so we
+      // do not hardcode 'fixed' when the applied campaign was percentage-based.
+      // A campaign_id is present only when getAutoCampaign selected one; in that
+      // case the discount type should match that campaign's rule, otherwise fall
+      // back to the dominant type among the cart's item-level campaigns.
+      const autoCampaign = campaign?.id ? getAutoCampaign(cart) : null;
+      let computedType: 'percentage' | 'fixed' | null = null;
+      if (itemBasedDiscount > 0) {
+        if (autoCampaign && (autoCampaign.type === 'PERCENTAGE' || autoCampaign.type === 'percentage')) {
+          computedType = 'percentage';
+        } else {
+          const hasPercentageItem = cart.items.some(i => i.campaign_id && (i as any).campaign_discount_type === 'percentage');
+          computedType = hasPercentageItem ? 'percentage' : 'fixed';
+        }
+      }
+      const computedDiscount = { amount: itemBasedDiscount, type: computedType };
 
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -451,12 +493,23 @@ export function usePos() {
 
   const updateGuestCount = async (delta: number) => {
     if (!cart) return;
+    const tableNumber = cart.table_number;
     const newCount = Math.max(1, (cart.guest_count || 1) + delta);
+    // Optimistically reflect the change in the local cart immediately so the
+    // UI reacts even before the server confirms.
     setCart(prev => prev ? { ...prev, guest_count: newCount } : null);
     try {
-      const orderRes = await apiFetch(`/api/orders?table_number=eq.${cart.table_number}&status=not.in.(paid,cancelled)&select=id&order=created_at.desc&limit=1`);
+      // The /api/orders GET route only honours a `status` equality filter and
+      // ignores `table_number` / `not.in(...)` params, so we fetch all orders
+      // and resolve the active order for this table on the client. The broken
+      // `status=not.in.(paid,cancelled)` filter previously returned [] and the
+      // guest count was never persisted.
+      const orderRes = await apiFetch('/api/orders');
+      if (!orderRes.ok) throw new Error('Failed to fetch orders');
       const orderData = await orderRes.json();
-      const activeOrder = Array.isArray(orderData) ? orderData[0] : orderData.orders?.[0];
+      const activeOrder = (orderData.orders || [])
+        .filter((o: any) => o.table_number === tableNumber && !['paid', 'cancelled', 'closed'].includes(o.status))
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
       if (!activeOrder?.id) return;
       await apiFetch('/api/orders', {
         method: 'POST',

@@ -21,9 +21,25 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status');
 
+    // Build the orders query. We deliberately do NOT trust a raw `status`
+    // value from the client: previously `status=not.in.(paid,cancelled)` was
+    // forwarded verbatim as `status=eq.not.in.(paid,cancelled)`, which is an
+    // invalid Supabase filter and silently returned []. We only accept an
+    // explicit equality value, and we honour an optional `table_number` filter.
+    const statusParams = statusFilter ? statusFilter.split(',').filter(Boolean) : [];
+    const tableNumber = searchParams.get('table_number');
+
+    const orderFilters: string[] = [];
+    for (const s of statusParams) {
+      orderFilters.push(`status=eq.${encodeURIComponent(s.trim())}`);
+    }
+    if (tableNumber) {
+      orderFilters.push(`table_number=eq.${encodeURIComponent(tableNumber)}`);
+    }
+
     let ordersQuery = `${svc().url}/rest/v1/orders?select=*,campaigns(name),order_items(*,products(image_url,name_az,name_en,name_ru,translations))&order=created_at.desc`;
-    if (statusFilter) {
-      ordersQuery += `&status=eq.${encodeURIComponent(statusFilter)}`;
+    if (orderFilters.length > 0) {
+      ordersQuery += `&${orderFilters.join('&')}`;
     }
 
     const [ordersRes, itemsRes, tablesRes, floorsRes] = await Promise.all([
@@ -134,15 +150,20 @@ export async function POST(request: Request) {
         throw new Error('table_number and items required');
       }
 
-      // Apply a discount (manual or campaign-driven) to the order total so the
-      // stored total_amount reflects the real, discounted price.
+      // Single source of truth for pricing: each item's unit_price is already
+      // the FINAL (post-campaign) price by the time it reaches the server
+      // (see usePos.placeOrder / addToCart, which bake the item discount into
+      // unit_price). The order-level discount_amount is stored as METADATA for
+      // receipts/analytics and is only reduced from the total when it is a
+      // genuine order-level PERCENTAGE discount (which the client does not bake
+      // into unit_price). We deliberately do NOT subtract a fixed discount here,
+      // otherwise the discount would be applied twice (once in unit_price, once
+      // here).
       const rawDiscount = Number(discount_amount) || 0;
       const totalFromItems = items.reduce((s: number, i: any) => s + ((i.unit_price || 0) * (i.quantity || 1)), 0);
       let discountedTotal = totalFromItems;
-      if (rawDiscount > 0) {
-        discountedTotal = discount_type === 'percentage'
-          ? totalFromItems * (1 - rawDiscount / 100)
-          : Math.max(0, totalFromItems - rawDiscount);
+      if (rawDiscount > 0 && discount_type === 'percentage') {
+        discountedTotal = totalFromItems * (1 - rawDiscount / 100);
       }
 
       // Check for existing active order on this table
@@ -157,10 +178,19 @@ export async function POST(request: Request) {
       const ks = kitchen_status || 'pending';
 
       if (existingOrder) {
-        // Append to existing order
+        // Append to existing order.
+        // The previously stored total_amount already reflects all earlier
+        // discounts (it is the sum of final item unit_prices). We add only the
+        // new items' final price total — we must NOT re-subtract rawDiscount,
+        // otherwise the discount would be applied again on top of an already
+        // discounted total.
         activeOrderId = existingOrder.id;
         const newTotal = (existingOrder.total_amount || 0) + discountedTotal;
         const newVersion = (existingOrder.version || 0) + 1;
+
+        // Accumulate discount metadata; the new send only carries its own
+        // delta, so add it to whatever was already recorded.
+        const accumulatedDiscount = (Number(existingOrder.discount_amount) || 0) + rawDiscount;
 
         const patchRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&version=eq.${existingOrder.version || 0}`, {
           method: 'PATCH',
@@ -172,9 +202,9 @@ export async function POST(request: Request) {
             updated_at: new Date().toISOString(),
             customer_id: customer_id || null,
             customer_name: customer_name || null,
-            discount_amount: rawDiscount,
-            discount_type: discount_type || null,
-            campaign_id: campaign_id || null,
+            discount_amount: accumulatedDiscount,
+            discount_type: discount_type || existingOrder.discount_type || null,
+            campaign_id: campaign_id || existingOrder.campaign_id || null,
           }),
         });
         if (!patchRes.ok) throw new Error('CONCURRENCY_CONFLICT');

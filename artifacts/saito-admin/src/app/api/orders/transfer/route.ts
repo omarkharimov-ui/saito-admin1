@@ -74,12 +74,14 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    // Keep child orders pointing to parent (now at to_table implicitly)
+    // Move child orders to the target table too. They keep their merged_into
+    // parent link, but their own table_number must follow the source so the
+    // Orders page shows them under the new (target) table, not the old one.
     for (const child of childOrders) {
       await fetch(`${s.url}/rest/v1/orders?id=eq.${child.id}`, {
         method: 'PATCH',
         headers: s.headers,
-        body: JSON.stringify({ updated_at: now }),
+        body: JSON.stringify({ table_number: to_table, updated_at: now }),
       });
     }
 

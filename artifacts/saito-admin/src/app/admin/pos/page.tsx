@@ -74,6 +74,10 @@ export default function POSPage() {
     const guestName = searchParams.get('guestName') || '';
     let ctx: any = null;
     try { ctx = JSON.parse(localStorage.getItem('saito_pos_preorder_context') || 'null'); } catch { ctx = null; }
+    // Consume the localStorage handoff exactly once so a stale context from a
+    // previous "Öncədən Sifariş" click can't auto-open a table on every later
+    // POS visit.
+    if (ctx) localStorage.removeItem('saito_pos_preorder_context');
 
     const finalResId = resId || ctx?.resId;
     const finalTableIds = tableIds.length ? tableIds : (ctx?.tableIds || []);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
@@ -89,13 +89,26 @@ export function usePos() {
     }
   }, [fetchFloor, fetchCatalog]);
 
+  // Keep a ref to the latest floor fetcher so realtime/polling always call the
+  // current closure (avoids stale state after re-renders).
+  const fetchFloorRef = useRef(fetchFloor);
+  useEffect(() => { fetchFloorRef.current = fetchFloor; }, [fetchFloor]);
+
   useEffect(() => {
     fetchData();
     const channel = createRealtimeChannel('pos-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, fetchFloor)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchFloor)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, () => fetchFloorRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchFloorRef.current())
       .subscribe();
+
+    // Polling fallback: realtime events can be delayed or dropped (e.g. on slow
+    // Supabase connections or tab backgrounding), so refresh the floor on a
+    // timer too. This guarantees the UI reflects table/order changes without a
+    // manual page refresh.
+    const poll = setInterval(() => fetchFloorRef.current(), 5000);
+
     return () => { 
+      clearInterval(poll);
       removeRealtimeChannel(channel); 
     };
   }, [fetchData]);

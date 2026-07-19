@@ -44,6 +44,19 @@ export async function POST(request: NextRequest) {
 
     const data = await rpcRes.json();
 
+    // Move kitchen_schedule references from child tables to the merged parent
+    // so the KDS shows the correct (merged) table number after a merge.
+    const targetTable = table_numbers[0];
+    const sourceTables = table_numbers.slice(1);
+    if (sourceTables.length) {
+      const scheduleTables = sourceTables.join(',');
+      await fetch(`${svc().url}/rest/v1/kitchen_schedule?table_number=in.(${scheduleTables})`, {
+        method: 'PATCH',
+        headers: svc().headers,
+        body: JSON.stringify({ table_number: targetTable }),
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ 
       success: true, 
       data: { 

@@ -524,28 +524,34 @@ export default function POSPage() {
 
   const handleUndo = async () => {
     if (!lastUndo || !lastUndo.data) return;
-    try {
-      const res = await apiFetch('/api/orders/transfer', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from_table: lastUndo.data.from_table,
-          to_table: lastUndo.data.to_table,
-          orders: lastUndo.data.orders,
-          table: lastUndo.data.table,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success('Köçürmə geri alındı');
-        setLastUndo(null);
-        pos.fetchData();
-      } else {
-        toast.error(data.error || 'Geri alınmadı');
+    // Transfer uses its own DELETE endpoint; merge/unmerge go through the
+    // generic undo route (performUndo) which knows how to reverse each action.
+    if (lastUndo.action === 'transfer') {
+      try {
+        const res = await apiFetch('/api/orders/transfer', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from_table: lastUndo.data.from_table,
+            to_table: lastUndo.data.to_table,
+            orders: lastUndo.data.orders,
+            table: lastUndo.data.table,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          toast.success('Köçürmə geri alındı');
+          setLastUndo(null);
+          pos.fetchData();
+        } else {
+          toast.error(data.error || 'Geri alınmadı');
+        }
+      } catch (e: any) {
+        toast.error(e.message || 'Geri alma xətası');
       }
-    } catch (e: any) {
-      toast.error(e.message || 'Geri alma xətası');
+      return;
     }
+    await pos.performUndo();
   };
 
   const handleUnmerge = async () => {

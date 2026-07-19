@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data, error } = await supabase.rpc('calculate_cart_pricing', {
-      p_items: JSON.stringify(items),
+      p_items: items,
     });
 
     if (error) {

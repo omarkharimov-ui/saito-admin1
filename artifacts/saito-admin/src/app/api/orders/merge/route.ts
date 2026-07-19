@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
       if (Array.isArray(srcData)) sourceOrdersSnapshot.push(...srcData);
     }
 
-    // Call fixed RPC
-    const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/merge_tables_v3`, {
+    // Atomic merge RPC (exists in DB as saito_merge_tables)
+    const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/saito_merge_tables`, {
       method: 'POST',
       headers: svc().headers,
       body: JSON.stringify({

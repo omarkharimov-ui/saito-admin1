@@ -203,8 +203,8 @@ export async function POST(request: NextRequest) {
       headers: svc().headers,
       body: JSON.stringify({
         table_number,
-        table_ids: JSON.stringify(table_ids),
-        pre_order_items: pre_order_items ? JSON.stringify(pre_order_items) : null,
+        table_ids: table_ids,
+        pre_order_items: pre_order_items || null,
         pre_order_total: totalAmount || null,
         kitchen_scheduled_at,
         kitchen_hint_sent: true,

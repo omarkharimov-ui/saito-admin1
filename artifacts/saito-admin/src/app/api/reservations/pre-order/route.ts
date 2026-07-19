@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       method: 'PATCH',
       headers: svc().headers,
       body: JSON.stringify({
-        pre_order_items: items ? JSON.stringify(items) : null,
+        pre_order_items: items || null,
         pre_order_total: totalAmount || null,
       }),
     });

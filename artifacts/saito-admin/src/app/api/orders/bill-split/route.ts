@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       // Use atomic RPC with FOR UPDATE
       const { data: rpcResult, error: rpcError } = await supabase.rpc('split_order_atomic', {
         p_original_order_id: original_order_id,
-        p_split_items: JSON.stringify(splitItems),
+        p_split_items: splitItems,
         p_split_total: splitTotal,
         p_new_guest_count: 1,
         p_performed_by: auth.user?.id || null,

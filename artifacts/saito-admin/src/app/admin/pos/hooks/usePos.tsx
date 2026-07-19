@@ -32,37 +32,33 @@ export function usePos() {
     return Promise.reject(new Error('Max retries exceeded'));
   };
 
-  const fetchData = useCallback(async () => {
+  // Light refresh: floor + open orders only. Used for every reactive operation
+  // (place order, merge, transfer, mark-ready) and on realtime events. Kept
+  // cheap so the UI reflects changes immediately instead of waiting on the
+  // heavy product catalog reload.
+  const fetchFloor = useCallback(async () => {
     try {
-      const [tablesRes, productsRes] = await Promise.allSettled([
-        retryWithBackoff(() => fetch('/api/pos/tables')),
-        retryWithBackoff(() => fetch('/api/pos/products')),
-      ]);
-
-      // A transiently-failed fetch must NOT silently leave the UI stale.
-      // A non-ok response (e.g. a transient 401 while the session token is
-      // being renewed) previously fell through both branches and skipped
-      // setFloors, so the POS only refreshed on a manual page reload.
-      const tables = tablesRes.status === 'fulfilled' ? tablesRes.value : null;
-      const products = productsRes.status === 'fulfilled' ? productsRes.value : null;
-
-      if (tables && 'ok' in tables && (tables as Response).ok) {
-        const data = await (tables as Response).json();
+      const tablesRes = await retryWithBackoff(() => fetch('/api/pos/tables'));
+      if (tablesRes.ok) {
+        const data = await tablesRes.json();
         setFloors(data.floors || []);
       } else {
-        const reason = tablesRes.status === 'rejected'
-          ? tablesRes.reason
-          : `tables HTTP ${(tables as Response)?.status}`;
-        console.error('POS tables fetch failed:', reason);
-        // Surface the failure so the operator knows the floor is stale and a
-        // manual refresh may be needed, instead of silently showing old data.
-        if (tablesRes.status === 'fulfilled') {
-          toast.error('Masa məlumatları yenilənə bilmədi', { id: 'pos-tables-stale' });
-        }
+        console.error('POS tables fetch failed:', tablesRes.status);
+        toast.error('Masa məlumatları yenilənə bilmədi', { id: 'pos-tables-stale' });
       }
+    } catch (e) {
+      console.error('POS floor fetch error:', e);
+    }
+  }, []);
 
-      if (products && 'ok' in products && (products as Response).ok) {
-        const data = await (products as Response).json();
+  // Heavy refresh: product catalog (products, categories, combos, variants,
+  // recipes, campaigns). Catalog rarely changes mid-shift, so it is loaded once
+  // on mount and only re-run when explicitly requested.
+  const fetchCatalog = useCallback(async () => {
+    try {
+      const productsRes = await retryWithBackoff(() => fetch('/api/pos/products'));
+      if ((productsRes as Response).ok) {
+        const data = await (productsRes as Response).json();
         setProducts(data.products || []);
         setCategories(data.categories || []);
         setCombos(data.combos || []);
@@ -73,22 +69,31 @@ export function usePos() {
           (vmap[v.product_id] ||= []).push(v);
         }
         setVariantsByProduct(vmap);
-      } else if (productsRes.status === 'rejected') {
-        console.error('POS products fetch failed:', productsRes.reason);
+      } else {
+        console.error('POS products fetch failed:', (productsRes as Response)?.status);
       }
+    } catch (e) {
+      console.error('POS catalog fetch error:', e);
+    }
+  }, []);
+
+  // Combined initial load (catalog + floor).
+  const fetchData = useCallback(async () => {
+    try {
+      await Promise.all([fetchFloor(), fetchCatalog()]);
     } catch (e) {
       console.error('POS fetch error:', e);
       toast.error('Məlumatlar yüklənərkən xəta baş verdi', { id: 'action-toast' });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchFloor, fetchCatalog]);
 
   useEffect(() => {
     fetchData();
     const channel = createRealtimeChannel('pos-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, fetchFloor)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchFloor)
       .subscribe();
     return () => { 
       removeRealtimeChannel(channel); 
@@ -216,7 +221,7 @@ export function usePos() {
     if (res.ok) {
       const data = await res.json();
       setLastUndo({ action: 'merge', data: data.data?.undo, message: 'Masalar birləşdirildi' });
-      fetchData();
+      fetchFloor();
       return { action: 'merge' as const, data: data.data?.undo, message: 'Masalar birləşdirildi' };
     } else {
       const err = await res.json();
@@ -234,7 +239,7 @@ export function usePos() {
     if (res.ok) {
       const data = await res.json();
       setLastUndo({ action: 'transfer', data: data.undo, message: `Masa ${from} → ${to}` });
-      fetchData();
+      fetchFloor();
     } else {
       const err = await res.json();
       toast.error(err.error);
@@ -249,7 +254,7 @@ export function usePos() {
     });
     if (res.ok) {
       toast.success('Masa boşaldıldı');
-      fetchData();
+      fetchFloor();
     } else {
       const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
       toast.error(err.error || 'Masa boşaldılmadı');
@@ -266,7 +271,7 @@ export function usePos() {
       });
       if (res.ok) {
         toast.success('Geri alındı');
-        await fetchData();
+        await fetchFloor();
       } else {
         const err = await res.json();
         toast.error(err.error || 'Geri alınmadı');
@@ -413,7 +418,7 @@ export function usePos() {
         toast.success('Sifariş göndərildi');
         setCart(null);
         setActiveView('floor');
-        fetchData().catch(() => {});
+        fetchFloor().catch(() => {});
         return;
       }
 
@@ -468,7 +473,7 @@ export function usePos() {
           };
         });
         setActiveView('floor');
-        fetchData().catch(() => {});
+        fetchFloor().catch(() => {});
       } else {
         const err = await res.json();
         if (res.status === 409) {

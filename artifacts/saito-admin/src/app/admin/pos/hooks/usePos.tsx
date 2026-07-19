@@ -38,7 +38,7 @@ export function usePos() {
   // heavy product catalog reload.
   const fetchFloor = useCallback(async () => {
     try {
-      const tablesRes = await retryWithBackoff(() => fetch('/api/pos/tables'));
+      const tablesRes = await retryWithBackoff(() => fetch('/api/pos/tables', { cache: 'no-store' }));
       if (tablesRes.ok) {
         const data = await tablesRes.json();
         setFloors(data.floors || []);
@@ -105,7 +105,7 @@ export function usePos() {
     // Supabase connections or tab backgrounding), so refresh the floor on a
     // timer too. This guarantees the UI reflects table/order changes without a
     // manual page refresh.
-    const poll = setInterval(() => fetchFloorRef.current(), 5000);
+    const poll = setInterval(() => fetchFloorRef.current(), 3000);
 
     return () => { 
       clearInterval(poll);

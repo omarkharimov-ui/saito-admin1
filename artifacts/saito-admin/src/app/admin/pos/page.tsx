@@ -471,7 +471,17 @@ export default function POSPage() {
         setTransferMode(false);
         setTransferSource(null);
         setTransferTarget(null);
-        pos.fetchData();
+        // Refresh the floor so the moved table reflects new state, then make
+        // sure the open cart (if any) follows the table. If the user had the
+        // SOURCE table open, reopen the TARGET so the cart is rebuilt from the
+        // transferred order instead of appearing lost on an now-empty table.
+        await pos.fetchData();
+        const allTables = (pos.floors || []).flatMap((f: any) => f.tables || []);
+        const openedSource = pos.selectedTable && pos.selectedTable.table_number === transferSource;
+        if (openedSource) {
+          const target = allTables.find((t: any) => t.table_number === targetTable);
+          if (target) pos.selectTable(target);
+        }
       } else {
         toast.error(data.error || 'Köçürmə uğursuz oldu');
         setTransferMode(false);

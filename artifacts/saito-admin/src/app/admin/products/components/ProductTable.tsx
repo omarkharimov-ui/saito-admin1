@@ -386,17 +386,10 @@ export function ProductTable({
                                     </div>
                                   </div>
                                 </td>
-                                <td className="px-6 py-2.5">
-                                  <div className="flex flex-col">
-                                    {product.discount_price ? (
-                                      <>
-                                        <span className="font-black text-[15px] tracking-wide text-[#1D1D1F]">₼{product.discount_price}</span>
-                                        <span className="text-[10px] text-[#8E8E93] line-through">₼{product.price}</span>
-                                      </>
-                                    ) : (
-                                      <span className="font-black text-[15px] tracking-wide text-[#1D1D1F]">₼{product.price}</span>
-                                    )}
-                                    {(product.cost_price ?? 0) > 0 && (
+                                 <td className="px-6 py-2.5">
+                                   <div className="flex flex-col">
+                                     <span className="font-black text-[15px] tracking-wide text-[#1D1D1F]">₼{product.price}</span>
+                                     {(product.cost_price ?? 0) > 0 && (
                                       <span className={`text-[10px] font-medium mt-0.5 tabular-nums ${
                                         (product.profit_margin ?? 0) > 40 ? 'text-[#166534]' :
                                         (product.profit_margin ?? 0) > 20 ? 'text-[#9A6700]' :
@@ -560,14 +553,7 @@ export function ProductTable({
                                       </p>
                                       {/* Price */}
                                       <div className="shrink-0 text-right">
-                                        {product.discount_price ? (
-                                          <>
-                                            <p className="text-[15px] font-black text-gold leading-none">₼{product.discount_price}</p>
-                                            <p className="text-[10px] text-white/20 line-through">₼{product.price}</p>
-                                          </>
-                                        ) : (
-                                          <p className="text-[15px] font-black text-gold leading-none">₼{product.price}</p>
-                                        )}
+                                        <p className="text-[15px] font-black text-gold leading-none">₼{product.price}</p>
                                         {(product.cost_price ?? 0) > 0 && (
                                           <p className={`text-[9px] font-medium mt-0.5 tabular-nums ${
                                             (product.profit_margin ?? 0) > 40 ? 'text-emerald-400/60' :

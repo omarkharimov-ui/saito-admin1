@@ -18,7 +18,7 @@ interface ActionSheetProps {
   onUnmerge: () => void;
   onCancelTable?: () => void;
   onOpenPayment?: () => void;
-  onPaymentMethodSelect?: (method: 'cash' | 'card' | 'split') => void;
+  onPaymentMethodSelect?: (method: 'cash' | 'card') => void;
   onSplitConfirm?: (split: { cash: string; card: string }) => void;
   onDismissGroup?: () => void;
   onBackFromPayment?: () => void;

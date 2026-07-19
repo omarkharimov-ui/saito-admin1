@@ -259,7 +259,31 @@ export async function POST() {
 
     const { data: menuItems } = await supabase
       .from('products')
-      .select('id, name, price, discount_price');
+      .select('id, name, price');
+
+    const { data: activeRules } = await supabase
+      .from('campaign_rules')
+      .select('campaign_id, rule_type, percentage, fixed_amount')
+      .eq('campaigns.status', 'active')
+      .is('campaigns.deleted_at', null);
+
+    const { data: ruleTargets } = await supabase
+      .from('campaign_targets')
+      .select('campaign_id, target_type, target_id');
+
+    // Map each product to its best active campaign discount (percentage of price).
+    const pctByProduct = new Map<string, number>();
+    const pctByCategory = new Map<string, number>();
+    const ruleByCampaign = new Map<string, any>();
+    for (const r of (activeRules || []) as any[]) ruleByCampaign.set(r.campaign_id, r);
+    for (const t of (ruleTargets || []) as any[]) {
+      const rule = ruleByCampaign.get(t.campaign_id);
+      if (!rule) continue;
+      if (rule.rule_type === 'percentage' && Number(rule.percentage) > 0) {
+        if (t.target_type === 'product' && t.target_id) pctByProduct.set(t.target_id, Number(rule.percentage));
+        if (t.target_type === 'category' && t.target_id) pctByCategory.set(t.target_id, Number(rule.percentage));
+      }
+    }
 
     const { data: orderItems } = await supabase
       .from('order_items')
@@ -278,14 +302,19 @@ export async function POST() {
     }
 
     for (const product of (menuItems || []) as any[]) {
-      if (!product.discount_price) continue;
+      const pct =
+        pctByProduct.get(product.id) ??
+        pctByCategory.get(product.category_id) ??
+        0;
+      if (!pct || pct <= 0) continue;
+      const basePrice = Number(product.price) || 0;
+      if (basePrice <= 0) continue;
       const avgPrice = productRevenue[product.id]
         ? productRevenue[product.id].total / productRevenue[product.id].count
-        : product.price;
+        : basePrice;
       if (avgPrice <= 0) continue;
-      const marginDrop = product.discount_price
-        ? ((product.price - product.discount_price) / product.price) * 100
-        : 0;
+      const discountPrice = Math.round(basePrice * (1 - pct / 100) * 100) / 100;
+      const marginDrop = ((basePrice - discountPrice) / basePrice) * 100;
       if (marginDrop > 10) {
         const existing = await supabase
           .from('discrepancy_alerts')
@@ -299,11 +328,11 @@ export async function POST() {
             type: 'margin_drop',
             severity: marginDrop > 20 ? 'high' : 'medium',
             title: `${product.name}: marja düşüb`,
-            description: `Satış qiyməti ${product.price} AZN-dan ${product.discount_price} AZN-a endirilib (${marginDrop.toFixed(1)}% eniş)`,
+            description: `Satış qiyməti ${basePrice} AZN-dan ${discountPrice} AZN-a endirilib (${marginDrop.toFixed(1)}% eniş)`,
             source_id: product.id,
             source_table: 'products',
-            value: Math.round(product.discount_price * 100) / 100,
-            expected_value: product.price,
+            value: discountPrice,
+            expected_value: basePrice,
             variance_pct: Math.round(marginDrop * 100) / 100,
           }).select().single();
           if (alert) generated.push(alert);

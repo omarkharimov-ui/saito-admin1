@@ -25,7 +25,6 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  discount_price: number | null;
   cost_price: number;
   profit_margin: number;
   category_id: string;
@@ -155,7 +154,6 @@ export interface Combo {
   name: string;
   description?: string;
   price: number;
-  discount_price?: number | null;
   image_url?: string | null;
   is_in_stock: boolean;
   is_active: boolean;

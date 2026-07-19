@@ -484,13 +484,6 @@ const ProductsPage = () => {
           if (m.id) { await supabase.from('product_modifiers').update(mData).eq('id', m.id); }
           else { await supabase.from('product_modifiers').insert([mData]); }
         }
-        // ─── Campaign price ───
-        const { data: campaigns } = await supabase.from('campaigns').select('*').eq('status', 'active').eq('target_type', 'category').eq('target_id', savedProduct.category_id);
-        if (campaigns && campaigns.length > 0) {
-          const campaign = campaigns[0];
-          if (campaign.type === 'PERCENTAGE' && campaign.discount_value)
-            await supabase.from('products').update({ discount_price: savedProduct.price * (1 - campaign.discount_value / 100) }).eq('id', savedProduct.id);
-        }
         try {
           const langToLabel: Record<string, string> = { az: 'Azerbaijani', en: 'English', ru: 'Russian' };
           const otherLangs = (['az', 'en', 'ru'] as const).filter(l => l !== language);

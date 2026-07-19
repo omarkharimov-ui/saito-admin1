@@ -46,7 +46,6 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
           id: c.id,
           name: c.name,
           price: c.price,
-          discount_price: null,
           category_id: c.category_id,
           image_url: c.image_url,
           name_az: c.name_az,

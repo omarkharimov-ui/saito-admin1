@@ -33,6 +33,7 @@ export interface PosCartItem {
   combo_id?: string | null;
   campaign_id?: string | null;
   campaign_discount_amount?: number;
+  campaign_discount_type?: string | null;
   combo_components?: Array<{
     product_id: string;
     product_name?: string;
@@ -105,7 +106,6 @@ export interface PosProduct {
   id: string;
   name: string;
   price: number;
-  discount_price?: number | null;
   category_id: string | null;
   image_url?: string | null;
   name_az?: string | null;

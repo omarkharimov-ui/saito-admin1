@@ -34,6 +34,12 @@ export async function POST(request: NextRequest) {
 
     // Already paid → no stock deduction needed (already done at payment)
     if (order.status === 'paid') {
+      // Still reflect the ready state in the kitchen board.
+      await fetch(`${s.url}/rest/v1/orders?id=eq.${order_id}`, {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({ kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() }),
+      });
       return NextResponse.json({ success: true, skipped: true, reason: 'already_paid' });
     }
 
@@ -44,6 +50,15 @@ export async function POST(request: NextRequest) {
     } catch (stockErr) {
       console.error('[mark-ready] Stock deduction failed (non-fatal):', stockErr);
     }
+
+    // Mark the order ready so it leaves the active KDS tab (the 10s poll reads
+    // kitchen_status from the DB; without this the optimistic UI update is
+    // overwritten and the order appears stuck).
+    await fetch(`${s.url}/rest/v1/orders?id=eq.${order_id}`, {
+      method: 'PATCH',
+      headers: s.headers,
+      body: JSON.stringify({ kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() }),
+    });
 
     return NextResponse.json({ success: true, stockDeduction });
   } catch (error: any) {

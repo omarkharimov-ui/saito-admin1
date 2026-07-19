@@ -310,12 +310,15 @@ export const OrderModal = ({
         const returnedAmount = (order.order_items || [])
           .filter(i => snapReturned.has(i.id))
           .reduce((s, i) => s + (i.unit_price || (i.total_price / i.quantity)) * (snapDraft[i.id] ?? i.quantity), 0);
+        const addItemsTotal = (addItems || []).reduce(
+          (s, i) => s + (i.variant?.price ?? i.product.price) * i.quantity, 0
+        );
         const finalTotal = (order.order_items || [])
           .filter(i => !snapDeleted.has(i.id) && !snapReturned.has(i.id))
           .reduce((s, i) => {
             const qty = snapDraft[i.id] ?? i.quantity;
             return s + (i.unit_price || (i.total_price / i.quantity)) * qty;
-          }, 0);
+          }, 0) + addItemsTotal;
         const hasQtyChanges = Object.keys(snapDraft).length > 0 || snapDeleted.size > 0 || snapReturned.size > 0;
 
         // Update order via API (version-safe)

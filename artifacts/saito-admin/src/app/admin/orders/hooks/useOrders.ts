@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
+import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { Order } from '../types';
@@ -201,7 +202,7 @@ export function useOrders() {
       setOrders(prev => applyOrdersUpdate(prev, o => o.filter(x => !allIds.includes(x.id))));
 
       // Route through API — RPC handles lock, validation, stock, table release
-      const res = await fetch('/api/orders/pay', {
+      const res = await apiFetch('/api/orders/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -366,7 +367,7 @@ export function useOrders() {
     if (!fromTable) return;
     try {
       // Route through transfer API — uses transfer_orders_atomic RPC (FOR UPDATE)
-      const res = await fetch('/api/orders/transfer', {
+      const res = await apiFetch('/api/orders/transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from_table: fromTable, to_table: toTableNum }),

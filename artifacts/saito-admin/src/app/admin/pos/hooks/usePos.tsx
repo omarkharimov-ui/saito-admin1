@@ -173,6 +173,8 @@ export function usePos() {
               total_price: item.total_price,
               modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
               special_notes: item.special_notes || '',
+              is_combo: !!item.is_combo_parent,
+              combo_id: item.combo_group_id || null,
               sentQuantity: item.quantity,
             }));
 
@@ -246,6 +248,21 @@ export function usePos() {
     }
   };
 
+  // Optimistically reflect a table as empty across all floors in local state
+  // so the floor view updates instantly (no wait for fetch/realtime).
+  const markTableEmptyLocal = useCallback((nums: number[]) => {
+    const set = new Set(nums);
+    setFloors(prev => prev.map((f: any) => ({
+      ...f,
+      tables: (f.tables || []).map((t: any) =>
+        set.has(t.table_number)
+          ? { ...t, status: 'empty', total_amount: 0, order_count: 0, guest_count: null, merged_into_table: null, has_pending: false, oldest_pending_at: null, last_activity_at: null }
+          : t
+      ),
+      merged_groups: (f.merged_groups || []).filter((g: any) => !set.has(g.parent?.table_number)),
+    })));
+  }, []);
+
   const dismissTable = async (num: number) => {
     const res = await fetch('/api/orders/dismiss', {
       method: 'POST',
@@ -254,6 +271,7 @@ export function usePos() {
     });
     if (res.ok) {
       toast.success('Masa boşaldıldı');
+      markTableEmptyLocal([num]);
       fetchFloor();
     } else {
       const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
@@ -368,15 +386,18 @@ export function usePos() {
         existing.quantity += 1;
         existing.total_price = existing.unit_price * existing.quantity;
       } else {
-        const effectiveComboPrice = (combo as any).effective_price ?? combo.price;
+        const baseComboPrice = Number(combo.price) || 0;
+        const effectiveComboPrice = (combo as any).effective_price != null ? Number((combo as any).effective_price) : baseComboPrice;
         items.push({
           product_id: combo.id,
           product_name: combo.name,
           unit_price: effectiveComboPrice,
+          original_unit_price: baseComboPrice,
           quantity: 1,
           total_price: effectiveComboPrice,
           modifiers: [],
           is_combo: true,
+          combo_id: combo.id,
           notes: opts?.notes ?? ''
         });
       }
@@ -402,23 +423,30 @@ export function usePos() {
     setPlacingOrder(true);
     try {
       const unsent = cart.items
-        .filter(i => (i.quantity || 0) > (i.sentQuantity || 0))
         .map(i => ({
-          product_id: i.product_id,
-          product_name: i.product_name,
-          unit_price: i.unit_price,
-          quantity: (i.quantity || 0) - (i.sentQuantity || 0),
-          modifiers: i.modifiers || [],
-          special_notes: i.special_notes || i.notes || '',
-          variant_id: i.variant_id || null,
-          is_combo: i.is_combo || false
+          item: i,
+          delta: Math.max(0, (i.quantity || 0) - (i.sentQuantity || 0)),
+        }))
+        .filter(x => x.delta > 0)
+        .map(x => ({
+          product_id: x.item.product_id,
+          product_name: x.item.product_name,
+          unit_price: x.item.unit_price,
+          quantity: x.delta,
+          modifiers: x.item.modifiers || [],
+          special_notes: x.item.special_notes || x.item.notes || '',
+          variant_id: x.item.variant_id || null,
+          is_combo: x.item.is_combo || false,
+          combo_id: x.item.combo_id || null,
         }));
 
       if (unsent.length === 0) {
-        toast.success('Sifariş göndərildi');
-        setCart(null);
+        // Nothing new to send — do not clear the cart or claim a send. Just
+        // return to the floor so the operator keeps their in-progress items.
+        if (cart.items.length > 0) {
+          toast('Yeni məhsul yoxdur', { id: 'action-toast' });
+        }
         setActiveView('floor');
-        fetchFloor().catch(() => {});
         return;
       }
 
@@ -465,11 +493,19 @@ export function usePos() {
       });
       if (res.ok) {
         toast.success('Sifariş göndərildi');
+        // Advance sentQuantity by exactly what was sent so re-sending the same
+        // cart never double-sends already-kitchened items.
+        const sentKeys = new Set(unsent.map(u => `${u.product_id}__${u.variant_id || ''}__${u.is_combo ? 'c' : 'p'}`));
         setCart(prev => {
           if (!prev) return null;
           return {
             ...prev,
-            items: prev.items.map(i => ({ ...i, sentQuantity: i.quantity }))
+            items: prev.items.map(i => {
+              const key = `${i.product_id}__${i.variant_id || ''}__${i.is_combo ? 'c' : 'p'}`;
+              if (!sentKeys.has(key)) return i;
+              const newSent = Math.min(i.quantity, (i.sentQuantity || 0) + (i.quantity - (i.sentQuantity || 0)));
+              return { ...i, sentQuantity: Math.max(i.sentQuantity || 0, newSent) };
+            })
           };
         });
         setActiveView('floor');
@@ -498,37 +534,12 @@ export function usePos() {
 
   const updateGuestCount = async (delta: number) => {
     if (!cart) return;
-    const tableNumber = cart.table_number;
     const newCount = Math.max(1, (cart.guest_count || 1) + delta);
-    // Optimistically reflect the change in the local cart immediately so the
-    // UI reacts even before the server confirms.
+    // Guest count is a local draft only — it is persisted when the order is
+    // sent to the kitchen (placeOrder payload) or when the table is saved,
+    // NOT on every +/- tap. Persisting on each tap caused redundant writes
+    // and made the counter feel detached from the "save" action.
     setCart(prev => prev ? { ...prev, guest_count: newCount } : null);
-    try {
-      // The /api/orders GET route only honours a `status` equality filter and
-      // ignores `table_number` / `not.in(...)` params, so we fetch all orders
-      // and resolve the active order for this table on the client. The broken
-      // `status=not.in.(paid,cancelled)` filter previously returned [] and the
-      // guest count was never persisted.
-      const orderRes = await apiFetch('/api/orders');
-      if (!orderRes.ok) throw new Error('Failed to fetch orders');
-      const orderData = await orderRes.json();
-      const activeOrder = (orderData.orders || [])
-        .filter((o: any) => o.table_number === tableNumber && !['paid', 'cancelled', 'closed'].includes(o.status))
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-      if (!activeOrder?.id) return;
-      await apiFetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update',
-          id: activeOrder.id,
-          data: { guest_count: newCount }
-        }),
-      });
-    } catch (e) {
-      console.error('Failed to update guest count:', e);
-      toast.error('Qonaq sayı yenilənərkən xəta', { id: 'action-toast' });
-    }
   };
 
   const updateCartCustomer = (customerId: string | null, customerName: string | null) => {

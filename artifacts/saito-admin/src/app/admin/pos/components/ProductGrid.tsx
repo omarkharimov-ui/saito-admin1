@@ -120,13 +120,13 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
                  disabled={isOutOfStock}
                  className={`group relative flex flex-col rounded-[28px] bg-[#f4f4f7] dark:bg-white/[0.08] p-4 transition-all duration-300 hover:shadow-xl hover:bg-[#ebebef] dark:hover:bg-white/[0.12] ${isOutOfStock ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}
                >
-                 {isOutOfStock && (
-                   <div className="absolute inset-0 z-10 flex items-center justify-center">
-                     <span className="text-[10px] font-black uppercase tracking-widest text-rose-500 bg-white/80 dark:bg-black/60 px-2 py-1 rounded-full">
-                       {t('out_of_stock') || 'Stokda yox'}
-                     </span>
-                   </div>
-                 )}
+                  {isOutOfStock && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-rose-600/85 backdrop-blur-[1px] rounded-[28px]">
+                      <span className="text-[13px] font-black uppercase tracking-[0.2em] text-white shadow-sm px-3 py-1.5 rounded-xl border-2 border-white/70">
+                        {t('out_of_stock') || 'Stokda yox'}
+                      </span>
+                    </div>
+                  )}
                  <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
                    {item.image_url && !failedImages.has(item.image_url) ? (
                      <img src={item.image_url} alt={name} onError={() => setFailedImages(prev => new Set(prev).add(item.image_url!))} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />

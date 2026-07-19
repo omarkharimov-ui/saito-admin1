@@ -274,6 +274,8 @@ export async function POST(request: Request) {
           modifiers: i.modifiers || [],
           special_notes: i.special_notes || '',
           variant_id: i.variant_id || null,
+          is_combo_parent: !!i.is_combo,
+          combo_group_id: i.combo_id || null,
           created_at: new Date().toISOString(),
         };
       });

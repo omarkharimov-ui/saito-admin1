@@ -58,7 +58,6 @@ export interface PosCart {
   discount_type?: 'percentage' | 'fixed' | null;
   reservation_id?: string | null;
 }
-}
 
 export interface PosTable {
   id: string;

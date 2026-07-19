@@ -605,7 +605,6 @@ export default function ReservationsPage() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                                   <div className="flex gap-4">
-<<<<<<< HEAD
                                     {selectedRes.status === 'confirmed' && (
                                        <button onClick={() => handleGuestArrived(selectedRes.id)} className="flex-[2] py-6 rounded-[2.2rem] bg-amber-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-amber-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
                                         <Users size={24} /> Qonaq Gəldi

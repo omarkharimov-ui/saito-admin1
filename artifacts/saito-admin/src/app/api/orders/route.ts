@@ -195,7 +195,6 @@ export async function POST(request: Request) {
         return updated || { id };
       }
 
->>>>>>> fcfcd90 (feat(pos+reservations): reservation→POS production integration)
       if (!table_number || !items?.length) {
         throw new Error('table_number and items required');
       }

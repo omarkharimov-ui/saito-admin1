@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
             quantity: item.quantity,
             unit_price: item.unit_price,
             total_price: item.unit_price * item.quantity,
-            modifiers: JSON.stringify(item.modifiers || []),
+            modifiers: item.modifiers || [],
             special_notes: item.special_notes || '',
             kitchen_status: 'reserved',
           }),
@@ -163,14 +163,14 @@ export async function POST(request: NextRequest) {
         type: 'kitchen_hint',
         title: 'Yeni rezervasiya — Masa ' + table_number,
         body: hintText,
-        data: JSON.stringify({
+        data: {
           reservation_id,
           table_number,
           table_ids,
           guest_name: reservation.name,
           guest_count: reservation.guests,
           pre_order_count: pre_order_items?.length || 0,
-        }),
+        },
         created_at: new Date().toISOString(),
       }),
     });

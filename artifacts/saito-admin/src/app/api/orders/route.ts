@@ -146,6 +146,56 @@ export async function POST(request: Request) {
 
       const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, created_by } = body;
       
+      // Append items to an EXISTING active order (used by reservation-handoff tables
+      // that already have a draft/active order, so we never create a 2nd active order).
+      if (action === 'addItems') {
+        if (!id || !items?.length) throw new Error('id and items required');
+
+        const insertRes = await fetch(`${svc().url}/rest/v1/order_items`, {
+          method: 'POST',
+          headers: { ...svc().headers, 'Prefer': 'return=representation' },
+          body: JSON.stringify(
+            items.map((i: any) => ({
+              order_id: id,
+              product_id: i.product_id,
+              product_name: i.product_name,
+              variant_id: i.variant_id || null,
+              quantity: i.quantity || 1,
+              unit_price: i.unit_price || 0,
+              total_price: (i.unit_price || 0) * (i.quantity || 1),
+              modifiers: i.modifiers || [],
+              special_notes: i.special_notes || '',
+              kitchen_status: 'pending',
+            }))
+          ),
+        });
+        if (!insertRes.ok) {
+          const errText = await insertRes.text();
+          if (insertRes.status === 409 || errText.includes('unique') || errText.includes('duplicate')) {
+            throw new Error('CONCURRENCY_CONFLICT');
+          }
+          throw new Error(`Add items failed: ${errText}`);
+        }
+
+        // Mark the order active (in case it was still a draft) and recompute total.
+        const totalRes = await fetch(`${svc().url}/rest/v1/order_items?select=total_price&order_id=eq.${id}`, { headers: svc().headers });
+        const totalRows: any[] = await totalRes.json();
+        const newTotal = (totalRows || []).reduce((s: number, r: any) => s + (Number(r.total_price) || 0), 0);
+        await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: svc().headers,
+          body: JSON.stringify({ total_amount: newTotal, is_draft: false, status: 'confirmed', updated_at: new Date().toISOString() }),
+        });
+
+        const updatedRes = await fetch(
+          `${svc().url}/rest/v1/orders?id=eq.${id}&select=id,total_amount,status`,
+          { headers: svc().headers }
+        );
+        const updated = (await updatedRes.json())?.[0];
+        return updated || { id };
+      }
+
+>>>>>>> fcfcd90 (feat(pos+reservations): reservation→POS production integration)
       if (!table_number || !items?.length) {
         throw new Error('table_number and items required');
       }
@@ -291,6 +341,19 @@ export async function POST(request: Request) {
           await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, { method: 'DELETE', headers: svc().headers });
           throw new Error(`Order item insert failed: ${await itemRes.text()}`);
         }
+      }
+
+      // The create_order_with_items RPC does not accept reservation_id / customer_id,
+      // so persist them with a direct PATCH on the freshly created order.
+      if (reservation_id || customer_id) {
+        await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, {
+          method: 'PATCH',
+          headers: svc().headers,
+          body: JSON.stringify({
+            ...(reservation_id ? { reservation_id } : {}),
+            ...(customer_id ? { customer_id } : {}),
+          }),
+        });
       }
 
       const finalOrderRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}&select=*,order_items(*,products(image_url,name_az,name_en,name_ru,translations))`, { headers: svc().headers });

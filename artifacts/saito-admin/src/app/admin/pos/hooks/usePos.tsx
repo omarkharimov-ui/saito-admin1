@@ -450,6 +450,20 @@ export function usePos() {
         return;
       }
 
+      // Reuse the table's existing active order (e.g. a reservation draft) instead
+      // of creating a 2nd active order, which would violate idx_orders_active_table.
+      let activeOrderId: string | null = null;
+      try {
+        const ordersRes = await fetch('/api/orders');
+        if (ordersRes.ok) {
+          const data = await ordersRes.json();
+          const active = (data.orders || []).find(
+            (o: any) => o.table_number === cart.table_number && !['paid', 'cancelled', 'closed'].includes(o.status)
+          );
+          activeOrderId = active?.id || null;
+        }
+      } catch { /* fall through to create */ }
+
       const itemBasedDiscount = cart.items.reduce((s, i) => s + Math.max(0, ((i.original_unit_price ?? i.unit_price) - i.unit_price) * i.quantity), 0);
       // Determine the real discount type from the per-item campaign deltas so we
       // do not hardcode 'fixed' when the applied campaign was percentage-based.
@@ -471,25 +485,30 @@ export function usePos() {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          table_number: cart.table_number,
-          items: unsent,
-          status: 'confirmed',
-          guest_count: cart.guest_count,
-          customer_note: cart.notes,
-          order_type: cart.order_type,
-          customer_id: cart.customer_id || null,
-          customer_name: cart.customer_name || null,
-          discount_amount: computedDiscount.amount,
-          discount_type: computedDiscount.type,
-          campaign_id: campaign?.id || null,
-          created_by: (() => {
-            try {
-              const session = localStorage.getItem('saito_staff_session');
-              return session ? JSON.parse(session).id : null;
-            } catch { return null; }
-          })()
-        }),
+        body: JSON.stringify(
+          activeOrderId
+            ? { action: 'addItems', id: activeOrderId, items: unsent }
+            : {
+                table_number: cart.table_number,
+                items: unsent,
+                status: 'confirmed',
+                guest_count: cart.guest_count,
+                customer_note: cart.notes,
+                order_type: cart.order_type,
+                customer_id: cart.customer_id || null,
+                customer_name: cart.customer_name || null,
+                reservation_id: cart.reservation_id || null,
+                discount_amount: computedDiscount.amount,
+                discount_type: computedDiscount.type,
+                campaign_id: campaign?.id || null,
+                created_by: (() => {
+                  try {
+                    const session = localStorage.getItem('saito_staff_session');
+                    return session ? JSON.parse(session).id : null;
+                  } catch { return null; }
+                })()
+              }
+        ),
       });
       if (res.ok) {
         toast.success('Sifariş göndərildi');

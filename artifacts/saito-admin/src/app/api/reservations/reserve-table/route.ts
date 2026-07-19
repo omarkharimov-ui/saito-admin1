@@ -86,36 +86,104 @@ export async function POST(request: NextRequest) {
       0
     );
 
-    // 3. ATOMIC SYNC: Create a DRAFT order immediately to lock the table in POS
-    const orderPayload = {
-      table_number,
-      reservation_id,
-      status: 'confirmed',
-      kitchen_status: 'reserved',
-      is_draft: true,
-      guest_count: guest_count ?? reservation.guests ?? 2,
-      total_amount: totalAmount || 0,
-      customer_note: reservation.note || 'Rezervasiya',
-      created_at: new Date().toISOString(),
-      version: 1
-    };
-
-    const orderRes = await fetch(`${svc().url}/rest/v1/orders`, {
-      method: 'POST',
-      headers: { ...svc().headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify(orderPayload),
-    });
-
-    if (!orderRes.ok) {
-        console.error("[reserve-table] Failed to create sync order:", await orderRes.text());
-        throw new Error('Failed to create reservation order');
+    // 2.5b. Auto-link a customer by phone (find-or-create) so the reservation
+    // and its order are attributed to a real customer record.
+    let customerId: string | null = null;
+    const guestName = reservation.name || reservation.customer_name || '';
+    const guestPhone = reservation.phone || '';
+    if (guestPhone) {
+      const custRes = await fetch(`${svc().url}/rest/v1/customers?select=*&phone=eq.${encodeURIComponent(guestPhone)}`, {
+        headers: svc().headers,
+      });
+      const existingCustomers: any[] = await custRes.json();
+      if (Array.isArray(existingCustomers) && existingCustomers.length > 0) {
+        customerId = existingCustomers[0].id;
+      } else {
+        const createRes = await fetch(`${svc().url}/rest/v1/customers`, {
+          method: 'POST',
+          headers: { ...svc().headers, 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            name: guestName || guestPhone,
+            phone: guestPhone,
+            total_visits: 0,
+            total_spent: 0,
+            created_at: new Date().toISOString(),
+          }),
+        });
+        if (createRes.ok) {
+          const created = await createRes.json();
+          const createdCustomer = Array.isArray(created) ? created[0] : created;
+          customerId = createdCustomer?.id || null;
+        }
+      }
     }
 
-    // 3b. Insert pre-order items into order_items
-    if (pre_order_items && pre_order_items.length > 0) {
+    // 3. ATOMIC SYNC: reuse an existing draft order for this reservation if one
+    // already exists (idempotent confirm), otherwise create a new DRAFT order to
+    // lock the table in POS.
+    const existingDraftRes = await fetch(
+      `${svc().url}/rest/v1/orders?select=*&reservation_id=eq.${reservation_id}&is_draft=eq.true`,
+      { headers: svc().headers }
+    );
+    const existingDrafts: any[] = await existingDraftRes.json();
+    let createdOrder: any = existingDrafts?.[0];
+
+    if (!createdOrder) {
+      const orderPayload = {
+        table_number,
+        reservation_id,
+        status: 'confirmed',
+        kitchen_status: 'reserved',
+        is_draft: true,
+        guest_count: guest_count ?? reservation.guests ?? 2,
+        total_amount: totalAmount || 0,
+        customer_id: customerId,
+        customer_name: guestName || null,
+        customer_note: reservation.note || 'Rezervasiya',
+        created_at: new Date().toISOString(),
+        version: 1
+      };
+
+      const orderRes = await fetch(`${svc().url}/rest/v1/orders`, {
+        method: 'POST',
+        headers: { ...svc().headers, 'Prefer': 'return=representation' },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (!orderRes.ok) {
+        console.error("[reserve-table] Failed to create sync order:", await orderRes.text());
+        throw new Error('Failed to create reservation order');
+      }
+
       const orderData = await orderRes.json();
-      const createdOrder = Array.isArray(orderData) ? orderData[0] : orderData;
+      createdOrder = Array.isArray(orderData) ? orderData[0] : orderData;
+    } else {
+      // Keep the draft in sync with the latest reservation/customer details.
+      await fetch(`${svc().url}/rest/v1/orders?id=eq.${createdOrder.id}`, {
+        method: 'PATCH',
+        headers: svc().headers,
+        body: JSON.stringify({
+          table_number,
+          customer_id: customerId,
+          customer_name: guestName || null,
+          guest_count: guest_count ?? reservation.guests ?? 2,
+        }),
+      });
+    }
+
+    // 3b. Insert pre-order items into order_items (dedup by product_id__quantity)
+    if (pre_order_items && pre_order_items.length > 0) {
+      const existingItemsRes = await fetch(
+        `${svc().url}/rest/v1/order_items?select=product_id,quantity&order_id=eq.${createdOrder.id}`,
+        { headers: svc().headers }
+      );
+      const existingItems: any[] = await existingItemsRes.json();
+      const seen = new Set(existingItems.map((i: any) => `${i.product_id}__${i.quantity}`));
+
       for (const item of pre_order_items) {
+        const dedupKey = `${item.product_id}__${item.quantity}`;
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
         await fetch(`${svc().url}/rest/v1/order_items`, {
           method: 'POST',
           headers: svc().headers,
@@ -208,6 +276,7 @@ export async function POST(request: NextRequest) {
         pre_order_total: totalAmount || null,
         kitchen_scheduled_at,
         kitchen_hint_sent: true,
+        customer_id: customerId,
         status: 'confirmed',
       }),
     });

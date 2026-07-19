@@ -481,7 +481,7 @@ export function CartPanel({
             disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
             status={lossMode ? 'idle' : orderButtonStatus}
             variant={lossMode ? 'loss' : 'send'}
-            label={lossMode ? t('loss_confirm') : (isReservationMode ? `${guestName ? guestName + ' — ' : ''}Bron Et` : (hasExistingOrder ? t('resend') : t('send_to_kitchen')))}
+            label={lossMode ? t('loss_confirm') : (isReservationMode ? `${guestName ? guestName + ' — ' : ''}Sifarişi Göndər` : (hasExistingOrder ? t('resend') : t('send_to_kitchen')))}
             onClick={lossMode ? confirmLoss : onPlaceOrder}
             isDirty={isDirty}
             className="w-full"

@@ -115,6 +115,25 @@ export async function POST(request: NextRequest) {
           });
         }
       }
+
+      // Activate the linked draft order so the POS can open it and send to kitchen.
+      const draftRes = await fetch(
+        `${s.url}/rest/v1/orders?select=id&reservation_id=eq.${current.id}&is_draft=eq.true`,
+        { headers: s.headers }
+      );
+      const draftOrders: any[] = await draftRes.json();
+      if (Array.isArray(draftOrders) && draftOrders.length > 0) {
+        const draftIds = draftOrders.map(o => o.id).join(',');
+        await fetch(`${s.url}/rest/v1/orders?or=(${draftIds.split(',').map(id => `id.eq.${id}`).join(',')})`, {
+          method: 'PATCH',
+          headers: s.headers,
+          body: JSON.stringify({
+            is_draft: false,
+            kitchen_status: 'pending',
+            updated_at: new Date().toISOString(),
+          }),
+        });
+      }
     }
 
     // 5. Sync table_floors based on target status

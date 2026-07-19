@@ -44,6 +44,11 @@ export default function ReservationsPage() {
   const [confirmClearArchiveModal, setConfirmClearArchiveModal] = useState(false);
   const [clearingArchive, setClearingArchive] = useState(false);
 
+  // Pre-order state (entered here, persisted before confirm)
+  const [preOrderItems, setPreOrderItems] = useState<any[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [preOrderSaving, setPreOrderSaving] = useState(false);
+
   // New states for CRUD
   const [upsertModalOpen, setUpsertModalOpen] = useState(false);
   const [editingReservation, setEditingReservation] = useState<any | null>(null);
@@ -69,12 +74,113 @@ export default function ReservationsPage() {
       if (!selectedFloorName && uniqueFloorNames.length > 0) {
         setSelectedFloorName(uniqueFloorNames[0]);
       }
+
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('id, name_az, name_en, name_ru, price, is_available')
+        .eq('is_available', true)
+        .order('name_az', { ascending: true });
+      setAvailableProducts(productsData || []);
     } catch (error) {
       console.error(error);
       toast.error('Rezervasiya məlumatları yüklənərkən xəta', { id: 'action-toast' });
     } finally {
       setLoading(false);
     }
+  };
+
+  /* ─── Pre-order helpers ─── */
+  const productName = (p: any) => {
+    if (language === 'az' && p.name_az) return p.name_az;
+    if (language === 'ru' && p.name_ru) return p.name_ru;
+    if (language === 'en' && p.name_en) return p.name_en;
+    return p.name_az || p.name_en || p.name_ru || 'Məhsul';
+  };
+
+  const loadPreOrder = async (resId: string) => {
+    try {
+      const res = await fetch(`/api/reservations/pre-order?reservation_id=${resId}`);
+      const data = await res.json();
+      if (res.ok) {
+        const items = data.items || [];
+        setPreOrderItems(
+          items.map((it: any) => ({
+            product_id: it.product_id,
+            product_name: it.product_name,
+            unit_price: it.unit_price,
+            quantity: it.quantity,
+          }))
+        );
+      }
+    } catch (e) {
+      console.error('Failed to load pre-order', e);
+    }
+  };
+
+  const savePreOrder = async (items: any[]) => {
+    if (!selectedRes) return;
+    setPreOrderSaving(true);
+    try {
+      await fetch('/api/reservations/pre-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservation_id: selectedRes.id, items }),
+      });
+    } catch (e) {
+      console.error('Failed to save pre-order', e);
+    } finally {
+      setPreOrderSaving(false);
+    }
+  };
+
+  const addPreOrderItem = (p: any) => {
+    setPreOrderItems(prev => {
+      const existing = prev.find(i => i.product_id === p.id);
+      let next: any[];
+      if (existing) {
+        next = prev.map(i => i.product_id === p.id ? { ...i, quantity: i.quantity + 1 } : i);
+      } else {
+        next = [...prev, {
+          product_id: p.id,
+          product_name: productName(p),
+          unit_price: Number(p.price) || 0,
+          quantity: 1,
+        }];
+      }
+      savePreOrder(next);
+      return next;
+    });
+  };
+
+  const changePreOrderQty = (productId: string, delta: number) => {
+    setPreOrderItems(prev => {
+      const next = prev
+        .map(i => i.product_id === productId ? { ...i, quantity: i.quantity + delta } : i)
+        .filter(i => i.quantity > 0);
+      savePreOrder(next);
+      return next;
+    });
+  };
+
+  const removePreOrderItem = (productId: string) => {
+    setPreOrderItems(prev => {
+      const next = prev.filter(i => i.product_id !== productId);
+      savePreOrder(next);
+      return next;
+    });
+  };
+
+  const selectReservation = (r: any, view: 'main' | 'tables') => {
+    setSelectedRes(r);
+    setModalView(view);
+    setSelectedTableIds(Array.isArray(r.table_ids) ? r.table_ids : []);
+    setPreOrderItems([]);
+    if (r.id) loadPreOrder(r.id);
+  };
+
+  const closeReservation = () => {
+    setSelectedRes(null);
+    setPreOrderItems([]);
   };
 
   useEffect(() => {
@@ -178,11 +284,7 @@ export default function ReservationsPage() {
         body: JSON.stringify({
           reservation_id: selectedRes.id,
           table_ids: selectedTableIds,
-          pre_order_items: selectedRes.pre_order_items
-            ? (typeof selectedRes.pre_order_items === 'string'
-                ? JSON.parse(selectedRes.pre_order_items)
-                : selectedRes.pre_order_items)
-            : [],
+          pre_order_items: preOrderItems,
           guest_count: selectedRes.guests ?? 0,
         }),
       });
@@ -193,7 +295,7 @@ export default function ReservationsPage() {
       }
 
       toast.success(`${selectedRes.name} ucun masalar bron edildi!`);
-      setSelectedRes(null);
+      closeReservation();
       fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Xeta bas verdi');
@@ -325,7 +427,7 @@ export default function ReservationsPage() {
                   onToggleSelect={(id) => {
                     setSelectedArchiveIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
                   }}
-                   onSelect={(r) => { setSelectedRes(r); setModalView('main'); setSelectedTableIds(Array.isArray(r.table_ids) ? r.table_ids : []); }}
+                  onSelect={(r) => { selectReservation(r, 'main'); }}
                   statusBadge={(s) => {
                     const colors: Record<string, string> = {
                       pending: 'bg-amber-500/10 text-amber-500',
@@ -344,7 +446,7 @@ export default function ReservationsPage() {
                   onDelete={(id, guest) => setConfirmDeleteReservation({ id, guest })}
                   onArchive={handleArchive}
                   onRestore={handleRestore}
-                  onHandle={(r) => { setSelectedRes(r); setModalView('tables'); setSelectedTableIds(r.table_ids || []); }}
+                  onHandle={(r) => { selectReservation(r, 'tables'); }}
                 />
               ))}
             </tbody>
@@ -356,7 +458,7 @@ export default function ReservationsPage() {
       <AnimatePresence>
         {selectedRes && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRes(null)} className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => closeReservation()} className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md" />
               <motion.div
                 initial={{ opacity: 0, y: 60, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -365,7 +467,7 @@ export default function ReservationsPage() {
                 className={`fixed inset-0 m-auto z-[110] w-[95%] h-fit max-h-[90vh] overflow-hidden rounded-[3.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.4)] border border-white/20 backdrop-blur-3xl ${lightMode ? 'bg-white/90 text-zinc-900' : 'bg-zinc-900/90 text-white'} ${modalView === 'main' ? 'max-w-2xl' : 'max-w-4xl'}`}
             >
               <div className="p-10 relative overflow-y-auto max-h-[90vh] custom-scrollbar">
-                <button onClick={() => setSelectedRes(null)} className="absolute top-8 right-10 p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors"><X size={24} /></button>
+                <button onClick={() => closeReservation()} className="absolute top-8 right-10 p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors"><X size={24} /></button>
 
                 <AnimatePresence mode="popLayout" initial={false}>
                   {modalView === 'main' && (
@@ -465,8 +567,45 @@ export default function ReservationsPage() {
                                   </motion.div>
                                 </div>
 
+                                {/* Pre-order picker */}
+                                <div className={`p-7 rounded-[2.5rem] border ${lightMode ? 'bg-zinc-50/50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                                  <div className="flex items-center justify-between mb-4 uppercase tracking-widest text-[10px] opacity-40 font-black">
+                                    <span><ShoppingBag size={14} className="inline mr-2" /> Öncədən Sifariş</span>
+                                    {preOrderSaving && <span className="text-blue-400">Yaddaşa alınır…</span>}
+                                  </div>
+
+                                  {preOrderItems.length > 0 && (
+                                    <div className="flex flex-col gap-2 mb-4">
+                                      {preOrderItems.map(item => (
+                                        <div key={item.product_id} className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 bg-white/5">
+                                          <span className="text-sm font-bold truncate">{item.product_name}</span>
+                                          <div className="flex items-center gap-2 flex-shrink-0">
+                                            <button onClick={() => changePreOrderQty(item.product_id, -1)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center font-black">−</button>
+                                            <span className="text-sm font-black tabular-nums w-6 text-center">{item.quantity}</span>
+                                            <button onClick={() => changePreOrderQty(item.product_id, 1)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center font-black">+</button>
+                                            <button onClick={() => removePreOrderItem(item.product_id)} className="ml-1 text-red-400 hover:text-red-300"><Trash2 size={16} /></button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      <p className="text-xs font-bold opacity-60 text-right mt-1">
+                                        Cəmi: {preOrderItems.reduce((s: number, i: any) => s + i.unit_price * i.quantity, 0).toFixed(2)} ₼
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  <div className="flex flex-wrap gap-2 max-h-44 overflow-y-auto custom-scrollbar">
+                                    {availableProducts.length === 0 && <p className="text-xs opacity-40">Məhsul yoxdur</p>}
+                                    {availableProducts.map(p => (
+                                      <button key={p.id} onClick={() => addPreOrderItem(p)} className="px-3 py-2 rounded-xl text-xs font-bold bg-white/5 hover:bg-gold hover:text-black transition-all flex items-center gap-2">
+                                        <Plus size={12} /> {productName(p)} <span className="opacity-50">{(Number(p.price) || 0).toFixed(2)} ₼</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                                   <div className="flex gap-4">
+<<<<<<< HEAD
                                     {selectedRes.status === 'confirmed' && (
                                        <button onClick={() => handleGuestArrived(selectedRes.id)} className="flex-[2] py-6 rounded-[2.2rem] bg-amber-500 text-white font-black uppercase tracking-widest shadow-2xl shadow-amber-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
                                         <Users size={24} /> Qonaq Gəldi

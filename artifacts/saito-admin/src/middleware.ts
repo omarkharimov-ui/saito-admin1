@@ -64,18 +64,26 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Set CSRF cookie for authenticated users
+  // Set a STABLE CSRF cookie for authenticated users. Previously a new random
+  // UUID was generated on EVERY request, which caused intermittent 403s: when
+  // a concurrent GET (e.g. realtime-triggered fetchData) regenerated the cookie
+  // between the user's action and apiFetch reading document.cookie, the
+  // X-CSRF-Token header no longer matched the request cookie and CSRF-protected
+  // routes (transfer / pay / bill-split) failed silently. Now we keep the token
+  // stable for its lifetime so the header always matches.
   if (valid && token) {
-    const csrfToken = crypto.randomUUID();
-    const response = NextResponse.next();
-    response.cookies.set('saito_csrf', csrfToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 3600,
-    });
-    return response;
+    const existingCsrf = request.cookies.get('saito_csrf')?.value;
+    if (!existingCsrf) {
+      const response = NextResponse.next();
+      response.cookies.set('saito_csrf', crypto.randomUUID(), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 3600,
+      });
+      return response;
+    }
   }
 
   return NextResponse.next();

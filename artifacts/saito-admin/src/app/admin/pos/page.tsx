@@ -607,7 +607,14 @@ export default function POSPage() {
                         Birleştir
                       </button>
                      <button 
-                       onClick={() => { setTransferMode(true); setMergeMode(false); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); }}
+                       onClick={() => {
+                         setMergeMode(false);
+                         setTransferMode(true);
+                         setTransferSource(null);
+                         setTransferTarget(null);
+                         setTransferConfirm(false);
+                         if (transferSource && transferTarget) setTransferConfirm(true);
+                       }}
                        className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${transferMode ? 'bg-emerald-500 text-white' : 'text-white/50 hover:text-white'}`}
                      >
                         Köçür
@@ -676,12 +683,12 @@ export default function POSPage() {
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-1">Köçürmə Təsdiqi</p>
                         <p className="text-sm font-bold">Masa {transferSource} → Masa {transferTarget}</p>
                       </div>
-                      <button onClick={() => { setTransferConfirm(false); }} className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-all">
+                      <button onClick={() => { setTransferConfirm(false); setTransferTarget(null); }} className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-all">
                         <X size={16} />
                       </button>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => { setTransferConfirm(false); setTransferTarget(null); }} className="flex-1 py-4 rounded-2xl border border-zinc-200 text-zinc-600 text-xs font-black hover:bg-zinc-50 transition-all">Ləğv</button>
+                      <button onClick={() => { setTransferConfirm(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }} className="flex-1 py-4 rounded-2xl border border-zinc-200 text-zinc-600 text-xs font-black hover:bg-zinc-50 transition-all">Ləğv</button>
                       <button onClick={() => { handleConfirmTransfer(transferTarget); setTransferConfirm(false); }} className="flex-1 py-4 rounded-2xl bg-emerald-500 text-white text-xs font-black hover:bg-emerald-600 transition-all">Təsdiqlə</button>
                     </div>
                   </div>

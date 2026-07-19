@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Moon, X } from 'lucide-react';
+import { Sun, Moon, X, Calendar } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
 import { TableCard } from './components/TableCard';
@@ -14,12 +15,28 @@ import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
 import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
 import { apiFetch } from '@/lib/api-fetch';
+import ReceiptPreview from '@/app/admin/shared/ReceiptPreview';
 import type { PosProduct, LossItem } from './types/shared';
+
+interface PosReceipt {
+  tableNumber: number | string;
+  orderId: string;
+  items: { product_name: string; quantity: number; total_price: number }[];
+  subtotal: number;
+  discount: number;
+  discountName?: string | null;
+  tip: number;
+  total: number;
+  paymentMethod: string;
+  cashAmount?: number;
+  cardAmount?: number;
+}
 
 export default function POSPage() {
   const { lightMode, setLightMode } = useTheme();
   const pos = usePos();
-  
+  const router = useRouter();
+   
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
   const [actionSheetTable, setActionSheetTable] = useState<any>(null);
@@ -38,8 +55,59 @@ export default function POSPage() {
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [cleanMode, setCleanMode] = useState(false);
   const [paymentView, setPaymentView] = useState(false);
+  const [receiptView, setReceiptView] = useState<PosReceipt | null>(null);
 
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
+
+  // Reservation → pre-order handoff: the reservations page navigates here with
+  // ?resId=&tableIds=&guestName= and also writes a localStorage context. When
+  // present we enter reservation mode: auto-select the target table, link the
+  // cart/order to the reservation, and show a "Bron Et" (Reserve) action.
+  const searchParams = useSearchParams();
+  const [reservationMode, setReservationMode] = useState(false);
+  const [reservationId, setReservationId] = useState<string | null>(null);
+  const [reservationGuest, setReservationGuest] = useState<string | null>(null);
+
+  useEffect(() => {
+    const resId = searchParams.get('resId') || searchParams.get('reservation_id');
+    const tableIds = (searchParams.get('tableIds') || '').split(',').filter(Boolean);
+    const guestName = searchParams.get('guestName') || '';
+    let ctx: any = null;
+    try { ctx = JSON.parse(localStorage.getItem('saito_pos_preorder_context') || 'null'); } catch { ctx = null; }
+
+    const finalResId = resId || ctx?.resId;
+    const finalTableIds = tableIds.length ? tableIds : (ctx?.tableIds || []);
+    const finalGuest = guestName || ctx?.guestName || '';
+
+    if (!finalResId || finalTableIds.length === 0) return;
+
+    setReservationMode(true);
+    setReservationId(finalResId);
+    setReservationGuest(finalGuest || null);
+
+    // Auto-select the first target table once table data is loaded.
+    const trySelect = () => {
+      const allTables = (pos.floors || []).flatMap((f: any) => f.tables || []);
+      const target = allTables.find((t: any) => finalTableIds.includes(t.id));
+      if (target) {
+        pos.selectTable(target, { allowReserved: true });
+        return true;
+      }
+      return false;
+    };
+    if (!trySelect()) {
+      const id = setInterval(() => { if (trySelect()) clearInterval(id); }, 300);
+      return () => clearInterval(id);
+    }
+  }, [searchParams, pos.floors]);
+
+  // Stamp the active cart with the reservation link so placeOrder forwards it.
+  useEffect(() => {
+    if (!reservationMode || !reservationId) return;
+    if (pos.cart && pos.cart.table_number && pos.cart.reservation_id !== reservationId) {
+      pos.setCart({ ...pos.cart, reservation_id: reservationId, customer_name: pos.cart.customer_name || reservationGuest || undefined });
+    }
+  }, [reservationMode, reservationId, reservationGuest, pos.cart, pos.setCart]);
 
   const handleRecordLoss = async (items: LossItem[], reason: string) => {
     const res = await apiFetch('/api/stock/loss', {
@@ -124,6 +192,41 @@ export default function POSPage() {
       setPaymentView(false);
       setActionSheetOpen(false);
       pos.fetchData();
+
+      // Build an on-screen receipt so the operator actually SEES what was paid
+      // (previously the POS only printed silently, or did nothing).
+      const tableNum = actionSheetTable?.table_number ?? activeOrders[0]?.table_number ?? '-';
+      const receiptItems: { product_name: string; quantity: number; total_price: number }[] = [];
+      let subtotal = 0;
+      let discount = 0;
+      let tip = 0;
+      let total = 0;
+      for (const activeOrder of activeOrders) {
+        for (const item of (activeOrder.order_items || [])) {
+          receiptItems.push({
+            product_name: item.product_name || item.products?.name_az || item.products?.name_en || 'Məhsul',
+            quantity: item.quantity || 1,
+            total_price: Number(item.total_price || item.unit_price * item.quantity || 0),
+          });
+          subtotal += Number(item.total_price || item.unit_price * item.quantity || 0);
+        }
+        discount += Number(activeOrder.discount_amount) || 0;
+        tip += Number(activeOrder.tip_amount) || 0;
+        total += Number(activeOrder.total_amount) || 0;
+      }
+      setReceiptView({
+        tableNumber: tableNum,
+        orderId: activeOrders.map((o: any) => o.id).join(','),
+        items: receiptItems,
+        subtotal,
+        discount,
+        discountName: activeOrders[0]?.campaigns?.name,
+        tip,
+        total,
+        paymentMethod: method,
+        cashAmount: method === 'cash' ? total : 0,
+        cardAmount: method === 'card' ? total : 0,
+      });
 
       const settings = await getReceiptSettings();
       if (settings.autoPrintReceipt) {
@@ -478,19 +581,27 @@ export default function POSPage() {
                   )}
                 </div>
                  <div className="flex items-center gap-3">
-                   <div className="flex items-center gap-1 bg-white/5 rounded-full p-1">
-                     <button 
-                       onClick={() => { setMergeMode(false); setTransferMode(false); }}
-                       className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${!mergeMode && !transferMode ? 'bg-white text-black' : 'text-white/50 hover:text-white'}`}
-                     >
-                       Normal
-                     </button>
-                     <button 
-                       onClick={() => { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); }}
-                       className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${mergeMode ? 'bg-blue-500 text-white' : 'text-white/50 hover:text-white'}`}
-                     >
-                       Birleştir
-                     </button>
+                    <button
+                      onClick={() => router.push('/admin/reservations')}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-xs font-black uppercase tracking-wider hover:bg-white/10 transition-all"
+                      title="Rezervasiyalar"
+                    >
+                      <Calendar size={16} />
+                      <span className="hidden sm:inline">Rezervasiyalar</span>
+                    </button>
+                     <div className="flex items-center gap-1 bg-white/5 rounded-full p-1">
+                      <button 
+                        onClick={() => { setMergeMode(false); setTransferMode(false); }}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${!mergeMode && !transferMode ? 'bg-white text-black' : 'text-white/50 hover:text-white'}`}
+                      >
+                        Normal
+                      </button>
+                      <button 
+                        onClick={() => { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); }}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${mergeMode ? 'bg-blue-500 text-white' : 'text-white/50 hover:text-white'}`}
+                      >
+                        Birleştir
+                      </button>
                      <button 
                        onClick={() => { setTransferMode(true); setMergeMode(false); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); }}
                        className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${transferMode ? 'bg-emerald-500 text-white' : 'text-white/50 hover:text-white'}`}
@@ -650,6 +761,9 @@ export default function POSPage() {
                           mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
                           customerId={pos.cart?.customer_id}
                           customerName={pos.cart?.customer_name}
+                          isReservationMode={reservationMode}
+                          reservationId={reservationId || undefined}
+                          guestName={reservationGuest || undefined}
                         />
                </div>
             </div>
@@ -734,6 +848,48 @@ export default function POSPage() {
           setModalProduct(null);
         }}
       />
+
+      <AnimatePresence>
+        {receiptView && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4"
+            onClick={() => setReceiptView(null)}
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              className="bg-white rounded-2xl p-4 shadow-2xl max-h-[90vh] overflow-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ReceiptPreview
+                title="SİFARİŞ ÇEKİ"
+                tableNumber={receiptView.tableNumber}
+                items={receiptView.items}
+                showServiceFee={false}
+                serviceFeePct={0}
+                currency="₼"
+                discountAmount={receiptView.discount}
+                campaignName={receiptView.discountName || undefined}
+              />
+              <div className="mt-4 text-center text-[11px] text-zinc-500">
+                {receiptView.paymentMethod === 'cash' ? 'Nağd' : receiptView.paymentMethod === 'card' ? 'Kart' : receiptView.paymentMethod}
+                {' · '}
+                {receiptView.total.toFixed(2)} ₼
+              </div>
+              <button
+                onClick={() => setReceiptView(null)}
+                className="mt-4 w-full py-3 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-zinc-700 transition-all active:scale-95"
+              >
+                Bağla
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

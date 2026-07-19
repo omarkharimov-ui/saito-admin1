@@ -100,14 +100,17 @@ export function usePos() {
     };
   }, [fetchData]);
 
-  const selectTable = async (table: PosTable) => {
+  const selectTable = async (table: PosTable, opts?: { allowReserved?: boolean }) => {
     const sameTable =
       selectedTable?.table_number === table.table_number &&
       cart?.table_number === table.table_number;
 
     if (sameTable && activeView === 'order') return;
 
-    if (table.status === 'reserved') {
+    // Reserved tables are normally blocked, but a reservation's pre-order flow
+    // must be able to open the reserved table directly in the POS (the
+    // reservation context is linked via selectTable's allowReserved flag).
+    if (table.status === 'reserved' && !opts?.allowReserved) {
       toast.error('Bu masa rezerv edilib. Öncə rezervasiyanı aktivləşdirməlisiniz.', { id: 'action-toast' });
       return;
     }

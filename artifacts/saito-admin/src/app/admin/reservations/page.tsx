@@ -255,7 +255,7 @@ export default function ReservationsPage() {
 
   const handleGuestArrived = async (id: string) => {
     try {
-      await apiFetch('/api/reservations/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id, status: 'confirmed' }) });
+      await apiFetch('/api/reservations/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservation_id: id, status: 'checked_in' }) });
       fetchData();
     } catch (e: any) { toast.error(e.message); }
   };

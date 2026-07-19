@@ -39,16 +39,17 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
 
-    const { id, status, notes } = await request.json();
+    const { id, reservation_id, status, notes } = await request.json();
+    const reservationId = id || reservation_id;
 
-    if (!id || !status) {
+    if (!reservationId || !status) {
       return NextResponse.json({ error: 'id and status are required' }, { status: 400 });
     }
 
     const s = svc();
 
     // 1. Fetch current reservation
-    const resRes = await fetch(`${s.url}/rest/v1/reservations?select=*&id=eq.${id}`, { headers: s.headers });
+    const resRes = await fetch(`${s.url}/rest/v1/reservations?select=*&id=eq.${reservationId}`, { headers: s.headers });
     const resData: any[] = await resRes.json();
     const current = resData?.[0];
 
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
         `${s.url}/rest/v1/orders?select=id&reservation_id=eq.${current.id}&is_draft=eq.true`,
         { headers: s.headers }
       );
-      const draftOrders: any[] = await draftRes.json();
+      const draftOrders: any[] = draftRes.ok ? await draftRes.json() : [];
       if (Array.isArray(draftOrders) && draftOrders.length > 0) {
         const draftIds = draftOrders.map(o => o.id).join(',');
         await fetch(`${s.url}/rest/v1/orders?or=(${draftIds.split(',').map(id => `id.eq.${id}`).join(',')})`, {
@@ -130,8 +131,15 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             is_draft: false,
             kitchen_status: 'pending',
+            status: 'confirmed',
             updated_at: new Date().toISOString(),
           }),
+        });
+        // Promote the draft's reserved kitchen items to pending too.
+        await fetch(`${s.url}/rest/v1/order_items?or=(${draftIds.split(',').map(id => `order_id.eq.${id}`).join(',')})&kitchen_status=eq.reserved`, {
+          method: 'PATCH',
+          headers: s.headers,
+          body: JSON.stringify({ kitchen_status: 'pending' }),
         });
       }
     }
@@ -166,7 +174,7 @@ export async function POST(request: NextRequest) {
     if (status === 'checked_in') updatePayload.checked_in_at = new Date().toISOString();
     if (status === 'completed') updatePayload.completed_at = new Date().toISOString();
 
-    await fetch(`${s.url}/rest/v1/reservations?id=eq.${id}`, {
+    await fetch(`${s.url}/rest/v1/reservations?id=eq.${reservationId}`, {
       method: 'PATCH',
       headers: s.headers,
       body: JSON.stringify(updatePayload),
@@ -176,7 +184,7 @@ export async function POST(request: NextRequest) {
     const auditTable = 'audit_logs';
     const auditBody = {
       table_name: 'reservations',
-      record_id: id,
+      record_id: reservationId,
       action: `status_change:${current.status}→${status}`,
       old_data: { status: current.status },
       new_data: { status, notes },
@@ -202,7 +210,7 @@ export async function POST(request: NextRequest) {
 
     // 8. If cancelled/no_show/expired with pre-order, cancel kitchen schedule
     if ((status === 'cancelled' || status === 'no_show' || status === 'expired') && current.kitchen_scheduled_at) {
-      await fetch(`${s.url}/rest/v1/kitchen_schedule?reservation_id=eq.${id}`, {
+      await fetch(`${s.url}/rest/v1/kitchen_schedule?reservation_id=eq.${reservationId}`, {
         method: 'PATCH',
         headers: s.headers,
         body: JSON.stringify({ status: 'cancelled' }),

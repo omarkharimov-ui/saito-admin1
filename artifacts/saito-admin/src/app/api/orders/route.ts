@@ -287,6 +287,7 @@ export async function POST(request: Request) {
             campaign_id: campaign_id || null,
             created_by: created_by || null,
             kitchen_status: ks,
+            reservation_id: reservation_id || null,
             is_draft: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),

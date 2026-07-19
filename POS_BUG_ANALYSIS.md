@@ -71,11 +71,23 @@ Yəni realtime konfiqurasiyası **düzgündür**. Problem **frontend realtime→
 | R3 | `usePos.tsx:48-53` `fetchData` | Non-ok cavabda səssiz uğursuzlıq → realtime yenilənməsi görünmür | Yüksək |
 | R4 | `usePos.tsx:397-403` `placeOrder` | Boş göndərmədə `setCart(null)` — gözlənilən, amma istifadəçiyə qarışıq ola bilər | Orta |
 | R5 | `api/orders/route.ts:21-27` | `table_number` / `not.in` query param-ları emal edilmir | Orta (R1-in səbəbi) |
+| R6 | `page.tsx:347` + `usePos.tsx:236` `handleConfirmTransfer`/`transferTable` | Transfer undo `data.data?.undo` oxuyur; transfer route `undo`-yu `data`-in yanında qaytarır → həmişə `undefined` → **transfer geri alma işləmir** | Yüksək |
+| R7 | `BillSplitModal.tsx:120` | Hesab bölməsi üçün raw `fetch` istifadə edir; `bill-split` route `validateCsrfToken` çağırır → **həmişə 403**, bill-split tamamilə sınıq | Yüksək |
+
+### D. Tətbiq edilmiş düzəlişlər (commit `2ba8c54` + `9e62c39`)
+1. ✅ `updateGuestCount` → düzgün aktiv sifariş axtarışı (R1/S1).
+2. ✅ `selectTable` → eyni masa üçün səbəti saxla, fərqli masa üçün təmizlə (R2).
+3. ✅ `fetchData` → non-ok cavabda toast (R3).
+4. ✅ `/api/orders` GET → `table_number` + `status=eq.*` dəstəyi (R5).
+5. ✅ Transfer undo → `data.undo` (R6).
+6. ✅ `BillSplitModal` → `apiFetch` (CSRF) (R7).
 
 ---
 
-## D. Tətbiq olunacaq düzəlişlər
-1. `updateGuestCount` → düzgün aktiv sifariş axtarışı (R1/S1).
-2. `selectTable` → eyni masa üçün səbəti saxla, fərqli masa üçün təmizlə (R2).
-3. `fetchData` → uğursuzluqları görünən et, realtime handler-i möhkəmləndir (R3).
-4. (`api/orders` GET) `table_number` + `not.in` filter dəstəyi əlavə et (R5/S1) — seçim olaraq.
+## E. Qeydə alınan, amma hələ düzəldilməyən risklər (diaqnostika davam edir)
+
+| # | Yer | Risk | Təsir |
+|---|-----|------|--------|
+| X1 | `process_order_payment` RPC | Stok çıxışı idempotency qoruyucusu yoxdur; `mark_order_ready` (`deductStockForOrder`) qoruyucu var. Əgər masa "hazır" işarələnib sonra ödənilirsə, RPC təkrar `order_consumption` yazır → **stok ikiqat azala bilər** | ✅ Düzəldildi: `20260719_fix_payment_stock_double_deduction.sql` (canlı DB-yə tətbiq edildi) |
+| X2 | `orders/void` / `orders/reverse` route-ları | `reverse` həmişə 501 qaytarır; `void` heç bir frontend tərəfindən çağrılmır; `undo` route yalnız merge üçün tam düzgün, unmerge üçün lazımi snapshot qaytarmır | Orta |
+| X3 | `auto_apply_campaigns` RPC + `computeEffectivePrice` | Avto-kampaniya ödənişdə tətbiq olunur; frontend `getAutoCampaign` ilə cəmi hesablayır. Uyğunluq lazımınca yoxlanmalıdır | Orta |

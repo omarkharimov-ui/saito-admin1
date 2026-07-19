@@ -38,11 +38,6 @@ interface ActionSheetProps {
   onConfirmMerge?: () => void;
   groupNumber?: number;
   paymentView?: boolean;
-  transferMode?: boolean;
-  transferSource?: number | null;
-  transferTarget?: number | null;
-  onConfirmTransfer?: () => void;
-  onCancelTransfer?: () => void;
 }
 
 const fastTransition = { type: "spring", stiffness: 450, damping: 38, mass: 1 } as const;
@@ -53,8 +48,7 @@ export function ActionSheet({
   onBackFromPayment, onSelectCustomer, customerId, customerName,
   mergeMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, groupNumber,
-  paymentView,
-  transferMode, transferSource, transferTarget, onConfirmTransfer, onCancelTransfer
+  paymentView
 }: ActionSheetProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -369,23 +363,8 @@ export function ActionSheet({
                      <button onClick={onConfirmMerge} disabled={!mergeParent || (selectedForMerge?.length || 0) < 2} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>Təsdiqlə</button>
                    </div>
                  </motion.div>
-               )}
-
-               {transferMode && transferSource && transferTarget && (
-                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} key="ui-transfer-bar" className="flex items-center gap-5 w-full">
-                   <div className="flex flex-col mr-auto min-w-[140px]">
-                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">Köçürmə</span>
-                     <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                       Masa {transferSource} → Masa {transferTarget}
-                     </span>
-                   </div>
-                   <div className="flex items-center gap-3">
-                     <button onClick={onCancelTransfer} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><XCircle size={18} strokeWidth={3} /></button>
-                     <button onClick={onConfirmTransfer} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all`}>Köçür</button>
-                   </div>
-                 </motion.div>
-               )}
-            </AnimatePresence>
+                )}
+             </AnimatePresence>
           </motion.div>
         </div>
       )}

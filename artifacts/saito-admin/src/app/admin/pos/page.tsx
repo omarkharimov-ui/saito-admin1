@@ -809,21 +809,8 @@ export default function POSPage() {
             setMergeMode(false); 
             setSelectedForMerge([]); 
           }}
-         groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
-         transferMode={transferMode}
-         transferSource={transferSource}
-         transferTarget={transferTarget}
-         onConfirmTransfer={async () => {
-           if (transferSource && transferTarget) {
-             await handleConfirmTransfer(transferTarget);
-           }
-         }}
-         onCancelTransfer={() => {
-           setTransferMode(false);
-           setTransferSource(null);
-           setTransferTarget(null);
-         }}
-           customerId={pos.cart?.customer_id}
+          groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
+            customerId={pos.cart?.customer_id}
            customerName={pos.cart?.customer_name}
            onSelectCustomer={(customerId, customerName) => {
              pos.updateCartCustomer(customerId, customerName);

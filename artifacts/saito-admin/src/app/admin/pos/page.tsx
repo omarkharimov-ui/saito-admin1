@@ -48,6 +48,7 @@ export default function POSPage() {
   const [transferSource, setTransferSource] = useState<number | null>(null);
   const [transferTarget, setTransferTarget] = useState<number | null>(null);
   const [transferConfirm, setTransferConfirm] = useState(false);
+  const [reservationArrival, setReservationArrival] = useState<{ table_number: number; reservation_id: string | null; name: string | null; guests: number } | null>(null);
 
   const [unmergeMode, setUnmergeMode] = useState(false);
   const [selectedForUnmerge, setSelectedForUnmerge] = useState<number[]>([]);
@@ -404,6 +405,16 @@ export default function POSPage() {
   }, [activeFloor?.tables]);
 
   const handleTableTap = (table: any) => {
+    if (table.status === 'reserved' && !reservationMode) {
+      setReservationArrival({
+        table_number: table.table_number,
+        reservation_id: table.reservation_id || null,
+        name: table.reservation_name || null,
+        guests: table.guest_count || 0,
+      });
+      return;
+    }
+
     if (mergeMode) {
       if (selectedForMerge.includes(table.table_number)) {
         setSelectedForMerge(p => p.filter(n => n !== table.table_number));
@@ -479,6 +490,36 @@ export default function POSPage() {
     setTransferMode(false);
     setTransferSource(null);
     setTransferTarget(null);
+  };
+
+  const handleGuestArrived = async (table: any) => {
+    const resId = reservationArrival?.reservation_id;
+    setReservationArrival(null);
+    if (!resId) {
+      toast.error('Rezervasiya ID tapılmadı');
+      return;
+    }
+    try {
+      const res = await apiFetch('/api/reservations/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservation_id: resId, status: 'checked_in' }),
+      });
+      if (res.ok) {
+        toast.success('Qonaq gəldi — masa açıldı');
+        pos.fetchData();
+        setTimeout(() => {
+          const allTables = (pos.floors || []).flatMap((f: any) => f.tables || []);
+          const opened = allTables.find((t: any) => t.table_number === table.table_number);
+          if (opened) pos.selectTable(opened, { allowReserved: true });
+        }, 400);
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Qonaq gəlmədi');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Xəta');
+    }
   };
 
   const handleUndo = async () => {
@@ -660,8 +701,37 @@ export default function POSPage() {
                  </div>
                 </div>
               </motion.div>
-              )}
-              {cleanMode && (
+               )}
+
+               {reservationArrival && (
+                 <motion.div
+                   initial={{ opacity: 0, y: 100 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   exit={{ opacity: 0, y: 100 }}
+                   className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+                 >
+                   <div className="pointer-events-auto w-full max-w-md bg-white text-black rounded-2xl shadow-2xl border border-white/20 p-5">
+                     <div className="flex items-center justify-between mb-4">
+                       <div>
+                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 mb-1">Rezervasyon</p>
+                         <p className="text-sm font-bold">{reservationArrival.name ? `${reservationArrival.name} — ` : ''}Masa {reservationArrival.table_number}</p>
+                         {reservationArrival.guests > 0 && (
+                           <p className="text-xs text-zinc-500 mt-0.5">{reservationArrival.guests} nəfər</p>
+                         )}
+                       </div>
+                       <button onClick={() => setReservationArrival(null)} className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-all">
+                         <X size={16} />
+                       </button>
+                     </div>
+                     <div className="flex gap-2">
+                       <button onClick={() => setReservationArrival(null)} className="flex-1 py-4 rounded-2xl border border-zinc-200 text-zinc-600 text-xs font-black hover:bg-zinc-50 transition-all">Bağla</button>
+                       <button onClick={() => handleGuestArrived(reservationArrival)} className="flex-1 py-4 rounded-2xl bg-amber-500 text-white text-xs font-black hover:bg-amber-600 transition-all">Qonaq Gəldi</button>
+                     </div>
+                   </div>
+                 </motion.div>
+               )}
+
+               {cleanMode && (
                 <button
                   onClick={() => setCleanMode(false)}
                   className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-black/80 text-white text-xs font-black rounded-full border border-white/10 hover:bg-black transition-all"

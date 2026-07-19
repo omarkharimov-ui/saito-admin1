@@ -233,7 +233,7 @@ export function usePos() {
     });
     if (res.ok) {
       const data = await res.json();
-      setLastUndo({ action: 'transfer', data: data.data?.undo, message: `Masa ${from} → ${to}` });
+      setLastUndo({ action: 'transfer', data: data.undo, message: `Masa ${from} → ${to}` });
       fetchData();
     } else {
       const err = await res.json();

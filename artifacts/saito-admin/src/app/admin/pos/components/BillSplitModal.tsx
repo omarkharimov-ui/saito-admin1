@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Split, Check, Plus, Minus, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
+import { apiFetch } from '@/lib/api-fetch';
 
 interface OrderItem {
   id: string;
@@ -117,7 +118,7 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
         if (item) itemsToSplit.push({ ...item, quantity: qty });
       }
 
-      const res = await fetch('/api/orders/bill-split', {
+      const res = await apiFetch('/api/orders/bill-split', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

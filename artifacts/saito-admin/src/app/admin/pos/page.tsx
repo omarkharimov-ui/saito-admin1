@@ -65,15 +65,11 @@ export default function POSPage() {
   const handleOpenPayment = () => setPaymentView(true);
   const handleBackFromPayment = () => setPaymentView(false);
 
-  const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'split') => {
+  const handlePaymentMethodSelect = async (method: 'cash' | 'card') => {
     if (!actionSheetTable) return;
     const tableNumbers = actionSheetGroup
       ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
       : [actionSheetTable.table_number];
-
-    if (method === 'split') {
-      return;
-    }
 
     toast.loading('Ödəniş işlənir...', { id: 'action-toast' });
     try {
@@ -348,7 +344,7 @@ export default function POSPage() {
       if (res.ok) {
         setLastUndo({ 
           action: 'transfer', 
-          data: data.data?.undo, 
+          data: data.undo, 
           message: `Masa ${transferSource} → ${targetTable}`,
           timestamp: Date.now()
         });

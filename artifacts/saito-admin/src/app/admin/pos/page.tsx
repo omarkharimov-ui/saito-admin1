@@ -706,16 +706,10 @@ export default function POSPage() {
                       >
                       <TableCard 
                         table={table}
-                        onTap={() => {
-                          if (transferMode && table.status === 'empty') {
-                            toast.error('Boş masaya köçürə bilməzsiniz');
-                            return;
-                          }
-                          handleTableTap(table);
-                        }} 
+                        onTap={() => handleTableTap(table)}
                         onAction={() => handleOpenAction(table)}
                         isSelected={selectedForMerge.includes(table.table_number)}
-                        selectionMode={mergeMode}
+                        selectionMode={mergeMode || transferMode}
                         isTransferSource={transferSource === table.table_number}
                         isTransferTarget={transferTarget === table.table_number}
                         groupNumber={groupInfo?.groupNum}

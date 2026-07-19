@@ -121,8 +121,8 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
                  className={`group relative flex flex-col rounded-[28px] bg-[#f4f4f7] dark:bg-white/[0.08] p-4 transition-all duration-300 hover:shadow-xl hover:bg-[#ebebef] dark:hover:bg-white/[0.12] ${isOutOfStock ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}
                >
                   {isOutOfStock && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-rose-600/85 backdrop-blur-[1px] rounded-[28px]">
-                      <span className="text-[13px] font-black uppercase tracking-[0.2em] text-white shadow-sm px-3 py-1.5 rounded-xl border-2 border-white/70">
+                    <div className="absolute top-2 right-2 z-20">
+                      <span className="text-[8px] font-black uppercase tracking-[0.15em] text-white bg-rose-600 px-2 py-1 rounded-lg shadow-sm">
                         {t('out_of_stock') || 'Stokda yox'}
                       </span>
                     </div>

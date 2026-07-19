@@ -86,10 +86,21 @@ export async function GET() {
         });
       });
 
+      // Status: a reserved/waiting table must keep that status even if it has
+      // no active orders yet (or only a draft). Otherwise derive occupied from
+      // active orders, falling back to the stored floor status.
+      const hasOrders = (ordersByTable[f.table_number]?.length || 0) > 0;
+      const computedStatus =
+        f.status === 'reserved' || f.status === 'waiting'
+          ? f.status
+          : hasOrders
+            ? 'occupied'
+            : f.status;
+
       const processedTable = {
         ...f,
         last_activity_at: groupLastActivity,
-        status: (ordersByTable[f.table_number]?.length || 0) > 0 ? 'occupied' : f.status,
+        status: computedStatus,
         total_amount: isChild || isParent ? groupTotalAmount : tableOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0),
         guest_count: isChild || isParent ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0)),
         merged_with: isChild || isParent ? allInGroup : [],
@@ -126,7 +137,7 @@ export async function GET() {
     }));
 
     return NextResponse.json({ floors: result }, {
-      headers: { 'Cache-Control': 's-maxage=5, stale-while-revalidate' },
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

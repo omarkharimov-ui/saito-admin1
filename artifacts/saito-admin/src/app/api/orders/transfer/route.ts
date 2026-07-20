@@ -101,28 +101,10 @@ export async function POST(request: NextRequest) {
         reservation_name: null,
         reservation_phone: null,
         reservation_time: null,
-        last_activity_at: now
+        updated_at: now
       }),
     });
 
-    // 3) Update kitchen_schedule references
-    const scheduleTables = [from_table, ...(sourceTableData?.merged_into_table ? [sourceTableData.merged_into_table] : [])]
-      .map(String)
-      .filter(Boolean)
-      .join(',');
-    
-    if (scheduleTables) {
-      await fetch(`${s.url}/rest/v1/kitchen_schedule?table_number=in.(${scheduleTables})`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({
-          table_number: to_table,
-          updated_at: now
-        }),
-      });
-    }
-
-    // 4) Clear source table_floors
     await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${from_table}`, {
       method: 'PATCH',
       headers: s.headers,

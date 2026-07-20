@@ -88,12 +88,17 @@ export async function POST(request: NextRequest) {
       );
       const draftOrders: any[] = await draftRes.json();
       if (Array.isArray(draftOrders) && draftOrders.length > 0) {
-        const draftIds = draftOrders.map(o => o.id).join(',');
-        await fetch(`${s.url}/rest/v1/orders?or=(${draftIds.split(',').map(id => `id.eq.${id}`).join(',')})`, {
-          method: 'PATCH',
-          headers: s.headers,
-          body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }),
-        });
+        const draftIds = draftOrders.map(o => o.id).filter(Boolean);
+        const CHUNK = 20;
+        for (let i = 0; i < draftIds.length; i += CHUNK) {
+          const chunk = draftIds.slice(i, i + CHUNK);
+          const orFilter = chunk.map(id => `id.eq.${id}`).join(',');
+          await fetch(`${s.url}/rest/v1/orders?or=(${orFilter})`, {
+            method: 'PATCH',
+            headers: s.headers,
+            body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }),
+          });
+        }
       }
     }
 

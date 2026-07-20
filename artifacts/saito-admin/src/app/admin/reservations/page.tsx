@@ -696,33 +696,33 @@ export default function ReservationsPage() {
         open={confirmClearArchiveModal} 
         clearing={clearingArchive} 
         onConfirm={async () => {
-          // Logic for clearing all archive or selected
           setClearingArchive(true);
           try {
-       // Use selected IDs if in selection mode, otherwise delete by status
-       let error;
-       if (archiveSelectionMode && selectedArchiveIds.length > 0) {
-         const result = await supabase.from('reservations').delete().in('id', selectedArchiveIds);
-         error = result.error;
-         if (!error) {
-           toast.success(`${selectedArchiveIds.length} rezervasiya silindi`);
-           setSelectedArchiveIds([]);
-           setArchiveSelectionMode(false);
-         }
-       } else {
-         const result = await supabase.from('reservations').delete().in('status', ['cancelled', 'archived', 'expired']);
-         error = result.error;
-       }
-             if (error) throw error;
-             toast.success('Arxiv təmizləndi');
-             fetchData();
+            if (archiveSelectionMode && selectedArchiveIds.length > 0) {
+              await apiFetch('/api/reservations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'delete_batch', ids: selectedArchiveIds }),
+              });
+              toast.success(`${selectedArchiveIds.length} rezervasiya silindi`);
+              setSelectedArchiveIds([]);
+              setArchiveSelectionMode(false);
+            } else {
+              await apiFetch('/api/reservations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'delete_batch', statuses: ['cancelled', 'archived', 'expired'] }),
+              });
+              toast.success('Arxiv təmizləndi');
+            }
+            fetchData();
           } catch (e: any) {
-             toast.error(e.message);
+            toast.error(e.message || 'Silinmə xətası');
           } finally {
-             setClearingArchive(false);
-             setConfirmClearArchiveModal(false);
+            setClearingArchive(false);
+            setConfirmClearArchiveModal(false);
           }
-        }} 
+        }}
         onCancel={() => setConfirmClearArchiveModal(false)} 
         title={t('delete_selected')} 
         description={t('archive_delete_confirm')} 

@@ -68,8 +68,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 2.5. Verify all target tables are available
+    const validTableIds = (table_ids || []).filter((id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+    if (validTableIds.length === 0) {
+      return NextResponse.json({ error: 'No valid table IDs provided' }, { status: 400 });
+    }
     const tablesRes = await fetch(
-      `${svc().url}/rest/v1/table_floors?select=id,table_number,status&id=in.(${table_ids.map((id: string) => id).join(',')})`,
+      `${svc().url}/rest/v1/table_floors?select=id,table_number,status&id=in.(${validTableIds.map((id: string) => id).join(',')})`,
       { headers: svc().headers }
     );
     const targetTables: any[] = await tablesRes.json();

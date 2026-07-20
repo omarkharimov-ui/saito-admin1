@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { validateAuth } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -8,9 +8,9 @@ function svc() {
 }
 
 export async function GET(request: Request) {
-  const auth = await validateAuth();
+  const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
   if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+    return auth;
   }
 
   try {
@@ -38,9 +38,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await validateAuth();
+  const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
   if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+    return auth;
   }
 
   try {

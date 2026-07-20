@@ -113,6 +113,30 @@ export async function POST(request: Request) {
       url += `?id=eq.${id}`;
       method = 'DELETE';
       payload = undefined;
+    } else if (action === 'delete_batch') {
+      const ids = body.ids;
+      const statuses = body.statuses;
+      if (!ids && !statuses) {
+        return NextResponse.json({ error: 'ids or statuses required for batch delete' }, { status: 400 });
+      }
+      let deleteUrl = `${svc().url}/rest/v1/reservations`;
+      if (ids?.length) {
+        const quoted = ids.map((x: string) => `"${x}"`).join(',');
+        deleteUrl += `?id=in.(${quoted})`;
+      } else if (statuses?.length) {
+        const quoted = statuses.map((s: string) => `status.eq.${s}`).join(',');
+        deleteUrl += `?or=(${quoted})`;
+      }
+      const delRes = await fetch(deleteUrl, { method: 'DELETE', headers: svc().headers });
+      if (!delRes.ok) {
+        const err = await delRes.text();
+        return NextResponse.json({ error: err }, { status: delRes.status });
+      }
+      const performedBy = auth.user?.id || null;
+      if (ids?.length) {
+        for (const rid of ids) logAudit('reservations', rid, 'delete', null, null, performedBy);
+      }
+      return NextResponse.json({ success: true, deleted: true });
     } else if (action === 'archive') {
       url += `?id=eq.${id}`;
       method = 'PATCH';

@@ -144,7 +144,7 @@ export async function POST(request: Request) {
         return { success: true };
       }
 
-      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, created_by } = body;
+      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id } = body;
       
       // Append items to an EXISTING active order (used by reservation-handoff tables
       // that already have a draft/active order, so we never create a 2nd active order).
@@ -285,7 +285,7 @@ export async function POST(request: Request) {
             discount_amount: rawDiscount,
             discount_type: discount_type || null,
             campaign_id: campaign_id || null,
-            created_by: created_by || null,
+            created_by: auth.user?.id || null,
             kitchen_status: ks,
             reservation_id: reservation_id || null,
             is_draft: false,
@@ -337,8 +337,12 @@ export async function POST(request: Request) {
           body: JSON.stringify(ins),
         });
         if (!itemRes.ok) {
-          // Rollback: delete the order
-          await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, { method: 'DELETE', headers: svc().headers });
+          // Rollback: soft-delete the order (status=cancelled) instead of hard delete
+          await fetch(`${svc().url}/rest/v1/orders?id=eq.${activeOrderId}`, {
+            method: 'PATCH',
+            headers: svc().headers,
+            body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
+          });
           throw new Error(`Order item insert failed: ${await itemRes.text()}`);
         }
       }

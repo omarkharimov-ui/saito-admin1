@@ -387,7 +387,7 @@ export function usePos() {
         ? (variantsByProduct[p.id] || []).find(v => v.id === opts.variantId)
         : undefined;
       const variantId = opts?.variantId ?? null;
-      const basePrice = variant ? Number(variant.discount_price ?? variant.price) : (p.price ?? 0);
+      const basePrice = variant ? Number(variant.discount_price != null && variant.discount_price !== '' ? variant.discount_price : variant.price) : (p.price ?? 0);
       const effective = (p as any).effective_price;
       const unitPrice = typeof effective === 'number' ? effective : effective?.effective_price ?? basePrice;
       const campaignId = typeof effective === 'object' && effective?.campaign_id ? effective.campaign_id : null;
@@ -537,20 +537,14 @@ export function usePos() {
                 status: 'confirmed',
                 guest_count: cart.guest_count,
                 customer_note: cart.notes,
-                order_type: cart.order_type,
-                customer_id: cart.customer_id || null,
-                customer_name: cart.customer_name || null,
-                reservation_id: cart.reservation_id || null,
-                discount_amount: computedDiscount.amount,
-                discount_type: computedDiscount.type,
-                campaign_id: campaign?.id || null,
-                created_by: (() => {
-                  try {
-                    const session = localStorage.getItem('saito_staff_session');
-                    return session ? JSON.parse(session).id : null;
-                  } catch { return null; }
-                })()
-              }
+                 order_type: cart.order_type,
+                 customer_id: cart.customer_id || null,
+                 customer_name: cart.customer_name || null,
+                 reservation_id: cart.reservation_id || null,
+                 discount_amount: computedDiscount.amount,
+                 discount_type: computedDiscount.type,
+                 campaign_id: campaign?.id || null,
+               }
         ),
       });
       if (res.ok) {

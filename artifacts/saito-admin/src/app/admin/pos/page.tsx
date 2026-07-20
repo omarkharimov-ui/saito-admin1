@@ -294,15 +294,24 @@ export default function POSPage() {
         !['paid', 'cancelled', 'closed'].includes(o.status)
       );
       const failedOrders: string[] = [];
-      for (const activeOrder of activeOrders) {
+      const orderCount = activeOrders.length;
+      const baseCash = Math.floor((cash / orderCount) * 100) / 100;
+      const baseCard = Math.floor((card / orderCount) * 100) / 100;
+      const cashRemainder = Math.round((cash - baseCash * orderCount) * 100) / 100;
+      const cardRemainder = Math.round((card - baseCard * orderCount) * 100) / 100;
+      for (let i = 0; i < orderCount; i++) {
+        const isLast = i === orderCount - 1;
+        const orderCash = isLast ? baseCash + cashRemainder : baseCash;
+        const orderCard = isLast ? baseCard + cardRemainder : baseCard;
+        const activeOrder = activeOrders[i];
         const res = await apiFetch('/api/orders/pay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             order_id: activeOrder.id,
             payment_method: 'split',
-            cash_amount: cash / activeOrders.length,
-            card_amount: card / activeOrders.length,
+            cash_amount: orderCash,
+            card_amount: orderCard,
             tip_amount: 0,
             campaign_id: activeOrder.campaign_id || undefined,
             discount_amount: activeOrder.discount_amount || 0,

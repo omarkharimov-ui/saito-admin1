@@ -835,7 +835,7 @@ export default function POSPage() {
                     outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
                   />
                </div>
-               <div className="w-full md:w-[400px] border-l p-6 bg-black/20">
+                <div className="w-full md:w-[400px] border-l p-6 bg-black/20 flex flex-col h-full overflow-hidden">
                         <CartPanel 
                           cart={pos.cart} 
                           onPlaceOrder={() => {

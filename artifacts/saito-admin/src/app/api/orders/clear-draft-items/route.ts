@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const s = svc();
     const ids = item_ids.map((id: string) => `"${id}"`).join(',');
 
-    const delRes = await fetch(`${s.url}/rest/v1/order_items?id=in.(${ids})`, {
+    const delRes = await fetch(`${s.url}/rest/v1/order_items?id=in.(${ids})&kitchen_status=in.(pending,reserved)`, {
       method: 'DELETE',
       headers: s.headers,
     });

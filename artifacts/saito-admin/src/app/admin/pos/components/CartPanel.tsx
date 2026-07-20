@@ -473,9 +473,9 @@ export function CartPanel({
             </div>
           </div>
         )}
-        {/* Footer actions removed from here */}
-        <div className="w-full">
-          <SendOrderButton
+         {/* Footer actions removed from here */}
+         <div className="w-full flex-shrink-0">
+           <SendOrderButton
             disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
             status={lossMode ? 'idle' : orderButtonStatus}
             variant={lossMode ? 'loss' : 'send'}

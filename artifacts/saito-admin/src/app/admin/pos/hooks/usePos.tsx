@@ -155,6 +155,11 @@ export function usePos() {
       });
     }
 
+    // Preserve any local draft items across the server reload. We snapshot
+    // them before the fetch so they survive even if the server returns no
+    // orders yet (e.g. brand-new table).
+    const prevDraftItems = (cart?.items ?? []).filter((i: any) => (i.sentQuantity ?? 0) === 0);
+
     try {
       const res = await fetch('/api/orders');
       if (res.ok) {
@@ -223,10 +228,31 @@ export function usePos() {
               serverTotal: serverTotal !== itemSum ? serverTotal : undefined,
             };
           });
+        } else {
+          // No active server order yet — restore any drafts we had before.
+          if (prevDraftItems.length > 0) {
+            setCart(prev => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                items: [...prevDraftItems],
+              };
+            });
+          }
         }
       }
     } catch (e) {
       console.error('Failed to load existing order items:', e);
+      // On failure, still restore drafts so the user does not lose work.
+      if (prevDraftItems.length > 0) {
+        setCart(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            items: [...prevDraftItems],
+          };
+        });
+      }
     }
   };
 

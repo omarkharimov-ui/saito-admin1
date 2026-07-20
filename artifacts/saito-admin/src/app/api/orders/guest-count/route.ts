@@ -27,7 +27,6 @@ export async function POST(request: NextRequest) {
     }
 
     const s = svc();
-    const now = new Date().toISOString();
 
     const ordersRes = await fetch(
       `${s.url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled,closed)&select=id,guest_count`,
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
         await fetch(`${s.url}/rest/v1/orders?id=eq.${o.id}`, {
           method: 'PATCH',
           headers: s.headers,
-          body: JSON.stringify({ guest_count: Number(guest_count), updated_at: now }),
+          body: JSON.stringify({ guest_count: Number(guest_count) }),
         });
       }
     }
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
     await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
       method: 'PATCH',
       headers: s.headers,
-      body: JSON.stringify({ guest_count: Number(guest_count), updated_at: now }),
+      body: JSON.stringify({ guest_count: Number(guest_count) }),
     });
 
     return NextResponse.json({ success: true, guest_count: Number(guest_count) });

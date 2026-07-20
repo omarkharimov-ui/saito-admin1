@@ -852,10 +852,11 @@ export default function POSPage() {
                           mergedChildNumbers={activeFloor?.merged_groups?.find((g: any) => g.parent.table_number === pos.selectedTable?.table_number)?.children?.map((c: any) => c.table_number)}
                           customerId={pos.cart?.customer_id}
                           customerName={pos.cart?.customer_name}
-                          isReservationMode={reservationMode}
-                          reservationId={reservationId || undefined}
-                          guestName={reservationGuest || undefined}
-                        />
+                           isReservationMode={reservationMode}
+                           reservationId={reservationId || undefined}
+                           guestName={reservationGuest || undefined}
+                           guestCountLoading={pos.guestCountLoading}
+                         />
                </div>
             </div>
           )}

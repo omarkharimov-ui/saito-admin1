@@ -18,6 +18,7 @@ export function usePos() {
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [cart, setCart] = useState<PosCart | null>(null);
+  const [guestCountLoading, setGuestCountLoading] = useState(false);
 
   const retryWithBackoff = async (fn: () => Promise<Response>, retries = 3, delay = 1000): Promise<Response> => {
     for (let i = 0; i < retries; i++) {
@@ -605,22 +606,42 @@ export function usePos() {
   };
 
   const updateGuestCount = async (delta: number) => {
-    if (!cart || !selectedTable) return;
-    const newCount = Math.max(1, (cart.guest_count || 1) + delta);
-    // Guest count is INDEPENDENT of "send to kitchen": changing it must NOT
-    // place/send the order. It updates the local cart immediately and persists
-    // the count to the open order + table_floors directly (no kitchen push).
-    setCart(prev => prev ? { ...prev, guest_count: newCount } : null);
+    if (!cart || !selectedTable || guestCountLoading) return;
+
+    const previousCount = cart.guest_count || 1;
+    const minGuests = 1;
+    const maxGuests = selectedTable.capacity ?? 99;
+    const newCount = Math.min(maxGuests, Math.max(minGuests, previousCount + delta));
+
+    if (newCount === previousCount) {
+      if (delta > 0) toast.error(`Masa tutumu ${maxGuests} nəfər. Daha çox əlavə edə bilməzsiniz.`, { id: 'guest-capacity' });
+      if (delta < 0) toast.error('Minimum 1 nəfər olmalıdır', { id: 'guest-minimum' });
+      return;
+    }
+
+    setGuestCountLoading(true);
+    const optimisticCount = newCount;
+    setCart(prev => prev ? { ...prev, guest_count: optimisticCount } : null);
+
     try {
       const tableNum = cart.table_number || selectedTable.table_number;
-      await apiFetch('/api/orders/guest-count', {
+      const res = await apiFetch('/api/orders/guest-count', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: tableNum, guest_count: newCount }),
-      }).catch(() => {});
-      await apiFetch('/api/pos/tables', { cache: 'no-store' }).catch(() => {});
-    } catch {
-      /* non-blocking: local count already updated */
+        body: JSON.stringify({ table_number: tableNum, guest_count: optimisticCount }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Guest count update failed');
+      }
+
+      // Realtime will refresh the floor; no manual fetch needed.
+    } catch (e: any) {
+      setCart(prev => prev ? { ...prev, guest_count: previousCount } : null);
+      toast.error(e?.message || 'Qonaq sayı yenilənə bilmədi', { id: 'guest-count-error' });
+    } finally {
+      setGuestCountLoading(false);
     }
   };
 
@@ -634,7 +655,7 @@ export function usePos() {
   };
 
   return {
-    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo,
+    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, guestCountLoading,
     fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
     updateCartCustomer, getAutoCampaign

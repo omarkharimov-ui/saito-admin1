@@ -23,10 +23,29 @@ export async function POST(request: NextRequest) {
 
     const { table_number, guest_count } = await request.json();
     if (!table_number || guest_count == null) {
-      return NextResponse.json({ error: 'table_number and guest_count required' }, { status: 400 });
+      return NextResponse.json({ error: 'table_number and guest_count are required' }, { status: 400 });
+    }
+
+    const count = Number(guest_count);
+    if (!Number.isInteger(count) || count < 1) {
+      return NextResponse.json({ error: 'Guest count must be at least 1' }, { status: 400 });
     }
 
     const s = svc();
+
+    // Validate against table capacity if the column exists.
+    const tableRes = await fetch(
+      `${s.url}/rest/v1/table_floors?table_number=eq.${table_number}&select=capacity,guest_count`,
+      { headers: s.headers }
+    );
+    const tableData = (await tableRes.json()) || [];
+    const table = tableData[0];
+    if (table && table.capacity != null && count > table.capacity) {
+      return NextResponse.json(
+        { error: `Masa tutumu ${table.capacity} nəfər. Daha çox qonaq əlavə edə bilməzsiniz.` },
+        { status: 409 }
+      );
+    }
 
     const ordersRes = await fetch(
       `${s.url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled,closed)&select=id,guest_count`,
@@ -39,7 +58,7 @@ export async function POST(request: NextRequest) {
         await fetch(`${s.url}/rest/v1/orders?id=eq.${o.id}`, {
           method: 'PATCH',
           headers: s.headers,
-          body: JSON.stringify({ guest_count: Number(guest_count) }),
+          body: JSON.stringify({ guest_count: count }),
         });
       }
     }
@@ -47,10 +66,10 @@ export async function POST(request: NextRequest) {
     await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
       method: 'PATCH',
       headers: s.headers,
-      body: JSON.stringify({ guest_count: Number(guest_count) }),
+      body: JSON.stringify({ guest_count: count }),
     });
 
-    return NextResponse.json({ success: true, guest_count: Number(guest_count) });
+    return NextResponse.json({ success: true, guest_count: count });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

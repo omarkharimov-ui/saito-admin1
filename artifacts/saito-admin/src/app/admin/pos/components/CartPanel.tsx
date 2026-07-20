@@ -27,6 +27,7 @@ interface CartPanelProps {
   guestName?: string;
   customerId?: string | null;
   customerName?: string | null;
+  guestCountLoading?: boolean;
 }
 
 export function CartPanel({
@@ -35,6 +36,7 @@ export function CartPanel({
   hasExistingOrder = false, isDirty = false,
   isReservationMode = false, reservationId, guestName,
   customerId, customerName,
+  guestCountLoading = false,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -196,14 +198,16 @@ export function CartPanel({
                   <Users size={14} className="text-[var(--theme-text-secondary)]" />
                   {onUpdateGuests && (
                     <button onClick={e => { e.stopPropagation(); onUpdateGuests(-1); }}
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90">
+                      disabled={guestCountLoading}
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none">
                       −
                     </button>
                   )}
                   <span className="text-lg font-black tabular-nums text-[var(--theme-text)] min-w-[24px] text-center">{cart.guest_count}</span>
                   {onUpdateGuests && (
                     <button onClick={e => { e.stopPropagation(); onUpdateGuests(1); }}
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90">
+                      disabled={guestCountLoading}
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none">
                       +
                     </button>
                   )}

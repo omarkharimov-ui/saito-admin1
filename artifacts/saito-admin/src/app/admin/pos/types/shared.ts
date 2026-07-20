@@ -83,6 +83,7 @@ export interface PosTable {
   merged_with?: number[];
   reservation_id?: string | null;
   reservation_phone?: string | null;
+  capacity?: number | null;
 }
 
 export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'reserved' | 'waiting' | 'occupied' | string;

@@ -356,27 +356,35 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (!isNaN(val) && val >= 1) orderDelayMinutes = val;
     });
 
-    // Overdue order polling — warn admin every 5 min if any POS order exceeds delay threshold
-    const overdueInterval = setInterval(async () => {
-      if (skipOrdersOnMobileRef.current) return;
-      const cutoff = new Date(Date.now() - orderDelayMinutes * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from('orders')
-        .select('id, table_number, created_at, status, paid_at, closed_at, kitchen_status')
-        .in('status', ['new', 'confirmed'])
-        .is('paid_at', null)
-        .is('closed_at', null)
-        .not('kitchen_status', 'eq', 'cancelled')
-        .gt('table_number', 0)
-        .lt('created_at', cutoff);
-      if (data && data.length > 0) {
-        const tables = data.map((o: any) => `Masa ${o.table_number}`).join(', ');
-        toast((t) => <span onClick={() => dismissToast(t)}>{data.length} gecikən sifariş: {tables}</span>, {
-          duration: 5000,
-          style: { background: 'var(--theme-error-bg, #1f0d0d)', color: 'var(--theme-error-text, #f87171)', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 'bold', cursor: 'pointer' },
-        });
-      }
-    }, 5 * 60 * 1000);
+     // Overdue order polling — warn admin every 5 min if any POS order exceeds delay threshold.
+     // Only flag orders whose table_number still exists in table_floors so we don't
+     // notify about tables that were already transferred/merged/deleted.
+     const overdueInterval = setInterval(async () => {
+       if (skipOrdersOnMobileRef.current) return;
+       const cutoff = new Date(Date.now() - orderDelayMinutes * 60 * 1000).toISOString();
+       const { data } = await supabase
+         .from('orders')
+         .select('id, table_number, created_at, status, paid_at, closed_at, kitchen_status')
+         .in('status', ['new', 'confirmed'])
+         .is('paid_at', null)
+         .is('closed_at', null)
+         .not('kitchen_status', 'eq', 'cancelled')
+         .gt('table_number', 0)
+         .lt('created_at', cutoff);
+       if (!data || data.length === 0) return;
+
+       const validTableNumbers = new Set(
+         (await supabase.from('table_floors').select('table_number')).data?.map((t: any) => t.table_number) ?? []
+       );
+       const validOverdue = data.filter((o: any) => validTableNumbers.has(o.table_number));
+       if (validOverdue.length === 0) return;
+
+       const tables = validOverdue.map((o: any) => `Masa ${o.table_number}`).join(', ');
+       toast((t) => <span onClick={() => dismissToast(t)}>{validOverdue.length} gecikən sifariş: {tables}</span>, {
+         duration: 5000,
+         style: { background: 'var(--theme-error-bg, #1f0d0d)', color: 'var(--theme-error-text, #f87171)', border: '1px solid rgba(248,113,113,0.3)', fontWeight: 'bold', cursor: 'pointer' },
+       });
+     }, 5 * 60 * 1000);
 
     return () => {
       removeRealtimeChannel(channel);

@@ -559,22 +559,43 @@ export function usePos() {
   };
 
   const clearCart = () => {
-
-    setCart(prev => {
-      if (!prev) return null;
-      const keptItems = prev.items.filter(item => (item.sentQuantity ?? 0) > 0);
-      return { ...prev, items: keptItems };
-    });
+    const current = cart;
+    if (!current) return;
+    // Keep only items that were already sent to the kitchen; drop drafts.
+    const keptItems = current.items.filter(item => (item.sentQuantity ?? 0) > 0);
+    setCart(prev => prev ? { ...prev, items: keptItems } : null);
+    // Persist the removal of draft items on the server so they don't reappear
+    // on the next floor refresh / selectTable reload.
+    const draftIds = current.items
+      .filter(item => (item.sentQuantity ?? 0) === 0 && item.id)
+      .map(item => item.id);
+    if (draftIds.length > 0) {
+      apiFetch('/api/orders/clear-draft-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_ids: draftIds }),
+      }).catch(() => {});
+    }
   };
 
   const updateGuestCount = async (delta: number) => {
-    if (!cart) return;
+    if (!cart || !selectedTable) return;
     const newCount = Math.max(1, (cart.guest_count || 1) + delta);
-    // Guest count is a local draft only — it is persisted when the order is
-    // sent to the kitchen (placeOrder payload) or when the table is saved,
-    // NOT on every +/- tap. Persisting on each tap caused redundant writes
-    // and made the counter feel detached from the "save" action.
+    // Guest count is INDEPENDENT of "send to kitchen": changing it must NOT
+    // place/send the order. It updates the local cart immediately and persists
+    // the count to the open order + table_floors directly (no kitchen push).
     setCart(prev => prev ? { ...prev, guest_count: newCount } : null);
+    try {
+      const tableNum = cart.table_number || selectedTable.table_number;
+      await apiFetch('/api/orders/guest-count', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: tableNum, guest_count: newCount }),
+      }).catch(() => {});
+      await apiFetch('/api/pos/tables', { cache: 'no-store' }).catch(() => {});
+    } catch {
+      /* non-blocking: local count already updated */
+    }
   };
 
   const updateCartCustomer = (customerId: string | null, customerName: string | null) => {

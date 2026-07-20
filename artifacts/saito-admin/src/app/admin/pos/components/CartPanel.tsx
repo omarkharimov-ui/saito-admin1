@@ -263,18 +263,16 @@ export function CartPanel({
       {/* Cart Quick Actions Row */}
       {!isEmpty && (
         <div className={`flex items-center gap-2 pb-4 mb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
-          {hasDraftItems && (
-            <button
-              onClick={onClearDraft}
-              className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
-                lightMode 
-                  ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
-                  : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
-              }`}
-            >
-              {t('clear')}
-            </button>
-          )}
+          <button
+            onClick={onClearDraft}
+            className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
+              lightMode 
+                ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
+                : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
+            }`}
+          >
+            {t('clear')}
+          </button>
           <button
             onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
             className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
@@ -288,8 +286,8 @@ export function CartPanel({
         </div>
       )}
 
-       {/* Items — scrollable */}
-       <div className="flex-1 py-3 relative overflow-y-auto">
+       {/* Items */}
+       <div className="flex-1 py-3 relative">
         <div
           className="absolute inset-0 transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 1 : 0, pointerEvents: isEmpty ? 'auto' : 'none' }}

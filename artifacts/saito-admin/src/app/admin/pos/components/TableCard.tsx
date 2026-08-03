@@ -65,7 +65,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         ${isTransferSource
           ? (lightMode ? 'bg-zinc-100 border-transparent opacity-60' : 'bg-zinc-800/50 border-transparent opacity-50')
           : isTransferTarget
-            ? (lightMode ? 'bg-white border-zinc-400 border-dashed animate-pulse' : 'bg-zinc-900 border-zinc-400 border-dashed animate-pulse')
+            ? (lightMode ? 'bg-white border-zinc-400 border-dashed' : 'bg-zinc-900 border-zinc-400 border-dashed')
             : isSelected 
               ? (lightMode ? 'bg-white border-blue-500 shadow-lg' : 'bg-zinc-900 border-blue-500 shadow-lg') 
               : isWaiting

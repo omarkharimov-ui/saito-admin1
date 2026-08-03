@@ -42,6 +42,7 @@ export interface PosCartItem {
     unit_price: number;
     total_price: number;
   }>;
+  hold_until?: string | null;
 }
 
 export interface PosCart {

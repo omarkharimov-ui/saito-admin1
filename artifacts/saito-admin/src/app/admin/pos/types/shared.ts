@@ -88,6 +88,16 @@ export interface PosTable {
   reservation_id?: string | null;
   reservation_phone?: string | null;
   capacity?: number | null;
+  bill_requested?: boolean;
+  has_pre_order?: boolean;
+  is_vip?: boolean;
+  waiter_name?: string | null;
+  delivery_address?: string | null;
+  delivery_status?: string | null;
+  courier_id?: string | null;
+  courier_name?: string | null;
+  order_source?: string | null;
+  paid_amount?: number;
 }
 
 export type TableStatus = 'empty' | 'active' | 'waiting_bill' | 'cooking' | 'problem' | 'reserved' | 'waiting' | 'occupied' | string;

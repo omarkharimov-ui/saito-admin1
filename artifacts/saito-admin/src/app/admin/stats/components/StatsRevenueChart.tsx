@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { TrendingUp, BarChart2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useFirstLoad } from '@/hooks/useFirstLoad';
 
 interface ChartPoint {
   date: string;
@@ -19,6 +20,7 @@ interface Props {
 
 const StatsRevenueChart = ({ chartData, financeChartData, loading }: Props) => {
   const { t, language } = useLanguage();
+  const isFirstLoad = useFirstLoad(600, loading);
   
   // Merge revenue and profit data for the chart
   const combinedData = useMemo(() => {
@@ -54,7 +56,7 @@ const StatsRevenueChart = ({ chartData, financeChartData, loading }: Props) => {
           {t('stats_revenue_dynamics')}
         </h3>
       </div>
-      {isEmpty || loading ? (
+      {isEmpty ? (
         <div className="h-[180px] md:h-[350px] w-full flex flex-col items-center justify-center gap-4 select-none">
           <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.1)]">
             <BarChart2 size={22} className="text-gold/40 md:w-7 md:h-7" />

@@ -207,6 +207,7 @@ interface ProductForm {
   ingredients_ru: string;
   variants: ProductVariantForm[];
   modifiers: ProductModifierForm[];
+  allergens: string[];
 }
 
 interface ProductModalProps {
@@ -301,6 +302,7 @@ export function ProductModal({
   // Recipe / cost info for recipe-based products
   const [recipeInfo, setRecipeInfo] = useState<{ count: number; totalCost: number } | null>(null);
   const [recipeLoading, setRecipeLoading] = useState(false);
+  const [selectedAllergens, setSelectedAllergens] = useState<string[]>([]);
   useEffect(() => {
     if (!open || !editingProduct || productForm.is_ready_product) {
       setRecipeInfo(null);
@@ -879,6 +881,26 @@ export function ProductModal({
                   modifiers={productForm.modifiers}
                   onChange={(m) => onFormChange({ ...productForm, modifiers: m })}
                 />
+              </div>
+
+              {/* Group 7: Allergens */}
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold mb-3 flex items-center gap-2">
+                  <span className="w-4 h-px bg-white/10" />
+                  Allergens
+                  <span className="flex-1 h-px bg-white/5" />
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {['nuts', 'dairy', 'gluten', 'eggs', 'soy', 'fish', 'shellfish', 'spicy'].map(allergen => (
+                    <button key={allergen} type="button" onClick={() => {
+                      const current = productForm.allergens || [];
+                      const next = current.includes(allergen) ? current.filter(a => a !== allergen) : [...current, allergen];
+                      onFormChange({ ...productForm, allergens: next });
+                    }} className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${(productForm.allergens || []).includes(allergen) ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white/10 text-white/50 hover:text-white'}`}>
+                      {allergen === 'nuts' ? '🥜' : allergen === 'dairy' ? '🥛' : allergen === 'gluten' ? '🌾' : allergen === 'eggs' ? '🥚' : allergen === 'soy' ? '🫘' : allergen === 'fish' ? '🐟' : allergen === 'shellfish' ? '🦐' : '🌶'} {allergen}
+                    </button>
+                  ))}
+                </div>
               </div>
                 </form>
                 <div className="px-8 lg:px-12 py-4 bg-card/80 backdrop-blur-xl border-t border-white/5 rounded-b-2xl flex items-center gap-4 shrink-0">

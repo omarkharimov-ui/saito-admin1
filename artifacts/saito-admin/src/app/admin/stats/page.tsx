@@ -16,7 +16,7 @@ import StatsCancellationChart from './components/StatsCancellationChart';
 import StatsMobileView from './components/StatsMobileView';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
+import { useFirstLoad } from '@/hooks/useFirstLoad';
 
 const interpolateTemplate = (template: string, variables: Record<string, string | number>): string =>
   template.replace(/\{(\w+)\}/g, (match, key) => String(variables[key] ?? match));
@@ -28,7 +28,8 @@ const StatsPage = () => {
 
   /* ─── Filter state ─── */
   const [rawLoading, setLoading] = useState(true);
-  const loading = useMinimumLoadingTime(rawLoading, 600);
+  const loading = rawLoading;
+  const isFirstLoad = useFirstLoad(600, loading);
   const [timeFilter, setTimeFilter] = useState('today');
   const [categories, setCategories] = useState<{ id: string; name: string; translations?: any }[]>([]);
   const [selectedCancellationReason, setSelectedCancellationReason] = useState<string | null>(null);

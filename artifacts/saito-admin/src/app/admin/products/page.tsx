@@ -5,14 +5,14 @@ import { supabase } from '@/lib/supabase';
 import { Product, Category } from '@/types';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
+import { useFirstLoad } from '@/hooks/useFirstLoad';
+import { TableSkeleton } from '@/components/SkeletonLoader';
 
 import { ProductTable } from './components/ProductTable';
 import { ProductModal } from './components/ProductModal';
 import { ProductBulkModals } from './components/ProductBulkModals';
 import { ProductCategoryModal } from './components/ProductCategoryModal';
 import { DeleteAllModal, DeleteProductModal, DeleteCategoryModal } from './components/ProductDeleteModals';
-import { ProductsLoader } from './components/ProductsLoader';
 import CombosSection from './components/CombosSection';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
@@ -33,6 +33,7 @@ type ProductForm = {
   ingredients_en: string; ingredients_ru: string;
   variants: ProductVariantForm[];
   modifiers: ProductModifierForm[];
+  allergens: string[];
 };
 
 type CategoryForm = { id: string; name: string; slug: string; image_url: string };
@@ -46,6 +47,7 @@ const emptyProductForm = (defaultCatId = ''): ProductForm => ({
   ingredients_en: '', ingredients_ru: '',
   variants: [],
   modifiers: [],
+  allergens: [],
 });
 
 const emptyCategoryForm = (): CategoryForm => ({ id: '', name: '', slug: '', image_url: '' });
@@ -75,8 +77,8 @@ const ProductsPage = () => {
   const [rawLoading, setLoading] = useState(() => {
     try { return !localStorage.getItem('saito_products_cache'); } catch { return true; }
   });
-  // Enforce minimum loading time to prevent skeleton flicker
-  const loading = useMinimumLoadingTime(rawLoading, 600);
+  const loading = rawLoading;
+  const isFirstLoad = useFirstLoad(600, loading);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'products' | 'combos'>('products');
   const [expandedCategories, setExpandedCategories] = useState<string[]>(() => {
@@ -399,6 +401,7 @@ const ProductsPage = () => {
       ingredients_en: (product as any).ingredients_en || '', ingredients_ru: (product as any).ingredients_ru || '',
       variants: (variantRows || []).map(v => ({ id: v.id, name: v.name, price: v.price.toString(), is_default: v.is_default, variant_type: 'olcu' as const, translations: (v as any).translations || null })),
       modifiers: (modifierRows || []).map(m => ({ id: m.id, name: m.name, price: m.price.toString(), is_available: m.is_available, translations: (m as any).translations || null })),
+      allergens: (product as any).allergens || [],
     });
     setIsModalOpen(true);
   };
@@ -424,6 +427,7 @@ const ProductsPage = () => {
       is_ready_product: productForm.is_ready_product,
       direct_ingredient_id: productForm.is_ready_product ? productForm.direct_ingredient_id || null : null,
       views_count: editingProduct ? editingProduct.views_count : 0,
+      allergens: productForm.allergens || [],
     };
     let error; let savedProduct: Product | null = null;
     if (editingProduct) {
@@ -666,7 +670,7 @@ const ProductsPage = () => {
   const getCategoryName = (cat: Category) => getCategoryTranslation(cat).name;
   const getProductName = (p: Product) => getProductTranslation(p).name;
 
-  if (loading) return <ProductsLoader />;
+  if (isFirstLoad) return <TableSkeleton rows={8} />;
 
   /* ─── Render ─── */
   return (

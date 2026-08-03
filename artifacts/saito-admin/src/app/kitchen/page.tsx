@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast, { useToaster } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
-import { MeshBroadcaster } from '@/lib/mesh/Broadcaster';
+import { localStore } from '@/lib/sync/OfflineStore';
 import { Clock, ChefHat, Utensils, AlertTriangle, BarChart2, Volume2, VolumeX, FlameKindling, SendHorizonal, LogOut, GitMerge, LayoutGrid, Map as MapIcon, Sun, Moon, Scissors, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -80,12 +80,15 @@ interface OrderItem {
   unit_price: number;
   total_price: number;
   image_url?: string;
-  kitchen_status?: 'pending' | 'ready';
+  kitchen_status?: 'pending' | 'ready' | 'reserved';
   orderedQuantity: number;
   preparedQuantity: number;
   created_at?: string;
   is_on_hold?: boolean;
   course?: string;
+  hold_until?: string | null;
+  printer_route?: string | null;
+  station?: string;
 }
 
 interface Order {
@@ -97,12 +100,17 @@ interface Order {
   kitchen_status: string;
   kitchen_accepted_at?: string | null;
   kitchen_ready_at?: string | null;
+  kitchen_scheduled_for?: string | null;
   void_reason?: string | null;
   customer_note?: string;
   status: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
   is_rush?: boolean;
   is_draft?: boolean;
   merged_from_tables?: number[];
+  order_type?: string;
+  order_source?: string;
+  order_number?: string | null;
+  customer_name?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -154,13 +162,15 @@ function mapRawOrder(o: any, lang = 'az'): Order {
       quantity: orderedQuantity,
       unit_price: i.unit_price || 0,
       total_price: i.total_price,
-      kitchen_status: (i.kitchen_status as 'pending' | 'ready') || 'pending',
+      kitchen_status: (i.kitchen_status as 'pending' | 'ready' | 'reserved') || 'pending',
       orderedQuantity,
       preparedQuantity,
       is_on_hold: false,
       course: i.course || 'main',
       image_url: i.image_url || prod?.image_url,
       created_at: i.created_at,
+      hold_until: i.hold_until || null,
+      printer_route: i.printer_route || null,
     };
   });
 
@@ -172,11 +182,15 @@ function mapRawOrder(o: any, lang = 'az'): Order {
     kitchen_status: o.kitchen_status ?? '',
     kitchen_accepted_at: o.kitchen_accepted_at ?? null,
     kitchen_ready_at: o.kitchen_ready_at ?? null,
+    kitchen_scheduled_for: o.kitchen_scheduled_for ?? null,
     void_reason: o.void_reason ?? null,
     customer_note: o.customer_note || '',
     status: o.status || 'new',
     is_rush: o.is_rush ?? false,
     merged_from_tables: o.merged_into_table ? [o.merged_into_table] : [],
+    order_source: o.order_source || 'dine_in',
+    order_number: o.order_number || null,
+    customer_name: o.customer_name || '',
     items,
   };
 }
@@ -187,6 +201,7 @@ const CardWithCollapse = memo(function CardWithCollapse({
   isDelayed, stage, isNewlyAdded, isReadyTab,
   onAccept, onDeliver, onComplete, isAllItemsReady, formatTime, t, onSoldOut,
   lightMode, delayThreshold,
+  onFireCourse, onToggleHold, onRecall, onPrintRoute,
 }: {
   order: Order;
   pendingItems: OrderItem[];
@@ -206,6 +221,10 @@ const CardWithCollapse = memo(function CardWithCollapse({
   onSoldOut: (productId: string, productName: string) => void;
   lightMode: boolean;
   delayThreshold: number;
+  onFireCourse?: (course: string) => void;
+  onToggleHold?: (itemId: string, currentlyOnHold: boolean) => void;
+  onRecall?: () => void;
+  onPrintRoute?: (route: string) => void;
 }) {
   const [showReady, setShowReady] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -226,6 +245,16 @@ const CardWithCollapse = memo(function CardWithCollapse({
     const isFullyReady = pending === 0 && item.orderedQuantity > 0;
     const hasSplit    = ready > 0 && pending > 0;
     const isGlowing   = isNewlyAdded(item, order);
+    const now = Date.now();
+    const holdExpiry = item.hold_until ? new Date(item.hold_until).getTime() : 0;
+    const isOnHold = holdExpiry > now && item.kitchen_status === 'pending';
+    const holdMins = isOnHold ? Math.max(1, Math.ceil((holdExpiry - now) / 60000)) : 0;
+
+    const onHoldClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onToggleHold?.(item.id, isOnHold);
+    };
+
     return (
       <div
         key={item.id}
@@ -268,18 +297,31 @@ const CardWithCollapse = memo(function CardWithCollapse({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className={`font-bold text-sm leading-tight truncate tracking-wide ${
-                    isFullyReady && !inModal && !forceNormal ? 'text-white/30' : item.is_on_hold ? 'text-white/40' : 'text-white'
+                    isFullyReady && !inModal && !forceNormal ? 'text-white/30' : item.is_on_hold || isOnHold ? 'text-amber-400' : 'text-white'
                   }`}>{item.product_name}</p>
-                   {item.is_on_hold && <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-black border tracking-wider ${lightMode ? 'bg-gray-100 border-gray-300 text-gray-500' : 'bg-white/[0.06] border-white/[0.1] text-white/50'}`}>GÖZLƏT</span>}
+                  {isOnHold && <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-black border tracking-wider ${lightMode ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-amber-500/15 border-amber-500/30 text-amber-400'}`}>GÖZLƏ {holdMins}d</span>}
                 </div>
                 <p className="text-xs mt-0.5">
                   <span className={`font-bold text-sm ${isFullyReady ? 'text-white/20' : 'text-white/60'}`}>×{item.orderedQuantity}</span>
-                   {isGlowing && <span className={`ml-1.5 font-bold text-[10px] tracking-wide ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>· yeni</span>}
+                  {isGlowing && <span className={`ml-1.5 font-bold text-[10px] tracking-wide ${lightMode ? 'text-gray-500' : 'text-white/50'}`}>· yeni</span>}
                 </p>
               </div>
             </div>
           )}
         </div>
+        {!inModal && !isReadyTab && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {isOnHold ? (
+              <button onClick={onHoldClick} className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center hover:bg-amber-500/25 transition-all" title="Gözləməni dayandır">
+                <span className="text-xs font-black">✕</span>
+              </button>
+            ) : (
+              <button onClick={onHoldClick} className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/30 hover:text-amber-400 hover:border-amber-500/30 flex items-center justify-center transition-all" title="Gözlə">
+                <span className="text-xs font-black">⏱</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -326,10 +368,12 @@ const CardWithCollapse = memo(function CardWithCollapse({
             <div>
               <div className="flex items-center gap-3 mb-1.5">
                 <h2 className="text-4xl font-black tracking-tight" style={{ color: allDone ? '#10b981' : isDelayed ? '#f87171' : (lightMode ? '#000' : '#fff') }}>
-                  {t.kitchen_masa || 'MASA'} {(order.merged_from_tables||[]).length > 0 ? `${order.table_number}+${order.merged_from_tables!.join('+')}` : order.table_number}
-                </h2>
-                {order.is_rush && <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-500/15 border border-orange-500/30 text-orange-400">{t.kitchen_rush||'TƏLƏSİR'}</span>}
-              </div>
+                {order.order_source === 'takeaway' ? `Gel-Al ${order.order_number || ''}` : order.order_source === 'delivery' ? `Çatdırılma ${order.order_number || ''}` : `${t.kitchen_masa||'MASA'} ${(order.merged_from_tables||[]).length > 0 ? `${order.table_number}+${order.merged_from_tables!.join('+')}` : order.table_number}`}
+              </h2>
+              {order.is_rush && <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-500/15 border border-orange-500/30 text-orange-400">{t.kitchen_rush||'TƏLƏSİR'}</span>}
+              {order.order_source === 'takeaway' && <span className="px-2 py-1 rounded-full text-[10px] font-black bg-amber-500/15 border border-amber-500/30 text-amber-400 uppercase tracking-wider">Gel-Al</span>}
+              {order.order_source === 'delivery' && <span className="px-2 py-1 rounded-full text-[10px] font-black bg-blue-500/15 border border-blue-500/30 text-blue-400 uppercase tracking-wider">Çatdırılma</span>}
+            </div>
               <div className={`flex items-center gap-1.5 text-sm ${isDelayed ? 'text-red-400 font-semibold' : lightMode ? 'text-black/50' : 'text-white/35'}`}>
                 {isDelayed ? <AlertTriangle size={13}/> : <Clock size={13}/>}
                 <span>{formatTime(timerBase(order))} əvvəl</span>
@@ -343,12 +387,33 @@ const CardWithCollapse = memo(function CardWithCollapse({
           <div className="px-4 py-3 space-y-0.5 max-h-[45vh] overflow-y-auto">
             {allItems.map((item, idx) => renderItem(item, idx, allItems, true))}
           </div>
-          <div className="px-6 pt-3 pb-6">
-            <div className="flex items-center justify-between mb-5">
-              <span className={`text-sm uppercase tracking-widest font-bold ${lightMode ? 'text-black/35' : 'text-white/35'}`}>{t.kitchen_total||'CƏMİ'}</span>
-              <span className={`text-3xl font-black ${lightMode ? 'text-black' : 'text-white'}`}>{order.total_amount.toFixed(2)} ₼</span>
-            </div>
-            {stage === 'accept' && (
+           <div className="px-6 pt-3 pb-6">
+             <div className="flex items-center justify-between mb-5">
+               <span className={`text-sm uppercase tracking-widest font-bold ${lightMode ? 'text-black/35' : 'text-white/35'}`}>{t.kitchen_total||'CƏMİ'}</span>
+               <span className={`text-3xl font-black ${lightMode ? 'text-black' : 'text-white'}`}>{order.total_amount.toFixed(2)} ₼</span>
+             </div>
+             {(() => {
+               const routes = new Map<string, any[]>();
+               order.items.forEach(it => {
+                 const r = it.printer_route || 'default';
+                 if (!routes.has(r)) routes.set(r, []);
+                 routes.get(r)!.push(it);
+               });
+               if (routes.size <= 1) return null;
+               return (
+                 <div className="mb-4 space-y-2">
+                   <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Printer Route</span>
+                   {Array.from(routes.entries()).map(([route, items]) => (
+                     <button key={route} onClick={(e) => { e.stopPropagation(); onPrintRoute?.(route); }}
+                       className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/70 hover:text-white hover:bg-white/[0.08] transition-all">
+                       <span className="text-xs font-bold">{route}</span>
+                       <span className="text-[10px] font-black text-white/40">{items.length} item</span>
+                     </button>
+                   ))}
+                 </div>
+               );
+             })()}
+             {stage === 'accept' && (
               <button onClick={() => { onAccept(); setModalOpen(false); }}
                 className="w-full rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97] hover:brightness-110"
                 style={{ background: lightMode ? '#000' : '#fff', color: lightMode ? '#fff' : '#000', fontSize: 18, padding: '20px 0', letterSpacing: '0.02em', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(255,255,255,0.1)' }}>
@@ -390,7 +455,7 @@ const CardWithCollapse = memo(function CardWithCollapse({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
               <h2 className="text-xl font-black leading-none tracking-tight" style={{ color: allDone ? '#10b981' : isDelayed ? '#f87171' : (lightMode ? '#000' : '#fff') }}>
-                {t.kitchen_masa||'MASA'} {order.table_number}
+                {order.order_source === 'takeaway' ? `Gel-Al ${order.order_number || ''}` : order.order_source === 'delivery' ? `Çatdırılma ${order.order_number || ''}` : `${t.kitchen_masa||'MASA'} ${order.table_number}`}
               </h2>
               {(order.merged_from_tables||[]).length > 0 && (
                 <div className="flex items-center gap-1">
@@ -446,69 +511,85 @@ const CardWithCollapse = memo(function CardWithCollapse({
           </div>
         )}
 
-        {/* Course progress */}
-        {pendingItems.length > 0 && (() => {
-          const courses = new Map<string, { pending: number; ready: number; total: number }>();
-          order.items.forEach(it => {
-            const c = it.course || 'main';
-            const entry = courses.get(c) || { pending: 0, ready: 0, total: 0 };
-            if (it.preparedQuantity < it.orderedQuantity) entry.pending += (it.orderedQuantity - it.preparedQuantity);
-            else entry.ready += it.preparedQuantity;
-            entry.total += it.orderedQuantity;
-            courses.set(c, entry);
-          });
-          if (courses.size <= 1) return null;
-          return (
-            <div className="mt-3 pt-2 border-t border-white/[0.05] space-y-2">
-              {Array.from(courses.entries()).map(([course, data]) => {
-                const pct = data.total > 0 ? (data.ready / data.total) * 100 : 0;
-                return (
-                  <div key={course} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{course}</span>
-                      <span className="text-[10px] font-black text-white/50">{Math.round(pct)}%</span>
-                    </div>
-                     <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                       <div className={`h-full transition-all ${lightMode ? 'bg-black' : 'bg-white'}`} style={{ width: `${pct}%` }} />
+         {/* Course progress */}
+         {pendingItems.length > 0 && (() => {
+           const courses = new Map<string, { pending: number; ready: number; total: number }>();
+           order.items.forEach(it => {
+             const c = it.course || 'main';
+             const entry = courses.get(c) || { pending: 0, ready: 0, total: 0 };
+             if (it.preparedQuantity < it.orderedQuantity) entry.pending += (it.orderedQuantity - it.preparedQuantity);
+             else entry.ready += it.preparedQuantity;
+             entry.total += it.orderedQuantity;
+             courses.set(c, entry);
+           });
+           if (courses.size <= 1) return null;
+           return (
+             <div className="mt-3 pt-2 border-t border-white/[0.05] space-y-2">
+               {Array.from(courses.entries()).map(([course, data]) => {
+                 const pct = data.total > 0 ? (data.ready / data.total) * 100 : 0;
+                 const allReady = data.pending === 0;
+                 return (
+                   <div key={course} className="space-y-1">
+                     <div className="flex items-center justify-between">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{course}</span>
+                       <div className="flex items-center gap-2">
+                         <span className="text-[10px] font-black text-white/50">{Math.round(pct)}%</span>
+                         {!allReady && (
+                           <button onClick={(e) => { e.stopPropagation(); onFireCourse?.(course); }}
+                             className="px-2 py-0.5 rounded-md text-[9px] font-black bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all">
+                             Yandır
+                           </button>
+                         )}
+                       </div>
                      </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
+                      <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div className={`h-full transition-all ${lightMode ? 'bg-black' : 'bg-white'}`} style={{ width: `${pct}%` }} />
+                      </div>
+                   </div>
+                 );
+               })}
+             </div>
+           );
+         })()}
       </div>
 
       {/* Footer button */}
       {(stage === 'accept' || stage === 'deliver' || stage === 'complete') && (
         <div className="px-3 pb-3 pt-1.5">
           <div className="h-px bg-white/[0.05] mb-2.5" />
+           {stage === 'complete' && (
+              <button onClick={(e) => { e.stopPropagation(); onRecall?.(); }}
+                className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none mb-2"
+                style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#7c2d12,#9a3412)', color: '#fff', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(124,45,18,0.25)', border: lightMode ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.08)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+                Geri çağır
+              </button>
+            )}
            {stage === 'accept' && (
-             <button onClick={e => { e.stopPropagation(); onAccept(); }}
+              <button onClick={(e) => { e.stopPropagation(); onAccept(); }}
+                className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
+                style={{ background: lightMode ? '#000' : '#fff', color: lightMode ? '#fff' : '#000', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(255,255,255,0.1)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+                <FlameKindling size={16}/> {t.kitchen_accept||'Qəbul Et'}
+              </button>
+            )}
+           {stage === 'deliver' && (
+             <button onClick={(e) => { e.stopPropagation(); onDeliver(); }}
                className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
-               style={{ background: lightMode ? '#000' : '#fff', color: lightMode ? '#fff' : '#000', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(255,255,255,0.1)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
-               <FlameKindling size={16}/> {t.kitchen_accept||'Qəbul Et'}
+               style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#0f7a57,#0a5c41)', color: '#fff', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(16,185,129,0.18)', border: lightMode ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(16,185,129,0.3)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+               <SendHorizonal size={16}/> {t.kitchen_mark_ready||'Hazırdır — Servisə Ver'}
              </button>
            )}
-          {stage === 'deliver' && (
-            <button onClick={e => { e.stopPropagation(); onDeliver(); }}
-              className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
-              style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#0f7a57,#0a5c41)', color: '#fff', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(16,185,129,0.18)', border: lightMode ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(16,185,129,0.3)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
-              <SendHorizonal size={16}/> {t.kitchen_mark_ready||'Hazırdır — Servisə Ver'}
-            </button>
-          )}
-          {stage === 'complete' && (
-            <button onClick={e => { e.stopPropagation(); onComplete(); }}
-              className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
-              style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#374151,#1f2937)', color: '#fff', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(0,0,0,0.25)', border: lightMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.08)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
-              <CheckCircle2 size={16}/> {t.kitchen_complete||'Tamamla'}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-    </>
-  );
+           {stage === 'complete' && (
+             <button onClick={(e) => { e.stopPropagation(); onComplete(); }}
+               className="w-full rounded-xl font-black flex items-center justify-center gap-2 transition-all active:scale-[0.97] hover:brightness-110 select-none"
+               style={{ background: lightMode ? '#000' : 'linear-gradient(135deg,#374151,#1f2937)', color: '#fff', boxShadow: lightMode ? '0 4px 16px rgba(0,0,0,0.15)' : '0 4px 16px rgba(0,0,0,0.25)', border: lightMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.08)', fontSize: 13, minHeight: 46, letterSpacing: '0.03em' }}>
+               <CheckCircle2 size={16}/> {t.kitchen_complete||'Tamamla'}
+             </button>
+           )}
+         </div>
+       )}
+     </div>
+     </>
+   );
 });
 
 let sharedCtx: AudioContext | null = null;
@@ -534,6 +615,23 @@ export default function KitchenPage() {
   const { language, setLanguage } = useLanguage();
   const t = translations[language.toLowerCase() as keyof typeof translations] || az;
 
+  const getTerminalId = () => {
+    try {
+      const key = 'kitchen_terminal_id';
+      let id = sessionStorage.getItem(key);
+      if (!id) {
+        id = `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        sessionStorage.setItem(key, id);
+      }
+      return id;
+    } catch {
+      return `term_${Date.now()}`;
+    }
+  };
+  const terminalId = getTerminalId();
+
+  // Kitchen auth handled by middleware (session) — no inline password gate needed
+
   const languages = [
     { code: 'az', label: 'AZ' },
     { code: 'en', label: 'EN' },
@@ -544,6 +642,7 @@ export default function KitchenPage() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [orders, setOrders]           = useState<Order[]>([]);
   const [activeTab, setActiveTab]     = useState<'active' | 'ready'>('active');
+  const [stationFilter, setStationFilter] = useState<string>('all');
   const [soundOn, setSoundOn]         = useState(true);
   const [langLoading, setLangLoading] = useState(false);
   const [targetLang, setTargetLang] = useState<string>('az');
@@ -563,6 +662,7 @@ export default function KitchenPage() {
   const delayAlerted                  = useRef<Set<string>>(new Set());
   const delay30Alerted                = useRef<Set<string>>(new Set());
   const recentMergeRef                = useRef<{ key: string; time: number }>({ key: '', time: 0 });
+  const recentTransferRef             = useRef<{ key: string; time: number }>({ key: '', time: 0 });
   const soundOnRef                    = useRef(soundOn);
   const lastItemToastRef              = useRef<number>(0);
   const recentlyInsertedRef           = useRef<Set<string>>(new Set());
@@ -676,6 +776,18 @@ export default function KitchenPage() {
     setOrders(mapped);
   }, []);
 
+  // ── Accept scheduled (reserved) order ──
+  const acceptScheduledOrder = useCallback(async (order: Order) => {
+    const { error } = await supabase.rpc('prepare_order_items', { p_order_id: order.id });
+    if (error) {
+      console.error('[acceptScheduledOrder] error:', error);
+      toast.error('Qəbul edilə bilmədi');
+      return;
+    }
+    toast.success(`Masa ${order.table_number} — qəbul edildi`);
+    fetchOrdersRef.current();
+  }, []);
+
   // ── Helper: Get merged table display name (e.g., "9+7" if tables are merged)
   const getMergedTableName = useCallback(async (tableNum: number | null, orderId?: string): Promise<string> => {
     if (!tableNum) return 'Naməlum masa';
@@ -715,10 +827,8 @@ export default function KitchenPage() {
       }
 
       const queryParams = new URLSearchParams({
-        select: '*,order_items(*,products(image_url,translations)),merged_into_table:orders!merged_into(table_number)',
-        'table_number': 'gt.0',
+        select: '*,order_items(*,products(image_url,translations)),order_type,merged_into_table:orders!merged_into(table_number)',
         'status': 'not.in.(paid,cancelled,closed,completed)',
-        'kitchen_status': 'neq.completed',
         order: 'created_at.desc'
       });
 
@@ -765,25 +875,17 @@ export default function KitchenPage() {
   useEffect(() => { 
     fetchOrders(); 
     
-    // Start listening for Mesh (Offline) orders
-    MeshBroadcaster.startListening((rawOrder) => {
-      const mapped = mapRawOrder({
-        ...rawOrder,
-        order_items: rawOrder.items.map((it: any) => ({
-          ...it,
-          prepared_quantity: 0,
-          kitchen_status: 'pending'
-        }))
-      }, languageRef.current);
-      
-      setOrders(prev => {
-        // Prevent duplicates
-        if (prev.some(o => o.id === mapped.id)) return prev;
-        return [mapped, ...prev];
-      });
-      
-      if (soundOnRef.current) playNewOrderSound();
-    });
+    // Check for offline queued orders on mount
+    (async () => {
+      try {
+        const queued = await localStore.getOutbox();
+        if (queued.length > 0 && navigator.onLine) {
+          // Try to sync pending actions
+          const { syncNow } = await import('@/lib/sync/SyncService');
+          await syncNow();
+        }
+      } catch {}
+    })();
   }, [fetchOrders]);
 
   // ── Supabase Realtime subscription — with debounce for CPU relief
@@ -914,6 +1016,35 @@ export default function KitchenPage() {
           return;
         }
 
+        // Transfer: table_number changed but merged_into didn't
+        if (payload.eventType === 'UPDATE' && payload.old?.table_number && payload.new?.table_number && payload.old?.table_number !== payload.new?.table_number && !isMerge) {
+          const fromNum = payload.old.table_number;
+          const toNum = payload.new.table_number;
+          const transferKey = `${payload.new.id}-${fromNum}-${toNum}`;
+          const now = Date.now();
+          if (recentTransferRef.current.key === transferKey && (now - recentTransferRef.current.time) < 2000) return;
+          recentTransferRef.current = { key: transferKey, time: now };
+          toast.custom((_t) => (
+            <motion.div
+              initial={{ opacity: 0, y: -16, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 100 }}
+              style={{ background: 'linear-gradient(135deg,#101520,#080e14)', border: '1px solid rgba(168,85,247,0.35)', borderRadius: 18, padding: '14px 18px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', minWidth: 260, pointerEvents: 'auto' }}
+              className="flex items-center gap-4"
+            >
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <SendHorizonal size={20} color="#c4b5fd" />
+              </div>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 800, color: '#c4b5fd', lineHeight: 1.2 }}>Masa {fromNum} → Masa {toNum}</p>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2, fontWeight: 600 }}>Sifariş köçürüldü</p>
+              </div>
+            </motion.div>
+          ), { duration: 2500, position: 'top-right' });
+          if (soundOnRef.current) playNewOrderSound();
+          return;
+        }
+
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, async (payload: any) => {
         fetchOrdersRef.current();
@@ -1006,18 +1137,21 @@ export default function KitchenPage() {
     if (newStatus === 'completed') {
       const order = orders.find(o => o.id === id);
       if (order) pushUndo(`MASA ${order.table_number} — tamamlandı`, order);
-      const { error: rpcError } = await supabase.rpc('mark_order_ready', { p_order_id: id });
+      const startTime = Date.now();
+      const { error: rpcError } = await supabase.rpc('mark_ready_atomic', {
+        p_order_id: id,
+        p_performed_by: null,
+        p_performed_by_terminal_id: terminalId,
+        p_complete: true,
+      });
       if (rpcError) {
-        console.error('[updateOrderStatus] mark_order_ready failed:', rpcError);
+        console.error('[updateOrderStatus] mark_ready_atomic failed:', rpcError);
         toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
         return;
       }
-      const { error: updateError } = await supabase.from('orders').update({ status: 'completed', kitchen_status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
-      if (updateError) {
-        console.error('[updateOrderStatus] order update failed:', updateError);
-        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
-        return;
-      }
+      const prepTime = Math.round((Date.now() - startTime) / 1000);
+      const station = order?.items?.[0]?.station || 'all';
+      recordAnalytics(id, order?.items?.[0]?.id || '', station, 'complete', prepTime, order?.kitchen_status === 'preparing');
     } else if (newStatus === 'preparing') {
       const { error } = await supabase.rpc('prepare_order_items', { p_order_id: id });
       if (error) {
@@ -1026,9 +1160,14 @@ export default function KitchenPage() {
         return;
       }
     } else if (newStatus === 'ready') {
-      const { error } = await supabase.rpc('mark_order_ready', { p_order_id: id });
+      const { error } = await supabase.rpc('mark_ready_atomic', {
+        p_order_id: id,
+        p_performed_by: null,
+        p_performed_by_terminal_id: terminalId,
+        p_complete: false,
+      });
       if (error) {
-        console.error('[updateOrderStatus] mark_order_ready failed:', error);
+        console.error('[updateOrderStatus] mark_ready_atomic failed:', error);
         toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
         return;
       }
@@ -1040,27 +1179,36 @@ export default function KitchenPage() {
   // mark_order_ready handles: FOR UPDATE, item status, order status, stock deduction, audit
   const markAllReadyAndNotify = async (order: Order) => {
     pushUndo(`MASA ${order.table_number} — servise verildi`, order);
+    const startTime = Date.now();
     const { error } = await supabase.rpc('mark_order_ready', { p_order_id: order.id });
     if (error) {
       console.error('[kitchen] mark_order_ready failed:', error);
       toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
       return;
     }
+    const prepTime = Math.round((Date.now() - startTime) / 1000);
+    const station = order.items[0]?.station || 'all';
+    recordAnalytics(order.id, order.items[0]?.id || '', station, 'deliver', prepTime, false);
     fetchOrdersRef.current();
     if (activeTab !== 'ready') setActiveTab('ready');
   };
 
   // ── Derived state ──────────────────────────────────────────────────────────
-  const { activeOrders, readyOrders } = useMemo(() => {
-    const active = orders
-      .filter(o => o.items.length > 0 && o.items.some(it => it.preparedQuantity < it.orderedQuantity))
+  const { activeOrders, readyOrders, scheduledOrders } = useMemo(() => {
+    const filtered = stationFilter === 'all' ? orders : orders.filter(o => o.items.some(it => it.station === stationFilter));
+    const scheduled = filtered
+      .filter(o => o.items.some(it => it.kitchen_status === 'reserved'))
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const active = filtered
+      .filter(o => o.items.length > 0 && o.items.some(it => it.preparedQuantity < it.orderedQuantity)
+        && !o.items.some(it => it.kitchen_status === 'reserved'))
       .sort((a, b) => priorityWeight(a) - priorityWeight(b) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    const ready = orders.filter(o =>
+    const ready = filtered.filter(o =>
       o.items.length > 0 &&
       o.items.every(it => it.preparedQuantity >= it.orderedQuantity)
     );
-    return { activeOrders: active, readyOrders: ready };
-  }, [orders]);
+    return { activeOrders: active, readyOrders: ready, scheduledOrders: scheduled };
+  }, [orders, stationFilter]);
 
   const display = activeTab === 'active' ? activeOrders : readyOrders;
 
@@ -1089,13 +1237,31 @@ export default function KitchenPage() {
     try {
       const session = localStorage.getItem('saito_staff_session');
       const staffId = session ? JSON.parse(session).id : null;
-      await supabase.from('orders').update({ assigned_to: staffId }).eq('id', order.id);
-    } catch {}
+      const { error } = await supabase.rpc('accept_order_atomic', {
+        p_order_id: order.id,
+        p_performed_by: staffId,
+        p_performed_by_terminal_id: terminalId,
+      });
+      if (error) {
+        console.error('[acceptOrder] error:', error);
+        toast.error('Sifariş qəbul edilərkən xəta baş verdi', { duration: 2500 });
+        return;
+      }
+    } catch (e) {
+      console.error('[acceptOrder] exception:', e);
+      toast.error('Sifariş qəbul edilərkən xəta baş verdi', { duration: 2500 });
+      return;
+    }
+    const startTime = Date.now();
     const { error } = await supabase.rpc('prepare_order_items', { p_order_id: order.id });
     if (error) {
-      console.error('[acceptOrder] error:', error);
-      toast.error('Sifariş qəbul edilərkən xəta baş verdi', { duration: 2500 });
+      console.error('[acceptOrder] prepare_order_items failed:', error);
+      toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
+      return;
     }
+    const prepTime = Math.round((Date.now() - startTime) / 1000);
+    const station = order.items[0]?.station || 'all';
+    recordAnalytics(order.id, order.items[0]?.id || '', station, 'accept', prepTime, false);
     fetchOrdersRef.current();
   };
 
@@ -1127,6 +1293,96 @@ export default function KitchenPage() {
       } else {
         const err = await res.json();
         toast.error(err.error || 'Xəta', { duration: 2500 });
+      }
+    } catch {
+      toast.error('Xəta', { duration: 2500 });
+    }
+  };
+
+  // ── Analytics recorder ──────────────────────────────────────────────────────
+  const recordAnalytics = async (orderId: string, orderItemId: string, station: string, action: 'accept' | 'deliver' | 'complete', prepTimeSeconds?: number, rush: boolean = false) => {
+    try {
+      const session = localStorage.getItem('saito_staff_session');
+      const staffId = session ? JSON.parse(session).id : null;
+      await fetch('/api/kitchen/analytics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: orderId,
+          order_item_id: orderItemId,
+          station,
+          action,
+          prep_time_seconds: prepTimeSeconds,
+          rush,
+        }),
+      });
+    } catch {}
+  };
+
+  // ── Fire Course handler ──────────────────────────────────────────────────────
+  const fireCourse = async (order: Order, course: string) => {
+    try {
+      const { error } = await supabase.rpc('fire_course_atomic', {
+        p_order_id: order.id,
+        p_course: course,
+      });
+      if (error) {
+        toast.error('Kurs yandırılarkən xəta baş verdi', { duration: 2500 });
+        return;
+      }
+      toast.success(`"${course}" kursu yandırıldı`, { duration: 2500 });
+      fetchOrdersRef.current();
+    } catch {
+      toast.error('Xəta', { duration: 2500 });
+    }
+  };
+
+  // ── Hold/Release Hold handler ───────────────────────────────────────────────
+  const toggleHold = async (itemId: string, currentlyOnHold: boolean) => {
+    try {
+      if (currentlyOnHold) {
+        const { error } = await supabase.rpc('release_item_hold', { p_order_item_id: itemId });
+        if (error) throw error;
+        toast.success('Gözləmə dayandırıldı', { duration: 2500 });
+      } else {
+        const { error } = await supabase.rpc('set_item_hold', { p_order_item_id: itemId, p_hold_minutes: 20 });
+        if (error) throw error;
+        toast.success('20 dəqiqəyə götürüldü', { duration: 2500 });
+      }
+      fetchOrdersRef.current();
+    } catch {
+      toast.error('Xəta', { duration: 2500 });
+    }
+  };
+
+  // ── Recall handler ──────────────────────────────────────────────────────────
+  const recallOrder = async (order: Order) => {
+    try {
+      const { error } = await supabase.rpc('recall_order_items', { p_order_id: order.id });
+      if (error) {
+        toast.error('Sifariş geri çağırıla bilmədi', { duration: 2500 });
+        return;
+      }
+      toast.success('Sifariş geri çağırıldı', { duration: 2500 });
+      fetchOrdersRef.current();
+    } catch {
+      toast.error('Xəta', { duration: 2500 });
+    }
+  };
+
+  // ── Print route handler ─────────────────────────────────────────────────────
+  const printRoute = async (orderId: string, route: string) => {
+    try {
+      const { data, error } = await supabase.rpc('route_kitchen_order', { p_order_id: orderId });
+      if (error || !data?.success) {
+        toast.error('Route məlumatı alına bilmədi', { duration: 2500 });
+        return;
+      }
+      const routeItems = data.routes?.[route] || [];
+      const text = routeItems.map((it: any) => `×${it.quantity} ${it.product_name}`).join('\n');
+      if (navigator.clipboard && text) {
+        await navigator.clipboard.writeText(`Masa ${orderId} — ${route}:\n${text}`);
+        toast.success(`${route} kopyalandı`, { duration: 2500 });
       }
     } catch {
       toast.error('Xəta', { duration: 2500 });
@@ -1181,6 +1437,10 @@ export default function KitchenPage() {
         onSoldOut={handleSoldOut}
         lightMode={lightMode}
         delayThreshold={delayThreshold}
+        onFireCourse={(course) => fireCourse(order, course)}
+        onToggleHold={(itemId, currentlyOnHold) => toggleHold(itemId, currentlyOnHold)}
+        onRecall={() => recallOrder(order)}
+        onPrintRoute={(route) => printRoute(order.id, route)}
       />
     );
   };
@@ -1326,6 +1586,16 @@ export default function KitchenPage() {
                {readyOrders.length > 0 && <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black ${activeTab === 'ready' ? (lightMode ? 'bg-black/10 text-black' : 'bg-emerald-500/20 text-emerald-400') : (lightMode ? 'bg-black/5 text-black/40' : 'bg-white/10 text-white/40')}`}>{readyOrders.length}</span>}
               </button>
             </div>
+
+            {/* Station Filter */}
+            <div className={`flex rounded-2xl p-1 ${lightMode ? 'bg-black/5 border border-black/10' : 'bg-white/[0.04] border border-white/[0.07]'}`}>
+              {['all', 'grill', 'pizza', 'bar', 'dessert'].map(station => (
+                <button key={station} onClick={() => setStationFilter(station)}
+                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${stationFilter === station ? (lightMode ? 'bg-black text-white' : 'bg-white/10 text-white') : (lightMode ? 'text-black/50 hover:text-black' : 'text-white/35 hover:text-white/60')}`}>
+                  {station === 'all' ? 'Hamısı' : station === 'grill' ? 'Şirə' : station === 'pizza' ? 'Pizza' : station === 'bar' ? 'Bar' : 'Şirniyyat'}
+                </button>
+              ))}
+            </div>
         </div>
       </header>
 
@@ -1347,6 +1617,52 @@ export default function KitchenPage() {
                     <span className="text-white/30 text-[9px] font-normal ml-1">{g.tables.sort((a,b)=>a-b).join(', ')}</span>
                   </p>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Scheduled tickets ── */}
+      {activeTab === 'active' && scheduledOrders.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center gap-2 px-1 mb-2">
+            <Clock size={14} className="text-indigo-400" />
+            <span className="text-[11px] font-black text-indigo-400 uppercase tracking-widest">
+              Planlaşdırılmış ({scheduledOrders.length})
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {scheduledOrders.map(order => (
+              <div key={order.id}
+                className="rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.04] p-4 flex flex-col gap-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-black text-indigo-300">Masa {order.table_number}</span>
+                  <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-indigo-500/15 border border-indigo-400/20 text-indigo-300">
+                    Planlaşdırılıb
+                  </span>
+                </div>
+                {order.kitchen_scheduled_for && (
+                  <div className="text-[10px] text-white/40 font-medium flex items-center gap-1">
+                    <Clock size={10} />
+                    Hazırlanma vaxtı: {new Date(order.kitchen_scheduled_for).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+                <div className="flex flex-col gap-1">
+                  {order.items.map(item => (
+                    <div key={item.id} className="flex items-center justify-between text-[12px]">
+                      <span className="text-white/70 font-medium truncate">{item.product_name}</span>
+                      <span className="text-white/40 font-bold ml-2">{item.orderedQuantity}×</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => acceptScheduledOrder(order)}
+                  className="w-full py-2.5 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/30 active:scale-[0.97] transition-all"
+                >
+                  Qəbul Et → Hazırlanır
+                </button>
               </div>
             ))}
           </div>

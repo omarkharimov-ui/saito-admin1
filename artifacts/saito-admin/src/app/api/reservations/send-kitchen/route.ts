@@ -10,9 +10,11 @@ function svc() {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-    if (!auth.authenticated) return auth;
+    if (!auth.authenticated) {
+      return auth;
+    }
 
-    const { reservation_id } = await request.json();
+    const { reservation_id, terminal_id } = await request.json();
     if (!reservation_id) {
       return NextResponse.json({ error: 'reservation_id is required' }, { status: 400 });
     }
@@ -26,21 +28,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No draft order found for this reservation' }, { status: 404 });
     }
 
-    const now = new Date().toISOString();
+    const results = [];
     for (const order of draftOrders) {
-      await fetch(`${s.url}/rest/v1/orders?id=eq.${order.id}`, {
-        method: 'PATCH',
+      const rpcRes = await fetch(`${s.url}/rest/v1/rpc/send_to_kitchen_atomic`, {
+        method: 'POST',
         headers: s.headers,
-        body: JSON.stringify({ kitchen_status: 'pending', kitchen_accepted_at: now, status: 'confirmed', is_draft: false }),
+      body: JSON.stringify({
+        p_order_id: order.id,
+        p_performed_by: auth.user?.id || null,
+        p_performed_by_terminal_id: terminal_id || null,
+      }),
       });
-      await fetch(`${s.url}/rest/v1/order_items?order_id=eq.${order.id}&kitchen_status=eq.reserved`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({ kitchen_status: 'pending' }),
-      });
+
+      if (rpcRes.ok) {
+        results.push({ orderId: order.id, sent: true });
+      }
     }
 
-    return NextResponse.json({ success: true, sent: draftOrders.length });
+    return NextResponse.json({ success: true, sent: results.length, results });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -12,16 +12,9 @@ interface Props {
   res: Reservation & { visitCount?: number };
   timeFilter: 'today' | 'future' | 'archive';
   statusBadge: (status: string) => React.ReactNode;
-  onUpdateStatus: (id: string, status: string) => void;
   onEdit: (res: any) => void;
   onDelete: (id: string, name: string) => void;
-  onArchive: (id: string) => void;
-  onRestore: (id: string) => void;
   onSelect: (res: any) => void;
-  onHandle?: (res: any) => void;
-  selectionMode?: boolean;
-  isSelected?: boolean;
-  onToggleSelect?: (id: string) => void;
 }
 
 const maskPhone = (phone: string) => {
@@ -42,16 +35,9 @@ export const ReservationTableRow = ({
   res, 
   timeFilter, 
   statusBadge, 
-  onUpdateStatus, 
   onEdit, 
   onDelete, 
-  onArchive, 
-  onRestore, 
   onSelect, 
-  onHandle,
-  selectionMode,
-  isSelected,
-  onToggleSelect
 }: Props) => {
   const { lightMode } = useTheme();
   const tag = getGuestTag(res.visitCount || 1);
@@ -61,27 +47,15 @@ export const ReservationTableRow = ({
     <motion.tr
       whileHover={{ scale: 1.002 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-      onClick={() => selectionMode ? onToggleSelect?.(res.id) : onSelect(res)}
+      onClick={() => onSelect(res)}
       className={`group border-b cursor-pointer transition-all duration-300 ${
-        isSelected 
-          ? (lightMode ? 'bg-blue-50/50' : 'bg-blue-500/5') 
-          : lightMode 
-            ? 'border-zinc-100 hover:bg-zinc-50' 
-            : 'border-white/[0.04] hover:bg-white/[0.02]'
+        lightMode 
+          ? 'border-zinc-100 hover:bg-zinc-50' 
+          : 'border-white/[0.04] hover:bg-white/[0.02]'
       }`}
     >
       <td className="px-8 py-6">
         <div className="flex items-center gap-3">
-          {selectionMode && (
-            <div onClick={(e) => e.stopPropagation()}>
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggleSelect?.(res.id)}
-                className="w-5 h-5 rounded accent-blue-500 cursor-pointer"
-              />
-            </div>
-          )}
           <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className={`font-bold text-[15px] ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{displayName}</span>
@@ -102,7 +76,7 @@ export const ReservationTableRow = ({
           </span>
           <span className={`flex items-center gap-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
             <Clock size={13} className="opacity-30" /> {res.time}
-            {res.status !== 'archived' && res.status !== 'cancelled' && res.status !== 'completed' && (() => {
+            {res.status !== 'cancelled' && res.status !== 'no_show' && res.status !== 'completed' && (() => {
               const today = new Date().toISOString().split('T')[0];
               if (res.date < today || (res.date === today && res.time && (() => {
                 const [h, m] = res.time.split(':').map(Number);
@@ -129,18 +103,13 @@ export const ReservationTableRow = ({
       </td>
       <td className="px-8 py-6 text-right">
         <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-          {timeFilter === 'archive' && (
-            <button title="Bərpa et" onClick={() => onRestore(res.id)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all"><Zap size={18} /></button>
-          )}
-          {res.status === 'archived' && (
-            <button title="Sil" onClick={() => onDelete(res.id, displayName)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18} /></button>
-          )}
+          <button title="Düzəliş et" onClick={() => onEdit(res)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all"><Zap size={18} /></button>
+          <button title="Sil" onClick={() => onDelete(res.id, displayName)} className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18} /></button>
         </div>
       </td>
     </motion.tr>
   );
 };
-
 
 export const ReservationCard = ({ 
   res, 

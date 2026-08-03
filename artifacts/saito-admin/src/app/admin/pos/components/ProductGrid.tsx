@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Search, X, Percent } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -28,6 +28,9 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
+  const [retryCount, setRetryCount] = useState<Record<string, number>>({});
+  const [hideOutOfStock, setHideOutOfStock] = useState(false);
 
   // Add synthetic "Combos" tab to navbar
   const navbarCategories = useMemo(() => {
@@ -79,19 +82,36 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
         return name.toLowerCase().includes(q);
       });
     }
+    if (hideOutOfStock) {
+      list = list.filter(p => !(outOfStock?.has(p.id)));
+    }
     return list;
-  }, [products, combos, categoryFilter, search, language]);
+  }, [products, combos, categoryFilter, search, language, hideOutOfStock, outOfStock]);
 
   return (
     <div className="flex flex-col h-full">
       {/* Search Bar - Modern & Flat */}
-      <div className="relative mb-6 flex-shrink-0">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-        <input
-          value={search} onChange={e => setSearch(e.target.value)}
-          placeholder={t('search_products' as any)}
-          className={`w-full rounded-[20px] pl-12 pr-4 py-4 text-sm outline-none transition-all relative z-0 ${lightMode ? 'bg-[#efeff4] text-gray-900 focus:bg-[#e5e5ea]' : 'bg-white/[0.08] text-white focus:bg-white/[0.12]'}`}
-        />
+      <div className="relative mb-6 flex-shrink-0 flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder={t('search_products' as any)}
+            className={`w-full rounded-[20px] pl-12 pr-4 py-4 text-sm outline-none transition-all relative z-0 ${lightMode ? 'bg-[#efeff4] text-gray-900 focus:bg-[#e5e5ea]' : 'bg-white/[0.08] text-white focus:bg-white/[0.12]'}`}
+          />
+        </div>
+        {outOfStock && outOfStock.size > 0 && (
+          <button
+            onClick={() => setHideOutOfStock(p => !p)}
+            className={`flex-shrink-0 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+              hideOutOfStock
+                ? 'bg-rose-500 text-white border-rose-500'
+                : lightMode ? 'bg-zinc-100 text-zinc-500 border-zinc-200 hover:bg-zinc-200' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'
+            }`}
+          >
+            {outOfStock.size}
+          </button>
+        )}
       </div>
 
       {/* Categories - Liquid Glass Segmented Control */}
@@ -128,8 +148,24 @@ export function ProductGrid({ products, combos, categories, onAddProduct, onAddC
                     </div>
                   )}
                  <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
-                   {item.image_url && !failedImages.has(item.image_url) ? (
-                     <img src={item.image_url} alt={name} onError={() => setFailedImages(prev => new Set(prev).add(item.image_url!))} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                    {item.image_url && !failedImages.has(item.image_url) ? (
+                      <img src={retryingImages.has(item.image_url) ? `${item.image_url}?t=${Date.now()}` : item.image_url} alt={name}
+                        onError={() => {
+                          const url = item.image_url!;
+                          const count = (retryCount[url] || 0) + 1;
+                          setRetryCount(prev => ({ ...prev, [url]: count }));
+                          if (count >= 2) {
+                            setFailedImages(prev => new Set(prev).add(url));
+                          } else {
+                            setRetryingImages(prev => new Set(prev).add(url));
+                          }
+                        }}
+                        onLoad={() => {
+                          if (retryingImages.has(item.image_url!)) {
+                            setRetryingImages(prev => { const s = new Set(prev); s.delete(item.image_url!); return s; });
+                          }
+                        }}
+                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
                    ) : (
                      <div className="w-full h-full flex items-center justify-center text-xl font-black opacity-20 uppercase">{name.slice(0, 2)}</div>
                    )}

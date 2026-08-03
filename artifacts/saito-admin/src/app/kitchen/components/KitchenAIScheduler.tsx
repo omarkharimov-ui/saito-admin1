@@ -94,7 +94,7 @@ export function KitchenAIScheduler({ lightMode }: { lightMode?: boolean }) {
               <div>
                 <p className="font-black text-sm text-green-300">AI: Hazırlamağa başlayın!</p>
                 <p className="text-xs text-white/50">
-                  {suggestion.name} — Masa {suggestion.table_number} — Saat {suggestion.time}
+                  {suggestion.name} — Masa {suggestion.table_number ?? '?'} — Saat {suggestion.time}
                 </p>
               </div>
             </motion.div>
@@ -215,10 +215,7 @@ export function KitchenAIScheduler({ lightMode }: { lightMode?: boolean }) {
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border bg-[#151515] border-white/[0.1] shadow-2xl overflow-hidden"
           >
-            {loading ? (
-              <div className="p-6 text-center text-white/30 text-sm">Yüklənir...</div>
-            ) : (
-              <div className="max-h-[60vh] overflow-y-auto p-3 space-y-3">
+            <div className="max-h-[60vh] overflow-y-auto p-3 space-y-3">
                 {todaySuggestions.length > 0 && (
                   <div>
                     <p className="text-[10px] uppercase tracking-widest font-bold text-white/40 px-2 mb-2">Bugün</p>
@@ -239,9 +236,8 @@ export function KitchenAIScheduler({ lightMode }: { lightMode?: boolean }) {
                     Sabah üçün rezerv yoxdur
                   </div>
                 )}
-              </div>
-            )}
-          </motion.div>
+               </div>
+           </motion.div>
         )}
       </AnimatePresence>
         </>

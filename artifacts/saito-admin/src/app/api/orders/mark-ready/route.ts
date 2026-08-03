@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { deductStockForOrder } from '@/lib/stockAutomation';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -14,53 +13,31 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
     if (!auth.authenticated) return auth;
 
-    const { order_id } = await request.json();
+    const { order_id, terminal_id } = await request.json();
     if (!order_id) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
     }
 
     const s = svc();
 
-    // Fetch current order state
-    const orderRes = await fetch(`${s.url}/rest/v1/orders?id=eq.${order_id}&select=*`, { headers: s.headers });
-    if (!orderRes.ok) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-    const orders = await orderRes.json();
-    const order = orders?.[0];
-    if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    // Already paid → no stock deduction needed (already done at payment)
-    if (order.status === 'paid') {
-      // Still reflect the ready state in the kitchen board.
-      await fetch(`${s.url}/rest/v1/orders?id=eq.${order_id}`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({ kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() }),
-      });
-      return NextResponse.json({ success: true, skipped: true, reason: 'already_paid' });
-    }
-
-    // Deduct stock now that kitchen has prepared the items
-    let stockDeduction = { deducted: 0, ingredientIds: [] as string[] };
-    try {
-      stockDeduction = await deductStockForOrder(order_id);
-    } catch (stockErr) {
-      console.error('[mark-ready] Stock deduction failed (non-fatal):', stockErr);
-    }
-
-    // Mark the order ready so it leaves the active KDS tab (the 10s poll reads
-    // kitchen_status from the DB; without this the optimistic UI update is
-    // overwritten and the order appears stuck).
-    await fetch(`${s.url}/rest/v1/orders?id=eq.${order_id}`, {
-      method: 'PATCH',
+    // Atomic mark-ready: handles kitchen status transition and inventory deduction
+    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/mark_ready_atomic`, {
+      method: 'POST',
       headers: s.headers,
-      body: JSON.stringify({ kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() }),
+      body: JSON.stringify({
+        p_order_id: order_id,
+        p_performed_by: auth.user?.id || null,
+        p_performed_by_terminal_id: terminal_id || null,
+      }),
     });
 
-    return NextResponse.json({ success: true, stockDeduction });
+    if (!rpcRes.ok) {
+      const errText = await rpcRes.text();
+      return NextResponse.json({ error: `Mark ready failed: ${errText}` }, { status: 400 });
+    }
+
+    const data = await rpcRes.json();
+    return NextResponse.json({ success: true, ...data });
   } catch (error: any) {
     console.error('[API /orders/mark-ready] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

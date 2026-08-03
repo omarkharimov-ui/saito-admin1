@@ -28,7 +28,6 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
   const isLoading = status === 'loading';
   const isSuccess = status === 'success';
   const isError = status === 'error';
-  const isCompact = isLoading || isSuccess || isError;
 
   return (
     <button
@@ -101,8 +100,10 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.4 }}
             transition={{ duration: 0.15 }}
+            className="flex items-center gap-2"
           >
             <span className="text-xl leading-none text-red-400">×</span>
+            <span className="text-[11px] font-black text-red-300 uppercase tracking-wider">Xəta — Yenidən Cəhd</span>
           </motion.span>
         ) : (
           <motion.span

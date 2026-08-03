@@ -159,12 +159,14 @@ export const OrderModal = ({
     if (merging) return;
     setMerging(true);
     try {
-      // Use merge API — routes through merge_orders_atomic RPC (FOR UPDATE)
       const res = await fetch('/api/orders/merge', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_numbers: [order.table_number, targetOrder.table_number] }),
       });
-      if (!res.ok) throw new Error('Merge failed');
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Merge failed');
+      }
       toast.success(`Masa ${order.table_number} → Masa ${targetOrder.table_number} birləşdirildi`, { id: 'action-toast' });
       onRefresh();
       onClose();

@@ -6,6 +6,7 @@ import { X, Plus, Trash2, Loader2, CookingPot, FlaskConical, Sparkles } from 'lu
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useFirstLoad } from '@/hooks/useFirstLoad';
 import type { Ingredient, ProductCatalogItem } from '@/types/inventory';
 
 interface RecipeLine {
@@ -40,6 +41,7 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
   const [saving, setSaving] = useState(false);
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const isFirstLoad = useFirstLoad(600, loading);
 
   const toastStyle = { background: '#0f0f0f', color: '#fff', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px' };
 
@@ -295,11 +297,6 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                 </button>
               </div>
 
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 size={24} className="animate-spin text-white/20" />
-                </div>
-              ) : (
                 <>
                   <div>
                     <label className="text-[11px] text-white/35 font-semibold uppercase tracking-wider mb-1.5 block">
@@ -432,7 +429,6 @@ export function RecipeConstructorModal({ isOpen, onClose, onSaved, editProductId
                       </div>
                     )}
                   </>
-                )}
               </div>
 
             <div className="flex-shrink-0 p-4 border-t border-white/[0.06] flex items-center gap-3">

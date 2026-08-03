@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
-import type { PosCart, LossItem } from '../types/shared';
+import type { PosCart, PosCartItem, LossItem } from '../types/shared';
 import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
+import { PinGuard } from './PinGuard';
+import { Numpad } from './Numpad';
 
 interface CartPanelProps {
   cart: PosCart | null;
@@ -23,20 +25,52 @@ interface CartPanelProps {
   hasExistingOrder?: boolean;
   isDirty?: boolean;
   isReservationMode?: boolean;
-  reservationId?: string;
-  guestName?: string;
+  reservation?: {
+    reservation_id: string;
+    table_number: number;
+    name: string | null;
+    phone: string | null;
+    time: string | null;
+    guests: number;
+    is_vip?: boolean | null;
+  } | null;
+  reservationPreOrderItems?: any[];
+  onGuestArrived?: () => void;
   customerId?: string | null;
   customerName?: string | null;
   guestCountLoading?: boolean;
+  onUpdateItem?: (index: number, patch: Partial<PosCartItem>) => void;
+  onUpdateOrderType?: (type: 'dine_in' | 'takeaway' | 'delivery') => void;
+  posMode?: 'dine_in' | 'takeaway' | 'delivery';
+  onUpdateDeliveryFields?: (fields: {
+    customer_phone?: string | null; customer_name?: string | null;
+    delivery_address?: string | null; delivery_district?: string | null;
+    delivery_street?: string | null; delivery_building?: string | null;
+    delivery_floor?: string | null; delivery_apartment?: string | null;
+    delivery_intercom?: string | null; delivery_zone?: string | null;
+    delivery_fee?: number; estimated_delivery_time?: string | null;
+    scheduled_date?: string | null; payment_method?: string;
+    notes?: string;
+  }) => void;
+  onUpdateGlobalNote?: (note: string) => void;
+  onOpenModifiers?: (productId: string) => void;
 }
 
 export function CartPanel({
   cart, onUpdateQty, onPlaceOrder,
   onClearDraft, onBack, orderButtonStatus, onUpdateGuests, onUpdateCustomer, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
-  isReservationMode = false, reservationId, guestName,
+  isReservationMode = false, reservation,
+  reservationPreOrderItems = [],
+  onGuestArrived,
   customerId, customerName,
   guestCountLoading = false,
+  onUpdateItem,
+  onUpdateOrderType,
+  posMode = 'dine_in',
+  onUpdateDeliveryFields,
+  onUpdateGlobalNote,
+  onOpenModifiers,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -50,7 +84,11 @@ export function CartPanel({
   const [confirming, setConfirming] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(false);
   const [customerInput, setCustomerInput] = useState('');
+  const [globalNote, setGlobalNote] = useState(cart?.notes || '');
   const lossExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pinGuardOpen, setPinGuardOpen] = useState(false);
+  const [numpadOpen, setNumpadOpen] = useState(false);
+  const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
 
   const exitLossMode = useCallback(() => {
     setSelectedForLoss(new Map());
@@ -63,9 +101,24 @@ export function CartPanel({
     }, 250);
   }, []);
 
+  const filteredItems = useMemo(() => {
+    return cart?.items ?? [];
+  }, [cart]);
+
   useEffect(() => {
     return () => { if (lossExitTimerRef.current) clearTimeout(lossExitTimerRef.current); };
   }, []);
+
+  useEffect(() => {
+    setGlobalNote(cart?.notes || '');
+  }, [cart?.notes]);
+
+  const ORDER_TYPE_OPTIONS = [
+    { value: 'dine_in' as const, label: t('dine_in') || 'İçəridə', icon: Utensils, color: 'emerald' },
+    { value: 'takeaway' as const, label: t('takeaway') || 'Gel-Al', icon: Package, color: 'amber' },
+    { value: 'delivery' as const, label: t('delivery') || 'Çatdır', icon: Car, color: 'blue' },
+  ];
+  const activeOrderType = cart?.order_type || 'dine_in';
 
   const lossReasons = [
     { key: 'customer_disliked', label: t('loss_reason_not_liked') },
@@ -80,17 +133,17 @@ export function CartPanel({
   }, [showCustomReason]);
 
   if (!cart) {
+    const msg = posMode === 'takeaway' ? 'Sifariş yoxdur' : posMode === 'delivery' ? 'Sifariş yoxdur' : t('no_table_selected');
     return (
       <div className="flex flex-col items-center justify-center h-full py-12 text-[var(--theme-text-muted)]">
         <ShoppingBag size={40} className="mb-3 opacity-30" />
-        <p className="text-sm">{t('no_table_selected')}</p>
+        <p className="text-sm">{msg}</p>
       </div>
     );
   }
 
   const originalTotal = cart.items.reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
   const isEmpty = cart.items.length === 0;
-  const hasDraftItems = cart.items.some(item => !item.sentQuantity || item.quantity !== item.sentQuantity);
 
   let total = originalTotal;
   let campaignDiscount = 0;
@@ -173,9 +226,9 @@ export function CartPanel({
   const hasLossSelection = selectedForLoss.size > 0;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full px-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0 pb-4">
+      <div className="flex items-center justify-between flex-shrink-0 pb-4 pt-6">
         <div className="flex items-center gap-2">
           <button onClick={onBack}
             className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
@@ -184,7 +237,7 @@ export function CartPanel({
           
           <div>
             <p className="text-lg font-bold text-[var(--theme-text)]">
-              {mergedChildNumbers && mergedChildNumbers.length > 0 ? `${t('group_label')} ${cart.table_number}` : `${t('table_label')} ${cart.table_number}`}
+              {mergedChildNumbers && mergedChildNumbers.length > 0 ? `${t('group_label')} ${cart.table_number ?? '-'}` : posMode === 'takeaway' ? `Gel-Al` : posMode === 'delivery' ? `Çatdırılma` : `${t('table_label')} ${cart.table_number ?? '-'}`}
               {mergedChildNumbers && mergedChildNumbers.length > 0 && (
                 <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>
                   <GitMerge size={10} /> {[cart.table_number, ...mergedChildNumbers].join('+')}
@@ -193,65 +246,79 @@ export function CartPanel({
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} {t('items')}</span>
-              <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
-                <div className="flex items-center gap-2">
-                  <Users size={14} className="text-[var(--theme-text-secondary)]" />
-                  {onUpdateGuests && (
-                    <button onClick={e => { e.stopPropagation(); onUpdateGuests(-1); }}
-                      disabled={guestCountLoading}
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none">
-                      −
-                    </button>
-                  )}
-                  <span className="text-lg font-black tabular-nums text-[var(--theme-text)] min-w-[24px] text-center">{cart.guest_count}</span>
-                  {onUpdateGuests && (
-                    <button onClick={e => { e.stopPropagation(); onUpdateGuests(1); }}
-                      disabled={guestCountLoading}
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none">
-                      +
-                    </button>
-                  )}
-                </div>
+              {posMode === 'dine_in' && (
+                <>
+                  <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
+                  <div className="flex items-center gap-2">
+                    <Users size={14} className="text-[var(--theme-text-secondary)]" />
+                    {onUpdateGuests && (
+                      <button onClick={e => { e.stopPropagation(); onUpdateGuests(-1); }}
+                        disabled={guestCountLoading || (cart.guest_count ?? 1) <= 1}
+                        className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none">
+                        −
+                      </button>
+                    )}
+                    <span className="text-lg font-black tabular-nums text-[var(--theme-text)] min-w-[24px] text-center">{cart.guest_count}</span>
+                    {onUpdateGuests && (
+                      <button onClick={e => { e.stopPropagation(); onUpdateGuests(1); }}
+                        disabled={guestCountLoading}
+                        className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none">
+                        +
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
-            {editingCustomer ? (
-              <div className="flex items-center gap-1.5 mt-1">
-                <User size={12} className="text-blue-400" />
-                <input
-                  autoFocus
-                  value={customerInput}
-                  onChange={(e) => setCustomerInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+            {(posMode === 'takeaway' || posMode === 'delivery') && cart.customer_name ? (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <User size={14} className="text-blue-400" />
+                <span className="text-sm font-bold text-blue-400">{cart.customer_name}</span>
+              </div>
+            ) : posMode === 'dine_in' ? (
+              editingCustomer ? (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <User size={12} className="text-blue-400" />
+                  <input
+                    autoFocus
+                    value={customerInput}
+                    onChange={(e) => setCustomerInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onUpdateCustomer?.(customerInput.trim() || null);
+                        setEditingCustomer(false);
+                      }
+                      if (e.key === 'Escape') {
+                        setEditingCustomer(false);
+                        setCustomerInput('');
+                      }
+                    }}
+                    onBlur={() => {
                       onUpdateCustomer?.(customerInput.trim() || null);
                       setEditingCustomer(false);
-                    }
-                    if (e.key === 'Escape') {
-                      setEditingCustomer(false);
-                      setCustomerInput('');
-                    }
-                  }}
-                  onBlur={() => {
-                    onUpdateCustomer?.(customerInput.trim() || null);
-                    setEditingCustomer(false);
-                  }}
-                  placeholder="Müştəri adı yazın..."
-                  className={`flex-1 min-w-0 rounded-lg px-2 py-0.5 text-[10px] font-bold outline-none border ${lightMode ? 'bg-white border-blue-300 text-black' : 'bg-white/5 border-blue-500/30 text-white'}`}
-                />
-              </div>
-            ) : cart.customer_name ? (
-              <button onClick={() => { setEditingCustomer(true); setCustomerInput(cart.customer_name || ''); }}
-                className="flex items-center gap-1.5 mt-1 group">
-                <User size={12} className="text-blue-400" />
-                <span className="text-[10px] font-bold text-blue-400 truncate">{cart.customer_name}</span>
-                <span className="text-[9px] text-[var(--theme-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">dəyiş</span>
-              </button>
-            ) : (
-              <button onClick={() => { setEditingCustomer(true); setCustomerInput(''); }}
-                className="flex items-center gap-1.5 mt-1 text-[var(--theme-text-muted)] hover:text-blue-400 transition-colors">
-                <User size={12} />
-                <span className="text-[10px] font-bold">Müştəri əlavə et</span>
-              </button>
-            )}
+                    }}
+                    placeholder="Müştəri adı yazın..."
+                    className={`flex-1 min-w-0 rounded-lg px-2 py-0.5 text-[10px] font-bold outline-none border ${lightMode ? 'bg-white border-blue-300 text-black' : 'bg-white/5 border-blue-500/30 text-white'}`}
+                  />
+                </div>
+              ) : cart.customer_name ? (
+                <button onClick={() => { setEditingCustomer(true); setCustomerInput(cart.customer_name || ''); }}
+                  className="flex items-center gap-1.5 mt-1 group">
+                  <User size={12} className="text-blue-400" />
+                  <span className="text-[10px] font-bold text-blue-400 truncate">{cart.customer_name}</span>
+                  <span className="text-[9px] text-[var(--theme-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">dəyiş</span>
+                </button>
+              ) : (
+                <button onClick={() => { setEditingCustomer(true); setCustomerInput(''); }}
+                  className="flex items-center gap-1.5 mt-1 text-[var(--theme-text-muted)] hover:text-blue-400 transition-colors">
+                  <User size={12} />
+                  <span className="text-[10px] font-bold">Müştəri əlavə et</span>
+                </button>
+              )
+            ) : null}
+            {/* Order type switcher removed — mode is set via top tabs */}
+
+            {/* Payment method selector — handled at checkout via ActionSheet */}
             {campaignDiscount > 0 ? (
               <div className="flex items-center gap-1.5 mt-1">
                 <Receipt size={12} className="text-[var(--theme-text-secondary)]" />
@@ -263,6 +330,20 @@ export function CartPanel({
           </div>
         </div>
       </div>
+
+      {/* Compact customer info summary — takeaway/delivery (name shown in header, only show phone/address here) */}
+      {(posMode === 'takeaway' || posMode === 'delivery') && (cart.customer_phone || cart.delivery_street) && (
+        <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 mb-2 rounded-xl text-[10px] font-semibold ${lightMode ? 'bg-zinc-50 border border-zinc-100 text-zinc-500' : 'bg-white/5 border border-white/5 text-white/40'}`}>
+          {cart.customer_phone && (
+            <span>{cart.customer_phone}</span>
+          )}
+          {cart.delivery_street && (
+            <span className="truncate max-w-[120px]">
+              {cart.delivery_street}{cart.delivery_building ? `, ${cart.delivery_building}` : ''}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Cart Quick Actions Row */}
       {!isEmpty && (
@@ -278,7 +359,7 @@ export function CartPanel({
             {t('clear')}
           </button>
           <button
-            onClick={lossMode ? exitLossMode : () => { setLossMode(true); setLossReason('wrong_entry'); }}
+            onClick={lossMode ? exitLossMode : () => setPinGuardOpen(true)}
             className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
               lossMode 
                 ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-white')
@@ -290,8 +371,8 @@ export function CartPanel({
         </div>
       )}
 
-       {/* Items — scrollable */}
-       <div className="flex-1 py-3 relative overflow-y-auto">
+       {/* Items */}
+       <div className="flex-1 py-3 relative overflow-y-auto min-h-0">
         <div
           className="absolute inset-0 transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 1 : 0, pointerEvents: isEmpty ? 'auto' : 'none' }}
@@ -300,16 +381,17 @@ export function CartPanel({
             <p className="text-sm font-medium">{t('add_items_hint')}</p>
           </div>
         </div>
-        <div
+         <div
           className="transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 0 : 1 }}
         >
-          {cart.items.map((item, idx) => {
-            const isChecked = selectedForLoss.has(idx);
-            const lossQty = selectedForLoss.get(idx) ?? 0;
+          {filteredItems.map((item, idx) => {
+            const originalIdx = cart.items.indexOf(item);
+            const isChecked = selectedForLoss.has(originalIdx);
+            const lossQty = selectedForLoss.get(originalIdx) ?? 0;
             return (
               <div
-                key={`${item.product_id}__${idx}`}
+                key={`${item.product_id}__${originalIdx}`}
                 className={`mb-2 flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-300 ${confirming && isChecked ? 'opacity-0 scale-95' : ''} ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`}`}
               >
                 {lossMode && (
@@ -329,32 +411,78 @@ export function CartPanel({
                       {(item.modifiers ?? []).map(m => m.name).join(', ')}
                     </p>
                   ) : null}
+                  {!lossMode && onOpenModifiers && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenModifiers(item.product_id);
+                      }}
+                      className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-lg text-[9px] font-bold transition-all border ${
+                        lightMode
+                          ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
+                          : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <Plus size={8} /> Əlavə et
+                    </button>
+                  )}
+                  {item.hold_until ? (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-orange-500 mt-0.5">
+                      <Pause size={9} /> Dayandırılıb
+                    </span>
+                  ) : null}
                   <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
+                  {!lossMode && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <button
+                        onClick={() => {
+                          const nextHeld = !item.hold_until;
+                          onUpdateItem?.(originalIdx, {
+                            hold_until: nextHeld ? new Date().toISOString() : null,
+                          });
+                        }}
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] transition-all ${
+                          item.hold_until
+                            ? (lightMode ? 'bg-orange-100 text-orange-600 border border-orange-200' : 'bg-orange-500/20 text-orange-400 border border-orange-500/30')
+                            : (lightMode ? 'bg-zinc-100 text-zinc-500 border border-zinc-200 hover:bg-zinc-200' : 'bg-white/5 text-zinc-400 border border-white/10 hover:bg-white/10')
+                        }`}
+                        title={item.hold_until ? 'Davam et' : 'Dayandır'}
+                      >
+                        {item.hold_until ? <Play size={10} /> : <Pause size={10} />}
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {lossMode && isChecked ? (
                     <div className="flex items-center rounded-2xl overflow-hidden bg-red-500/10 border border-red-500/25">
-                      <button onClick={() => updateLossQty(idx, -1)}
+                      <button onClick={() => updateLossQty(originalIdx, -1)}
                         className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
                         <Minus size={18} />
                       </button>
                       <span className="text-base min-w-[28px] text-center font-black tabular-nums text-red-400">{lossQty}</span>
-                      <button onClick={() => updateLossQty(idx, 1)}
+                      <button onClick={() => updateLossQty(originalIdx, 1)}
                         className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
                         <Plus size={18} />
                       </button>
                     </div>
-                  ) : lossMode ? null : (
+                   ) : lossMode ? null : (
                     <div className="flex items-center rounded-2xl overflow-hidden bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                      <button onClick={() => onUpdateQty(idx, -1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
+                      <button onClick={() => onUpdateQty(originalIdx, -1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
                         <Minus size={18} />
                       </button>
-                      <span className="text-base min-w-[28px] text-center font-black tabular-nums text-[var(--theme-text)]">{item.quantity}</span>
-                      <button onClick={() => onUpdateQty(idx, 1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-accent)]">
+                      <button
+                        onClick={() => { setNumpadIndex(originalIdx); setNumpadOpen(true); }}
+                        className="text-base min-w-[28px] text-center font-black tabular-nums text-[var(--theme-text)] active:scale-90 transition-all px-1"
+                        title="Miqdarı dəyiş"
+                      >
+                        {item.quantity}
+                      </button>
+                      <button onClick={() => onUpdateQty(originalIdx, 1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-accent)]">
                         <Plus size={18} />
                       </button>
                     </div>
-                  )}
+                   )}
                 </div>
               </div>
             );
@@ -363,7 +491,7 @@ export function CartPanel({
       </div>
 
       {/* Footer */}
-      <div className="flex-shrink-0 pt-4 border-t space-y-3 border-[var(--theme-border)]">
+      <div className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]">
         {/* Total / Loss Total */}
         <AnimatePresence mode="wait">
           {hasLossSelection ? (
@@ -422,6 +550,7 @@ export function CartPanel({
                 <input
                   ref={customInputRef}
                   type="text"
+                  maxLength={200}
                   value={customReasonText}
                   onChange={e => setCustomReasonText(e.target.value)}
                                                   placeholder={t('loss_reason_custom_placeholder')}
@@ -477,19 +606,55 @@ export function CartPanel({
             </div>
           </div>
         )}
+         {/* Global note */}
+         {!isEmpty && !lossMode && posMode === 'dine_in' && (
+           <div className="px-1">
+             <input
+               type="text"
+               value={globalNote}
+               onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
+               placeholder="Qeydlər (məs: soğansız, extra sous...)"
+               className={`w-full rounded-xl px-4 py-2.5 text-xs font-medium outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
+             />
+           </div>
+         )}
          {/* Footer actions removed from here */}
          <div className="w-full flex-shrink-0">
            <SendOrderButton
             disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
             status={lossMode ? 'idle' : orderButtonStatus}
             variant={lossMode ? 'loss' : 'send'}
-            label={lossMode ? t('loss_confirm') : (isReservationMode ? `${guestName ? guestName + ' — ' : ''}Sifarişi Göndər` : (hasExistingOrder ? t('resend') : t('send_to_kitchen')))}
+             label={lossMode ? t('loss_confirm') : (isReservationMode ? `${reservation?.name ? reservation.name + ' — ' : ''}Pre-order Yadda Saxla` : (hasExistingOrder ? t('resend') : t('send_to_kitchen')))}
             onClick={lossMode ? confirmLoss : onPlaceOrder}
             isDirty={isDirty}
             className="w-full"
           />
         </div>
       </div>
+
+      {/* PIN Guard for loss mode */}
+      <PinGuard
+        open={pinGuardOpen}
+        onClose={() => setPinGuardOpen(false)}
+        onVerified={() => { setLossMode(true); setLossReason('wrong_entry'); }}
+        action="loss"
+      />
+
+      {/* Numpad for quantity change */}
+      <Numpad
+        open={numpadOpen && numpadIndex !== null}
+        value={numpadIndex !== null ? cart.items[numpadIndex]?.quantity ?? 1 : 1}
+        min={1}
+        max={99}
+        onClose={() => { setNumpadOpen(false); setNumpadIndex(null); }}
+        onConfirm={(val) => {
+          if (numpadIndex !== null) {
+            const item = cart.items[numpadIndex];
+            const diff = val - item.quantity;
+            if (diff !== 0) onUpdateQty(numpadIndex, diff);
+          }
+        }}
+      />
 
     </div>
   );

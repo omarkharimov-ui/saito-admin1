@@ -13,6 +13,9 @@ export async function POST(req: NextRequest) {
     const auth = await requireAuth(['admin', 'superadmin', 'kitchen']);
     if (!auth.authenticated) return auth;
 
+    const body = await req.json().catch(() => ({}));
+    const terminalId = body.terminal_id || null;
+
     const s = svc();
     const now = new Date().toISOString();
 
@@ -36,13 +39,20 @@ export async function POST(req: NextRequest) {
       const draft = Array.isArray(orders) ? orders[0] : null;
 
       if (draft) {
-        // Flip draft to live
-        await fetch(`${s.url}/rest/v1/orders?id=eq.${draft.id}`, {
-          method: 'PATCH',
+        // Use atomic RPC to send to kitchen
+        const rpcRes = await fetch(`${s.url}/rest/v1/rpc/send_to_kitchen_atomic`, {
+          method: 'POST',
           headers: s.headers,
-          body: JSON.stringify({ is_draft: false, kitchen_status: 'pending' }),
+          body: JSON.stringify({
+            p_order_id: draft.id,
+            p_performed_by: auth.user?.id || null,
+            p_performed_by_terminal_id: terminalId,
+          }),
         });
-        results.push({ table: table.table_number, action: 'activated', orderId: draft.id });
+
+        if (rpcRes.ok) {
+          results.push({ table: table.table_number, action: 'activated', orderId: draft.id });
+        }
       }
     }
 

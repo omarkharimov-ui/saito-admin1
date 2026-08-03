@@ -13,7 +13,7 @@ import AnalyticsTab from './tabs/AnalyticsTab';
 import KitchenTab from './tabs/KitchenTab';
 import UsersTab from './tabs/UsersTab';
 import ReceiptTab from './tabs/ReceiptTab';
-import PrinterTab from './tabs/PrinterTab';
+import PrinterSettings from './PrinterSettings';
 import FloorsTab from './tabs/FloorsTab';
 
 type Tab = 'general' | 'staff' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'users' | 'floors' | 'hours';
@@ -49,7 +49,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'analytics' && <AnalyticsTab initialData={settingsData} />}
       {tab === 'kitchen'   && <KitchenTab initialData={settingsData} />}
       {tab === 'receipt'   && <ReceiptTab initialData={settingsData} />}
-      {tab === 'printer'   && <PrinterTab initialData={settingsData} />}
+      {tab === 'printer'   && <PrinterSettings />}
       {tab === 'users'     && isSuperadmin && <UsersTab />}
       {tab === 'floors'    && <FloorsTab />}
     </>

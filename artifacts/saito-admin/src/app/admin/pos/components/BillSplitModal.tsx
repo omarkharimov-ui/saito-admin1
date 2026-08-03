@@ -6,6 +6,7 @@ import { X, Split, Check, Plus, Minus, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
+import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
 
 interface OrderItem {
   id: string;
@@ -143,9 +144,9 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
     <AnimatePresence>
       {open && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm" onClick={onClose} />
-          <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
-            <div className="bg-[#111] border border-white/10 rounded-[2.5rem] w-full max-w-xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col pointer-events-auto">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop} className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm" onClick={onClose} />
+          <motion.div {...appleCard} className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
+            <div className="bg-[#111] border border-white/10 rounded-3xl w-full max-w-xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col pointer-events-auto">
               {/* Header */}
               <div className="p-8 border-b border-white/5 flex items-center justify-between">
                 <div>

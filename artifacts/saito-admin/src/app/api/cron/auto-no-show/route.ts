@@ -1,0 +1,31 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
+
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key) throw new Error('Missing Supabase configuration');
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const auth = await requireAuth(['admin', 'superadmin']);
+    if (!auth.authenticated) return auth;
+
+    const s = svc();
+    const res = await fetch(`${s.url}/rest/v1/rpc/auto_no_show_v2`, {
+      method: 'POST',
+      headers: s.headers,
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return NextResponse.json({ error: data?.error || 'auto_no_show failed' }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, processed: data });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

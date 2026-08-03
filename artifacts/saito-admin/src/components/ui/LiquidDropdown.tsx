@@ -8,6 +8,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 interface Option {
   id: string;
   label: string;
+  badge?: number;
 }
 
 interface LiquidDropdownProps {
@@ -17,12 +18,14 @@ interface LiquidDropdownProps {
   className?: string;
 }
 
-export function LiquidDropdown({ options, activeId, onChange, className = '' }: LiquidDropdownProps) {
+export const LiquidDropdown = React.memo(function LiquidDropdown({ options, activeId, onChange, className = '' }: LiquidDropdownProps) {
   const { lightMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  const activeLabel = options.find(o => o.id === activeId)?.label || 'Seçin';
+  const activeOpt = options.find(o => o.id === activeId);
+  const activeLabel = activeOpt?.label || 'Seçin';
+  const activeBadge = activeOpt?.badge;
 
   const springConfig = {
     type: 'spring',
@@ -63,6 +66,13 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
           isOpen ? (lightMode ? 'text-white' : 'text-black') : 'text-[#8e8e93]'
         }`}>
           {activeLabel}
+          {activeBadge != null && activeBadge > 0 && (
+            <span className={`ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[8px] font-black ${
+              isOpen ? 'bg-white/20 text-current' : 'bg-emerald-500/90 text-white'
+            }`}>
+              {activeBadge}
+            </span>
+          )}
         </span>
         <ChevronDown size={14} className={`transition-transform duration-300 pointer-events-none ${isOpen ? 'rotate-180' : ''} ${
           isOpen ? (lightMode ? 'text-white' : 'text-black') : 'text-[#8e8e93]'
@@ -90,13 +100,20 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
                     onChange(opt.id);
                     setIsOpen(false);
                   }}
-                  className={`w-full text-left px-5 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
                     activeId === opt.id
                       ? lightMode ? 'bg-zinc-900 text-white shadow-lg' : 'bg-white text-black shadow-lg'
                       : lightMode ? 'text-[#8e8e93] hover:bg-zinc-100 hover:text-black' : 'text-white/40 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  {opt.label}
+                  <span>{opt.label}</span>
+                  {opt.badge != null && opt.badge > 0 && (
+                    <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[8px] font-black ${
+                      activeId === opt.id ? 'bg-white/20' : 'bg-emerald-500/90 text-white'
+                    }`}>
+                      {opt.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -105,4 +122,4 @@ export function LiquidDropdown({ options, activeId, onChange, className = '' }: 
       </AnimatePresence>
     </div>
   );
-}
+});

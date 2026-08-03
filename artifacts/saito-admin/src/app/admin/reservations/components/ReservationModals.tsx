@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, AlertCircle, Loader2, Users, Calendar, Clock, Phone, User, MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import MobileModal from '@/components/ui/MobileModal';
+import TablePicker from '@/components/ui/TablePicker';
 
 interface DeleteModalProps {
   reservation: { id: string; guest: string } | null;
@@ -72,9 +73,10 @@ interface UpsertReservationModalProps {
   onSave: (data: any) => void;
   initialData?: any;
   loading?: boolean;
+  tables?: { id: string; table_number: number; status: string | null; capacity?: number | null }[];
 }
 
-export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loading }: UpsertReservationModalProps) => {
+export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loading, tables = [] }: UpsertReservationModalProps) => {
   const { t } = useLanguage();
   const [formData, setFormData] = useState({
     customer_name: '',
@@ -82,7 +84,9 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
     date: new Date().toISOString().split('T')[0],
     time: '19:00',
     guests: 2,
-    notes: ''
+    notes: '',
+    is_vip: false,
+    table_ids: [] as string[],
   });
 
   useEffect(() => {
@@ -93,7 +97,9 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
         date: initialData.date || new Date().toISOString().split('T')[0],
         time: initialData.time || '19:00',
         guests: initialData.guests || 2,
-        notes: initialData.notes || initialData.note || ''
+        notes: initialData.notes || initialData.note || '',
+        is_vip: initialData.is_vip || false,
+        table_ids: Array.isArray(initialData.table_ids) ? initialData.table_ids : [],
       });
     } else {
       setFormData({
@@ -102,7 +108,9 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
         date: new Date().toISOString().split('T')[0],
         time: '19:00',
         guests: 2,
-        notes: ''
+        notes: '',
+        is_vip: false,
+        table_ids: [],
       });
     }
   }, [initialData, open]);
@@ -193,6 +201,31 @@ export const UpsertReservationModal = ({ open, onClose, onSave, initialData, loa
               value={formData.notes}
               onChange={e => setFormData({ ...formData, notes: e.target.value })}
             />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.is_vip}
+                onChange={e => setFormData({ ...formData, is_vip: e.target.checked })}
+                className="w-5 h-5 rounded bg-white/5 border border-white/10 text-gold focus:ring-gold"
+              />
+              <span className="text-xs font-bold text-white/80">VIP</span>
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest text-white/40 font-bold flex items-center gap-2">
+              <Users size={12} /> Masalar
+            </label>
+            <div className="max-h-40 overflow-y-auto custom-scrollbar">
+              <TablePicker
+                tables={tables}
+                selectedTableIds={formData.table_ids}
+                onChange={(ids) => setFormData({ ...formData, table_ids: ids })}
+              />
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">

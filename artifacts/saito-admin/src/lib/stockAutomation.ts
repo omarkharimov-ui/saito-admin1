@@ -1,6 +1,6 @@
 /**
- * STOCK AUTOMATION v2 — Avtomatik Satış Deduction (SERVER-ONLY)
- * Yeni sistem: recipes cədvəli + inventory_logs (order_consumption)
+ * STOCK AUTOMATION v3 — Avtomatik Satış Deduction (SERVER-ONLY)
+ * Yeni sistem: recipes cədvəli + inventory_transactions (idempotent per order_item)
  */
 
 import 'server-only';
@@ -21,18 +21,20 @@ function getServiceClient() {
  *  1. Hər order_item-in product_id-sinə görə product tipini yoxla
  *     a) Hazır məhsul (is_ready_product=true) → birbaşa direct_ingredient_id ilə stock yaz
  *     b) Reseptli məhsul → recipes cədvəlindən ingredient-ləri oxu
- *  2. inventory_logs-a order_consumption yaz
+ *  2. inventory_transactions-a order_consumption yaz (UNIQUE order_item_id => idempotent)
  *  3. Trigger avtomatik ingredients.current_stock yeniləyəcək
  */
 export async function deductStockForOrder(orderId: string): Promise<{ deducted: number; ingredientIds: string[] }> {
   const supabase = getServiceClient();
 
   // 0. Idempotency check — bu sifariş artıq işlənibsə, təkrar çıxma
+  // NOTE: We check by order_id because we want to skip the entire order if already processed.
+  // Finer granularity (per order_item_id) is handled by the UNIQUE constraint on inventory_transactions.
   const { count: existingCount } = await supabase
-    .from('inventory_logs')
+    .from('inventory_transactions')
     .select('*', { count: 'exact', head: true })
-    .eq('type', 'order_consumption')
-    .eq('order_id', orderId);
+    .eq('reference_type', 'order')
+    .eq('reference_id', orderId);
   if (existingCount && existingCount > 0) {
     return { deducted: 0, ingredientIds: [] };
   }
@@ -162,31 +164,106 @@ export async function deductStockForOrder(orderId: string): Promise<{ deducted: 
     return { deducted: 0, ingredientIds: [] };
   }
 
-  // 3. inventory_logs-a insert et (trigger current_stock-u avtomatik yeniləyəcək)
-  const ingredientIds = [...new Set(logs.map(l => l.ingredient_id))];
-  const { error: insertError } = await supabase.from('inventory_logs').insert(logs);
-  if (insertError) {
-    return { deducted: 0, ingredientIds: [] };
-  } else {
-    return { deducted: logs.length, ingredientIds };
+  // 3. inventory_transactions-a insert et (UNIQUE(order_item_id) => idempotent)
+  // If any item was already processed, skip only that item, not the whole batch.
+  const validLogs: typeof logs = [];
+  for (const log of logs) {
+    try {
+      const { error: txError } = await supabase.from('inventory_transactions').insert(log);
+      if (txError && txError.code === '23505') {
+        // Unique constraint violation — this order_item was already deducted, skip
+        continue;
+      }
+      if (txError) {
+        console.error('[deductStockForOrder] Inventory transaction insert error:', txError);
+        continue;
+      }
+      validLogs.push(log);
+    } catch (e) {
+      console.error('[deductStockForOrder] Exception:', e);
+    }
   }
+
+  if (validLogs.length === 0) {
+    return { deducted: 0, ingredientIds: [] };
+  }
+
+  // 4. Also write to inventory_logs for backward compatibility with existing reports/views
+  // This can be removed once all reports migrate to inventory_transactions
+  const { error: insertError } = await supabase.from('inventory_logs').insert(validLogs);
+  if (insertError) {
+    console.error('[deductStockForOrder] inventory_logs insert error:', insertError);
+  }
+
+  const ingredientIds = [...new Set(validLogs.map(l => l.ingredient_id))];
+  return { deducted: validLogs.length, ingredientIds };
 }
 
 /**
- * Manual deduction — birbaşa inventory_logs-a order_consumption yaz
+ * Manual deduction — birbaşa inventory_transactions-a order_consumption yaz
  */
 export async function deductStockManual(
   rows: { ingredient_id: string; quantity: number; reason?: string }[],
-): Promise<void> {
+  orderId?: string
+): Promise<{ deducted: number; ingredientIds: string[] }> {
   const supabase = getServiceClient();
 
-  const logs = rows.map(item => ({
-    ingredient_id: item.ingredient_id,
-    quantity: Math.abs(item.quantity),
-    type: 'order_consumption' as const,
-    reason: item.reason || 'Manual deduction',
+  const logs = rows.map((row, idx) => ({
+    ingredient_id: row.ingredient_id,
+    type: 'manual_adjustment',
+    quantity: row.quantity,
+    order_id: orderId || null,
+    order_item_id: null,
+    item_quantity: row.quantity,
+    reference_type: orderId ? 'order' : 'manual',
+    reference_id: orderId || null,
+    reason: row.reason || 'Manual adjustment',
   }));
 
-  const { error } = await supabase.from('inventory_logs').insert(logs);
-  if (error) console.error('[deductStockManual] Error:', error);
+  const { error } = await supabase.from('inventory_transactions').insert(logs);
+  if (error) {
+    console.error('[deductStockManual] Error:', error);
+    return { deducted: 0, ingredientIds: [] };
+  }
+
+  const ingredientIds = [...new Set(logs.map(l => l.ingredient_id))];
+  return { deducted: logs.length, ingredientIds };
+}
+
+/**
+ * Rollback stock for a specific order_item (e.g., void/refund)
+ */
+export async function rollbackStockForOrderItem(orderItemId: string): Promise<boolean> {
+  const supabase = getServiceClient();
+
+  // Find the original inventory_transaction for this order_item
+  const { data: tx, error: txError } = await supabase
+    .from('inventory_transactions')
+    .select('*')
+    .eq('order_item_id', orderItemId)
+    .eq('transaction_type', 'order_consumption')
+    .maybeSingle();
+
+  if (txError || !tx) {
+    return false;
+  }
+
+  // Create a reversal transaction
+  const { error: reverseError } = await supabase.from('inventory_transactions').insert({
+    order_item_id: orderItemId,
+    ingredient_id: tx.ingredient_id,
+    quantity: -Math.abs(tx.quantity),
+    unit: tx.unit,
+    transaction_type: 'reversal',
+    reference_type: tx.reference_type,
+    reference_id: tx.reference_id,
+    performed_by: null,
+  });
+
+  if (reverseError) {
+    console.error('[rollbackStockForOrderItem] Error:', reverseError);
+    return false;
+  }
+
+  return true;
 }

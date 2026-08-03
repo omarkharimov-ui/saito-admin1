@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useFirstLoad } from '@/hooks/useFirstLoad';
 import type {
   SupplierReturn, SupplierReturnItem, Ingredient, Supplier,
 } from '@/types/inventory';
@@ -65,6 +66,7 @@ export default function SupplierReturnsPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
+  const isFirstLoad = useFirstLoad(600, loading);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -313,11 +315,7 @@ export default function SupplierReturnsPage() {
         </div>
 
         {/* ── Table ── */}
-        {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <Loader2 size={28} className="animate-spin text-white/15" />
-          </div>
-        ) : filteredReturns.length === 0 ? (
+        {filteredReturns.length === 0 ? (
           <GlassCard intensity="light" padding="xl" className="text-center">
             <ArrowLeftRight size={44} className="mx-auto mb-4 opacity-20 text-[var(--theme-text-muted)]" />
             <p className="text-sm font-medium text-[var(--theme-text-secondary)]">

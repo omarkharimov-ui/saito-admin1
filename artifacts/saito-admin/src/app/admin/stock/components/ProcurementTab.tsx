@@ -12,6 +12,7 @@ import { EmptyState, LoadingState } from '@/components/ProcurementEmptyState';
 import { SummaryCards } from '@/components/ProcurementSummaryCards';
 import { StockStatusBadge } from '@/components/StockStatusBadge';
 import { toast } from '@/lib/toast';
+import { supabase } from '@/lib/supabase';
 import type { DiscrepancyAlert, Supplier, CreateSupplierPayload } from '@/types/inventory';
 
 type ProcTab = 'receive' | 'anomalies' | 'suppliers';
@@ -51,8 +52,16 @@ export default function ProcurementTab() {
   const loadNotifications = async () => {
     setLoadingNotifs(true);
     try {
-      const res = await fetch('/api/notifications?type=supplier_auto_order&limit=20');
-      if (res.ok) setNotifications(await res.json());
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('type', 'stock')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (!error && data) {
+        setNotifications(data);
+      }
     } catch {}
     setLoadingNotifs(false);
   };

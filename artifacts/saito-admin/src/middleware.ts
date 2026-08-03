@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('redirect', url.pathname);
       return NextResponse.redirect(loginUrl);
     }
-    if (isAdmin && !['admin', 'superadmin'].includes(role || '')) {
+    if (isAdmin && !['admin', 'superadmin', 'cashier', 'kitchen'].includes(role || '')) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
     if (isKitchen && !['kitchen', 'superadmin', 'admin'].includes(role || '')) {

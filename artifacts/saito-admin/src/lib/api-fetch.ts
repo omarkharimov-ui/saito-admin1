@@ -13,6 +13,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   
   return fetch(url, {
     ...options,
+    credentials: 'include',
     headers,
   });
 }

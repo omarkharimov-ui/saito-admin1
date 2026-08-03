@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
 
-    const { action, data } = await request.json();
+    const { action, data , terminal_id } = await request.json();
 
     if (!action || !data) {
       return NextResponse.json({ error: 'action and data required' }, { status: 400 });
@@ -24,16 +24,21 @@ export async function POST(request: NextRequest) {
         case 'merge': {
           const { sourceOrders, sourceTableNumbers, targetTable } = data;
 
-          // 1. Restore child table_floors
+          // 1. Restore child table_floors to empty
           if (sourceTableNumbers?.length) {
             for (const tableNum of sourceTableNumbers) {
               await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
                 method: 'PATCH',
                 headers: svc().headers,
                 body: JSON.stringify({ 
-                  status: 'occupied', 
+                  status: 'empty', 
                   merged_into_table: null,
                   guest_count: null,
+                  total_amount: 0,
+                  reservation_id: null,
+                  reservation_name: null,
+                  reservation_phone: null,
+                  reservation_time: null,
                 }),
               });
             }
@@ -62,6 +67,19 @@ export async function POST(request: NextRequest) {
                 body: JSON.stringify({ total_amount: newTotal, version: (parentOrder.version || 0) + 1 }),
               });
             }
+
+            // Reset parent table_floors to empty after undo
+            await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${targetTable}`, {
+              method: 'PATCH',
+              headers: svc().headers,
+              body: JSON.stringify({
+                status: 'empty',
+                merged_into_table: null,
+                guest_count: null,
+                total_amount: 0,
+                updated_at: new Date().toISOString(),
+              }),
+            });
           }
           break;
         }

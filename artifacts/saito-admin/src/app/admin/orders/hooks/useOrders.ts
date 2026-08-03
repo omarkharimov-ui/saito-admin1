@@ -299,9 +299,9 @@ export function useOrders() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_numbers: [targetTable, sourceTable] }),
       });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Merge failed');
+      const mergeData = await res.json();
+      if (!res.ok || !mergeData?.success) {
+        throw new Error(mergeData?.error || 'Merge failed');
       }
 
       const existingMerged = orders
@@ -328,13 +328,15 @@ export function useOrders() {
     const uniqueTableNums = Array.from(new Set(tableNums));
     if (uniqueTableNums.length < 2) return;
     try {
-      // Use merge API — handles empty table grouping
       const res = await fetch('/api/orders/merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_numbers: uniqueTableNums }),
       });
-      if (!res.ok) throw new Error('Merge failed');
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Merge failed');
+      }
       toast.success(t('tables_merged').replace('{tables}', uniqueTableNums.join('+')), { id: 'action-toast' });
       await fetchOrders(false);
     } catch (e: unknown) {
@@ -347,13 +349,15 @@ export function useOrders() {
     const targetTable = targetOrder?.table_number;
     if (!targetTable) return;
     try {
-      // Use merge API — adds empty table to existing merge group
       const res = await fetch('/api/orders/merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_numbers: [targetTable, emptyTableNum] }),
       });
-      if (!res.ok) throw new Error('Failed to add table');
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to add table');
+      }
       toast.success(t('table_added_to_group').replace('{table}', String(emptyTableNum)), { id: 'action-toast' });
       setTimeout(() => fetchOrders(false), 100);
     } catch (e: unknown) {

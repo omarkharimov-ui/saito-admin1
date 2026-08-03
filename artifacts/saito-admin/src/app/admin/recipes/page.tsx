@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useFirstLoad } from '@/hooks/useFirstLoad';
 import {
   Search, Plus, Trash2, Loader2, CookingPot, ChevronDown, ChevronUp,
   Bot, Sparkles, Check, X, FileText, Upload, BrainCircuit, Wand2,
@@ -31,6 +32,7 @@ export default function RecipesPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const isFirstLoad = useFirstLoad(600, loading);
   const [search, setSearch] = useState('');
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [addingFor, setAddingFor] = useState<string | null>(null);
@@ -614,12 +616,7 @@ export default function RecipesPage() {
         />
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 size={24} className="animate-spin text-white/20" />
-        </div>
-      ) : (
-        <div className="space-y-2">
+      <div className="space-y-2">
           {filteredProducts.map(product => {
             const isExpanded = expandedProduct === product.id;
             const recs = productRecipes(product.id);
@@ -717,7 +714,6 @@ export default function RecipesPage() {
             </GlassCard>
           )}
         </div>
-      )}
       </div>
 
       {/* Recipe Constructor Modal */}

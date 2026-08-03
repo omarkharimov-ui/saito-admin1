@@ -1166,7 +1166,6 @@ export default function POSPage() {
           >
             <PanelLeftClose size={16} />
           </button>
-          <div className="flex-1" />
           <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
             {([
               { mode: 'dine_in' as const, icon: Utensils, label: 'İçəridə', activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#10b981' },
@@ -1203,6 +1202,7 @@ export default function POSPage() {
               onChange={setSelectedFloor}
             />
           )}
+          <div className="flex-1" />
           <button
             onClick={() => setOrderHistoryOpen(true)}
             className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}

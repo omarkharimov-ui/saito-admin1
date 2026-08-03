@@ -26,13 +26,7 @@ interface Reservation {
 
 function preOrderSummary(items: PreOrderItem[] | string | null): string {
   if (!items) return '';
-  let parsed: PreOrderItem[];
-  try {
-    parsed = typeof items === 'string' ? JSON.parse(items) : items;
-  } catch (e) {
-    console.error('[UpcomingReservations] Failed to parse pre_order_items:', e);
-    return '';
-  }
+  const parsed: PreOrderItem[] = typeof items === 'string' ? JSON.parse(items) : items;
   if (!Array.isArray(parsed) || parsed.length === 0) return '';
   return parsed.slice(0, 3).map(i => `${i.quantity}x ${i.product_name}`).join(', ') + (parsed.length > 3 ? ` +${parsed.length - 3}` : '');
 }
@@ -97,7 +91,9 @@ export function UpcomingReservations() {
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             className="mt-2 rounded-2xl border bg-[#151515] border-emerald-500/20 shadow-2xl overflow-hidden"
           >
-            {reservations.length === 0 ? (
+            {loading ? (
+              <div className="p-6 text-center text-white/30 text-sm">Yüklənir...</div>
+            ) : reservations.length === 0 ? (
               <div className="p-6 text-center text-white/20 text-sm">
                 <ChefHat size={32} className="mx-auto mb-2 opacity-30" />
                 Gözlənilən rezerv yoxdur

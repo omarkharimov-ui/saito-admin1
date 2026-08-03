@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { reservation_id, action, terminal_id } = body;
+    const { reservation_id, action } = body;
 
     if (!reservation_id) {
       return NextResponse.json({ error: 'reservation_id is required' }, { status: 400 });
@@ -99,34 +99,39 @@ export async function POST(request: Request) {
       const order = Array.isArray(orders) ? orders[0] : null;
 
       if (order) {
-        const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/send_to_kitchen_atomic`, {
-          method: 'POST',
+        await fetch(`${svc().url}/rest/v1/orders?id=eq.${order.id}`, {
+          method: 'PATCH',
           headers: svc().headers,
           body: JSON.stringify({
-            p_order_id: order.id,
-            p_performed_by: (await validateAuth()).user?.id || null,
-            p_performed_by_terminal_id: terminal_id || null,
+            kitchen_status: 'pending',
+            kitchen_accepted_at: new Date().toISOString(),
           }),
         });
 
-        if (rpcRes.ok) {
-          const rpcData = await rpcRes.json();
-          await fetch(
-            `${svc().url}/rest/v1/kitchen_schedule?reservation_id=eq.${reservation_id}`,
-            {
-              method: 'PATCH',
-              headers: svc().headers,
-              body: JSON.stringify({ status: 'started' }),
-            }
-          );
+        await fetch(
+          `${svc().url}/rest/v1/order_items?order_id=eq.${order.id}&kitchen_status=eq.reserved`,
+          {
+            method: 'PATCH',
+            headers: svc().headers,
+            body: JSON.stringify({ kitchen_status: 'pending' }),
+          }
+        );
 
-          return NextResponse.json({
-            success: true,
-            order_id: order.id,
-            table_number: order.table_number,
-            message: `Masa ${order.table_number} sifarişi mətbəxə göndərildi`,
-          });
-        }
+        await fetch(
+          `${svc().url}/rest/v1/kitchen_schedule?reservation_id=eq.${reservation_id}`,
+          {
+            method: 'PATCH',
+            headers: svc().headers,
+            body: JSON.stringify({ status: 'started' }),
+          }
+        );
+
+        return NextResponse.json({
+          success: true,
+          order_id: order.id,
+          table_number: order.table_number,
+          message: `Masa ${order.table_number} sifarişi mətbəxə göndərildi`,
+        });
       }
     }
 

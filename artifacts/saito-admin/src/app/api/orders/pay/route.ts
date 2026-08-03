@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { paymentRateLimit } from '@/lib/rate-limit';
 import { validateCsrfToken } from '@/lib/csrf';
-import { requireActiveShift } from '@/lib/shiftLock';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,44 +14,15 @@ export async function POST(request: NextRequest) {
     
     const rateLimitResult = paymentRateLimit(request);
     if (rateLimitResult) return rateLimitResult;
-
-    const shiftCheck = await requireActiveShift();
-    if (!shiftCheck.ok) {
-      return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
-    }
     
     const supabase = await createAuthClient();
 
-    // Idempotency: check if this idempotency key was already processed
-    const idempotencyKey = request.headers.get('Idempotency-Key');
-    if (idempotencyKey) {
-      const existingRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/payment_idempotency_keys?key=eq.${idempotencyKey}&select=*`, {
-        headers: {
-          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
-        },
-      });
-      const existingData = await existingRes.json();
-      if (Array.isArray(existingData) && existingData.length > 0) {
-        const existing = existingData[0];
-        if (existing.status === 'completed') {
-          return NextResponse.json({
-            success: true,
-            paid_amount: existing.amount,
-            message: 'Payment already processed (idempotent)',
-          });
-        }
-      }
-    }
-
-    const { order_id, payment_method, cash_amount, card_amount, tip_amount, campaign_id, discount_amount, discount_type, paid_amount } = await request.json();
+    const { order_id, payment_method, cash_amount, card_amount, tip_amount, campaign_id, discount_amount, discount_type } = await request.json();
     if (!order_id) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
     }
 
-    const paidAmount = paid_amount !== undefined && paid_amount !== null
-      ? paid_amount
-      : (cash_amount || 0) + (card_amount || 0);
+    const paidAmount = (cash_amount || 0) + (card_amount || 0);
 
     // ─── Auto-apply active campaign if no campaign_id provided ───
     let effectiveCampaignId = campaign_id || null;
@@ -72,25 +42,6 @@ export async function POST(request: NextRequest) {
         const { data: camp } = await supabase.from('campaigns').select('title').eq('id', effectiveCampaignId).maybeSingle();
         autoCampaignName = camp?.title || null;
       }
-    }
-
-    // Record idempotency key BEFORE RPC to prevent double-charge on network failure
-    if (idempotencyKey) {
-      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/payment_idempotency_keys`, {
-        method: 'POST',
-        headers: {
-          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal',
-        },
-        body: JSON.stringify({
-          key: idempotencyKey,
-          order_id: order_id,
-          amount: paidAmount,
-          status: 'processing',
-        }),
-      }).catch(() => {});
     }
 
     // ─── Atomic payment via RPC ───
@@ -117,25 +68,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Order is already paid' }, { status: 409 });
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Record idempotency key
-    if (idempotencyKey) {
-      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/payment_idempotency_keys`, {
-        method: 'POST',
-        headers: {
-          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal',
-        },
-        body: JSON.stringify({
-          key: idempotencyKey,
-          order_id: order_id,
-          amount: paidAmount,
-          status: 'completed',
-        }),
-      }).catch(() => {});
     }
 
     return NextResponse.json({

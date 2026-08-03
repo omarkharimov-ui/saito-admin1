@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { requireActiveShift } from '@/lib/shiftLock';
 import { groqChat, parseJsonFromText } from '@/lib/groq';
 
 function svc() {
@@ -13,11 +12,6 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
-
-    const shiftCheck = await requireActiveShift();
-    if (!shiftCheck.ok) {
-      return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
-    }
 
     const body = await request.json();
     const { reservation_id, table_ids, guest_count, pre_order_items, schedule_minutes_before } = body;
@@ -128,106 +122,87 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. On confirm: create a draft order for each selected table and
-    //    persist pre-order items into order_items. Kitchen sees drafts;
-    //    cashier cannot pay until check-in. table_floors become reserved.
-    const resolvedTables = table_ids || [];
-    const tableNumberMap = new Map<string, number>();
-    if (resolvedTables.length > 0) {
-      const tablesRes = await fetch(
-        `${svc().url}/rest/v1/table_floors?select=id,table_number&id=in.(${resolvedTables.join(',')})`,
-        { headers: svc().headers }
-      );
-      const tablesData: any[] = await tablesRes.json();
-      if (Array.isArray(tablesData)) {
-        tablesData.forEach((t) => {
-          if (t?.id && t?.table_number !== undefined && t?.table_number !== null) {
-            tableNumberMap.set(String(t.id), Number(t.table_number));
-          }
-        });
-      }
-    }
+    // 3. ATOMIC SYNC: reuse an existing draft order for this reservation if one
+    // already exists (idempotent confirm), otherwise create a new DRAFT order to
+    // lock the table in POS.
+    const existingDraftRes = await fetch(
+      `${svc().url}/rest/v1/orders?select=*&reservation_id=eq.${reservation_id}&is_draft=eq.true`,
+      { headers: svc().headers }
+    );
+    const existingDrafts: any[] = await existingDraftRes.json();
+    let createdOrder: any = existingDrafts?.[0];
 
-    const draftOrderIds: string[] = [];
-    for (const tid of resolvedTables) {
-      const resolvedTableNumber = tableNumberMap.get(String(tid));
-      if (!resolvedTableNumber && resolvedTables.length === 1) {
-        const tRes = await fetch(
-          `${svc().url}/rest/v1/table_floors?select=table_number&id=eq.${tid}`,
-          { headers: svc().headers }
-        );
-        const tData = await tRes.json();
-        const fallback = (Array.isArray(tData) ? tData[0] : null)?.table_number;
-        if (fallback) tableNumberMap.set(String(tid), Number(fallback));
-      }
-      const tableNumber = tableNumberMap.get(String(tid));
-      if (!tableNumber) continue;
-
-      const preTotalForTable = (pre_order_items || []).reduce(
-        (sum: number, item: any) => sum + (item.unit_price * item.quantity),
-        0
-      );
-
-      const orderPayload: Record<string, any> = {
-        table_number: tableNumber,
-        reservation_id: reservation_id,
+    if (!createdOrder) {
+      const orderPayload = {
+        table_number,
+        reservation_id,
         status: 'confirmed',
-        kitchen_status: 'pending',
+        kitchen_status: 'reserved',
         is_draft: true,
-        guest_count: reservation.guests || guest_count || 2,
-        total_amount: preTotalForTable || 0,
+        guest_count: guest_count ?? reservation.guests ?? 2,
+        total_amount: totalAmount || 0,
         customer_id: customerId,
-        customer_name: reservation.name || reservation.customer_name || null,
-        customer_note: reservation.note || null,
-        order_source: 'dine_in',
+        customer_name: guestName || null,
+        customer_note: reservation.note || 'Rezervasiya',
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        version: 1,
+        version: 1
       };
-      const createRes = await fetch(`${svc().url}/rest/v1/orders`, {
+
+      const orderRes = await fetch(`${svc().url}/rest/v1/orders`, {
         method: 'POST',
         headers: { ...svc().headers, 'Prefer': 'return=representation' },
         body: JSON.stringify(orderPayload),
       });
-      if (!createRes.ok) {
-        const errText = await createRes.text();
-        return NextResponse.json({ error: `Draft order create failed: ${errText}` }, { status: 500 });
-      }
-      const created = await createRes.json();
-      const newOrderId = Array.isArray(created) ? created[0]?.id : created?.id;
-      if (!newOrderId) {
-        return NextResponse.json({ error: 'Draft order create failed: no id returned' }, { status: 500 });
-      }
-      draftOrderIds.push(newOrderId);
 
-      if (Array.isArray(pre_order_items) && pre_order_items.length > 0) {
-        for (const item of pre_order_items) {
-          await fetch(`${svc().url}/rest/v1/order_items`, {
-            method: 'POST',
-            headers: svc().headers,
-            body: JSON.stringify({
-              order_id: newOrderId,
-              product_id: item.product_id,
-              product_name: item.product_name,
-              variant_id: item.variant_id || null,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              total_price: (item.unit_price || 0) * (item.quantity || 1),
-              modifiers: item.modifiers || [],
-              special_notes: item.special_notes || '',
-              kitchen_status: 'pending',
-              seat_number: item.seat_number || null,
-              price_snapshot: {
-                unit_price: item.unit_price || 0,
-                discount_price: item.original_unit_price ? Math.max(0, (item.original_unit_price || 0) - (item.unit_price || 0)) : null,
-                campaign_id: item.campaign_id || null,
-                campaign_discount: item.campaign_discount_amount || 0,
-                total_price: (item.unit_price || 0) * (item.quantity || 1),
-                snapshot_at: new Date().toISOString(),
-              },
-            }),
-          });
-        }
+      if (!orderRes.ok) {
+        console.error("[reserve-table] Failed to create sync order:", await orderRes.text());
+        throw new Error('Failed to create reservation order');
+      }
+
+      const orderData = await orderRes.json();
+      createdOrder = Array.isArray(orderData) ? orderData[0] : orderData;
+    } else {
+      // Keep the draft in sync with the latest reservation/customer details.
+      await fetch(`${svc().url}/rest/v1/orders?id=eq.${createdOrder.id}`, {
+        method: 'PATCH',
+        headers: svc().headers,
+        body: JSON.stringify({
+          table_number,
+          customer_id: customerId,
+          customer_name: guestName || null,
+          guest_count: guest_count ?? reservation.guests ?? 2,
+        }),
+      });
+    }
+
+    // 3b. Insert pre-order items into order_items (dedup by product_id__quantity)
+    if (pre_order_items && pre_order_items.length > 0) {
+      const existingItemsRes = await fetch(
+        `${svc().url}/rest/v1/order_items?select=product_id,quantity&order_id=eq.${createdOrder.id}`,
+        { headers: svc().headers }
+      );
+      const existingItems: any[] = await existingItemsRes.json();
+      const seen = new Set(existingItems.map((i: any) => `${i.product_id}__${i.quantity}`));
+
+      for (const item of pre_order_items) {
+        const dedupKey = `${item.product_id}__${item.quantity}`;
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
+        await fetch(`${svc().url}/rest/v1/order_items`, {
+          method: 'POST',
+          headers: svc().headers,
+          body: JSON.stringify({
+            order_id: createdOrder.id,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.unit_price * item.quantity,
+            modifiers: item.modifiers || [],
+            special_notes: item.special_notes || '',
+            kitchen_status: 'reserved',
+          }),
+        });
       }
     }
 
@@ -249,16 +224,61 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. Update reservation: clear pre-order copies after draft orders are created
+    // 4b. IMMEDIATE KITCHEN HINT: Notify kitchen about the reservation
+    const hintText = pre_order_items && pre_order_items.length > 0
+      ? `Masa ${table_number} — ${reservation.name} (${reservation.guests} nəfər) üçün rezervasiya təsdiqləndi. Öncədən sifariş var (${pre_order_items.length} məhsul).`
+      : `Masa ${table_number} — ${reservation.name} (${reservation.guests} nəfər) üçün rezervasiya təsdiqləndi.`;
+    await fetch(`${svc().url}/rest/v1/notifications`, {
+      method: 'POST',
+      headers: svc().headers,
+      body: JSON.stringify({
+        type: 'kitchen_hint',
+        title: 'Yeni rezervasiya — Masa ' + table_number,
+        body: hintText,
+        data: {
+          reservation_id,
+          table_number,
+          table_ids,
+          guest_name: reservation.name,
+          guest_count: reservation.guests,
+          pre_order_count: pre_order_items?.length || 0,
+        },
+        created_at: new Date().toISOString(),
+      }),
+    });
+
+    // 5. Kitchen schedule logic
+    let kitchen_scheduled_at = null;
+    if (pre_order_items && pre_order_items.length > 0) {
+      let minutesBefore = schedule_minutes_before || Number(reservation.kitchen_notify_before_minutes) || 120;
+      const [hours, minutes] = reservation.time.split(':').map(Number);
+      const reservationDate = new Date(reservation.date);
+      reservationDate.setHours(hours, minutes, 0, 0);
+      kitchen_scheduled_at = new Date(reservationDate.getTime() - minutesBefore * 60 * 1000).toISOString();
+
+      // Create kitchen_schedule entry for the scheduled job
+      await fetch(`${svc().url}/rest/v1/kitchen_schedule`, {
+        method: 'POST',
+        headers: svc().headers,
+        body: JSON.stringify({
+          reservation_id,
+          table_number,
+          scheduled_at: kitchen_scheduled_at,
+          guest_count: reservation.guests || guest_count || 2,
+          status: 'pending',
+        }),
+      });
+    }
+
     await fetch(`${svc().url}/rest/v1/reservations?id=eq.${reservation_id}`, {
       method: 'PATCH',
       headers: svc().headers,
       body: JSON.stringify({
-        table_number: table_number,
+        table_number,
         table_ids: table_ids,
-        pre_order_items: [],
-        pre_order_total: 0,
-        kitchen_scheduled_at: null,
+        pre_order_items: pre_order_items || null,
+        pre_order_total: totalAmount || null,
+        kitchen_scheduled_at,
         kitchen_hint_sent: true,
         customer_id: customerId,
         status: 'confirmed',
@@ -268,8 +288,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       table_number,
-      draft_order_ids: draftOrderIds,
-      kitchen_scheduled_at: null,
+      kitchen_scheduled_at,
       kitchen_hint_sent: true,
     });
   } catch (error: any) {

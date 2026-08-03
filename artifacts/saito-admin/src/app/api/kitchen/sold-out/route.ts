@@ -13,34 +13,64 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
     if (!auth.authenticated) return auth;
 
-    const { product_id, product_name, terminal_id } = await request.json();
+    const { product_id, product_name } = await request.json();
     if (!product_id) {
       return NextResponse.json({ error: 'product_id required' }, { status: 400 });
     }
 
     const s = svc();
-    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/mark_sold_out_atomic`, {
-      method: 'POST',
+
+    // Get product info
+    const productRes = await fetch(
+      `${s.url}/rest/v1/products?id=eq.${product_id}&select=is_ready_product,direct_ingredient_id`,
+      { headers: s.headers },
+    );
+    const product = (await productRes.json())?.[0];
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    const ingredientIds: string[] = [];
+    if (product.is_ready_product && product.direct_ingredient_id) {
+      ingredientIds.push(product.direct_ingredient_id);
+    } else {
+      const recipesRes = await fetch(
+        `${s.url}/rest/v1/recipes?menu_item_id=eq.${product_id}&select=ingredient_id`,
+        { headers: s.headers },
+      );
+      const recipes = await recipesRes.json();
+      if (recipes?.length > 0) {
+        ingredientIds.push(...recipes.map((r: any) => r.ingredient_id));
+      }
+    }
+
+    for (const iid of ingredientIds) {
+      const ingRes = await fetch(`${s.url}/rest/v1/ingredients?id=eq.${iid}&select=current_stock`, { headers: s.headers });
+      const ingData = (await ingRes.json()) || [];
+      const currentStock = Number(ingData[0]?.current_stock || 0);
+
+      await fetch(`${s.url}/rest/v1/inventory_logs`, {
+        method: 'POST',
+        headers: s.headers,
+        body: JSON.stringify({
+          ingredient_id: iid,
+          type: 'adjustment',
+          quantity: -currentStock,
+          reason: `Kitchen: ${product_name} sold out — full stock zeroed`,
+          reference_type: 'sold_out',
+          reference_id: product_id,
+          created_at: new Date().toISOString(),
+        }),
+      });
+    }
+
+    await fetch(`${s.url}/rest/v1/products?id=eq.${product_id}`, {
+      method: 'PATCH',
       headers: s.headers,
-      body: JSON.stringify({
-        p_product_id: product_id,
-        p_product_name: product_name || null,
-        p_performed_by: auth.user?.id || null,
-        p_performed_by_terminal_id: terminal_id || null,
-      }),
+      body: JSON.stringify({ is_available: false }),
     });
 
-    if (!rpcRes.ok) {
-      const errText = await rpcRes.text();
-      return NextResponse.json({ error: `Sold out failed: ${errText}` }, { status: 400 });
-    }
-
-    const data = await rpcRes.json();
-    if (data?.error) {
-      return NextResponse.json({ error: data.error }, { status: 400 });
-    }
-
-    return NextResponse.json({ success: true, ingredients_updated: data?.ingredients_updated || 0 });
+    return NextResponse.json({ success: true, ingredients_updated: ingredientIds.length });
   } catch (error: any) {
     console.error('[API /kitchen/sold-out] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

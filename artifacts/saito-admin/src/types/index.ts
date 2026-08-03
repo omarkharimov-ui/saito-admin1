@@ -187,7 +187,6 @@ export interface Reservation {
   pre_order_total?: number | null;
   kitchen_scheduled_at?: string | null;
   visitCount?: number;
-  is_vip?: boolean;
 }
 
 export interface PreOrderItem {

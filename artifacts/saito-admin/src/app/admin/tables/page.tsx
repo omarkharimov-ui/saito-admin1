@@ -172,7 +172,10 @@ const TablesPage = () => {
           {/* Table count */}
           <div className="flex items-center gap-2 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-lg px-3 py-2">
             <span className="text-white/40 text-xs">Masa sayı:</span>
-            <>
+            {loading ? (
+              <Loader2 size={14} className="animate-spin text-gold" />
+            ) : (
+              <>
                 <button
                   onClick={() => updateTableCount(tableCount - 1)}
                   className="w-6 h-6 flex items-center justify-center rounded bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-all"
@@ -187,6 +190,7 @@ const TablesPage = () => {
                   <Plus size={12} />
                 </button>
               </>
+            )}
           </div>
           <button
             onClick={printAll}

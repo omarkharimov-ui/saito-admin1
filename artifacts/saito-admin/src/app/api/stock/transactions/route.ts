@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     const ingredientId = req.nextUrl.searchParams.get('ingredientId');
 
     let query = supabase
-      .from('inventory_logs')
+      .from('stock_transactions')
       .select('*, ingredient:ingredients(name, unit)')
       .order('created_at', { ascending: false })
       .limit(100);
@@ -66,17 +66,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const logType = type === 'sale' ? 'order_consumption' : type === 'waste' ? 'waste' : 'adjustment';
-
     const { data, error } = await supabase
-      .from('inventory_logs')
+      .from('stock_transactions')
       .insert({
         ingredient_id: ingredientId,
-        type: logType,
-        quantity: Math.abs(quantity),
-        reason: description ?? null,
-        reference_type: 'manual',
-        notes: description ?? null,
+        quantity,
+        type,
+        description: description ?? null,
       })
       .select()
       .single();

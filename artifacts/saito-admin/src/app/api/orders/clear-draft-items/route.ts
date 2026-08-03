@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { requireActiveShift } from '@/lib/shiftLock';
 import { validateCsrfToken } from '@/lib/csrf';
 
 function svc() {
@@ -16,11 +15,6 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
-
-    const shiftCheck = await requireActiveShift();
-    if (!shiftCheck.ok) {
-      return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
-    }
 
     if (!validateCsrfToken(request)) {
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });

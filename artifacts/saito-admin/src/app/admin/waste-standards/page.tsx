@@ -6,7 +6,6 @@ import { Search, Plus, Trash2, Edit3, X, Loader2, Percent } from 'lucide-react';
 import { EmptyState, LoadingSkeleton } from '@/components/ui/primitives';
 import { toast } from '@/lib/toast';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import { useFirstLoad } from '@/hooks/useFirstLoad';
 import MobileModal from '@/components/ui/MobileModal';
 
 interface WasteStandard {
@@ -37,7 +36,6 @@ export default function WasteStandardsPage() {
   const { lightMode } = useTheme();
   const [data, setData] = useState<WasteStandard[]>([]);
   const [loading, setLoading] = useState(true);
-  const isFirstLoad = useFirstLoad(600, loading);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<ModalState>({ mode: null, data: null });
   const [saving, setSaving] = useState(false);
@@ -196,7 +194,11 @@ export default function WasteStandardsPage() {
         </div>
 
         {/* ── Table ── */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <Loader2 size={28} className="animate-spin text-white/15" />
+          </div>
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Percent size={20} />}
             title="Standart tapılmadı"

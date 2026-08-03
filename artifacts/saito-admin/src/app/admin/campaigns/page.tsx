@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { Plus, Percent, Search, X, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from '@/lib/toast';
-import { useFirstLoad } from '@/hooks/useFirstLoad';
 
 import { PageTransition } from '@/components/PageTransition';
 import { EmptyState } from '@/components/ui/primitives';
@@ -39,7 +38,6 @@ export default function CampaignsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [combos, setCombos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const isFirstLoad = useFirstLoad(600, loading);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<CampaignWithPerformance | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -349,7 +347,9 @@ export default function CampaignsPage() {
         </motion.div>
 
         {/* Content */}
-        {filteredCampaigns.length === 0 ? (
+        {loading ? (
+          <CampaignsSkeleton />
+        ) : filteredCampaigns.length === 0 ? (
           <EmptyState
             icon={<Percent size={20} />}
             title={campaigns.length === 0 ? 'Hələ kampaniya yaradılmayıb' : t('no_campaigns') || 'Kampaniya tapılmadı'}

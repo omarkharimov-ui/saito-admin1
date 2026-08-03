@@ -1,6 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { printerService } from './PrinterService';
-import { buildReceiptEscPos, buildReservationEscPos } from './EscPosBuilder';
 
 export interface ReceiptData {
   restaurantName: string;
@@ -25,11 +23,6 @@ export interface ReceiptData {
   time: string;
   paperWidth: string;
   copies: number;
-  customerName?: string;
-  customerPhone?: string;
-  deliveryAddress?: string;
-  deliveryFee?: number;
-  estimatedTime?: string;
 }
 
 function pad2(n: number) {
@@ -182,108 +175,25 @@ export async function printReceipt(data: ReceiptData): Promise<boolean> {
     copies: settings.copies,
   };
 
-  const printerType = printerService.getConfig().type;
-  const useNative = !printerService.isBrowserMode() && (printerType === 'escpos_usb' || printerType === 'escpos_network' || printerType === 'escpos_serial' || printerType === 'windows');
-
-  if (useNative) {
-    const escpos = buildReceiptEscPos(receiptData);
-    return printerService.print({
-      escpos,
-      paperWidth: receiptData.paperWidth === '58mm' ? '58mm' : '80mm',
-      copies: receiptData.copies,
-      title: receiptData.receiptTitle,
-    });
-  }
-
   const html = buildReceiptHtml(receiptData);
+  const paperWidth = receiptData.paperWidth === '58mm' ? 220 : 302;
 
-  return printerService.print({
-    html,
-    paperWidth: receiptData.paperWidth === '58mm' ? '58mm' : '80mm',
-    copies: receiptData.copies,
-    title: receiptData.receiptTitle,
-  });
-}
-
-export async function printReservation(data: {
-  restaurantName: string;
-  address?: string;
-  receiptTitle: string;
-  receiptCurrency: string;
-  serviceFeePct: number;
-  showServiceFee: boolean;
-  footerText?: string;
-  tableNumber?: number;
-  reservationId?: string;
-  guestName: string;
-  phone: string;
-  guests: number;
-  time: string;
-  notes?: string;
-  isVip?: boolean;
-  paperWidth: string;
-  copies: number;
-}): Promise<boolean> {
-  const settings = await getReceiptSettings();
-  const paperWidth = data.paperWidth === '58mm' ? '58mm' : '80mm';
-  const printerType = printerService.getConfig().type;
-  const useNative = !printerService.isBrowserMode() && (printerType === 'escpos_usb' || printerType === 'escpos_network' || printerType === 'escpos_serial' || printerType === 'windows');
-
-  const reservationData = {
-    restaurantName: data.restaurantName || settings.restaurantName,
-    receiptTitle: data.receiptTitle || settings.receiptTitle,
-    tableNumber: data.tableNumber,
-    reservationId: data.reservationId,
-    guestName: data.guestName,
-    phone: data.phone,
-    guests: data.guests,
-    time: data.time,
-    isVip: data.isVip,
-    notes: data.notes,
-  };
-
-  if (useNative) {
-    const escpos = buildReservationEscPos(reservationData);
-    return printerService.print({
-      escpos,
-      paperWidth,
-      copies: data.copies,
-      title: data.receiptTitle,
-    });
+  for (let i = 0; i < receiptData.copies; i++) {
+    const win = window.open('', '_blank', `width=${paperWidth + 40},height=600`);
+    if (!win) {
+      console.error('Print blocked: pop-up window could not be opened.');
+      return false;
+    }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    win.print();
+    if (i < receiptData.copies - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    win.close();
   }
 
-  const html = `<!DOCTYPE html><html><head>
-    <meta charset="utf-8"/>
-    <title>${data.receiptTitle}</title>
-    <style>
-      @page { size: ${paperWidth === '58mm' ? 220 : 302}px auto; margin: 0; }
-      * { margin:0; padding:0; box-sizing:border-box; }
-      body { font-family:'Courier New',Courier,monospace; background:#fff; color:#000; font-size:12px; }
-    </style>
-  </head><body>
-    <div style="width:${paperWidth === '58mm' ? 220 : 302}px;margin:0 auto;padding:20px 14px;line-height:1.5">
-      <div style="text-align:center;font-weight:700;font-size:14px;margin-bottom:2px">${data.restaurantName || settings.restaurantName}</div>
-      ${data.address ? `<div style="text-align:center;font-size:10px;margin-bottom:2px;color:#555">${data.address}</div>` : ''}
-      <div style="border:none;border-top:1px dashed #000;margin:6px 0"></div>
-      <div style="text-align:center;font-weight:700;font-size:13px;margin-bottom:6px">REZERVASİYA BİLETİ</div>
-      <div style="border:none;border-top:1px dashed #000;margin:6px 0"></div>
-      <div style="font-size:11px;margin-bottom:2px">Masa: <strong>${data.tableNumber ?? '-'}</strong></div>
-      ${data.reservationId ? `<div style="font-size:11px;margin-bottom:2px">Rezerv: #${data.reservationId.slice(0, 8)}</div>` : ''}
-      <div style="font-size:11px;margin-bottom:2px">Qonaq: <strong>${data.guestName}</strong></div>
-      <div style="font-size:11px;margin-bottom:2px">Telefon: ${data.phone}</div>
-      <div style="font-size:11px;margin-bottom:2px">Nəfər: ${data.guests}</div>
-      <div style="font-size:11px;margin-bottom:2px">Saat: ${data.time}</div>
-      ${data.isVip ? `<div style="font-size:11px;margin-bottom:2px;color:#B45309">VIP</div>` : ''}
-      ${data.notes ? `<div style="font-size:11px;margin-bottom:2px">Qeyd: ${data.notes}</div>` : ''}
-      <div style="border:none;border-top:1px dashed #000;margin:6px 0"></div>
-      <div style="text-align:center;font-size:10px;color:#555;margin-top:8px">Tezliklə gözləyirik!</div>
-    </div>
-  </body></html>`;
-
-  return printerService.print({
-    html,
-    paperWidth,
-    copies: data.copies,
-    title: data.receiptTitle,
-  });
+  return true;
 }

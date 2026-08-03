@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
-import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
-import type { PosProduct, PosTable, PosCart, PosCartItem, PosModifierSelection } from '../types/shared';
+import type { PosProduct, PosTable, PosCart, PosModifierSelection } from '../types/shared';
 
 export function usePos() {
   const [floors, setFloors] = useState<any[]>([]);
@@ -15,56 +14,23 @@ export function usePos() {
   const [variantsByProduct, setVariantsByProduct] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
-  const operationLocks = useRef<Set<string>>(new Set());
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [lastUndo, setLastUndo] = useState<any>(null);
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
-  const [posMode, setPosMode] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in');
   const [cart, setCart] = useState<PosCart | null>(null);
-  const [reservationMode, setReservationMode] = useState(false);
-  const [reservationId, setReservationId] = useState<string | null>(null);
-  const [reservationPreOrderItems, setReservationPreOrderItems] = useState<any[]>([]);
-  const [reservationInfo, setReservationInfo] = useState<{
-    reservation_id: string;
-    table_number: number;
-    name: string | null;
-    phone: string | null;
-    time: string | null;
-    guests: number;
-    is_vip?: boolean | null;
-  } | null>(null);
-  // guestCountLoading removed — optimistic UI update is instant, no loading guard
-  const selectTableReqId = useRef(0);
-
-  const getTerminalId = () => {
-    try {
-      const key = 'pos_terminal_id';
-      let id = sessionStorage.getItem(key);
-      if (!id) {
-        id = `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        sessionStorage.setItem(key, id);
-      }
-      return id;
-    } catch {
-      return `term_${Date.now()}`;
-    }
-  };
-  const terminalId = getTerminalId();
+  const [guestCountLoading, setGuestCountLoading] = useState(false);
 
   const retryWithBackoff = async (fn: () => Promise<Response>, retries = 3, delay = 1000): Promise<Response> => {
-    let lastError: any;
     for (let i = 0; i < retries; i++) {
       try {
         const res = await fn();
-        if (res.ok || (res.status >= 400 && res.status < 500)) return res;
-        lastError = new Error(`HTTP ${res.status}`);
+        if (res.ok) return res;
       } catch (e) {
-        lastError = e;
         if (i === retries - 1) throw e;
       }
       await new Promise(r => setTimeout(r, delay * Math.pow(2, i)));
     }
-    throw lastError || new Error('Max retries exceeded');
+    return Promise.reject(new Error('Max retries exceeded'));
   };
 
   // Light refresh: floor + open orders only. Used for every reactive operation
@@ -128,22 +94,12 @@ export function usePos() {
   // current closure (avoids stale state after re-renders).
   const fetchFloorRef = useRef(fetchFloor);
   useEffect(() => { fetchFloorRef.current = fetchFloor; }, [fetchFloor]);
-  const floorsRef = useRef(floors);
-  useEffect(() => { floorsRef.current = floors; }, [floors]);
 
   useEffect(() => {
     fetchData();
     const channel = createRealtimeChannel('pos-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, (payload) => {
-        const record = (payload as any)?.new || (payload as any)?.record || {};
-        if (record.updated_by_terminal_id === terminalId) return;
-        fetchFloorRef.current();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-        const record = (payload as any)?.new || (payload as any)?.record || {};
-        if (record.updated_by_terminal_id === terminalId) return;
-        fetchFloorRef.current();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_floors' }, () => fetchFloorRef.current())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchFloorRef.current())
       .subscribe();
 
     // Polling fallback: realtime events can be delayed or dropped (e.g. on slow
@@ -156,7 +112,7 @@ export function usePos() {
       clearInterval(poll);
       removeRealtimeChannel(channel); 
     };
-  }, [fetchData, terminalId]);
+  }, [fetchData]);
 
   const selectTable = async (table: PosTable, opts?: { allowReserved?: boolean }) => {
     const sameTable =
@@ -165,6 +121,9 @@ export function usePos() {
 
     if (sameTable && activeView === 'order') return;
 
+    // Reserved tables are normally blocked, but a reservation's pre-order flow
+    // must be able to open the reserved table directly in the POS (the
+    // reservation context is linked via selectTable's allowReserved flag).
     if (table.status === 'reserved' && !opts?.allowReserved) {
       toast.error('Bu masa rezerv edilib. Öncə rezervasiyanı aktivləşdirməlisiniz.', { id: 'action-toast' });
       return;
@@ -175,51 +134,39 @@ export function usePos() {
       return;
     }
 
+
+
     const switchingToDifferentTable = selectedTable?.table_number !== table.table_number;
-    const reqId = ++selectTableReqId.current;
 
     setSelectedTable(table);
     setActiveView('order');
 
-    // Snapshot current items BEFORE the async fetch (for draft preservation)
-    const prevCartItems = cart?.items ?? [];
-    const draftItems = prevCartItems.filter((i) => (i.sentQuantity ?? 0) === 0);
-    const sentItems = prevCartItems.filter((i) => (i.sentQuantity ?? 0) > 0);
-
-    // Set a loading cart immediately so the UI is not blank during fetch
+    // Only reset the cart when switching to a DIFFERENT table. Re-selecting the
+    // same table (e.g. after going back to the floor and returning) must keep
+    // the existing cart — including items that have not been sent to the
+    // kitchen yet — otherwise they silently disappear.
     if (switchingToDifferentTable || !cart) {
-      // For a different table: show sent items optimistically while we fetch
       setCart({
+        table_id: table.id,
         table_number: table.table_number,
-        guest_count: table.guest_count || 1,
-        items: switchingToDifferentTable ? [] : sentItems,
+        guest_count: cart?.guest_count || table.guest_count || 1,
+        items: [],
         notes: '',
         order_type: 'dine_in'
       });
     }
 
+    // Preserve any local draft items across the server reload. We snapshot
+    // them before the fetch so they survive even if the server returns no
+    // orders yet (e.g. brand-new table).
+    const prevDraftItems = (cart?.items ?? []).filter((i: any) => (i.sentQuantity ?? 0) === 0);
+
     try {
-      // Find merged children from floor data for this table
-      const childTables: number[] = [];
-      for (const f of floorsRef.current) {
-        for (const g of (f.merged_groups || [])) {
-          if (g.parent?.table_number === table.table_number) {
-            for (const c of (g.children || [])) {
-              childTables.push(c.table_number);
-            }
-          }
-        }
-      }
-      const tableNums = [table.table_number, ...childTables];
-      const params = tableNums.map(n => `table_number=${n}`).join('&');
-      const res = await apiFetch(`/api/orders?${params}`);
-      if (reqId !== selectTableReqId.current) return;
+      const res = await fetch('/api/orders');
       if (res.ok) {
         const data = await res.json();
         const orders = data.orders || [];
-        const orderItems = (orders || []).flatMap((o: any) =>
-          (o.order_items || []).map((item: any) => ({ ...item, order_id: o.id }))
-        );
+        const orderItems = data.orderItems || [];
 
         const primary = orders.find(
           (o: any) =>
@@ -246,9 +193,8 @@ export function usePos() {
               unit_price: item.unit_price,
               quantity: item.quantity,
               total_price: item.total_price,
-              modifiers: typeof item.modifiers === 'string' ? JSON.parse(item.modifiers || '[]') : (item.modifiers || []),
+              modifiers: item.modifiers ? JSON.parse(item.modifiers) : [],
               special_notes: item.special_notes || '',
-              hold_until: item.hold_until || null,
               is_combo: !!item.is_combo_parent,
               combo_id: item.combo_group_id || null,
               sentQuantity: item.quantity,
@@ -260,96 +206,89 @@ export function usePos() {
           setCart(prev => {
             if (!prev) return null;
             const merged = serverItems.map((i: any) => ({ ...i }));
-            // Merge in any unsent (draft) items from local state
-            for (const u of [...draftItems, ...prev.items.filter(i => (i.sentQuantity ?? 0) === 0)]) {
-              const key = `${u.product_id}__${u.variant_id || ''}`;
-              const found = merged.find((m: any) => `${m.product_id}__${m.variant_id || ''}` === key);
-              if (found) {
-                found.quantity += u.quantity;
-                found.total_price = found.unit_price * found.quantity;
-              } else {
-                merged.push(u);
+            for (const u of prev.items) {
+              if ((u.sentQuantity ?? 0) === 0) {
+                const found = merged.find(
+                  (m: any) => m.product_id === u.product_id && (m.variant_id ?? null) === (u.variant_id ?? null)
+                );
+                if (found) {
+                  found.quantity += u.quantity;
+                  found.total_price = found.unit_price * found.quantity;
+                } else {
+                  merged.push(u);
+                }
               }
             }
             return {
+              table_id: table.id,
               table_number: table.table_number,
               guest_count: primary.guest_count || table.guest_count || 1,
               items: merged,
               notes: primary.customer_note || '',
               order_type: primary.order_type || 'dine_in',
-              order_id: primary.id,
               serverTotal: serverTotal !== itemSum ? serverTotal : undefined,
             };
           });
         } else {
-          // No active server order for this table — clear cart (drafts belong to previous table)
+          // No active server order yet — restore any drafts we had before.
+          if (prevDraftItems.length > 0) {
+            setCart(prev => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                items: [...prevDraftItems],
+              };
+            });
+          }
         }
       }
     } catch (e) {
       console.error('Failed to load existing order items:', e);
       // On failure, still restore drafts so the user does not lose work.
-      if (draftItems.length > 0 && reqId === selectTableReqId.current) {
+      if (prevDraftItems.length > 0) {
         setCart(prev => {
           if (!prev) return null;
           return {
             ...prev,
-            items: [...prev.items.filter(i => (i.sentQuantity ?? 0) > 0), ...draftItems],
+            items: [...prevDraftItems],
           };
         });
       }
     }
   };
 
-  const withOperationLock = async (key: string, fn: () => Promise<any>): Promise<any> => {
-    if (operationLocks.current.has(key)) return null;
-    operationLocks.current.add(key);
-    try {
-      return await fn();
-    } finally {
-      operationLocks.current.delete(key);
-    }
-  };
-
   const mergeTables = async (tableNumbers: number[]) => {
-    return withOperationLock(`merge_${tableNumbers.sort().join(',')}`, async () => {
-      const res = await apiFetch('/api/orders/merge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_numbers: tableNumbers }),
-      });
+    const res = await fetch('/api/orders/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table_numbers: tableNumbers }),
+    });
+    if (res.ok) {
       const data = await res.json();
-      if (!res.ok || !data?.success) {
-        toast.error(data?.error || 'Merge failed');
-        return null;
-      }
       setLastUndo({ action: 'merge', data: data.data?.undo, message: 'Masalar birləşdirildi' });
       fetchFloor();
       return { action: 'merge' as const, data: data.data?.undo, message: 'Masalar birləşdirildi' };
-    });
+    } else {
+      const err = await res.json();
+      toast.error(err.error);
+      return null;
+    }
   };
 
   const transferTable = async (from: number, to: number) => {
-    return withOperationLock(`transfer_${from}_${to}`, async () => {
-      const csrfToken = typeof document !== 'undefined'
-        ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || ''
-        : '';
-      const res = await apiFetch('/api/orders/transfer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
-        body: JSON.stringify({ from_table: from, to_table: to }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setLastUndo({ action: 'transfer', data: data.undo, message: `Masa ${from} → ${to}` });
-        fetchFloor();
-      } else {
-        const err = await res.json();
-        toast.error(err.error);
-      }
+    const res = await fetch('/api/orders/transfer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_table: from, to_table: to }),
     });
+    if (res.ok) {
+      const data = await res.json();
+      setLastUndo({ action: 'transfer', data: data.undo, message: `Masa ${from} → ${to}` });
+      fetchFloor();
+    } else {
+      const err = await res.json();
+      toast.error(err.error);
+    }
   };
 
   // Optimistically reflect a table as empty across all floors in local state
@@ -368,45 +307,19 @@ export function usePos() {
   }, []);
 
   const dismissTable = async (num: number) => {
-    return withOperationLock(`dismiss_${num}`, async () => {
-      const res = await apiFetch('/api/orders/dismiss', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: num }),
-      });
-      if (res.ok) {
-        const childNums: number[] = [];
-        for (const floor of floors) {
-          for (const t of (floor.tables || [])) {
-            if (t.merged_into_table === num) childNums.push(t.table_number);
-          }
-        }
-        toast.success('Masa boşaldıldı');
-        markTableEmptyLocal([num, ...childNums]);
-        fetchFloor();
-      } else {
-        const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
-        toast.error(err.error || 'Masa boşaldılmadı');
-      }
+    const res = await fetch('/api/orders/dismiss', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table_number: num }),
     });
-  };
-
-  const clearTable = async (num: number) => {
-    return withOperationLock(`clear_${num}`, async () => {
-      const res = await fetch('/api/orders/clear-table', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ table_number: num }),
-      });
-      if (res.ok) {
-        markTableEmptyLocal([num]);
-        fetchFloor();
-      } else {
-        const err = await res.json().catch(() => ({ error: 'Clear failed' }));
-        toast.error(err.error || 'Masa təmizlənmədi');
-      }
-    });
+    if (res.ok) {
+      toast.success('Masa boşaldıldı');
+      markTableEmptyLocal([num]);
+      fetchFloor();
+    } else {
+      const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
+      toast.error(err.error || 'Masa boşaldılmadı');
+    }
   };
 
   const performUndo = async () => {
@@ -459,12 +372,14 @@ export function usePos() {
     setCart(prev => {
       let base = prev;
       if (!base) {
+        if (!selectedTable) return null;
         base = {
-          table_number: selectedTable?.table_number || null,
-          guest_count: selectedTable?.guest_count || 1,
+          table_id: selectedTable.id,
+          table_number: selectedTable.table_number,
+          guest_count: selectedTable.guest_count || 1,
           items: [],
           notes: '',
-          order_type: posMode
+          order_type: 'dine_in' as const
         };
       }
       const items = base.items.map(i => ({ ...i }));
@@ -485,7 +400,7 @@ export function usePos() {
         existing.quantity += 1;
         existing.total_price = existing.unit_price * existing.quantity;
       } else {
-        const newItem = {
+        items.push({
           product_id: p.id,
           product_name: p.name,
           unit_price: unitPrice,
@@ -494,32 +409,11 @@ export function usePos() {
           total_price: unitPrice,
           modifiers: opts?.modifiers ?? [],
           variant_id: variantId,
-          special_notes: opts?.notes ?? '',
+          notes: opts?.notes ?? '',
           campaign_id: campaignId,
           campaign_discount_amount: campaignDiscount,
           campaign_discount_type: campaignDiscountType,
-          is_pre_order: reservationMode,
-          pre_order_id: reservationMode ? `cart_${Date.now()}_${Math.random().toString(36).slice(2, 9)}` : undefined,
-        };
-        items.push(newItem);
-
-        if (reservationMode && reservationId) {
-          apiFetch('/api/reservations/pre-order-items', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              reservation_id: reservationId,
-              items: [{
-                product_id: p.id,
-                product_name: p.name,
-                quantity: 1,
-                unit_price: unitPrice,
-                modifiers: opts?.modifiers ?? [],
-                special_notes: opts?.notes ?? '',
-              }],
-            }),
-          }).catch(() => {});
-        }
+        });
       }
       return { ...base, items };
     });
@@ -547,7 +441,7 @@ export function usePos() {
           modifiers: [],
           is_combo: true,
           combo_id: combo.id,
-          special_notes: opts?.notes ?? ''
+          notes: opts?.notes ?? ''
         });
       }
       return { ...prev, items };
@@ -567,42 +461,7 @@ export function usePos() {
     });
   };
 
-  const logOperation = async (action: string, payload: Record<string, any> = {}) => {
-    try {
-      await apiFetch('/api/operation-logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          table_number: selectedTable?.table_number || payload.table_number || null,
-          order_id: cart?.order_id || payload.order_id || null,
-          reservation_id: reservationId || payload.reservation_id || null,
-          action,
-          old_values: payload.old_values || null,
-          new_values: payload.new_values || null,
-          performed_by: null,
-        }),
-      });
-    } catch {
-      // non-blocking
-    }
-  };
-
-  const placeOrder = async (campaign?: { id?: string; type?: string }, checkoutOverrides?: {
-    customer_phone?: string;
-    customer_name?: string;
-    customer_note?: string;
-    delivery_address?: string;
-    delivery_district?: string;
-    delivery_street?: string;
-    delivery_building?: string;
-    delivery_floor?: string;
-    delivery_apartment?: string;
-    delivery_intercom?: string;
-    delivery_zone?: string;
-    delivery_fee?: number;
-    estimated_delivery_time?: string;
-    payment_method?: string;
-  }, assignedTo?: string) => {
+  const placeOrder = async (campaign?: { id?: string; type?: string }) => {
     if (!cart || placingOrder) return;
     setPlacingOrder(true);
     try {
@@ -618,18 +477,15 @@ export function usePos() {
           unit_price: x.item.unit_price,
           quantity: x.delta,
           modifiers: x.item.modifiers || [],
-          special_notes: x.item.special_notes || '',
+          special_notes: x.item.special_notes || x.item.notes || '',
           variant_id: x.item.variant_id || null,
           is_combo: x.item.is_combo || false,
           combo_id: x.item.combo_id || null,
-          original_unit_price: x.item.original_unit_price || null,
-          campaign_id: x.item.campaign_id || null,
-          campaign_discount_amount: x.item.campaign_discount_amount || 0,
-          campaign_discount_type: x.item.campaign_discount_type || null,
-          seat_number: x.item.seat_number || null,
         }));
 
       if (unsent.length === 0) {
+        // Nothing new to send — do not clear the cart or claim a send. Just
+        // return to the floor so the operator keeps their in-progress items.
         if (cart.items.length > 0) {
           toast('Yeni məhsul yoxdur', { id: 'action-toast' });
         }
@@ -639,22 +495,24 @@ export function usePos() {
 
       // Reuse the table's existing active order (e.g. a reservation draft) instead
       // of creating a 2nd active order, which would violate idx_orders_active_table.
-      // For takeaway/delivery: use cart.order_id if already created via modal
-      let activeOrderId: string | null = cart.order_id || null;
-      if (!activeOrderId && cart.table_number) {
-        try {
-          const ordersRes = await fetch('/api/orders', { credentials: 'include' });
-          if (ordersRes.ok) {
-            const data = await ordersRes.json();
-            const active = (data.orders || []).find(
-              (o: any) => o.table_number === cart.table_number && !['paid', 'cancelled', 'closed'].includes(o.status)
-            );
-            activeOrderId = active?.id || null;
-          }
-        } catch { /* fall through to create */ }
-      }
+      let activeOrderId: string | null = null;
+      try {
+        const ordersRes = await fetch('/api/orders');
+        if (ordersRes.ok) {
+          const data = await ordersRes.json();
+          const active = (data.orders || []).find(
+            (o: any) => o.table_number === cart.table_number && !['paid', 'cancelled', 'closed'].includes(o.status)
+          );
+          activeOrderId = active?.id || null;
+        }
+      } catch { /* fall through to create */ }
 
       const itemBasedDiscount = cart.items.reduce((s, i) => s + Math.max(0, ((i.original_unit_price ?? i.unit_price) - i.unit_price) * i.quantity), 0);
+      // Determine the real discount type from the per-item campaign deltas so we
+      // do not hardcode 'fixed' when the applied campaign was percentage-based.
+      // A campaign_id is present only when getAutoCampaign selected one; in that
+      // case the discount type should match that campaign's rule, otherwise fall
+      // back to the dominant type among the cart's item-level campaigns.
       const autoCampaign = campaign?.id ? getAutoCampaign(cart) : null;
       let computedType: 'percentage' | 'fixed' | null = null;
       if (itemBasedDiscount > 0) {
@@ -670,61 +528,34 @@ export function usePos() {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(
           activeOrderId
-            ? { action: 'addItems', id: activeOrderId, items: unsent, terminal_id: terminalId }
+            ? { action: 'addItems', id: activeOrderId, items: unsent }
             : {
-                ...(cart.table_number !== undefined && cart.table_number !== null ? { table_number: cart.table_number } : {}),
-                terminal_id: terminalId,
+                table_number: cart.table_number,
                 items: unsent,
                 status: 'confirmed',
                 guest_count: cart.guest_count,
-                customer_note: checkoutOverrides?.customer_note || cart.notes,
+                customer_note: cart.notes,
                  order_type: cart.order_type,
-                 order_source: posMode,
                  customer_id: cart.customer_id || null,
-                 customer_name: checkoutOverrides?.customer_name || cart.customer_name || null,
-                 customer_phone: checkoutOverrides?.customer_phone || cart.customer_phone || null,
-                 delivery_address: checkoutOverrides?.delivery_address || cart.delivery_address || null,
-                 delivery_district: checkoutOverrides?.delivery_district || cart.delivery_district || null,
-                 delivery_street: checkoutOverrides?.delivery_street || cart.delivery_street || null,
-                 delivery_building: checkoutOverrides?.delivery_building || cart.delivery_building || null,
-                 delivery_floor: checkoutOverrides?.delivery_floor || cart.delivery_floor || null,
-                 delivery_apartment: checkoutOverrides?.delivery_apartment || cart.delivery_apartment || null,
-                 delivery_intercom: checkoutOverrides?.delivery_intercom || cart.delivery_intercom || null,
-                 delivery_zone: checkoutOverrides?.delivery_zone || cart.delivery_zone || null,
-                 delivery_fee: checkoutOverrides?.delivery_fee ?? cart.delivery_fee ?? 0,
-                 estimated_delivery_time: checkoutOverrides?.estimated_delivery_time || cart.estimated_delivery_time || null,
-                 scheduled_date: cart.scheduled_date || null,
+                 customer_name: cart.customer_name || null,
                  reservation_id: cart.reservation_id || null,
-                 assigned_to: assignedTo || null,
                  discount_amount: computedDiscount.amount,
                  discount_type: computedDiscount.type,
                  campaign_id: campaign?.id || null,
-                 is_rush: false,
-                 payment_method: checkoutOverrides?.payment_method || null,
-                }
+               }
         ),
       });
-      let createdOrderId: string | null = null;
       if (res.ok) {
-        const data = await res.json();
-        createdOrderId = data.data?.id || data.id || data.order?.id || activeOrderId;
         toast.success('Sifariş göndərildi');
-        logOperation('place_order', {
-          order_id: createdOrderId,
-          table_number: cart.table_number,
-          new_values: { items: unsent.length, total: unsent.reduce((s, u) => s + u.unit_price * u.quantity, 0) },
-        }).catch(() => {});
-        // Merge both setCart calls into one to avoid losing order_id:
-        // 1) Set order_id  2) Advance sentQuantity for sent items
+        // Advance sentQuantity by exactly what was sent so re-sending the same
+        // cart never double-sends already-kitchened items.
         const sentKeys = new Set(unsent.map(u => `${u.product_id}__${u.variant_id || ''}__${u.is_combo ? 'c' : 'p'}`));
         setCart(prev => {
           if (!prev) return null;
           return {
             ...prev,
-            order_id: createdOrderId,
             items: prev.items.map(i => {
               const key = `${i.product_id}__${i.variant_id || ''}__${i.is_combo ? 'c' : 'p'}`;
               if (!sentKeys.has(key)) return i;
@@ -733,52 +564,6 @@ export function usePos() {
             })
           };
         });
-
-        // For takeaway/delivery: auto-print kitchen receipt immediately
-        if (posMode !== 'dine_in' && cart) {
-          try {
-            const settings = await getReceiptSettings();
-            const items = unsent.map(u => ({
-              name: u.product_name || 'Məhsul',
-              quantity: u.quantity,
-              price: u.unit_price * u.quantity,
-            }));
-            await printReceipt({
-              restaurantName: settings.restaurantName,
-              address: settings.address,
-              receiptTitle: posMode === 'takeaway' ? 'GEL-AL SİFARIŞI' : 'ÇATDIRMA SİFARIŞI',
-              currency: settings.receiptCurrency,
-              serviceFeePct: settings.serviceFeePct,
-              showServiceFee: settings.showServiceFee,
-              footerText: settings.footerText,
-              tableNumber: cart.table_number || 0,
-              orderId: activeOrderId || 'yangi',
-              items,
-              subtotal: unsent.reduce((s, u) => s + u.unit_price * u.quantity, 0),
-              discount: 0,
-              tip: 0,
-              total: unsent.reduce((s, u) => s + u.unit_price * u.quantity, 0),
-              paymentMethod: 'pending',
-              cashAmount: 0,
-              cardAmount: 0,
-              customerName: cart.customer_name || undefined,
-              customerPhone: cart.customer_phone || undefined,
-              deliveryAddress: cart.delivery_address || undefined,
-              deliveryFee: cart.delivery_fee || 0,
-              estimatedTime: cart.estimated_delivery_time || undefined,
-              date: new Date().toISOString(),
-              time: new Date().toISOString(),
-              paperWidth: settings.paperWidth,
-              copies: settings.copies,
-            });
-          } catch (printErr) {
-            console.error('Kitchen print failed:', printErr);
-          }
-        }
-
-        if (posMode !== 'dine_in') {
-          setCart(prev => prev ? { ...prev, items: [] } : null);
-        }
         setActiveView('floor');
         fetchFloor().catch(() => {});
       } else {
@@ -788,8 +573,6 @@ export function usePos() {
         } else {
           toast.error(err.error || 'Sifariş göndərilmədi', { id: 'action-toast' });
         }
-        // Refresh to clear any stale state so the user sees current server data
-        fetchFloor().catch(() => {});
       }
     } finally {
       setPlacingOrder(false);
@@ -799,15 +582,14 @@ export function usePos() {
   const clearCart = () => {
     const current = cart;
     if (!current) return;
-    // Remove unsent (draft) items entirely
-    const draftIds = current.items
-      .filter(item => (item.sentQuantity ?? 0) === 0 && (item as any).id)
-      .map(item => (item as any).id);
-    // For sent items, reset quantity back to sentQuantity (undo unsent additions)
-    const keptItems = current.items
-      .filter(item => (item.sentQuantity ?? 0) > 0)
-      .map(item => ({ ...item, quantity: item.sentQuantity ?? item.quantity }));
+    // Keep only items that were already sent to the kitchen; drop drafts.
+    const keptItems = current.items.filter(item => (item.sentQuantity ?? 0) > 0);
     setCart(prev => prev ? { ...prev, items: keptItems } : null);
+    // Persist the removal of draft items on the server so they don't reappear
+    // on the next floor refresh / selectTable reload.
+    const draftIds = current.items
+      .filter(item => (item.sentQuantity ?? 0) === 0 && item.id)
+      .map(item => item.id);
     if (draftIds.length > 0) {
       apiFetch('/api/orders/clear-draft-items', {
         method: 'POST',
@@ -818,40 +600,42 @@ export function usePos() {
   };
 
   const updateGuestCount = async (delta: number) => {
-    if (!cart || !selectedTable) return;
+    if (!cart || !selectedTable || guestCountLoading) return;
 
     const previousCount = cart.guest_count || 1;
-    const newCount = Math.max(1, previousCount + delta);
+    const minGuests = 1;
+    const maxGuests = selectedTable.capacity ?? 99;
+    const newCount = Math.min(maxGuests, Math.max(minGuests, previousCount + delta));
 
-    if (newCount === previousCount) return;
+    if (newCount === previousCount) {
+      if (delta > 0) toast.error(`Masa tutumu ${maxGuests} nəfər. Daha çox əlavə edə bilməzsiniz.`, { id: 'guest-capacity' });
+      if (delta < 0) toast.error('Minimum 1 nəfər olmalıdır', { id: 'guest-minimum' });
+      return;
+    }
 
-    const requestId = Date.now() + Math.random();
-    setCart(prev => prev ? { ...prev, guest_count: newCount } : null);
-
-    // New cart (no order placed yet) — keep it local, placeOrder persists the
-    // count. Only persist when an active order actually exists in the DB, so
-    // empty tables can never receive a guest count.
-    if (!cart.order_id) return;
+    setGuestCountLoading(true);
+    const optimisticCount = newCount;
+    setCart(prev => prev ? { ...prev, guest_count: optimisticCount } : null);
 
     try {
       const tableNum = cart.table_number || selectedTable.table_number;
       const res = await apiFetch('/api/orders/guest-count', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table_number: tableNum, guest_count: newCount }),
+        body: JSON.stringify({ table_number: tableNum, guest_count: optimisticCount }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Guest count update failed');
       }
+
+      // Realtime will refresh the floor; no manual fetch needed.
     } catch (e: any) {
-      setCart(prev => {
-        if (!prev) return null;
-        if ((prev.guest_count || 1) !== newCount) return prev;
-        return { ...prev, guest_count: previousCount };
-      });
+      setCart(prev => prev ? { ...prev, guest_count: previousCount } : null);
       toast.error(e?.message || 'Qonaq sayı yenilənə bilmədi', { id: 'guest-count-error' });
+    } finally {
+      setGuestCountLoading(false);
     }
   };
 
@@ -864,321 +648,10 @@ export function usePos() {
     } : null);
   };
 
-  const updateOrderType = (type: 'dine_in' | 'takeaway' | 'delivery') => {
-    setPosMode(type);
-    setCart(prev => prev ? { ...prev, order_type: type } : null);
-  };
-
-  const initializeTakeawayCart = () => {
-    setSelectedTable(null);
-    setCart({
-      table_number: null,
-      guest_count: 1,
-      items: [],
-      notes: '',
-      order_type: posMode,
-      customer_id: null,
-      customer_name: null,
-      customer_phone: null,
-      delivery_address: null,
-      delivery_fee: 0,
-      estimated_delivery_time: null,
-      order_id: null,
-    });
-  };
-
-  const loadOrderIntoCart = (order: any) => {
-    setSelectedTable(null);
-    const orderItems = order.items || order.order_items || [];
-    setCart({
-      table_number: null,
-      guest_count: order.guest_count || 1,
-      items: orderItems.map((item: any) => ({
-        product_id: item.product_id,
-        product_name: item.product_name || item.products?.name_az || item.products?.name_en || 'Məhsul',
-        unit_price: item.unit_price,
-        quantity: item.quantity,
-        total_price: item.total_price ?? item.unit_price * item.quantity,
-        modifiers: item.modifiers ? (typeof item.modifiers === 'string' ? JSON.parse(item.modifiers) : item.modifiers) : [],
-        special_notes: item.special_notes || '',
-        variant_id: item.variant_id || null,
-        is_combo: !!item.is_combo_parent,
-        combo_id: item.combo_group_id || null,
-        sentQuantity: item.quantity,
-      })),
-      notes: order.special_notes || order.customer_note || '',
-      order_type: order.order_type || order.order_source || 'takeaway',
-      customer_id: order.customer_id || null,
-      customer_name: order.customer_name || null,
-      customer_phone: order.customer_phone || null,
-      delivery_address: order.delivery_address || null,
-      delivery_fee: order.delivery_fee || 0,
-      estimated_delivery_time: order.estimated_delivery_time || null,
-      order_id: order.id,
-      payment_method: order.payment_method || null,
-    });
-  };
-
-  // Create order shell (for takeaway/delivery) via RPC, then set order_id on cart
-  const createOrderShell = async (details: {
-    customer_phone?: string;
-    customer_name?: string;
-    customer_note?: string;
-    delivery_address?: string;
-    delivery_fee?: number;
-    estimated_pickup_time?: string;
-    estimated_delivery_time?: string;
-  }): Promise<string | null> => {
-    try {
-      let result: any = null;
-      if (posMode === 'takeaway') {
-        const res = await fetch('/api/rpc/create_takeaway_order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            p_customer_phone: details.customer_phone || null,
-            p_customer_name: details.customer_name || null,
-            p_customer_note: details.customer_note || null,
-            p_estimated_pickup_time: details.estimated_pickup_time || null,
-            p_items: JSON.stringify(cart?.items?.map((i: any) => ({
-              product_id: i.product_id,
-              product_name: i.product_name,
-              quantity: i.quantity,
-              unit_price: i.unit_price,
-              total_price: i.total_price,
-              modifiers: i.modifiers || [],
-              special_notes: i.special_notes || '',
-            })) || []),
-          }),
-        });
-        result = await res.json();
-      } else {
-        const res = await fetch('/api/rpc/create_delivery_order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            p_customer_phone: details.customer_phone || null,
-            p_customer_name: details.customer_name || null,
-            p_customer_note: details.customer_note || null,
-            p_delivery_address: details.delivery_address || null,
-            p_delivery_fee: details.delivery_fee || 0,
-            p_estimated_delivery_time: details.estimated_delivery_time || null,
-            p_items: JSON.stringify(cart?.items?.map((i: any) => ({
-              product_id: i.product_id,
-              product_name: i.product_name,
-              quantity: i.quantity,
-              unit_price: i.unit_price,
-              total_price: i.total_price,
-              modifiers: i.modifiers || [],
-              special_notes: i.special_notes || '',
-            })) || []),
-          }),
-        });
-        result = await res.json();
-      }
-
-      if (result?.data?.success && result.data.order_id) {
-        const orderId = result.data.order_id;
-        const orderNumber = result.data.order_number;
-        // Update cart with order_id and customer details
-        setCart(prev => prev ? {
-          ...prev,
-          order_id: orderId,
-          customer_phone: details.customer_phone || prev.customer_phone,
-          customer_name: details.customer_name || prev.customer_name,
-          delivery_address: details.delivery_address || prev.delivery_address,
-          delivery_fee: details.delivery_fee || prev.delivery_fee,
-          estimated_delivery_time: details.estimated_delivery_time || prev.estimated_delivery_time,
-        } : null);
-        toast.success(`${orderNumber} yaradıldı`);
-        return orderId;
-      }
-    } catch (e) {
-      console.error('Failed to create order shell:', e);
-    }
-    return null;
-  };
-
-  const savePreOrder = async () => {
-    if (!cart || !reservationId || !selectedTable) return;
-    
-    const itemsToSave = reservationMode 
-      ? cart.items 
-      : cart.items.filter(i => (i.sentQuantity ?? 0) === 0);
-    
-    if (itemsToSave.length === 0) return;
-
-    try {
-      const res = await apiFetch('/api/reservations/save-preorder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reservation_id: reservationId,
-          table_number: selectedTable.table_number,
-          guest_count: cart.guest_count || 1,
-          customer_name: cart.customer_name || null,
-          customer_note: cart.notes || null,
-          items: itemsToSave.map(i => ({
-            product_id: i.product_id,
-            product_name: i.product_name,
-            quantity: i.quantity,
-            unit_price: i.unit_price,
-            modifiers: i.modifiers || [],
-            special_notes: i.special_notes || '',
-          })),
-        }),
-      });
-
-      if (res.ok) {
-        setCart(prev => prev ? {
-          ...prev,
-          items: prev.items.map(i => ({ ...i, sentQuantity: i.quantity })),
-        } : null);
-        toast.success('Pre-order yadda saxlanıldı');
-        fetchFloor();
-      } else {
-        const err = await res.json().catch(() => ({ error: 'Xəta' }));
-        toast.error(err.error || 'Pre-order yadda saxlanıla bilmədi');
-      }
-    } catch {
-      toast.error('Xəta');
-    }
-  };
-
-  const enterReservationMode = async (table: PosTable) => {
-    setReservationMode(true);
-    setReservationId(table.reservation_id || null);
-    setReservationInfo({
-      reservation_id: table.reservation_id || '',
-      table_number: table.table_number,
-      name: table.reservation_name || null,
-      phone: table.reservation_phone || null,
-      time: table.reservation_time || null,
-      guests: table.guest_count || 1,
-      is_vip: table.is_vip || false,
-    });
-    setSelectedTable(table);
-    setActiveView('order');
-    setReservationPreOrderItems([]);
-
-    try {
-      const preOrderRes = await apiFetch(`/api/reservations/pre-order-items?reservation_id=${table.reservation_id}`);
-
-      let reservationItems: any[] = [];
-
-      if (preOrderRes.ok) {
-        const data = await preOrderRes.json();
-        reservationItems = Array.isArray(data.items) ? data.items : [];
-      }
-
-      const merged = reservationItems;
-      setReservationPreOrderItems(merged);
-
-      const cartItems: PosCartItem[] = merged.map((item: any) => ({
-        product_id: item.product_id || '',
-        product_name: item.product_name || 'Məhsul',
-        unit_price: Number(item.unit_price || 0),
-        original_unit_price: Number(item.unit_price || 0),
-        quantity: item.quantity || 1,
-        total_price: Number(item.unit_price || 0) * (item.quantity || 1),
-        modifiers: item.modifiers || [],
-        variant_id: null,
-        special_notes: item.special_notes || '',
-        campaign_id: null,
-        campaign_discount_amount: 0,
-        campaign_discount_type: null,
-        sentQuantity: item._draft ? (item.quantity || 1) : 0,
-        is_pre_order: true,
-        pre_order_id: item.id || item._order_id,
-      }));
-
-      setCart({
-        table_number: table.table_number,
-        guest_count: table.guest_count || 1,
-        items: cartItems,
-        notes: '',
-        order_type: 'dine_in',
-        reservation_id: table.reservation_id || null,
-      });
-    } catch {
-      setReservationPreOrderItems([]);
-      setCart({
-        table_number: table.table_number,
-        guest_count: table.guest_count || 1,
-        items: [],
-        notes: '',
-        order_type: 'dine_in',
-        reservation_id: table.reservation_id || null,
-      });
-    }
-  };
-
-  const exitReservationMode = () => {
-    setReservationMode(false);
-    setReservationId(null);
-    setReservationPreOrderItems([]);
-    setReservationInfo(null);
-  };
-
-  const guestArrived = async () => {
-    if (!reservationId) return;
-    try {
-      if (reservationMode && cart?.items?.length) {
-        const newPreOrders = cart.items
-          .filter(i => i.is_pre_order)
-          .map(i => ({
-            product_id: i.product_id,
-            product_name: i.product_name,
-            quantity: i.quantity,
-            unit_price: i.unit_price,
-            modifiers: i.modifiers || [],
-            special_notes: i.special_notes || '',
-          }));
-
-        if (newPreOrders.length) {
-          await apiFetch('/api/reservations/pre-order-items', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              reservation_id: reservationId,
-              items: newPreOrders,
-            }),
-          }).catch(() => {});
-        }
-      }
-
-      const res = await apiFetch('/api/reservations/guest-arrived', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reservation_id: reservationId,
-          performed_by: null,
-        }),
-      });
-      if (res.ok) {
-        toast.success('Qonaq gəldi — masa açıldı');
-        logOperation('guest_arrived', {
-          reservation_id: reservationId,
-          table_number: selectedTable?.table_number,
-          new_values: { status: 'arrived' },
-        }).catch(() => {});
-        exitReservationMode();
-        fetchFloor();
-      } else {
-        const err = await res.json().catch(() => ({ error: 'Xəta' }));
-        toast.error(err.error || 'Qonaq gəlmədi');
-      }
-    } catch {
-      toast.error('Xəta');
-    }
-  };
-
   return {
-    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, posMode,
-    fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo,
+    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, guestCountLoading,
+    fetchData, selectTable, mergeTables, transferTable, dismissTable, performUndo,
     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
-    updateCartCustomer, updateOrderType, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
-    reservationMode, reservationId, reservationPreOrderItems, reservationInfo,
-    enterReservationMode, exitReservationMode, guestArrived, savePreOrder, terminalId
+    updateCartCustomer, getAutoCampaign
   };
 }

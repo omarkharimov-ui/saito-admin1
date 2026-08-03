@@ -1,38 +1,47 @@
 'use client';
 
 import React from 'react';
-import { Search } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Search, Trash2, XCircle } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface Props {
   timeFilter: 'today' | 'future' | 'archive';
-  statusFilter: 'all' | 'pending' | 'confirmed' | 'cancelled' | 'no_show';
+  statusFilter: 'all' | 'pending' | 'confirmed' | 'cancelled' | 'expired';
   searchQuery: string;
   todayPendingCount: number;
   futurePendingCount: number;
   searchOpen: boolean;
+  archiveSelectionMode: boolean;
+  selectedArchiveCount: number;
+  totalArchiveCount: number;
   onTimeFilter: (v: 'today' | 'future' | 'archive') => void;
-  onStatusFilter: (v: 'all' | 'pending' | 'confirmed' | 'cancelled' | 'no_show') => void;
+  onStatusFilter: (v: 'all' | 'pending' | 'confirmed' | 'cancelled' | 'expired') => void;
   onSearch: (v: string) => void;
+  onStartArchiveSelection: () => void;
+  onDeleteSelectedArchive: () => void;
+  onCancelArchiveSelection: () => void;
+  onSelectAll: () => void;
 }
 
 const ReservationFilters = ({
   timeFilter, statusFilter, searchQuery,
   todayPendingCount, futurePendingCount, searchOpen,
+  archiveSelectionMode, selectedArchiveCount, totalArchiveCount,
   onTimeFilter, onStatusFilter, onSearch,
+  onStartArchiveSelection, onDeleteSelectedArchive, onCancelArchiveSelection, onSelectAll,
 }: Props) => {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
 
   const timeTabs = ['today', 'future', 'archive'] as const;
-  const statusTabs = ['all', 'pending', 'confirmed', 'cancelled', 'no_show'] as const;
+  const statusTabs = ['all', 'pending', 'confirmed', 'cancelled', 'expired'] as const;
 
   const timeLabel = (tab: typeof timeTabs[number]) =>
     tab === 'today' ? t('tab_today') : tab === 'future' ? t('tab_future') : t('tab_archive');
   const statusLabel = (s: typeof statusTabs[number]) =>
-    s === 'all' ? t('all') : s === 'pending' ? t('filter_pending') : s === 'confirmed' ? t('filter_confirmed') : s === 'cancelled' ? t('filter_cancelled') : 'Gəlməyib';
+    s === 'all' ? t('all') : s === 'pending' ? t('filter_pending') : s === 'confirmed' ? t('filter_confirmed') : s === 'cancelled' ? t('filter_cancelled') : 'Vaxtı keçib';
 
   return (
     <div className="w-full space-y-4">
@@ -84,20 +93,35 @@ const ReservationFilters = ({
 
           {/* Status Filter */}
           <div className={`flex rounded-2xl p-1.5 border transition-all ${lightMode ? 'bg-zinc-100/50 border-zinc-200/50' : 'bg-white/5 border-white/10'}`}>
-            {statusTabs.map((s) => (
+            {statusTabs.map((status) => (
               <button
-                key={s}
-                onClick={() => onStatusFilter(s)}
+                key={status}
+                onClick={() => onStatusFilter(status)}
                 className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 ${
-                  statusFilter === s
+                  statusFilter === status
                     ? (lightMode ? 'bg-white text-zinc-900 shadow-md border border-zinc-200' : 'bg-white/20 text-white shadow-lg')
                     : (lightMode ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/30 hover:text-white/60')
                 }`}
               >
-                {statusLabel(s)}
+                {statusLabel(status)}
               </button>
             ))}
           </div>
+
+          {/* Archive Clear */}
+          {timeFilter === 'archive' && (
+            <button
+              onClick={onStartArchiveSelection}
+              className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                lightMode 
+                  ? 'bg-red-50 border-red-100 text-red-500 hover:bg-red-500 hover:text-white shadow-sm' 
+                  : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20 shadow-lg'
+              }`}
+            >
+              <Trash2 size={14} />
+              {t('select_archive')}
+            </button>
+          )}
         </div>
       </div>
     </div>

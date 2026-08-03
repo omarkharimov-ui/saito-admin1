@@ -21,24 +21,12 @@ export default function AdminDesktopShell({
   const pageKey = `${pathname}?${searchParams.toString()}`;
   const handleToggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
 
-  const isPosPage = pathname === '/admin/pos' || pathname.startsWith('/admin/pos?');
-
-  useEffect(() => {
-    if (isPosPage) setSidebarOpen(false);
-  }, [isPosPage]);
-
   useEffect(() => {
     const onResize = () => {
-      if (window.innerWidth >= 1024 && !isPosPage) setSidebarOpen(true);
+      if (window.innerWidth >= 1024) setSidebarOpen(true);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [isPosPage]);
-
-  useEffect(() => {
-    const handler = () => setSidebarOpen(prev => !prev);
-    window.addEventListener('pos-toggle-sidebar', handler);
-    return () => window.removeEventListener('pos-toggle-sidebar', handler);
   }, []);
 
   useEffect(() => {

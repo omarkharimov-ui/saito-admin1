@@ -45,12 +45,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
       if (logs && logs.length > 0) {
         const lastCost = logs[0].cost_per_unit;
-        await supabase.from('audit_logs').insert({
+        await supabase.from('transaction_logs').insert({
           table_name: 'ingredients',
           record_id: id,
           action: 'supplier_changed',
-          old_data: { supplier_id: current.supplier_id, last_cost: lastCost },
-          new_data: { supplier_id: supplier_id },
+          details: {
+            old_supplier_id: current.supplier_id,
+            new_supplier_id: supplier_id,
+            old_last_cost: lastCost,
+            note: 'Supplier changed — old pricing data preserved with previous supplier',
+          },
         });
       }
     }

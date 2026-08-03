@@ -5,7 +5,6 @@ import { X, Search, Plus, Phone, User, Loader2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useFirstLoad } from '@/hooks/useFirstLoad';
 
 interface Customer {
   id: string;
@@ -26,7 +25,6 @@ export function CustomerSelect({ selectedId, onSelect, onClose }: CustomerSelect
   const searchRef = useRef<HTMLInputElement>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const isFirstLoad = useFirstLoad(600, loading);
   const [search, setSearch] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState('');
@@ -124,7 +122,9 @@ export function CustomerSelect({ selectedId, onSelect, onClose }: CustomerSelect
             </button>
           )}
 
-          {customers.length === 0 ? (
+          {loading ? (
+            <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[var(--theme-text-muted)]" /></div>
+          ) : customers.length === 0 ? (
             <div className="text-center py-8 text-[var(--theme-text-muted)] text-sm">{t('no_results')}</div>
           ) : (
             <div className="space-y-1 max-h-[300px] overflow-y-auto">

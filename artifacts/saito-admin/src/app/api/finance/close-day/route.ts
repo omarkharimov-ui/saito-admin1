@@ -220,52 +220,10 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(dailyReport),
     });
 
-    let dailyReportId: string | null = null;
-    if (insertReportRes.ok) {
-      const reportData = await insertReportRes.json();
-      dailyReportId = Array.isArray(reportData) ? reportData[0]?.id : reportData?.id || null;
-    } else {
+    if (!insertReportRes.ok) {
       const errorText = await insertReportRes.text();
       console.error('[close-day] Failed to insert daily_report:', errorText);
     }
-
-    const shiftId = dailyReportId || `shift-${reportDate}-${Date.now()}`;
-    const shiftPayload: Record<string, any> = {
-      id: shiftId,
-      report_id: dailyReportId,
-      report_date: reportDate,
-      staff_id: auth.user?.id,
-      opened_at: todayStart,
-      closed_at: closedAt,
-      expected_cash: expectedCash,
-      actual_cash: actualCash,
-      difference: cashDifference,
-      notes,
-    };
-
-    await fetch(`${url}/rest/v1/shifts`, {
-      method: 'POST',
-      headers: { ...h, 'Prefer': 'return=representation' },
-      body: JSON.stringify(shiftPayload),
-    });
-
-    const cashDrawerPayload: Record<string, any> = {
-      shift_id: shiftId,
-      staff_id: auth.user?.id,
-      starting_cash: startingCash,
-      expected_cash: expectedCash,
-      actual_cash: actualCash,
-      difference: cashDifference,
-      opened_at: todayStart,
-      closed_at: closedAt,
-      notes,
-    };
-
-    await fetch(`${url}/rest/v1/cash_drawer_logs`, {
-      method: 'POST',
-      headers: { ...h, 'Prefer': 'return=representation' },
-      body: JSON.stringify(cashDrawerPayload),
-    });
 
     const auditLog = {
       action: 'close_day',

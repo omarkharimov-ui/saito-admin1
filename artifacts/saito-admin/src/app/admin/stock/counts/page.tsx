@@ -10,7 +10,6 @@ import { toast } from '@/lib/toast';
 import type { StockCount, StockCountItem } from '@/types/inventory';
 import { PageTransition } from '@/components/PageTransition';
 import { GlassCard } from '@/components/GlassCard';
-import { useFirstLoad } from '@/hooks/useFirstLoad';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -61,7 +60,6 @@ function StatusBadge({ status }: { status: StockCountStatus }) {
 export default function StockCountsPage() {
   const [counts, setCounts] = useState<StockCount[]>([]);
   const [loading, setLoading] = useState(true);
-  const isFirstLoad = useFirstLoad(600, loading);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -304,7 +302,11 @@ export default function StockCountsPage() {
         </div>
 
         {/* ── List ── */}
-        {filteredCounts.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <Loader2 size={28} className="animate-spin text-white/15" />
+          </div>
+        ) : filteredCounts.length === 0 ? (
           <GlassCard intensity="light" padding="xl" className="text-center">
             <ClipboardCheck size={44} className="mx-auto mb-4 opacity-20 text-[var(--theme-text-muted)]" />
             <p className="text-sm font-medium text-[var(--theme-text-secondary)]">

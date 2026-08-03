@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useFirstLoad } from '@/hooks/useFirstLoad';
 import type {
   PurchaseOrder, PurchaseOrderStatus, CreatePurchaseOrderPayload,
   PurchaseOrderItem, Supplier,
@@ -69,7 +68,6 @@ export default function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const isFirstLoad = useFirstLoad(600, loading);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -309,7 +307,11 @@ export default function PurchaseOrdersPage() {
         </div>
 
         {/* ── Table ── */}
-        {filteredOrders.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <Loader2 size={28} className="animate-spin text-white/15" />
+          </div>
+        ) : filteredOrders.length === 0 ? (
           <GlassCard intensity="light" padding="xl" className="text-center">
             <ShoppingCart size={44} className="mx-auto mb-4 opacity-20 text-[var(--theme-text-muted)]" />
             <p className="text-sm font-medium text-[var(--theme-text-secondary)]">

@@ -89,35 +89,13 @@ export async function POST(req: NextRequest) {
       0
     );
 
-    const newKitchenStatus = remainingItems && remainingItems.length > 0 ? 'pending' : 'cancelled';
-    const newOrderStatus = remainingItems && remainingItems.length > 0 ? 'new' : 'cancelled';
     await supabase
       .from('orders')
       .update({
-        status: newOrderStatus,
         total_amount: Math.max(0, newTotal),
-        kitchen_status: newKitchenStatus,
-        updated_at: new Date().toISOString(),
+        kitchen_status: 'pending',
       })
       .eq('id', order_id);
-
-    // Sync kitchen_status to table_floors if table-bound
-    const { data: orderForTable } = await supabase
-      .from('orders')
-      .select('table_number')
-      .eq('id', order_id)
-      .single();
-
-    if (orderForTable?.table_number) {
-      try {
-        await supabase
-          .from('table_floors')
-          .update({ kitchen_status: newKitchenStatus, updated_at: new Date().toISOString() })
-          .eq('table_number', orderForTable.table_number);
-      } catch {
-        // Best-effort floor sync after void
-      }
-    }
 
     return NextResponse.json({
       success: true,

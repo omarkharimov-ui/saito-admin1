@@ -13,20 +13,25 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
 
-    const { table_numbers , terminal_id } = await request.json();
+    const { table_numbers } = await request.json();
     if (!table_numbers || table_numbers.length < 2) {
       return NextResponse.json({ error: 'Ən azı 2 masa seçilməlidir' }, { status: 400 });
     }
 
-    const s = svc();
+    // Capture source order snapshots BEFORE merge for reliable undo
+    const sourceOrdersSnapshot: any[] = [];
+    for (const tn of table_numbers.slice(1)) {
+      const srcRes = await fetch(`${svc().url}/rest/v1/orders?select=*&table_number=eq.${tn}&status=neq.paid&status=neq.cancelled&order=created_at.asc`, { headers: svc().headers });
+      const srcData = await srcRes.json();
+      if (Array.isArray(srcData)) sourceOrdersSnapshot.push(...srcData);
+    }
 
-    // Atomic merge RPC handles: order merge, table_floors update, kitchen_schedule move, reservation table_ids update
-    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/merge_tables_atomic`, {
+    // Atomic merge RPC (exists in DB as saito_merge_tables)
+    const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/saito_merge_tables`, {
       method: 'POST',
-      headers: s.headers,
+      headers: svc().headers,
       body: JSON.stringify({
-        p_parent_table_number: table_numbers[0],
-        p_child_table_numbers: table_numbers.slice(1),
+        p_table_numbers: table_numbers,
         p_performed_by: auth.user?.id || null
       }),
     });
@@ -39,15 +44,33 @@ export async function POST(request: NextRequest) {
 
     const data = await rpcRes.json();
 
-    if (!data?.success) {
-      return NextResponse.json({ error: data?.error || 'Merge failed' }, { status: 400 });
+    // Move kitchen_schedule references from child tables to the merged parent
+    // so the KDS shows the correct (merged) table number after a merge.
+    const targetTable = table_numbers[0];
+    const sourceTables = table_numbers.slice(1);
+    if (sourceTables.length) {
+      const scheduleTables = sourceTables.join(',');
+      await fetch(`${svc().url}/rest/v1/kitchen_schedule?table_number=in.(${scheduleTables})`, {
+        method: 'PATCH',
+        headers: svc().headers,
+        body: JSON.stringify({ table_number: targetTable }),
+      }).catch(() => {});
     }
 
     return NextResponse.json({ 
       success: true, 
-      data 
+      data: { 
+        ...data,
+        undo: { 
+          sourceTableNumbers: table_numbers.slice(1),
+          targetTable: table_numbers[0],
+          sourceOrders: sourceOrdersSnapshot
+        }
+      } 
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+

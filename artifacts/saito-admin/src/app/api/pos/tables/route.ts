@@ -28,89 +28,20 @@ export async function GET() {
     const rawFloors = await floorsRes.json();
     const rawOrders = await ordersRes.json();
 
-    // Fetch reservations to check VIP status and pre-order counts
-    const reservationsRes = await fetch(`${SUPABASE_URL}/rest/v1/reservations?select=id,is_vip,pre_order_items&status=eq.confirmed`, { headers });
-    const rawReservations = await reservationsRes.json();
-    const reservationsById: Record<string, any> = {};
-    if (Array.isArray(rawReservations)) {
-      rawReservations.forEach((r: any) => {
-        if (r.id) reservationsById[r.id] = r;
-      });
-    }
-
-    // Fetch reservation pre-order items for ALL reservations (not just confirmed) to catch any active pre-orders
-    const allReservationsRes = await fetch(`${SUPABASE_URL}/rest/v1/reservations?select=id,pre_order_items&status=not.in.(cancelled,no_show,expired,completed)`, { headers });
-    const rawAllReservations = await allReservationsRes.json();
-    const allReservationsById: Record<string, any> = {};
-    if (Array.isArray(rawAllReservations)) {
-      rawAllReservations.forEach((r: any) => {
-        if (r.id) allReservationsById[r.id] = r;
-      });
-    }
-
-    // Compute pre-order count per reservation safely
-    const preOrderCountByReservation: Record<string, number> = {};
-    Object.entries(allReservationsById).forEach(([rid, r]: [string, any]) => {
-      try {
-        const items = typeof r.pre_order_items === 'string' ? JSON.parse(r.pre_order_items) : r.pre_order_items;
-        const count = Array.isArray(items) ? items.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0) : 0;
-        if (count > 0) preOrderCountByReservation[rid] = count;
-      } catch {
-        // ignore parse errors
-      }
-    });
-
     const ordersByTable: Record<number, any[]> = {};
     const kitchenStatusByTable: Record<number, string> = {};
-    const orderIdsByTable: Record<number, string[]> = {};
-    const assignedToByTable: Record<number, string | null> = {};
-    const waiterNameByTable: Record<number, string | null> = {};
-    const reservationVipByTable: Record<number, boolean> = {};
     rawOrders.forEach((o: any) => {
       if (!ordersByTable[o.table_number]) ordersByTable[o.table_number] = [];
       ordersByTable[o.table_number].push(o);
       if (o.kitchen_status && !kitchenStatusByTable[o.table_number]) {
         kitchenStatusByTable[o.table_number] = o.kitchen_status;
       }
-      if (o.id) {
-        orderIdsByTable[o.table_number] = [...(orderIdsByTable[o.table_number] || []), o.id];
-      }
-      if (o.created_by && !assignedToByTable[o.table_number]) {
-        assignedToByTable[o.table_number] = o.created_by;
-      }
-      if (o.reservation_id && reservationsById[o.reservation_id]?.is_vip) {
-        reservationVipByTable[o.table_number] = true;
-      }
     });
-
-    // Fetch waiter names from profiles
-    const allWaiterIds = Object.values(assignedToByTable).filter(Boolean);
-    const waiterNames: Record<string, string> = {};
-    if (allWaiterIds.length > 0) {
-      const orFilter = allWaiterIds.map(id => `id.eq.${id}`).join(',');
-      const profilesRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,name&or=(${orFilter})`, { headers });
-      const profiles = await profilesRes.json();
-      if (Array.isArray(profiles)) {
-        profiles.forEach((p: any) => {
-          if (p.id) waiterNames[p.id] = p.name || '';
-        });
-      }
-    }
 
     const floorMap: Record<string, any> = {};
     const childTableNumbers = new Set<number>();
     const parentToChildren: Record<number, number[]> = {};
     const tableNumberToFloor = new Map<number, any>();
-
-    const KITCHEN_STATUS_RANK: Record<string, number> = {
-      pending: 0,
-      accepted: 1,
-      preparing: 2,
-      ready: 3,
-      completed: 4,
-      served: 5,
-      cancelled: 6,
-    };
 
     rawFloors.forEach((f: any) => {
       tableNumberToFloor.set(f.table_number, f);
@@ -126,37 +57,38 @@ export async function GET() {
       if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [], merged_groups: [] };
 
       const tableOrders = ordersByTable[f.table_number] || [];
+      
       const isParent = parentToChildren[f.table_number] !== undefined;
       const isChild = f.merged_into_table !== null;
       const parentTableNumber = isChild ? f.merged_into_table : f.table_number;
+      
       const childrenNums = parentToChildren[parentTableNumber] || [];
       const allInGroup = [parentTableNumber, ...childrenNums];
-
+      
       let groupTotalAmount = 0;
       let groupGuestCount = 0;
       let groupOrderIds: string[] = [];
       let groupLastActivity: string | null = null;
-      let groupKitchenStatus: string | null = null;
-
+      
       allInGroup.forEach(tNum => {
         const tOrders = ordersByTable[tNum] || [];
         groupTotalAmount += tOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+        
         const tableObj = tableNumberToFloor.get(tNum);
         if (tableObj?.guest_count) groupGuestCount += tableObj.guest_count;
         else if (tOrders.length > 0) groupGuestCount += tOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0);
+        
         groupOrderIds = [...groupOrderIds, ...tOrders.map(o => o.id)];
         tOrders.forEach(o => {
           if (o.updated_at && (!groupLastActivity || o.updated_at > groupLastActivity)) {
             groupLastActivity = o.updated_at;
           }
-          const rank = Number(KITCHEN_STATUS_RANK[o.kitchen_status] ?? 99);
-          const currentRank = Number(KITCHEN_STATUS_RANK[groupKitchenStatus || ''] ?? 99);
-          if (rank < currentRank) {
-            groupKitchenStatus = o.kitchen_status || groupKitchenStatus;
-          }
         });
       });
 
+      // Status: a reserved/waiting table must keep that status even if it has
+      // no active orders yet (or only a draft). Otherwise derive occupied from
+      // active orders, falling back to the stored floor status.
       const hasOrders = (ordersByTable[f.table_number]?.length || 0) > 0;
       const computedStatus =
         f.status === 'reserved' || f.status === 'waiting'
@@ -169,28 +101,13 @@ export async function GET() {
         ...f,
         last_activity_at: groupLastActivity,
         status: computedStatus,
-        order_count: isChild || isParent ? groupOrderIds.length : (orderIdsByTable[f.table_number]?.length || 0),
-        total_amount: isChild || isParent ? groupTotalAmount : tableOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0),
-        guest_count:
-          isChild || isParent
-            ? (groupGuestCount || 1)
-            : computedStatus === 'reserved' || computedStatus === 'waiting'
-              ? f.guest_count
-              : hasOrders
-                ? (f.guest_count || tableOrders.reduce((s: number, o: any) => s + Number(o.guest_count || 0), 0))
-                : null,
+        total_amount: isChild || isParent ? groupTotalAmount : tableOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0),
+        guest_count: isChild || isParent ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0)),
         merged_with: isChild || isParent ? allInGroup : [],
         is_group: isChild || isParent,
         parent_table_number: parentTableNumber,
-        order_ids: isChild || isParent ? groupOrderIds : (orderIdsByTable[f.table_number] || []),
-        kitchen_status: isChild || isParent ? groupKitchenStatus : (kitchenStatusByTable[f.table_number] || null),
-        is_vip: reservationVipByTable[f.table_number] || false,
-        bill_requested: f.bill_requested || false,
-        assigned_to: assignedToByTable[f.table_number] || null,
-        waiter_name: assignedToByTable[f.table_number] ? (waiterNames[assignedToByTable[f.table_number] as string] || '') : null,
-        has_pre_order: (f.reservation_id ? (preOrderCountByReservation[f.reservation_id] || 0) > 0 : false),
-        pre_order_count: f.reservation_id ? (preOrderCountByReservation[f.reservation_id] || 0) : 0,
-        current_order_id: tableOrders[0]?.id || orderIdsByTable[f.table_number]?.[0] || null,
+        order_ids: isChild || isParent ? groupOrderIds : tableOrders.map(o => o.id),
+        kitchen_status: kitchenStatusByTable[f.table_number] || null
       };
 
       floorMap[fn].tables.push(processedTable);

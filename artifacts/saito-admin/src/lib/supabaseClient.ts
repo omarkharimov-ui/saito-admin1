@@ -36,7 +36,6 @@ export type Database = {
           is_ready_product: boolean | null;
           direct_ingredient_id: string | null;
           updated_at: string | null;
-          printer_route: string | null;
         };
         Insert: {
           id?: string;
@@ -68,7 +67,6 @@ export type Database = {
           is_ready_product?: boolean | null;
           direct_ingredient_id?: string | null;
           updated_at?: string | null;
-          printer_route?: string | null;
         };
         Update: {
           name?: Json;
@@ -98,7 +96,6 @@ export type Database = {
           is_ready_product?: boolean | null;
           direct_ingredient_id?: string | null;
           updated_at?: string | null;
-          printer_route?: string | null;
         };
         Relationships: [];
       };
@@ -110,7 +107,6 @@ export type Database = {
           image_url: string | null;
           translations: Json | null;
           created_at: string | null;
-          printer_route: string | null;
         };
         Insert: {
           id?: string;
@@ -119,14 +115,12 @@ export type Database = {
           image_url?: string | null;
           translations?: Json | null;
           created_at?: string | null;
-          printer_route?: string | null;
         };
         Update: {
           name?: string;
           slug?: string | null;
           image_url?: string | null;
           translations?: Json | null;
-          printer_route?: string | null;
         };
         Relationships: [];
       };
@@ -178,7 +172,7 @@ export type Database = {
           id: string;
           table_number: number | null;
           total_amount: number | null;
-          status: 'new' | 'confirmed' | 'in_kitchen' | 'ready' | 'served' | 'paid' | 'cancelled' | 'closed' | string;
+          status: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
           customer_note: string | null;
           returned_amount: number | null;
           items: Json | null;
@@ -206,32 +200,12 @@ export type Database = {
           checkin_at: string | null;
           cogs: number | null;
           profit: number | null;
-          order_number: string | null;
-          customer_phone: string | null;
-          order_source: string | null;
-          delivery_address: string | null;
-          delivery_fee: number | null;
-          estimated_delivery_time: string | null;
-          delivery_status: string | null;
-          courier_id: string | null;
-          courier_name: string | null;
-          tracking_number: string | null;
-          delivered_at: string | null;
-          service_charge_pct: number | null;
-          service_charge_amount: number | null;
-          tax_pct: number | null;
-          tax_amount: number | null;
-          original_total_amount: number | null;
-          discount_amount: number | null;
-          special_request: string | null;
-          is_served: boolean | null;
-          is_split: boolean | null;
         };
         Insert: {
           id?: string;
           table_number?: number | null;
           total_amount?: number | null;
-          status: 'new' | 'confirmed' | 'in_kitchen' | 'ready' | 'served' | 'paid' | 'cancelled' | 'closed' | string;
+          status: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
           customer_note?: string | null;
           returned_amount?: number | null;
           items?: Json | null;
@@ -259,31 +233,11 @@ export type Database = {
           checkin_at?: string | null;
           cogs?: number | null;
           profit?: number | null;
-          order_number?: string | null;
-          customer_phone?: string | null;
-          order_source?: string | null;
-          delivery_address?: string | null;
-          delivery_fee?: number | null;
-          estimated_delivery_time?: string | null;
-          delivery_status?: string | null;
-          courier_id?: string | null;
-          courier_name?: string | null;
-          tracking_number?: string | null;
-          delivered_at?: string | null;
-          service_charge_pct?: number | null;
-          service_charge_amount?: number | null;
-          tax_pct?: number | null;
-          tax_amount?: number | null;
-          original_total_amount?: number | null;
-          discount_amount?: number | null;
-          special_request?: string | null;
-          is_served?: boolean | null;
-          is_split?: boolean | null;
         };
         Update: {
           table_number?: number | null;
           total_amount?: number | null;
-          status?: 'new' | 'confirmed' | 'in_kitchen' | 'ready' | 'served' | 'paid' | 'cancelled' | 'closed' | string;
+          status?: 'new' | 'confirmed' | 'paid' | 'cancelled' | string;
           customer_note?: string | null;
           returned_amount?: number | null;
           items?: Json | null;
@@ -309,26 +263,7 @@ export type Database = {
           checkin_at?: string | null;
           cogs?: number | null;
           profit?: number | null;
-          order_number?: string | null;
-          customer_phone?: string | null;
-          order_source?: string | null;
-          delivery_address?: string | null;
-          delivery_fee?: number | null;
-          estimated_delivery_time?: string | null;
-          delivery_status?: string | null;
-          courier_id?: string | null;
-          courier_name?: string | null;
-          tracking_number?: string | null;
-          delivered_at?: string | null;
-          service_charge_pct?: number | null;
-          service_charge_amount?: number | null;
-          tax_pct?: number | null;
-          tax_amount?: number | null;
-          original_total_amount?: number | null;
-          discount_amount?: number | null;
-          special_request?: string | null;
-          is_served?: boolean | null;
-          is_split?: boolean | null;
+          updated_at?: string | null;
         };
         Relationships: [];
       };
@@ -349,14 +284,6 @@ export type Database = {
           kitchen_status: string | null;
           is_ready_product: boolean | null;
           direct_ingredient_id: string | null;
-          price_snapshot: Json | null;
-          seat_number: number | null;
-          void_reason: string | null;
-          comp_reason: string | null;
-          waste_reason: string | null;
-          hold_until: string | null;
-          printer_route: string | null;
-          recipe_version_id: string | null;
         };
         Insert: {
           id?: string;
@@ -374,14 +301,6 @@ export type Database = {
           kitchen_status?: string | null;
           is_ready_product?: boolean | null;
           direct_ingredient_id?: string | null;
-          price_snapshot?: Json | null;
-          seat_number?: number | null;
-          void_reason?: string | null;
-          comp_reason?: string | null;
-          waste_reason?: string | null;
-          hold_until?: string | null;
-          printer_route?: string | null;
-          recipe_version_id?: string | null;
         };
         Update: {
           product_id?: string | null;
@@ -396,14 +315,6 @@ export type Database = {
           kitchen_status?: string | null;
           is_ready_product?: boolean | null;
           direct_ingredient_id?: string | null;
-          price_snapshot?: Json | null;
-          seat_number?: number | null;
-          void_reason?: string | null;
-          comp_reason?: string | null;
-          waste_reason?: string | null;
-          hold_until?: string | null;
-          printer_route?: string | null;
-          recipe_version_id?: string | null;
         };
         Relationships: [];
       };
@@ -455,85 +366,82 @@ export type Database = {
         };
         Relationships: [];
       };
-       reservations: {
-         Row: {
-           id: string;
-           name: string | null;
-           phone: string | null;
-           guests: number | null;
-           date: string | null;
-           time: string | null;
-           status: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'checked_in' | 'completed' | 'no_show' | string;
-           note: string | null;
-           created_at: string | null;
-           customer_name: string | null;
-           table_ids: Json | null;
-           pre_order_items: Json | null;
-           pre_order_total: number | null;
-           kitchen_scheduled_at: string | null;
-           table_number: number | null;
-           checked_in_at: string | null;
-           completed_at: string | null;
-           updated_at: string | null;
-           kitchen_notify_before_minutes: number | null;
-           kitchen_notified_at: string | null;
-           kitchen_hint_sent: boolean | null;
-           cancelled_at: string | null;
-           cancelled_reason: string | null;
-           is_vip: boolean | null;
-         };
-         Insert: {
-           id?: string;
-           name?: string | null;
-           phone?: string | null;
-           guests?: number | null;
-           date?: string | null;
-           time?: string | null;
-           status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'checked_in' | 'completed' | 'no_show' | string;
-           note?: string | null;
-           created_at?: string | null;
-           customer_name?: string | null;
-           table_ids?: Json | null;
-           pre_order_items?: Json | null;
-           pre_order_total?: number | null;
-           kitchen_scheduled_at?: string | null;
-           table_number?: number | null;
-           checked_in_at?: string | null;
-           completed_at?: string | null;
-           updated_at?: string | null;
-           kitchen_notify_before_minutes?: number | null;
-           kitchen_notified_at?: string | null;
-           kitchen_hint_sent?: boolean | null;
-           cancelled_at?: string | null;
-           cancelled_reason?: string | null;
-           is_vip?: boolean | null;
-         };
-         Update: {
-           name?: string | null;
-           phone?: string | null;
-           guests?: number | null;
-           date?: string | null;
-           time?: string | null;
-           status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'checked_in' | 'completed' | 'no_show' | string;
-           note?: string | null;
-           customer_name?: string | null;
-           table_ids?: Json | null;
-           pre_order_items?: Json | null;
-           pre_order_total?: number | null;
-           kitchen_scheduled_at?: string | null;
-           table_number?: number | null;
-           checked_in_at?: string | null;
-           completed_at?: string | null;
-           updated_at?: string | null;
-           kitchen_notify_before_minutes?: number | null;
-           kitchen_notified_at?: string | null;
-           kitchen_hint_sent?: boolean | null;
-           cancelled_at?: string | null;
-           cancelled_reason?: string | null;
-           is_vip?: boolean | null;
-         };
-         Relationships: [];
-       };
+      reservations: {
+        Row: {
+          id: string;
+          name: string | null;
+          phone: string | null;
+          guests: number | null;
+          date: string | null;
+          time: string | null;
+          status: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'checked_in' | 'completed' | 'no_show' | string;
+          note: string | null;
+          created_at: string | null;
+          customer_name: string | null;
+          table_ids: Json | null;
+          pre_order_items: Json | null;
+          pre_order_total: number | null;
+          kitchen_scheduled_at: string | null;
+          table_number: number | null;
+          checked_in_at: string | null;
+          completed_at: string | null;
+          updated_at: string | null;
+          kitchen_notify_before_minutes: number | null;
+          kitchen_notified_at: string | null;
+          kitchen_hint_sent: boolean | null;
+          cancelled_at: string | null;
+          cancelled_reason: string | null;
+        };
+        Insert: {
+          id?: string;
+          name?: string | null;
+          phone?: string | null;
+          guests?: number | null;
+          date?: string | null;
+          time?: string | null;
+          status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'checked_in' | 'completed' | 'no_show' | string;
+          note?: string | null;
+          created_at?: string | null;
+          customer_name?: string | null;
+          table_ids?: Json | null;
+          pre_order_items?: Json | null;
+          pre_order_total?: number | null;
+          kitchen_scheduled_at?: string | null;
+          table_number?: number | null;
+          checked_in_at?: string | null;
+          completed_at?: string | null;
+          updated_at?: string | null;
+          kitchen_notify_before_minutes?: number | null;
+          kitchen_notified_at?: string | null;
+          kitchen_hint_sent?: boolean | null;
+          cancelled_at?: string | null;
+          cancelled_reason?: string | null;
+        };
+        Update: {
+          name?: string | null;
+          phone?: string | null;
+          guests?: number | null;
+          date?: string | null;
+          time?: string | null;
+          status?: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'checked_in' | 'completed' | 'no_show' | string;
+          note?: string | null;
+          customer_name?: string | null;
+          table_ids?: Json | null;
+          pre_order_items?: Json | null;
+          pre_order_total?: number | null;
+          kitchen_scheduled_at?: string | null;
+          table_number?: number | null;
+          checked_in_at?: string | null;
+          completed_at?: string | null;
+          updated_at?: string | null;
+          kitchen_notify_before_minutes?: number | null;
+          kitchen_notified_at?: string | null;
+          kitchen_hint_sent?: boolean | null;
+          cancelled_at?: string | null;
+          cancelled_reason?: string | null;
+        };
+        Relationships: [];
+      };
       kitchen_schedule: {
         Row: {
           id: string;
@@ -572,7 +480,6 @@ export type Database = {
           new_data: Json | null;
           performed_by: string | null;
           ip_address: string | null;
-          device_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -584,7 +491,6 @@ export type Database = {
           new_data?: Json | null;
           performed_by?: string | null;
           ip_address?: string | null;
-          device_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -595,7 +501,6 @@ export type Database = {
           new_data?: Json | null;
           performed_by?: string | null;
           ip_address?: string | null;
-          device_id?: string | null;
         };
         Relationships: [];
       };
@@ -1006,23 +911,6 @@ export type Database = {
         Update: {
           opening_hours?: string | null;
           qr_table_count?: number | null;
-        };
-        Relationships: [];
-      };
-      app_settings: {
-        Row: {
-          key: string;
-          value: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          key: string;
-          value?: string | null;
-          updated_at?: string | null;
-        };
-        Update: {
-          value?: string | null;
-          updated_at?: string | null;
         };
         Relationships: [];
       };
@@ -1764,558 +1652,6 @@ export type Database = {
           unit_cost?: number | null;
           variance_cost?: number;
           notes?: string | null;
-        };
-        Relationships: [];
-      };
-      daily_reports: {
-        Row: {
-          id: string;
-          report_date: string;
-          total_revenue: number | null;
-          total_orders: number | null;
-          aov: number | null;
-          cash_total: number | null;
-          card_total: number | null;
-          tips_total: number | null;
-          discounts_total: number | null;
-          voids_count: number | null;
-          voids_amount: number | null;
-          tax_collected: number | null;
-          starting_cash: number | null;
-          expected_cash: number | null;
-          actual_cash: number | null;
-          cash_difference: number | null;
-          cogs: number | null;
-          labor_cost: number | null;
-          items_sold: number | null;
-          raw_data: Json | null;
-          closed_at: string | null;
-          closed_by: string | null;
-          notes: string | null;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          report_date: string;
-          total_revenue?: number | null;
-          total_orders?: number | null;
-          aov?: number | null;
-          cash_total?: number | null;
-          card_total?: number | null;
-          tips_total?: number | null;
-          discounts_total?: number | null;
-          voids_count?: number | null;
-          voids_amount?: number | null;
-          tax_collected?: number | null;
-          starting_cash?: number | null;
-          expected_cash?: number | null;
-          actual_cash?: number | null;
-          cash_difference?: number | null;
-          cogs?: number | null;
-          labor_cost?: number | null;
-          items_sold?: number | null;
-          raw_data?: Json | null;
-          closed_at?: string | null;
-          closed_by?: string | null;
-          notes?: string | null;
-        };
-        Update: {
-          report_date?: string;
-          total_revenue?: number | null;
-          total_orders?: number | null;
-          aov?: number | null;
-          cash_total?: number | null;
-          card_total?: number | null;
-          tips_total?: number | null;
-          discounts_total?: number | null;
-          voids_count?: number | null;
-          voids_amount?: number | null;
-          tax_collected?: number | null;
-          starting_cash?: number | null;
-          expected_cash?: number | null;
-          actual_cash?: number | null;
-          cash_difference?: number | null;
-          cogs?: number | null;
-          labor_cost?: number | null;
-          items_sold?: number | null;
-          raw_data?: Json | null;
-          closed_at?: string | null;
-          closed_by?: string | null;
-          notes?: string | null;
-        };
-        Relationships: [];
-      };
-      shifts: {
-        Row: {
-          id: string;
-          staff_id: string | null;
-          opened_at: string | null;
-          closed_at: string | null;
-          expected_cash: number | null;
-          actual_cash: number | null;
-          difference: number | null;
-          manager_approved: boolean | null;
-          manager_id: string | null;
-          notes: string | null;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          staff_id?: string | null;
-          opened_at?: string | null;
-          closed_at?: string | null;
-          expected_cash?: number | null;
-          actual_cash?: number | null;
-          difference?: number | null;
-          manager_approved?: boolean | null;
-          manager_id?: string | null;
-          notes?: string | null;
-        };
-        Update: {
-          staff_id?: string | null;
-          opened_at?: string | null;
-          closed_at?: string | null;
-          expected_cash?: number | null;
-          actual_cash?: number | null;
-          difference?: number | null;
-          manager_approved?: boolean | null;
-          manager_id?: string | null;
-          notes?: string | null;
-        };
-        Relationships: [];
-      };
-      cash_drawer_logs: {
-        Row: {
-          id: string;
-          shift_id: string | null;
-          opened_at: string | null;
-          closed_at: string | null;
-          opened_by: string | null;
-          starting_cash: number | null;
-          expected_cash: number | null;
-          actual_cash: number | null;
-          difference: number | null;
-          notes: string | null;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          shift_id?: string | null;
-          opened_at?: string | null;
-          closed_at?: string | null;
-          opened_by?: string | null;
-          starting_cash?: number | null;
-          expected_cash?: number | null;
-          actual_cash?: number | null;
-          difference?: number | null;
-          notes?: string | null;
-        };
-        Update: {
-          shift_id?: string | null;
-          opened_at?: string | null;
-          closed_at?: string | null;
-          opened_by?: string | null;
-          starting_cash?: number | null;
-          expected_cash?: number | null;
-          actual_cash?: number | null;
-          difference?: number | null;
-          notes?: string | null;
-        };
-        Relationships: [];
-      };
-      waitlist: {
-        Row: {
-          id: string;
-          name: string;
-          phone: string | null;
-          guests: number | null;
-          status: string | null;
-          seated_at: string | null;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          phone?: string | null;
-          guests?: number | null;
-          status?: string | null;
-          seated_at?: string | null;
-        };
-        Update: {
-          name?: string;
-          phone?: string | null;
-          guests?: number | null;
-          status?: string | null;
-          seated_at?: string | null;
-        };
-        Relationships: [];
-      };
-      seats: {
-        Row: {
-          id: string;
-          table_number: number;
-          seat_number: number;
-          label: string | null;
-          x_pos: number | null;
-          y_pos: number | null;
-          sort_order: number | null;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          table_number: number;
-          seat_number: number;
-          label?: string | null;
-          x_pos?: number | null;
-          y_pos?: number | null;
-          sort_order?: number | null;
-        };
-        Update: {
-          table_number?: number;
-          seat_number?: number;
-          label?: string | null;
-          x_pos?: number | null;
-          y_pos?: number | null;
-          sort_order?: number | null;
-        };
-        Relationships: [];
-      };
-      order_item_modifier_history: {
-        Row: {
-          id: string;
-          order_item_id: string;
-          old_modifiers: Json | null;
-          new_modifiers: Json | null;
-          changed_by: string | null;
-          changed_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          order_item_id: string;
-          old_modifiers?: Json | null;
-          new_modifiers?: Json | null;
-          changed_by?: string | null;
-        };
-        Update: {
-          order_item_id?: string;
-          old_modifiers?: Json | null;
-          new_modifiers?: Json | null;
-          changed_by?: string | null;
-        };
-        Relationships: [];
-      };
-      recipe_headers: {
-        Row: {
-          id: string;
-          product_id: string;
-          name: string;
-          current_version: number | null;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          product_id: string;
-          name: string;
-          current_version?: number | null;
-        };
-        Update: {
-          product_id?: string;
-          name?: string;
-          current_version?: number | null;
-        };
-        Relationships: [];
-      };
-      recipe_versions: {
-        Row: {
-          id: string;
-          recipe_header_id: string;
-          version: number;
-          ingredients_json: Json;
-          created_at: string | null;
-          created_by: string | null;
-          is_active: boolean | null;
-        };
-        Insert: {
-          id?: string;
-          recipe_header_id: string;
-          version: number;
-          ingredients_json: Json;
-          created_by?: string | null;
-          is_active?: boolean | null;
-        };
-        Update: {
-          recipe_header_id?: string;
-          version?: number;
-          ingredients_json?: Json;
-          created_by?: string | null;
-          is_active?: boolean | null;
-        };
-        Relationships: [];
-      };
-      order_payments: {
-        Row: {
-          id: string;
-          order_id: string;
-          amount: number;
-          payment_method: string;
-          reference: string | null;
-          performed_by: string | null;
-          created_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          order_id: string;
-          amount: number;
-          payment_method: string;
-          reference?: string | null;
-          performed_by?: string | null;
-        };
-        Update: {
-          order_id?: string;
-          amount?: number;
-          payment_method?: string;
-          reference?: string | null;
-          performed_by?: string | null;
-        };
-        Relationships: [];
-      };
-      order_events: {
-        Row: {
-          id: string;
-          order_id: string;
-          event_type: string;
-          old_value: Json | null;
-          new_value: Json | null;
-          metadata: Json | null;
-          performed_by: string | null;
-          employee_name: string | null;
-          ip_address: string | null;
-          device_id: string | null;
-          created_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          order_id: string;
-          event_type: string;
-          old_value?: Json | null;
-          new_value?: Json | null;
-          metadata?: Json | null;
-          performed_by?: string | null;
-          employee_name?: string | null;
-          ip_address?: string | null;
-          device_id?: string | null;
-          created_at?: string | null;
-        };
-        Update: {
-          order_id?: string;
-          event_type?: string;
-          old_value?: Json | null;
-          new_value?: Json | null;
-          metadata?: Json | null;
-          performed_by?: string | null;
-          employee_name?: string | null;
-          ip_address?: string | null;
-          device_id?: string | null;
-        };
-        Relationships: [];
-      };
-      operation_logs: {
-        Row: {
-          id: string;
-          operation: string;
-          order_id: string | null;
-          source_table_number: number | null;
-          target_table_number: number | null;
-          old_state: Json;
-          new_state: Json;
-          undo_payload: Json | null;
-          is_undone: boolean | null;
-          undone_at: string | null;
-          undone_by: string | null;
-          performed_by: string | null;
-          employee_name: string | null;
-          reason: string | null;
-          ip_address: string | null;
-          device_id: string | null;
-          created_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          operation: string;
-          order_id?: string | null;
-          source_table_number?: number | null;
-          target_table_number?: number | null;
-          old_state: Json;
-          new_state: Json;
-          undo_payload?: Json | null;
-          is_undone?: boolean | null;
-          undone_at?: string | null;
-          undone_by?: string | null;
-          performed_by?: string | null;
-          employee_name?: string | null;
-          reason?: string | null;
-          ip_address?: string | null;
-          device_id?: string | null;
-          created_at?: string | null;
-        };
-        Update: {
-          operation?: string;
-          order_id?: string | null;
-          source_table_number?: number | null;
-          target_table_number?: number | null;
-          old_state?: Json;
-          new_state?: Json;
-          undo_payload?: Json | null;
-          is_undone?: boolean | null;
-          undone_at?: string | null;
-          undone_by?: string | null;
-          performed_by?: string | null;
-          employee_name?: string | null;
-          reason?: string | null;
-          ip_address?: string | null;
-          device_id?: string | null;
-        };
-        Relationships: [];
-      };
-      state_transitions: {
-        Row: {
-          id: string;
-          entity: string;
-          from_status: string;
-          to_status: string;
-          requires_role: string | null;
-          requires_manager_pin: boolean | null;
-          description: string | null;
-          is_active: boolean | null;
-          created_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          entity: string;
-          from_status: string;
-          to_status: string;
-          requires_role?: string | null;
-          requires_manager_pin?: boolean | null;
-          description?: string | null;
-          is_active?: boolean | null;
-          created_at?: string | null;
-        };
-        Update: {
-          entity?: string;
-          from_status?: string;
-          to_status?: string;
-          requires_role?: string | null;
-          requires_manager_pin?: boolean | null;
-          description?: string | null;
-          is_active?: boolean | null;
-        };
-        Relationships: [];
-      };
-      couriers: {
-        Row: {
-          id: string;
-          name: string;
-          phone: string | null;
-          vehicle_type: string | null;
-          is_active: boolean | null;
-          current_order_id: string | null;
-          last_location_lat: number | null;
-          last_location_lng: number | null;
-          last_location_at: string | null;
-          total_deliveries: number | null;
-          avg_delivery_time_min: number | null;
-          rating: number | null;
-          notes: string | null;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          phone?: string | null;
-          vehicle_type?: string | null;
-          is_active?: boolean | null;
-          current_order_id?: string | null;
-          last_location_lat?: number | null;
-          last_location_lng?: number | null;
-          last_location_at?: string | null;
-          total_deliveries?: number | null;
-          avg_delivery_time_min?: number | null;
-          rating?: number | null;
-          notes?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          phone?: string | null;
-          vehicle_type?: string | null;
-          is_active?: boolean | null;
-          current_order_id?: string | null;
-          last_location_lat?: number | null;
-          last_location_lng?: number | null;
-          last_location_at?: string | null;
-          total_deliveries?: number | null;
-          avg_delivery_time_min?: number | null;
-          rating?: number | null;
-          notes?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-        Relationships: [];
-      };
-      customer_addresses: {
-        Row: {
-          id: string;
-          customer_id: string | null;
-          address_line: string;
-          address_line2: string | null;
-          city: string | null;
-          district: string | null;
-          landmark: string | null;
-          delivery_notes: string | null;
-          lat: number | null;
-          lng: number | null;
-          is_default: boolean | null;
-          created_at: string | null;
-          updated_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          customer_id?: string | null;
-          address_line: string;
-          address_line2?: string | null;
-          city?: string | null;
-          district?: string | null;
-          landmark?: string | null;
-          delivery_notes?: string | null;
-          lat?: number | null;
-          lng?: number | null;
-          is_default?: boolean | null;
-          created_at?: string | null;
-          updated_at?: string | null;
-        };
-        Update: {
-          id?: string;
-          customer_id?: string | null;
-          address_line?: string;
-          address_line2?: string | null;
-          city?: string | null;
-          district?: string | null;
-          landmark?: string | null;
-          delivery_notes?: string | null;
-          lat?: number | null;
-          lng?: number | null;
-          is_default?: boolean | null;
-          created_at?: string | null;
-          updated_at?: string | null;
         };
         Relationships: [];
       };

@@ -67,53 +67,37 @@ export async function POST(request: Request) {
     if (action === 'create' || (action === 'update' && (data?.date || data?.time || data?.table_ids))) {
       const date = data?.date || body.date;
       const time = data?.time || body.time;
-      const rawTableIds = data?.table_ids || body.table_ids;
+      const table_ids = data?.table_ids || body.table_ids;
 
-      if (date && time && rawTableIds && rawTableIds.length > 0) {
-        const reqTableIds = Array.isArray(rawTableIds) ? rawTableIds : JSON.parse(rawTableIds);
-
-        // Resolve requested UUIDs to table_numbers
-        const quotedIds = reqTableIds.map((id: string) => `"${id}"`).join(',');
-        const tnRes = await fetch(`${svc().url}/rest/v1/table_floors?select=table_number&id=in.(${quotedIds})`, { headers: svc().headers });
-        const tnData = await tnRes.json();
-        const reqTableNums: number[] = (tnData || []).map((t: any) => t.table_number);
-
-        // Get existing confirmed reservations for this date
+      if (date && time && table_ids) {
+        // Check for overlapping reservations on the same tables
+        // Simple check: same date, same time range (+/- 2 hours)
         const checkUrl = `${svc().url}/rest/v1/reservations?select=id,name,time&date=eq.${date}&status=eq.confirmed`;
         const checkRes = await fetch(checkUrl, { headers: svc().headers });
         const existing = await checkRes.json();
 
-        if (existing?.length > 0 && reqTableNums.length > 0) {
-          // Fetch reservation_tables for all existing reservations
-          const existingIds = existing.map((r: any) => `"${r.id}"`).join(',');
-          const rtUrl = `${svc().url}/rest/v1/reservation_tables?select=reservation_id,table_number&reservation_id=in.(${existingIds})`;
-          const rtRes = await fetch(rtUrl, { headers: svc().headers });
-          const rtData = await rtRes.json();
+        const requestedTime = new Date(`1970-01-01T${time}:00`).getTime();
+        const buffer = 2 * 60 * 60 * 1000; // 2 hours
 
-          const requestedTime = new Date(`1970-01-01T${time}:00`).getTime();
-          const buffer = 2 * 60 * 60 * 1000;
+        const conflict = existing.find((res: any) => {
+          if (id && res.id === id) return false; // ignore self
+          
+          const resTime = new Date(`1970-01-01T${res.time}:00`).getTime();
+          const isOverlapping = Math.abs(requestedTime - resTime) < buffer;
+          
+          // Check if any table overlaps
+          const existingTables = typeof res.table_ids === 'string' ? JSON.parse(res.table_ids) : (res.table_ids || []);
+          const requestedTables = typeof table_ids === 'string' ? JSON.parse(table_ids) : table_ids;
+          
+          const hasTableConflict = requestedTables.some((tId: string) => existingTables.includes(tId));
+          
+          return isOverlapping && hasTableConflict;
+        });
 
-          // Group reservation_tables by reservation_id
-          const tablesByRes: Record<string, number[]> = {};
-          (rtData || []).forEach((rt: any) => {
-            if (!tablesByRes[rt.reservation_id]) tablesByRes[rt.reservation_id] = [];
-            tablesByRes[rt.reservation_id].push(rt.table_number);
-          });
-
-          const conflict = existing.find((res: any) => {
-            if (id && res.id === id) return false;
-            const resTime = new Date(`1970-01-01T${res.time}:00`).getTime();
-            const isOverlapping = Math.abs(requestedTime - resTime) < buffer;
-            const existingTableNums = tablesByRes[res.id] || [];
-            const hasTableConflict = reqTableNums.some((tn: number) => existingTableNums.includes(tn));
-            return isOverlapping && hasTableConflict;
-          });
-
-          if (conflict) {
-            return NextResponse.json({ 
-              error: `Conflict: Table is already reserved by ${conflict.name} at ${conflict.time}` 
-            }, { status: 409 });
-          }
+        if (conflict) {
+          return NextResponse.json({ 
+            error: `Conflict: Table is already reserved by ${conflict.name} at ${conflict.time}` 
+          }, { status: 409 });
         }
       }
     }
@@ -123,38 +107,6 @@ export async function POST(request: Request) {
     let payload = data || body;
     
     if (action === 'update') {
-      const updateData = { ...data };
-      
-      if (updateData.table_ids || updateData.date || updateData.time || updateData.guests !== undefined || updateData.is_vip !== undefined) {
-        const tableIdsJson = updateData.table_ids 
-          ? (typeof updateData.table_ids === 'string' ? updateData.table_ids : JSON.stringify(updateData.table_ids))
-          : null;
-        
-        const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/update_reservation_atomic`, {
-          method: 'POST',
-          headers: svc().headers,
-          body: JSON.stringify({
-            p_reservation_id: id,
-            p_name: updateData.customer_name || updateData.name || null,
-            p_phone: updateData.phone || null,
-            p_guests: updateData.guests || null,
-            p_date: updateData.date || null,
-            p_time: updateData.time || null,
-            p_notes: updateData.notes || updateData.note || null,
-            p_vip: updateData.is_vip || null,
-            p_table_ids: tableIdsJson ? JSON.parse(tableIdsJson) : null,
-            p_performed_by: auth.user?.id || null,
-          }),
-        });
-        
-        const rpcData = await rpcRes.json();
-        if (!rpcRes.ok || rpcData?.error) {
-          return NextResponse.json({ error: rpcData?.message || rpcData?.error || 'Atomic update failed' }, { status: 400 });
-        }
-        
-        return NextResponse.json(rpcData);
-      }
-      
       url += `?id=eq.${id}`;
       method = 'PATCH';
     } else if (action === 'delete') {

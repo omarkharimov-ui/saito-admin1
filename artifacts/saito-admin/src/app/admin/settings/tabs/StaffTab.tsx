@@ -10,7 +10,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { hashPin } from '@/lib/crypto';
 
 type StaffMember = { id: string; name: string; role: string; shift: string; phone: string; pin?: string };
-const ROLES = ['Ofisiant', 'Kassir', 'Menecer', 'Barmen', 'Aşpaz', 'Superadmin'];
+const ROLES = ['Ofisiant', 'Baş Ofisiant', 'Menecer', 'Barmen', 'Aşpaz', 'Kassa'];
 const emptyForm = () => ({ name: '', role: ROLES[0], shift: '', phone: '', pin: '' });
 
 const STAFF_CACHE_KEY = 'saito_staff_cache';

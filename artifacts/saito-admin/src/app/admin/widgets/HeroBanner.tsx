@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useFirstLoad } from '@/hooks/useFirstLoad';
-import DashboardSkeleton from '@/components/DashboardSkeleton';
 
 interface DashboardStats {
   dailyRevenue: number;
@@ -52,7 +50,6 @@ export default function HeroBanner() {
     },
   });
   const [loading, setLoading] = useState(true);
-  const isFirstLoad = useFirstLoad(600, loading);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -160,10 +157,10 @@ export default function HeroBanner() {
           </div>
         </div>
 
-        {isFirstLoad ? <DashboardSkeleton /> : (
-          <div className="mt-8 pt-6">
-            {/* Top: Revenue + sparkline */}
-            <div className="relative mb-6">
+        {/* Revenue Section - Monolith - Always visible */}
+        <div className="mt-8 pt-6">
+          {/* Top: Revenue + sparkline */}
+          <div className="relative mb-6">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] uppercase tracking-[0.35em] font-semibold text-[var(--theme-text-muted)]">
                 {t('today_revenue')}
@@ -174,15 +171,25 @@ export default function HeroBanner() {
             <div className="flex items-end justify-between">
               <h2 className="font-serif font-bold text-[var(--theme-text)] leading-none tracking-tight relative z-10">
                 <AnimatePresence mode="wait">
-                  <motion.span
-                    key="loaded-revenue"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="text-5xl md:text-6xl"
-                  >
-                    {revenueValue}
-                  </motion.span>
+                  {loading ? (
+                    <motion.span
+                      key="loading-revenue"
+                      initial={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="block h-14 w-48 rounded-xl bg-[var(--theme-nested)] animate-pulse"
+                    />
+                  ) : (
+                    <motion.span
+                      key="loaded-revenue"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-5xl md:text-6xl"
+                    >
+                      {revenueValue}
+                    </motion.span>
+                  )}
                 </AnimatePresence>
               </h2>
               
@@ -211,7 +218,7 @@ export default function HeroBanner() {
           </div>
 
           {/* Net profit badge */}
-          {!loading && stats.dailyNetProfit >= 0 && (
+          {!loading && (
             <div className="flex items-center gap-2 mb-5">
               <div
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
@@ -245,17 +252,27 @@ export default function HeroBanner() {
               </span>
               <div className="flex items-end gap-2 flex-wrap">
                 <AnimatePresence mode="wait">
-                  <motion.span
-                    key="loaded"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="font-serif font-bold text-2xl md:text-3xl text-[var(--theme-text)] leading-none"
-                  >
-                    {stats.todayOrders}
-                  </motion.span>
+                  {loading ? (
+                    <motion.span
+                      key="loading"
+                      initial={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="block h-8 w-10 rounded-md bg-[var(--theme-nested)] animate-pulse"
+                    />
+                  ) : (
+                    <motion.span
+                      key="loaded"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="font-serif font-bold text-2xl md:text-3xl text-[var(--theme-text)] leading-none"
+                    >
+                      {stats.todayOrders}
+                    </motion.span>
+                  )}
                 </AnimatePresence>
-                {stats.todayOrders > 0 && (
+                {!loading && stats.todayOrders > 0 && (
                   <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -274,17 +291,27 @@ export default function HeroBanner() {
               </span>
               <div className="flex items-end gap-2">
                 <AnimatePresence mode="wait">
-                  <motion.span
-                    key="loaded"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="font-serif font-bold text-2xl md:text-3xl text-[var(--theme-text)] leading-none"
-                  >
-                    {stats.activeTables}
-                  </motion.span>
+                  {loading ? (
+                    <motion.span
+                      key="loading"
+                      initial={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="block h-8 w-10 rounded-md bg-[var(--theme-nested)] animate-pulse"
+                    />
+                  ) : (
+                    <motion.span
+                      key="loaded"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                      className="font-serif font-bold text-2xl md:text-3xl text-[var(--theme-text)] leading-none"
+                    >
+                      {stats.activeTables}
+                    </motion.span>
+                  )}
                 </AnimatePresence>
-                {stats.activeTables > 0 && (
+                {!loading && stats.activeTables > 0 && (
                   <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -302,6 +329,15 @@ export default function HeroBanner() {
                 {t('todays_favorite' as any)}
               </span>
               <AnimatePresence mode="wait">
+                {loading ? (
+                  <motion.span
+                    key="loading"
+                    initial={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="block h-8 w-24 rounded-md bg-[var(--theme-nested)] animate-pulse"
+                  />
+                ) : (
                   <motion.span
                     key="loaded"
                     initial={{ opacity: 0 }}
@@ -311,6 +347,7 @@ export default function HeroBanner() {
                   >
                     {stats.topProduct}
                   </motion.span>
+                )}
               </AnimatePresence>
             </div>
           </div>
@@ -368,10 +405,9 @@ export default function HeroBanner() {
                 </div>
               </div>
             </Link>
-            </div>
-          </div>
-        )}
-        </div>
-      </motion.div>
+           </div>
+         </div>
+       </div>
+     </motion.div>
   );
 }

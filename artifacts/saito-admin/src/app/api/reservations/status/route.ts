@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { requireActiveShift } from '@/lib/shiftLock';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -10,7 +9,7 @@ function svc() {
 
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled', 'expired'],
-  confirmed: ['waiting', 'checked_in', 'cancelled', 'no_show', 'expired'],
+  confirmed: ['waiting', 'cancelled', 'no_show', 'expired'],
   waiting: ['checked_in', 'cancelled', 'no_show'],
   checked_in: ['completed', 'cancelled'],
   completed: ['archived'],
@@ -18,7 +17,6 @@ const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
   no_show: ['pending'],
   expired: ['pending'],
   archived: ['pending'],
-  waiting_list: ['waiting', 'checked_in', 'cancelled', 'no_show'],
 };
 
 function isValidTransition(from: string, to: string): boolean {
@@ -26,15 +24,20 @@ function isValidTransition(from: string, to: string): boolean {
   return VALID_STATUS_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+const TABLE_STATUS_MAP: Record<string, string | null> = {
+  confirmed: 'reserved',
+  waiting: 'waiting',
+  checked_in: 'occupied',
+  completed: 'empty',
+  cancelled: 'empty',
+  no_show: 'empty',
+  expired: 'empty',
+};
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
-
-    const shiftCheck = await requireActiveShift();
-    if (!shiftCheck.ok) {
-      return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
-    }
 
     const { id, reservation_id, status, notes } = await request.json();
     const reservationId = id || reservation_id;
@@ -61,47 +64,116 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
-    // 3. For cancellations/no_show/expired, use atomic RPC
+    // 3. Check for active orders before cancelling/no_show/expired
     if (status === 'cancelled' || status === 'no_show' || status === 'expired') {
-      const rpcRes = await fetch(`${s.url}/rest/v1/rpc/cancel_reservation_atomic`, {
-        method: 'POST',
-        headers: s.headers,
-        body: JSON.stringify({
-          p_reservation_id: reservationId,
-          p_reason: notes || status,
-          p_performed_by: auth.user?.id || null,
-        }),
-      });
-
-      if (!rpcRes.ok) {
-        const errText = await rpcRes.text();
-        return NextResponse.json({ error: errText }, { status: 400 });
+      const ordersRes = await fetch(
+        `${s.url}/rest/v1/orders?select=id,status&reservation_id=eq.${current.id}&status=neq.paid&status=neq.cancelled`,
+        { headers: s.headers }
+      );
+      const activeOrders: any[] = await ordersRes.json();
+      if (activeOrders.length > 0) {
+        for (const order of activeOrders) {
+          await fetch(`${s.url}/rest/v1/orders?id=eq.${order.id}`, {
+            method: 'PATCH',
+            headers: s.headers,
+            body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }),
+          });
+        }
       }
 
-      const rpcData = await rpcRes.json();
-      return NextResponse.json(rpcData);
-    }
-
-    // 4. Handle guest arrival: atomic flow for pending reservations
-    if (status === 'checked_in' && current.status === 'pending') {
-      const tableIdsJson = current.table_ids ? (typeof current.table_ids === 'string' ? current.table_ids : JSON.stringify(current.table_ids)) : '[]';
-      const rpcRes = await fetch(`${s.url}/rest/v1/rpc/confirm_and_checkin_atomic`, {
-        method: 'POST',
-        headers: s.headers,
-        body: JSON.stringify({
-          p_reservation_id: reservationId,
-          p_table_ids: JSON.parse(tableIdsJson),
-          p_user_id: (auth.user?.id || null) as any,
-        }),
-      });
-      const rpcData = await rpcRes.json();
-      if (!rpcRes.ok || rpcData?.error) {
-        return NextResponse.json({ error: rpcData?.error || 'Confirm & Check In failed' }, { status: 400 });
+      // 3b. Cancel orphan draft orders with kitchen_status = 'reserved'
+      const draftRes = await fetch(
+        `${s.url}/rest/v1/orders?select=id&reservation_id=eq.${current.id}&is_draft=eq.true&kitchen_status=eq.reserved`,
+        { headers: s.headers }
+      );
+      const draftOrders: any[] = await draftRes.json();
+      if (Array.isArray(draftOrders) && draftOrders.length > 0) {
+        const draftIds = draftOrders.map(o => o.id).filter(Boolean);
+        const CHUNK = 20;
+        for (let i = 0; i < draftIds.length; i += CHUNK) {
+          const chunk = draftIds.slice(i, i + CHUNK);
+          const orFilter = chunk.map(id => `id.eq.${id}`).join(',');
+          await fetch(`${s.url}/rest/v1/orders?or=(${orFilter})`, {
+            method: 'PATCH',
+            headers: s.headers,
+            body: JSON.stringify({ status: 'cancelled', updated_at: new Date().toISOString() }),
+          });
+        }
       }
-      return NextResponse.json(rpcData);
     }
 
-    // 5. Update reservation for other transitions
+    // 4. Handle guest arrival: if waiting or checked_in, activate table and clear reservation markers
+    if ((status === 'waiting' || status === 'checked_in') && (current.status === 'confirmed' || current.status === 'waiting')) {
+      if (current.table_ids) {
+        const tableIds = typeof current.table_ids === 'string' ? JSON.parse(current.table_ids) : current.table_ids;
+        for (const tId of tableIds) {
+          await fetch(`${s.url}/rest/v1/table_floors?id=eq.${tId}`, {
+            method: 'PATCH',
+            headers: s.headers,
+            body: JSON.stringify({
+              status: status === 'waiting' ? 'waiting' : 'occupied',
+              reservation_id: null,
+              reservation_name: null,
+              reservation_phone: null,
+              reservation_time: null,
+              guest_count: current.guests ?? null,
+            }),
+          });
+        }
+      }
+
+      // Activate the linked draft order so the POS can open it and send to kitchen.
+      const draftRes = await fetch(
+        `${s.url}/rest/v1/orders?select=id&reservation_id=eq.${current.id}&is_draft=eq.true`,
+        { headers: s.headers }
+      );
+      const draftOrders: any[] = draftRes.ok ? await draftRes.json() : [];
+      if (Array.isArray(draftOrders) && draftOrders.length > 0) {
+        const draftIds = draftOrders.map(o => o.id).join(',');
+        await fetch(`${s.url}/rest/v1/orders?or=(${draftIds.split(',').map(id => `id.eq.${id}`).join(',')})`, {
+          method: 'PATCH',
+          headers: s.headers,
+          body: JSON.stringify({
+            is_draft: false,
+            kitchen_status: 'pending',
+            status: 'confirmed',
+            updated_at: new Date().toISOString(),
+          }),
+        });
+        // Promote the draft's reserved kitchen items to pending too.
+        await fetch(`${s.url}/rest/v1/order_items?or=(${draftIds.split(',').map(id => `order_id.eq.${id}`).join(',')})&kitchen_status=eq.reserved`, {
+          method: 'PATCH',
+          headers: s.headers,
+          body: JSON.stringify({ kitchen_status: 'pending' }),
+        });
+      }
+    }
+
+    // 5. Sync table_floors based on target status
+    if (current.table_ids) {
+      const tableIds = typeof current.table_ids === 'string' ? JSON.parse(current.table_ids) : current.table_ids;
+      const tableStatus = TABLE_STATUS_MAP[status];
+
+      if (tableStatus !== undefined) {
+        for (const tId of tableIds) {
+          const patch: Record<string, any> = { status: tableStatus };
+          if (tableStatus === 'empty') {
+            patch.reservation_id = null;
+            patch.reservation_name = null;
+            patch.reservation_phone = null;
+            patch.reservation_time = null;
+            patch.guest_count = null;
+          }
+          await fetch(`${s.url}/rest/v1/table_floors?id=eq.${tId}`, {
+            method: 'PATCH',
+            headers: s.headers,
+            body: JSON.stringify(patch),
+          });
+        }
+      }
+    }
+
+    // 6. Update reservation
     const updatePayload: Record<string, any> = { status };
     if (notes) updatePayload.note = notes;
     if (status === 'checked_in') updatePayload.checked_in_at = new Date().toISOString();
@@ -112,6 +184,43 @@ export async function POST(request: NextRequest) {
       headers: s.headers,
       body: JSON.stringify(updatePayload),
     });
+
+    // 7. Audit log
+    const auditTable = 'audit_logs';
+    const auditBody = {
+      table_name: 'reservations',
+      record_id: reservationId,
+      action: `status_change:${current.status}→${status}`,
+      old_data: { status: current.status },
+      new_data: { status, notes },
+      performed_by: auth.user?.id || null,
+      created_at: new Date().toISOString(),
+    };
+    const auditRes = await fetch(`${s.url}/rest/v1/${auditTable}`, {
+      method: 'POST',
+      headers: s.headers,
+      body: JSON.stringify(auditBody),
+    });
+    if (!auditRes.ok) {
+      const auditText = await auditRes.text();
+      // Try with singular name if plural fails
+      if (auditRes.status === 404) {
+        await fetch(`${s.url}/rest/v1/audit_log`, {
+          method: 'POST',
+          headers: s.headers,
+          body: JSON.stringify(auditBody),
+        });
+      }
+    }
+
+    // 8. If cancelled/no_show/expired with pre-order, cancel kitchen schedule
+    if ((status === 'cancelled' || status === 'no_show' || status === 'expired') && current.kitchen_scheduled_at) {
+      await fetch(`${s.url}/rest/v1/kitchen_schedule?reservation_id=eq.${reservationId}`, {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+    }
 
     return NextResponse.json({ success: true, status });
   } catch (error: any) {

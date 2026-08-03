@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { requireActiveShift } from '@/lib/shiftLock';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -14,45 +13,59 @@ export async function POST(req: NextRequest) {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
 
-    const shiftCheck = await requireActiveShift();
-    if (!shiftCheck.ok) {
-      return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
-    }
-
-    const { primary_table_number, child_table_numbers, terminal_id } = await req.json();
+    const { primary_table_number, child_table_numbers } = await req.json();
     if (!primary_table_number || !child_table_numbers?.length) {
       return NextResponse.json({ error: 'primary_table_number and child_table_numbers required' }, { status: 400 });
     }
 
     const s = svc();
-    const childNums = child_table_numbers.map(Number);
 
-    // Atomic unmerge RPC handles: unlink child orders, reset child tables, recalculate parent total
-    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/unmerge_tables_atomic`, {
-      method: 'POST',
+    const primaryHasOrderRes = await fetch(`${s.url}/rest/v1/orders?table_number=eq.${primary_table_number}&status=not.in.(paid,cancelled,closed)&select=id`, { headers: s.headers });
+    const primaryOrders = await primaryHasOrderRes.json();
+    const primaryHasOrder = (primaryOrders || []).length > 0;
+
+    const childTableNumbers = child_table_numbers.map((n: any) => Number(n));
+    const childWhere = `table_number=in.(${childTableNumbers.join(',')})`;
+
+    await fetch(`${s.url}/rest/v1/table_floors?${childWhere}`, {
+      method: 'PATCH',
       headers: s.headers,
       body: JSON.stringify({
-        p_parent_table_number: primary_table_number,
-        p_child_table_numbers: childNums,
-        p_performed_by: auth.user?.id || null,
-        p_performed_by_terminal_id: terminal_id || null,
+        status: 'empty',
+        guest_count: null,
+        total_amount: 0,
+        merged_into_table: null,
+        updated_at: new Date().toISOString(),
       }),
     });
 
-    if (!rpcRes.ok) {
-      const errText = await rpcRes.text();
-      return NextResponse.json({ error: errText }, { status: 400 });
-    }
-
-    const data = await rpcRes.json();
-
-    if (!data?.success) {
-      return NextResponse.json({ error: data?.error || 'Unmerge failed' }, { status: 400 });
+    if (!primaryHasOrder) {
+      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${primary_table_number}`, {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({
+          status: 'empty',
+          guest_count: null,
+          total_amount: 0,
+          merged_into_table: null,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    } else {
+      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${primary_table_number}`, {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({
+          merged_into_table: null,
+          updated_at: new Date().toISOString(),
+        }),
+      });
     }
 
     return NextResponse.json({
       success: true,
-      data: { primaryTable: primary_table_number, childTables: childNums, ...data },
+      data: { primaryTable: primary_table_number, childTables: childTableNumbers },
+      undo: { primaryTable: primary_table_number, childTables: childTableNumbers },
     });
   } catch (error: any) {
     console.error('[API /orders/unmerge] Error:', error);

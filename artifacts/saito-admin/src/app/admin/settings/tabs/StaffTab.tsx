@@ -11,6 +11,13 @@ import { hashPin } from '@/lib/crypto';
 
 type StaffMember = { id: string; name: string; role: string; shift: string; phone: string; pin?: string };
 const ROLES = ['Ofisiant', 'Baş Ofisiant', 'Menecer', 'Barmen', 'Aşpaz', 'Kassa'];
+const EXPENSE_CATEGORIES = [
+  { value: 'salary', label: 'Maaş' },
+  { value: 'bonus', label: 'Bonus' },
+  { value: 'penalty', label: 'Cərimə' },
+  { value: 'advance', label: 'Avans' },
+  { value: 'other', label: 'Digər' },
+];
 const emptyForm = () => ({ name: '', role: ROLES[0], shift: '', phone: '', pin: '' });
 
 const STAFF_CACHE_KEY = 'saito_staff_cache';
@@ -29,7 +36,7 @@ const StaffTab = () => {
   const [form, setForm] = useState(emptyForm());
   const [expenses, setExpenses] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
-  const [expenseForm, setExpenseForm] = useState({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+  const [expenseForm, setExpenseForm] = useState({ staff_id: '', category: 'salary', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
 
   useEffect(() => {
     supabase.from('staff').select('*').order('name').then(({ data }) => {
@@ -64,7 +71,7 @@ const StaffTab = () => {
 
   const openAddExpense = () => {
     setModalMode('expense');
-    setExpenseForm({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+    setExpenseForm({ staff_id: '', category: 'salary', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
     setModalOpen(true);
   };
 
@@ -73,7 +80,7 @@ const StaffTab = () => {
     setModalMode('staff');
     setEditingStaff(null);
     setForm(emptyForm());
-    setExpenseForm({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+    setExpenseForm({ staff_id: '', category: 'salary', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
   };
 
   const handleStaffSubmit = async (e: React.FormEvent) => {
@@ -112,11 +119,11 @@ const StaffTab = () => {
       const res = await fetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(expenseForm),
+        body: JSON.stringify({ ...expenseForm, category: expenseForm.category }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Xəta');
       toast.success('Xərc əlavə edildi', { id: 'action-toast', duration: 3000 });
-      setExpenseForm({ staff_id: '', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+      setExpenseForm({ staff_id: '', category: 'salary', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
       closeModal();
       loadExpenses();
     } catch (e: any) {
@@ -134,6 +141,17 @@ const StaffTab = () => {
   };
 
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const expenseCatMeta = (cat: string) => {
+    const c = EXPENSE_CATEGORIES.find(x => x.value === cat);
+    const label = c ? c.label : cat;
+    const cls = cat === 'salary' ? 'bg-gold/10 text-gold/90 border-gold/20'
+      : cat === 'bonus' ? 'bg-green-500/10 text-green-400 border-green-500/20'
+      : cat === 'penalty' ? 'bg-red-500/10 text-red-400 border-red-500/20'
+      : cat === 'advance' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+      : 'bg-white/5 text-white/50 border-white/10';
+    return { label, cls };
+  };
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -246,11 +264,18 @@ const StaffTab = () => {
             ) : (
               expenses.map(e => (
                 <div key={e.id} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
-                  <div>
-                    <p className="text-white text-sm font-semibold">{e.category === 'salary' ? 'Maaş' : e.category}</p>
-                    <p className="text-white/30 text-xs">{e.note || e.expense_date}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${expenseCatMeta(e.category).cls}`}>
+                        {expenseCatMeta(e.category).label}
+                      </span>
+                      {staffList.find(s => s.id === e.staff_id)?.name && (
+                        <span className="text-white/40 text-xs truncate">{staffList.find(s => s.id === e.staff_id)?.name}</span>
+                      )}
+                    </div>
+                    <p className="text-white/30 text-xs mt-1">{e.note || e.expense_date}</p>
                   </div>
-                  <span className="text-white font-bold">₼{Number(e.amount || 0).toFixed(2)}</span>
+                  <span className={`text-white font-bold tabular-nums ${e.category === 'penalty' ? 'text-red-400' : ''}`}>₼{Number(e.amount || 0).toFixed(2)}</span>
                 </div>
               ))
             )}
@@ -294,6 +319,16 @@ const StaffTab = () => {
                       <option value="">İşçi seçin</option>
                       {staffList.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
                     </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">
+                      <Briefcase size={10} className="text-gold/70" /> Kateqoriya
+                    </label>
+                    <GoldSelect
+                      value={expenseForm.category}
+                      options={EXPENSE_CATEGORIES}
+                      onChange={(val) => setExpenseForm({ ...expenseForm, category: val })}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-semibold">

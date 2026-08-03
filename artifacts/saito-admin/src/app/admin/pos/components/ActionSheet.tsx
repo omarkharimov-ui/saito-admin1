@@ -36,6 +36,7 @@ interface ActionSheetProps {
   customerId?: string | null;
   customerName?: string | null;
   mergeMode?: boolean;
+  transferMode?: boolean;
   mergeParent?: number | null;
   unmergeMode?: boolean;
   isMerged?: boolean;
@@ -67,7 +68,7 @@ export function ActionSheet({
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
   onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onSelectCustomer, customerId, customerName,
-  mergeMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
+  mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, onBillRequest, onPrintBill, onClearTable, onSeatGuests, posRole, groupNumber,
   paymentView, transferConfirm, transferSource, transferTarget, onConfirmTransfer, onCancelTransfer,
   posMode = 'dine_in'
@@ -112,10 +113,10 @@ export function ActionSheet({
   };
 
   useEffect(() => {
-    if (open && !mergeMode) document.body.style.overflow = 'hidden';
+    if (open && !mergeMode && !transferMode) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
     return () => { document.body.style.overflow = 'unset'; };
-  }, [open, mergeMode]);
+  }, [open, mergeMode, transferMode]);
 
   useEffect(() => {
     if (!open) {
@@ -134,7 +135,7 @@ export function ActionSheet({
     return () => { if (customerSearchTimerRef.current) clearTimeout(customerSearchTimerRef.current); };
   }, []);
 
-  if (!table && !mergeMode && !transferConfirm && !paymentView) return null;
+  if (!table && !mergeMode && !transferMode && !transferConfirm && !paymentView) return null;
 
   const isOccupied = table?.status !== 'empty' && table?.status !== 'dirty';
   const isDirty = table?.status === 'dirty';
@@ -164,7 +165,7 @@ export function ActionSheet({
   const mergedChildren = unmergeMode && table ? (mergedGroupChildren ?? []) : [];
   const showSplitForm = !!localSplit;
   const showCustomerForm = showCustomerSearch;
-  const currentView = confirmAction ? 'confirm-action' : splitByItemsView ? 'split-by-items' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : transferConfirm ? 'transfer' : unmergeMode ? 'split' : open ? 'actions' : 'none';
+  const currentView = confirmAction ? 'confirm-action' : splitByItemsView ? 'split-by-items' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : (transferMode || transferConfirm) ? 'transfer' : unmergeMode ? 'split' : open ? 'actions' : 'none';
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
@@ -172,7 +173,7 @@ export function ActionSheet({
       {currentView !== 'none' && (
         <div key="global-pos-root" className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none pb-10">
           {/* Backdrop */}
-          {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'transfer' || currentView === 'split-by-items' || currentView === 'confirm-action') && (
+          {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'split-by-items' || currentView === 'confirm-action') && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={appleBackdrop}
@@ -841,9 +842,13 @@ export function ActionSheet({
                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleViewSwap} key="ui-transfer" className="flex items-center gap-5 w-full">
                    <div className="flex flex-col mr-auto min-w-[140px]">
                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">Köçürmə</span>
-                     <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                       {transferSource && transferTarget ? `Masa ${transferSource} → Masa ${transferTarget}` : 'Hədəf seçin'}
-                     </span>
+                      <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                        {transferSource && transferTarget
+                          ? `Masa ${transferSource} → Masa ${transferTarget}`
+                          : transferSource
+                            ? `Mənbə: Masa ${transferSource} — hədəf seçin`
+                            : 'Mənbə masanı seçin'}
+                      </span>
                    </div>
                    <div className="flex items-center gap-3">
                      <button onClick={onCancelTransfer} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><XCircle size={18} strokeWidth={3} /></button>

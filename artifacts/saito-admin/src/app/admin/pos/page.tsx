@@ -1291,8 +1291,8 @@ export default function POSPage() {
                             key={label}
                             onClick={() => {
                               if (label === 'Normal') { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
-                              if (label === 'Birləşdir') { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); setActionSheetOpen(false); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
-                              if (label === 'Köçür') { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                              if (label === 'Birləşdir') { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); setTransferConfirm(false); setActionSheetOpen(true); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                              if (label === 'Köçür') { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(true); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
                             }}
                             className="relative px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors z-10"
                             style={{ color: active ? (lightMode ? '#ffffff' : '#ffffff') : lightMode ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)' }}
@@ -1845,9 +1845,10 @@ export default function POSPage() {
            setActionSheetOpen(false);
          }}
          onDismissGroup={handleDismissGroup}
-         paymentView={paymentView}
-         mergeMode={mergeMode}
-         mergeParent={selectedForMerge[0]}
+          paymentView={paymentView}
+          mergeMode={mergeMode}
+          transferMode={transferMode}
+          mergeParent={selectedForMerge[0]}
          unmergeMode={unmergeMode}
          isMerged={!!actionSheetGroup}
          mergedGroupChildren={actionSheetGroup?.children}
@@ -1859,13 +1860,14 @@ export default function POSPage() {
          }}
          onConfirmUnmerge={handleUnmerge}
          onCancelMode={() => { setMergeMode(false); setTransferMode(false); setUnmergeMode(false); setSelectedForMerge([]); setSelectedForUnmerge([]); setTransferSource(null); setTransferTarget(null); }}
-           onConfirmMerge={async () => { 
-            const undoResult = await pos.mergeTables(selectedForMerge); 
-            if (undoResult) setLastUndo({ ...undoResult, timestamp: Date.now() });
-            setTimeout(() => setLastUndo(null), 5000);
-            setMergeMode(false); 
-            setSelectedForMerge([]); 
-          }}
+            onConfirmMerge={async () => { 
+             const undoResult = await pos.mergeTables(selectedForMerge); 
+             if (undoResult) setLastUndo({ ...undoResult, timestamp: Date.now() });
+             setTimeout(() => setLastUndo(null), 5000);
+             setMergeMode(false); 
+             setSelectedForMerge([]); 
+             setActionSheetOpen(false);
+           }}
           onBillRequest={handleBillRequest}
           onPrintBill={handlePrintBill}
           onClearTable={() => { if (actionSheetTable) { pos.clearTable(actionSheetTable.table_number); setActionSheetOpen(false); } }}
@@ -1880,7 +1882,7 @@ export default function POSPage() {
             transferConfirm={transferConfirm}
             transferSource={transferSource}
             transferTarget={transferTarget}
-            onConfirmTransfer={() => { if (transferTarget) handleConfirmTransfer(transferTarget); setTransferConfirm(false); }}
+            onConfirmTransfer={() => { if (transferTarget) handleConfirmTransfer(transferTarget); setTransferConfirm(false); setActionSheetOpen(false); }}
             onCancelTransfer={() => { setTransferConfirm(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
           />
 

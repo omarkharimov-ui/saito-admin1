@@ -14,6 +14,7 @@ import type { PosTable } from '../types/shared';
 import { appleViewSwap, appleBackdrop, appleCard, appleCapsule } from '@/lib/modal-transitions';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
 import { PinGuard } from './PinGuard';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 type PaymentMethod = 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher';
 
@@ -76,6 +77,7 @@ export function ActionSheet({
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const router = useRouter();
+  const keyboardHeight = useKeyboardHeight();
   const [localSplit, setLocalSplit] = useState<{ cash: string; card: string } | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customers, setCustomers] = useState<any[]>([]);
@@ -171,7 +173,7 @@ export function ActionSheet({
   return (
     <AnimatePresence>
       {currentView !== 'none' && (
-        <div key="global-pos-root" className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none pb-10">
+        <div key="global-pos-root" className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none pb-10" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
           {/* Backdrop */}
           {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'split-by-items' || currentView === 'confirm-action') && (
             <motion.div

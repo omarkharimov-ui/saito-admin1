@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { appleSheet, appleBackdrop } from '@/lib/modal-transitions';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface CashDrawerSession {
   id: string;
@@ -36,6 +37,7 @@ interface CashDrawerPanelProps {
 
 export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   const { lightMode } = useTheme();
+  const keyboardHeight = useKeyboardHeight();
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<CashDrawerSession | null>(null);
@@ -171,7 +173,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[130] flex items-end justify-center pointer-events-none">
+      <div className="fixed inset-0 z-[130] flex items-end justify-center pointer-events-none" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop}
           className="fixed inset-0 z-0 pointer-events-auto bg-black/20 backdrop-blur-[2px]"

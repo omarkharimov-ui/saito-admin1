@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface ActionCardProps {
   icon: ReactNode;
@@ -69,6 +70,7 @@ interface TableActionSheetProps {
 
 export function TableActionSheet({ open, onClose, title, subtitle, badge, children }: TableActionSheetProps) {
   const { lightMode } = useTheme();
+  const keyboardHeight = useKeyboardHeight();
 
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden';
@@ -85,6 +87,7 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, childr
       exit={{ opacity: 0, y: 100 }}
       transition={appleCard}
       className="fixed bottom-0 left-0 right-0 z-[120] flex items-center justify-center p-4 pointer-events-none"
+      style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
     >
       <div className="pointer-events-auto w-full max-w-md overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.3)] border rounded-[2.5rem] p-7 bg-zinc-900/95 border-white/10">
         <div className="text-center mb-6">

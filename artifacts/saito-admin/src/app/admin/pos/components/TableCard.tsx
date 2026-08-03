@@ -84,7 +84,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   return (
     <div
       onClick={onTap}
-      className={`relative h-[180px] rounded-[24px] p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer
+      className={`relative h-[180px] rounded-[24px] p-5 text-left transition-all duration-200 overflow-hidden border cursor-pointer
         ${isTransferSource
           ? (lightMode ? 'bg-zinc-100 border-transparent opacity-60' : 'bg-zinc-800/50 border-transparent opacity-50')
           : isTransferTarget
@@ -225,8 +225,8 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
             <AnimatePresence>{isSelected && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}><Check size={14} className="text-white" strokeWidth={3} /></motion.div>}</AnimatePresence>
           </div>
         ) : (
-          <button onClick={(e) => { e.stopPropagation(); onAction(); }} className="p-1.5 rounded-full transition-colors hover:bg-white/10">
-            <MoreVertical size={16} className={`${lightMode ? 'text-zinc-400 group-hover:text-zinc-600' : 'text-white/20 group-hover:text-white/40'}`} />
+          <button onClick={(e) => { e.stopPropagation(); onAction(); }} className="p-1.5 rounded-full transition-colors">
+            <MoreVertical size={16} className={`${lightMode ? 'text-zinc-400' : 'text-white/20'}`} />
           </button>
         )}
       </div>

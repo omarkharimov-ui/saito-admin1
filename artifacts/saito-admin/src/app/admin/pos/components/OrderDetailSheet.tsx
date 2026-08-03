@@ -12,6 +12,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import type { PosProduct } from '../types/shared';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { appleSheet, appleBackdrop } from '@/lib/modal-transitions';
 
 interface OrderDetailSheetProps {
@@ -68,6 +69,7 @@ type TabKey = 'info' | 'order';
 
 export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChange, posMode, products = [], categories = [], onAddToExistingOrder }: OrderDetailSheetProps) {
   const { lightMode } = useTheme();
+  const keyboardHeight = useKeyboardHeight();
   const { t } = useLanguage();
   const [couriers, setCouriers] = useState<any[]>([]);
   const [assigningCourier, setAssigningCourier] = useState(false);
@@ -191,7 +193,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none">
+        <div className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

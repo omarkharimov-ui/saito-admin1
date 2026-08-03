@@ -54,6 +54,9 @@ export interface PosCart {
   customer_id?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
+  delivery_address?: string | null;
+  delivery_street?: string | null;
+  delivery_building?: string | null;
   discount_amount?: number;
   discount_type?: 'percentage' | 'fixed' | null;
   reservation_id?: string | null;

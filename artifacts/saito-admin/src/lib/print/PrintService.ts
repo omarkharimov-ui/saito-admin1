@@ -21,6 +21,11 @@ export interface ReceiptData {
   paymentMethod: string;
   cashAmount?: number;
   cardAmount?: number;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  deliveryFee?: number;
+  estimatedTime?: string;
   date: string;
   time: string;
   paperWidth: string;

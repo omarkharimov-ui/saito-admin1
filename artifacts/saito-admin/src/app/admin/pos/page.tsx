@@ -50,7 +50,6 @@ export default function POSPage() {
   const [actionSheetTable, setActionSheetTable] = useState<any>(null);
   const [cashDrawerOpen, setCashDrawerOpen] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
-  const [orderViewTab, setOrderViewTab] = useState<'order' | 'info'>('order');
   const [editingOrder, setEditingOrder] = useState<any>(null);
   
   const [mergeMode, setMergeMode] = useState(false);
@@ -1528,12 +1527,10 @@ export default function POSPage() {
               onNewOrder={() => {
                 pos.initializeTakeawayCart();
                 setEditingOrder(null);
-                setOrderViewTab('info');
                 pos.setActiveView('order');
               }}
               onSelectOrder={(order) => {
                 setEditingOrder(order);
-                setOrderViewTab('order');
                 pos.loadOrderIntoCart(order);
                 pos.setActiveView('order');
               }}
@@ -1550,12 +1547,10 @@ export default function POSPage() {
               onNewOrder={() => {
                 pos.initializeTakeawayCart();
                 setEditingOrder(null);
-                setOrderViewTab('info');
                 pos.setActiveView('order');
               }}
               onSelectOrder={(order) => {
                 setEditingOrder(order);
-                setOrderViewTab('order');
                 pos.loadOrderIntoCart(order);
                 pos.setActiveView('order');
               }}
@@ -1572,197 +1567,9 @@ export default function POSPage() {
            )}
            {pos.activeView === 'order' && !pos.loading && (
              <div key="order" className="h-full w-full flex flex-col overflow-hidden">
-                {/* Tab bar for takeaway/delivery (new + existing orders) */}
-                {posMode !== 'dine_in' && (
-                  <div className={`flex items-center gap-1 px-6 pt-4 pb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
-                    {([
-                      { key: 'info' as const, label: 'Məlumat' },
-                      { key: 'order' as const, label: 'Sifariş' },
-                    ]).map(tab => (
-                      <button
-                        key={tab.key}
-                        onClick={() => setOrderViewTab(tab.key)}
-                        className={`relative px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                          orderViewTab === tab.key
-                            ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black')
-                            : (lightMode ? 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50' : 'text-white/40 hover:text-white/70 hover:bg-white/5')
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* ═══════════════════════════════════════════════ */}
-                {/* MƏLUMAT TAB — editable customer info            */}
-                {/* ═══════════════════════════════════════════════ */}
-                {posMode !== 'dine_in' && orderViewTab === 'info' && (
-                  <div className="flex-1 overflow-y-auto p-6">
-                    <div className="max-w-lg mx-auto space-y-5">
-                      {/* Existing order header (only when editing) */}
-                      {editingOrder && (
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-2xl font-black tracking-tighter ${lightMode ? 'text-black' : 'text-white'}`}>
-                              {posMode === 'takeaway' ? `Gel-Al ${editingOrder.order_number || ''}` : posMode === 'delivery' ? `Çatdırılma ${editingOrder.order_number || ''}` : `#${editingOrder.order_number || editingOrder.id?.slice(0, 8)}`}
-                            </p>
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border mt-2 ${
-                              editingOrder.status === 'paid' ? 'bg-green-500/15 border-green-500/25 text-green-400' :
-                              editingOrder.status === 'cancelled' ? 'bg-red-500/15 border-red-500/25 text-red-400' :
-                              'bg-amber-500/15 border-amber-500/25 text-amber-400'
-                            }`}>
-                              {editingOrder.status === 'paid' ? 'Ödənildi' : editingOrder.status === 'cancelled' ? 'Ləğv' : editingOrder.status === 'confirmed' ? 'Təsdiqləndi' : editingOrder.status === 'preparing' ? 'Hazırlanır' : editingOrder.status === 'ready' ? 'Hazırdır' : editingOrder.status}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ── Phone ── */}
-                      <div>
-                        <label className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                          Telefon {posMode === 'delivery' ? '*' : ''}
-                        </label>
-                        <input
-                          type="tel"
-                          value={pos.cart?.customer_phone || ''}
-                          onChange={e => {
-                            if (!pos.cart) return;
-                            pos.setCart({ ...pos.cart, customer_phone: e.target.value || null });
-                          }}
-                          placeholder="050 200 12 20"
-                          className={`w-full rounded-2xl px-5 py-4 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                        />
-                      </div>
-
-                      {/* ── Name ── */}
-                      <div>
-                        <label className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                          Ad Soyad
-                        </label>
-                        <input
-                          type="text"
-                          value={pos.cart?.customer_name || ''}
-                          onChange={e => {
-                            if (!pos.cart) return;
-                            pos.setCart({ ...pos.cart, customer_name: e.target.value || null });
-                          }}
-                          placeholder="Müştəri adı"
-                          className={`w-full rounded-2xl px-5 py-4 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                        />
-                      </div>
-
-                      {/* ── Delivery Address (delivery only) ── */}
-                      {posMode === 'delivery' && (
-                        <div>
-                          <label className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                            Çatdırma Ünvanı *
-                          </label>
-                          <textarea
-                            value={pos.cart?.delivery_address || ''}
-                            onChange={e => {
-                              if (!pos.cart) return;
-                              pos.setCart({ ...pos.cart, delivery_address: e.target.value || null });
-                            }}
-                            placeholder="Ünvan daxil edin"
-                            rows={3}
-                            className={`w-full rounded-2xl px-5 py-4 text-sm font-bold outline-none border transition-all resize-none ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                          />
-                        </div>
-                      )}
-
-                      {/* ── Delivery Fee (delivery only) ── */}
-                      {posMode === 'delivery' && (
-                        <div>
-                          <label className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                            Çatdırma Haqqı (₼)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={pos.cart?.delivery_fee || ''}
-                            onChange={e => {
-                              if (!pos.cart) return;
-                              pos.setCart({ ...pos.cart, delivery_fee: Number(e.target.value) || 0 });
-                            }}
-                            placeholder="0.00"
-                            className={`w-full rounded-2xl px-5 py-4 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                          />
-                        </div>
-                      )}
-
-                      {/* ── Notes ── */}
-                      <div>
-                        <label className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                          Qeyd
-                        </label>
-                        <textarea
-                          value={pos.cart?.notes || ''}
-                          onChange={e => {
-                            if (!pos.cart) return;
-                            pos.setCart({ ...pos.cart, notes: e.target.value });
-                          }}
-                          placeholder="Əlavə qeyd..."
-                          rows={2}
-                          className={`w-full rounded-2xl px-5 py-4 text-sm font-bold outline-none border transition-all resize-none ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                        />
-                      </div>
-
-                      {/* ── Status change (existing orders only) ── */}
-                      {editingOrder && editingOrder.status !== 'paid' && editingOrder.status !== 'cancelled' && (
-                        <div className={`p-4 rounded-2xl border space-y-2 ${lightMode ? 'bg-zinc-50 border-zinc-150' : 'bg-white/[0.03] border-white/[0.06]'}`}>
-                          <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Status</p>
-                          {editingOrder.status === 'confirmed' && (
-                            <button onClick={() => handleDeliveryStatusUpdate('preparing', editingOrder.id)} className="w-full py-4 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-600 transition-all active:scale-[0.98]">
-                              Hazırlanır Et
-                            </button>
-                          )}
-                          {editingOrder.status === 'preparing' && (
-                            <button onClick={() => handleDeliveryStatusUpdate('ready', editingOrder.id)} className="w-full py-4 rounded-2xl bg-green-500 text-white text-xs font-black uppercase tracking-wider hover:bg-green-600 transition-all active:scale-[0.98]">
-                              Hazırdır
-                            </button>
-                          )}
-                          {(editingOrder.status === 'ready' || editingOrder.status === 'delivered') && (
-                            <button onClick={() => handleDeliveryStatusUpdate('paid', editingOrder.id)} className="w-full py-4 rounded-2xl bg-gold text-black text-xs font-black uppercase tracking-wider hover:brightness-110 transition-all active:scale-[0.98] shadow-lg shadow-gold/20">
-                              Ödəniş Al
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* ── Order summary (existing orders only) ── */}
-                      {editingOrder && (
-                        <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-150' : 'bg-white/[0.03] border-white/[0.06]'}`}>
-                          <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                            Sifariş ({editingOrder.items?.length ?? editingOrder.order_items?.length ?? 0})
-                          </p>
-                          <div className="space-y-2">
-                            {(editingOrder.items || editingOrder.order_items || []).map((item: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between">
-                                <span className={`text-sm font-bold ${lightMode ? 'text-black' : 'text-white'}`}>
-                                  {item.quantity}x {item.product_name}
-                                </span>
-                                <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-black' : 'text-white'}`}>
-                                  ₼{(item.total_price ?? item.unit_price * item.quantity).toFixed(2)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                          <div className={`flex justify-between items-center pt-3 mt-3 border-t ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Cəmi</span>
-                            <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-black' : 'text-white'}`}>₼{Number(editingOrder.total_amount || 0).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* ═══════════════════════════════════════════════ */}
-                {/* SİFARİŞ TAB — ProductGrid + CartPanel           */}
-                {/* ═══════════════════════════════════════════════ */}
-                {((posMode !== 'dine_in' && orderViewTab === 'order') || posMode === 'dine_in') && (
+                 {/* ═══════════════════════════════════════════════ */}
+                 {/* SİFARİŞ — ProductGrid + CartPanel                */}
+                 {/* ═══════════════════════════════════════════════ */}
                   <div className="flex-1 flex flex-row overflow-hidden min-h-0">
                     <div className="flex-1 p-6 overflow-y-auto min-h-0">
                       <ProductGrid
@@ -1780,6 +1587,133 @@ export default function POSPage() {
                       />
                     </div>
                     <div className="w-[400px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0">
+                       {posMode !== 'dine_in' && (
+                         <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10">
+                           {editingOrder && (
+                             <div className="flex items-center justify-between gap-2">
+                               <div className="min-w-0">
+                                 <p className={`text-base font-black tracking-tight truncate ${lightMode ? 'text-black' : 'text-white'}`}>
+                                   {posMode === 'takeaway' ? `Gel-Al ${editingOrder.order_number || ''}` : `Çatdırılma ${editingOrder.order_number || ''}`}
+                                 </p>
+                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border mt-0.5 ${
+                                   editingOrder.status === 'paid' ? 'bg-green-500/15 border-green-500/25 text-green-400' :
+                                   editingOrder.status === 'cancelled' ? 'bg-red-500/15 border-red-500/25 text-red-400' :
+                                   'bg-amber-500/15 border-amber-500/25 text-amber-400'
+                                 }`}>
+                                   {editingOrder.status === 'paid' ? 'Ödənildi' : editingOrder.status === 'cancelled' ? 'Ləğv' : editingOrder.status === 'confirmed' ? 'Təsdiqləndi' : editingOrder.status === 'preparing' ? 'Hazırlanır' : editingOrder.status === 'ready' ? 'Hazırdır' : editingOrder.status}
+                                 </span>
+                               </div>
+                               {editingOrder.status !== 'paid' && editingOrder.status !== 'cancelled' && (
+                                 <div className="flex flex-col gap-1 shrink-0">
+                                   {editingOrder.status === 'confirmed' && (
+                                     <button onClick={() => handleDeliveryStatusUpdate('preparing', editingOrder.id)} className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider hover:bg-amber-600 active:scale-95 transition-all">
+                                       Hazırlanır
+                                     </button>
+                                   )}
+                                   {editingOrder.status === 'preparing' && (
+                                     <button onClick={() => handleDeliveryStatusUpdate('ready', editingOrder.id)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-[10px] font-black uppercase tracking-wider hover:bg-green-600 active:scale-95 transition-all">
+                                       Hazırdır
+                                     </button>
+                                   )}
+                                   {(editingOrder.status === 'ready' || editingOrder.status === 'delivered') && (
+                                     <button onClick={() => handleDeliveryStatusUpdate('paid', editingOrder.id)} className="px-3 py-1.5 rounded-lg bg-gold text-black text-[10px] font-black uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all">
+                                       Ödəniş Al
+                                     </button>
+                                   )}
+                                 </div>
+                               )}
+                             </div>
+                           )}
+
+                           <div className="grid grid-cols-2 gap-2">
+                             <div>
+                               <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                 Telefon {posMode === 'delivery' ? '*' : ''}
+                               </label>
+                               <input
+                                 type="tel"
+                                 value={pos.cart?.customer_phone || ''}
+                                 onChange={e => {
+                                   if (!pos.cart) return;
+                                   pos.setCart({ ...pos.cart, customer_phone: e.target.value || null });
+                                 }}
+                                 placeholder="050 200 12 20"
+                                 className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                               />
+                             </div>
+                             <div>
+                               <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                 Ad Soyad
+                               </label>
+                               <input
+                                 type="text"
+                                 value={pos.cart?.customer_name || ''}
+                                 onChange={e => {
+                                   if (!pos.cart) return;
+                                   pos.setCart({ ...pos.cart, customer_name: e.target.value || null });
+                                 }}
+                                 placeholder="Müştəri adı"
+                                 className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                               />
+                             </div>
+                           </div>
+
+                           {posMode === 'delivery' && (
+                             <div>
+                               <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                 Çatdırma Ünvanı *
+                               </label>
+                               <textarea
+                                 value={pos.cart?.delivery_address || ''}
+                                 onChange={e => {
+                                   if (!pos.cart) return;
+                                   pos.setCart({ ...pos.cart, delivery_address: e.target.value || null });
+                                 }}
+                                 placeholder="Ünvan daxil edin"
+                                 rows={2}
+                                 className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all resize-none ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                               />
+                             </div>
+                           )}
+
+                           <div className="grid grid-cols-2 gap-2">
+                             {posMode === 'delivery' && (
+                               <div>
+                                 <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                   Çatdırma Haqqı (₼)
+                                 </label>
+                                 <input
+                                   type="number"
+                                   step="0.01"
+                                   min="0"
+                                   value={pos.cart?.delivery_fee || ''}
+                                   onChange={e => {
+                                     if (!pos.cart) return;
+                                     pos.setCart({ ...pos.cart, delivery_fee: Number(e.target.value) || 0 });
+                                   }}
+                                   placeholder="0.00"
+                                   className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                 />
+                               </div>
+                             )}
+                             <div>
+                               <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                 Qeyd
+                               </label>
+                               <input
+                                 type="text"
+                                 value={pos.cart?.notes || ''}
+                                 onChange={e => {
+                                   if (!pos.cart) return;
+                                   pos.setCart({ ...pos.cart, notes: e.target.value });
+                                 }}
+                                 placeholder="Əlavə qeyd..."
+                                 className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                               />
+                             </div>
+                           </div>
+                         </div>
+                       )}
                        <CartPanel
                           cart={pos.cart}
                           onPlaceOrder={() => {
@@ -1791,12 +1725,10 @@ export default function POSPage() {
                               const phone = pos.cart?.customer_phone?.trim();
                               if (posMode === 'delivery' && !phone) {
                                 toast.error('Telefon nömrəsi daxil edin');
-                                setOrderViewTab('info');
                                 return;
                               }
                               if (posMode === 'delivery' && !pos.cart?.delivery_address?.trim()) {
                                 toast.error('Çatdırma ünvanı daxil edin');
-                                setOrderViewTab('info');
                                 return;
                               }
                               pos.placeOrder(undefined, {
@@ -1851,7 +1783,6 @@ export default function POSPage() {
                        />
                     </div>
                   </div>
-                )}
              </div>
            )}
           </AnimatePresence>

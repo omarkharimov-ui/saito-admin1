@@ -149,7 +149,7 @@ export function ActionSheet({
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: !isTakeawayOrDelivery },
     { id: 'customer', icon: User, label: customerName ? `${customerName}` : t('select_customer') || 'Müştəri', visible: true },
     { id: 'print_bill', icon: Printer, label: 'Hesabı Çap Et', visible: isOccupied && (table?.total_amount ?? 0) > 0 },
-    { id: 'bill_request', icon: Receipt, label: 'Hesab Çağır', visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 },
+    { id: 'bill_request', icon: Receipt, label: 'Hesab Çağır', visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isManagerOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
     { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? 'Ləğv Et' : (t('dismiss_table') || 'Masanı boşalt'), visible: !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) },
     ...(posMode === 'delivery' ? [

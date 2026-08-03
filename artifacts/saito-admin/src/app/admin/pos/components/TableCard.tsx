@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreVertical, Users, Check, Clock } from 'lucide-react';
+import { MoreVertical, Users, Check, Clock, ShoppingBag } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -176,6 +176,14 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
               <Users size={11} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
               <span className={`text-[11px] font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
                 {table.guest_count}
+              </span>
+            </div>
+          )}
+          {(table.item_count ?? 0) > 0 && (
+            <div className="flex items-center gap-1 opacity-60">
+              <ShoppingBag size={11} className={lightMode ? 'text-zinc-600' : 'text-zinc-400'} />
+              <span className={`text-[11px] font-bold ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                {table.item_count}
               </span>
             </div>
           )}

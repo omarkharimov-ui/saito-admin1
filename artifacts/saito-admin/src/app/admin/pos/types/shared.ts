@@ -87,6 +87,7 @@ export interface PosTable {
   lastOrderTime?: string | null;
   opened_at?: string | null;
   order_count?: number | null;
+  item_count?: number | null;
   order_ids?: string[];
   floor_name?: string | null;
   sort_order?: number | null;

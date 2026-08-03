@@ -217,7 +217,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                     Mərtəbə
                   </label>
                   <input type="text" value={floor} onChange={(e) => setFloor(e.target.value)}
-                    placeholder="5" className={inputClass}
+                    placeholder="Mərtəbə" className={inputClass}
                   />
                 </div>
                 <div>
@@ -225,7 +225,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                     Mənzil
                   </label>
                   <input type="text" value={apartment} onChange={(e) => setApartment(e.target.value)}
-                    placeholder="12" className={inputClass}
+                    placeholder="Mənzil" className={inputClass}
                   />
                 </div>
                 <div>

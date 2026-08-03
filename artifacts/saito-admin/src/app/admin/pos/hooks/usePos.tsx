@@ -79,6 +79,9 @@ export function usePos() {
         setFloors(data.floors || []);
       } else {
         console.error('POS tables fetch failed:', tablesRes.status);
+        if (tablesRes.status === 401) {
+          window.dispatchEvent(new CustomEvent('pos:unauthorized'));
+        }
         toast.error('Masa məlumatları yenilənə bilmədi', { id: 'pos-tables-stale' });
       }
     } catch (e) {

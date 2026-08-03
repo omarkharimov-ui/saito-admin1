@@ -226,7 +226,7 @@ export function CartPanel({
   const hasLossSelection = selectedForLoss.size > 0;
 
   return (
-    <div className="flex flex-col h-full px-6">
+    <div className="flex flex-col flex-1 min-h-0 px-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-shrink-0 pb-4 pt-6">
         <div className="flex items-center gap-2">
@@ -245,7 +245,17 @@ export function CartPanel({
               )}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-xs text-[var(--theme-text-secondary)]">{cart.items.length} {t('items')}</span>
+              <div className="relative">
+                <ShoppingBag size={14} className="text-[var(--theme-text-secondary)]" />
+                <span className={`absolute -top-1.5 -right-1.5 min-w-[15px] h-4 px-[3px] rounded-full flex items-center justify-center text-[9px] font-black tabular-nums leading-none ${
+                  cart.items.length > 0
+                    ? 'bg-[var(--theme-accent)] text-white'
+                    : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-white/10 text-white/40')
+                }`}>
+                  {cart.items.length}
+                </span>
+              </div>
+              <span className="text-xs text-[var(--theme-text-secondary)]">{t('items')}</span>
               {posMode === 'dine_in' && (
                 <>
                   <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
@@ -372,7 +382,7 @@ export function CartPanel({
       )}
 
        {/* Items */}
-       <div className="flex-1 py-3 relative overflow-y-auto min-h-0">
+       <div className="flex-1 py-3 relative overflow-y-auto min-h-0 overscroll-contain">
         <div
           className="absolute inset-0 transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 1 : 0, pointerEvents: isEmpty ? 'auto' : 'none' }}

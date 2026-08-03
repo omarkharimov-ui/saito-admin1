@@ -170,6 +170,19 @@ export default function POSPage() {
     })();
   }, []);
 
+  useEffect(() => {
+    const onUnauthorized = () => {
+      if (posSession) {
+        setPosSession(null);
+        setPosRole(null);
+        localStorage.removeItem('pos_session');
+        window.location.href = '/staff/login';
+      }
+    };
+    window.addEventListener('pos:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('pos:unauthorized', onUnauthorized);
+  }, [posSession]);
+
   const handlePosLogout = () => {
     setPosSession(null);
     setPosRole(null);
@@ -1142,7 +1155,7 @@ export default function POSPage() {
   };
 
   return (
-    <div className="flex-1 min-h-0 w-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden">
+    <div className="flex-1 min-h-0 w-full h-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden">
       {/* Loading state while session is being validated */}
       {!posSession && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-zinc-950">
@@ -1250,18 +1263,81 @@ export default function POSPage() {
         {posMode === 'dine_in' && pos.activeView === 'floor' && !pos.loading && (
                 <div key="floor" className="h-full flex flex-col p-6">
                 {cleanMode && (
-                  <button
-                    onClick={() => {
-                      if (document.fullscreenElement) document.exitFullscreen();
-                      setCleanMode(false);
-                    }}
-                    className="fixed top-4 left-4 z-50 p-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 text-white/60 hover:text-white hover:bg-white/20 transition-all"
-                    title="Geri"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 12H5M12 19l-7-7 7-7"/>
-                    </svg>
-                  </button>
+                  <div className="flex items-center justify-between gap-3 mb-6">
+                    <button
+                      onClick={() => {
+                        if (document.fullscreenElement) document.exitFullscreen();
+                        setCleanMode(false);
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full border border-white/10 bg-black/50 backdrop-blur-md text-white/80 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-wider transition-all"
+                      title="Geri"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                      </svg>
+                      <span className="hidden sm:inline">Geri</span>
+                    </button>
+                    <div className="flex items-center gap-2">
+                     <button
+                       onClick={() => router.push('/admin/reservations')}
+                       className="flex items-center gap-2 px-3 py-2 rounded-full border border-white/10 text-white/80 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-wider transition-all"
+                       title="Rezervasiyalar"
+                     >
+                       <Calendar size={16} />
+                       <span className="hidden sm:inline">Rezervasiyalar</span>
+                     </button>
+                     <button
+                       onClick={() => setWalkInOpen(true)}
+                       className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-wider hover:bg-amber-500/30 transition-all"
+                     >
+                       <span>+</span>
+                       <span className="hidden sm:inline">Walk In</span>
+                     </button>
+                     <div className="flex items-center gap-1 rounded-full p-1 bg-white/5">
+                       {[
+                         { active: !mergeMode && !transferMode, label: 'Normal' },
+                         { active: mergeMode, label: 'Birləşdir' },
+                         { active: transferMode, label: 'Köçür' },
+                       ].map(({ active, label }) => (
+                         <button
+                           key={label}
+                           onClick={() => {
+                             if (label === 'Normal') { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                             if (label === 'Birləşdir') { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); setTransferConfirm(false); setActionSheetOpen(true); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                             if (label === 'Köçür') { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(true); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                           }}
+                           className="relative px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors z-10"
+                           style={{ color: active ? '#ffffff' : 'rgba(255,255,255,0.6)' }}
+                         >
+                           {active && (
+                             <motion.div
+                               layoutId="activeActionTabClean"
+                               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                               className="absolute inset-0 rounded-full z-0 bg-blue-500"
+                             />
+                           )}
+                           <span className="relative z-10">{label}</span>
+                         </button>
+                       ))}
+                     </div>
+                     <button
+                       onClick={() => {
+                         if (!document.fullscreenElement) {
+                           document.documentElement.requestFullscreen().catch(() => {});
+                         } else {
+                           document.exitFullscreen();
+                         }
+                         setCleanMode(!cleanMode);
+                       }}
+                       className={`p-2.5 rounded-full border transition-all ${cleanMode ? 'bg-gold text-black border-gold' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                       title="Tam Ekran"
+                     >
+                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                       </svg>
+                     </button>
+                    </div>
+                  </div>
                 )}
                 {!cleanMode && (
                 <div>
@@ -1486,7 +1562,7 @@ export default function POSPage() {
                    />
                  )}
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto overscroll-contain">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {visibleTables?.map((table: any) => {
                     const groupInfo = tableGroupInfo[table.table_number];
@@ -1571,7 +1647,7 @@ export default function POSPage() {
                  {/* SİFARİŞ — ProductGrid + CartPanel                */}
                  {/* ═══════════════════════════════════════════════ */}
                   <div className="flex-1 flex flex-row overflow-hidden min-h-0">
-                    <div className="flex-1 p-6 overflow-y-auto min-h-0">
+                    <div className="flex-1 p-6 overflow-y-auto min-h-0 overscroll-contain">
                       <ProductGrid
                         products={pos.products}
                         categories={pos.categories}
@@ -1588,7 +1664,7 @@ export default function POSPage() {
                     </div>
                     <div className="w-[400px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0">
                        {posMode !== 'dine_in' && (
-                         <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10">
+                          <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
                            {editingOrder && (
                              <div className="flex items-center justify-between gap-2">
                                <div className="min-w-0">

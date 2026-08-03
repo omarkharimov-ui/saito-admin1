@@ -22,7 +22,7 @@ export async function GET() {
   try {
     const [floorsRes, ordersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*&status=neq.paid&status=neq.cancelled&order=created_at.desc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(quantity)&status=neq.paid&status=neq.cancelled&order=created_at.desc`, { headers }),
     ]);
 
     const rawFloors = await floorsRes.json();
@@ -67,6 +67,7 @@ export async function GET() {
       
       let groupTotalAmount = 0;
       let groupGuestCount = 0;
+      let groupItemCount = 0;
       let groupOrderIds: string[] = [];
       let groupLastActivity: string | null = null;
       
@@ -77,6 +78,10 @@ export async function GET() {
         const tableObj = tableNumberToFloor.get(tNum);
         if (tableObj?.guest_count) groupGuestCount += tableObj.guest_count;
         else if (tOrders.length > 0) groupGuestCount += tOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0);
+        
+        tOrders.forEach((o: any) => {
+          groupItemCount += (o.order_items || []).reduce((s: number, it: any) => s + Number(it.quantity || 0), 0);
+        });
         
         groupOrderIds = [...groupOrderIds, ...tOrders.map(o => o.id)];
         tOrders.forEach(o => {
@@ -103,6 +108,7 @@ export async function GET() {
         status: computedStatus,
         total_amount: isChild || isParent ? groupTotalAmount : tableOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0),
         guest_count: isChild || isParent ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0)),
+        item_count: isChild || isParent ? groupItemCount : tableOrders.reduce((s, o) => s + (o.order_items || []).reduce((si: number, it: any) => si + Number(it.quantity || 0), 0), 0),
         merged_with: isChild || isParent ? allInGroup : [],
         is_group: isChild || isParent,
         parent_table_number: parentTableNumber,

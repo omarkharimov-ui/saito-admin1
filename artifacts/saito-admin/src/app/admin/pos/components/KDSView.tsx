@@ -10,6 +10,7 @@ import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
+import { supabase } from '@/lib/supabase';
 
 interface KDSItem {
   id: string;
@@ -34,14 +35,14 @@ interface KDSOrder {
   kitchen_status: string;
 }
 
-function getItemTimerStatus(createdAt: string): { color: 'green' | 'yellow' | 'red'; text: string; elapsed: number } {
+function getItemTimerStatus(createdAt: string, criticalMin: number, delayMin: number): { color: 'green' | 'yellow' | 'red' | 'purple'; text: string; elapsed: number } {
   const elapsed = (Date.now() - new Date(createdAt).getTime()) / 60000;
-  if (elapsed < 10) return { color: 'green', text: `${Math.floor(elapsed)}d`, elapsed };
-  if (elapsed < 20) return { color: 'yellow', text: `${Math.floor(elapsed)}d`, elapsed };
-  return { color: 'red', text: `${Math.floor(elapsed)}d`, elapsed };
+  if (elapsed < criticalMin) return { color: 'green', text: `${Math.floor(elapsed)}d`, elapsed };
+  if (elapsed < delayMin) return { color: 'red', text: 'KRİTİK', elapsed };
+  return { color: 'purple', text: 'GEÇİKME', elapsed };
 }
 
-function getTimerStyles(color: 'green' | 'yellow' | 'red', lightMode: boolean) {
+function getTimerStyles(color: 'green' | 'yellow' | 'red' | 'purple', lightMode: boolean) {
   switch (color) {
     case 'green':
       return lightMode
@@ -55,6 +56,10 @@ function getTimerStyles(color: 'green' | 'yellow' | 'red', lightMode: boolean) {
       return lightMode
         ? 'bg-red-100 text-red-700 border-red-200'
         : 'bg-red-500/10 text-red-300 border-red-500/20';
+    case 'purple':
+      return lightMode
+        ? 'bg-purple-100 text-purple-700 border-purple-200'
+        : 'bg-purple-500/10 text-purple-300 border-purple-500/20';
   }
 }
 
@@ -86,8 +91,16 @@ export function KDSView({ onBack }: { onBack: () => void }) {
   const [orders, setOrders] = useState<KDSOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [delayMin, setDelayMin] = useState(30);
   const prevOrderCountRef = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    supabase.from('settings').select('order_delay_minutes').limit(1).then(({ data }) => {
+      const val = Number(data?.[0]?.order_delay_minutes);
+      if (!isNaN(val) && val >= 1) setDelayMin(val);
+    });
+  }, []);
 
   const playSound = useCallback(() => {
     if (!soundEnabled) return;
@@ -235,7 +248,8 @@ export function KDSView({ onBack }: { onBack: () => void }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <AnimatePresence>
               {orders.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map(order => {
-                const timer = getItemTimerStatus(order.created_at);
+                const criticalMin = Math.max(1, Math.round(delayMin / 2));
+                const timer = getItemTimerStatus(order.created_at, criticalMin, delayMin);
                 const allItemsReady = order.items.every(i => i.kitchen_status === 'ready' || i.kitchen_status === 'completed');
                 return (
                   <div
@@ -243,7 +257,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                     className={`rounded-3xl border p-4 transition-all duration-200 ${
                       allItemsReady
                         ? (lightMode ? 'border-emerald-300 bg-emerald-50' : 'border-emerald-500/30 bg-emerald-500/5')
-                        : timer.color === 'red'
+                        : timer.color === 'red' || timer.color === 'purple'
                           ? (lightMode ? 'border-red-300 bg-red-50 shadow-sm' : 'border-red-500/30 bg-red-500/5 shadow-sm')
                           : (lightMode ? 'border-gray-200 bg-white shadow-sm' : 'border-white/[0.08] bg-white/[0.02]')
                     }`}
@@ -255,13 +269,19 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                           {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? 'Gel-Al' : 'Çatdırma')}
                         </span>
                         {getOrderBadge(order, lightMode)}
+                        {(timer.color === 'red' || timer.color === 'purple') && (
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold tracking-wider border ${getTimerStyles(timer.color, lightMode)}`}>
+                            <AlertTriangle size={10} />
+                            {timer.text}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold tracking-[0.18em] border ${getTimerStyles(timer.color, lightMode)}`}>
                           <Timer size={10} />
-                          {timer.text}
+                          {Math.floor(timer.elapsed)}d
                         </span>
-                        {timer.color === 'red' && <AlertTriangle size={14} className="animate-pulse text-red-500" />}
+                        {(timer.color === 'red' || timer.color === 'purple') && <AlertTriangle size={14} className="animate-pulse text-red-500" />}
                       </div>
                     </div>
 

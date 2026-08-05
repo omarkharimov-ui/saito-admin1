@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Search, Phone, Smartphone, Building2, Gift, Car, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle
+  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';

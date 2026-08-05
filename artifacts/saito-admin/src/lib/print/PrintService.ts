@@ -169,36 +169,42 @@ export function buildReceiptHtml(data: ReceiptData): string {
 }
 
 export async function printReceipt(data: ReceiptData): Promise<boolean> {
-  const settings = await getReceiptSettings();
+  const defaultPaperWidth = 302;
+  const win = window.open('', '_blank', `width=${defaultPaperWidth + 40},height=600`);
+  if (!win) {
+    console.error('Print blocked: pop-up window could not be opened.');
+    return false;
+  }
 
-  const receiptData: ReceiptData = {
-    ...data,
-    receiptTitle: settings.receiptTitle,
-    currency: settings.receiptCurrency,
-    serviceFeePct: settings.serviceFeePct,
-    showServiceFee: settings.showServiceFee,
-    footerText: settings.footerText,
-    paperWidth: settings.paperWidth,
-    copies: settings.copies,
-  };
+  try {
+    const settings = await getReceiptSettings();
 
-  const html = buildReceiptHtml(receiptData);
-  const paperWidth = receiptData.paperWidth === '58mm' ? 220 : 302;
+    const receiptData: ReceiptData = {
+      ...data,
+      receiptTitle: settings.receiptTitle,
+      currency: settings.receiptCurrency,
+      serviceFeePct: settings.serviceFeePct,
+      showServiceFee: settings.showServiceFee,
+      footerText: settings.footerText,
+      paperWidth: settings.paperWidth,
+      copies: settings.copies,
+    };
 
-  for (let i = 0; i < receiptData.copies; i++) {
-    const win = window.open('', '_blank', `width=${paperWidth + 40},height=600`);
-    if (!win) {
-      console.error('Print blocked: pop-up window could not be opened.');
-      return false;
-    }
+    const html = buildReceiptHtml(receiptData);
+    const paperWidth = receiptData.paperWidth === '58mm' ? 220 : 302;
+
     win.document.write(html);
     win.document.close();
     win.focus();
     await new Promise((resolve) => setTimeout(resolve, 350));
-    win.print();
-    if (i < receiptData.copies - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    for (let c = 0; c < receiptData.copies; c++) {
+      win.print();
+      if (c < receiptData.copies - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
+  } finally {
     win.close();
   }
 

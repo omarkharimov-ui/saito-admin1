@@ -33,6 +33,7 @@ export function usePos() {
     guests: number;
     is_vip?: boolean | null;
   } | null>(null);
+  const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
   // guestCountLoading removed — optimistic UI update is instant, no loading guard
   const selectTableReqId = useRef(0);
 
@@ -387,7 +388,7 @@ export function usePos() {
           }
         }
         toast.success('Masa boşaldıldı');
-        markTableEmptyLocal([num, ...childNums]);
+        setLastUndo({ action: 'dismiss', data: { table_number: num, child_tables: childNums }, message: 'Masa boşaldıldı' });
         fetchFloor();
       } else {
         const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
@@ -416,17 +417,38 @@ export function usePos() {
   const performUndo = async () => {
     if (!lastUndo) return;
     try {
-      const res = await apiFetch('/api/orders/undo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: lastUndo.action, data: lastUndo.data, terminal_id: terminalId }),
-      });
-      if (res.ok) {
-        toast.success('Geri alındı');
-        await fetchFloor();
+      if (lastUndo.action === 'dismiss') {
+        const csrfToken = typeof document !== 'undefined'
+          ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] || ''
+          : '';
+        const res = await apiFetch('/api/orders/undo', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify({ action: 'dismiss_undo', data: lastUndo.data, terminal_id: terminalId }),
+        });
+        if (res.ok) {
+          toast.success('Geri alındı');
+          await fetchFloor();
+        } else {
+          const err = await res.json();
+          toast.error(err.error || 'Geri alınmadı');
+        }
       } else {
-        const err = await res.json();
-        toast.error(err.error || 'Geri alınmadı');
+        const res = await apiFetch('/api/orders/undo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: lastUndo.action, data: lastUndo.data, terminal_id: terminalId }),
+        });
+        if (res.ok) {
+          toast.success('Geri alındı');
+          await fetchFloor();
+        } else {
+          const err = await res.json();
+          toast.error(err.error || 'Geri alınmadı');
+        }
       }
     } finally {
       setLastUndo(null);
@@ -647,7 +669,7 @@ export function usePos() {
       let activeOrderId: string | null = cart.order_id || null;
       if (!activeOrderId && cart.table_number) {
         try {
-          const ordersRes = await fetch('/api/orders', { credentials: 'include' });
+           const ordersRes = await apiFetch(`/api/orders?table_number=${cart.table_number}`, { credentials: 'include' });
           if (ordersRes.ok) {
             const data = await ordersRes.json();
             const active = (data.orders || []).find(
@@ -671,7 +693,7 @@ export function usePos() {
       }
       const computedDiscount = { amount: itemBasedDiscount, type: computedType };
 
-      const res = await fetch('/api/orders', {
+      const res = await apiFetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1181,12 +1203,13 @@ export function usePos() {
     }
   };
 
-  return {
-    floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, posMode,
-    fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo,
-    setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
-    updateCartCustomer, updateOrderType, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
-    reservationMode, reservationId, reservationPreOrderItems, reservationInfo,
-    enterReservationMode, exitReservationMode, guestArrived, savePreOrder, terminalId
-  };
+   return {
+     floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, posMode,
+     fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo,
+     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
+     updateCartCustomer, updateOrderType, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
+     reservationMode, reservationId, reservationPreOrderItems, reservationInfo,
+     enterReservationMode, exitReservationMode, guestArrived, savePreOrder, terminalId,
+     expandedProductId, setExpandedProductId
+   };
 }

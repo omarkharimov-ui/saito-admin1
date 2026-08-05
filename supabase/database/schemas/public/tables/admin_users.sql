@@ -4,12 +4,9 @@ CREATE TABLE public.admin_users (
   is_active     boolean                  DEFAULT true NOT NULL,
   created_at    timestamp with time zone DEFAULT now() NOT NULL,
   updated_at    timestamp with time zone DEFAULT now() NOT NULL,
-  pin           text,
   pin_hash      text,
   password_hash text
 );
-
-CREATE INDEX idx_admin_users_pin ON public.admin_users (pin);
 
 CREATE POLICY admin_users_delete_superadmin ON public.admin_users
   FOR DELETE
@@ -39,9 +36,6 @@ CREATE POLICY admin_users_update_superadmin ON public.admin_users
 
 ALTER TABLE public.admin_users
   ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE public.admin_users
-  ADD CONSTRAINT admin_users_pin_key UNIQUE (pin);
 
 ALTER TABLE public.admin_users
   ADD CONSTRAINT admin_users_pkey PRIMARY KEY (id);

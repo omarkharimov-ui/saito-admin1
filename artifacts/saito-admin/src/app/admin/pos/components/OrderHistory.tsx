@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Printer, X, ChevronLeft, Search, CalendarDays } from 'lucide-react';
+import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Ban, Receipt } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
 import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
 import { PinGuard } from './PinGuard';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
+import { toast } from '@/lib/toast';
 
 interface PaidOrder {
   id: string;
@@ -42,8 +43,12 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const [orders, setOrders] = useState<PaidOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [reprinting, setReprinting] = useState<string | null>(null);
+  const [refunding, setRefunding] = useState<string | null>(null);
+  const [splitting, setSplitting] = useState<string | null>(null);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
   const [pendingReprint, setPendingReprint] = useState<PaidOrder | null>(null);
+  const [pendingRefund, setPendingRefund] = useState<PaidOrder | null>(null);
+  const [pendingSplit, setPendingSplit] = useState<PaidOrder | null>(null);
   const [filter, setFilter] = useState<'all' | 'dine_in' | 'takeaway' | 'delivery'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -122,6 +127,86 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
       });
     } catch { /* silent */ }
     setTimeout(() => setReprinting(null), 1500);
+  };
+
+  const handleRefund = async (order: PaidOrder) => {
+    const posRoleNorm = posRole?.toLowerCase() || '';
+    if (requiresPin(posRoleNorm)) {
+      setPendingRefund(order);
+      setPinGuardOpen(true);
+      return;
+    }
+    await doRefund(order);
+  };
+
+  const doRefund = async (order: PaidOrder) => {
+    setRefunding(order.id);
+    try {
+      const res = await apiFetch('/api/orders/complete-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: order.id,
+          payments: [{
+            method: order.payment_method || 'cash',
+            amount: Number(order.paid_amount || order.total_amount) || 0,
+            is_refund: true,
+          }],
+        }),
+      });
+      if (res.ok) {
+        toast.success('Qaytarma uğurla tamamlandı');
+        fetchOrders();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Qaytarma uğursuz');
+      }
+    } catch { toast.error('Xəta baş verdi'); }
+    setTimeout(() => setRefunding(null), 1500);
+  };
+
+  const handleSplit = async (order: PaidOrder) => {
+    const posRoleNorm = posRole?.toLowerCase() || '';
+    if (requiresPin(posRoleNorm)) {
+      setPendingSplit(order);
+      setPinGuardOpen(true);
+      return;
+    }
+    await doSplit(order);
+  };
+
+  const doSplit = async (order: PaidOrder) => {
+    setSplitting(order.id);
+    try {
+      const items_to_split = (order.order_items || []).map((item: any) => ({
+        id: item.id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price || 0,
+        total_price: item.total_price || 0,
+        modifiers: item.modifiers || [],
+        special_notes: item.special_notes || null,
+        combo_group_id: item.combo_group_id || null,
+        variant_id: item.variant_id || null,
+      }));
+      const res = await apiFetch('/api/orders/bill-split', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          original_order_id: order.id,
+          items_to_split,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Sifariş bölündü');
+        fetchOrders();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Bölüşdürmə uğursuz');
+      }
+    } catch { toast.error('Xəta baş verdi'); }
+    setTimeout(() => setSplitting(null), 1500);
   };
 
   if (!open) return null;
@@ -268,18 +353,44 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     </span>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleReprint(order)}
-                  disabled={reprinting === order.id}
-                  className="ml-3 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 transition-all disabled:opacity-30"
-                  title="Yenidən çap et"
-                >
-                  {reprinting === order.id ? (
-                    <div className="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
-                  ) : (
-                    <Printer size={16} />
-                  )}
-                </button>
+                 <div className="flex items-center gap-2 ml-3">
+                    <button
+                      onClick={() => handleReprint(order)}
+                      disabled={reprinting === order.id}
+                      className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 transition-all disabled:opacity-30"
+                      title="Yenidən çap et"
+                    >
+                      {reprinting === order.id ? (
+                        <div className="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                      ) : (
+                        <Printer size={16} />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleRefund(order)}
+                      disabled={refunding === order.id}
+                      className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 transition-all disabled:opacity-30"
+                      title="Qaytarma"
+                    >
+                      {refunding === order.id ? (
+                        <div className="w-4 h-4 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+                      ) : (
+                        <RefreshCw size={16} />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleSplit(order)}
+                      disabled={splitting === order.id}
+                      className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 hover:bg-blue-500/20 transition-all disabled:opacity-30"
+                      title="Bölüşdür"
+                    >
+                      {splitting === order.id ? (
+                        <div className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                      ) : (
+                        <Split size={16} />
+                      )}
+                    </button>
+                  </div>
               </div>
             ))
           )}
@@ -287,9 +398,13 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
       </motion.div>
       <PinGuard
         open={pinGuardOpen}
-        onClose={() => { setPinGuardOpen(false); setPendingReprint(null); }}
-        onVerified={() => { if (pendingReprint) doReprint(pendingReprint); }}
-        action="reprint"
+        onClose={() => { setPinGuardOpen(false); setPendingReprint(null); setPendingRefund(null); setPendingSplit(null); }}
+        onVerified={() => {
+          if (pendingReprint) doReprint(pendingReprint);
+          else if (pendingRefund) doRefund(pendingRefund);
+          else if (pendingSplit) doSplit(pendingSplit);
+        }}
+        action={pendingRefund ? 'refund' : pendingSplit ? 'split' : 'reprint'}
       />
     </motion.div>
     </AnimatePresence>

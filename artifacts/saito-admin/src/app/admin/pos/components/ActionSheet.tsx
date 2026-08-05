@@ -307,43 +307,82 @@ export function ActionSheet({
                         <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">Qrupu Boşalt</span>
                       </button>
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-3">
-                      {visibleActions.map((action) => {
-                        if (action.id === 'customer') {
-                          return (
-                            <button key={action.id} onClick={() => setShowCustomerSearch(true)}
-                              className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
-                              <User size={22} strokeWidth={2.5} />
-                              <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{customerName || 'Müştəri'}</span>
-                            </button>
-                          );
-                        }
-                          return (
-                          <button key={action.id} onClick={() => {
-                            const fn = {
-                              add_order: onAddOrder,
-                              close_bill: onOpenPayment,
-                              cancel_table: () => setConfirmAction('cancel_table'),
-                              delivery_status: onDeliveryStatus,
-                              takeaway_status: onTakeawayStatus,
-                              bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
-                              print_bill: onPrintBill,
-                            }[action.id as string];
-                            if (fn) fn();
-                          }}
-                            className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${
-                              action.id === 'bill_request'
-                                ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                : action.id === 'cancel_table'
-                                ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                                : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
-                            } active:scale-95`}>
-                            <action.icon size={22} strokeWidth={2.5} />
-                            <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
-                          </button>
-                        );
-                      })}
+                   ) : (
+                    <div className="space-y-4">
+                      {/* Primary actions section */}
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">Əsas Əməliyyatlar</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {visibleActions.filter(a => ['add_order', 'customer', 'close_bill'].includes(a.id)).map((action) => {
+                            if (action.id === 'customer') {
+                              return (
+                                <button key={action.id} onClick={() => setShowCustomerSearch(true)}
+                                  className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
+                                  <User size={22} strokeWidth={2.5} />
+                                  <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{customerName || 'Müştəri'}</span>
+                                </button>
+                              );
+                            }
+                              return (
+                              <button key={action.id} onClick={() => {
+                                const fn = {
+                                  add_order: onAddOrder,
+                                  close_bill: onOpenPayment,
+                                  cancel_table: () => setConfirmAction('cancel_table'),
+                                  delivery_status: onDeliveryStatus,
+                                  takeaway_status: onTakeawayStatus,
+                                  bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
+                                  print_bill: onPrintBill,
+                                }[action.id as string];
+                                if (fn) fn();
+                              }}
+                                className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${
+                                  action.id === 'bill_request'
+                                    ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                    : action.id === 'cancel_table'
+                                    ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                    : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
+                                } active:scale-95`}>
+                                <action.icon size={22} strokeWidth={2.5} />
+                                <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Secondary actions section */}
+                      {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status'].includes(a.id)) && (
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">Əlavə</p>
+                          <div className="grid grid-cols-3 gap-3">
+                            {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status'].includes(a.id)).map((action) => (
+                              <button key={action.id} onClick={() => {
+                                const fn = {
+                                  add_order: onAddOrder,
+                                  close_bill: onOpenPayment,
+                                  cancel_table: () => setConfirmAction('cancel_table'),
+                                  delivery_status: onDeliveryStatus,
+                                  takeaway_status: onTakeawayStatus,
+                                  bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
+                                  print_bill: onPrintBill,
+                                }[action.id as string];
+                                if (fn) fn();
+                              }}
+                                className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${
+                                  action.id === 'bill_request'
+                                    ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                    : action.id === 'cancel_table'
+                                    ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                    : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
+                                } active:scale-95`}>
+                                <action.icon size={22} strokeWidth={2.5} />
+                                <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                  <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">Bağla</button>

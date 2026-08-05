@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -54,7 +54,30 @@ interface CartPanelProps {
   }) => void;
   onUpdateGlobalNote?: (note: string) => void;
   onOpenModifiers?: (productId: string) => void;
+  onRequestEditor?: (productId: string) => void;
 }
+
+const STATIONS = [
+  { value: 'kitchen', label: 'Mətbəx', icon: '🍳' },
+  { value: 'bar', label: 'Bar', icon: '🍸' },
+  { value: 'sushi', label: 'Sushi', icon: '🍣' },
+  { value: 'hot', label: 'Hot', icon: '🔥' },
+];
+
+const COURSES = [
+  { value: 'appetizers', label: 'Başlangıç' },
+  { value: 'mains', label: 'Ana yemək' },
+  { value: 'desserts', label: 'Desert' },
+  { value: 'drinks', label: 'İçki' },
+];
+
+const PRIORITIES = [
+  { value: 'normal', label: 'Normal', color: 'gray' },
+  { value: 'high', label: 'Yüksək', color: 'orange' },
+  { value: 'vip', label: 'VIP', color: 'purple' },
+  { value: 'birthday', label: 'Ad günü', color: 'pink' },
+  { value: 'allergy', label: 'Allerji', color: 'red' },
+];
 
 export function CartPanel({
   cart, onUpdateQty, onPlaceOrder,
@@ -71,6 +94,7 @@ export function CartPanel({
   onUpdateDeliveryFields,
   onUpdateGlobalNote,
   onOpenModifiers,
+  onRequestEditor,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -78,15 +102,15 @@ export function CartPanel({
 
   const [lossMode, setLossMode] = useState(false);
   const [selectedForLoss, setSelectedForLoss] = useState<Map<number, number>>(new Map());
-  const [lossReason, setLossReason] = useState<string>('wrong_entry');
   const [showCustomReason, setShowCustomReason] = useState(false);
   const [customReasonText, setCustomReasonText] = useState('');
+  const lossExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [globalNote, setGlobalNote] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(false);
   const [customerInput, setCustomerInput] = useState('');
-  const [globalNote, setGlobalNote] = useState(cart?.notes || '');
-  const lossExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
+  const [lossReason, setLossReason] = useState('');
   const [numpadOpen, setNumpadOpen] = useState(false);
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
 
@@ -121,9 +145,9 @@ export function CartPanel({
   const activeOrderType = cart?.order_type || 'dine_in';
 
   const lossReasons = [
-    { key: 'customer_disliked', label: t('loss_reason_not_liked') },
-    { key: 'kitchen_error', label: t('loss_reason_kitchen_error') },
-    { key: 'wrong_entry', label: t('loss_reason_wrong_entry') },
+    { key: 'customer_disliked' as string, label: t('loss_reason_not_liked' as any) },
+    { key: 'kitchen_error' as string, label: t('loss_reason_kitchen_error' as any) },
+    { key: 'wrong_entry' as string, label: 'Yanlış daxiletmə' },
   ];
 
   useEffect(() => {
@@ -136,14 +160,31 @@ export function CartPanel({
     const msg = posMode === 'takeaway' ? 'Sifariş yoxdur' : posMode === 'delivery' ? 'Sifariş yoxdur' : t('no_table_selected');
     return (
       <div className="flex flex-col items-center justify-center h-full py-12 text-[var(--theme-text-muted)]">
-        <ShoppingBag size={40} className="mb-3 opacity-30" />
-        <p className="text-sm">{msg}</p>
+        <ShoppingBag size={48} className="mb-4 opacity-20" />
+        <p className="text-sm font-medium">{msg}</p>
+        <p className="text-[10px] mt-1 opacity-60">Məhsullar seçmək üçün sol paneldən istifadə edin</p>
       </div>
     );
   }
 
   const originalTotal = cart.items.reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
   const isEmpty = cart.items.length === 0;
+
+  if (isEmpty) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-12 text-[var(--theme-text-muted)]">
+        <ShoppingBag size={56} className="mb-4 opacity-15" />
+        <p className="text-base font-bold mb-1">Səbət boşdur</p>
+        <p className="text-xs mb-6 opacity-60">Məhsullar seçmək üçün sol paneldən istifadə edin</p>
+        <div className={`flex items-center gap-2 px-4 py-2 rounded-full border border-dashed ${
+          lightMode ? 'border-zinc-300 text-zinc-400' : 'border-white/10 text-white/30'
+        } text-[10px] font-bold`}>
+          <Plus size={12} />
+          Məhsul əlavə et
+        </div>
+      </div>
+    );
+  }
 
   let total = originalTotal;
   let campaignDiscount = 0;
@@ -226,7 +267,7 @@ export function CartPanel({
   const hasLossSelection = selectedForLoss.size > 0;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 px-6">
+    <div className="flex flex-col flex-1 min-h-0 px-6 relative">
       {/* Header */}
       <div className="flex items-center justify-between flex-shrink-0 pb-4 pt-6">
         <div className="flex items-center gap-2">
@@ -262,7 +303,7 @@ export function CartPanel({
                   <div className="flex items-center gap-2">
                     <Users size={14} className="text-[var(--theme-text-secondary)]" />
                     {onUpdateGuests && (
-                      <button onClick={e => { e.stopPropagation(); onUpdateGuests(-1); }}
+                      <button onClick={(e) => { e.stopPropagation(); onUpdateGuests(-1); }}
                         disabled={guestCountLoading || (cart.guest_count ?? 1) <= 1}
                         className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none">
                         −
@@ -270,7 +311,7 @@ export function CartPanel({
                     )}
                     <span className="text-lg font-black tabular-nums text-[var(--theme-text)] min-w-[24px] text-center">{cart.guest_count}</span>
                     {onUpdateGuests && (
-                      <button onClick={e => { e.stopPropagation(); onUpdateGuests(1); }}
+                      <button onClick={(e) => { e.stopPropagation(); onUpdateGuests(1); }}
                         disabled={guestCountLoading}
                         className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-40 disabled:pointer-events-none">
                         +
@@ -399,101 +440,39 @@ export function CartPanel({
             const originalIdx = cart.items.indexOf(item);
             const isChecked = selectedForLoss.has(originalIdx);
             const lossQty = selectedForLoss.get(originalIdx) ?? 0;
+
             return (
               <div
                 key={`${item.product_id}__${originalIdx}`}
-                className={`mb-2 flex items-center gap-2.5 rounded-2xl px-3.5 py-3 border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-300 ${confirming && isChecked ? 'opacity-0 scale-95' : ''} ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`}`}
+                data-cart-item
+                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-300 ${confirming && isChecked ? 'opacity-0 scale-95' : ''} ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`} px-3.5 py-3`}
               >
-                {lossMode && (
-                  <button onClick={() => toggleLossSelection(idx)}
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${
-                      isChecked
-                        ? (lightMode ? 'bg-red-600 border-red-600' : 'bg-red-500 border-red-500')
-                        : (lightMode ? 'border-gray-400' : 'border-white/30')
-                    }`}>
-                    {isChecked && <CheckCircle size={14} className="text-white" />}
-                  </button>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
-                  {item.modifiers?.length ? (
-                    <p className="text-[10px] truncate text-[var(--theme-text-secondary)]">
-                      {(item.modifiers ?? []).map(m => m.name).join(', ')}
-                    </p>
-                  ) : null}
-                  {!lossMode && onOpenModifiers && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenModifiers(item.product_id);
-                      }}
-                      className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-lg text-[9px] font-bold transition-all border ${
-                        lightMode
-                          ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
-                          : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      <Plus size={8} /> Əlavə et
+                <motion.div layout data-cart-item className="flex items-center gap-2.5">
+                  {lossMode && (
+                    <button onClick={() => toggleLossSelection(originalIdx)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${isChecked ? (lightMode ? 'bg-red-600 border-red-600' : 'bg-red-500 border-red-500') : (lightMode ? 'border-gray-400' : 'border-white/30')}`}>
+                      {isChecked && <CheckCircle size={14} className="text-white" />}
                     </button>
                   )}
-                  {item.hold_until ? (
-                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-orange-500 mt-0.5">
-                      <Pause size={9} /> Dayandırılıb
-                    </span>
-                  ) : null}
-                  <p className="text-xs font-bold mt-0.5 text-[var(--theme-accent)]">{(item.unit_price * item.quantity).toFixed(2)} ₼</p>
-                  {!lossMode && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <button
-                        onClick={() => {
-                          const nextHeld = !item.hold_until;
-                          onUpdateItem?.(originalIdx, {
-                            hold_until: nextHeld ? new Date().toISOString() : null,
-                          });
-                        }}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] transition-all ${
-                          item.hold_until
-                            ? (lightMode ? 'bg-orange-100 text-orange-600 border border-orange-200' : 'bg-orange-500/20 text-orange-400 border border-orange-500/30')
-                            : (lightMode ? 'bg-zinc-100 text-zinc-500 border border-zinc-200 hover:bg-zinc-200' : 'bg-white/5 text-zinc-400 border border-white/10 hover:bg-white/10')
-                        }`}
-                        title={item.hold_until ? 'Davam et' : 'Dayandır'}
-                      >
-                        {item.hold_until ? <Play size={10} /> : <Pause size={10} />}
-                      </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
+                    {item.modifiers?.length ? (
+                      <p className="text-[10px] truncate text-[var(--theme-text-secondary)]">{(item.modifiers ?? []).map(m => m.name).join(', ')}</p>
+                    ) : null}
+                    {item.hold_until ? (
+                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-orange-500 mt-0.5"><Pause size={9} /> Dayandırılıb</span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 rounded-xl border border-[var(--theme-border)] overflow-hidden">
+                      <button onClick={() => onUpdateQty?.(originalIdx, -1)} className="px-2 py-1 text-xs font-black hover:bg-white/10 transition-colors">−</button>
+                      <span className="px-2 py-1 text-xs font-black tabular-nums min-w-[1.5rem] text-center">{item.quantity}</span>
+                      <button onClick={() => onUpdateQty?.(originalIdx, 1)} className="px-2 py-1 text-xs font-black hover:bg-white/10 transition-colors">+</button>
                     </div>
-                  )}
-                </div>
-                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {lossMode && isChecked ? (
-                    <div className="flex items-center rounded-2xl overflow-hidden bg-red-500/10 border border-red-500/25">
-                      <button onClick={() => updateLossQty(originalIdx, -1)}
-                        className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
-                        <Minus size={18} />
-                      </button>
-                      <span className="text-base min-w-[28px] text-center font-black tabular-nums text-red-400">{lossQty}</span>
-                      <button onClick={() => updateLossQty(originalIdx, 1)}
-                        className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-red-400 hover:bg-red-500/10">
-                        <Plus size={18} />
-                      </button>
-                    </div>
-                   ) : lossMode ? null : (
-                    <div className="flex items-center rounded-2xl overflow-hidden bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                      <button onClick={() => onUpdateQty(originalIdx, -1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]">
-                        <Minus size={18} />
-                      </button>
-                      <button
-                        onClick={() => { setNumpadIndex(originalIdx); setNumpadOpen(true); }}
-                        className="text-base min-w-[28px] text-center font-black tabular-nums text-[var(--theme-text)] active:scale-90 transition-all px-1"
-                        title="Miqdarı dəyiş"
-                      >
-                        {item.quantity}
-                      </button>
-                      <button onClick={() => onUpdateQty(originalIdx, 1)} className="w-14 h-14 flex items-center justify-center active:scale-90 transition-all text-[var(--theme-accent)]">
-                        <Plus size={18} />
-                      </button>
-                    </div>
-                   )}
-                </div>
+                    <button onClick={() => onRequestEditor?.(item.product_id)} className={`p-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title="Detallar">
+                      <Hash size={14} />
+                    </button>
+                  </div>
+                </motion.div>
               </div>
             );
           })}
@@ -527,18 +506,18 @@ export function CartPanel({
                  <div className="flex items-center gap-2">
                     <span className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
                   </div>
-                 {campaignDiscount > 0 && (
-                   <span className="text-[10px] text-emerald-400 font-bold">
-                     {t('savings') || 'You save'} {campaignDiscount.toFixed(2)} ₼
-                   </span>
-                 )}
-               </div>
-               <div className="text-right">
-                 {campaignDiscount > 0 && (
-                   <p className="text-[11px] font-medium line-through text-[var(--theme-text-muted)]">{originalTotal.toFixed(2)} ₼</p>
-                 )}
-                 <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
-               </div>
+                {campaignDiscount > 0 && (
+                  <span className="text-[10px] text-emerald-400 font-bold">
+                    {t('savings') || 'You save'} {campaignDiscount.toFixed(2)} ₼
+                  </span>
+                )}
+              </div>
+              <div className="text-right">
+                {campaignDiscount > 0 && (
+                  <p className="text-[11px] font-medium line-through text-[var(--theme-text-muted)]">{originalTotal.toFixed(2)} ₼</p>
+                )}
+                <span className="text-xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]">{total.toFixed(2)} ₼</span>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -563,7 +542,7 @@ export function CartPanel({
                   maxLength={200}
                   value={customReasonText}
                   onChange={e => setCustomReasonText(e.target.value)}
-                                                  placeholder={t('loss_reason_custom_placeholder')}
+                  placeholder={t('loss_reason_custom_placeholder')}
                   className={`flex-1 px-4 py-3 rounded-xl text-sm border outline-none transition-all ${
                     lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30'
                   }`}
@@ -618,16 +597,16 @@ export function CartPanel({
         )}
          {/* Global note */}
          {!isEmpty && !lossMode && posMode === 'dine_in' && (
-           <div className="px-1">
-             <input
-               type="text"
-               value={globalNote}
-               onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
-               placeholder="Qeydlər (məs: soğansız, extra sous...)"
-               className={`w-full rounded-xl px-4 py-2.5 text-xs font-medium outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
-             />
-           </div>
-         )}
+          <div className="px-1">
+            <input
+              type="text"
+              value={globalNote}
+              onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
+              placeholder="Qeydlər (məs: soğansız, extra sous...)"
+              className={`w-full rounded-xl px-4 py-2.5 text-xs font-medium outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
+            />
+          </div>
+        )}
          {/* Footer actions removed from here */}
          <div className="w-full flex-shrink-0">
            <SendOrderButton

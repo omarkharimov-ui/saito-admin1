@@ -9,8 +9,7 @@ CREATE TABLE public.staff (
   pin_hash    text,
   is_active   boolean                  DEFAULT true,
   email       text,
-  hourly_rate numeric                  DEFAULT 5,
-  pin         text
+  hourly_rate numeric                  DEFAULT 5
 );
 
 CREATE POLICY auth_modify_staff ON public.staff

@@ -1,4 +1,7 @@
-CREATE TABLE public.operation_logs (
+-- Create operation_logs table for SSOT operation tracking
+-- Matches the deployed database schema
+
+CREATE TABLE IF NOT EXISTS public.operation_logs (
   id                  uuid                     DEFAULT gen_random_uuid() NOT NULL,
   operation           text,
   order_id            uuid,
@@ -30,21 +33,12 @@ CREATE TABLE public.operation_logs (
   inverse_payload     jsonb
 );
 
-CREATE INDEX idx_operation_logs_created ON public.operation_logs (created_at);
-
-CREATE INDEX idx_operation_logs_order ON public.operation_logs (order_id);
-
-CREATE INDEX idx_operation_logs_type ON public.operation_logs (operation);
-
-CREATE INDEX idx_operation_logs_source ON public.operation_logs (source_table_number);
-
-CREATE INDEX idx_operation_logs_undo ON public.operation_logs (is_undone)
+CREATE INDEX IF NOT EXISTS idx_operation_logs_created ON public.operation_logs (created_at);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_order ON public.operation_logs (order_id);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_type ON public.operation_logs (operation);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_source ON public.operation_logs (source_table_number);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_undo ON public.operation_logs (is_undone)
   WHERE is_undone = false;
-
-CREATE TRIGGER trg_operation_logs_normalize
-  BEFORE INSERT ON public.operation_logs
-  FOR EACH ROW
-  EXECUTE FUNCTION public.operation_logs_normalize();
 
 CREATE POLICY "Allow anon read" ON public.operation_logs
   FOR SELECT
@@ -54,11 +48,9 @@ CREATE POLICY "Allow service_role full access" ON public.operation_logs
   USING ((auth.role() = 'service_role'::text));
 
 CREATE POLICY service_role_full_operation_logs ON public.operation_logs
-  USING (true)
-  WITH CHECK (true);
+  USING (true) WITH CHECK (true);
 
-ALTER TABLE public.operation_logs
-  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.operation_logs ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.operation_logs
   ADD CONSTRAINT operation_logs_pkey PRIMARY KEY (id);

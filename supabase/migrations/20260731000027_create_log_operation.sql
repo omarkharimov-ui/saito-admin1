@@ -1,4 +1,5 @@
-CREATE FUNCTION public.log_operation (
+-- Create log_operation RPC for SSOT operation tracking
+CREATE OR REPLACE FUNCTION public.log_operation (
   p_operation           text,
   p_order_id            uuid    DEFAULT NULL::uuid,
   p_source_table_number integer DEFAULT NULL::integer,

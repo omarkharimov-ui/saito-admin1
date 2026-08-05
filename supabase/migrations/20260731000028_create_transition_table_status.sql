@@ -1,4 +1,5 @@
-CREATE FUNCTION public.transition_table_status (
+-- Create transition_table_status RPC for SSOT table state machine
+CREATE OR REPLACE FUNCTION public.transition_table_status (
   p_table_number  integer,
   p_new_status    text,
   p_performed_by  uuid    DEFAULT NULL::uuid,

@@ -1,4 +1,5 @@
-CREATE FUNCTION public.validate_transition (
+-- Create validate_transition RPC for SSOT state machine
+CREATE OR REPLACE FUNCTION public.validate_transition (
   p_entity      text,
   p_from_status text,
   p_to_status   text

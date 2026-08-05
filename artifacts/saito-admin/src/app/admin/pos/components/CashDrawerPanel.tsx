@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2 } from 'lucide-react';
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, Shield, Receipt } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -12,6 +12,8 @@ import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface CashDrawerSession {
   id: string;
+  staff_id?: string;
+  staff_name?: string;
   opening_balance: number;
   closing_balance: number | null;
   expected_balance: number | null;
@@ -20,6 +22,8 @@ interface CashDrawerSession {
   opened_at: string;
   closed_at: string | null;
   notes: string | null;
+  shift_start?: string;
+  shift_end?: string | null;
 }
 
 interface CashDrawerMovement {
@@ -163,6 +167,17 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
+  const formatDuration = (start: string, end?: string | null) => {
+    const s = new Date(start).getTime();
+    const e = end ? new Date(end).getTime() : Date.now();
+    const diff = Math.max(0, Math.floor((e - s) / 1000));
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    return `${h}s ${m}dq`;
+  };
+
+  const shiftDuration = session?.opened_at ? formatDuration(session.opened_at, session.closed_at) : '0s 0dq';
+
   const typeLabels: Record<string, { label: string; icon: typeof Wallet; color: string }> = {
     open: { label: 'Kassa açıldı', icon: Unlock, color: 'text-green-500' },
     close: { label: 'Kassa bağlandı', icon: Lock, color: 'text-zinc-500' },
@@ -248,6 +263,29 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
             ) : (
               /* Active session */
               <div className="space-y-4">
+                {/* Shift info card */}
+                <div className={`p-5 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <User size={14} className="text-[var(--theme-text-muted)]" />
+                      <p className="text-xs font-bold text-[var(--theme-text)]">{session?.staff_name || 'Kassir'}</p>
+                    </div>
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-green-500">
+                      <Unlock size={10} /> Açıq
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Smena başl.</p>
+                      <p className="text-xs font-black tabular-nums">{formatTime(session.opened_at)}</p>
+                    </div>
+                    <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Müddət</p>
+                      <p className="text-xs font-black tabular-nums">{shiftDuration}</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Balance card */}
                 <div className={`p-5 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                   <div className="flex items-center justify-between mb-3">
@@ -275,32 +313,58 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                   </div>
                 </div>
 
-                {/* Actions */}
-                {view === 'main' && (
-                  <div className="grid grid-cols-3 gap-3">
-                    <button
-                      onClick={() => { setView('cash-in'); setCashAmount(''); setCashDesc(''); }}
-                      className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}
-                    >
-                      <ArrowDownCircle size={20} strokeWidth={2.5} />
-                      <span className="text-[9px] font-black uppercase tracking-widest">Daxilolma</span>
-                    </button>
-                    <button
-                      onClick={() => { setView('cash-out'); setCashAmount(''); setCashDesc(''); }}
-                      className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-red-50 border-red-200 text-red-600' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}
-                    >
-                      <ArrowUpCircle size={20} strokeWidth={2.5} />
-                      <span className="text-[9px] font-black uppercase tracking-widest">Xərc</span>
-                    </button>
-                    <button
-                      onClick={() => { setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); }}
-                      className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
-                    >
-                      <Lock size={20} strokeWidth={2.5} />
-                      <span className="text-[9px] font-black uppercase tracking-widest">Smenanı Bitir</span>
-                    </button>
-                  </div>
-                )}
+                 {/* Actions */}
+                 {view === 'main' && (
+                   <div className="grid grid-cols-3 gap-3">
+                     <button
+                       onClick={() => { setView('cash-in'); setCashAmount(''); setCashDesc(''); }}
+                       className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}
+                     >
+                       <ArrowDownCircle size={20} strokeWidth={2.5} />
+                       <span className="text-[9px] font-black uppercase tracking-widest">Daxilolma</span>
+                     </button>
+                     <button
+                       onClick={() => { setView('cash-out'); setCashAmount(''); setCashDesc(''); }}
+                       className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-red-50 border-red-200 text-red-600' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}
+                     >
+                       <ArrowUpCircle size={20} strokeWidth={2.5} />
+                       <span className="text-[9px] font-black uppercase tracking-widest">Xərc</span>
+                     </button>
+                     <button
+                       onClick={() => { setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); }}
+                       className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
+                     >
+                       <Lock size={20} strokeWidth={2.5} />
+                       <span className="text-[9px] font-black uppercase tracking-widest">Smenanı Bitir</span>
+                     </button>
+                   </div>
+                 )}
+
+                 {/* Safe drop / Paid outs quick actions */}
+                 {view === 'main' && session && (
+                   <div className="grid grid-cols-2 gap-3">
+                     <button
+                       onClick={() => { setView('cash-out'); setCashDesc('Kasa təmizliyi'); }}
+                       className={`flex items-center gap-3 p-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}
+                     >
+                       <Shield size={18} strokeWidth={2.5} />
+                       <div className="text-left">
+                         <p className="text-[10px] font-black uppercase tracking-widest">Kasa Təmizliyi</p>
+                         <p className="text-[9px] opacity-60">Safe drop</p>
+                       </div>
+                     </button>
+                     <button
+                       onClick={() => { setView('cash-out'); setCashDesc('Xərc'); }}
+                       className={`flex items-center gap-3 p-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}
+                     >
+                       <Receipt size={18} strokeWidth={2.5} />
+                       <div className="text-left">
+                         <p className="text-[10px] font-black uppercase tracking-widest">Xərc</p>
+                         <p className="text-[9px] opacity-60">Paid outs</p>
+                       </div>
+                     </button>
+                   </div>
+                 )}
 
                 {/* Cash-in / Cash-out form */}
                 {(view === 'cash-in' || view === 'cash-out') && (

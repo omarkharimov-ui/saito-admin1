@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Phone, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical } from 'lucide-react';
+import { Plus, Phone, User, MapPin, Bike, Clock, ShoppingBag, MoreVertical, Navigation, UserCheck, Route } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
 interface DeliveryOrdersProps {
@@ -100,33 +100,60 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                     </span>
                   )}
 
-                  <div className="absolute top-[68px] left-5 right-5 flex flex-col gap-1">
-                    {order.customer_name && (
-                      <div className="flex items-center gap-1.5">
-                        <User size={11} className="text-blue-400" />
-                        <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                          {order.customer_name}
-                        </span>
-                      </div>
-                    )}
-                    {(order.delivery_street || order.delivery_address) && (
-                      <div className="flex items-center gap-1.5">
-                        <MapPin size={11} className="text-blue-400 shrink-0" />
-                        <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                          {[order.delivery_street, order.delivery_building].filter(Boolean).join(' ')}{order.delivery_district ? `, ${order.delivery_district}` : ''}
-                          {!order.delivery_street && order.delivery_address}
-                        </span>
-                      </div>
-                    )}
-                    {order.customer_phone && (
-                      <div className="flex items-center gap-1.5">
-                        <Phone size={11} className="text-blue-400" />
-                        <span className={`text-[11px] font-bold tabular-nums ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                          {order.customer_phone}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                   <div className="absolute top-[68px] left-5 right-5 flex flex-col gap-1">
+                     {order.customer_name && (
+                       <div className="flex items-center gap-1.5">
+                         <User size={11} className="text-blue-400" />
+                         <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                           {order.customer_name}
+                         </span>
+                         {order.customer_phone && (
+                           <span className="text-[9px] text-[var(--theme-text-muted)]">({order.customer_phone.slice(-4)})</span>
+                         )}
+                       </div>
+                     )}
+                     {(order.delivery_street || order.delivery_address) && (
+                       <div className="flex items-center gap-1.5">
+                         <MapPin size={11} className="text-blue-400 shrink-0" />
+                         <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                           {[order.delivery_street, order.delivery_building].filter(Boolean).join(' ')}{order.delivery_district ? `, ${order.delivery_district}` : ''}
+                           {!order.delivery_street && order.delivery_address}
+                         </span>
+                       </div>
+                     )}
+                     {order.delivery_zone && (
+                       <div className="flex items-center gap-1.5">
+                         <Route size={11} className="text-purple-400 shrink-0" />
+                         <span className={`text-[10px] font-bold text-purple-500`}>
+                           {order.delivery_zone}
+                         </span>
+                       </div>
+                     )}
+                     {order.courier_name && (
+                       <div className="flex items-center gap-1.5">
+                         <UserCheck size={11} className="text-emerald-400 shrink-0" />
+                         <span className={`text-[10px] font-bold text-emerald-500`}>
+                           {order.courier_name}
+                         </span>
+                       </div>
+                     )}
+                     {order.estimated_delivery_time && (
+                       <div className="flex items-center gap-1.5">
+                         <Clock size={11} className="text-amber-400 shrink-0" />
+                         <span className={`text-[10px] font-bold text-amber-500`}>
+                           Tahmini: {new Date(order.estimated_delivery_time).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                         </span>
+                       </div>
+                     )}
+                     {order.customer_phone && (
+                       <div className="flex items-center gap-1.5">
+                         <Phone size={11} className="text-blue-400" />
+                         <span className={`text-[11px] font-bold tabular-nums ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                           {order.customer_phone}
+                         </span>
+                       </div>
+                     )}
+                   </div>
 
                   <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
                     <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${lightMode ? status.bg : status.bgDark}`}>

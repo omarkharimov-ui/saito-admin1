@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
     }
 
-    const { table_number, guests, name, phone, order_type } = await request.json();
+    const { table_number, guests, name, phone, order_type, notes } = await request.json();
     if (!table_number) {
       return NextResponse.json({ error: 'table_number is required' }, { status: 400 });
     }
@@ -30,14 +30,15 @@ export async function POST(request: NextRequest) {
     const rpcRes = await fetch(`${s.url}/rest/v1/rpc/walkin_atomic`, {
       method: 'POST',
       headers: s.headers,
-      body: JSON.stringify({
-        p_table_number: table_number,
-        p_guests: guests || 1,
-        p_name: name || null,
-        p_phone: phone || null,
-        p_order_type: order_type || 'dine_in',
-        p_user_id: auth.user?.id || null,
-      }),
+        body: JSON.stringify({
+          p_table_number: table_number,
+          p_guests: guests || 1,
+          p_name: name || null,
+          p_phone: phone || null,
+          p_order_type: order_type || 'dine_in',
+          p_notes: notes || null,
+          p_user_id: auth.user?.id || null,
+        }),
     });
 
     const rpcData = await rpcRes.json();

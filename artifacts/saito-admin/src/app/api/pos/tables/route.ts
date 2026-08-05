@@ -22,7 +22,7 @@ export async function GET() {
   try {
     const [floorsRes, ordersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(quantity)&status=neq.paid&status=neq.cancelled&order=created_at.desc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(quantity)&status=neq.paid&status=neq.cancelled&status=neq.closed&order=created_at.desc`, { headers }),
     ]);
 
     const rawFloors = await floorsRes.json();

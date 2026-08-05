@@ -8,7 +8,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { usePos } from './hooks/usePos';
 import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
-import { ProductGrid } from './components/ProductGrid';
+import { ProductGrid, type ProductGridRef } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
 import ReservationActionSheet from './components/ReservationActionSheet';
@@ -78,9 +78,13 @@ export default function POSPage() {
   const isManagerOrAbove = ['manager', 'superadmin'].includes(posRoleNorm);
   const [posSession, setPosSession] = useState<{ staffId: string; name: string; role: string; shift?: string } | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const gridRef = useRef<ProductGridRef>(null);
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [walkInTable, setWalkInTable] = useState('');
   const [walkInGuests, setWalkInGuests] = useState('1');
+  const [walkInName, setWalkInName] = useState('');
+  const [walkInPhone, setWalkInPhone] = useState('');
+  const [walkInNotes, setWalkInNotes] = useState('');
 
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
@@ -471,10 +475,6 @@ export default function POSPage() {
   };
 
   const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | string, tenderedAmount?: number) => {
-    if (posMode === 'delivery' && ['pending', 'preparing', 'ready', 'picked_up', 'in_transit', 'delivered', 'cancelled'].includes(method)) {
-      await handleDeliveryStatusUpdate(method);
-      return;
-    }
     if (!actionSheetTable) return;
     const tableNumbers = actionSheetGroup
       ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
@@ -1648,19 +1648,20 @@ export default function POSPage() {
                  {/* ═══════════════════════════════════════════════ */}
                   <div className="flex-1 flex flex-row overflow-hidden min-h-0">
                     <div className="flex-1 p-6 overflow-y-auto min-h-0 overscroll-contain">
-                      <ProductGrid
-                        products={pos.products}
-                        categories={pos.categories}
-                        combos={pos.combos}
-                        onAddProduct={(p) => handleProductTap(p)}
-                        onAddCombo={(c) => pos.addComboToCart(c)}
-                        cartCounts={(pos.cart?.items ?? []).reduce((acc: Record<string, number>, item: any) => {
-                          const id = item.product_id;
-                          acc[id] = (acc[id] || 0) + (item.quantity || 0);
-                          return acc;
-                        }, {})}
-                        outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
-                      />
+                        <ProductGrid
+                          ref={gridRef}
+                          products={pos.products}
+                          categories={pos.categories}
+                          combos={pos.combos}
+                          onAddProduct={(p) => handleProductTap(p)}
+                          onAddCombo={(c) => pos.addComboToCart(c)}
+                          cartCounts={(pos.cart?.items ?? []).reduce((acc: Record<string, number>, item: any) => {
+                            const id = item.product_id;
+                            acc[id] = (acc[id] || 0) + (item.quantity || 0);
+                            return acc;
+                          }, {})}
+                          outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
+                        />
                     </div>
                     <div className="w-[400px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0">
                        {posMode !== 'dine_in' && (
@@ -1852,11 +1853,14 @@ export default function POSPage() {
                            if (!pos.cart) return;
                            pos.setCart({ ...pos.cart, notes: note });
                          }}
-                         onOpenModifiers={(productId) => {
-                           const product = pos.products.find((p: any) => p.id === productId);
-                           if (product) setModalProduct({ product, variants: pos.variantsByProduct[productId] || [] });
-                         }}
-                       />
+                           onOpenModifiers={(productId) => {
+                             const product = pos.products.find((p: any) => p.id === productId);
+                             if (product) setModalProduct({ product, variants: pos.variantsByProduct[productId] || [] });
+                           }}
+                           onRequestEditor={(productId) => {
+                             gridRef.current?.openEditor(productId);
+                           }}
+                        />
                     </div>
                   </div>
              </div>
@@ -2093,23 +2097,44 @@ export default function POSPage() {
               className={`w-full max-w-sm rounded-3xl p-7 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
             >
               <p className={`text-xl font-black tracking-tight mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>Walk In</p>
-              <p className={`text-[10px] font-black uppercase tracking-widest mb-5 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Masa nömrəsi və qonaq sayı</p>
-              <div className="space-y-3 mb-6">
+              <p className={`text-[10px] font-black uppercase tracking-widest mb-5 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Yeni qonaq qeydi</p>
+              <div className="space-y-3 mb-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Masa №</label>
+                    <input type="number" min="1" value={walkInTable} onChange={e => setWalkInTable(e.target.value)} autoFocus
+                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Qonaq sayı</label>
+                    <input type="number" min="1" value={walkInGuests} onChange={e => setWalkInGuests(e.target.value)}
+                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                    />
+                  </div>
+                </div>
                 <div>
-                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Masa №</label>
-                  <input type="number" min="1" value={walkInTable} onChange={e => setWalkInTable(e.target.value)} autoFocus
-                    className={`w-full rounded-2xl px-5 py-3 text-lg font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Ad</label>
+                  <input type="text" value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder="Müştəri adı"
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
                   />
                 </div>
                 <div>
-                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Qonaq sayı</label>
-                  <input type="number" min="1" value={walkInGuests} onChange={e => setWalkInGuests(e.target.value)}
-                    className={`w-full rounded-2xl px-5 py-3 text-lg font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Telefon</label>
+                  <input type="tel" value={walkInPhone} onChange={e => setWalkInPhone(e.target.value)} placeholder="+994 XX XXX XX XX"
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
+                  />
+                </div>
+                <div>
+                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Qeydlər</label>
+                  <textarea value={walkInNotes} onChange={e => setWalkInNotes(e.target.value)} placeholder="Xüsusi istəklər..."
+                    rows={2}
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border resize-none ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
                   />
                 </div>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setWalkInOpen(false)} className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+                <button onClick={() => { setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); }} className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
                   Ləğv
                 </button>
                 <button
@@ -2121,12 +2146,12 @@ export default function POSPage() {
                       const res = await apiFetch('/api/reservations/walk-in', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ table_number: tableNum, guests }),
+                        body: JSON.stringify({ table_number: tableNum, guests, name: walkInName || null, phone: walkInPhone || null, order_type: 'dine_in', notes: walkInNotes || null }),
                       });
-                      if (res.ok) { toast.success(`Masa ${tableNum} — walk-in`); pos.fetchData(); }
+                      if (res.ok) { toast.success(`Walk-in yaradıldı`); pos.fetchData(); }
                       else { const err = await res.json(); toast.error(err.error || 'Walk-in uğursuz'); }
                     } catch { toast.error('Xəta'); }
-                    setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1');
+                    setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes('');
                   }}
                   disabled={!walkInTable || Number(walkInTable) < 1}
                   className="flex-1 py-4 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-600 transition-all active:scale-95 disabled:opacity-30 shadow-lg shadow-amber-500/20"

@@ -128,6 +128,21 @@ export async function POST(request: NextRequest) {
           break;
         }
 
+        case 'dismiss_undo': {
+          const { table_number } = data;
+          const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/dismiss_undo_atomic`, {
+            method: 'POST',
+            headers: svc().headers,
+            body: JSON.stringify({ p_table_number: table_number, p_performed_by: auth.user.id }),
+          });
+          if (!rpcRes.ok) {
+            const errText = await rpcRes.text();
+            throw new Error(errText || 'Dismiss undo failed');
+          }
+          const undoData = await rpcRes.json();
+          return { action: 'dismiss_undo', success: true, result: undoData };
+        }
+
         default:
           throw new Error(`Unknown action: ${action}`);
       }

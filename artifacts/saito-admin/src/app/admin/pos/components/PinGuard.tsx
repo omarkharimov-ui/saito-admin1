@@ -20,6 +20,8 @@ const ACTION_LABELS: Record<string, string> = {
   loss: 'İtki yazmaq',
   dismiss: 'Masanı boşaltmaq',
   reprint: 'Çeki təkrar çap etmək',
+  refund: 'Qaytarma etmək',
+  split: 'Sifarişi bölüşdürmək',
   merge: 'Masaları birləşdirmək',
   transfer: 'Masa köçürmək',
   admin: 'Admin əməliyyatı',

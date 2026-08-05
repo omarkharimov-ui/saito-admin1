@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
@@ -19,10 +19,27 @@ interface LiquidCategoryNavbarProps {
 export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel }: LiquidCategoryNavbarProps) {
   const { lightMode } = useTheme();
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [showLeftFade, setShowLeftFade] = useState(false);
+  const [showRightFade, setShowRightFade] = useState(true);
+
+  const checkScroll = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    setShowLeftFade(el.scrollLeft > 2);
+    setShowRightFade(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
+  };
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener('scroll', checkScroll, { passive: true });
+    return () => el.removeEventListener('scroll', checkScroll);
+  }, [categories]);
+
   const items = [{ id: null, name: allLabel }, ...categories];
 
-  // Auto-scroll active item into view
   useEffect(() => {
     const idx = items.findIndex(item => item.id === activeId);
     if (idx !== -1 && itemRefs.current[idx]) {
@@ -38,6 +55,14 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
     <div className={`relative flex gap-4 items-center overflow-x-auto scrollbar-none no-scrollbar select-none py-1.5 px-6 rounded-full ${
       lightMode ? 'bg-[#efeff4]' : 'bg-white/5'
     }`}>
+      {showLeftFade && (
+        <div className="absolute left-0 top-0 bottom-0 w-8 z-20 pointer-events-none rounded-l-full"
+          style={{ background: `linear-gradient(to right, ${lightMode ? '#efeff4' : 'rgba(255,255,255,0.05)'}, transparent)` }} />
+      )}
+      {showRightFade && (
+        <div className="absolute right-0 top-0 bottom-0 w-8 z-20 pointer-events-none rounded-r-full"
+          style={{ background: `linear-gradient(to left, ${lightMode ? '#efeff4' : 'rgba(255,255,255,0.05)'}, transparent)` }} />
+      )}
       {items.map((item, idx) => {
         const isActive = activeId === item.id;
         

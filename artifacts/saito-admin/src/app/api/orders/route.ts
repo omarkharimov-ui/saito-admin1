@@ -144,7 +144,7 @@ export async function POST(request: Request) {
         return { success: true };
       }
 
-      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id } = body;
+      const { table_number, items, status, guest_count, customer_note, order_type, reservation_id, kitchen_status, customer_id, customer_name, discount_amount, discount_type, campaign_id, order_source, customer_phone, delivery_address, delivery_district, delivery_street, delivery_building, delivery_floor, delivery_apartment, delivery_intercom, delivery_zone, delivery_fee, estimated_delivery_time, scheduled_date, payment_method, is_rush, assigned_to, terminal_id } = body;
       
       // Append items to an EXISTING active order (used by reservation-handoff tables
       // that already have a draft/active order, so we never create a 2nd active order).
@@ -251,6 +251,19 @@ export async function POST(request: Request) {
             updated_at: new Date().toISOString(),
             customer_id: customer_id || null,
             customer_name: customer_name || null,
+            customer_phone: customer_phone || null,
+            delivery_address: delivery_address || null,
+            delivery_district: delivery_district || null,
+            delivery_street: delivery_street || null,
+            delivery_building: delivery_building || null,
+            delivery_fee: delivery_fee || 0,
+            estimated_delivery_time: estimated_delivery_time || null,
+            scheduled_date: scheduled_date || null,
+            payment_method: payment_method || null,
+            is_rush: is_rush || false,
+            assigned_to: assigned_to || null,
+            order_source: order_source || order_type || 'dine_in',
+            updated_by_terminal_id: terminal_id || null,
             discount_amount: accumulatedDiscount,
             discount_type: discount_type || existingOrder.discount_type || null,
             campaign_id: campaign_id || existingOrder.campaign_id || null,
@@ -292,6 +305,23 @@ export async function POST(request: Request) {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             version: 1,
+            order_source: order_source || order_type || 'dine_in',
+            customer_phone: customer_phone || null,
+            delivery_address: delivery_address || null,
+            delivery_district: delivery_district || null,
+            delivery_street: delivery_street || null,
+            delivery_building: delivery_building || null,
+            delivery_floor: delivery_floor || null,
+            delivery_apartment: delivery_apartment || null,
+            delivery_intercom: delivery_intercom || null,
+            delivery_zone: delivery_zone || null,
+            delivery_fee: delivery_fee || 0,
+            estimated_delivery_time: estimated_delivery_time || null,
+            scheduled_date: scheduled_date || null,
+            payment_method: payment_method || null,
+            is_rush: is_rush || false,
+            assigned_to: assigned_to || null,
+            updated_by_terminal_id: terminal_id || null,
           }),
         });
         if (!insertRes.ok) {

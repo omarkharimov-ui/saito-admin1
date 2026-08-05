@@ -43,6 +43,10 @@ export interface PosCartItem {
   hold_until?: string | null;
   is_pre_order?: boolean;
   pre_order_id?: string | null;
+  station?: string | null;
+  station_id?: string | null;
+  course?: string | null;
+  priority?: string | null;
 }
 
 export interface PosCart {
@@ -70,6 +74,7 @@ export interface PosCart {
   reservation_id?: string | null;
   order_id?: string | null;
   payment_method?: string | null;
+  serverTotal?: number | null;
 }
 
 export interface PosTable {

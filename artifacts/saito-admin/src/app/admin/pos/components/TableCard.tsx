@@ -29,6 +29,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
   const [showKitchenStatus, setShowKitchenStatus] = useState(false);
+  const [statusTransition, setStatusTransition] = useState<string | null>(null);
 
   const isOccupied = ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(table.status);
   const isDirty = table.status === 'dirty';
@@ -36,6 +37,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   const isWaiting = table.status === 'waiting';
   const isGroup = groupNumber && mergedChildNumbers && mergedChildNumbers.length > 0 && !isMergedChild;
   const wasOccupiedRef = useRef(isOccupied);
+  const prevStatusRef = useRef(table.status);
 
   useEffect(() => {
     if (!isOccupied || !table.last_activity_at) {
@@ -74,6 +76,20 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
 
     setShowKitchenStatus(true);
   }, [kitchenStatus, isOccupied]);
+
+  useEffect(() => {
+    const prevStatus = prevStatusRef.current;
+    const currentStatus = table.status;
+    prevStatusRef.current = currentStatus;
+
+    if (prevStatus !== currentStatus && prevStatus === 'occupied' && !isOccupied) {
+      setStatusTransition('occupied');
+      const t = setTimeout(() => {
+        setStatusTransition(null);
+      }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [table.status, isOccupied]);
 
   const formatDelay = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -281,6 +297,18 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
               </motion.div>
             )}
           </AnimatePresence>
+          {statusTransition && (
+            <motion.div
+              key="status-transition"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {t('occupied' as any)}
+            </motion.div>
+          )}
           {table.bill_requested && (
             <span className="shrink-0 relative px-2.5 py-1 rounded-lg text-[9px] font-black border-2 border-rose-500 bg-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/30">
               HESAB

@@ -61,6 +61,7 @@ interface ActionSheetProps {
   transferTarget?: number | null;
   onConfirmTransfer?: () => void;
   onCancelTransfer?: () => void;
+  onCheckout?: () => void;
 }
 
 const fastTransition = appleCapsule;
@@ -71,7 +72,7 @@ export function ActionSheet({
   onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onSelectCustomer, customerId, customerName,
   mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, onBillRequest, onPrintBill, onClearTable, onSeatGuests, posRole, groupNumber,
-  paymentView, transferConfirm, transferSource, transferTarget, onConfirmTransfer, onCancelTransfer,
+  paymentView, transferConfirm, transferSource, transferTarget,   onConfirmTransfer, onCancelTransfer, onCheckout,
   posMode = 'dine_in'
 }: ActionSheetProps) {
   const { t } = useLanguage();
@@ -160,6 +161,9 @@ export function ActionSheet({
     ] : []),
     ...(posMode === 'takeaway' ? [
       { id: 'takeaway_status', icon: ChevronRight, label: 'Növbəti Addım', visible: true },
+    ] : []),
+    ...(isTakeawayOrDelivery ? [
+      { id: 'checkout', icon: ShoppingBag, label: 'Sifarişi Yarat', visible: true },
     ] : []),
   ];
 

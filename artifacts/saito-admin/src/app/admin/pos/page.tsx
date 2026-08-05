@@ -85,6 +85,9 @@ export default function POSPage() {
   const [walkInName, setWalkInName] = useState('');
   const [walkInPhone, setWalkInPhone] = useState('');
   const [walkInNotes, setWalkInNotes] = useState('');
+  const [walkInPreOrder, setWalkInPreOrder] = useState(false);
+  const [walkInScheduledDate, setWalkInScheduledDate] = useState('');
+  const [walkInScheduledTime, setWalkInScheduledTime] = useState('');
 
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
@@ -2132,9 +2135,34 @@ export default function POSPage() {
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border resize-none ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
                   />
                 </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="walkInPreOrder" checked={walkInPreOrder} onChange={e => { setWalkInPreOrder(e.target.checked); if (!e.target.checked) { setWalkInScheduledDate(''); setWalkInScheduledTime(''); } }}
+                    className="w-4 h-4 rounded border-zinc-300 text-amber-500 focus:ring-amber-500"
+                  />
+                  <label htmlFor="walkInPreOrder" className={`text-[10px] font-black uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
+                    Əvvəlcədən sifariş
+                  </label>
+                </div>
+                {walkInPreOrder && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Tarix</label>
+                      <input type="date" value={walkInScheduledDate} onChange={e => setWalkInScheduledDate(e.target.value)}
+                        min={new Date().toISOString().slice(0, 10)}
+                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Vaxt</label>
+                      <input type="time" value={walkInScheduledTime} onChange={e => setWalkInScheduledTime(e.target.value)}
+                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex gap-3">
-                <button onClick={() => { setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); }} className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+                <button onClick={() => { setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); setWalkInPreOrder(false); setWalkInScheduledDate(''); setWalkInScheduledTime(''); }} className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
                   Ləğv
                 </button>
                 <button
@@ -2146,12 +2174,12 @@ export default function POSPage() {
                       const res = await apiFetch('/api/reservations/walk-in', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ table_number: tableNum, guests, name: walkInName || null, phone: walkInPhone || null, order_type: 'dine_in', notes: walkInNotes || null }),
+                        body: JSON.stringify({ table_number: tableNum, guests, name: walkInName || null, phone: walkInPhone || null, order_type: 'dine_in', notes: walkInNotes || null, pre_order: walkInPreOrder, scheduled_date: walkInPreOrder ? walkInScheduledDate : null, scheduled_time: walkInPreOrder ? walkInScheduledTime : null }),
                       });
                       if (res.ok) { toast.success(`Walk-in yaradıldı`); pos.fetchData(); }
                       else { const err = await res.json(); toast.error(err.error || 'Walk-in uğursuz'); }
                     } catch { toast.error('Xəta'); }
-                    setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes('');
+                    setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); setWalkInPreOrder(false); setWalkInScheduledDate(''); setWalkInScheduledTime('');
                   }}
                   disabled={!walkInTable || Number(walkInTable) < 1}
                   className="flex-1 py-4 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-600 transition-all active:scale-95 disabled:opacity-30 shadow-lg shadow-amber-500/20"

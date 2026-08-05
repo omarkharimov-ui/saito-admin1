@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart } from 'lucide-react';
+import { Search, X, Plus, Clock, Star, Heart, Lock, ShoppingCart, Filter } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
@@ -25,6 +25,7 @@ interface ProductGridProps {
 }
 
 const COMBO_TAB = '__combos__';
+const TOTAL_COLUMNS = 4;
 
 const FILTER_TABS = [
   { id: 'all' as const, label: 'Hamısı', icon: Search },
@@ -71,7 +72,6 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>(undefined);
   const [noteForProduct, setNoteForProduct] = useState<string>('');
   const [qty, setQty] = useState(1);
-  const [originRect, setOriginRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -85,7 +85,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     openEditor: (productId: string) => {
       const el = cardRefs.current[productId];
       if (!el) return;
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch {
+        el.scrollIntoView({ block: 'center' });
+      }
       setExpandedId(productId);
     }
   }), []);
@@ -160,14 +164,40 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
   const handleClose = () => {
     setExpandedId(null);
-    setOriginRect(null);
   };
 
   const expandedItem = filtered.find(item => item.id === expandedId);
 
+  const getColumnAnchor = (index: number) => {
+    const colIndex = index % TOTAL_COLUMNS;
+    const isRightHalf = colIndex >= 2;
+    if (isRightHalf) return { side: 'right' as const, origin: 'top right' as const };
+    return { side: 'left' as const, origin: 'top left' as const };
+  };
+
+  const gridBlurClass = outOfStock && outOfStock.size > 0 ? 'blur-[2px] select-none pointer-events-none' : '';
+
+  const cardBg = lightMode
+    ? 'bg-white/70 backdrop-blur-md border border-white/20 shadow-lg shadow-black/5'
+    : 'bg-white/[0.04] backdrop-blur-md border border-white/10 shadow-lg shadow-black/20';
+  const cardText = lightMode ? 'text-gray-900' : 'text-white';
+  const cardPrice = lightMode ? 'text-gray-900' : 'text-white';
+  const cardSecondary = lightMode ? 'text-gray-500' : 'text-white/50';
+  const comboLabelBg = lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/10 text-amber-400';
+  const oosOverlayBg = lightMode ? 'bg-black/30 backdrop-blur-sm' : 'bg-black/40 backdrop-blur-sm';
+  const expandedBg = lightMode ? 'bg-white border-zinc-200' : 'bg-[#1a1a1a] border-white/10';
+  const expandedText = lightMode ? 'text-gray-900' : 'text-white';
+  const expandedSecondary = lightMode ? 'text-gray-500' : 'text-white/60';
+  const expandedInputBg = lightMode ? 'bg-zinc-50 border-zinc-200 text-black' : 'bg-white/5 border-white/10 text-white';
+  const expandedInputPlaceholder = lightMode ? 'text-zinc-400' : 'text-white/40';
+  const expandedBtnBg = lightMode ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-emerald-500 hover:bg-emerald-600';
+  const compactImgBg = lightMode ? 'bg-zinc-100' : 'bg-white/50 dark:bg-black/20';
+  const compactPriceLine = lightMode ? 'text-gray-400' : 'text-white/40';
+  const compactPriceMuted = lightMode ? 'text-gray-500' : 'text-white/50';
+
   return (
     <div className="flex flex-col h-full relative">
-      {/* Search Bar */}
+      {/* Search Bar + Out of Stock Toggle */}
       <div className="relative mb-4 flex-shrink-0 flex items-center gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
@@ -180,12 +210,13 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         {outOfStock && outOfStock.size > 0 && (
           <button
             onClick={() => setHideOutOfStock(p => !p)}
-            className={`flex-shrink-0 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+            className={`flex-shrink-0 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5 ${
               hideOutOfStock
                 ? 'bg-rose-500 text-white border-rose-500'
                 : lightMode ? 'bg-zinc-100 text-zinc-500 border-zinc-200 hover:bg-zinc-200' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'
             }`}
           >
+            <Filter size={10} />
             {outOfStock.size}
           </button>
         )}
@@ -219,60 +250,146 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         />
       </div>
 
-      {/* Product Grid - frozen layout, overflow-visible for floating layer */}
-      <div className="flex-1 overflow-y-auto pr-1 pt-2 relative z-0">
+      {/* Product Grid */}
+      <div className={`flex-1 overflow-y-auto pr-1 pt-2 relative z-0 transition-all duration-300 ${gridBlurClass}`}>
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 relative overflow-visible">
-          {filtered.map((item) => {
+          {filtered.map((item, index) => {
             const name = (language === 'az' ? item.name_az : language === 'en' ? item.name_en : item.name_ru) || item.name;
             const count = cartCounts[item.id] || 0;
             const isCombo = item._isCombo;
             const isOutOfStock = outOfStock?.has(item.id);
             const isExpanded = expandedId === item.id;
+            const anchor = getColumnAnchor(index);
+            const layoutId = `product-card-${item.id}`;
 
             return (
-              <motion.div
+              <div
                 key={`${isCombo ? 'combo-' : ''}${item.id}`}
                 ref={el => { cardRefs.current[item.id] = el; }}
-                layout
-                transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                className={`relative flex flex-col rounded-[28px] border overflow-hidden ${
-                  isExpanded
-                    ? 'col-span-2 row-span-2 z-20 shadow-2xl bg-[#1a1a1a] border-white/10'
-                    : 'col-span-1 row-span-1 bg-[#f4f4f7] dark:bg-white/[0.08] border-[var(--theme-border)] shadow-[0_1px_3px_rgba(255,255,255,0.04)]'
-                }`}
-                onClick={() => { if (!isOutOfStock && !isCombo) handleCardClick(item); }}
+                className="relative col-span-1 row-span-1 overflow-visible"
               >
-                {isOutOfStock && (
-                  <div className="absolute top-2 right-2 z-20">
-                    <span className="text-[8px] font-black uppercase tracking-[0.15em] text-white bg-rose-600 px-2 py-1 rounded-lg shadow-sm">
-                      {t('out_of_stock') || 'Stokda yox'}
-                    </span>
-                  </div>
-                )}
+                {/* 1. Compact Card (always present, serves as morph target) */}
+                <motion.div
+                  layoutId={layoutId}
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  whileTap={{ scale: 0.96 }}
+                  className={`relative flex flex-col rounded-[28px] border overflow-hidden cursor-pointer ${cardBg} ${
+                    isOutOfStock ? 'opacity-50 grayscale border-rose-500/30' : ''
+                  }`}
+                  onClick={() => { if (!isOutOfStock && !isCombo) handleCardClick(item); }}
+                  style={{ zIndex: isExpanded ? 1 : 0 }}
+                >
+                  {/* Combo badge - top right */}
+                  {isCombo && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${comboLabelBg}`}>
+                        Kombo
+                      </span>
+                    </div>
+                  )}
 
-                <AnimatePresence mode="wait">
-                  {isExpanded ? (
+                  {/* Cart icon with count - top left */}
+                  {count > 0 && (
+                    <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
+                      <ShoppingCart size={10} className="text-white" />
+                      <span className="text-[10px] font-black text-white">{count}</span>
+                    </div>
+                  )}
+
+                  {/* Out of stock overlay - top left lock icon + blur */}
+                  {isOutOfStock && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center oosOverlayBg gap-2 pointer-events-none">
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-sm">
+                        <Lock size={20} className="text-white/50" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white bg-rose-600 px-3 py-1.5 rounded-lg shadow-sm">
+                        {t('out_of_stock') || 'Stokda yox'}
+                      </span>
+                    </div>
+                  )}
+
+                  <motion.div
+                    layout
+                    className="flex flex-col h-full p-3"
+                  >
+                    <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
+                      {item.image_url && !failedImages.has(item.image_url) ? (
+                        <img src={retryingImages.has(item.image_url) ? `${item.image_url}?t=${Date.now()}` : item.image_url} alt={name}
+                          onError={() => {
+                            const url = item.image_url!;
+                            const cnt = (retryCount[url] || 0) + 1;
+                            setRetryCount(prev => ({ ...prev, [url]: cnt }));
+                            if (cnt >= 2) { setFailedImages(prev => new Set(prev).add(url)); }
+                            else { setRetryingImages(prev => new Set(prev).add(url)); }
+                          }}
+                          onLoad={() => {
+                            if (retryingImages.has(item.image_url!)) { setRetryingImages(prev => { const s = new Set(prev); s.delete(item.image_url!); return s; }); }
+                          }}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl font-black opacity-20 uppercase">{name.slice(0, 2)}</div>
+                      )}
+                    </div>
+                    <div className="pt-3 px-1">
+                      {item.effective_price?.campaign_badge && (
+                        <span className="inline-block text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full mb-1"
+                          style={{ color: item.effective_price.campaign_badge || '#D4AF37', backgroundColor: `${item.effective_price.campaign_badge || '#D4AF37'}20` }}>
+                          {item.effective_price.campaign_label || 'Endirim'}
+                        </span>
+                      )}
+                      <p className={`text-sm font-bold truncate leading-tight ${cardText}`}>{name}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-baseline gap-2">
+                          {item.effective_price && item.effective_price.effective_price < item.effective_price.base_price ? (
+                            <>
+                              <p className={`text-sm font-black ${cardPrice}`}>₼ {item.effective_price.effective_price.toFixed(2)}</p>
+                              <p className={`text-[11px] font-bold line-through ${compactPriceLine}`}>₼ {item.effective_price.base_price.toFixed(2)}</p>
+                            </>
+                          ) : (
+                            <p className={`text-sm font-black ${cardPrice}`}>₼ {(item.effective_price?.effective_price ?? item.price)?.toFixed(2)}</p>
+                          )}
+                        </div>
+                        {count > 0 && (
+                          <div className="flex items-center gap-1 bg-black/10 dark:bg-white/5 rounded-full px-2 py-1">
+                            <ShoppingCart size={10} className={cardSecondary} />
+                            <span className={`text-[10px] font-black ${cardSecondary}`}>{count}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+
+                {/* 2. Expanded Floating Popover (sibling of compact card, same layoutId) */}
+                <AnimatePresence>
+                  {isExpanded && (
                     <motion.div
-                      key="expanded"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="flex flex-col h-full"
+                      layoutId={layoutId}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95, transition: { type: "spring", stiffness: 350, damping: 30 } }}
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                      className={`absolute top-0 z-50 w-[440px] rounded-[28px] border shadow-2xl overflow-hidden ${
+                        anchor.side === 'right' ? 'right-0' : 'left-0'
+                      } ${expandedBg}`}
+                      style={{
+                        transformOrigin: anchor.origin,
+                      }}
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="p-5">
+                      <div className="p-5 overflow-y-auto max-h-[calc(100vh-2rem)]">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/10 shrink-0">
-                              {item.image_url && !failedImages.has(item.image_url) ? (
-                                <img src={retryingImages.has(item.image_url) ? `${item.image_url}?t=${Date.now()}` : item.image_url} alt={name} className="w-full h-full object-cover" loading="lazy" />
+                              {expandedItem?.image_url && !failedImages.has(expandedItem.image_url) ? (
+                                <img src={retryingImages.has(expandedItem.image_url) ? `${expandedItem.image_url}?t=${Date.now()}` : expandedItem.image_url} alt={name} className="w-full h-full object-cover" loading="lazy" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-2xl font-black opacity-20 uppercase text-white">{(name || '?').slice(0, 2)}</div>
                               )}
                             </div>
                             <div>
-                              <p className="text-xl font-black text-white">{name}</p>
-                              <p className="text-lg font-black text-white/80">₼ {(item.effective_price?.effective_price ?? item.price)?.toFixed(2)}</p>
+                              <p className={`text-xl font-black ${expandedText}`}>{name}</p>
+                              <p className={`text-lg font-black ${expandedSecondary}`}>₼ {(expandedItem?.effective_price?.effective_price ?? expandedItem?.price)?.toFixed(2)}</p>
                             </div>
                           </div>
                           <button onClick={(e) => { e.stopPropagation(); handleClose(); }} className="p-2 rounded-xl border border-white/10 text-white hover:bg-white/10 transition-colors">
@@ -282,7 +399,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
                         <div className="mt-4 space-y-3">
                           <div>
-                            <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Miqdar:</span>
+                            <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Miqdar:</span>
                             <div className="flex items-center gap-3 mt-2">
                               <div className="flex items-center gap-1 rounded-xl border border-white/10 overflow-hidden">
                                 <button onClick={(e) => { e.stopPropagation(); setQty(Math.max(1, qty - 1)); }} className="px-4 py-2 text-sm font-black text-white hover:bg-white/10 transition-colors">−</button>
@@ -292,11 +409,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                             </div>
                           </div>
 
-                          {(item.variants?.length ?? 0) > 0 && (
+                          {(expandedItem?.variants?.length ?? 0) > 0 && (
                             <div>
-                              <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Variantlar:</span>
+                              <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Variantlar:</span>
                               <div className="flex flex-wrap gap-2 mt-2">
-                                {(item.variants ?? []).map((v: any) => (
+                                {(expandedItem?.variants ?? []).map((v: any) => (
                                   <button key={v.id} onClick={(e) => { e.stopPropagation(); setSelectedVariant(v.id); }} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
                                     {v.name || v.title || `#${v.id.slice(0, 6)}`} {v.price ? `(+₼${Number(v.price).toFixed(2)})` : ''}
                                   </button>
@@ -305,11 +422,11 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                             </div>
                           )}
 
-                          {(item.modifiers?.length ?? 0) > 0 && (
+                          {(expandedItem?.modifiers?.length ?? 0) > 0 && (
                             <div>
-                              <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Modifikatorlar:</span>
+                              <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Modifikatorlar:</span>
                               <div className="flex flex-wrap gap-2 mt-2">
-                                {(item.modifiers ?? []).map((m: any) => (
+                                {(expandedItem?.modifiers ?? []).map((m: any) => (
                                   <span key={m.id || m.name} className="text-xs font-bold px-3 py-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">{m.name} +₼{Number(m.price || 0).toFixed(2)}</span>
                                 ))}
                               </div>
@@ -317,7 +434,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           )}
 
                           <div>
-                            <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Stansiya:</span>
+                            <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Stansiya:</span>
                             <div className="flex flex-wrap gap-2 mt-2">
                               {STATIONS.map(st => (
                                 <button key={st.value} onClick={(e) => { e.stopPropagation(); }} className="px-4 py-2 rounded-xl text-xs font-bold transition-all border border-white/10 text-white/80 hover:bg-white/10">
@@ -328,7 +445,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           </div>
 
                           <div>
-                            <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Kurs:</span>
+                            <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Kurs:</span>
                             <div className="flex flex-wrap gap-2 mt-2">
                               {COURSES.map(c => (
                                 <button key={c.value} onClick={(e) => { e.stopPropagation(); }} className="px-4 py-2 rounded-xl text-xs font-bold transition-all border border-white/10 text-white/80 hover:bg-white/10">
@@ -339,7 +456,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           </div>
 
                           <div>
-                            <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Tövsiyə:</span>
+                            <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Tövsiyə:</span>
                             <div className="flex flex-wrap gap-2 mt-2">
                               {PRIORITIES.map(p => (
                                 <button key={p.value} onClick={(e) => { e.stopPropagation(); }} className="px-4 py-2 rounded-xl text-xs font-bold transition-all border border-white/10 text-white/80 hover:bg-white/10">
@@ -350,71 +467,29 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           </div>
 
                           <div>
-                            <input type="text" value={noteForProduct} onChange={(e) => { e.stopPropagation(); setNoteForProduct(e.target.value); }} placeholder="Qeyd əlavə et..." className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:border-blue-400/50 transition-colors" onClick={(e) => e.stopPropagation()} />
+                            <input type="text" value={noteForProduct} onChange={(e) => { e.stopPropagation(); setNoteForProduct(e.target.value); }} placeholder="Qeyd əlavə et..." className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} placeholder:${expandedInputPlaceholder} focus:border-blue-400/50`} onClick={(e) => e.stopPropagation()} />
                           </div>
 
                           <button onClick={(e) => {
                             e.stopPropagation();
-                            onAddProduct({ ...item, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined } as any);
+                            if (expandedItem) {
+                              onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined } as any);
+                            }
                             setNoteForProduct('');
                             setSelectedVariant(undefined);
                             setQty(1);
                             handleClose();
-                          }} className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 text-white text-sm font-black uppercase tracking-wider hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20">
+                          }} className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-black uppercase tracking-wider hover:opacity-90 transition-all active:scale-95 shadow-lg`}
+                          style={{ backgroundColor: '#10b981' }}
+                          >
                             <Plus size={18} /> Əlavə et
                           </button>
                         </div>
                       </div>
                     </motion.div>
-                  ) : (
-                    <motion.div
-                      key="compact"
-                      className="flex flex-col h-full p-4"
-                    >
-                      <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
-                        {item.image_url && !failedImages.has(item.image_url) ? (
-                          <img src={retryingImages.has(item.image_url) ? `${item.image_url}?t=${Date.now()}` : item.image_url} alt={name}
-                            onError={() => {
-                              const url = item.image_url!;
-                              const count = (retryCount[url] || 0) + 1;
-                              setRetryCount(prev => ({ ...prev, [url]: count }));
-                              if (count >= 2) { setFailedImages(prev => new Set(prev).add(url)); }
-                              else { setRetryingImages(prev => new Set(prev).add(url)); }
-                            }}
-                            onLoad={() => {
-                              if (retryingImages.has(item.image_url!)) { setRetryingImages(prev => { const s = new Set(prev); s.delete(item.image_url!); return s; }); }
-                            }}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xl font-black opacity-20 uppercase">{name.slice(0, 2)}</div>
-                        )}
-                      </div>
-                      <div className="pt-4 px-1">
-                        {isCombo && (
-                          <span className="inline-block text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full mb-1">Kombo</span>
-                        )}
-                        {item.effective_price?.campaign_badge && (
-                          <span className="inline-block text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full mb-1"
-                            style={{ color: item.effective_price.campaign_badge || '#D4AF37', backgroundColor: `${item.effective_price.campaign_badge || '#D4AF37'}20` }}>
-                            {item.effective_price.campaign_label || 'Endirim'}
-                          </span>
-                        )}
-                        <p className={`text-sm font-bold truncate leading-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{name}</p>
-                        <div className="flex items-baseline gap-2 mt-2">
-                          {item.effective_price && item.effective_price.effective_price < item.effective_price.base_price ? (
-                            <>
-                              <p className={`text-sm font-black ${lightMode ? 'text-gray-900' : 'text-white'}`}>₼ {item.effective_price.effective_price.toFixed(2)}</p>
-                              <p className="text-[11px] font-bold line-through opacity-40">₼ {item.effective_price.base_price.toFixed(2)}</p>
-                            </>
-                          ) : (
-                            <p className={`text-sm font-black ${lightMode ? 'text-gray-900' : 'text-white/60'}`}>₼ {(item.effective_price?.effective_price ?? item.price)?.toFixed(2)}</p>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
             );
           })}
         </div>

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Phone, User, MapPin, Clock, FileText, Banknote, CreditCard, Wifi, Timer } from 'lucide-react';
+import { X, Phone, User, MapPin, Clock, FileText, Banknote, CreditCard, Wifi, Timer, Loader2, ChevronDown, MapPinOff } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
 
@@ -40,6 +40,30 @@ const PAYMENT_METHODS = [
   { value: 'pay_later' as const, label: 'Sonra', icon: Timer, color: 'amber' },
 ];
 
+const ADDRESS_STORAGE_KEY = 'saito_delivery_addresses';
+
+function loadAddressSuggestions(): string[] {
+  try {
+    const stored = localStorage.getItem(ADDRESS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+function saveAddressSuggestion(address: string) {
+  try {
+    const existing = loadAddressSuggestions();
+    const updated = [address, ...existing.filter((a: string) => a !== address)].slice(0, 10);
+    localStorage.setItem(ADDRESS_STORAGE_KEY, JSON.stringify(updated));
+  } catch { /* ignore */ }
+}
+
+interface Zone {
+  name: string;
+  fee: number;
+  free_delivery_threshold: number;
+  estimated_minutes: number;
+}
+
 export default function CheckoutModal({ open, mode, total, currency = '₼', onSubmit, onClose }: CheckoutModalProps) {
   const { lightMode } = useTheme();
   const [phone, setPhone] = useState('');
@@ -59,6 +83,12 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
   const [scheduledDate, setScheduledDate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'online' | 'pay_later'>('cash');
   const [submitting, setSubmitting] = useState(false);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [zoneLoading, setZoneLoading] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const [wasOpen, setWasOpen] = useState(false);
   if (open && !wasOpen) { setWasOpen(true); resetFormState(); }
@@ -69,7 +99,92 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
     setStreet(''); setBuilding(''); setFloor(''); setApartment(''); setIntercom('');
     setZone(''); setFee(0); setPickupTime('now'); setCustomTime('');
     setScheduledDate(''); setPaymentMethod('cash');
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
   }
+
+  useEffect(() => {
+    if (mode === 'delivery' && zones.length === 0) {
+      setZoneLoading(true);
+      fetch('/api/rpc/calculate_delivery_fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_zone_name: '', p_order_amount: total }),
+      }).then(r => r.json().catch(() => null)).then(data => {
+        setZoneLoading(false);
+      }).catch(() => setZoneLoading(false));
+    }
+  }, [mode, zones.length, total]);
+
+  const fetchZones = useCallback(async () => {
+    try {
+      const res = await fetch('/api/rpc/calculate_delivery_fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_zone_name: '', p_order_amount: total }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success !== false) {
+          setZones(prev => {
+            const existing = prev.find(z => z.name === data.zone);
+            if (existing) return prev;
+            return [...prev, { name: data.zone || '', fee: data.fee || 0, free_delivery_threshold: data.free_delivery_threshold || 50, estimated_minutes: data.estimated_minutes || 30 }];
+          });
+        }
+      }
+    } catch { /* ignore */ }
+  }, [total]);
+
+  const handleZoneChange = async (zoneName: string) => {
+    setZone(zoneName);
+    if (!zoneName) { setFee(0); return; }
+    try {
+      const res = await fetch('/api/rpc/calculate_delivery_fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_zone_name: zoneName, p_order_amount: total }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success) {
+          setFee(data.fee || 0);
+        }
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleAddressChange = (value: string) => {
+    setAddress(value);
+    const suggestions = loadAddressSuggestions().filter(a =>
+      a.toLowerCase().includes(value.toLowerCase())
+    );
+    setAddressSuggestions(suggestions);
+    setShowAddressSuggestions(suggestions.length > 0 && value.length > 0);
+  };
+
+  const selectAddressSuggestion = (addr: string) => {
+    setAddress(addr);
+    setShowAddressSuggestions(false);
+    saveAddressSuggestion(addr);
+  };
+
+  useEffect(() => {
+    if (open && mode === 'delivery') {
+      fetchZones();
+    }
+  }, [open, mode, fetchZones]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) &&
+          addressInputRef.current && !addressInputRef.current.contains(e.target as Node)) {
+        setShowAddressSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (!open) return null;
 
@@ -140,133 +255,24 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
               {mode === 'takeaway' ? 'Müştəri məlumatları' : 'Müştəri və ünvan'}
             </p>
           </div>
-          <button
-            onClick={handleClose}
-            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-              lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 text-white/50 hover:bg-white/10'
-            }`}
-          >
-            <X size={18} />
-          </button>
+          {total > 0 && (
+            <button
+              onClick={handleClose}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 text-white/50 hover:bg-white/10'
+              }`}
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto relative">
+          {/* Blur overlay behind modal content */}
+          <div className="absolute inset-0 backdrop-blur-sm bg-black/10 dark:bg-black/20 pointer-events-none z-0" />
+          <div className="relative z-10">
           {/* Phone + Name */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                Telefon {mode === 'delivery' ? '*' : ''}
-              </label>
-              <div className="relative">
-                <Phone size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`} />
-                <input type="tel" value={phone} onChange={(e) => { const v = e.target.value.replace(/[^0-9+\s\-()]/g, '').slice(0, 20); setPhone(v); }}
-                  placeholder="050 000 00 00" className={`${inputClass} pl-10`}
-                />
-              </div>
-            </div>
-            <div>
-              <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                Müştəri
-              </label>
-              <div className="relative">
-                <User size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`} />
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                  placeholder="Ad Soyad" className={`${inputClass} pl-10`}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Delivery: District */}
-          {mode === 'delivery' && (
-            <div>
-              <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                Rayon
-              </label>
-              <input type="text" value={district} onChange={(e) => setDistrict(e.target.value)}
-                placeholder="Məs: Yasamal, 28 May" className={inputClass}
-              />
-            </div>
-          )}
-
-          {/* Delivery: Structured address */}
-          {mode === 'delivery' && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                    Küçə *
-                  </label>
-                  <input type="text" value={street} onChange={(e) => setStreet(e.target.value)}
-                    placeholder="Küçə adı" className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                    Bina
-                  </label>
-                  <input type="text" value={building} onChange={(e) => setBuilding(e.target.value)}
-                    placeholder="Bina №" className={inputClass}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                    Mərtəbə
-                  </label>
-                  <input type="text" value={floor} onChange={(e) => setFloor(e.target.value)}
-                    placeholder="Mərtəbə" className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                    Mənzil
-                  </label>
-                  <input type="text" value={apartment} onChange={(e) => setApartment(e.target.value)}
-                    placeholder="Mənzil" className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                    Domofon
-                  </label>
-                  <input type="text" value={intercom} onChange={(e) => setIntercom(e.target.value)}
-                    placeholder="Kod" className={inputClass}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Delivery fee + time */}
-          {mode === 'delivery' && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                  Çatdırma Haqqı
-                </label>
-                <div className="relative">
-                  <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>₼</span>
-                  <input type="number" step="0.50" value={fee || ''}
-                    onChange={(e) => setFee(Number(e.target.value) || 0)}
-                    placeholder="0.00" className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                  Çatdırma Vaxtı
-                </label>
-                <input type="time" value={customTime} onChange={(e) => setCustomTime(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Takeaway: Pickup time */}
           {mode === 'takeaway' && (
             <>
               <div>
@@ -342,6 +348,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                 rows={2} className={`${inputClass} pl-10 resize-none`}
               />
             </div>
+          </div>
           </div>
         </div>
 

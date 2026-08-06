@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -172,15 +172,17 @@ export function CartPanel({
 
   if (isEmpty) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-12 text-[var(--theme-text-muted)]">
-        <ShoppingBag size={56} className="mb-4 opacity-15" />
-        <p className="text-base font-bold mb-1">Səbət boşdur</p>
-        <p className="text-xs mb-6 opacity-60">Məhsullar seçmək üçün sol paneldən istifadə edin</p>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-full border border-dashed ${
-          lightMode ? 'border-zinc-300 text-zinc-400' : 'border-white/10 text-white/30'
-        } text-[10px] font-bold`}>
-          <Plus size={12} />
-          Məhsul əlavə et
+      <div className="flex flex-col h-full px-6 relative">
+        <div className="flex items-center gap-2 flex-shrink-0 pb-4 pt-6">
+          <button onClick={onBack}
+            className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
+            <ArrowLeft size={18} />
+          </button>
+          <p className="text-lg font-bold text-[var(--theme-text)]">Səbət boşdur</p>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-[var(--theme-text-muted)]">
+          <ShoppingBag size={56} className="mb-4 opacity-15" />
+          <p className="text-xs mb-6 opacity-60">Məhsullar seçmək üçün sol paneldən istifadə edin</p>
         </div>
       </div>
     );
@@ -286,15 +288,13 @@ export function CartPanel({
               )}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="relative">
-                <ShoppingBag size={14} className="text-[var(--theme-text-secondary)]" />
-                <span className={`absolute -top-1.5 -right-1.5 min-w-[15px] h-4 px-[3px] rounded-full flex items-center justify-center text-[9px] font-black tabular-nums leading-none ${
-                  cart.items.length > 0
-                    ? 'bg-[var(--theme-accent)] text-white'
-                    : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-white/10 text-white/40')
+              <div className="flex items-center gap-1.5">
+                <span className={`text-sm font-black tabular-nums leading-none ${
+                  cart.items.length > 0 ? 'text-[var(--theme-text)]' : (lightMode ? 'text-zinc-300' : 'text-white/30')
                 }`}>
                   {cart.items.length}
                 </span>
+                <ShoppingBag size={14} className="text-[var(--theme-text-secondary)]" />
               </div>
               <span className="text-xs text-[var(--theme-text-secondary)]">{t('items')}</span>
               {posMode === 'dine_in' && (

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const dateTo = url.searchParams.get('date_to');
 
     const s = svc();
-    let query = `${s.url}/rest/v1/orders?status=eq.${status}&order=created_at.desc&limit=${limit}&select=*,order_items(product_name,quantity,unit_price,total_price,products(name_az,name_en))`;
+    let query = `${s.url}/rest/v1/orders?status=eq.${status}&order=created_at.desc&limit=${limit}&select=*,order_items(id,order_id,product_id,product_name,quantity,unit_price,total_price,variant_id,variant_name,modifiers,special_notes,combo_group_id,kitchen_status,served_quantity,prepared_quantity,products(name_az,name_en))`;
 
     if (orderSource) {
       query += `&order_source=eq.${orderSource}`;

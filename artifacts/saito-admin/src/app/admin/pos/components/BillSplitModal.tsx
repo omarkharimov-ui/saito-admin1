@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Split, Check, Plus, Minus, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
 import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
@@ -30,6 +31,7 @@ interface BillSplitModalProps {
 
 export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: BillSplitModalProps) {
   const { t } = useLanguage();
+  const { lightMode } = useTheme();
   const [selectedComboIds, setSelectedComboIds] = useState<Set<string>>(new Set());
   const [selectedStandalone, setSelectedStandalone] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
@@ -146,17 +148,17 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop} className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm" onClick={onClose} />
           <motion.div {...appleCard} className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
-            <div className="bg-[#111] border border-white/10 rounded-3xl w-full max-w-xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col pointer-events-auto">
+            <div className={`border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'} rounded-[2.5rem] w-full max-w-xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col pointer-events-auto`}>
               {/* Header */}
-              <div className="p-8 border-b border-white/5 flex items-center justify-between">
+              <div className={`p-8 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'} flex items-center justify-between`}>
                 <div>
                   <div className="flex items-center gap-3 mb-1">
-                    <Split size={20} className="text-blue-400" />
-                    <h2 className="text-2xl font-black tracking-tight">Hesabı Böl</h2>
+                    <Split size={20} className="text-blue-500" />
+                    <h2 className={`text-2xl font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>Hesabı Böl</h2>
                   </div>
-                  <p className="text-xs text-white/30 font-bold uppercase tracking-widest">Yeni hesaba keçəcək məhsulları seçin</p>
+                  <p className={`text-xs font-bold uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Yeni hesaba keçəcək məhsulları seçin</p>
                 </div>
-                <button onClick={onClose} className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all"><X size={20} /></button>
+                <button onClick={onClose} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'}`}><X size={20} /></button>
               </div>
 
               {/* Items List */}
@@ -165,15 +167,15 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
                 {comboGroups.map(group => {
                   const isSelected = selectedComboIds.has(group.comboGroupId);
                   return (
-                    <div key={group.comboGroupId} className={`rounded-2xl border transition-all ${isSelected ? 'bg-blue-500/5 border-blue-500/30' : 'bg-white/[0.02] border-white/5'}`}>
+                    <div key={group.comboGroupId} className={`rounded-2xl border transition-all ${isSelected ? (lightMode ? 'bg-blue-50 border-blue-300' : 'bg-blue-500/5 border-blue-500/30') : (lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/5')}`}>
                       <button onClick={() => toggleCombo(group.comboGroupId)} className="w-full flex items-center justify-between p-4">
                         <div className="flex-1 min-w-0 text-left">
-                          <p className="text-sm font-bold text-white/80 truncate">{group.name}</p>
-                          <p className="text-xs text-white/30 mt-1">
+                          <p className={`text-sm font-bold truncate ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{group.name}</p>
+                          <p className={`text-xs mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                             {group.children.map(c => c.product_name).join(', ')}
                           </p>
                         </div>
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ml-3 ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-white/30'}`}>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ml-3 ${isSelected ? 'bg-blue-500 border-blue-500' : (lightMode ? 'border-zinc-300' : 'border-white/30')}`}>
                           {isSelected && <Check size={14} className="text-white" />}
                         </div>
                       </button>
@@ -184,36 +186,36 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
                 {standaloneItems.map(item => {
                   const selQty = selectedStandalone[item.id] || 0;
                   return (
-                    <div key={item.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${selQty > 0 ? 'bg-blue-500/5 border-blue-500/30' : 'bg-white/[0.02] border-white/5'}`}>
+                    <div key={item.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${selQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300' : 'bg-blue-500/5 border-blue-500/30') : (lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/[0.02] border-white/5')}`}>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white/80 truncate">{item.product_name}</p>
-                        <p className="text-xs text-white/30 font-black mt-1">{item.unit_price.toFixed(2)} ₼</p>
+                        <p className={`text-sm font-bold truncate ${lightMode ? 'text-zinc-800' : 'text-white/80'}`}>{item.product_name}</p>
+                        <p className={`text-xs font-black mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{item.unit_price.toFixed(2)} ₼</p>
                       </div>
                       <div className="flex items-center gap-3">
-                         <div className="flex items-center bg-black/40 rounded-xl p-1 border border-white/5">
-                            <button onClick={() => updateStandalone(item.id, -1, item.quantity)} className="w-8 h-8 rounded-lg hover:bg-white/5 text-white/40 flex items-center justify-center transition-all"><Minus size={14} /></button>
-                            <span className="w-8 text-center text-sm font-black tabular-nums">{selQty} <span className="text-[10px] text-white/20">/ {item.quantity}</span></span>
-                            <button onClick={() => updateStandalone(item.id, 1, item.quantity)} className="w-8 h-8 rounded-lg hover:bg-white/5 text-blue-400 flex items-center justify-center transition-all"><Plus size={14} /></button>
+                         <div className={`flex items-center rounded-xl p-1 border ${lightMode ? 'bg-zinc-100 border-zinc-200' : 'bg-black/40 border-white/5'}`}>
+                            <button onClick={() => updateStandalone(item.id, -1, item.quantity)} className={`w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition-all ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}><Minus size={14} /></button>
+                            <span className={`w-8 text-center text-sm font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{selQty} <span className={`text-[10px] ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>/ {item.quantity}</span></span>
+                            <button onClick={() => updateStandalone(item.id, 1, item.quantity)} className="w-8 h-8 rounded-lg hover:bg-blue-500/10 text-blue-500 flex items-center justify-center transition-all"><Plus size={14} /></button>
                          </div>
                       </div>
                     </div>
                   );
                 })}
                 {comboGroups.length === 0 && standaloneItems.length === 0 && (
-                  <div className="text-center text-white/20 py-8 text-sm">Məhsul tapılmadı</div>
+                  <div className={`text-center py-8 text-sm ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>Məhsul tapılmadı</div>
                 )}
               </div>
 
               {/* Footer */}
-              <div className="p-8 border-t border-white/5 bg-black/20 space-y-4">
+              <div className={`p-8 border-t space-y-4 ${lightMode ? 'border-zinc-100 bg-zinc-50' : 'border-white/5 bg-black/20'}`}>
                  <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-1">Seçilmiş Cəmi</p>
-                        <p className="text-2xl font-black text-blue-400 tabular-nums">{selectedTotal.toFixed(2)} ₼</p>
+                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>Seçilmiş Cəmi</p>
+                        <p className="text-2xl font-black text-blue-500 tabular-nums">{selectedTotal.toFixed(2)} ₼</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-1">Məhsul Sayı</p>
-                        <p className="text-lg font-black text-white/80">{selectedCount} ədəd</p>
+                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>Məhsul Sayı</p>
+                        <p className={`text-lg font-black ${lightMode ? 'text-zinc-900' : 'text-white/80'}`}>{selectedCount} ədəd</p>
                     </div>
                  </div>
                  <button 

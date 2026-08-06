@@ -26,15 +26,18 @@ export async function POST(request: NextRequest) {
     const s = svc();
     const now = new Date().toISOString();
 
-    // Fetch source order items + table info in one go
-    const [ordersRes, tableRes] = await Promise.all([
+    // Fetch source order items + table info + target table info in one go
+    const [ordersRes, tableRes, targetTableRes] = await Promise.all([
       fetch(`${s.url}/rest/v1/orders?table_number=eq.${from_table}&status=not.in.(paid,cancelled,closed)&select=id,table_number,status,total_amount,guest_count,merged_into,version,order_items(*)`, { headers: s.headers }),
-      fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${from_table}&select=status,guest_count,total_amount,merged_into_table`, { headers: s.headers })
+      fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${from_table}&select=status,guest_count,total_amount,merged_into_table,reservation_id,reservation_name,reservation_phone,reservation_time`, { headers: s.headers }),
+      fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${to_table}&select=status,guest_count,total_amount,merged_into_table,reservation_id,reservation_name,reservation_phone,reservation_time`, { headers: s.headers })
     ]);
 
     const sourceOrders = await ordersRes.json();
     const sourceTable = (await tableRes.json()) || [];
     const sourceTableData = sourceTable[0];
+    const targetTable = (await targetTableRes.json()) || [];
+    const targetTableData = targetTable[0] || {};
 
     if (!sourceOrders || sourceOrders.length === 0) {
       return NextResponse.json({ error: 'Aktiv sifariş yoxdur' }, { status: 400 });
@@ -56,6 +59,21 @@ export async function POST(request: NextRequest) {
       guest_count: sourceTableData?.guest_count,
       total_amount: sourceTableData?.total_amount,
       merged_into_table: sourceTableData?.merged_into_table,
+      reservation_id: sourceTableData?.reservation_id ?? null,
+      reservation_name: sourceTableData?.reservation_name ?? null,
+      reservation_phone: sourceTableData?.reservation_phone ?? null,
+      reservation_time: sourceTableData?.reservation_time ?? null,
+    };
+    const targetTableSnapshot = {
+      table_number: to_table,
+      status: targetTableData?.status,
+      guest_count: targetTableData?.guest_count,
+      total_amount: targetTableData?.total_amount,
+      merged_into_table: targetTableData?.merged_into_table,
+      reservation_id: targetTableData?.reservation_id ?? null,
+      reservation_name: targetTableData?.reservation_name ?? null,
+      reservation_phone: targetTableData?.reservation_phone ?? null,
+      reservation_time: targetTableData?.reservation_time ?? null,
     };
 
     const orderIds = orderSnapshot.map((o: any) => o.id);
@@ -134,7 +152,8 @@ export async function POST(request: NextRequest) {
         from_table,
         to_table,
         orders: orderSnapshot,
-        table: tableSnapshot
+        table: tableSnapshot,
+        targetTable: targetTableSnapshot
       }
     });
   } catch (error: any) {
@@ -152,7 +171,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
 
-    const { from_table, to_table, orders, table } = await request.json();
+    const { from_table, to_table, orders, table, targetTable } = await request.json();
     if (!from_table || !to_table) {
       return NextResponse.json({ error: 'from_table and to_table required' }, { status: 400 });
     }
@@ -177,30 +196,38 @@ export async function DELETE(request: NextRequest) {
       });
     }
 
-    // Revert target table
-    if (table) {
-      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${to_table}`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({
-          status: table.status,
-          guest_count: table.guest_count,
-          total_amount: table.total_amount,
-          merged_into_table: table.merged_into_table,
-          updated_at: now
-        }),
-      });
-    }
+    // Revert target table to ITS pre-transfer state
+    const tt = targetTable || {};
+    await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${to_table}`, {
+      method: 'PATCH',
+      headers: s.headers,
+      body: JSON.stringify({
+        status: tt.status ?? 'empty',
+        guest_count: tt.guest_count ?? null,
+        total_amount: tt.total_amount ?? 0,
+        merged_into_table: tt.merged_into_table ?? null,
+        reservation_id: tt.reservation_id ?? null,
+        reservation_name: tt.reservation_name ?? null,
+        reservation_phone: tt.reservation_phone ?? null,
+        reservation_time: tt.reservation_time ?? null,
+        updated_at: now
+      }),
+    });
 
-    // Revert source table
+    // Revert source table to its pre-transfer state
+    const t = table || {};
     await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${from_table}`, {
       method: 'PATCH',
       headers: s.headers,
       body: JSON.stringify({
-        status: table?.status || 'occupied',
-        guest_count: table?.guest_count ?? null,
-        total_amount: table?.total_amount ?? 0,
-        merged_into_table: table?.merged_into_table ?? null,
+        status: t.status ?? 'occupied',
+        guest_count: t.guest_count ?? null,
+        total_amount: t.total_amount ?? 0,
+        merged_into_table: t.merged_into_table ?? null,
+        reservation_id: t.reservation_id ?? null,
+        reservation_name: t.reservation_name ?? null,
+        reservation_phone: t.reservation_phone ?? null,
+        reservation_time: t.reservation_time ?? null,
         updated_at: now
       }),
     });

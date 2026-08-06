@@ -24,10 +24,16 @@ interface PaidOrder {
   updated_at: string;
   customer_name: string | null;
   order_items: {
+    id: string;
+    product_id: string;
     product_name: string;
     quantity: number;
     unit_price: number;
     total_price: number;
+    variant_id: string | null;
+    modifiers: string | any[];
+    special_notes: string | null;
+    combo_group_id: string | null;
     products?: { name_az?: string; name_en?: string };
   }[];
 }

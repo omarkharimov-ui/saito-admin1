@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, Shield, Receipt } from 'lucide-react';
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -242,23 +242,6 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                     {submitting ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Kassa Aç'}
                   </button>
                 </div>
-
-                {todaySessions.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">Bu günün sessiyaları</p>
-                    {todaySessions.map(s => (
-                      <div key={s.id} className={`flex items-center justify-between p-3 rounded-xl mb-2 ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
-                        <div className="flex items-center gap-2">
-                          {s.status === 'open' ? <Unlock size={14} className="text-green-500" /> : <Lock size={14} className="text-zinc-500" />}
-                          <span className="text-xs font-bold">{formatTime(s.opened_at)}</span>
-                        </div>
-                        <span className={`text-xs font-bold ${s.status === 'open' ? 'text-green-500' : 'text-zinc-500'}`}>
-                          {s.status === 'open' ? 'Açıq' : 'Bağlı'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             ) : (
               /* Active session */
@@ -340,33 +323,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                    </div>
                  )}
 
-                 {/* Safe drop / Paid outs quick actions */}
-                 {view === 'main' && session && (
-                   <div className="grid grid-cols-2 gap-3">
-                     <button
-                       onClick={() => { setView('cash-out'); setCashDesc('Kasa təmizliyi'); }}
-                       className={`flex items-center gap-3 p-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}
-                     >
-                       <Shield size={18} strokeWidth={2.5} />
-                       <div className="text-left">
-                         <p className="text-[10px] font-black uppercase tracking-widest">Kasa Təmizliyi</p>
-                         <p className="text-[9px] opacity-60">Safe drop</p>
-                       </div>
-                     </button>
-                     <button
-                       onClick={() => { setView('cash-out'); setCashDesc('Xərc'); }}
-                       className={`flex items-center gap-3 p-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}
-                     >
-                       <Receipt size={18} strokeWidth={2.5} />
-                       <div className="text-left">
-                         <p className="text-[10px] font-black uppercase tracking-widest">Xərc</p>
-                         <p className="text-[9px] opacity-60">Paid outs</p>
-                       </div>
-                     </button>
-                   </div>
-                 )}
-
-                {/* Cash-in / Cash-out form */}
+                 {/* Cash-in / Cash-out form */}
                 {(view === 'cash-in' || view === 'cash-out') && (
                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                     <p className={`text-sm font-bold ${view === 'cash-in' ? 'text-green-500' : 'text-red-500'}`}>
@@ -475,6 +432,48 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {todaySessions.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">Smena Girişi</p>
+                <div className="space-y-1.5">
+                  {todaySessions.map(s => {
+                    const isOpen = s.status === 'open';
+                    return (
+                      <div key={s.id} className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {isOpen ? <Unlock size={14} className="text-green-500" /> : <Lock size={14} className="text-zinc-500" />}
+                            <span className="text-xs font-bold">{formatTime(s.opened_at)}</span>
+                          </div>
+                          <span className={`text-[9px] font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : 'text-zinc-500'}`}>
+                            {isOpen ? 'Açıq' : 'Bağlı'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-2">
+                          <div>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Açılış</p>
+                            <p className="text-xs font-black tabular-nums">{(s.opening_balance || 0).toFixed(2)}₼</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Bağlanış</p>
+                            <p className="text-xs font-black tabular-nums">{(s.closing_balance ?? (isOpen ? (s.opening_balance || 0) : 0)).toFixed(2)}₼</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Fərq</p>
+                            <p className={`text-xs font-black tabular-nums ${
+                              s.difference == null ? 'text-[var(--theme-text-muted)]' : s.difference > 0 ? 'text-green-500' : s.difference < 0 ? 'text-red-500' : 'text-[var(--theme-text-muted)]'
+                            }`}>
+                              {s.difference == null ? '—' : `${s.difference > 0 ? '+' : ''}${s.difference.toFixed(2)}₼`}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

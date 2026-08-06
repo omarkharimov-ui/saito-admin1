@@ -20,18 +20,29 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status');
-
-    // Build the orders query. We deliberately do NOT trust a raw `status`
-    // value from the client: previously `status=not.in.(paid,cancelled)` was
-    // forwarded verbatim as `status=eq.not.in.(paid,cancelled)`, which is an
-    // invalid Supabase filter and silently returned []. We only accept an
-    // explicit equality value, and we honour an optional `table_number` filter.
-    const statusParams = statusFilter ? statusFilter.split(',').filter(Boolean) : [];
+    const orderSource = searchParams.get('order_source');
     const tableNumber = searchParams.get('table_number');
 
+    // Build the orders query. Accept both plain equality values (status=confirmed)
+    // and PostgREST exclusion expressions (status=not.in.(paid,cancelled,closed)).
     const orderFilters: string[] = [];
-    for (const s of statusParams) {
-      orderFilters.push(`status=eq.${encodeURIComponent(s.trim())}`);
+    if (statusFilter) {
+      const trimmed = statusFilter.trim();
+      const notInMatch = trimmed.match(/^not\.in\.\(([^)]*)\)$/);
+      if (notInMatch) {
+        const values = notInMatch[1].split(',').map((v) => v.trim()).filter(Boolean);
+        if (values.length > 0) {
+          orderFilters.push(`status=not.in.(${values.join(',')})`);
+        }
+      } else {
+        const statusParams = trimmed.split(',').filter(Boolean);
+        for (const s of statusParams) {
+          orderFilters.push(`status=eq.${encodeURIComponent(s.trim())}`);
+        }
+      }
+    }
+    if (orderSource) {
+      orderFilters.push(`order_source=eq.${encodeURIComponent(orderSource)}`);
     }
     if (tableNumber) {
       orderFilters.push(`table_number=eq.${encodeURIComponent(tableNumber)}`);
@@ -195,7 +206,13 @@ export async function POST(request: Request) {
         return updated || { id };
       }
 
-      if (!table_number || !items?.length) {
+      // Takeaway/delivery orders have no table; only dine-in requires one.
+      const isTakeawayDelivery = order_type === 'takeaway' || order_type === 'delivery' || order_source === 'takeaway' || order_source === 'delivery';
+
+      if (!items?.length) {
+        throw new Error('items required');
+      }
+      if (!table_number && !isTakeawayDelivery) {
         throw new Error('table_number and items required');
       }
 
@@ -215,13 +232,17 @@ export async function POST(request: Request) {
         discountedTotal = totalFromItems * (1 - rawDiscount / 100);
       }
 
-      // Check for existing active order on this table
-      const existingRes = await fetch(
-        `${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled)&order=created_at.asc&limit=1&select=id,total_amount,version`,
-        { headers: svc().headers }
-      );
-      const existingOrders = existingRes.ok ? await existingRes.json() : [];
-      const existingOrder = existingOrders?.[0];
+      // Check for existing active order on this table (dine-in only; takeaway
+      // and delivery always create a fresh order)
+      let existingOrder = null;
+      if (table_number) {
+        const existingRes = await fetch(
+          `${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled)&order=created_at.asc&limit=1&select=id,total_amount,version`,
+          { headers: svc().headers }
+        );
+        const existingOrders = existingRes.ok ? await existingRes.json() : [];
+        existingOrder = existingOrders?.[0];
+      }
 
       let activeOrderId: string;
       const ks = kitchen_status || 'pending';
@@ -333,11 +354,13 @@ export async function POST(request: Request) {
         activeOrderId = created?.[0]?.id;
         if (!activeOrderId) throw new Error('Order creation failed: no id returned');
 
-        // Mark table as occupied with total
-        await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
-          method: 'PATCH', headers: svc().headers,
-          body: JSON.stringify({ status: 'occupied', total_amount: discountedTotal, last_activity_at: new Date().toISOString() }),
-        });
+        // Mark table as occupied with total (dine-in only)
+        if (table_number) {
+          await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+            method: 'PATCH', headers: svc().headers,
+            body: JSON.stringify({ status: 'occupied', total_amount: discountedTotal, last_activity_at: new Date().toISOString() }),
+          });
+        }
       }
 
       // Insert order items

@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { reservation_id, items } = body;
+    const { reservation_id, items, replace } = body;
 
     if (!reservation_id) {
       return NextResponse.json({ error: 'reservation_id is required' }, { status: 400 });
@@ -61,6 +61,7 @@ export async function POST(request: Request) {
     );
 
     const rows = (Array.isArray(items) ? items : []).map((item: any) => ({
+      id: item.id || null,
       reservation_id,
       product_id: item.product_id || null,
       product_name: item.product_name || 'Məhsul',
@@ -75,10 +76,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, items: [] });
     }
 
-    const { data, error } = await supabase
-      .from('reservation_preorder_items')
-      .insert(rows)
-      .select();
+    const { data, error } = await supabase.rpc('upsert_reservation_preorders', {
+      p_reservation_id: reservation_id,
+      p_items: rows,
+      p_replace_all: !!replace,
+    });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

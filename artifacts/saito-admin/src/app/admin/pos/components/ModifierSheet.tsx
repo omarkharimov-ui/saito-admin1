@@ -6,6 +6,7 @@ import { X, Plus, Check } from 'lucide-react';
 import type { PosModifierSelection } from '../types/shared';
 import { appleSheet, appleBackdrop } from '@/lib/modal-transitions';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { useVirtualKeyboard } from './VirtualKeyboard';
 
 interface PosVariant {
   id: string;
@@ -27,6 +28,8 @@ interface ModifierSheetProps {
 
 export function ModifierSheet({ open, productName, productPrice, variants = [], onClose, onConfirm }: ModifierSheetProps) {
   const keyboardHeight = useKeyboardHeight();
+  const { height: vkHeight } = useVirtualKeyboard();
+  const bottomOffset = Math.max(keyboardHeight, vkHeight);
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState('');
 
@@ -49,8 +52,8 @@ export function ModifierSheet({ open, productName, productPrice, variants = [], 
     <AnimatePresence>
       {open && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop} className="fixed inset-0 z-[130] bg-black/60 backdrop-blur-md" onClick={onClose} />
-          <motion.div {...appleSheet} className="fixed bottom-0 inset-x-0 z-[140] max-h-[90vh] overflow-y-auto bg-[var(--theme-surface)] rounded-t-[40px] border-t border-white/[0.08] shadow-2xl p-6 pb-12" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 24 : undefined }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop} className="fixed inset-0 z-[130] bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+          <motion.div {...appleSheet} className="fixed bottom-0 inset-x-0 z-[140] max-h-[90vh] overflow-y-auto bg-[var(--theme-surface)] rounded-t-[40px] border-t border-white/[0.08] shadow-2xl p-6 pb-12" style={{ paddingBottom: bottomOffset > 0 ? bottomOffset + 24 : undefined }}>
             <div className="max-w-2xl mx-auto space-y-8">
               {/* Header */}
               <div className="flex items-start justify-between">

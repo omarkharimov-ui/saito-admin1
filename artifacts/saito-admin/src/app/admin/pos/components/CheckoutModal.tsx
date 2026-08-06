@@ -224,7 +224,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
   };
 
   const inputClass = `w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${
-    lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white focus:border-emerald-500/50'
+    lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white focus:border-emerald-500/50'
   }`;
 
   return (
@@ -236,6 +236,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
       exit={{ opacity: 0 }}
       transition={appleBackdrop}
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      style={{ paddingBottom: 'var(--vk-height, 0px)' }}
       onClick={handleClose}
     >
       <motion.div

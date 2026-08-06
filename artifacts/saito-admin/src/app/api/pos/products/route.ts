@@ -8,7 +8,7 @@ export async function GET() {
 
     const supabase = await createAuthClient();
 
-    const [productsRes, categoriesRes, ingredientsRes, recipesRes, variantsRes, combosRes, campaignsRes] = await Promise.all([
+    const [productsRes, categoriesRes, ingredientsRes, recipesRes, variantsRes, combosRes, campaignsRes, productModifiersRes] = await Promise.all([
       supabase.from('products').select('*, category:category_id(name,name_az,name_en,name_ru)').order('created_at', { ascending: false }),
       supabase.from('categories').select('*').order('name', { ascending: true }),
       supabase.from('ingredients').select('id, name, current_stock, unit'),
@@ -16,6 +16,7 @@ export async function GET() {
       supabase.from('product_variants').select('*'),
       supabase.from('combos').select('*, items:combo_items(*, product:products(*))').eq('is_active', true),
       supabase.from('campaigns').select('*, rules:campaign_rules(*), targets:campaign_targets(*)').eq('is_active', true).eq('deleted_at', null),
+      supabase.from('product_modifiers').select('*').eq('is_available', true).order('created_at', { ascending: true }),
     ]);
 
     const now = new Date().toISOString();
@@ -25,9 +26,24 @@ export async function GET() {
       target: c.targets?.find((t: any) => t.target_type === 'product' || t.target_type === 'category'),
     }));
 
+    const modifierRows = productModifiersRes.data || [];
+    const modifiersByProduct: Record<string, any[]> = {};
+    for (const m of modifierRows) {
+      if (!m.product_id) continue;
+      (modifiersByProduct[m.product_id] ||= []).push({
+        id: m.id,
+        name: m.name,
+        price: Number(m.price) || 0,
+        name_az: m.name_az,
+        name_en: m.name_en,
+        name_ru: m.name_ru,
+      });
+    }
+
     const products = (productsRes.data || [])
       .map((p: any) => ({
         ...p,
+        modifiers: modifiersByProduct[p.id] || [],
         effective_price: computeEffectivePrice(p, campaigns, now),
       }));
 

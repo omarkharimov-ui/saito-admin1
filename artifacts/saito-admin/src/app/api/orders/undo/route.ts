@@ -22,24 +22,43 @@ export async function POST(request: NextRequest) {
     const result = await runOrderAction(`Undo${action}`, async () => {
       switch (action) {
         case 'merge': {
-          const { sourceOrders, sourceTableNumbers, targetTable } = data;
+          const { sourceOrders, sourceTableNumbers, targetTable, tableState, parentHadActiveOrder } = data;
 
-          // 1. Restore child table_floors
+          const stateByTable = new Map<number, any>((tableState || []).map((t: any) => [Number(t.table_number), t]));
+
+          // 1. Restore child table_floors to their pre-merge state
           if (sourceTableNumbers?.length) {
             for (const tableNum of sourceTableNumbers) {
+              const pre = stateByTable.get(Number(tableNum));
               await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tableNum}`, {
                 method: 'PATCH',
                 headers: svc().headers,
-                body: JSON.stringify({ 
-                  status: 'occupied', 
+                body: JSON.stringify({
+                  status: pre?.status ?? 'occupied',
                   merged_into_table: null,
-                  guest_count: null,
+                  guest_count: pre?.guest_count ?? null,
+                  total_amount: pre?.total_amount ?? 0,
+                  opened_at: pre?.opened_at ?? null,
                 }),
               });
             }
           }
 
-          // 2. Restore child orders + recalculate parent total
+          // 2. Restore parent table_floors to its pre-merge state
+          const parentPre = stateByTable.get(Number(targetTable));
+          if (parentPre) {
+            await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${targetTable}`, {
+              method: 'PATCH',
+              headers: svc().headers,
+              body: JSON.stringify({
+                status: parentPre.status,
+                guest_count: parentPre.guest_count ?? null,
+                total_amount: parentPre.total_amount ?? 0,
+              }),
+            });
+          }
+
+          // 3. Restore child orders + recalculate parent total
           if (sourceOrders?.length) {
             const parentRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&status=neq.cancelled&select=*`, { headers: svc().headers });
             const parentOrder = (await parentRes.json())?.[0];
@@ -54,13 +73,26 @@ export async function POST(request: NextRequest) {
               });
             }
 
-            if (parentOrder) {
+            if (parentOrder && parentHadActiveOrder !== false) {
               const newTotal = Math.max(0, Number(parentOrder.total_amount || 0) - childTotal);
               await fetch(`${svc().url}/rest/v1/orders?id=eq.${parentOrder.id}`, {
                 method: 'PATCH',
                 headers: svc().headers,
                 body: JSON.stringify({ total_amount: newTotal, version: (parentOrder.version || 0) + 1 }),
               });
+            }
+          }
+
+          // 4. Remove the auto-created empty order if the parent had none before merge
+          if (parentHadActiveOrder === false) {
+            const autoRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${targetTable}&status=neq.paid&status=neq.cancelled&status=neq.closed&select=id`, { headers: svc().headers });
+            const autoOrders = (await autoRes.json()) || [];
+            for (const o of autoOrders) {
+              const itemsRes = await fetch(`${svc().url}/rest/v1/order_items?order_id=eq.${o.id}&select=id`, { headers: svc().headers });
+              const items = (await itemsRes.json()) || [];
+              if (items.length === 0) {
+                await fetch(`${svc().url}/rest/v1/orders?id=eq.${o.id}`, { method: 'DELETE', headers: svc().headers });
+              }
             }
           }
           break;
@@ -129,18 +161,24 @@ export async function POST(request: NextRequest) {
         }
 
         case 'dismiss_undo': {
-          const { table_number } = data;
-          const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/dismiss_undo_atomic`, {
-            method: 'POST',
-            headers: svc().headers,
-            body: JSON.stringify({ p_table_number: table_number, p_performed_by: auth.user.id }),
-          });
-          if (!rpcRes.ok) {
-            const errText = await rpcRes.text();
-            throw new Error(errText || 'Dismiss undo failed');
+          const { table_number, child_tables } = data;
+          const restoreTable = async (tn: number) => {
+            const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/dismiss_undo_atomic`, {
+              method: 'POST',
+              headers: svc().headers,
+              body: JSON.stringify({ p_table_number: tn, p_performed_by: auth.user.id }),
+            });
+            if (!rpcRes.ok) {
+              const errText = await rpcRes.text();
+              throw new Error(errText || 'Dismiss undo failed');
+            }
+            return rpcRes.json();
+          };
+          const result = await restoreTable(table_number);
+          for (const child of child_tables || []) {
+            await restoreTable(child).catch(() => {});
           }
-          const undoData = await rpcRes.json();
-          return { action: 'dismiss_undo', success: true, result: undoData };
+          return { action: 'dismiss_undo', success: true, result };
         }
 
         default:

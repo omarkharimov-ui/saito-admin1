@@ -33,20 +33,6 @@ export async function POST(request: NextRequest) {
 
     const s = svc();
 
-    // Validate against table capacity if the column exists.
-    const tableRes = await fetch(
-      `${s.url}/rest/v1/table_floors?table_number=eq.${table_number}&select=capacity,guest_count`,
-      { headers: s.headers }
-    );
-    const tableData = (await tableRes.json()) || [];
-    const table = tableData[0];
-    if (table && table.capacity != null && count > table.capacity) {
-      return NextResponse.json(
-        { error: `Masa tutumu ${table.capacity} nəfər. Daha çox qonaq əlavə edə bilməzsiniz.` },
-        { status: 409 }
-      );
-    }
-
     const ordersRes = await fetch(
       `${s.url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled,closed)&select=id,guest_count`,
       { headers: s.headers }

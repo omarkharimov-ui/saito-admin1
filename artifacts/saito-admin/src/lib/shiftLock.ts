@@ -23,11 +23,26 @@ export async function requireActiveShift(managerOverride = false): Promise<{ ok:
     const data = await res.json();
     const activeShift = Array.isArray(data) ? data[0] : null;
 
-    if (!activeShift && !managerOverride) {
-      return { ok: false, error: 'Smena bağlıdır. Mütəşəddim icazəsi ilə əməliyyat edə bilərsiniz.' };
+    if (activeShift || managerOverride) {
+      return { ok: true };
     }
 
-    return { ok: true };
+    // No active shift. Allow operations if a shift was never opened at all,
+    // otherwise require manager override.
+    const everRes = await fetch(`${SUPABASE_URL}/rest/v1/shifts?select=id&limit=1`, {
+      headers: {
+        'apikey': SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+    });
+    const everData = everRes.ok ? await everRes.json() : [];
+    const shiftEverOpened = Array.isArray(everData) && everData.length > 0;
+
+    if (!shiftEverOpened) {
+      return { ok: true };
+    }
+
+    return { ok: false, error: 'Smena bağlıdır. Mütəşəddim icazəsi ilə əməliyyat edə bilərsiniz.' };
   } catch {
     return { ok: true };
   }

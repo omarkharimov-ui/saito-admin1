@@ -13,6 +13,7 @@ import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import type { PosProduct } from '../types/shared';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { useVirtualKeyboard } from './VirtualKeyboard';
 import { appleSheet, appleBackdrop } from '@/lib/modal-transitions';
 
 interface OrderDetailSheetProps {
@@ -70,6 +71,8 @@ type TabKey = 'info' | 'order';
 export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChange, posMode, products = [], categories = [], onAddToExistingOrder }: OrderDetailSheetProps) {
   const { lightMode } = useTheme();
   const keyboardHeight = useKeyboardHeight();
+  const { height: vkHeight } = useVirtualKeyboard();
+  const bottomOffset = Math.max(keyboardHeight, vkHeight);
   const { t } = useLanguage();
   const [couriers, setCouriers] = useState<any[]>([]);
   const [assigningCourier, setAssigningCourier] = useState(false);
@@ -193,7 +196,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
+        <div className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none" style={{ paddingBottom: bottomOffset > 0 ? bottomOffset + 16 : undefined }}>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -265,7 +268,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                             <ChevronRight size={16} className="rotate-180" />
                           </button>
                           <p className={`text-2xl font-black tracking-tighter ${lightMode ? 'text-black' : 'text-white'}`}>
-                             {posMode === 'takeaway' ? `Gel-Al ${order.order_number || ''}` : posMode === 'delivery' ? `Çatdırılma ${order.order_number || ''}` : `#${order.order_number || order.id?.slice(0, 8)}`}
+                             {posMode === 'takeaway' ? `Gel-Al #${order.order_number || ''}` : posMode === 'delivery' ? `Çatdırılma #${order.order_number || ''}` : `#${order.order_number || order.id?.slice(0, 8)}`}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">

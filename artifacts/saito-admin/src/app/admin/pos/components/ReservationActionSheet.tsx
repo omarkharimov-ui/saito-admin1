@@ -49,11 +49,7 @@ export default function ReservationActionSheet({
 
   if (!table) return null;
 
-  const maskPhone = (phone: string | null) => {
-    if (!phone) return '';
-    if (phone.length <= 4) return phone;
-    return phone.slice(0, 3) + '•••••••';
-  };
+  const maskPhone = (phone: string | null) => phone || '';
 
   const primaryActions = (
     <ActionGrid cols={3}>

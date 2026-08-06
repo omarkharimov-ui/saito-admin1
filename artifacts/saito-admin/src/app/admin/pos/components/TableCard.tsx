@@ -22,9 +22,10 @@ interface TableCardProps {
   mergedChildNumbers?: number[];
   isMergedChild?: boolean;
   kitchenStatus?: string | null;
+  flashNonce?: number;
 }
 
-export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus }: TableCardProps) {
+export function TableCard({ table, onTap, onAction, isSelected, selectionMode, isTransferSource, isTransferTarget, isOverdue, overdueType, index = 0, groupNumber, mergedChildNumbers, isMergedChild, kitchenStatus, flashNonce }: TableCardProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [delaySec, setDelaySec] = useState(0);
@@ -90,6 +91,17 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       return () => clearTimeout(t);
     }
   }, [table.status, isOccupied]);
+
+  useEffect(() => {
+    if (!flashNonce) return;
+    setStatusTransition('occupied');
+    const t = setTimeout(() => {
+      setStatusTransition(null);
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [flashNonce]);
+
+  const showOccupiedFlash = statusTransition === 'occupied';
 
   const formatDelay = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -258,7 +270,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       <div className="absolute bottom-4 left-0 right-0 px-5 flex items-end justify-between">
         <div className="flex items-center gap-1 overflow-hidden min-w-0 max-w-[75%]">
           <AnimatePresence mode="wait">
-            {isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' ? (
+            {!showOccupiedFlash && isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' ? (
               <motion.div
                 key="kitchen"
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -285,30 +297,20 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest
-                  ${isReserved 
+                  ${showOccupiedFlash
+                    ? lightMode ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                    : isReserved 
                     ? lightMode ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' 
                     : isDirty
                       ? lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                       : isOccupied 
                         ? lightMode ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
                         : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-400' : 'bg-white/5 border-white/5 text-white/30'}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${isReserved ? (lightMode ? 'bg-indigo-500' : 'bg-indigo-400') : isDirty ? (lightMode ? 'bg-amber-500' : 'bg-amber-400') : isOccupied ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-500') : (lightMode ? 'bg-zinc-300' : 'bg-white/20')}`} />
-                {isReserved ? t('reserved' as any) : isDirty ? 'TƏMİZLƏNMƏLİ' : isOccupied ? t('occupied' as any) : t('empty' as any)}
+                <div className={`w-1.5 h-1.5 rounded-full ${showOccupiedFlash ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-500') : isReserved ? (lightMode ? 'bg-indigo-500' : 'bg-indigo-400') : isDirty ? (lightMode ? 'bg-amber-500' : 'bg-amber-400') : isOccupied ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-500') : (lightMode ? 'bg-zinc-300' : 'bg-white/20')}`} />
+                {showOccupiedFlash ? t('occupied' as any) : isReserved ? t('reserved' as any) : isDirty ? 'TƏMİZLƏNMƏLİ' : isOccupied ? t('occupied' as any) : t('empty' as any)}
               </motion.div>
             )}
           </AnimatePresence>
-          {statusTransition && (
-            <motion.div
-              key="status-transition"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400"
-            >
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {t('occupied' as any)}
-            </motion.div>
-          )}
           {table.bill_requested && (
             <span className="shrink-0 relative px-2.5 py-1 rounded-lg text-[9px] font-black border-2 border-rose-500 bg-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/30">
               HESAB
@@ -319,7 +321,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
               {table.waiter_name}
             </span>
           )}
-          {table.order_count && table.order_count > 0 && (
+          {Number(table.order_count || 0) > 0 && (
             <span className={`shrink-0 px-2 py-0.5 rounded-md text-[9px] font-black border whitespace-nowrap ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
               {table.order_count}
             </span>

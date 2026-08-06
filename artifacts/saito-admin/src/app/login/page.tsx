@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from '@/lib/toast';
 import { Loader2, Zap, Delete } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -9,7 +8,6 @@ import { motion } from 'framer-motion';
 export default function LoginPage() {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
     if (pin.length === 4) {
@@ -36,7 +34,14 @@ export default function LoginPage() {
       if (data.role === 'kitchen') {
         window.location.href = '/kitchen';
       } else {
-        router.replace('/admin');
+        let target = '/admin';
+        try {
+          const redirectParam = new URLSearchParams(window.location.search).get('redirect');
+          if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
+            target = redirectParam;
+          }
+        } catch {}
+        window.location.href = target;
       }
     } catch {
       toast.error('Giriş zamanı xəta baş verdi');

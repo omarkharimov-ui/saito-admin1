@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Clock, Star, Heart, Lock, ShoppingCart, Filter } from 'lucide-react';
+import { Search, X, Plus, Clock, Star, Heart, ShoppingCart } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
@@ -12,6 +12,7 @@ export type Product = PosProduct;
 
 export interface ProductGridRef {
   openEditor: (productId: string) => void;
+  toggleEditor: (productId: string) => void;
 }
 
 interface ProductGridProps {
@@ -34,28 +35,6 @@ const FILTER_TABS = [
   { id: 'favorites' as const, label: 'Sevimli', icon: Heart },
 ];
 
-const STATIONS = [
-  { value: 'kitchen', label: 'Mətbəx', icon: '🍳' },
-  { value: 'bar', label: 'Bar', icon: '🍸' },
-  { value: 'sushi', label: 'Sushi', icon: '🍣' },
-  { value: 'hot', label: 'Hot', icon: '🔥' },
-];
-
-const COURSES = [
-  { value: 'appetizers', label: 'Başlangıç' },
-  { value: 'mains', label: 'Ana yemək' },
-  { value: 'desserts', label: 'Desert' },
-  { value: 'drinks', label: 'İçki' },
-];
-
-const PRIORITIES = [
-  { value: 'normal', label: 'Normal', color: 'gray' },
-  { value: 'high', label: 'Yüksək', color: 'orange' },
-  { value: 'vip', label: 'VIP', color: 'purple' },
-  { value: 'birthday', label: 'Ad günü', color: 'pink' },
-  { value: 'allergy', label: 'Allerji', color: 'red' },
-];
-
 export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function ProductGrid({
   products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock
 }, ref) {
@@ -66,23 +45,43 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
-  const [hideOutOfStock, setHideOutOfStock] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'recent' | 'popular' | 'favorites'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>(undefined);
   const [noteForProduct, setNoteForProduct] = useState<string>('');
   const [qty, setQty] = useState(1);
+  const [selectedModifiers, setSelectedModifiers] = useState<Record<string, number>>({});
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const expandedIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    expandedIdRef.current = expandedId;
+  }, [expandedId]);
 
   useEffect(() => {
     setSelectedVariant(undefined);
     setNoteForProduct('');
     setQty(1);
+    setSelectedModifiers({});
   }, [expandedId]);
 
   useImperativeHandle(ref, () => ({
     openEditor: (productId: string) => {
+      const el = cardRefs.current[productId];
+      if (!el) return;
+      try {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch {
+        el.scrollIntoView({ block: 'center' });
+      }
+      setExpandedId(productId);
+    },
+    toggleEditor: (productId: string) => {
+      if (expandedIdRef.current === productId) {
+        setExpandedId(null);
+        return;
+      }
       const el = cardRefs.current[productId];
       if (!el) return;
       try {
@@ -143,11 +142,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         return name.toLowerCase().includes(q);
       });
     }
-    if (hideOutOfStock) {
-      list = list.filter(p => !(outOfStock?.has(p.id)));
-    }
     return list;
-  }, [products, combos, categoryFilter, search, language, hideOutOfStock, outOfStock]);
+  }, [products, combos, categoryFilter, search, language, outOfStock]);
 
   const handleAdd = (item: GridItem) => {
     if (item._isCombo) {
@@ -158,7 +154,6 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
   };
 
   const handleCardClick = (item: GridItem) => {
-    if (item._isCombo) return;
     handleAdd(item);
   };
 
@@ -175,20 +170,17 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     return { side: 'left' as const, origin: 'top left' as const };
   };
 
-  const gridBlurClass = outOfStock && outOfStock.size > 0 ? 'blur-[2px] select-none pointer-events-none' : '';
-
   const cardBg = lightMode
-    ? 'bg-white/70 backdrop-blur-md border border-white/20 shadow-lg shadow-black/5'
+    ? 'bg-white border-zinc-200 shadow-lg shadow-black/5'
     : 'bg-white/[0.04] backdrop-blur-md border border-white/10 shadow-lg shadow-black/20';
   const cardText = lightMode ? 'text-gray-900' : 'text-white';
   const cardPrice = lightMode ? 'text-gray-900' : 'text-white';
   const cardSecondary = lightMode ? 'text-gray-500' : 'text-white/50';
   const comboLabelBg = lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/10 text-amber-400';
-  const oosOverlayBg = lightMode ? 'bg-black/30 backdrop-blur-sm' : 'bg-black/40 backdrop-blur-sm';
   const expandedBg = lightMode ? 'bg-white border-zinc-200' : 'bg-[#1a1a1a] border-white/10';
   const expandedText = lightMode ? 'text-gray-900' : 'text-white';
   const expandedSecondary = lightMode ? 'text-gray-500' : 'text-white/60';
-  const expandedInputBg = lightMode ? 'bg-zinc-50 border-zinc-200 text-black' : 'bg-white/5 border-white/10 text-white';
+  const expandedInputBg = lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black' : 'bg-white/5 border-white/10 text-white';
   const expandedInputPlaceholder = lightMode ? 'text-zinc-400' : 'text-white/40';
   const expandedBtnBg = lightMode ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-emerald-500 hover:bg-emerald-600';
   const compactImgBg = lightMode ? 'bg-zinc-100' : 'bg-white/50 dark:bg-black/20';
@@ -197,9 +189,9 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
   return (
     <div className="flex flex-col h-full relative">
-      {/* Search Bar + Out of Stock Toggle */}
-      <div className="relative mb-4 flex-shrink-0 flex items-center gap-3">
-        <div className="relative flex-1">
+      {/* Search Bar */}
+      <div className="relative mb-4 flex-shrink-0">
+        <div className="relative">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
@@ -207,19 +199,6 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
             className={`w-full rounded-[20px] pl-12 pr-4 py-3 text-sm outline-none transition-all relative z-0 ${lightMode ? 'bg-[#efeff4] text-gray-900 focus:bg-[#e5e5ea]' : 'bg-white/[0.08] text-white focus:bg-white/[0.12]'}`}
           />
         </div>
-        {outOfStock && outOfStock.size > 0 && (
-          <button
-            onClick={() => setHideOutOfStock(p => !p)}
-            className={`flex-shrink-0 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5 ${
-              hideOutOfStock
-                ? 'bg-rose-500 text-white border-rose-500'
-                : lightMode ? 'bg-zinc-100 text-zinc-500 border-zinc-200 hover:bg-zinc-200' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'
-            }`}
-          >
-            <Filter size={10} />
-            {outOfStock.size}
-          </button>
-        )}
       </div>
 
       {/* Filter Tabs */}
@@ -251,7 +230,15 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       </div>
 
       {/* Product Grid */}
-      <div className={`flex-1 overflow-y-auto pr-1 pt-2 relative z-0 transition-all duration-300 ${gridBlurClass}`}>
+      <div className="flex-1 overflow-y-auto pr-1 pt-2 relative z-0">
+        {outOfStock && outOfStock.size > 0 && (
+          <div className="flex items-center justify-end mb-3 flex-shrink-0 pr-1">
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${lightMode ? 'bg-rose-50 text-rose-500' : 'bg-rose-500/10 text-rose-400'}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              {outOfStock.size} {t('out_of_stock') || 'Stokda yox'}
+            </span>
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 relative overflow-visible">
           {filtered.map((item, index) => {
             const name = (language === 'az' ? item.name_az : language === 'en' ? item.name_en : item.name_ru) || item.name;
@@ -276,35 +263,14 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   className={`relative flex flex-col rounded-[28px] border overflow-hidden cursor-pointer ${cardBg} ${
                     isOutOfStock ? 'opacity-50 grayscale border-rose-500/30' : ''
                   }`}
-                  onClick={() => { if (!isOutOfStock && !isCombo) handleCardClick(item); }}
+                  onClick={() => { if (!isOutOfStock) handleCardClick(item); }}
                   style={{ zIndex: isExpanded ? 1 : 0 }}
                 >
-                  {/* Combo badge - top right */}
-                  {isCombo && (
-                    <div className="absolute top-2 right-2 z-10">
-                      <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${comboLabelBg}`}>
-                        Kombo
-                      </span>
-                    </div>
-                  )}
-
                   {/* Cart icon with count - top left */}
                   {count > 0 && (
-                    <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
+                    <div className={`absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full px-2 py-1 ${lightMode ? 'bg-zinc-900/60 backdrop-blur-sm' : 'bg-white/15 backdrop-blur-sm'}`}>
                       <ShoppingCart size={10} className="text-white" />
                       <span className="text-[10px] font-black text-white">{count}</span>
-                    </div>
-                  )}
-
-                  {/* Out of stock overlay - top left lock icon + blur */}
-                  {isOutOfStock && (
-                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center oosOverlayBg gap-2 pointer-events-none">
-                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-sm">
-                        <Lock size={20} className="text-white/50" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white bg-rose-600 px-3 py-1.5 rounded-lg shadow-sm">
-                        {t('out_of_stock') || 'Stokda yox'}
-                      </span>
                     </div>
                   )}
 
@@ -338,29 +304,35 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                         </span>
                       )}
                       <p className={`text-sm font-bold truncate leading-tight ${cardText}`}>{name}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-baseline gap-2">
-                          {item.effective_price && item.effective_price.effective_price < item.effective_price.base_price ? (
-                            <>
-                              <p className={`text-sm font-black ${cardPrice}`}>₼ {item.effective_price.effective_price.toFixed(2)}</p>
-                              <p className={`text-[11px] font-bold line-through ${compactPriceLine}`}>₼ {item.effective_price.base_price.toFixed(2)}</p>
-                            </>
-                          ) : (
-                            <p className={`text-sm font-black ${cardPrice}`}>₼ {(item.effective_price?.effective_price ?? item.price)?.toFixed(2)}</p>
-                          )}
-                        </div>
-                        {count > 0 && (
-                          <div className="flex items-center gap-1 bg-black/10 dark:bg-white/5 rounded-full px-2 py-1">
-                            <ShoppingCart size={10} className={cardSecondary} />
-                            <span className={`text-[10px] font-black ${cardSecondary}`}>{count}</span>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-baseline gap-2">
+                            {item.effective_price && item.effective_price.effective_price < item.effective_price.base_price ? (
+                              <>
+                                <p className={`text-sm font-black ${cardPrice}`}>₼ {item.effective_price.effective_price.toFixed(2)}</p>
+                                <p className={`text-[11px] font-bold line-through ${compactPriceLine}`}>₼ {item.effective_price.base_price.toFixed(2)}</p>
+                              </>
+                            ) : (
+                              <p className={`text-sm font-black ${cardPrice}`}>₼ {(item.effective_price?.effective_price ?? item.price)?.toFixed(2)}</p>
+                            )}
                           </div>
-                        )}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {isCombo && (
+                              <span className={`inline-block text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${comboLabelBg}`}>
+                                Kombo
+                              </span>
+                            )}
+                            {isOutOfStock && (
+                              <span className={`text-[8px] font-bold uppercase tracking-widest whitespace-nowrap ${lightMode ? 'text-rose-500/70' : 'text-rose-400/60'}`}>
+                                {t('out_of_stock') || 'Stokda yox'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    </motion.div>
                   </motion.div>
-                </motion.div>
 
-                {/* 2. Expanded Floating Popover (sibling of compact card, same layoutId) */}
+                  {/* 2. Expanded Floating Popover (sibling of compact card, same layoutId) */}
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div
@@ -397,24 +369,24 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           </button>
                         </div>
 
-                        <div className="mt-4 space-y-3">
+                        <div className="mt-4 space-y-4">
                           <div>
                             <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Miqdar:</span>
                             <div className="flex items-center gap-3 mt-2">
-                              <div className="flex items-center gap-1 rounded-xl border border-white/10 overflow-hidden">
-                                <button onClick={(e) => { e.stopPropagation(); setQty(Math.max(1, qty - 1)); }} className="px-4 py-2 text-sm font-black text-white hover:bg-white/10 transition-colors">−</button>
-                                <span className="px-4 py-2 text-sm font-black tabular-nums min-w-[2.5rem] text-center text-white">{qty}</span>
-                                <button onClick={(e) => { e.stopPropagation(); setQty(qty + 1); }} className="px-4 py-2 text-sm font-black text-white hover:bg-white/10 transition-colors">+</button>
+                              <div className={`flex items-center gap-1 rounded-xl border overflow-hidden ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
+                                <button onClick={(e) => { e.stopPropagation(); setQty(Math.max(1, qty - 1)); }} className={`px-4 py-2 text-sm font-black transition-colors ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>−</button>
+                                <span className={`px-4 py-2 text-sm font-black tabular-nums min-w-[2.5rem] text-center ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{qty}</span>
+                                <button onClick={(e) => { e.stopPropagation(); setQty(qty + 1); }} className={`px-4 py-2 text-sm font-black transition-colors ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>+</button>
                               </div>
                             </div>
                           </div>
 
                           {(expandedItem?.variants?.length ?? 0) > 0 && (
                             <div>
-                              <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Variantlar:</span>
+                              <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Ölçü:</span>
                               <div className="flex flex-wrap gap-2 mt-2">
                                 {(expandedItem?.variants ?? []).map((v: any) => (
-                                  <button key={v.id} onClick={(e) => { e.stopPropagation(); setSelectedVariant(v.id); }} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
+                                  <button key={v.id} onClick={(e) => { e.stopPropagation(); setSelectedVariant(v.id); }} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
                                     {v.name || v.title || `#${v.id.slice(0, 6)}`} {v.price ? `(+₼${Number(v.price).toFixed(2)})` : ''}
                                   </button>
                                 ))}
@@ -426,57 +398,47 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                             <div>
                               <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Modifikatorlar:</span>
                               <div className="flex flex-wrap gap-2 mt-2">
-                                {(expandedItem?.modifiers ?? []).map((m: any) => (
-                                  <span key={m.id || m.name} className="text-xs font-bold px-3 py-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">{m.name} +₼{Number(m.price || 0).toFixed(2)}</span>
-                                ))}
+                                {(expandedItem?.modifiers ?? []).map((m: any) => {
+                                  const mQty = selectedModifiers[m.id] || 0;
+                                  return (
+                                    <div key={m.id || m.name} className={`flex items-center gap-1 pl-3 pr-1 py-1 rounded-xl text-xs font-bold transition-all border ${mQty > 0 ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
+                                      <span className="whitespace-nowrap">{m.name} {m.price ? `+₼${Number(m.price).toFixed(2)}` : ''}</span>
+                                      {mQty > 0 && (
+                                        <>
+                                          <button onClick={(e) => { e.stopPropagation(); setSelectedModifiers(p => ({ ...p, [m.id]: Math.max(0, (p[m.id] || 0) - 1) })); }} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/20">−</button>
+                                          <span className="min-w-[1rem] text-center tabular-nums">{mQty}</span>
+                                        </>
+                                      )}
+                                      <button onClick={(e) => { e.stopPropagation(); setSelectedModifiers(p => ({ ...p, [m.id]: (p[m.id] || 0) + 1 })); }} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/20">+</button>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
 
                           <div>
-                            <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Stansiya:</span>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {STATIONS.map(st => (
-                                <button key={st.value} onClick={(e) => { e.stopPropagation(); }} className="px-4 py-2 rounded-xl text-xs font-bold transition-all border border-white/10 text-white/80 hover:bg-white/10">
-                                  {st.icon} {st.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Kurs:</span>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {COURSES.map(c => (
-                                <button key={c.value} onClick={(e) => { e.stopPropagation(); }} className="px-4 py-2 rounded-xl text-xs font-bold transition-all border border-white/10 text-white/80 hover:bg-white/10">
-                                  {c.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Tövsiyə:</span>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {PRIORITIES.map(p => (
-                                <button key={p.value} onClick={(e) => { e.stopPropagation(); }} className="px-4 py-2 rounded-xl text-xs font-bold transition-all border border-white/10 text-white/80 hover:bg-white/10">
-                                  {p.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <input type="text" value={noteForProduct} onChange={(e) => { e.stopPropagation(); setNoteForProduct(e.target.value); }} placeholder="Qeyd əlavə et..." className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} placeholder:${expandedInputPlaceholder} focus:border-blue-400/50`} onClick={(e) => e.stopPropagation()} />
+                            <input type="text" value={noteForProduct} onChange={(e) => { e.stopPropagation(); setNoteForProduct(e.target.value); }} placeholder="Qeyd əlavə et..." className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-blue-400/50`} onClick={(e) => e.stopPropagation()} />
                           </div>
 
                           <button onClick={(e) => {
                             e.stopPropagation();
                             if (expandedItem) {
-                              onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined } as any);
+                              const selectedMods = Object.entries(selectedModifiers)
+                                .filter(([, q]) => q > 0)
+                                .map(([id, q]) => {
+                                  const mod = (expandedItem.modifiers || []).find((x: any) => x.id === id);
+                                  return { id, name: mod?.name || '', price: Number(mod?.price || 0), quantity: q };
+                                });
+                              if (expandedItem._isCombo && onAddCombo) {
+                                onAddCombo(expandedItem._raw);
+                              } else {
+                                onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods } as any);
+                              }
                             }
                             setNoteForProduct('');
                             setSelectedVariant(undefined);
+                            setSelectedModifiers({});
                             setQty(1);
                             handleClose();
                           }} className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-black uppercase tracking-wider hover:opacity-90 transition-all active:scale-95 shadow-lg`}

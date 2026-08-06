@@ -16,6 +16,7 @@ import TakeawayOrders from './components/TakeawayOrders';
 import DeliveryOrders from './components/DeliveryOrders';
 import CheckoutModal from './components/CheckoutModal';
 import { CashDrawerPanel } from './components/CashDrawerPanel';
+import { VirtualKeyboardProvider } from './components/VirtualKeyboard';
 import { OrderHistory } from './components/OrderHistory';
 import { FloorSkeleton, ProductGridSkeleton, CartSkeleton, TakeawayOrdersSkeleton, DeliveryOrdersSkeleton } from './components/PosSkeletons';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
@@ -48,6 +49,7 @@ export default function POSPage() {
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
   const [actionSheetTable, setActionSheetTable] = useState<any>(null);
+  const [flashInfo, setFlashInfo] = useState<{ tableNumber: number; nonce: number } | null>(null);
   const [cashDrawerOpen, setCashDrawerOpen] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
@@ -91,6 +93,16 @@ export default function POSPage() {
 
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!flashInfo) return;
+    const t = setTimeout(() => setFlashInfo(null), 2600);
+    return () => clearTimeout(t);
+  }, [flashInfo]);
+
+  useEffect(() => {
+    setFlashInfo(null);
+  }, [posMode]);
 
   const fetchTakeawayOrders = useCallback(async () => {
     try {
@@ -169,10 +181,10 @@ export default function POSPage() {
           localStorage.setItem('pos_session', JSON.stringify(data));
         } else {
           // No valid session — redirect to staff login
-          window.location.href = '/staff/login';
+          window.location.href = '/login?redirect=/admin/pos';
         }
       } catch {
-        window.location.href = '/staff/login';
+        window.location.href = '/login?redirect=/admin/pos';
       }
     })();
   }, []);
@@ -183,7 +195,7 @@ export default function POSPage() {
         setPosSession(null);
         setPosRole(null);
         localStorage.removeItem('pos_session');
-        window.location.href = '/staff/login';
+        window.location.href = '/login?redirect=/admin/pos';
       }
     };
     window.addEventListener('pos:unauthorized', onUnauthorized);
@@ -197,7 +209,7 @@ export default function POSPage() {
     document.cookie = 'saito_token=; path=/; max-age=0; SameSite=Lax';
     document.cookie = 'saito_token=; path=/admin; max-age=0; SameSite=Lax';
     document.cookie = 'saito_token=; path=/; max-age=0';
-    window.location.href = '/staff/login';
+    window.location.href = '/login?redirect=/admin/pos';
   };
 
   const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
@@ -324,6 +336,19 @@ export default function POSPage() {
   };
 
   const handleProductTap = (product: PosProduct) => {
+    const p = product as any;
+    if (p.__expanded) {
+      const qty = Math.max(1, Number(p.__qty) || 1);
+      const mods = p.__modifiers || [];
+      for (let i = 0; i < qty; i++) {
+        pos.addToCart(product, {
+          variantId: p.variant_id ?? null,
+          notes: p.special_notes || undefined,
+          modifiers: mods,
+        });
+      }
+      return;
+    }
     const variants = pos.variantsByProduct[product.id] || [];
     if (variants.length > 0) {
       setModalProduct({ product, variants });
@@ -790,17 +815,6 @@ export default function POSPage() {
     ? pos.floors.find((f: any) => f.name === selectedFloor) 
     : pos.floors[0];
 
-  // Active table counts per floor (for badge)
-  const floorActiveCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const f of pos.floors) {
-      counts[f.name] = (f.tables || []).filter((t: any) => 
-        t.status !== 'empty' && !t.merged_into_table
-      ).length;
-    }
-    return counts;
-  }, [pos.floors]);
-
   const tableGroupInfo = useMemo(() => {
     const info: Record<number, { groupNum: number; children: number[] }> = {};
     if (activeFloor?.merged_groups) {
@@ -865,6 +879,9 @@ export default function POSPage() {
       return;
     }
 
+    if (['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(table.status)) {
+      setFlashInfo({ tableNumber: table.table_number, nonce: Date.now() });
+    }
     pos.selectTable(table);
   };
 
@@ -974,6 +991,7 @@ export default function POSPage() {
             to_table: lastUndo.data.to_table,
             orders: lastUndo.data.orders,
             table: lastUndo.data.table,
+            targetTable: lastUndo.data.targetTable,
           }),
         });
         const data = await res.json();
@@ -1158,6 +1176,7 @@ export default function POSPage() {
   };
 
   return (
+    <VirtualKeyboardProvider>
     <div className="flex-1 min-h-0 w-full h-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden">
       {/* Loading state while session is being validated */}
       {!posSession && (
@@ -1213,7 +1232,7 @@ export default function POSPage() {
           </div>
           {pos.floors.length > 1 && posMode === 'dine_in' && (
             <LiquidDropdown
-              options={pos.floors.map((f: any) => ({ id: f.name, label: f.name, badge: floorActiveCounts[f.name] || 0 }))}
+              options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}
               activeId={activeFloor?.name}
               onChange={setSelectedFloor}
             />
@@ -1588,6 +1607,7 @@ export default function POSPage() {
                         mergedChildNumbers={groupInfo?.children}
                         isMergedChild={false}
                         kitchenStatus={table.kitchen_status}
+                        flashNonce={flashInfo?.tableNumber === table.table_number ? (flashInfo?.nonce ?? 0) : 0}
                       />
                       </div>
                     );
@@ -1825,7 +1845,7 @@ export default function POSPage() {
                               pos.placeOrder(autoCampaign ? { id: autoCampaign.id, type: 'AUTO' } : undefined, undefined, posSession?.staffId);
                             }
                           }}
-                         onBack={() => { pos.setActiveView('floor'); setEditingOrder(null); }}
+                         onBack={() => { if (pos.selectedTable && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(pos.selectedTable.status)) { setFlashInfo({ tableNumber: pos.selectedTable.table_number, nonce: Date.now() }); } pos.setActiveView('floor'); setEditingOrder(null); }}
                          orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                          onUpdateGuests={(delta) => pos.updateGuestCount(delta)}
@@ -1861,7 +1881,7 @@ export default function POSPage() {
                              if (product) setModalProduct({ product, variants: pos.variantsByProduct[productId] || [] });
                            }}
                            onRequestEditor={(productId) => {
-                             gridRef.current?.openEditor(productId);
+                             gridRef.current?.toggleEditor(productId);
                            }}
                         />
                     </div>
@@ -1885,7 +1905,7 @@ export default function POSPage() {
            table={actionSheetTable} 
            open={actionSheetOpen || paymentView} 
             onClose={() => { setActionSheetOpen(false); setUnmergeMode(false); setPaymentView(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }} 
-          onAddOrder={() => { pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
+          onAddOrder={() => { if (actionSheetTable?.table_number && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(actionSheetTable.status)) { setFlashInfo({ tableNumber: actionSheetTable.table_number, nonce: Date.now() }); } pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
           onSeatGuests={() => {
             if (actionSheetTable?.reservation_id) {
               setActionSheetOpen(false);
@@ -1997,7 +2017,7 @@ export default function POSPage() {
         onClose={() => setModalProduct(null)}
         onConfirm={(_modifiers, notes, variantId) => {
           if (modalProduct) {
-            pos.addToCart(modalProduct.product, { variantId: variantId || null, notes });
+            pos.addToCart(modalProduct.product, { variantId: variantId || null, notes, modifiers: _modifiers });
           }
           setModalProduct(null);
         }}
@@ -2093,6 +2113,7 @@ export default function POSPage() {
         {walkInOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            style={{ paddingBottom: 'var(--vk-height, 0px)' }}
             onClick={() => setWalkInOpen(false)}
           >
             <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
@@ -2106,33 +2127,33 @@ export default function POSPage() {
                   <div>
                     <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Masa №</label>
                     <input type="number" min="1" value={walkInTable} onChange={e => setWalkInTable(e.target.value)} autoFocus
-                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
                     />
                   </div>
                   <div>
                     <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Qonaq sayı</label>
                     <input type="number" min="1" value={walkInGuests} onChange={e => setWalkInGuests(e.target.value)}
-                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
                     />
                   </div>
                 </div>
                 <div>
                   <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Ad</label>
                   <input type="text" value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder="Müştəri adı"
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
                   />
                 </div>
                 <div>
                   <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Telefon</label>
                   <input type="tel" value={walkInPhone} onChange={e => setWalkInPhone(e.target.value)} placeholder="+994 XX XXX XX XX"
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
                   />
                 </div>
                 <div>
                   <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Qeydlər</label>
                   <textarea value={walkInNotes} onChange={e => setWalkInNotes(e.target.value)} placeholder="Xüsusi istəklər..."
                     rows={2}
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border resize-none ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
+                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border resize-none ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -2147,15 +2168,15 @@ export default function POSPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Tarix</label>
-                      <input type="date" value={walkInScheduledDate} onChange={e => setWalkInScheduledDate(e.target.value)}
+                      <input type="date" data-vk="none" value={walkInScheduledDate} onChange={e => setWalkInScheduledDate(e.target.value)}
                         min={new Date().toISOString().slice(0, 10)}
-                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
                       />
                     </div>
                     <div>
                       <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Vaxt</label>
-                      <input type="time" value={walkInScheduledTime} onChange={e => setWalkInScheduledTime(e.target.value)}
-                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                      <input type="time" data-vk="none" value={walkInScheduledTime} onChange={e => setWalkInScheduledTime(e.target.value)}
+                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
                       />
                     </div>
                   </div>
@@ -2193,5 +2214,6 @@ export default function POSPage() {
       </AnimatePresence>
 
     </div>
+    </VirtualKeyboardProvider>
   );
 }

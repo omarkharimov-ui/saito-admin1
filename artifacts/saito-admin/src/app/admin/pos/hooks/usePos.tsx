@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
-import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
+
 import type { PosProduct, PosTable, PosCart, PosCartItem, PosModifierSelection } from '../types/shared';
 
 export function usePos() {
@@ -244,9 +244,11 @@ export function usePos() {
           ];
           const groupIds = new Set(groupOrders.map((o: any) => o.id));
 
-          const serverItems = orderItems
-            .filter((item: any) => groupIds.has(item.order_id))
-            .map((item: any) => ({
+          const serverItems: any[] = [];
+          const serverSeen = new Map<string, any>();
+          for (const item of orderItems.filter((i: any) => groupIds.has(i.order_id))) {
+            const key = `${item.product_id}__${item.variant_id ?? ''}`;
+            const mapped = {
               product_id: item.product_id,
               product_name: item.product_name,
               unit_price: item.unit_price,
@@ -258,7 +260,16 @@ export function usePos() {
               is_combo: !!item.is_combo_parent,
               combo_id: item.combo_group_id || null,
               sentQuantity: item.quantity,
-            }));
+            };
+            const existing = serverSeen.get(key);
+            if (existing) {
+              existing.quantity += Number(item.quantity || 0);
+              existing.total_price = existing.unit_price * existing.quantity;
+            } else {
+              serverSeen.set(key, mapped);
+              serverItems.push(mapped);
+            }
+          }
 
           const serverTotal = Number(primary.total_amount || 0);
           const itemSum = serverItems.reduce((s: number, i: any) => s + (i.total_price || 0), 0);
@@ -266,9 +277,15 @@ export function usePos() {
           setCart(prev => {
             if (!prev) return null;
             const merged = serverItems.map((i: any) => ({ ...i }));
-            // Merge in any unsent (draft) items from local state
+            // Merge in any unsent (draft) items from local state. draftItems (the
+            // pre-fetch snapshot) and prev.items overlap for the same-table case,
+            // so dedupe by key — otherwise drafts get added twice per re-entry
+            // (and quadruple after entering the table twice).
+            const seen = new Set<string>();
             for (const u of [...draftItems, ...prev.items.filter(i => (i.sentQuantity ?? 0) === 0)]) {
               const key = `${u.product_id}__${u.variant_id || ''}`;
+              if (seen.has(key)) continue;
+              seen.add(key);
               const found = merged.find((m: any) => `${m.product_id}__${m.variant_id || ''}` === key);
               if (found) {
                 found.quantity += u.quantity;
@@ -505,7 +522,7 @@ export function usePos() {
       const campaignDiscount = typeof effective === 'object' && effective?.discount_amount ? effective.discount_amount : 0;
       const campaignDiscountType = typeof effective === 'object' && effective?.discount_type ? effective.discount_type : null;
       const existing = items.find(
-        i => i.product_id === p.id && (i.variant_id ?? null) === variantId
+        i => String(i.product_id) === String(p.id) && (i.variant_id ?? null) === variantId
       );
       if (existing) {
         existing.quantity += 1;
@@ -525,7 +542,7 @@ export function usePos() {
           campaign_discount_amount: campaignDiscount,
           campaign_discount_type: campaignDiscountType,
           is_pre_order: reservationMode,
-          pre_order_id: reservationMode ? `cart_${Date.now()}_${Math.random().toString(36).slice(2, 9)}` : undefined,
+          pre_order_id: null,
         };
         items.push(newItem);
 
@@ -544,7 +561,22 @@ export function usePos() {
                 special_notes: opts?.notes ?? '',
               }],
             }),
-          }).catch(() => {});
+          })
+            .then(r => r.json().catch(() => null))
+            .then(data => {
+              const saved = Array.isArray(data?.items) ? data.items[0] : null;
+              if (saved?.id) {
+                setCart(prev => prev ? {
+                  ...prev,
+                  items: prev.items.map(it =>
+                    it.is_pre_order && !it.pre_order_id && it.product_id === p.id && (it.variant_id ?? null) === variantId
+                      ? { ...it, pre_order_id: saved.id }
+                      : it
+                  ),
+                } : null);
+              }
+            })
+            .catch(() => {});
         }
       }
       return { ...base, items };
@@ -554,9 +586,18 @@ export function usePos() {
   const addComboToCart = (combo: any, opts?: { notes?: string }) => {
 
     setCart(prev => {
-      if (!prev) return null;
-      const items = prev.items.map(i => ({ ...i }));
-      const existing = items.find(i => i.product_id === combo.id && i.is_combo);
+      let base = prev;
+      if (!base) {
+        base = {
+          table_number: selectedTable?.table_number || null,
+          guest_count: selectedTable?.guest_count || 1,
+          items: [],
+          notes: '',
+          order_type: posMode
+        };
+      }
+      const items = base.items.map(i => ({ ...i }));
+      const existing = items.find(i => String(i.product_id) === String(combo.id) && i.is_combo);
       if (existing) {
         existing.quantity += 1;
         existing.total_price = existing.unit_price * existing.quantity;
@@ -576,7 +617,7 @@ export function usePos() {
           special_notes: opts?.notes ?? ''
         });
       }
-      return { ...prev, items };
+      return { ...base, items };
     });
   };
 
@@ -759,48 +800,6 @@ export function usePos() {
             })
           };
         });
-
-        // For takeaway/delivery: auto-print kitchen receipt immediately
-        if (posMode !== 'dine_in' && cart) {
-          try {
-            const settings = await getReceiptSettings();
-            const items = unsent.map(u => ({
-              name: u.product_name || 'Məhsul',
-              quantity: u.quantity,
-              price: u.unit_price * u.quantity,
-            }));
-            await printReceipt({
-              restaurantName: settings.restaurantName,
-              address: settings.address,
-              receiptTitle: posMode === 'takeaway' ? 'GEL-AL SİFARIŞI' : 'ÇATDIRMA SİFARIŞI',
-              currency: settings.receiptCurrency,
-              serviceFeePct: settings.serviceFeePct,
-              showServiceFee: settings.showServiceFee,
-              footerText: settings.footerText,
-              tableNumber: cart.table_number || 0,
-              orderId: activeOrderId || 'yangi',
-              items,
-              subtotal: unsent.reduce((s, u) => s + u.unit_price * u.quantity, 0),
-              discount: 0,
-              tip: 0,
-              total: unsent.reduce((s, u) => s + u.unit_price * u.quantity, 0),
-              paymentMethod: 'pending',
-              cashAmount: 0,
-              cardAmount: 0,
-              customerName: cart.customer_name || undefined,
-              customerPhone: cart.customer_phone || undefined,
-              deliveryAddress: cart.delivery_address || undefined,
-              deliveryFee: cart.delivery_fee || 0,
-              estimatedTime: cart.estimated_delivery_time || undefined,
-              date: new Date().toISOString(),
-              time: new Date().toISOString(),
-              paperWidth: settings.paperWidth,
-              copies: settings.copies,
-            });
-          } catch (printErr) {
-            console.error('Kitchen print failed:', printErr);
-          }
-        }
 
         if (posMode !== 'dine_in') {
           setCart(prev => prev ? { ...prev, items: [] } : null);
@@ -1049,6 +1048,7 @@ export function usePos() {
           customer_name: cart.customer_name || null,
           customer_note: cart.notes || null,
           items: itemsToSave.map(i => ({
+            id: i.pre_order_id || undefined,
             product_id: i.product_id,
             product_name: i.product_name,
             quantity: i.quantity,
@@ -1157,6 +1157,7 @@ export function usePos() {
         const newPreOrders = cart.items
           .filter(i => i.is_pre_order)
           .map(i => ({
+            id: i.pre_order_id || undefined,
             product_id: i.product_id,
             product_name: i.product_name,
             quantity: i.quantity,
@@ -1172,6 +1173,7 @@ export function usePos() {
             body: JSON.stringify({
               reservation_id: reservationId,
               items: newPreOrders,
+              replace: true,
             }),
           }).catch(() => {});
         }

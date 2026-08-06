@@ -169,13 +169,7 @@ export function buildReceiptHtml(data: ReceiptData): string {
 }
 
 export async function printReceipt(data: ReceiptData): Promise<boolean> {
-  const defaultPaperWidth = 302;
-  const win = window.open('', '_blank', `width=${defaultPaperWidth + 40},height=600`);
-  if (!win) {
-    console.error('Print blocked: pop-up window could not be opened.');
-    return false;
-  }
-
+  let iframe: HTMLIFrameElement | null = null;
   try {
     const settings = await getReceiptSettings();
 
@@ -191,24 +185,44 @@ export async function printReceipt(data: ReceiptData): Promise<boolean> {
     };
 
     const html = buildReceiptHtml(receiptData);
-    const paperWidth = receiptData.paperWidth === '58mm' ? 220 : 302;
 
-    win.document.write(html);
-    win.document.close();
-    win.focus();
+    // Hidden iframe instead of window.open: browsers block pop-ups opened
+    // after an await, but iframe printing is never popup-blocked.
+    iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc || !iframe.contentWindow) throw new Error('Print iframe not ready');
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.contentWindow.focus();
     await new Promise((resolve) => setTimeout(resolve, 350));
 
     for (let c = 0; c < receiptData.copies; c++) {
-      win.print();
+      iframe.contentWindow.print();
       if (c < receiptData.copies - 1) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
-  } finally {
-    win.close();
-  }
 
-  return true;
+    return true;
+  } catch (e) {
+    console.error('Print failed:', e);
+    return false;
+  } finally {
+    const el = iframe;
+    if (el) {
+      setTimeout(() => el.remove(), 5000);
+    }
+  }
 }
 
 export async function printReservation(data: {

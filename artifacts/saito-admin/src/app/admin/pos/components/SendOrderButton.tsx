@@ -115,7 +115,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
             className="flex items-center gap-2.5"
           >
             {variant === 'send' ? <Send size={16} /> : <CheckCircle size={16} />}
-            {label || (variant === 'send' ? 'Sifariş göndər' : 'Dəyişiklikləri Təsdiqlə')}
+            {label || (variant === 'send' ? t('send_to_kitchen') : 'Dəyişiklikləri Təsdiqlə')}
           </motion.span>
         )}
       </AnimatePresence>

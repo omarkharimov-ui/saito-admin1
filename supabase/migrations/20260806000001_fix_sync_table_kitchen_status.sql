@@ -1,4 +1,14 @@
-CREATE FUNCTION public.sync_table_kitchen_status()
+-- ============================================================================
+-- FIX: sync_table_kitchen_status() referenced NEW.table_number, but the trigger
+-- is attached to order_items which has no table_number column. Any UPDATE of
+-- order_items.kitchen_status (dismiss/cancel item/kitchen accept/ready/serve)
+-- raised "record \"new\" has no field \"table_number\"" (42703) and rolled back.
+--
+-- Fix: resolve the table from the order (orders.table_number via order_id),
+-- which is the real source of truth. Keeps trigger attachment idempotent.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.sync_table_kitchen_status()
   RETURNS TRIGGER
   LANGUAGE plpgsql
   SECURITY DEFINER
@@ -42,8 +52,13 @@ BEGIN
 END;
 $function$;
 
+DROP TRIGGER IF EXISTS trg_sync_table_kitchen_status_items ON public.order_items;
+CREATE TRIGGER trg_sync_table_kitchen_status_items
+  AFTER UPDATE OF kitchen_status ON public.order_items
+  FOR EACH ROW
+  WHEN (OLD.kitchen_status::text IS DISTINCT FROM NEW.kitchen_status::text)
+  EXECUTE FUNCTION public.sync_table_kitchen_status();
+
 GRANT ALL ON FUNCTION public.sync_table_kitchen_status() TO anon;
-
 GRANT ALL ON FUNCTION public.sync_table_kitchen_status() TO authenticated;
-
 GRANT ALL ON FUNCTION public.sync_table_kitchen_status() TO service_role;

@@ -26,6 +26,19 @@ export async function POST(request: NextRequest) {
       if (Array.isArray(srcData)) sourceOrdersSnapshot.push(...srcData);
     }
 
+    // Capture pre-merge table_floors state (status, guests, totals) for undo
+    const tableStateSnapshot: any[] = [];
+    for (const tn of table_numbers) {
+      const tRes = await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${tn}&select=*`, { headers: svc().headers });
+      const tData = await tRes.json();
+      if (Array.isArray(tData) && tData[0]) tableStateSnapshot.push(tData[0]);
+    }
+
+    // Did the target table already have an active order before merge?
+    const parentPreRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${table_numbers[0]}&status=neq.paid&status=neq.cancelled&status=neq.closed&select=id`, { headers: svc().headers });
+    const parentPreOrders = await parentPreRes.json();
+    const parentHadActiveOrder = Array.isArray(parentPreOrders) && parentPreOrders.length > 0;
+
     // Atomic merge RPC (exists in DB as saito_merge_tables)
     const rpcRes = await fetch(`${svc().url}/rest/v1/rpc/saito_merge_tables`, {
       method: 'POST',
@@ -64,7 +77,9 @@ export async function POST(request: NextRequest) {
         undo: { 
           sourceTableNumbers: table_numbers.slice(1),
           targetTable: table_numbers[0],
-          sourceOrders: sourceOrdersSnapshot
+          sourceOrders: sourceOrdersSnapshot,
+          tableState: tableStateSnapshot,
+          parentHadActiveOrder
         }
       } 
     });

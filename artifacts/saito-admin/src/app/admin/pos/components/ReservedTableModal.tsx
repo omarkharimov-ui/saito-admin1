@@ -58,9 +58,9 @@ export default function ReservedTableModal({
     <AnimatePresence>
       {open && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: '100%' }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: '100%' }}
             transition={fastExit}
             className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >

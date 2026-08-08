@@ -112,11 +112,11 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
               onChange={e => { setPin(e.target.value.replace(/\D/g, '')); setError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
               placeholder="• • • •"
-              className={`w-full rounded-2xl px-5 py-4 text-center text-2xl font-black tracking-[0.5em] outline-none border transition-all ${
-                error
-                  ? 'border-red-400 focus:border-red-500'
-                  : lightMode ? 'bg-zinc-50 border-zinc-200 focus:border-amber-400' : 'bg-white/5 border-white/10 focus:border-amber-400/50'
-              } ${lightMode ? 'text-black' : 'text-white'}`}
+               className={`w-full rounded-2xl px-5 py-4 text-center text-2xl font-black tracking-[0.5em] outline-none border transition-all ${
+                 error
+                   ? 'border-red-400 focus:border-red-500'
+                   : lightMode ? 'bg-zinc-50 border-zinc-200 focus:border-zinc-400' : 'bg-white/5 border-white/10 focus:border-zinc-400/50'
+               } ${lightMode ? 'text-black' : 'text-white'}`}
             />
 
             <AnimatePresence>

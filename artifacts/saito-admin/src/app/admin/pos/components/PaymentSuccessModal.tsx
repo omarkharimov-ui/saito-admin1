@@ -37,9 +37,9 @@ export function PaymentSuccessModal({
     <AnimatePresence>
       {open && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: '100%' }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: '100%' }}
             transition={fastExit}
             className="fixed inset-0 z-[125] flex items-center justify-center bg-black/60 p-4"
             onClick={onClose}

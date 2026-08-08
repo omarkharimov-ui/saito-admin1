@@ -13,9 +13,14 @@ const soundPresets: Record<HapticType, { freq: [number, number]; gain: [number, 
 };
 
 let audioCtx: AudioContext | null = null;
+let soundEnabled = false;
+
+export const setHapticSoundEnabled = (enabled: boolean) => {
+  soundEnabled = enabled;
+};
 
 export const playHapticSound = (type: HapticType = 'pop') => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !soundEnabled) return;
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     if (audioCtx.state === 'suspended') {
@@ -42,7 +47,6 @@ export const useHaptic = () => {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   if (isIOS && navigator.vibrate) {
     return (type: HapticType = 'pop') => {
-      playHapticSound(type);
       try {
         if (type === 'pop' || type === 'tap') navigator.vibrate(10);
         else if (type === 'select') navigator.vibrate([5, 5, 10]);
@@ -52,5 +56,5 @@ export const useHaptic = () => {
       }
     };
   }
-  return playHapticSound;
+  return () => {};
 };

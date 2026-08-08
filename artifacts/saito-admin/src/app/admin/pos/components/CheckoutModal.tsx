@@ -226,16 +226,16 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
   };
 
   const inputClass = `w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${
-    lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white focus:border-emerald-500/50'
+    lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'
   }`;
 
   return (
     <AnimatePresence>
     <motion.div
        key="checkout-backdrop"
-       initial={{ opacity: 0 }}
-       animate={{ opacity: 1 }}
-       exit={{ opacity: 0 }}
+       initial={{ opacity: 0, y: '100%' }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: '100%' }}
        transition={fastExit}
 className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4"
         onClick={handleClose}

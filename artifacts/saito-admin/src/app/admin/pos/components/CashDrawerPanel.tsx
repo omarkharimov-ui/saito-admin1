@@ -232,7 +232,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       value={openingBalance}
                       onChange={e => setOpeningBalance(e.target.value)}
                       placeholder={t('opening_balance')}
-                      className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
+                       className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                     />
                   </div>
                   <button
@@ -336,14 +336,14 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       value={cashAmount}
                       onChange={e => setCashAmount(e.target.value)}
                       placeholder={t('amount')}
-                      className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
-                    />
-                    <input
-                      value={cashDesc}
-                      onChange={e => setCashDesc(e.target.value)}
-                      placeholder="t('open')lama (ixtiyari)"
-                      className={`w-full rounded-xl px-4 py-3 text-sm outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
-                    />
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+                     />
+                     <input
+                       value={cashDesc}
+                       onChange={e => setCashDesc(e.target.value)}
+                       placeholder="t('open')lama (ixtiyari)"
+                       className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+                     />
                     <div className="flex gap-2">
                       <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
                         {t('back')}
@@ -373,7 +373,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       value={cashAmount}
                       onChange={e => setCashAmount(e.target.value)}
                       placeholder={t('actual_balance')}
-                      className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
+                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                     />
                     {cashAmount && Number(cashAmount) !== currentBalance && (
                       <div className={`p-3 rounded-xl ${Number(cashAmount) > currentBalance ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
@@ -386,7 +386,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       value={cashDesc}
                       onChange={e => setCashDesc(e.target.value)}
                       placeholder="Qeyd (ixtiyari)"
-                      className={`w-full rounded-xl px-4 py-3 text-sm outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
+                       className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                     />
                     <div className="flex gap-2">
                       <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>

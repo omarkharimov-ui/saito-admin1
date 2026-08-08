@@ -198,18 +198,18 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
       {open && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none" style={{ paddingBottom: bottomOffset > 0 ? bottomOffset + 16 : undefined }}>
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: '100%' }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: '100%' }}
             transition={fastExit}
             className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30"
             onClick={onClose}
            />
 
            <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: '100%' }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: '100%' }}
              transition={fastExit}
             className={`relative z-10 pointer-events-auto w-full mx-auto max-h-[92vh] flex flex-col overflow-hidden rounded-t-3xl shadow-[0_30px_60px_rgba(0,0,0,0.3)] border transition-all duration-300 ${
               isWide ? 'max-w-6xl' : 'max-w-lg'
@@ -247,7 +247,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
             </div>
 
             {/* Tab Content */}
-            <AnimatePresence mode="sync">
+            <AnimatePresence mode="wait">
               {activeTab === 'info' && (
                  <motion.div
                    key="info"
@@ -546,14 +546,14 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                       {/* Search + categories */}
                       <div className={`px-5 py-3 flex items-center gap-3 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
-                        <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
-                          <Search size={14} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
-                          <input
-                            value={productSearch}
-                            onChange={e => setProductSearch(e.target.value)}
-                            placeholder="Axtar..."
-                            className={`flex-1 bg-transparent text-xs font-bold outline-none ${lightMode ? 'text-black placeholder:text-zinc-400' : 'text-white placeholder:text-white/30'}`}
-                          />
+                         <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 focus-within:border-zinc-400' : 'bg-white/5 border-white/10 focus-within:border-zinc-400/50'}`}>
+                           <Search size={14} className={lightMode ? 'text-zinc-400' : 'text-white/40'} />
+                           <input
+                             value={productSearch}
+                             onChange={e => setProductSearch(e.target.value)}
+                             placeholder="Axtar..."
+                             className={`flex-1 bg-transparent text-xs font-bold outline-none ${lightMode ? 'text-black placeholder:text-zinc-400' : 'text-white placeholder:text-white/30'}`}
+                           />
                           {productSearch && (
                             <button onClick={() => setProductSearch('')}>
                               <X size={12} className={lightMode ? 'text-zinc-400' : 'text-white/30'} />

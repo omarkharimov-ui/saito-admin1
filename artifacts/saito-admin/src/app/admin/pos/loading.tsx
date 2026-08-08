@@ -10,7 +10,7 @@ export default function POSLoading() {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
@@ -31,9 +31,9 @@ export default function POSLoading() {
               {Array.from({ length: 12 }).map((_, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.03, type: "spring", stiffness: 350, damping: 30 }}
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 1 }}
+                   transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
                   className="col-span-1"
                 >
                   <div className="w-full aspect-[4/5] rounded-[2rem] bg-white/5 border border-white/5 animate-pulse" />

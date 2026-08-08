@@ -282,7 +282,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={t('search_orders')}
               className={`w-full rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold outline-none border transition-all ${
-                lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-emerald-400/50'
+                lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'
               }`}
             />
             {searchQuery && (

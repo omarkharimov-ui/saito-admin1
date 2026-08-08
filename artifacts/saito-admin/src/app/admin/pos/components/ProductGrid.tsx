@@ -214,10 +214,10 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder={t('search_products' as any)}
-          className={`peer w-full rounded-[20px] pl-12 pr-4 py-3 text-sm outline-none border bg-[var(--theme-surface-muted)] transition-all duration-200
-            ${lightMode
-              ? 'text-gray-900 border-zinc-300 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200 shadow-md shadow-black/5 focus:shadow-lg focus:shadow-yellow-400/20'
-              : 'text-white border-white/10 focus:border-yellow-400/50 focus:ring-2 focus:ring-yellow-400/20 shadow-md shadow-black/20 focus:shadow-lg focus:shadow-yellow-400/30'}`}
+           className={`peer w-full rounded-[20px] pl-12 pr-4 py-3 text-sm outline-none border bg-[var(--theme-surface-muted)] transition-all duration-200
+             ${lightMode
+               ? 'text-gray-900 border-zinc-300 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200 shadow-md shadow-black/5 focus:shadow-[0_0_20px_rgba(120,120,120,0.25)]'
+               : 'text-white border-white/10 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20 shadow-md shadow-black/20 focus:shadow-[0_0_20px_rgba(120,120,120,0.3)]'}`}
         />
       </div>
 
@@ -276,45 +276,42 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 className="relative col-span-1 row-span-1 overflow-visible"
               >
                 {/* 1. Compact Card (always present, serves as morph target) */}
-                 <motion.div
-                  layoutId={layoutId}
-                  transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
-                  whileTap={{ scale: 0.96 }}
-                  className={`relative flex flex-col rounded-[28px] border overflow-hidden cursor-pointer ${cardBg} ${
-                    isOutOfStock ? 'opacity-50 grayscale border-rose-500/30' : ''
-                  }`}
-                  onClick={() => { if (!isOutOfStock) { playHapticSound('pop'); handleCardClick(item); } }}
-                  style={{ zIndex: isExpanded ? 1 : 0 }}
-                >
-                 {/* Unified overlay badge - same UX pattern for both states */}
-                  {(isOutOfStock || count > 0) && (
-                    <motion.div
-                      key={`overlay-badge-${item.id}-${isOutOfStock ? 'out-of-stock' : 'cart'}`}
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={bounceMap[item.id] ? { scale: [1, 1.1, 1] } : { scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
-                      transition={{ duration: bounceMap[item.id] ? 0.3 : 0.2, ease: "easeOut" }}
-                       className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2 py-1 border text-[10px] font-black tabular-nums ${lightMode ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}
-                       >{isOutOfStock ? (
-                       <>
-                         <Ban size={10} className="text-white" />
-                         <span className="whitespace-nowrap">{t('out_of_stock')}</span>
-                       </>
-                     ) : (
-                       <>
-                         <ShoppingCart size={10} className={pulseMap[item.id] ? "text-white animate-pulse" : "text-white"} />
-                         <motion.span
-                           key={`count-${item.id}-${count}`}
-                           initial={{ scale: 1.3, opacity: 0.5 }}
-                           animate={pulseMap[item.id] ? { scale: [1, 1.15, 1, 1.1, 1], opacity: 1 } : { scale: 1, opacity: 1 }}
-                           transition={{ duration: pulseMap[item.id] ? 0.6 : 0.3, ease: "easeOut" }}
-                           className="text-[10px] font-black text-white whitespace-nowrap">
-                           {count}
-                         </motion.span>
-                       </>
-                     )}
-                   </motion.div>
-                 )}
+                   <motion.div
+                   layoutId={layoutId}
+                   transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
+                   whileTap={{ scale: 0.96, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
+                   className={`relative flex flex-col rounded-[28px] border overflow-hidden cursor-pointer ${cardBg} ${
+                     isOutOfStock ? 'opacity-50 grayscale border-rose-500/30' : ''
+                   }`}
+                   onClick={() => { if (!isOutOfStock) { handleCardClick(item); } }}
+                   style={{ zIndex: isExpanded ? 1 : 0 }}
+                 >
+                  {/* Cart count badge - always visible, bounces smoothly without disappearing */}
+                   {count > 0 && (
+                     <motion.div
+                       key={`overlay-badge-${item.id}`}
+                       initial={{ scale: 1 }}
+                       animate={bounceMap[item.id] ? { scale: [1, 1.1, 1.02, 1] } : { scale: 1 }}
+                       transition={{ duration: bounceMap[item.id] ? 0.4 : 0.2, ease: "easeOut" }}
+                        className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2.5 py-1 border text-[10px] font-black tabular-nums ${lightMode ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}
+                        >
+                        <ShoppingCart size={10} className="text-white" />
+                        <motion.span
+                          key={`count-${item.id}-${count}`}
+                          initial={{ scale: 1 }}
+                          animate={pulseMap[item.id] ? { scale: [1, 1.15, 1.03, 1] } : { scale: 1 }}
+                          transition={{ duration: pulseMap[item.id] ? 0.5 : 0.25, ease: "easeOut" }}
+                          className="text-[10px] font-black text-white whitespace-nowrap">
+                          {count}
+                        </motion.span>
+                      </motion.div>
+                  )}
+                  {isOutOfStock && (
+                    <div className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2 py-1 border text-[10px] font-black tabular-nums ${lightMode ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}>
+                      <Ban size={10} className="text-white" />
+                      <span className="whitespace-nowrap">{t('out_of_stock')}</span>
+                    </div>
+                  )}
 
                   <motion.div
                     className="flex flex-col h-full p-3"
@@ -454,7 +451,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           )}
 
                           <div>
-                            <input type="text" value={noteForProduct} onChange={(e) => { e.stopPropagation(); setNoteForProduct(e.target.value); }} placeholder={t('add_note')} className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-blue-400/50`} onClick={(e) => e.stopPropagation()} />
+                            <input type="text" value={noteForProduct} onChange={(e) => { e.stopPropagation(); setNoteForProduct(e.target.value); }} placeholder={t('add_note')} className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-zinc-400/50`} onClick={(e) => e.stopPropagation()} />
                           </div>
 
                           <button onClick={(e) => {

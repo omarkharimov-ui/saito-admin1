@@ -85,9 +85,9 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, childr
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0, y: '100%' }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: '100%' }}
       transition={fastExit}
       className="fixed bottom-0 left-0 right-0 z-[120] flex items-center justify-center p-4 pointer-events-none"
       style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}

@@ -87,7 +87,7 @@ export function ModifierSheet({ open, productName, productPrice, variants = [], 
               {/* Notes */}
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">{t('custom_note')}</p>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('example_note')} className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 min-h-[100px] transition-all resize-none" />
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('example_note')} className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 text-sm text-white placeholder:text-white/20 outline-none focus:border-zinc-400/30 min-h-[100px] transition-all resize-none" />
               </div>
 
               {/* Footer Actions */}

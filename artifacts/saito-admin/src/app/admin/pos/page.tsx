@@ -153,6 +153,24 @@ export default function POSPage() {
   }, [posMode, fetchTakeawayOrders, fetchDeliveryOrders, actionSheetOpen, paymentView, checkoutOpen]);
 
   useEffect(() => {
+    let cancelled = false;
+    const prefetch = async () => {
+      try {
+        const [tablesRes, productsRes] = await Promise.all([
+          fetch('/api/pos/tables', { cache: 'force-cache' }),
+          fetch('/api/pos/products', { cache: 'force-cache' }),
+        ]);
+        if (!cancelled) {
+          if (tablesRes.ok) await tablesRes.json();
+          if (productsRes.ok) await productsRes.json();
+        }
+      } catch {}
+    };
+    prefetch();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     const channel = supabase
       .channel('pos-order-list-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
@@ -1209,52 +1227,47 @@ export default function POSPage() {
           </div>
         )}
 
-      {/* MODE SWITCHER — always visible */}
-      <div className="flex items-center gap-4 px-6 pt-4 pb-2">
-          <h1 className="text-2xl font-black tracking-tighter">POS</h1>
-          <button
-            onClick={() => {
-              // Toggle sidebar via dispatching a custom event
-              window.dispatchEvent(new CustomEvent('pos-toggle-sidebar'));
-            }}
-            className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-            title={t('menu')}
-          >
-            <PanelLeftClose size={16} />
-          </button>
-          <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
-          {[
-            { mode: 'dine_in' as const, icon: Utensils, label: t('dine_in'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#10b981' },
-            { mode: 'takeaway' as const, icon: UserCheck, label: t('takeaway'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
-            { mode: 'delivery' as const, icon: Bike, label: t('delivery'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
-          ].map(({ mode, icon: Icon, label, activeBg, activeText, innerColor }) => (
-            <button
-              key={mode}
-                onClick={() => {
-                   playHapticSound('select');
-                   setPosMode(mode);
-                   pos.setActiveView('floor');
-                }}
-              className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
-              style={{ color: posMode === mode ? activeText : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}
-            >
-              {posMode === mode && (
-                <AnimatePresence>
-                  <motion.div
-                    key={`mode-pill-${mode}`}
-                    layoutId="pos-mode-pill"
-                    className="absolute inset-0 rounded-full z-0"
-                    style={{ backgroundColor: activeBg }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
-                  />
-                </AnimatePresence>
-              )}
-              <div className="relative z-10 w-2 h-2 rounded-full" style={{ backgroundColor: innerColor }} />
-              <Icon size={14} className="relative z-10" style={posMode === mode ? { color: activeText } : undefined} />
-              <span className="relative z-10">{label}</span>
-            </button>
-          ))}
-          </div>
+       {/* MODE SWITCHER — always visible */}
+       <div className="flex items-center gap-4 px-6 pt-4 pb-2">
+           <h1 className="text-2xl font-black tracking-tighter">POS</h1>
+           <button
+             onClick={() => {
+               window.dispatchEvent(new CustomEvent('pos-toggle-sidebar'));
+             }}
+             className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+             title={t('menu')}
+           >
+             <PanelLeftClose size={16} />
+           </button>
+           <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
+           {[
+             { mode: 'dine_in' as const, icon: Utensils, label: t('dine_in'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#10b981' },
+             { mode: 'takeaway' as const, icon: UserCheck, label: t('takeaway'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
+             { mode: 'delivery' as const, icon: Bike, label: t('delivery'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
+           ].map(({ mode, icon: Icon, label, activeBg, activeText, innerColor }) => (
+             <button
+               key={mode}
+                 onClick={() => {
+                    setPosMode(mode);
+                    pos.setActiveView('floor');
+                 }}
+               className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
+               style={{ color: posMode === mode ? activeText : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}
+             >
+               {posMode === mode && (
+                 <motion.div
+                   layoutId="pos-mode-pill"
+                   className="absolute inset-0 rounded-full z-0 shadow-lg"
+                   style={{ backgroundColor: activeBg }}
+                   transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
+                 />
+               )}
+               <div className="relative z-10 w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: innerColor }} />
+               <Icon size={14} className="relative z-10" style={posMode === mode ? { color: activeText } : undefined} />
+               <span className="relative z-10">{label}</span>
+             </button>
+           ))}
+           </div>
           {pos.floors.length > 1 && posMode === 'dine_in' && (
             <LiquidDropdown
               options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}
@@ -1300,7 +1313,7 @@ export default function POSPage() {
             </div>
           )}
         </div>
-      <AnimatePresence mode="sync">
+      <AnimatePresence mode="wait">
         {posMode === 'dine_in' && pos.activeView === 'floor' && pos.loading && (
            <div key="floor-skeleton" className="h-full flex flex-col p-6">
             <FloorSkeleton />
@@ -1663,8 +1676,8 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                  })()}
  
                  <div className="flex-1 overflow-y-auto overscroll-contain">
-                  <AnimatePresence mode="sync">
-                <motion.div
+                   <AnimatePresence mode="wait">
+                 <motion.div
                     key={`tables-${selectedFloor || 'default'}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -1817,7 +1830,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                     pos.setCart({ ...pos.cart, customer_phone: e.target.value || null });
                                   }}
                                   placeholder={t('phone_placeholder')}
-                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                                 />
                               </div>
                               <div>
@@ -1832,7 +1845,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                     pos.setCart({ ...pos.cart, customer_name: e.target.value || null });
                                   }}
                                   placeholder={t('customer_name_placeholder')}
-                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                                 />
                               </div>
                             </div>
@@ -1850,7 +1863,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                   }}
                                   placeholder={t('address_placeholder')}
                                   rows={2}
-                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all resize-none ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all resize-none ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                                 />
                               </div>
                             )}
@@ -1871,7 +1884,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                      pos.setCart({ ...pos.cart, delivery_fee: Number(e.target.value) || 0 });
                                    }}
                                    placeholder="0.00"
-                                   className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                   className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                                  />
                                </div>
                              )}
@@ -1887,7 +1900,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                     pos.setCart({ ...pos.cart, notes: e.target.value });
                                   }}
                                   placeholder={t('note_placeholder')}
-                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                                 />
                              </div>
                            </div>
@@ -2207,38 +2220,38 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                     <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Masa №</label>
                     <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('table_number')}</label>
                    <input type="number" min="1" value={walkInTable} onChange={e => setWalkInTable(e.target.value)} autoFocus
-                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                     />
                   </div>
                   <div>
                     <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('guests')}</label>
                     <input type="number" min="1" value={walkInGuests} onChange={e => setWalkInGuests(e.target.value)}
-                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                      className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                     />
                   </div>
                 </div>
                 <div>
                   <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_name')}</label>
-                  <input type="text" value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder={t('customer_name_placeholder')}
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
-                  />
+                   <input type="text" value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder={t('customer_name_placeholder')}
+                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
+                   />
                 </div>
                 <div>
                   <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_phone')}</label>
                   <input type="tel" value={walkInPhone} onChange={e => setWalkInPhone(e.target.value)} placeholder={t('phone_placeholder')}
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
+                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
                   />
                 </div>
                 <div>
                   <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('notes')}</label>
                   <textarea value={walkInNotes} onChange={e => setWalkInNotes(e.target.value)} placeholder={t('note_placeholder')}
-                    rows={2}
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border resize-none ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
+                     rows={2}
+                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border resize-none transition-all ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="walkInPreOrder" checked={walkInPreOrder} onChange={e => { setWalkInPreOrder(e.target.checked); if (!e.target.checked) { setWalkInScheduledDate(''); setWalkInScheduledTime(''); } }}
-                    className="w-4 h-4 rounded border-zinc-300 text-amber-500 focus:ring-amber-500"
+                    className="w-4 h-4 rounded border-zinc-300 text-zinc-500 focus:ring-zinc-400"
                   />
                       <label htmlFor="walkInPreOrder" className={`text-[10px] font-black uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
                         {t('pre_order')}
@@ -2250,13 +2263,13 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                       <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('date')}</label>
                       <input type="date" data-vk="none" value={walkInScheduledDate} onChange={e => setWalkInScheduledDate(e.target.value)}
                         min={new Date().toISOString().slice(0, 10)}
-                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                       />
                     </div>
                     <div>
                       <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('time')}</label>
                       <input type="time" data-vk="none" value={walkInScheduledTime} onChange={e => setWalkInScheduledTime(e.target.value)}
-                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                        className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                       />
                     </div>
                   </div>

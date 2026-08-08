@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
 function Bone({ className = '' }: { className?: string }) {
@@ -28,6 +29,19 @@ export function FloorSkeleton() {
             <Bone className="w-10 h-3" />
           </div>
         ))}
+      </div>
+      <div className="flex items-center justify-center gap-2 mt-6">
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="w-2.5 h-2.5 rounded-full bg-[var(--theme-accent)]"
+              animate={{ y: [0, -8, 0], opacity: [0.4, 1, 0.4] }}
+              transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+            />
+          ))}
+        </div>
+        <span className="text-[10px] font-bold text-[var(--theme-text-muted)] ml-2">Yüklənir...</span>
       </div>
     </div>
   );

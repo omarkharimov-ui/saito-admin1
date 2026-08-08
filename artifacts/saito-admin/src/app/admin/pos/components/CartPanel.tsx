@@ -9,8 +9,10 @@ import { toast } from '@/lib/toast';
 import type { PosCart, PosCartItem, LossItem } from '../types/shared';
 import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
 import { NumberRoll } from './NumberRoll';
+import { RollingNumber } from './RollingNumber';
 import { PinGuard } from './PinGuard';
 import { Numpad } from './Numpad';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface CartPanelProps {
   cart: PosCart | null;
@@ -99,6 +101,7 @@ export function CartPanel({
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
+  const keyboardHeight = useKeyboardHeight();
   const customInputRef = useRef<HTMLInputElement>(null);
 
   const [lossMode, setLossMode] = useState(false);
@@ -116,7 +119,7 @@ export function CartPanel({
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
   const [noteEditing, setNoteEditing] = useState(false);
 
-  const VAT_RATE = 0.18;
+  const [vatRate, setVatRate] = useState(0.18);
 
   const exitLossMode = useCallback(() => {
     setSelectedForLoss(new Map());
@@ -210,7 +213,7 @@ export function CartPanel({
   }
 
   const cartDiscountAmount = Math.max(0, originalTotal - total);
-  const vatAmount = total / (1 + VAT_RATE) * VAT_RATE;
+  const vatAmount = total / (1 + vatRate) * vatRate;
   const grandTotal = total;
 
   const lossTotal = Array.from(selectedForLoss.entries()).reduce((sum, [idx, qty]) => {
@@ -277,7 +280,7 @@ export function CartPanel({
   const hasLossSelection = selectedForLoss.size > 0;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 px-6 relative">
+    <div className="flex flex-col flex-1 min-h-0 px-6 relative" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
       {/* Header */}
       <div className="flex items-center justify-between flex-shrink-0 pb-4 pt-6">
         <div className="flex items-center gap-2">
@@ -359,7 +362,7 @@ export function CartPanel({
                       setCustomerEditing(false);
                     }}
                     placeholder={t('customer_name_placeholder')}
-                    className={`flex-1 min-w-0 rounded-lg px-2 py-0.5 text-[10px] font-bold outline-none border ${lightMode ? 'bg-white border-blue-300 text-black' : 'bg-white/5 border-blue-500/30 text-white'}`}
+                     className={`flex-1 min-w-0 rounded-lg px-2 py-0.5 text-[10px] font-bold outline-none border transition-all ${lightMode ? 'bg-white border-blue-300 text-black focus:border-zinc-400' : 'bg-white/5 border-blue-500/30 text-white focus:border-zinc-400/50'}`}
                   />
                 </div>
               ) : cart.customer_name ? (
@@ -434,8 +437,8 @@ export function CartPanel({
         </div>
       )}
 
-       {/* Items */}
-       <div className="flex-1 py-3 relative overflow-y-auto min-h-0 overscroll-contain">
+        {/* Items */}
+        <div className="flex-1 py-3 relative overflow-y-auto min-h-0 overscroll-contain" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
         <div
           className="absolute inset-0 transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 1 : 0, pointerEvents: isEmpty ? 'auto' : 'none' }}
@@ -485,7 +488,7 @@ export function CartPanel({
                        <button onClick={() => onUpdateQty?.(originalIdx, -1)} className="px-2 py-1 text-xs font-black hover:bg-white/10 transition-colors">−</button>
                        <span className="px-2 py-1 text-xs font-black tabular-nums min-w-[1.5rem] text-center">{item.quantity}</span>
                       <motion.button
-                        whileTap={{ scale: 0.95 }}
+                        whileTap={{ scale: 0.95, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
                         onClick={() => onUpdateQty?.(originalIdx, 1)}
                         className="px-2 py-1 text-xs font-black hover:bg-white/10 transition-colors"
                       >+</motion.button>
@@ -504,27 +507,28 @@ export function CartPanel({
       {/* Footer */}
       <div className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]">
         {/* Total / Loss Total */}
-        <AnimatePresence mode="sync">
+        <AnimatePresence mode="wait">
           {hasLossSelection ? (
              <motion.div
                key="loss-total"
                initial={{ opacity: 0, y: -4 }}
                animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
                className="flex items-center justify-between px-1"
             >
               <span className="text-xs uppercase tracking-widest font-semibold text-red-400">{t('cancelled_amount')}</span>
               <span className="text-xl font-black tracking-tight tabular-nums text-red-400">{lossTotal.toFixed(2)} ₼</span>
             </motion.div>
            ) : (
-             <motion.div
-               key="std-total"
-               initial={{ opacity: 0, y: -4 }}
-               animate={{ opacity: 1, y: 0 }}
-               className="px-1 space-y-1"
-            >
+              <motion.div
+                key="std-total"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="px-1 space-y-1"
+             >
                 {/* Subtotal */}
                 <div className="flex items-center justify-between">
-                   <span className="text-[10px] uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('subtotal_label')}</span>
+                    <span className="text-[10px] uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('subtotal_label')}</span>
                    <NumberRoll value={originalTotal} prefix="" suffix=" ₼" decimals={2} className="text-[11px] font-medium tabular-nums text-[var(--theme-text-secondary)]" />
                 </div>
                 {/* Discount */}
@@ -539,16 +543,11 @@ export function CartPanel({
                   <span className="text-[10px] uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('vat')}</span>
                   <NumberRoll value={vatAmount} prefix="" suffix=" ₼" decimals={2} className="text-[11px] font-medium tabular-nums text-[var(--theme-text-secondary)]" />
                 </div>
-                {/* TOTAL — biggest, most prominent */}
-                <motion.div
-                  key={`total-${grandTotal}`}
-                  initial={{ scale: 1 }}
-                  animate={{ scale: [1, 1.03, 1] }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="flex items-center justify-between pt-1 border-t border-[var(--theme-border)]">
-                  <span className="text-[11px] uppercase tracking-widest font-bold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
-                  <NumberRoll value={grandTotal} prefix="" suffix=" ₼" decimals={2} className="text-3xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]" duration={0.5} />
-                </motion.div>
+                 {/* TOTAL — biggest, most prominent */}
+                  <div className="flex items-center justify-between pt-1 border-t border-[var(--theme-border)]">
+                    <span className="text-[11px] uppercase tracking-widest font-bold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
+                    <RollingNumber value={grandTotal} prefix="" suffix=" ₼" decimals={2} className="text-3xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]" duration={0.3} />
+                  </div>
              </motion.div>
            )}
         </AnimatePresence>
@@ -557,13 +556,13 @@ export function CartPanel({
         {lossMode && hasLossSelection && (
           <div className="px-1 space-y-2">
             <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('loss_reason_title')}</p>
-            <AnimatePresence mode="sync">
+            <AnimatePresence mode="wait">
             {showCustomReason ? (
              <motion.div
                  key="custom"
                  initial={{ opacity: 0, scale: 0.95, y: -6 }}
                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                 transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
+                 transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
                  className="flex items-center gap-2"
                >
                 <input
@@ -573,9 +572,9 @@ export function CartPanel({
                   value={customReasonText}
                   onChange={e => setCustomReasonText(e.target.value)}
                   placeholder={t('loss_reason_custom_placeholder')}
-                  className={`flex-1 px-4 py-3 rounded-xl text-sm border outline-none transition-all ${
-                    lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30'
-                  }`}
+                   className={`flex-1 px-4 py-3 rounded-xl text-sm border outline-none transition-all ${
+                     lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-zinc-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30 focus:border-zinc-400/50'
+                   }`}
                 />
                 <button onClick={() => { setShowCustomReason(false); setCustomReasonText(''); }}
                   className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
@@ -585,13 +584,13 @@ export function CartPanel({
                 </button>
               </motion.div>
             ) : (
-               <motion.div
-                 key="preset"
-                 initial={{ opacity: 0, scale: 0.95, y: -6 }}
-                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                 transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
-                 className="space-y-1.5"
-              >
+                <motion.div
+                  key="preset"
+                  initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
+                  className="space-y-1.5"
+               >
                 <div className="flex gap-1.5">
                   {lossReasons.map(r => (
                     <button key={r.key}
@@ -673,7 +672,7 @@ export function CartPanel({
                    onBlur={() => { setNoteEditing(false); }}
                    onKeyDown={(e) => { if (e.key === 'Escape') setNoteEditing(false); }}
                     placeholder={t('note_placeholder') || 'Note...'}
-                   className={`w-full mt-2 rounded-xl px-3 py-2 text-xs font-medium outline-none border ${lightMode ? 'bg-white border-zinc-200 text-zinc-900 placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
+                    className={`w-full mt-2 rounded-xl px-3 py-2 text-xs font-medium outline-none border transition-all ${lightMode ? 'bg-white border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
                  />
                </motion.div>
              </AnimatePresence>

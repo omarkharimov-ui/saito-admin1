@@ -237,9 +237,17 @@ body {
 
 /* Reduce motion on mobile for snappier UI — only CSS transitions, not framer-motion (inline styles) */
 @media (hover: none) and (pointer: coarse) {
-  /* Only target elements WITHOUT inline style (framer-motion uses inline) */
-  *:not([style*="transform"]):not([style*="opacity"]) {
-    transition-duration: 0.15s;
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  * {
+    transition-duration: 0.15s !important;
+  }
+  button,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"] {
+    transition-duration: 0.1s !important;
   }
   /* Disable heavy backdrop-blur on mobile modals */
   .backdrop-blur-xl,
@@ -247,11 +255,6 @@ body {
   .backdrop-blur-3xl {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-  }
-  /* Touch feedback */
-  * {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
   }
 }
 
@@ -304,16 +307,8 @@ input[type="submit"],
 input[type="button"] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              opacity 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+  transition: opacity 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94),
               filter 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-button:active:not(:disabled),
-[role="button"]:active:not(:disabled),
-input[type="submit"]:active:not(:disabled),
-input[type="button"]:active:not(:disabled) {
-  transform: scale(0.96);
-  opacity: 0.85;
 }
 button:disabled,
 [role="button"][aria-disabled="true"],
@@ -360,6 +355,12 @@ html[data-theme="light"] .placeholder\:text-white\/30::placeholder { color: var(
 /* ── Focus states ── */
 html[data-theme="light"] .focus\:border-white\/25:focus { border-color: #9ca3af; }
 html[data-theme="light"] .focus\:border-gold\/40:focus { border-color: #9ca3af; }
+
+/* Rolling number animation */
+@keyframes rollIn {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
 
 /* ── Light mode: minimize decorative gold accents on specific UI surfaces ── */
 html[data-theme="light"] .glass,

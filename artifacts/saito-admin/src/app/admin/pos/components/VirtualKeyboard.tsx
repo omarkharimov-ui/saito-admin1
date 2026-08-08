@@ -2,7 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { fastExit } from '@/lib/modal-transitions';
 import { Delete, CornerDownLeft, Keyboard } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type KeyMode = 'numeric' | 'text';
 
@@ -71,6 +73,7 @@ function detectMode(target: EventTarget | null): KeyMode | 'none' {
 }
 
 export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
+  const { t } = useLanguage();
   const [activeEl, setActiveEl] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [mode, setMode] = useState<KeyMode>('text');
   const [shift, setShift] = useState(false);
@@ -229,7 +232,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
   };
 
   const keyboard = activeEl && (
-    <div ref={keyboardRef} className="fixed bottom-0 left-0 right-0 z-[210] bg-zinc-900/95 backdrop-blur-md border-t border-zinc-800 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-2xl">
+    <div ref={keyboardRef} className="fixed bottom-0 left-0 right-0 z-[210] bg-zinc-900/95 border-t border-zinc-800 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-2xl">
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/30">
           <Keyboard size={12} />
@@ -240,7 +243,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
           onClick={() => close()}
           className="px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-white/10 text-white/70 hover:bg-white/15 active:scale-95 transition-all"
         >
-          Gizlə
+          t('hide')
         </button>
       </div>
       <div className="w-full max-w-[900px] mx-auto">
@@ -254,12 +257,12 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
             <div className="grid grid-cols-2 gap-1.5 mt-1.5">
               <button
                 onPointerDown={(e) => e.preventDefault()}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleKeyPress({ action: 'clear', label: 'Təmizlə' }); }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleKeyPress({ action: 'clear', label: t('clear') }); }}
                 className="h-[54px] rounded-xl border border-zinc-700/50 bg-zinc-800 text-white/70 text-xs font-bold uppercase tracking-wider active:scale-95 transition-transform"
               >
-                Təmizlə
+                t('clear')
               </button>
-              {renderKey({ action: 'done', label: 'Gizlə' })}
+              {renderKey({ action: 'done', label: t('hide') })}
             </div>
           </div>
         ) : (
@@ -274,7 +277,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
               {QWERTY_ROWS[2].map(renderKey)}
             </div>
             <div className="flex gap-1.5 pt-1">
-              {renderKey({ action: 'done', label: 'Gizlə' })}
+              {renderKey({ action: 'done', label: t('hide') })}
               {renderKey({ action: 'space', label: 'Space', wide: true })}
               {renderKey({ action: 'enter' })}
             </div>
@@ -295,6 +298,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={fastExit}
             className="fixed inset-0 z-[205]"
             onPointerDown={close}
           />
@@ -307,7 +311,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
             initial={{ y: 320 }}
             animate={{ y: 0 }}
             exit={{ y: 320 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 34 }}
+            transition={fastExit}
           >
             {keyboard}
           </motion.div>

@@ -6,7 +6,7 @@ import { PhoneCall, Clock, Users, Star, CheckCircle, Pencil, Printer, UserX, Ban
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { TableActionSheet, ActionCard, ActionGrid } from './TableActionSheet';
-import { appleBackdrop } from '@/lib/modal-transitions';
+import { appleBackdrop, fastExit } from '@/lib/modal-transitions';
 
 interface Reservation {
   table_number: number;
@@ -55,19 +55,19 @@ export default function ReservationActionSheet({
     <ActionGrid cols={3}>
       <ActionCard
         icon={<CheckCircle size={22} strokeWidth={2.5} />}
-        label="Yerləşdir"
+        label={t('place')}
         variant="accent"
         onClick={onGuestArrived}
       />
       <ActionCard
         icon={<Pencil size={22} strokeWidth={2.5} />}
-        label="Redaktə"
+        label={t('edit')}
         variant="default"
         onClick={onEditReservation}
       />
       <ActionCard
         icon={<span className="text-[9px] font-black tracking-widest uppercase">+</span>}
-        label="Ətraflı"
+        label={t('details')}
         variant="default"
         onClick={() => setShowActions(!showActions)}
       />
@@ -83,13 +83,13 @@ export default function ReservationActionSheet({
       <ActionGrid cols={2}>
         <ActionCard
           icon={<Users size={22} strokeWidth={2.5} />}
-          label="Masa Dəyiş"
+          label={t('change_table')}
           variant="default"
           onClick={() => { setShowActions(false); onMoveTable?.(); }}
         />
         <ActionCard
           icon={<Star size={22} strokeWidth={2.5} />}
-          label="Birləşdir"
+          label={t('merge')}
           variant="default"
           onClick={() => { setShowActions(false); onMergeTable?.(); }}
         />
@@ -97,7 +97,7 @@ export default function ReservationActionSheet({
       {table.reservation_phone && (
         <ActionCard
           icon={<PhoneCall size={22} strokeWidth={2.5} />}
-          label={`Zəng Et ${maskPhone(table.reservation_phone)}`}
+          label={`${t('call')} ${maskPhone(table.reservation_phone)}`}
           variant="default"
           href={`tel:${table.reservation_phone}`}
         />
@@ -116,7 +116,7 @@ export default function ReservationActionSheet({
       />
       <ActionCard
         icon={<Ban size={22} strokeWidth={2.5} />}
-        label="Ləğv Et"
+        label={t('cancel')}
         variant="destructive"
         onClick={() => { setShowActions(false); onCancelReservation?.(); }}
       />
@@ -131,8 +131,8 @@ export default function ReservationActionSheet({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={appleBackdrop}
-            className="fixed inset-0 z-[119] pointer-events-auto bg-black/10 dark:bg-black/30 backdrop-blur-[2px]"
+            transition={fastExit}
+            className="fixed inset-0 z-[119] pointer-events-auto bg-black/10 dark:bg-black/30"
             onClick={onClose}
           />
           <TableActionSheet
@@ -144,7 +144,7 @@ export default function ReservationActionSheet({
                 {table.reservation_name && <span>{table.reservation_name}</span>}
                 <span className="inline-flex items-center gap-3 text-[9px] font-bold uppercase tracking-widest opacity-60">
                   {table.reservation_time && <span className="flex items-center gap-1"><Clock size={10} /> {table.reservation_time}</span>}
-                  {table.guest_count && <span className="flex items-center gap-1"><Users size={10} /> {table.guest_count} nəfər</span>}
+                  {table.guest_count && <span className="flex items-center gap-1"><Users size={10} /> {table.guest_count} t('person')</span>}
                   {table.reservation_phone && <span className="flex items-center gap-1"><PhoneCall size={10} /> {maskPhone(table.reservation_phone)}</span>}
                 </span>
               </span>

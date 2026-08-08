@@ -4,8 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
-import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
+import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 
 interface PinGuardProps {
   open: boolean;
@@ -16,19 +17,20 @@ interface PinGuardProps {
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  void_item: 'Məhsulu silmək',
+  void_item: 'void_item',
   loss: 'İtki yazmaq',
-  dismiss: 'Masanı boşaltmaq',
-  reprint: 'Çeki təkrar çap etmək',
-  refund: 'Qaytarma etmək',
-  split: 'Sifarişi bölüşdürmək',
-  merge: 'Masaları birləşdirmək',
-  transfer: 'Masa köçürmək',
-  admin: 'Admin əməliyyatı',
+  dismiss: 'dismiss_table',
+  reprint: 'reprint',
+  refund: 'refund',
+  split: 'order_split',
+  merge: 'merge',
+  transfer: 'transfer',
+  admin: 'admin_action',
 };
 
 export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }: PinGuardProps) {
-  const { lightMode } = useTheme();
+  const { lightMode } = useTheme()
+  const { t } = useLanguage();
   const [pin, setPin] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
@@ -57,12 +59,12 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
         onVerified();
         onClose();
       } else {
-        setError(data.error || 'PIN yanlışdır');
+        setError(data.error || t('wrong_pin'));
         setPin('');
         setTimeout(() => inputRef.current?.focus(), 100);
       }
     } catch {
-      setError('Şəbəkə xətası');
+      setError(t('network_error'));
       setPin('');
     } finally {
       setVerifying(false);
@@ -72,24 +74,25 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          key="pin-guard"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={appleBackdrop}
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={onClose}
-        >
+          <motion.div
+            key="pin-guard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={fastExit}
+            className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60"
+            onClick={onClose}
+          >
           <motion.div
             {...appleCard}
+            transition={fastExit}
             onClick={e => e.stopPropagation()}
             className={`w-80 rounded-3xl p-7 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
           >
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
                 <Shield size={18} className="text-amber-500" />
-                <p className="text-sm font-black">Təhlükəsizlik</p>
+                <p className="text-sm font-black">{t('security')}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 transition-all">
                 <X size={16} />
@@ -97,7 +100,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
             </div>
 
             <p className={`text-[10px] font-bold uppercase tracking-widest mb-4 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-              {title || `${ACTION_LABELS[action] || 'Admin əməliyyatı'} üçün PIN daxil edin`}
+              {title || `${t(ACTION_LABELS[action] as any || 'admin_action')} ${t('pin_for')}`}
             </p>
 
             <input
@@ -121,7 +124,6 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
                 <motion.p
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
                   className="text-xs font-bold text-red-400 mt-2 text-center"
                 >
                   {error}
@@ -131,7 +133,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
 
             <div className="flex gap-3 mt-5">
               <button onClick={onClose} className={`flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
-                Ləğv
+                t('cancel')
               </button>
               <button
                 onClick={handleSubmit}
@@ -141,9 +143,9 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
                 {verifying ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Yoxlanılır
+                    t('checking')
                   </span>
-                ) : 'Təsdiqlə'}
+                ) : t('confirm')}
               </button>
             </div>
           </motion.div>

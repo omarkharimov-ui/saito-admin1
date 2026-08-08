@@ -7,7 +7,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
-import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
+import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 
 interface OrderItem {
   id: string;
@@ -130,9 +130,9 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
         })
       });
 
-      if (!res.ok) throw new Error('Hesabı bölmək mümkün olmadı');
+      if (!res.ok) throw new Error(t('bill_split_error'));
       
-      toast.success('Hesab uğurla bölündü');
+      toast.success(t('bill_split_success'));
       onSuccess();
       onClose();
     } catch (e: any) {
@@ -146,17 +146,17 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
     <AnimatePresence>
       {open && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop} className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm" onClick={onClose} />
-          <motion.div {...appleCard} className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit} className="fixed inset-0 z-[150] bg-black/60" onClick={onClose} />
+          <motion.div {...appleCard} transition={fastExit} className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
             <div className={`border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'} rounded-[2.5rem] w-full max-w-xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col pointer-events-auto`}>
               {/* Header */}
               <div className={`p-8 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'} flex items-center justify-between`}>
                 <div>
                   <div className="flex items-center gap-3 mb-1">
                     <Split size={20} className="text-blue-500" />
-                    <h2 className={`text-2xl font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>Hesabı Böl</h2>
+                    <h2 className={`text-2xl font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{t('split_bill')}</h2>
                   </div>
-                  <p className={`text-xs font-bold uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Yeni hesaba keçəcək məhsulları seçin</p>
+                  <p className={`text-xs font-bold uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('select_items_to_move')}</p>
                 </div>
                 <button onClick={onClose} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'}`}><X size={20} /></button>
               </div>
@@ -202,7 +202,7 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
                   );
                 })}
                 {comboGroups.length === 0 && standaloneItems.length === 0 && (
-                  <div className={`text-center py-8 text-sm ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>Məhsul tapılmadı</div>
+                  <div className={`text-center py-8 text-sm ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>{t('product_not_found')}</div>
                 )}
               </div>
 
@@ -210,12 +210,12 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
               <div className={`p-8 border-t space-y-4 ${lightMode ? 'border-zinc-100 bg-zinc-50' : 'border-white/5 bg-black/20'}`}>
                  <div className="flex items-center justify-between">
                     <div>
-                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>Seçilmiş Cəmi</p>
+                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>{t('selected_total')}</p>
                         <p className="text-2xl font-black text-blue-500 tabular-nums">{selectedTotal.toFixed(2)} ₼</p>
                     </div>
                     <div className="text-right">
-                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>Məhsul Sayı</p>
-                        <p className={`text-lg font-black ${lightMode ? 'text-zinc-900' : 'text-white/80'}`}>{selectedCount} ədəd</p>
+                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>{t('product_count')}</p>
+                        <p className={`text-lg font-black ${lightMode ? 'text-zinc-900' : 'text-white/80'}`}>{selectedCount} t('pcs')</p>
                     </div>
                  </div>
                  <button 
@@ -224,7 +224,7 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
                   className="w-full py-5 rounded-2xl bg-blue-500 hover:bg-blue-600 disabled:opacity-30 disabled:grayscale text-white font-black uppercase tracking-[0.2em] text-sm shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-3"
                  >
                    {loading ? <Loader2 size={18} className="animate-spin" /> : <Split size={18} />}
-                   {loading ? 'Bölünür...' : 'Hesabı Böl və Yeni Sifariş Yarat'}
+                   {loading ? t('splitting') : t('split_and_create')}
                  </button>
               </div>
             </div>

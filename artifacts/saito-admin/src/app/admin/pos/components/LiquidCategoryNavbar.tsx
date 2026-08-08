@@ -52,16 +52,16 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
   }, [activeId, items]);
   
   return (
-    <div className={`relative flex gap-4 items-center overflow-x-auto scrollbar-none no-scrollbar select-none py-1.5 px-6 rounded-full ${
-      lightMode ? 'bg-[#efeff4]' : 'bg-white/5'
+    <div className={`relative flex items-center overflow-x-auto scrollbar-none no-scrollbar select-none py-2 px-3 rounded-full ${
+      lightMode ? 'bg-zinc-100' : 'bg-white/[0.06]'
     }`}>
       {showLeftFade && (
         <div className="absolute left-0 top-0 bottom-0 w-8 z-20 pointer-events-none rounded-l-full"
-          style={{ background: `linear-gradient(to right, ${lightMode ? '#efeff4' : 'rgba(255,255,255,0.05)'}, transparent)` }} />
+          style={{ background: `linear-gradient(to right, ${lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.05)'}, transparent)` }} />
       )}
       {showRightFade && (
         <div className="absolute right-0 top-0 bottom-0 w-8 z-20 pointer-events-none rounded-r-full"
-          style={{ background: `linear-gradient(to left, ${lightMode ? '#efeff4' : 'rgba(255,255,255,0.05)'}, transparent)` }} />
+          style={{ background: `linear-gradient(to left, ${lightMode ? '#f3f4f6' : 'rgba(255,255,255,0.05)'}, transparent)` }} />
       )}
       {items.map((item, idx) => {
         const isActive = activeId === item.id;
@@ -71,24 +71,22 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
             key={item.id ?? 'all'}
             ref={el => { itemRefs.current[idx] = el; }}
             onClick={() => onChange(item.id)}
-            className="relative px-4 rounded-full transition-colors duration-300 flex-shrink-0 outline-none focus-visible:ring-0 group h-[40px] flex items-center justify-center min-w-[100px]"
+            className="relative px-4 rounded-full transition-all duration-200 flex-shrink-0 outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/50 group h-[36px] flex items-center justify-center min-w-[90px]"
           >
-            {isActive && (
-              <motion.div
-                layoutId="active-pill"
-                transition={{
-                  type: "spring",
-                  stiffness: 400,
-                  damping: 30
-                }}
-                className={`absolute inset-[3px] z-0 rounded-full shadow-md ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
-              />
-            )}
+             {isActive && (
+               <motion.div
+                 initial={{ opacity: 0, scale: 0.9 }}
+                 animate={{ opacity: 1, scale: 1 }}
+                 exit={{ opacity: 0, scale: 0.9 }}
+                 transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
+                 className={`absolute inset-[2px] z-0 rounded-full shadow-sm ${lightMode ? 'bg-zinc-800' : 'bg-white'}`}
+               />
+             )}
             
-            <span className={`relative z-10 text-[11px] font-black uppercase tracking-widest transition-colors duration-300 whitespace-nowrap ${
+            <span className={`relative z-10 text-[10px] font-medium uppercase tracking-wider transition-colors duration-200 whitespace-nowrap ${
               isActive 
-                ? (lightMode ? 'text-white' : 'text-black') 
-                : (lightMode ? 'text-zinc-500 hover:text-zinc-900' : 'text-white/40 hover:text-white')
+                ? (lightMode ? 'text-black' : 'text-black') 
+                : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/50 hover:text-white/80')
             }`}>
               {item.name}
             </span>

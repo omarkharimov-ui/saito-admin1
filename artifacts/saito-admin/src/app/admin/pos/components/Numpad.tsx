@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 
 interface NumpadProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface NumpadProps {
 }
 
 export function Numpad({ open, value, min = 1, max = 99, onClose, onConfirm }: NumpadProps) {
+  const { t } = useLanguage();
   const { lightMode } = useTheme();
   const [display, setDisplay] = useState(String(value));
   const inputRef = useRef<HTMLButtonElement>(null);
@@ -55,17 +57,18 @@ export function Numpad({ open, value, min = 1, max = 99, onClose, onConfirm }: N
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          key="numpad"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={appleBackdrop}
-          className="fixed inset-0 z-[135] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={onClose}
-        >
+          <motion.div
+            key="numpad"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={fastExit}
+            className="fixed inset-0 z-[135] flex items-center justify-center bg-black/60"
+            onClick={onClose}
+          >
           <motion.div
             {...appleCard}
+            transition={fastExit}
             onClick={e => e.stopPropagation()}
             className={`w-72 rounded-3xl p-5 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
           >
@@ -104,13 +107,13 @@ export function Numpad({ open, value, min = 1, max = 99, onClose, onConfirm }: N
               disabled={!isValid}
               className="w-full mt-3 py-4 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
             >
-              Təsdiqlə
+              t('confirm')
             </button>
             <button
               onClick={onClose}
               className="w-full mt-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all"
             >
-              Ləğv
+              t('cancel')
             </button>
           </motion.div>
         </motion.div>

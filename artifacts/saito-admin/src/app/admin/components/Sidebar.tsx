@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOut, Activity, ChevronRight, Zap } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import { filterNavByRole, getAdminNavItems } from './layout/adminNavLinks';
+import { playHapticSound } from '@/lib/haptic';
 
 // --- Apple System Sound Synthesizer ---
 const playSystemSound = (type: 'on' | 'off' | 'pop') => {
@@ -68,7 +69,7 @@ const Sidebar = ({
   );
 
   const handleLogout = async () => {
-    playSystemSound('off');
+    playHapticSound('off');
     document.cookie = 'saito_role=; Path=/; Max-Age=0';
     document.cookie = 'isLoggedIn=; Path=/; Max-Age=0';
     await supabase.auth.signOut();
@@ -77,15 +78,12 @@ const Sidebar = ({
 
   return (
     <div
-      className={`fixed inset-y-0 left-0 z-50 flex flex-col ${
+      className={`fixed inset-y-0 left-0 z-50 flex flex-col transition-transform duration-250 ease-out ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
       style={{ width: 290 }}
     >
-      {/* Sidebar container */}
-      <div className="ml-0 my-0 flex-1 flex flex-col overflow-hidden rounded-r-[28px] border-r border-[var(--theme-border)] bg-[var(--theme-surface)] relative">
-        
-        {/* Navigation */}
+      <div className="ml-0 my-0 flex-1 flex flex-col overflow-hidden rounded-r-[24px] border-r border-[var(--theme-border)] bg-[var(--theme-surface)] relative">
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-none py-3">
           {links.map((link) => {
             const Icon = link.icon;
@@ -95,49 +93,47 @@ const Sidebar = ({
               <motion.div
                 key={link.id}
                 whileTap={{ scale: 0.97, y: 1 }}
-                onTapStart={() => playSystemSound('pop')}
+                onTapStart={() => playHapticSound('pop')}
+                transition={{ duration: 0.08, ease: [0.4, 0, 0.2, 1] }}
               >
                 <Link
                   href={link.href}
                   onClick={onClose ? () => onClose() : undefined}
-                  className={`group relative flex items-center gap-3.5 px-4 py-3.5 rounded-[18px] transition-all duration-300 ${
-                    isActive 
-                      ? 'bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]' 
-                      : 'hover:bg-[var(--theme-surface-soft)]'
+                  className={`group relative flex items-center gap-3 px-4 py-3 rounded-[16px] transition-all duration-200 ${
+                    isActive
+                      ? 'text-[var(--theme-text)] font-semibold bg-[var(--theme-surface-soft)]'
+                      : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]'
                   }`}
                 >
-                  <div className={`relative flex items-center justify-center transition-all duration-300 ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text)]'}`}>
-                    <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-                    {isActive && (
-                      <motion.div layoutId="active-glow" className="absolute inset-0 blur-xl bg-gold/20 -z-10" />
-                    )}
+                  <div className={`relative flex items-center justify-center transition-all duration-200 ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text)]'}`}>
+                    <Icon size={isActive ? 20 : 18} strokeWidth={isActive ? 2.5 : 2} />
                   </div>
 
-                  <span className={`flex-1 text-[11px] font-bold tracking-[0.15em] uppercase transition-all duration-300 ${isActive ? 'text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] group-hover:text-[var(--theme-text)]'}`}>
+                  <span className={`flex-1 text-[11px] font-bold tracking-[0.15em] uppercase leading-none transition-all duration-200`}>
                     {link.name}
                   </span>
 
-                  <AnimatePresence>
-                    {isActive && (
-                      <motion.div 
-                        initial={{ opacity: 0, x: -10 }} 
-                        animate={{ opacity: 1, x: 0 }}
-                        className="w-1 h-1 rounded-full bg-gold"
-                      />
-                    )}
-                  </AnimatePresence>
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-glow"
+                      className="absolute inset-0 rounded-[16px] bg-gold/10 -z-10"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
+                    />
+                  )}
                 </Link>
               </motion.div>
             );
           })}
         </nav>
 
-        {/* Logout */}
         <div className="p-4">
-          <motion.button 
+          <motion.button
             onClick={handleLogout}
             whileTap={{ scale: 0.95 }}
-            className="w-full flex items-center justify-center gap-3 py-4 rounded-[24px] bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-black uppercase tracking-[0.3em] hover:bg-rose-500/20 transition-all"
+            transition={{ duration: 0.08, ease: [0.4, 0, 0.2, 1] }}
+            className="w-full flex items-center justify-center gap-3 py-3 rounded-[24px] bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-black uppercase tracking-[0.3em] hover:bg-rose-500/20 transition-all"
           >
             <LogOut size={16} />
             {t('logout')}

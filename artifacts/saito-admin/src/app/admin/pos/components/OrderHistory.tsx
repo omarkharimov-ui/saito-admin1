@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Printer, X, ChevronLeft, Search, CalendarDays, RefreshCw, Split, Ban, Receipt } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
-import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
+import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 import { PinGuard } from './PinGuard';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
 import { toast } from '@/lib/toast';
@@ -46,6 +47,7 @@ interface OrderHistoryProps {
 
 export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const { lightMode } = useTheme();
+  const { t } = useLanguage();
   const [orders, setOrders] = useState<PaidOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [reprinting, setReprinting] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const filteredOrders = orders.filter(order => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    const orderLabel = order.table_number ? `masa ${order.table_number}` : order.order_source === 'takeaway' ? `gel-al ${order.order_number || ''}` : order.order_source === 'delivery' ? `çatdırılma ${order.order_number || ''}` : `#${order.order_number || order.id.slice(0, 8)}`;
+    const orderLabel = order.table_number ? `${t('table_label')} ${order.table_number}` : order.order_source === 'takeaway' ? `${t('takeaway_short')} ${order.order_number || ''}` : order.order_source === 'delivery' ? `${t('delivery_short')} ${order.order_number || ''}` : `#${order.order_number || order.id.slice(0, 8)}`;
     const itemNames = (order.order_items || []).map(i => i.product_name || i.products?.name_az || '').join(' ').toLowerCase();
     const customerName = (order.customer_name || '').toLowerCase();
     return orderLabel.includes(q) || itemNames.includes(q) || customerName.includes(q);
@@ -161,17 +163,17 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
         }),
       });
       if (res.ok) {
-        toast.success('Qaytarma uğurla tamamlandı');
+        toast.success(t('refund_success'));
         fetchOrders();
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Qaytarma uğursuz');
+        toast.error(err.error || t('refund_failed'));
       }
-    } catch { toast.error('Xəta baş verdi'); }
-    setTimeout(() => setRefunding(null), 1500);
-  };
+    } catch { toast.error(t('error_occurred')); }
+      setTimeout(() => setRefunding(null), 1500);
+    };
 
-  const handleSplit = async (order: PaidOrder) => {
+    const handleSplit = async (order: PaidOrder) => {
     const posRoleNorm = posRole?.toLowerCase() || '';
     if (requiresPin(posRoleNorm)) {
       setPendingSplit(order);
@@ -205,36 +207,37 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
         }),
       });
       if (res.ok) {
-        toast.success('Sifariş bölündü');
+        toast.success(t('order_split'));
         fetchOrders();
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Bölüşdürmə uğursuz');
+        toast.error(err.error || t('split_failed'));
       }
-    } catch { toast.error('Xəta baş verdi'); }
+    } catch { toast.error(t('error_occurred')); }
     setTimeout(() => setSplitting(null), 1500);
   };
 
   if (!open) return null;
 
   const filters = [
-    { id: 'all', label: 'Hamısı' },
-    { id: 'dine_in', label: 'İçəridə' },
-    { id: 'takeaway', label: 'Gel-Al' },
-    { id: 'delivery', label: 'Çatdır' },
+    { id: 'all', labelKey: 'all_products' },
+    { id: 'dine_in', labelKey: 'dine_in' },
+    { id: 'takeaway', labelKey: 'takeaway' },
+    { id: 'delivery', labelKey: 'delivery' },
   ];
 
   return (
     <AnimatePresence>
-    <motion.div
-      key="order-history-backdrop"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={appleBackdrop}
-      className="fixed inset-0 z-[125] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+      <motion.div
+        key="order-history-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={fastExit}
+        className="fixed inset-0 z-[125] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <motion.div
         {...appleCard}
+        transition={fastExit}
         className={`relative w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col ${
           lightMode ? 'bg-white' : 'bg-zinc-900'
         }`}
@@ -246,7 +249,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 transition-all">
               <ChevronLeft size={18} />
             </button>
-            <h2 className="text-base font-black tracking-tight">Sifariş Tarixçəsi</h2>
+            <h2 className="text-base font-black tracking-tight">{t('order_history')}</h2>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 transition-all">
             <X size={18} />
@@ -265,7 +268,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                   : lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'
               }`}
             >
-              {f.label}
+              {t(f.labelKey as any)}
             </button>
           ))}
         </div>
@@ -277,7 +280,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Sifariş, məhsul və ya müştəri axtar..."
+              placeholder={t('search_orders')}
               className={`w-full rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold outline-none border transition-all ${
                 lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-emerald-400/50'
               }`}
@@ -309,7 +312,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
             />
             {(dateFrom || dateTo) && (
               <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">
-                Təmizlə
+                {t('clear')}
               </button>
             )}
           </div>
@@ -323,7 +326,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
             </div>
           ) : filteredOrders.length === 0 ? (
             <p className="text-center text-xs opacity-40 py-12">
-              {searchQuery || dateFrom || dateTo ? 'Axtarış nəticəsi yoxdur' : 'Ödənilmiş sifariş yoxdur'}
+              {searchQuery || dateFrom || dateTo ? t('no_search_results') : t('no_paid_orders')}
             </p>
           ) : (
             filteredOrders.map(order => (
@@ -336,14 +339,14 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black tabular-nums">
-                      {order.table_number ? `Masa ${order.table_number}` : order.order_source === 'takeaway' ? `Gel-Al ${order.order_number || ''}` : order.order_source === 'delivery' ? `Çatdırılma ${order.order_number || ''}` : `#${order.order_number || order.id.slice(0, 8)}`}
+                       {order.table_number ? `${t('table_label')} ${order.table_number}` : order.order_source === 'takeaway' ? `${t('takeaway_short')} ${order.order_number || ''}` : order.order_source === 'delivery' ? `${t('delivery_short')} ${order.order_number || ''}` : `#${order.order_number || order.id.slice(0, 8)}`}
                     </span>
                     <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
                       order.order_source === 'takeaway' ? 'bg-amber-500/10 text-amber-500' :
                       order.order_source === 'delivery' ? 'bg-blue-500/10 text-blue-500' :
                       'bg-emerald-500/10 text-emerald-500'
                     }`}>
-                      {order.order_source === 'takeaway' ? 'Gel-Al' : order.order_source === 'delivery' ? 'Çatdır' : 'İçəridə'}
+                       {order.order_source === 'takeaway' ? t('takeaway') : order.order_source === 'delivery' ? t('delivery') : t('dine_in')}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 mt-1">
@@ -364,7 +367,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                       onClick={() => handleReprint(order)}
                       disabled={reprinting === order.id}
                       className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 transition-all disabled:opacity-30"
-                      title="Yenidən çap et"
+                      title={t('reprint')}
                     >
                       {reprinting === order.id ? (
                         <div className="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
@@ -376,7 +379,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                       onClick={() => handleRefund(order)}
                       disabled={refunding === order.id}
                       className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 transition-all disabled:opacity-30"
-                      title="Qaytarma"
+                      title={t('refund')}
                     >
                       {refunding === order.id ? (
                         <div className="w-4 h-4 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
@@ -388,7 +391,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                       onClick={() => handleSplit(order)}
                       disabled={splitting === order.id}
                       className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 hover:bg-blue-500/20 transition-all disabled:opacity-30"
-                      title="Bölüşdür"
+                      title={t('split')}
                     >
                       {splitting === order.id ? (
                         <div className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />

@@ -35,7 +35,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
       onClick={handleClick}
       className={`
         relative h-[72px] rounded-[24px] font-black uppercase tracking-[0.2em] text-[13px]
-        flex items-center justify-center gap-3 transition-all duration-300
+        flex items-center justify-center gap-3 transition-all duration-150
         ${status === 'loading' ? 'cursor-wait' : 'cursor-pointer'}
         ${variant === 'loss' 
           ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/20' 
@@ -55,30 +55,28 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
         <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${lightMode ? 'bg-zinc-900 shadow-[0_0_8px_rgba(0,0,0,0.3)]' : 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]'}`} />
       )}
 
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="sync" initial={false}>
         {isLoading ? (
-          <motion.span
+            <motion.span
             key="loading"
             initial={{ opacity: 0, rotate: -90 }}
             animate={{ opacity: 1, rotate: 0 }}
-            exit={{ opacity: 0, rotate: 90 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
           >
             <Loader2 size={20} className="animate-spin text-white" />
           </motion.span>
         ) : isSuccess ? (
-          <motion.span
+            <motion.span
             key="success"
             initial={{ opacity: 0, scale: 0.4, width: 0 }}
             animate={{ opacity: 1, scale: 1, width: 'auto' }}
-            exit={{ opacity: 0, scale: 0.4 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 18 }}
+            transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
             className="flex items-center gap-2 overflow-hidden whitespace-nowrap"
           >
             <motion.span
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
+              transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-300">
                 <polyline points="20 6 9 17 4 12" />
@@ -87,35 +85,33 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
             <motion.span
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2, delay: 0.25 }}
+              transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
               className="text-emerald-100"
             >
-              Təsdiqləndi
+              t('confirmed')
             </motion.span>
           </motion.span>
         ) : isError ? (
-          <motion.span
+            <motion.span
             key="failed"
             initial={{ opacity: 0, scale: 0.4 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.4 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
             className="flex items-center gap-2"
           >
             <span className="text-xl leading-none text-red-400">×</span>
-            <span className="text-[11px] font-black text-red-300 uppercase tracking-wider">Xəta — Yenidən Cəhd</span>
+            <span className="text-[11px] font-black text-red-300 uppercase tracking-wider">{t('error_retry')}</span>
           </motion.span>
         ) : (
-          <motion.span
+            <motion.span
             key="idle"
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
             className="flex items-center gap-2.5"
           >
             {variant === 'send' ? <Send size={16} /> : <CheckCircle size={16} />}
-            {label || (variant === 'send' ? t('send_to_kitchen') : 'Dəyişiklikləri Təsdiqlə')}
+            {label || (variant === 'send' ? t('send_to_kitchen') : t('confirm_changes'))}
           </motion.span>
         )}
       </AnimatePresence>

@@ -166,12 +166,12 @@ export function KDSView({ onBack }: { onBack: () => void }) {
 
         if (kdsOrders.length > prevOrderCountRef.current && prevOrderCountRef.current > 0) {
           playSound();
-          toast(`${kdsOrders.length - prevOrderCountRef.current} yeni sifariş!`, { id: 'kds-toast' });
+          toast(`${kdsOrders.length - prevOrderCountRef.current} ${t('new_order')}!`, { id: 'kds-toast' });
         }
         prevOrderCountRef.current = kdsOrders.length;
         setOrders(kdsOrders);
       } catch {
-        toast.error('Mətbəx sifarişləri yüklənərkən xəta', { id: 'kds-toast' });
+        toast.error(t('orders_load_error'), { id: 'kds-toast' });
       } finally {
         setLoading(false);
       }
@@ -193,7 +193,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
         items: o.items.map(i => i.id === itemId ? { ...i, kitchen_status: status } : i),
       })));
     } catch {
-      toast.error('Status yenilənərkən xəta', { id: 'kds-toast' });
+      toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
   };
 
@@ -205,9 +205,9 @@ export function KDSView({ onBack }: { onBack: () => void }) {
         body: JSON.stringify({ order_id: orderId }),
       });
       setOrders(prev => prev.filter(o => o.id !== orderId));
-      toast.success('Sifariş hazır!', { id: 'kds-toast' });
+      toast.success(`${t('order_ready')}!`, { id: 'kds-toast' });
     } catch {
-      toast.error('Status yenilənərkən xəta', { id: 'kds-toast' });
+      toast.error(t('status_update_error'), { id: 'kds-toast' });
     }
   };
 
@@ -220,8 +220,8 @@ export function KDSView({ onBack }: { onBack: () => void }) {
             <ChefHat size={18} />
           </div>
           <div>
-            <p className={`text-lg font-bold tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>Mətbəx Ekranı</p>
-            <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{orders.length} aktiv sifariş</p>
+            <p className={`text-lg font-bold tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>{t('kds_screen')}</p>
+            <p className={`text-xs ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>{orders.length} {t('active_orders_short')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -232,7 +232,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
             {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
           <button onClick={onBack} className={`h-9 px-3.5 rounded-2xl text-xs font-semibold transition-all border ${lightMode ? 'text-gray-500 hover:text-gray-700 bg-white border-gray-200' : 'text-white/35 hover:text-white/65 bg-white/[0.04] border-white/[0.08]'}`}>
-            Geri
+            {t('back')}
           </button>
         </div>
       </div>
@@ -242,7 +242,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
         {orders.length === 0 ? (
           <div className={`flex flex-col items-center justify-center h-full ${lightMode ? 'text-gray-400' : 'text-white/15'}`}>
             <CheckCircle2 size={40} className="mb-3 opacity-30" />
-            <p className="text-sm">Bütün sifarişlər hazırdır</p>
+            <p className="text-sm">{t('all_orders_ready')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -266,7 +266,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className={`text-xl font-black tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
-                          {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? 'Gel-Al' : 'Çatdırma')}
+                          {order.order_source === 'dine_in' ? `Masa ${order.table_number ?? '?'}` : order.customer_name || (order.order_source === 'takeaway' ? t('takeaway_short') : t('delivery_short'))}
                         </span>
                         {getOrderBadge(order, lightMode)}
                         {(timer.color === 'red' || timer.color === 'purple') && (
@@ -313,7 +313,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                               {!itemReady ? (
                                 <button
                                   onClick={() => handleItemStatus(item.id, 'ready')}
-                                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all active:scale-90 ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:border-emerald-300 hover:text-emerald-500' : 'bg-white/5 border-white/10 text-white/40 hover:border-emerald-500/30 hover:text-emerald-400'}`}
+                                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all active:scale-95 ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:border-emerald-300 hover:text-emerald-500' : 'bg-white/5 border-white/10 text-white/40 hover:border-emerald-500/30 hover:text-emerald-400'}`}
                                 >
                                   ✓
                                 </button>
@@ -340,7 +340,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                         onClick={() => handleMarkReady(order.id)}
                         className={`w-full py-2.5 rounded-2xl text-xs font-bold transition-all ${lightMode ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}
                       >
-                        Sifarişi Tamamla
+                        t('complete_order')
                       </button>
                     )}
                   </div>

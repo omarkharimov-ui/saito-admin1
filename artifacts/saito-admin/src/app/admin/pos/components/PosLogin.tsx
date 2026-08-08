@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion } from 'framer-motion';
 import { Lock, User, X } from 'lucide-react';
 
@@ -9,6 +10,7 @@ interface PosLoginProps {
 }
 
 export function PosLogin({ onLogin }: PosLoginProps) {
+  const { t } = useLanguage();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,7 +44,7 @@ export function PosLogin({ onLogin }: PosLoginProps) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Yanlış PIN');
+        setError(data.error || t('wrong_pin'));
         setPin('');
         return;
       }
@@ -57,7 +59,7 @@ export function PosLogin({ onLogin }: PosLoginProps) {
         document.cookie = `saito_csrf=${csrfToken}; path=/; max-age=${12 * 60 * 60}; SameSite=Strict`;
       }
     } catch {
-      setError('Server xətası');
+      setError(t('server_error'));
       setPin('');
     } finally {
       setLoading(false);
@@ -78,7 +80,7 @@ export function PosLogin({ onLogin }: PosLoginProps) {
           <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
             <Lock size={28} className="text-white/40" />
           </div>
-          <h1 className="text-xl font-black text-white tracking-tight">POS Girişi</h1>
+          <h1 className="text-xl font-black text-white tracking-tight">{t('pos_login')}</h1>
           <p className="text-xs text-white/30 font-medium">PIN daxil edin</p>
         </div>
 
@@ -140,7 +142,7 @@ export function PosLogin({ onLogin }: PosLoginProps) {
         {loading && (
           <div className="flex items-center gap-2 text-xs text-white/30">
             <div className="w-3 h-3 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-            Yoxlanılır...
+            t('checking') + '...'
           </div>
         )}
       </motion.div>

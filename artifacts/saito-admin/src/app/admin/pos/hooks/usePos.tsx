@@ -4,10 +4,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createRealtimeChannel, removeRealtimeChannel } from '@/lib/realtime';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 import type { PosProduct, PosTable, PosCart, PosCartItem, PosModifierSelection } from '../types/shared';
 
 export function usePos() {
+  const { t } = useLanguage();
   const [floors, setFloors] = useState<any[]>([]);
   const [products, setProducts] = useState<PosProduct[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -21,6 +23,7 @@ export function usePos() {
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [posMode, setPosMode] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in');
   const [cart, setCart] = useState<PosCart | null>(null);
+  const [tableOrderCache, setTableOrderCache] = useState<Record<number, any>>({});
   const [reservationMode, setReservationMode] = useState(false);
   const [reservationId, setReservationId] = useState<string | null>(null);
   const [reservationPreOrderItems, setReservationPreOrderItems] = useState<any[]>([]);
@@ -83,7 +86,7 @@ export function usePos() {
         if (tablesRes.status === 401) {
           window.dispatchEvent(new CustomEvent('pos:unauthorized'));
         }
-        toast.error('Masa məlumatları yenilənə bilmədi', { id: 'pos-tables-stale' });
+        toast.error(t('table_data_refresh_error'), { id: 'pos-tables-stale' });
       }
     } catch (e) {
       console.error('POS floor fetch error:', e);
@@ -120,9 +123,51 @@ export function usePos() {
   const fetchData = useCallback(async () => {
     try {
       await Promise.all([fetchFloor(), fetchCatalog()]);
+      // Pre-fetch order items for all active tables in the background
+      // so the cart is instantly populated when a table is tapped
+      const activeTables = (floorsRef.current || [])
+        .flatMap((f: any) => (f.tables || []).filter((t: any) =>
+          ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(t.status)
+        ))
+        .map((t: any) => t.table_number);
+      const uniqueTables = [...new Set(activeTables)];
+      for (const tableNum of uniqueTables) {
+        const params = `table_number=${tableNum}`;
+        apiFetch(`/api/orders?${params}`)
+          .then(async (res) => {
+            if (res.ok) {
+              const data = await res.json();
+              const orderItems = (data.orders || []).flatMap((o: any) =>
+                (o.items || []).map((item: any) => ({
+                  id: `${o.id}_${item.product_id}`,
+                  product_id: item.product_id,
+                  product_name: (item.products || { name: '' }).name || '',
+                  quantity: item.quantity || 0,
+                  unit_price: item.unit_price || 0,
+                  original_unit_price: item.unit_price || 0,
+                  total_price: item.total_price || (item.unit_price || 0) * (item.quantity || 0),
+                  sentQuantity: item.quantity || 0,
+                  sent: true,
+                  campaign_badge: null,
+                  effective_price: null,
+                  modifiers: [],
+                  note: item.note || null,
+                  variant: null,
+                  station: item.station || 'kitchen',
+                  course: item.course || 'mains',
+                  priority: item.priority || 'normal',
+                  hold_until: null,
+                  order_id: o.id,
+                }))
+              );
+              setTableOrderCache(prev => ({ ...prev, [tableNum]: { orders: data.orders, items: orderItems } }));
+            }
+          })
+          .catch(() => {});
+      }
     } catch (e) {
       console.error('POS fetch error:', e);
-      toast.error('Məlumatlar yüklənərkən xəta baş verdi', { id: 'action-toast' });
+      toast.error(t('data_load_error'), { id: 'action-toast' });
     } finally {
       setLoading(false);
     }
@@ -172,12 +217,12 @@ export function usePos() {
     if (sameTable && activeView === 'order') return;
 
     if (table.status === 'reserved' && !opts?.allowReserved) {
-      toast.error('Bu masa rezerv edilib. Öncə rezervasiyanı aktivləşdirməlisiniz.', { id: 'action-toast' });
+      toast.error(t('table_reserved_activate'), { id: 'action-toast' });
       return;
     }
 
     if (table.status === 'waiting') {
-      toast.error('Bu masada qonaq gözlənilir. Məsələni yönləndirin.', { id: 'action-toast' });
+      toast.error(t('guest_waiting_redirect'), { id: 'action-toast' });
       return;
     }
 
@@ -194,12 +239,14 @@ export function usePos() {
 
     // Set a loading cart immediately so the UI is not blank during fetch
     if (switchingToDifferentTable || !cart) {
-      // For a different table: show sent items optimistically while we fetch
+      // Use cached order data if available (pre-fetched from floor load)
+      const cached = tableOrderCache[table.table_number];
+      const cachedItems = cached?.items || (switchingToDifferentTable ? [] : sentItems);
       setCart({
         table_number: table.table_number,
         guest_count: table.guest_count || 1,
-        items: switchingToDifferentTable ? [] : sentItems,
-        notes: '',
+        items: cachedItems,
+        notes: cached?.orders?.[0]?.notes || '',
         order_type: 'dine_in'
       });
     }
@@ -345,9 +392,9 @@ export function usePos() {
         toast.error(data?.error || 'Merge failed');
         return null;
       }
-      setLastUndo({ action: 'merge', data: data.data?.undo, message: 'Masalar birləşdirildi' });
+      setLastUndo({ action: 'merge', data: data.data?.undo, message: t('tables_merged') });
       fetchFloor();
-      return { action: 'merge' as const, data: data.data?.undo, message: 'Masalar birləşdirildi' };
+      return { action: 'merge' as const, data: data.data?.undo, message: t('tables_merged') };
     });
   };
 
@@ -404,12 +451,12 @@ export function usePos() {
             if (t.merged_into_table === num) childNums.push(t.table_number);
           }
         }
-        toast.success('Masa boşaldıldı');
-        setLastUndo({ action: 'dismiss', data: { table_number: num, child_tables: childNums }, message: 'Masa boşaldıldı' });
-        fetchFloor();
+        markTableEmptyLocal([num, ...childNums]);
+        toast.success(t('table_cleared'));
+        setLastUndo({ action: 'dismiss', data: { table_number: num, child_tables: childNums }, message: t('table_cleared') });
       } else {
         const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
-        toast.error(err.error || 'Masa boşaldılmadı');
+        toast.error(err.error || t('table_clear_failed'));
       }
     });
   };
@@ -423,10 +470,11 @@ export function usePos() {
       });
       if (res.ok) {
         markTableEmptyLocal([num]);
-        fetchFloor();
+        toast.success(t('table_cleared'));
+        setLastUndo({ action: 'clear', data: { table_number: num, terminal_id: terminalId }, message: t('table_cleared') });
       } else {
         const err = await res.json().catch(() => ({ error: 'Clear failed' }));
-        toast.error(err.error || 'Masa təmizlənmədi');
+        toast.error(err.error || t('table_clean_failed'));
       }
     });
   };
@@ -447,11 +495,11 @@ export function usePos() {
           body: JSON.stringify({ action: 'dismiss_undo', data: lastUndo.data, terminal_id: terminalId }),
         });
         if (res.ok) {
-          toast.success('Geri alındı');
+          toast.success(t('restored'));
           await fetchFloor();
         } else {
           const err = await res.json();
-          toast.error(err.error || 'Geri alınmadı');
+          toast.error(err.error || t('restore_failed'));
         }
       } else {
         const res = await apiFetch('/api/orders/undo', {
@@ -460,11 +508,11 @@ export function usePos() {
           body: JSON.stringify({ action: lastUndo.action, data: lastUndo.data, terminal_id: terminalId }),
         });
         if (res.ok) {
-          toast.success('Geri alındı');
+          toast.success(t('restored'));
           await fetchFloor();
         } else {
           const err = await res.json();
-          toast.error(err.error || 'Geri alınmadı');
+          toast.error(err.error || t('restore_failed'));
         }
       }
     } finally {
@@ -698,7 +746,7 @@ export function usePos() {
 
       if (unsent.length === 0) {
         if (cart.items.length > 0) {
-          toast('Yeni məhsul yoxdur', { id: 'action-toast' });
+          toast(t('no_new_products'), { id: 'action-toast' });
         }
         setActiveView('floor');
         return;
@@ -778,7 +826,7 @@ export function usePos() {
       if (res.ok) {
         const data = await res.json();
         createdOrderId = data.data?.id || data.id || data.order?.id || activeOrderId;
-        toast.success('Sifariş göndərildi');
+        toast.success(t('order_sent'));
         logOperation('place_order', {
           order_id: createdOrderId,
           table_number: cart.table_number,
@@ -809,9 +857,9 @@ export function usePos() {
       } else {
         const err = await res.json();
         if (res.status === 409) {
-          toast.error('Sifariş eyni anda başqa terminaldan dəyişdirildi. Yenidən cəhd edin.', { id: 'action-toast' });
+          toast.error(t('order_changed_by_other_terminal'), { id: 'action-toast' });
         } else {
-          toast.error(err.error || 'Sifariş göndərilmədi', { id: 'action-toast' });
+          toast.error(err.error || t('order_not_sent'), { id: 'action-toast' });
         }
         // Refresh to clear any stale state so the user sees current server data
         fetchFloor().catch(() => {});
@@ -880,7 +928,7 @@ export function usePos() {
         if ((prev.guest_count || 1) !== newCount) return prev;
         return { ...prev, guest_count: previousCount };
       });
-      toast.error(e?.message || 'Qonaq sayı yenilənə bilmədi', { id: 'guest-count-error' });
+      toast.error(e?.message || t('guest_count_update_failed'), { id: 'guest-count-error' });
     }
   };
 
@@ -924,7 +972,7 @@ export function usePos() {
       guest_count: order.guest_count || 1,
       items: orderItems.map((item: any) => ({
         product_id: item.product_id,
-        product_name: item.product_name || item.products?.name_az || item.products?.name_en || 'Məhsul',
+        product_name: item.product_name || item.products?.name_az || item.products?.name_en || t('product'),
         unit_price: item.unit_price,
         quantity: item.quantity,
         total_price: item.total_price ?? item.unit_price * item.quantity,
@@ -1019,7 +1067,7 @@ export function usePos() {
           delivery_fee: details.delivery_fee || prev.delivery_fee,
           estimated_delivery_time: details.estimated_delivery_time || prev.estimated_delivery_time,
         } : null);
-        toast.success(`${orderNumber} yaradıldı`);
+        toast.success(`${orderNumber} ${t('order_created')}`);
         return orderId;
       }
     } catch (e) {
@@ -1064,14 +1112,14 @@ export function usePos() {
           ...prev,
           items: prev.items.map(i => ({ ...i, sentQuantity: i.quantity })),
         } : null);
-        toast.success('Pre-order yadda saxlanıldı');
+        toast.success(t('pre_order_saved'));
         fetchFloor();
       } else {
-        const err = await res.json().catch(() => ({ error: 'Xəta' }));
-        toast.error(err.error || 'Pre-order yadda saxlanıla bilmədi');
+        const err = await res.json().catch(() => ({ error: t('error') }));
+        toast.error(err.error || t('pre_order_save_failed'));
       }
     } catch {
-      toast.error('Xəta');
+      toast.error(t('error'));
     }
   };
 
@@ -1106,7 +1154,7 @@ export function usePos() {
 
       const cartItems: PosCartItem[] = merged.map((item: any) => ({
         product_id: item.product_id || '',
-        product_name: item.product_name || 'Məhsul',
+        product_name: item.product_name || t('product'),
         unit_price: Number(item.unit_price || 0),
         original_unit_price: Number(item.unit_price || 0),
         quantity: item.quantity || 1,
@@ -1188,7 +1236,7 @@ export function usePos() {
         }),
       });
       if (res.ok) {
-        toast.success('Qonaq gəldi — masa açıldı');
+        toast.success(t('guest_arrived_table_opened'));
         logOperation('guest_arrived', {
           reservation_id: reservationId,
           table_number: selectedTable?.table_number,
@@ -1197,11 +1245,11 @@ export function usePos() {
         exitReservationMode();
         fetchFloor();
       } else {
-        const err = await res.json().catch(() => ({ error: 'Xəta' }));
-        toast.error(err.error || 'Qonaq gəlmədi');
+        const err = await res.json().catch(() => ({ error: t('error') }));
+        toast.error(err.error || t('guest_not_arrived'));
       }
     } catch {
-      toast.error('Xəta');
+      toast.error(t('error'));
     }
   };
 

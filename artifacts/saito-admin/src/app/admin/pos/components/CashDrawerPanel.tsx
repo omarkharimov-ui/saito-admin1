@@ -7,7 +7,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
-import { appleSheet, appleBackdrop } from '@/lib/modal-transitions';
+import { appleSheet, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface CashDrawerSession {
@@ -98,12 +98,12 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
         body: JSON.stringify({ action: 'open', amount: Number(openingBalance) || 0 }),
       });
       if (res.ok) {
-        toast.success('Kassa açıldı');
+        toast.success(t('cash_drawer_open'));
         setOpeningBalance('');
         await fetchData();
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Xəta');
+        toast.error(err.error || t('error'));
       }
     } catch (e: any) { toast.error(e.message); }
     setSubmitting(false);
@@ -119,14 +119,14 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
         body: JSON.stringify({ action: type, session_id: session.id, amount: Number(cashAmount), description: cashDesc || null }),
       });
       if (res.ok) {
-        toast.success(type === 'cash_in' ? 'Daxilolma qeydə alındı' : 'Xərc qeydə alındı');
+        toast.success(type === 'cash_in' ? t('cash_in_recorded') : t('expense_recorded'));
         setCashAmount('');
         setCashDesc('');
         setView('main');
         await fetchData();
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Xəta');
+        toast.error(err.error || t('error'));
       }
     } catch (e: any) { toast.error(e.message); }
     setSubmitting(false);
@@ -144,9 +144,9 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
       if (res.ok) {
         const data = await res.json();
         if (data.difference !== 0) {
-          toast.error(`Fərq: ${data.difference > 0 ? '+' : ''}${data.difference.toFixed(2)}₼`);
+          toast.error(`${t('difference_short')}: ${data.difference > 0 ? '+' : ''}${data.difference.toFixed(2)}₼`);
         } else {
-          toast.success('Kassa düzgün bağlandı');
+          toast.success(t('cash_drawer_closed'));
         }
         setCashAmount('');
         setCashDesc('');
@@ -154,7 +154,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
         await fetchData();
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Xəta');
+        toast.error(err.error || t('error'));
       }
     } catch (e: any) { toast.error(e.message); }
     setSubmitting(false);
@@ -178,24 +178,25 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
 
   const shiftDuration = session?.opened_at ? formatDuration(session.opened_at, session.closed_at) : '0s 0dq';
 
-  const typeLabels: Record<string, { label: string; icon: typeof Wallet; color: string }> = {
-    open: { label: 'Kassa açıldı', icon: Unlock, color: 'text-green-500' },
-    close: { label: 'Kassa bağlandı', icon: Lock, color: 'text-zinc-500' },
-    cash_in: { label: 'Daxilolma', icon: ArrowDownCircle, color: 'text-green-500' },
-    cash_out: { label: 'Xərc', icon: ArrowUpCircle, color: 'text-red-500' },
-    payment: { label: 'Nağd ödəniş', icon: DollarSign, color: 'text-emerald-500' },
+  const typeLabels: Record<string, { labelKey: string; icon: typeof Wallet; color: string }> = {
+    open: { labelKey: 'cash_drawer_open', icon: Unlock, color: 'text-green-500' },
+    close: { labelKey: 'cash_drawer_closed', icon: Lock, color: 'text-zinc-500' },
+    cash_in: { labelKey: 'cash_in', icon: ArrowDownCircle, color: 'text-green-500' },
+    cash_out: { labelKey: 'expense', icon: ArrowUpCircle, color: 'text-red-500' },
+    payment: { labelKey: 'cash_payment', icon: DollarSign, color: 'text-emerald-500' },
   };
 
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[130] flex items-end justify-center pointer-events-none" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
         <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop}
-          className="fixed inset-0 z-0 pointer-events-auto bg-black/20 backdrop-blur-[2px]"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit}
+          className="fixed inset-0 z-0 pointer-events-auto bg-black/20"
           onClick={onClose}
         />
         <motion.div
           {...appleSheet}
+          transition={fastExit}
           className={`relative z-10 pointer-events-auto w-full max-w-md rounded-t-[2.5rem] shadow-[0_-20px_60px_rgba(0,0,0,0.3)] border ${
             lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
           } overflow-hidden max-h-[85vh] flex flex-col`}
@@ -221,7 +222,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
               <div className="space-y-4">
                 <div className={`p-5 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                   <p className={`text-sm font-bold mb-3 ${lightMode ? 'text-zinc-700' : 'text-zinc-300'}`}>
-                    Kassa Açılışı
+                    t('cash_drawer_opening')
                   </p>
                   <div className="flex items-center gap-2 mb-4">
                     <DollarSign size={16} className="text-[var(--theme-text-muted)]" />
@@ -230,7 +231,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       step="0.01"
                       value={openingBalance}
                       onChange={e => setOpeningBalance(e.target.value)}
-                      placeholder="Açılış balansı (₼)"
+                      placeholder={t('opening_balance')}
                       className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
                     />
                   </div>
@@ -239,7 +240,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                     disabled={submitting}
                     className="w-full py-3 rounded-2xl bg-green-500 text-white text-sm font-black uppercase tracking-widest active:scale-[0.98] transition-all disabled:opacity-50"
                   >
-                    {submitting ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Kassa Aç'}
+                    {submitting ? <Loader2 size={16} className="animate-spin mx-auto" /> : t('open_cash')}
                   </button>
                 </div>
               </div>
@@ -254,16 +255,16 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       <p className="text-xs font-bold text-[var(--theme-text)]">{session?.staff_name || 'Kassir'}</p>
                     </div>
                     <span className="flex items-center gap-1 text-[10px] font-bold text-green-500">
-                      <Unlock size={10} /> Açıq
+                      <Unlock size={10} /> t('open')
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Smena başl.</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('shift_started')}</p>
                       <p className="text-xs font-black tabular-nums">{formatTime(session.opened_at)}</p>
                     </div>
                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Müddət</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('duration')}</p>
                       <p className="text-xs font-black tabular-nums">{shiftDuration}</p>
                     </div>
                   </div>
@@ -274,7 +275,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)]">Cari Balans</p>
                     <span className="flex items-center gap-1 text-[10px] font-bold text-green-500">
-                      <Unlock size={10} /> Açıq
+                      <Unlock size={10} /> t('open')
                     </span>
                   </div>
                   <p className="text-3xl font-black tracking-tighter tabular-nums">
@@ -282,7 +283,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                   </p>
                   <div className="grid grid-cols-3 gap-3 mt-3">
                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-green-50 border border-green-200' : 'bg-green-500/10 border border-green-500/20'}`}>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-green-600">Nağd</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-green-600">{t('cash')}</p>
                       <p className="text-xs font-black tabular-nums text-green-600">{(paymentTotal + cashInTotal).toFixed(2)}₼</p>
                     </div>
                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-blue-50 border border-blue-200' : 'bg-blue-500/10 border border-blue-500/20'}`}>
@@ -290,7 +291,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       <p className="text-xs font-black tabular-nums text-blue-600">0.00₼</p>
                     </div>
                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-red-50 border border-red-200' : 'bg-red-500/10 border border-red-500/20'}`}>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-red-600">Xərc</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-red-600">{t('expense')}</p>
                       <p className="text-xs font-black tabular-nums text-red-600">-{cashOutTotal.toFixed(2)}₼</p>
                     </div>
                   </div>
@@ -311,14 +312,14 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                        className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-red-50 border-red-200 text-red-600' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}
                      >
                        <ArrowUpCircle size={20} strokeWidth={2.5} />
-                       <span className="text-[9px] font-black uppercase tracking-widest">Xərc</span>
+                       <span className="text-[9px] font-black uppercase tracking-widest">{t('expense')}</span>
                      </button>
                      <button
                        onClick={() => { setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); }}
                        className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
                      >
                        <Lock size={20} strokeWidth={2.5} />
-                       <span className="text-[9px] font-black uppercase tracking-widest">Smenanı Bitir</span>
+                       <span className="text-[9px] font-black uppercase tracking-widest">{t('end_shift')}</span>
                      </button>
                    </div>
                  )}
@@ -327,32 +328,32 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                 {(view === 'cash-in' || view === 'cash-out') && (
                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                     <p className={`text-sm font-bold ${view === 'cash-in' ? 'text-green-500' : 'text-red-500'}`}>
-                      {view === 'cash-in' ? 'Daxilolma' : 'Xərc'}
+                      {view === 'cash-in' ? t('cash_in') : t('expense')}
                     </p>
                     <input
                       type="number"
                       step="0.01"
                       value={cashAmount}
                       onChange={e => setCashAmount(e.target.value)}
-                      placeholder="Məbləğ (₼)"
+                      placeholder={t('amount')}
                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
                     />
                     <input
                       value={cashDesc}
                       onChange={e => setCashDesc(e.target.value)}
-                      placeholder="Açıqlama (ixtiyari)"
+                      placeholder="t('open')lama (ixtiyari)"
                       className={`w-full rounded-xl px-4 py-3 text-sm outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
                     />
                     <div className="flex gap-2">
                       <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
-                        Geri
+                        {t('back')}
                       </button>
                       <button
                         onClick={() => handleCashMove(view as 'cash_in' | 'cash_out')}
                         disabled={submitting || !cashAmount}
                         className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white disabled:opacity-50 ${view === 'cash-in' ? 'bg-green-500' : 'bg-red-500'}`}
                       >
-                        {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Təsdiqlə'}
+                        {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : t('confirm')}
                       </button>
                     </div>
                   </div>
@@ -361,9 +362,9 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                 {/* Close drawer */}
                 {view === 'close' && (
                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
-                    <p className="text-sm font-bold text-zinc-500">Kassa Bağlanması</p>
+                    <p className="text-sm font-bold text-zinc-500">{t('cash_drawer_closing')}</p>
                     <div className={`p-3 rounded-xl ${lightMode ? 'bg-white border border-zinc-200' : 'bg-white/5 border border-white/10'}`}>
-                      <p className="text-[10px] font-bold text-[var(--theme-text-muted)]">Gözlənilən balans</p>
+                      <p className="text-[10px] font-bold text-[var(--theme-text-muted)]">{t('expected_balance')}</p>
                       <p className="text-lg font-black tabular-nums">{currentBalance.toFixed(2)}₼</p>
                     </div>
                     <input
@@ -371,13 +372,13 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       step="0.01"
                       value={cashAmount}
                       onChange={e => setCashAmount(e.target.value)}
-                      placeholder="Əslində olan (₼)"
+                      placeholder={t('actual_balance')}
                       className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
                     />
                     {cashAmount && Number(cashAmount) !== currentBalance && (
                       <div className={`p-3 rounded-xl ${Number(cashAmount) > currentBalance ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
                         <p className={`text-xs font-bold ${Number(cashAmount) > currentBalance ? 'text-green-500' : 'text-red-500'}`}>
-                          Fərq: {Number(cashAmount) > currentBalance ? '+' : ''}{(Number(cashAmount) - currentBalance).toFixed(2)}₼
+                          t('difference') {Number(cashAmount) > currentBalance ? '+' : ''}{(Number(cashAmount) - currentBalance).toFixed(2)}₼
                         </p>
                       </div>
                     )}
@@ -389,18 +390,18 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                     />
                     <div className="flex gap-2">
                       <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
-                        Geri
+                        {t('back')}
                       </button>
                       <button
                         onClick={() => {
-                          if (window.confirm('Smenanı bağlamaq istədiyinizdən əminsiniz?')) {
+                          if (window.confirm(t('confirm_end_shift'))) {
                             handleCloseDrawer();
                           }
                         }}
                         disabled={submitting}
                         className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-zinc-800 text-white dark:bg-zinc-200 dark:text-black disabled:opacity-50"
                       >
-                        {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Smenanı Bitir'}
+                        {submitting ? <Loader2 size={14} className="animate-spin mx-auto" /> : t('end_shift')}
                       </button>
                     </div>
                   </div>
@@ -409,7 +410,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                 {/* Movement log */}
                 {movements.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">Hərəkətlər</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('transactions')}</p>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {[...movements].reverse().map(m => {
                         const cfg = typeLabels[m.type] || typeLabels.cash_in;
@@ -418,7 +419,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                           <div key={m.id} className={`flex items-center gap-3 p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
                             <Icon size={14} className={cfg.color} />
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold truncate">{cfg.label}{m.description ? ` — ${m.description}` : ''}</p>
+                              <p className="text-xs font-bold truncate">{t(cfg.labelKey as any)}{m.description ? ` — ${m.description}` : ''}</p>
                               <p className="text-[10px] text-[var(--theme-text-muted)]">{formatTime(m.created_at)}</p>
                             </div>
                             <span className={`text-xs font-black tabular-nums ${
@@ -437,7 +438,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
 
             {todaySessions.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">Smena Girişi</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('shift_entry')}</p>
                 <div className="space-y-1.5">
                   {todaySessions.map(s => {
                     const isOpen = s.status === 'open';
@@ -449,20 +450,20 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                             <span className="text-xs font-bold">{formatTime(s.opened_at)}</span>
                           </div>
                           <span className={`text-[9px] font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : 'text-zinc-500'}`}>
-                            {isOpen ? 'Açıq' : 'Bağlı'}
+                            {isOpen ? t('open') : t('closed')}
                           </span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 mt-2">
                           <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Açılış</p>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('opening')}</p>
                             <p className="text-xs font-black tabular-nums">{(s.opening_balance || 0).toFixed(2)}₼</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Bağlanış</p>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('closing')}</p>
                             <p className="text-xs font-black tabular-nums">{(s.closing_balance ?? (isOpen ? (s.opening_balance || 0) : 0)).toFixed(2)}₼</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Fərq</p>
+                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('difference')}</p>
                             <p className={`text-xs font-black tabular-nums ${
                               s.difference == null ? 'text-[var(--theme-text-muted)]' : s.difference > 0 ? 'text-green-500' : s.difference < 0 ? 'text-red-500' : 'text-[var(--theme-text-muted)]'
                             }`}>

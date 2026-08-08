@@ -14,7 +14,7 @@ import { toast } from '@/lib/toast';
 import type { PosProduct } from '../types/shared';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useVirtualKeyboard } from './VirtualKeyboard';
-import { appleSheet, appleBackdrop } from '@/lib/modal-transitions';
+import { appleSheet, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 
 interface OrderDetailSheetProps {
   order: any | null;
@@ -31,15 +31,15 @@ interface OrderDetailSheetProps {
 const DELIVERY_FLOW = ['pending', 'confirmed', 'preparing', 'ready', 'in_transit', 'delivered', 'paid'] as const;
 const TAKEAWAY_FLOW = ['confirmed', 'preparing', 'ready', 'paid'] as const;
 
-const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; label: string; next: string | null }> = {
-  pending:    { color: 'text-zinc-500', bg: 'bg-zinc-500/10', border: 'border-zinc-500/20', label: 'Gözləyir', next: 'confirmed' },
-  confirmed:  { color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20', label: 'Təsdiqləndi', next: 'preparing' },
-  preparing:  { color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', label: 'Hazırlanır', next: 'ready' },
-  ready:      { color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/20', label: 'Hazırdır', next: 'in_transit' },
-  in_transit:  { color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20', label: 'Yoldadır', next: 'delivered' },
-  delivered:  { color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', label: 'Çatdırıldı', next: 'paid' },
-  paid:       { color: 'text-green-500', bg: 'bg-green-500/15', border: 'border-green-500/25', label: 'Ödəniş', next: null },
-  cancelled:  { color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', label: 'Ləğv', next: null },
+const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; labelKey: string; next: string | null }> = {
+  pending:    { color: 'text-zinc-500', bg: 'bg-zinc-500/10', border: 'border-zinc-500/20', labelKey: 'status_waiting', next: 'confirmed' },
+  confirmed:  { color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20', labelKey: 'status_confirmed', next: 'preparing' },
+  preparing:  { color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', labelKey: 'status_preparing', next: 'ready' },
+  ready:      { color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/20', labelKey: 'ready', next: 'in_transit' },
+  in_transit:  { color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20', labelKey: 'status_in_transit', next: 'delivered' },
+  delivered:  { color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', labelKey: 'status_delivered', next: 'paid' },
+  paid:       { color: 'text-green-500', bg: 'bg-green-500/15', border: 'border-green-500/25', labelKey: 'payment_status', next: null },
+  cancelled:  { color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', labelKey: 'cancelled', next: null },
 };
 
 const STATUS_ICONS: Record<string, typeof Clock> = {
@@ -53,17 +53,17 @@ const STATUS_ICONS: Record<string, typeof Clock> = {
   cancelled: Ban,
 };
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (key: any) => string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
   const diff = Math.max(0, now - then);
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'İndicə';
-  if (mins < 60) return `${mins} dəq əvvəl`;
+  if (mins < 1) return t('just_now');
+  if (mins < 60) return `${mins} ${t('min_abbrev')} ${t('ago')}`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} saat ${mins % 60} dəq`;
+  if (hrs < 24) return `${hrs} ${t('hour_abbrev')} ${mins % 60} ${t('min_abbrev')} ${t('ago')}`;
   const days = Math.floor(hrs / 24);
-  return `${days} gün`;
+  return `${days} ${t('day_abbrev')}`;
 }
 
 type TabKey = 'info' | 'order';
@@ -78,7 +78,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
   const [assigningCourier, setAssigningCourier] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('info');
 
-  // Sifariş tab state
+  // t('order') tab state
   const [additions, setAdditions] = useState<{ product: PosProduct; quantity: number }[]>([]);
   const [addingItems, setAddingItems] = useState(false);
   const [productSearch, setProductSearch] = useState('');
@@ -185,7 +185,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
     setAddingItems(false);
     if (ok) {
       setAdditions([]);
-      toast.success(`${additions.length} məhsul əlavə edildi`);
+      toast.success(`${additions.length} ${t('items_added')}`);
     }
   };
 
@@ -201,16 +201,16 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={appleBackdrop}
-            className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30 backdrop-blur-[2px]"
+            transition={fastExit}
+            className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30"
             onClick={onClose}
-          />
+           />
 
-          <motion.div
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            transition={appleSheet}
+           <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+             transition={fastExit}
             className={`relative z-10 pointer-events-auto w-full mx-auto max-h-[92vh] flex flex-col overflow-hidden rounded-t-3xl shadow-[0_30px_60px_rgba(0,0,0,0.3)] border transition-all duration-300 ${
               isWide ? 'max-w-6xl' : 'max-w-lg'
             } ${
@@ -220,8 +220,8 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
             {/* Tab Bar */}
             <div className={`flex items-center gap-1 px-5 pt-4 pb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
               {([
-                { key: 'info' as TabKey, label: 'Məlumat' },
-                { key: 'order' as TabKey, label: 'Sifariş' },
+                { key: 'info' as TabKey, labelKey: 'info_tab' },
+                { key: 'order' as TabKey, labelKey: 'order_tab' },
               ]).map(tab => (
                 <button
                   key={tab.key}
@@ -232,7 +232,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                       : (lightMode ? 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50' : 'text-white/40 hover:text-white/70 hover:bg-white/5')
                   }`}
                 >
-                  {tab.label}
+                  {t(tab.labelKey as any)}
                 </button>
               ))}
               <div className="flex-1" />
@@ -247,15 +247,14 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
             </div>
 
             {/* Tab Content */}
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="sync">
               {activeTab === 'info' && (
-                <motion.div
-                  key="info"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="overflow-y-auto flex-1 overscroll-contain"
-                >
+                 <motion.div
+                   key="info"
+                   initial={{ opacity: 0, x: -20 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   className="overflow-y-auto flex-1 overscroll-contain"
+                 >
                   <div className="p-6 space-y-5">
                     {/* Header */}
                     <div className="flex items-start justify-between">
@@ -268,16 +267,16 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                             <ChevronRight size={16} className="rotate-180" />
                           </button>
                           <p className={`text-2xl font-black tracking-tighter ${lightMode ? 'text-black' : 'text-white'}`}>
-                             {posMode === 'takeaway' ? `Gel-Al #${order.order_number || ''}` : posMode === 'delivery' ? `Çatdırılma #${order.order_number || ''}` : `#${order.order_number || order.id?.slice(0, 8)}`}
+                             {posMode === 'takeaway' ? `${t('takeaway_short')} #${order.order_number || ''}` : posMode === 'delivery' ? `${t('delivery_short')} #${order.order_number || ''}` : `#${order.order_number || order.id?.slice(0, 8)}`}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${cfg.bg} ${cfg.color} ${cfg.border}`}>
                             <StatusIcon size={12} strokeWidth={3} />
-                            {cfg.label}
+                            {t(cfg.labelKey as any)}
                           </span>
                           <span className={`text-[10px] font-bold tracking-wide ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                            {timeAgo(order.created_at)}
+                            {timeAgo(order.created_at, t)}
                           </span>
                         </div>
                       </div>
@@ -287,7 +286,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {(order.customer_name || order.customer_phone || order.delivery_district || order.delivery_street || order.delivery_address) && (
                       <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-150' : 'bg-white/[0.03] border-white/[0.06]'}`}>
                         <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                          Müştəri Məlumatları
+                          t('customer_info')
                         </p>
                         <div className="flex flex-wrap gap-3">
                           {order.customer_name && (
@@ -311,7 +310,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                               <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${lightMode ? 'bg-zinc-200' : 'bg-white/5'}`}>
                                 <Timer size={14} className={lightMode ? 'text-zinc-500' : 'text-white/50'} />
                               </div>
-                              <span className={`text-sm font-bold ${lightMode ? 'text-black' : 'text-white'}`}>Təxmini: {order.estimated_delivery_time}</span>
+                              <span className={`text-sm font-bold ${lightMode ? 'text-black' : 'text-white'}`}>{t('estimated')} {order.estimated_delivery_time}</span>
                             </div>
                           )}
                         </div>
@@ -322,7 +321,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {(order.delivery_street || order.delivery_address || order.delivery_district) && (
                       <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-blue-50/50 border-blue-100' : 'bg-blue-500/5 border-blue-500/10'}`}>
                         <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-blue-400' : 'text-blue-300/60'}`}>
-                          Çatdırılma Ünvanı
+                          t('delivery_address')
                         </p>
                         <div className="space-y-2">
                           {order.delivery_district && (
@@ -343,7 +342,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                             <div className="flex items-center gap-2">
                               <MapPin size={12} className="text-blue-500 shrink-0" />
                               <span className={`text-xs font-bold ${lightMode ? 'text-blue-700' : 'text-blue-300'}`}>
-                                {[order.delivery_floor && `Mərtəbə: ${order.delivery_floor}`, order.delivery_apartment && `Mənzil: ${order.delivery_apartment}`, order.delivery_intercom && `Interkom: ${order.delivery_intercom}`].filter(Boolean).join(' · ')}
+                                {[order.delivery_floor && `${t('floor')} ${order.delivery_floor}`, order.delivery_apartment && `${t('apartment')} ${order.delivery_apartment}`, order.delivery_intercom && `${t('intercom')} ${order.delivery_intercom}`].filter(Boolean).join(' · ')}
                               </span>
                             </div>
                           )}
@@ -367,7 +366,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {order.scheduled_date && (
                       <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-amber-50/50 border-amber-100' : 'bg-amber-500/5 border-amber-500/10'}`}>
                         <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 ${lightMode ? 'text-amber-400' : 'text-amber-300/60'}`}>
-                          Planlaşdırılmış Tarix
+                          t('scheduled_date')
                         </p>
                         <p className={`text-sm font-bold ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{order.scheduled_date}</p>
                       </div>
@@ -391,7 +390,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                               onClick={() => handleAssignCourier('', '')}
                               className={`text-[10px] font-bold ${lightMode ? 'text-zinc-400 hover:text-red-500' : 'text-white/30 hover:text-red-400'}`}
                             >
-                              Dəyiş
+                              t('change')
                             </button>
                           </div>
                         ) : couriers.length > 0 ? (
@@ -411,7 +410,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                             ))}
                           </div>
                         ) : (
-                          <p className={`text-xs ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Kuryer tapılmadı. Əlavə edin.</p>
+                          <p className={`text-xs ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('no_courier_found')}</p>
                         )}
                       </div>
                     )}
@@ -419,7 +418,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {/* Order Items */}
                     <div>
                       <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                        Sifariş ({order.items?.length ?? 0})
+                        t('order') ({order.items?.length ?? 0})
                       </p>
                       <div className="space-y-2">
                         {order.items?.map((item: any, idx: number) => (
@@ -469,7 +468,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                         <div className="flex items-start gap-2.5">
                           <FileText size={14} className="text-amber-500 mt-0.5 shrink-0" />
                           <div>
-                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 text-amber-500`}>Xüsusi Qeyd</p>
+                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 text-amber-500`}>{t('custom_note')}</p>
                             <p className={`text-sm font-bold leading-relaxed ${lightMode ? 'text-amber-800' : 'text-amber-200/80'}`}>{order.special_notes}</p>
                           </div>
                         </div>
@@ -480,17 +479,17 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-150' : 'bg-white/[0.03] border-white/[0.06]'}`}>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className={`text-xs font-bold ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>Aralıq</span>
+                          <span className={`text-xs font-bold ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{t('interval')}</span>
                           <span className={`text-sm font-bold tabular-nums ${lightMode ? 'text-black' : 'text-white'}`}>₼{subtotal.toFixed(2)}</span>
                         </div>
                         {posMode === 'delivery' && order.delivery_fee > 0 && (
                           <div className="flex justify-between items-center">
-                            <span className={`text-xs font-bold ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>Çatdırma</span>
+                            <span className={`text-xs font-bold ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>{t('delivery_short')}</span>
                             <span className={`text-sm font-bold tabular-nums ${lightMode ? 'text-black' : 'text-white'}`}>₼{order.delivery_fee.toFixed(2)}</span>
                           </div>
                         )}
                         <div className={`flex justify-between items-center pt-2 border-t ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Cəmi</span>
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('total')}</span>
                           <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-black' : 'text-white'}`}>₼{order.total_amount.toFixed(2)}</span>
                         </div>
                       </div>
@@ -500,7 +499,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {nextStatus && onStatusChange && (
                       <div>
                         <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                          Növbəti Addım
+                          t('next_step')
                         </p>
                         <button
                           onClick={() => onStatusChange(nextStatus)}
@@ -510,7 +509,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                               : 'bg-white text-black border-white hover:bg-white/90'
                           }`}
                         >
-                          <span>{STATUS_CONFIG[nextStatus]?.label || nextStatus}</span>
+                          <span>{t(STATUS_CONFIG[nextStatus]?.labelKey as any) || nextStatus}</span>
                           <ChevronRight size={18} strokeWidth={3} />
                         </button>
                       </div>
@@ -520,17 +519,16 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
               )}
 
               {activeTab === 'order' && (
-                <motion.div
-                  key="order"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="flex-1 flex flex-col overflow-hidden min-h-0"
-                >
+                 <motion.div
+                   key="order"
+                   initial={{ opacity: 0, x: 20 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   className="flex-1 flex flex-col overflow-hidden min-h-0"
+                 >
                   {/* Existing order items */}
                   <div className={`px-5 pt-4 pb-3 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
                     <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                      Mövcud Sifariş ({order.items?.length ?? 0} məhsul)
+                      {t('current_order')} ({order.items?.length ?? 0} {t('product')})
                     </p>
                     <div className="flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto">
                       {order.items?.map((item: any, idx: number) => (
@@ -571,7 +569,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                                 : (lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-white/40')
                             }`}
                           >
-                            Hamısı
+                            t('all_products')
                           </button>
                           {categories.map(cat => (
                             <button
@@ -627,7 +625,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                       <div className={`w-[240px] flex flex-col border-l ${lightMode ? 'border-zinc-100 bg-zinc-50/50' : 'border-white/5 bg-white/[0.02]'}`}>
                         <div className="px-4 pt-4 pb-3">
                           <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                            Əlavə Ediləcəklər ({additions.length})
+                            t('to_add') ({additions.length})
                           </p>
                         </div>
                         <div className="flex-1 overflow-y-auto px-4 space-y-2">
@@ -659,7 +657,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                         </div>
                         <div className={`px-4 py-4 border-t ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
                           <div className="flex justify-between items-center mb-3">
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Cəmi</span>
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('total')}</span>
                             <span className={`text-lg font-black tabular-nums ${lightMode ? 'text-black' : 'text-white'}`}>₼{additionsTotal.toFixed(2)}</span>
                           </div>
                           <button
@@ -667,7 +665,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                             disabled={addingItems}
                             className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-wider hover:bg-emerald-600 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                           >
-                            {addingItems ? 'Əlavə edilir...' : 'Sifarişə Əlavə Et'}
+                            {addingItems ? t('adding') : t('add_to_order')}
                           </button>
                         </div>
                       </div>
@@ -687,7 +685,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                         onClick={onPayment}
                         className="flex-1 py-4 rounded-2xl bg-gold text-black text-sm font-black uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all shadow-xl shadow-gold/20"
                       >
-                        Ödəniş Al
+                        t('receive_payment')
                       </button>
                     )}
                     {onStatusChange && (
@@ -697,7 +695,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                           lightMode ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100' : 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20'
                         }`}
                       >
-                        Ləğv
+                        t('cancel')
                       </button>
                     )}
                   </div>
@@ -709,7 +707,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                       lightMode ? 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 text-white/50 hover:bg-white/10'
                     }`}
                   >
-                    Bağla
+                    t('close')
                   </button>
                 )}
               </div>

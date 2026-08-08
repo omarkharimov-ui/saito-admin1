@@ -4,9 +4,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Check } from 'lucide-react';
 import type { PosModifierSelection } from '../types/shared';
-import { appleSheet, appleBackdrop } from '@/lib/modal-transitions';
+import { appleSheet, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useVirtualKeyboard } from './VirtualKeyboard';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { playHapticSound } from '@/lib/haptic';
 
 interface PosVariant {
   id: string;
@@ -27,6 +29,7 @@ interface ModifierSheetProps {
 
 
 export function ModifierSheet({ open, productName, productPrice, variants = [], onClose, onConfirm }: ModifierSheetProps) {
+  const { t } = useLanguage();
   const keyboardHeight = useKeyboardHeight();
   const { height: vkHeight } = useVirtualKeyboard();
   const bottomOffset = Math.max(keyboardHeight, vkHeight);
@@ -45,6 +48,7 @@ export function ModifierSheet({ open, productName, productPrice, variants = [], 
   const basePrice = currentVariant?.price ?? productPrice;
 
   const handleConfirm = () => {
+    playHapticSound('pop');
     onConfirm([], notes, selectedVariantId);
   };
 
@@ -52,8 +56,8 @@ export function ModifierSheet({ open, productName, productPrice, variants = [], 
     <AnimatePresence>
       {open && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleBackdrop} className="fixed inset-0 z-[130] bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
-          <motion.div {...appleSheet} className="fixed bottom-0 inset-x-0 z-[140] max-h-[90vh] overflow-y-auto bg-[var(--theme-surface)] rounded-t-[40px] border-t border-white/[0.08] shadow-2xl p-6 pb-12" style={{ paddingBottom: bottomOffset > 0 ? bottomOffset + 24 : undefined }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit} className="fixed inset-0 z-[130] bg-black/50" onClick={onClose} />
+          <motion.div {...appleSheet} transition={fastExit} className="fixed bottom-0 inset-x-0 z-[140] max-h-[90vh] overflow-y-auto bg-[var(--theme-surface)] rounded-t-[40px] border-t border-white/[0.08] shadow-2xl p-6 pb-12" style={{ paddingBottom: bottomOffset > 0 ? bottomOffset + 24 : undefined }}>
             <div className="max-w-2xl mx-auto space-y-8">
               {/* Header */}
               <div className="flex items-start justify-between">
@@ -67,7 +71,7 @@ export function ModifierSheet({ open, productName, productPrice, variants = [], 
               {/* Variants Section (Task 5) */}
               {variants.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">Variant seçin</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">{t('select_option')}</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {variants.map(v => (
                       <button key={v.id} onClick={() => setSelectedVariantId(v.id)} className={`relative flex flex-col p-4 rounded-2xl border transition-all ${selectedVariantId === v.id ? 'bg-gold/10 border-gold/50 text-gold' : 'bg-white/[0.03] border-white/[0.06] text-white/60 hover:border-white/20'}`}>
@@ -82,18 +86,18 @@ export function ModifierSheet({ open, productName, productPrice, variants = [], 
 
               {/* Notes */}
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">Xüsusi qeyd</p>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Məsələn: Buzlu olsun, acı olmasın və s." className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 min-h-[100px] transition-all resize-none" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3">{t('custom_note')}</p>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('example_note')} className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/30 min-h-[100px] transition-all resize-none" />
               </div>
 
               {/* Footer Actions */}
               <div className="flex items-center gap-4 pt-4 border-t border-white/[0.05]">
                 <div className="flex-1">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-white/20">Ümumi Məbləğ</p>
+                  <p className="text-[10px] uppercase font-black tracking-widest text-white/20">{t('grand_total')}</p>
                   <p className="text-2xl font-black text-white tabular-nums">{basePrice.toFixed(2)} ₼</p>
                 </div>
                 <button onClick={handleConfirm} className="px-10 py-4 rounded-[20px] bg-gold text-black font-black text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-gold/20 flex items-center gap-2">
-                  <Plus size={18} /> Əlavə et
+                  <Plus size={18} /> t('add')
                 </button>
               </div>
             </div>

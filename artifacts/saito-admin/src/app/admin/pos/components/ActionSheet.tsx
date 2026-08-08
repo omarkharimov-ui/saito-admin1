@@ -6,12 +6,12 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Search, Phone, Smartphone, Building2, Gift, Car, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag
+  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { PosTable } from '../types/shared';
-import { appleViewSwap, appleBackdrop, appleCard, appleCapsule } from '@/lib/modal-transitions';
+import { fastExit } from '@/lib/modal-transitions';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
 import { PinGuard } from './PinGuard';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
@@ -63,8 +63,6 @@ interface ActionSheetProps {
   onCancelTransfer?: () => void;
   onCheckout?: () => void;
 }
-
-const fastTransition = appleCapsule;
 
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
@@ -151,19 +149,19 @@ export function ActionSheet({
 
   const actions = [
     { id: 'add_order', icon: Plus, label: t('add_items'), visible: !isTakeawayOrDelivery },
-    { id: 'customer', icon: User, label: customerName ? `${customerName}` : t('select_customer') || 'Müştəri', visible: true },
-    { id: 'print_bill', icon: Printer, label: 'Hesabı Çap Et', visible: isOccupied && (table?.total_amount ?? 0) > 0 },
-    { id: 'bill_request', icon: Receipt, label: 'Hesab Çağır', visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
+    { id: 'customer', icon: User, label: customerName ? `${customerName}` : t('select_customer') || t('customer'), visible: true },
+    { id: 'print_bill', icon: Printer, label: t('print_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
+    { id: 'bill_request', icon: Receipt, label: t('call_bill'), visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isManagerOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
-    { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? 'Ləğv Et' : (t('dismiss_table') || 'Masanı boşalt'), visible: !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) },
+    { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) },
     ...(posMode === 'delivery' ? [
-      { id: 'delivery_status', icon: Car, label: 'Çatdırma Statusu', visible: true },
+      { id: 'delivery_status', icon: Car, label: t('delivery_status'), visible: true },
     ] : []),
     ...(posMode === 'takeaway' ? [
-      { id: 'takeaway_status', icon: ChevronRight, label: 'Növbəti Addım', visible: true },
+      { id: 'takeaway_status', icon: ChevronRight, label: t('next_step'), visible: true },
     ] : []),
     ...(isTakeawayOrDelivery ? [
-      { id: 'checkout', icon: ShoppingBag, label: 'Sifarişi Yarat', visible: true },
+      { id: 'checkout', icon: ShoppingBag, label: t('create_order'), visible: true },
     ] : []),
   ];
 
@@ -180,22 +178,21 @@ export function ActionSheet({
         <div key="global-pos-root" className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none pb-10" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
           {/* Backdrop */}
           {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'split-by-items' || currentView === 'confirm-action') && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={appleBackdrop}
-              className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30 backdrop-blur-[2px]"
-              onClick={onClose}
-            />
+          <motion.div
+             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+             transition={fastExit}
+             className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30"
+             onClick={onClose}
+           />
           )}
 
           {/* THE STABLE MORPHING KAPSUL */}
           <motion.div
-            layout
-            layoutId="pos-hybrid-kapsul"
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            transition={fastTransition}
+             key="pos-hybrid-kapsul"
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             transition={fastExit}
              className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.3)] border ${
                lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
               } ${
@@ -204,12 +201,12 @@ export function ActionSheet({
                  : 'rounded-[2.5rem] p-7 w-[90%] max-w-md mx-auto'
              }`}
           >
-            <AnimatePresence mode="wait">
+             <AnimatePresence mode="sync">
                {currentView === 'actions' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleViewSwap} key="ui-actions">
+                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-actions">
                    <div className="text-center mb-6">
                        <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
-                         {isMerged ? `Qrup ${groupNumber || groupName}` : isTakeawayOrDelivery ? ((table as any)?.order_number ? `${posMode === 'delivery' ? 'Çatdırılma' : 'Gel-Al'} ${(table as any).order_number}` : 'Sifariş') : `Masa ${table?.table_number}`}
+                         {isMerged ? `${t('group')}${groupNumber || groupName}` : isTakeawayOrDelivery ? ((table as any)?.order_number ? `${posMode === 'delivery' ? t('delivery_short') : t('takeaway_short')} ${(table as any).order_number}` : t('order')) : `${t('table_label')} ${table?.table_number}`}
                        </p>
                        {isTakeawayOrDelivery && (table as any)?.status && (
                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${
@@ -225,11 +222,11 @@ export function ActionSheet({
                                : 'bg-amber-400'
                            }`} />
                            {((table as any).status === 'new' && 'Yeni') ||
-                            ((table as any).status === 'confirmed' && 'Təsdiqləndi') ||
-                            ((table as any).status === 'in_kitchen' && 'Mətbəxdə') ||
-                            ((table as any).status === 'ready' && 'Hazırdır') ||
-                            ((table as any).status === 'paid' && 'Ödənildi') ||
-                            ((table as any).status === 'cancelled' && 'Ləğv') ||
+                            (t('status_confirmed')) ||
+                            (t('status_in_kitchen')) ||
+                            (t('ready')) ||
+                            (t('paid')) ||
+                            (t('cancelled')) ||
                             (table as any).status}
                          </span>
                        )}
@@ -247,12 +244,12 @@ export function ActionSheet({
                     )}
                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">
                       {isDirty
-                        ? 'Təmizlənməli'
+                        ? t('needs_cleaning')
                         : isMerged
                           ? `${table?.guest_count || 0} Qonaq · ₼${(table?.total_amount || 0).toFixed(2)}`
                           : isTakeawayOrDelivery
-                            ? `${(table as any)?.customer_name || ''} ${(table as any)?.customer_phone || ''}`.trim() || 'Sifariş'
-                            : isOccupied ? `${table?.guest_count} Qonaq · ₼${(table?.total_amount || 0).toFixed(2)}` : 'Boş Masa'
+                            ? `${(table as any)?.customer_name || ''} ${(table as any)?.customer_phone || ''}`.trim() || t('order')
+                            : isOccupied ? `${table?.guest_count} ${t('guests')} · ₼${(table?.total_amount || 0).toFixed(2)}` : t('empty_table')
                       }
                     </p>
                   </div>
@@ -261,34 +258,34 @@ export function ActionSheet({
                       <button onClick={onSeatGuests}
                         className="flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all bg-indigo-500/10 border-indigo-500/20 text-indigo-600 active:scale-95">
                         <CheckCircle size={22} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">Yerləşdir</span>
+                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('place')}</span>
                       </button>
                       <button onClick={() => router.push(`/admin/reservations?edit=${table?.reservation_id}`)}
                         className="flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all bg-zinc-100 border-zinc-200 text-zinc-600 active:scale-95">
                         <Pencil size={22} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">Redaktə</span>
+                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('edit')}</span>
                       </button>
                       <button onClick={() => setConfirmAction('cancel_table')}
                         className="flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all bg-rose-500/10 border-rose-500/20 text-rose-600 active:scale-95">
                         <Ban size={22} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">Ləğv Et</span>
+                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('cancel')}</span>
                       </button>
                       {table?.reservation_phone && (
                         <a href={`tel:${table.reservation_phone}`}
                           className="flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all bg-zinc-100 border-zinc-200 text-zinc-600 active:scale-95">
                           <PhoneCall size={22} strokeWidth={2.5} />
-                          <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">Zəng Et</span>
+                          <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('call')}</span>
                         </a>
                       )}
                     </div>
                   ) : isDirty ? (
                     <div className="flex flex-col gap-3">
-                      <button onClick={onClearTable}
+                    <button onClick={onClearTable}
                         className={`flex items-center justify-center gap-3 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${
-                          lightMode ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                          lightMode ? 'bg-gold text-black shadow-lg shadow-gold/30' : 'bg-gold text-black shadow-lg shadow-gold/30'
                         } active:scale-[0.98]`}>
-                        <Check size={18} strokeWidth={3} />
-                        Təmizlə
+                        <BrushCleaning size={18} strokeWidth={2} />
+                        {t('clear')}
                       </button>
                     </div>
                   ) : isMerged ? (
@@ -303,19 +300,19 @@ export function ActionSheet({
                       <button onClick={onUnmerge}
                         className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'} active:scale-95`}>
                         <Split size={22} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">Masaları Ayır</span>
+                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('split_tables')}</span>
                       </button>
                       <button onClick={() => setConfirmAction('dismiss_group')}
                         className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'} active:scale-95`}>
                         <Trash2 size={22} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">Qrupu Boşalt</span>
+                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('clear_group')}</span>
                       </button>
                     </div>
                    ) : (
                     <div className="space-y-4">
                       {/* Primary actions section */}
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">Əsas Əməliyyatlar</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('main_actions')}</p>
                         <div className="grid grid-cols-3 gap-3">
                           {visibleActions.filter(a => ['add_order', 'customer', 'close_bill'].includes(a.id)).map((action) => {
                             if (action.id === 'customer') {
@@ -323,7 +320,7 @@ export function ActionSheet({
                                 <button key={action.id} onClick={() => setShowCustomerSearch(true)}
                                   className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
                                   <User size={22} strokeWidth={2.5} />
-                                  <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{customerName || 'Müştəri'}</span>
+                                  <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{customerName || t('customer')}</span>
                                 </button>
                               );
                             }
@@ -358,7 +355,7 @@ export function ActionSheet({
                       {/* Secondary actions section */}
                       {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status'].includes(a.id)) && (
                         <div>
-                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">Əlavə</p>
+                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
                           <div className="grid grid-cols-3 gap-3">
                             {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status'].includes(a.id)).map((action) => (
                               <button key={action.id} onClick={() => {
@@ -389,13 +386,13 @@ export function ActionSheet({
                       )}
                     </div>
                   )}
-                 <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">Bağla</button>
+                  <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('close')}</button>
                 </motion.div>
               )}
 
               {currentView === 'payment' && (
-                <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }} transition={appleCard} key="ui-payment" className="flex flex-col gap-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Ödəniş Növü</p>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-payment" className="flex flex-col gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('payment_method_label')}</p>
                    <p className="text-2xl font-black tracking-tighter mb-3 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
 
                   {isDeliveryOnly ? (
@@ -405,7 +402,7 @@ export function ActionSheet({
                         <CreditCard size={20} strokeWidth={2.5} />
                         <div className="flex flex-col items-start">
                           <span className="text-sm font-black tracking-wide">Terminal</span>
-                          <span className="text-[10px] font-medium opacity-60">Kartla ödəniş (POS terminal)</span>
+                          <span className="text-[10px] font-medium opacity-60">{t('card_payment_terminal')}</span>
                         </div>
                       </button>
                       {/* Kart-to-Kart — köçürmə */}
@@ -413,15 +410,15 @@ export function ActionSheet({
                         <ArrowLeftRight size={20} strokeWidth={2.5} />
                         <div className="flex flex-col items-start">
                           <span className="text-sm font-black tracking-wide">Kart-to-Kart</span>
-                          <span className="text-[10px] font-medium opacity-60">Bank köçürməsi / transfersiz</span>
+                          <span className="text-[10px] font-medium opacity-60">{t('bank_transfer')}</span>
                         </div>
                       </button>
-                      {/* Nağd — çatdırma zamanı yerində ödəniş */}
+                      {/* t('cash') — çatdırma zamanı yerində ödəniş */}
                       <button onClick={() => onPaymentMethodSelect?.('cash', table?.total_amount || 0)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all hover:bg-emerald-500/20">
                         <Wallet size={20} strokeWidth={2.5} />
                         <div className="flex flex-col items-start">
-                          <span className="text-sm font-black tracking-wide">Nağd</span>
-                          <span className="text-[10px] font-medium opacity-60">Çatdırma zamanı yerində ödəniş</span>
+                          <span className="text-sm font-black tracking-wide">{t('cash')}</span>
+                          <span className="text-[10px] font-medium opacity-60">{t('pay_on_delivery')}</span>
                         </div>
                       </button>
                     </>
@@ -430,40 +427,40 @@ export function ActionSheet({
                       <button onClick={() => { setCashTenderedView(true); setCashTenderedAmount(''); }} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all hover:bg-emerald-500/20">
                         <Wallet size={20} strokeWidth={2.5} />
                         <div className="flex flex-col items-start">
-                          <span className="text-sm font-black tracking-wide">Nağd</span>
-                          <span className="text-[10px] font-medium opacity-60">Verilən pul daxil edin</span>
+                          <span className="text-sm font-black tracking-wide">{t('cash')}</span>
+                          <span className="text-[10px] font-medium opacity-60">{t('enter_tendered')}</span>
                         </div>
                       </button>
                        <button onClick={() => setCardConfirmView(true)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
                           <CreditCard size={20} strokeWidth={2.5} />
                           <div className="flex flex-col items-start">
                             <span className="text-sm font-black tracking-wide">Kart</span>
-                            <span className="text-[10px] font-medium opacity-60">Terminal ödənişi</span>
+                            <span className="text-[10px] font-medium opacity-60">{t('terminal_payment')}</span>
                           </div>
                         </button>
                         <button onClick={() => setLocalSplit({ cash: '', card: (table?.total_amount || 0).toFixed(2) })} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-gold/10 border border-gold/20 text-gold active:scale-[0.98] transition-all hover:bg-gold/20">
                            <Receipt size={20} strokeWidth={2.5} />
                            <div className="flex flex-col items-start">
-                             <span className="text-sm font-black tracking-wide">Böl</span>
-                             <span className="text-[10px] font-medium opacity-60">Nağd + Kart qarışığı</span>
+                             <span className="text-sm font-black tracking-wide">{t('split_short')}</span>
+                             <span className="text-[10px] font-medium opacity-60">{t('cash_card_mix')}</span>
                            </div>
                          </button>
                         <button onClick={() => setSplitByItemsView(true)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 active:scale-[0.98] transition-all hover:bg-purple-500/20">
                            <Hash size={20} strokeWidth={2.5} />
                            <div className="flex flex-col items-start">
-                             <span className="text-sm font-black tracking-wide">Məhsula görə</span>
-                             <span className="text-[10px] font-medium opacity-60">Hər məhsulu fərqli ödənişə yönəlt</span>
+                             <span className="text-sm font-black tracking-wide">{t('per_item')}</span>
+                             <span className="text-[10px] font-medium opacity-60">{t('split_by_item')}</span>
                            </div>
                          </button>
                     </>
                   )}
-                      <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">Geri</button>
+                      <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
                  </motion.div>
                )}
 
               {currentView === 'cash-tendered' && (
-                <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }} transition={appleCard} key="ui-cash-tendered" className="flex flex-col gap-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">Nağd Ödəniş</p>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-cash-tendered" className="flex flex-col gap-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('cash_payment')}</p>
                   <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
@@ -475,57 +472,57 @@ export function ActionSheet({
                         autoFocus
                         value={cashTenderedAmount}
                         onChange={e => setCashTenderedAmount(e.target.value)}
-                        placeholder="Verilən pul (₼)"
+                        placeholder={t('tendered_amount_placeholder')}
                         className={`flex-1 rounded-2xl px-5 py-4 text-lg font-black outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-emerald-400' : 'bg-white/5 border-white/10 text-white focus:border-emerald-400/50'}`}
                       />
                     </div>
                     {cashTenderedAmount && Number(cashTenderedAmount) > 0 && (
                       Number(cashTenderedAmount) >= (table?.total_amount || 0) ? (
                         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">Qalıq</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">{t('change')}</p>
                           <p className="text-2xl font-black text-emerald-400 tabular-nums">₼{(Number(cashTenderedAmount) - (table?.total_amount || 0)).toFixed(2)}</p>
                         </motion.div>
                       ) : (
                         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Çatışmır</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">{t('short_change')}</p>
                           <p className="text-2xl font-black text-amber-400 tabular-nums">₼{((table?.total_amount || 0) - Number(cashTenderedAmount)).toFixed(2)}</p>
                         </motion.div>
                       )
                     )}
                   </div>
-                  <button onClick={() => { setCashTenderedView(false); setCashTenderedAmount(''); }} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">Geri</button>
+                  <button onClick={() => { setCashTenderedView(false); setCashTenderedAmount(''); }} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
                   <button
                     onClick={() => { onPaymentMethodSelect?.('cash', Number(cashTenderedAmount) || 0); setCashTenderedView(false); setCashTenderedAmount(''); }}
                     disabled={!cashTenderedAmount || Number(cashTenderedAmount) <= 0 || Number(cashTenderedAmount) < (table?.total_amount || 0) * 0.99}
                     className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-white active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                   >
-                    Ödənişi Tamamla
+                    t('complete_payment')
                   </button>
                 </motion.div>
               )}
 
               {currentView === 'card-confirm' && (
-                <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }} transition={appleCard} key="ui-card-confirm" className="flex flex-col gap-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">Kart Ödənişi</p>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-card-confirm" className="flex flex-col gap-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">{t('card_payment')}</p>
                   <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <div className="p-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center">
                     <CreditCard size={32} className="text-blue-400 mx-auto mb-3" />
-                    <p className="text-sm font-bold text-blue-400">Terminala göndərildi</p>
-                    <p className="text-[10px] text-blue-400/60 mt-1">Müştəri kartı terminala yaxınlaşdırsın</p>
+                    <p className="text-sm font-bold text-blue-400">{t('sent_to_terminal')}</p>
+                    <p className="text-[10px] text-blue-400/60 mt-1">{t('customer_approach_terminal')}</p>
                   </div>
-                  <button onClick={() => { setCardConfirmView(false); }} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">Geri</button>
+                  <button onClick={() => { setCardConfirmView(false); }} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
                   <button
                     onClick={() => { onPaymentMethodSelect?.('card'); setCardConfirmView(false); }}
                     className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-blue-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20"
                   >
-                    Ödənişi Təsdiqlə
+                    t('confirm_payment')
                   </button>
                 </motion.div>
               )}
 
                  {currentView === 'split-payment' && localSplit && (
-                   <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }} transition={appleCard} key="ui-split-payment" className="flex flex-col gap-3">
-                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">Bölünmüş Ödəniş</p>
+                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-split-payment" className="flex flex-col gap-3">
+                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">{t('split_payment')}</p>
                      <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                      <div className="space-y-3">
                        <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
@@ -533,7 +530,7 @@ export function ActionSheet({
                            <Wallet size={18} className="text-emerald-400" />
                          </div>
                          <div className="flex-1 min-w-0">
-                           <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">Nağd</p>
+                           <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">{t('cash')}</p>
                            <input
                              type="number"
                              step="0.01"
@@ -584,13 +581,13 @@ export function ActionSheet({
                        return (
                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`p-3 rounded-xl text-center ${remaining > 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
                            <p className={`text-xs font-bold ${remaining > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                             {remaining > 0 ? `Qalıq: ₼${remaining.toFixed(2)}` : `Artıq: ₼${Math.abs(remaining).toFixed(2)}`}
+                             {remaining > 0 ? `t('change'): ₼${remaining.toFixed(2)}` : `t('change_short') + ': ₼'${Math.abs(remaining).toFixed(2)}`}
                            </p>
                          </motion.div>
                        );
                      })()}
                      <div className="flex gap-3 mt-2">
-                       <button onClick={() => { setLocalSplit(null); setCashTenderedView(false); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">Geri</button>
+                       <button onClick={() => { setLocalSplit(null); setCashTenderedView(false); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">{t('back')}</button>
                        <button
                          onClick={() => { onSplitConfirm?.(localSplit); setLocalSplit(null); }}
                          disabled={(() => {
@@ -601,22 +598,22 @@ export function ActionSheet({
                          })()}
                          className="flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-gold text-black active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-gold/20"
                        >
-                         Təsdiqlə
+                         t('confirm')
                        </button>
                       </div>
                   </motion.div>
                 )}
 
               {currentView === 'split-by-items' && (
-                <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }} transition={appleCard} key="ui-split-by-items" className="flex flex-col gap-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">Məhsula görə böl</p>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-split-by-items" className="flex flex-col gap-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">{t('split_by_item')}</p>
                   <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <div className="space-y-2 max-h-[280px] overflow-y-auto">
                     {(table as any)?.order_items?.map((item: any, idx: number) => (
                       <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>
-                            {item.quantity}x {item.product_name || item.products?.name_az || 'Məhsul'}
+                            {item.quantity}x {item.product_name || item.products?.name_az || item.products?.name_en || t('product')}
                           </p>
                           <p className={`text-[10px] font-bold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                             ₼{(Number(item.total_price || item.unit_price * item.quantity) || 0).toFixed(2)}
@@ -631,7 +628,7 @@ export function ActionSheet({
                                 : lightMode ? 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-emerald-50' : 'bg-white/5 text-zinc-400 border-white/10 hover:bg-emerald-500/10'
                             }`}
                           >
-                            Nağd
+                            t('cash')
                           </button>
                           <button
                             onClick={() => setSplitItems(prev => ({ ...prev, [idx]: 'card' }))}
@@ -647,7 +644,7 @@ export function ActionSheet({
                       </div>
                     )) || (
                       <p className={`text-center text-xs py-4 ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                        Məhsul məlumatı yoxdur — yalnız məbləğə görə bölmə mümkündür
+                        t('no_item_info')
                       </p>
                     )}
                   </div>
@@ -667,7 +664,7 @@ export function ActionSheet({
                         {allAssigned && (
                           <div className={`flex gap-2 p-3 rounded-xl ${lightMode ? 'bg-zinc-50 border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
                             <div className="flex-1 text-center">
-                              <p className={`text-[9px] font-black uppercase ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Nağd</p>
+                              <p className={`text-[9px] font-black uppercase ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('cash')}</p>
                               <p className="text-sm font-black tabular-nums text-emerald-400">₼{cashTotal.toFixed(2)}</p>
                             </div>
                             <div className="w-px bg-white/10" />
@@ -681,7 +678,7 @@ export function ActionSheet({
                     );
                   })()}
                   <div className="flex gap-3 mt-2">
-                    <button onClick={() => { setSplitByItemsView(false); setSplitItems({}); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">Geri</button>
+                    <button onClick={() => { setSplitByItemsView(false); setSplitItems({}); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">{t('back')}</button>
                     <button
                       onClick={() => {
                         const items = (table as any)?.order_items || [];
@@ -703,15 +700,15 @@ export function ActionSheet({
                       })()}
                       className="flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-gold text-black active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-gold/20"
                     >
-                      Təsdiqlə
+                      t('confirm')
                     </button>
                   </div>
                 </motion.div>
               )}
 
                 {currentView === 'customer' && (
-                  <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }} transition={appleCard} key="ui-customer" className="flex flex-col gap-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">Müştəri</p>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-customer" className="flex flex-col gap-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">{t('customer')}</p>
                     <div className="relative mb-2">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
                       <input
@@ -721,7 +718,7 @@ export function ActionSheet({
                           if (customerSearchTimerRef.current) clearTimeout(customerSearchTimerRef.current);
                           customerSearchTimerRef.current = setTimeout(() => loadCustomers(e.target.value), 300);
                         }}
-                        placeholder="Ad və ya telefon"
+                        placeholder={t('customer_placeholder')}
                         className={`w-full rounded-xl pl-9 pr-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-white border-black/10 text-black' : 'bg-white/5 border-white/10 text-white'}`}
                       />
                     </div>
@@ -729,7 +726,7 @@ export function ActionSheet({
                       {loadingCustomers ? (
                         <div className="flex justify-center py-6"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
                       ) : customers.length === 0 ? (
-                        <p className="text-center text-[var(--theme-text-muted)] text-xs py-4">Müştəri tapılmadı</p>
+                        <p className="text-center text-[var(--theme-text-muted)] text-xs py-4">{t('customer_not_found')}</p>
                       ) : (
                         customers.map(c => (
                           <button key={c.id} onClick={() => handleCustomerSelect(c.id, c.name)}
@@ -746,33 +743,31 @@ export function ActionSheet({
                         ))
                       )}
                     </div>
-                    <button onClick={() => setShowCustomerSearch(false)} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">Geri</button>
+                    <button onClick={() => setShowCustomerSearch(false)} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">{t('back')}</button>
                   </motion.div>
                 )}
 
-               {currentView === 'split' && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20, scale: 0.97 }} 
-                  animate={{ opacity: 1, y: 0, scale: 1 }} 
-                  exit={{ opacity: 0, y: 20, scale: 0.97 }} 
-                  transition={appleCard} 
-                  key="ui-split" 
-                  className="flex flex-col gap-5"
-                >
-                  <div className="flex items-center justify-between">
+                {currentView === 'split' && (
+                  <motion.div 
+                   key="ui-split"
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 1 }}
+                   className="flex flex-col gap-5"
+                  >
+                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
-                       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">Masaları Ayır</span>
+                       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">{t('separate_tables')}</span>
                        <span className="text-xl font-black tracking-tighter">Qrup {groupNumber || groupName}</span>
                     </div>
                     <button onClick={onClose} className="p-2 text-rose-500 hover:scale-110 transition-transform"><XCircle size={24} /></button>
                   </div>
                   <div className="flex flex-col gap-2">
                     {/* Parent (always visible, not selectable) */}
-                    <motion.div 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 }}
-                      className={`flex items-center gap-3 p-4 rounded-[1.2rem] border ${lightMode ? 'bg-indigo-50 border-indigo-200' : 'bg-indigo-500/10 border-indigo-500/30'}`}
+                     <motion.div 
+                       initial={{ opacity: 0, x: -20 }}
+                       animate={{ opacity: 1, x: 0 }}
+                       transition={fastExit}
+                       className={`flex items-center gap-3 p-4 rounded-[1.2rem] border ${lightMode ? 'bg-indigo-50 border-indigo-200' : 'bg-indigo-500/10 border-indigo-500/30'}`}
                     >
                       <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-indigo-400 bg-indigo-400">
                         <Check size={10} className="text-white" strokeWidth={4} />
@@ -784,11 +779,11 @@ export function ActionSheet({
                     </motion.div>
                     {/* Children (selectable) */}
                     {mergedChildren.length === 0 && (
-                      <p className={`text-center text-xs py-2 ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Uşaq masa yoxdur</p>
+                      <p className={`text-center text-xs py-2 ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{t('no_child_tables')}</p>
                     )}
                     {mergedChildren.length > 0 && (
                       <>
-                        <span className={`text-[9px] font-black uppercase tracking-widest opacity-40 px-1 ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>Uşaq Masalar</span>
+                        <span className={`text-[9px] font-black uppercase tracking-widest opacity-40 px-1 ${lightMode ? 'text-zinc-500' : 'text-zinc-400'}`}>{t('child_tables')}</span>
                         <div className="grid grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1">
                           {mergedChildren.map((child, i) => (
                             <motion.button
@@ -796,7 +791,7 @@ export function ActionSheet({
                               onClick={() => onToggleUnmerge?.(child.table_number)}
                               initial={{ opacity: 0, x: 20 }}
                               animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.15 + i * 0.05 }}
+                               transition={fastExit}
                               className={`flex items-center gap-3 p-4 rounded-[1.2rem] border transition-all ${selectedForUnmerge?.includes(child.table_number) ? 'bg-blue-500 border-blue-500 text-white shadow-lg' : lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/5'}`}
                             >
                               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedForUnmerge?.includes(child.table_number) ? 'bg-white border-white' : 'border-current opacity-20'}`}>
@@ -812,31 +807,31 @@ export function ActionSheet({
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
+                     transition={fastExit}
                     className="flex gap-3 mt-1"
                   >
-                     <button onClick={onClose} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black bg-[var(--theme-surface-soft)]">Ləğv Et</button>
-                     <button onClick={onConfirmUnmerge} className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black shadow-xl ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>Seçilənləri Ayır</button>
+                     <button onClick={onClose} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black bg-[var(--theme-surface-soft)]">{t('cancel')}</button>
+                     <button onClick={onConfirmUnmerge} className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black shadow-xl ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>{t('separate')}</button>
                     </motion.div>
                 </motion.div>
               )}
 
                 {currentView === 'confirm-action' && (
-                 <motion.div initial={{ opacity: 0, y: 10, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.97 }} transition={appleCard} key="ui-confirm" className="flex flex-col gap-4 py-2">
+                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-confirm" className="flex flex-col gap-4 py-2">
                    <div className="text-center">
                      <p className={`text-xl font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                       {confirmAction === 'dismiss_group' ? 'Qrupu boşaltmaq?' : 'Masanı boşaltmaq?'}
+                       {confirmAction === 'dismiss_group' ? t('clear_group_question') : t('clear_table_question')}
                      </p>
                      <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                        {confirmAction === 'dismiss_group'
-                         ? 'Bütün bağlı masalar da boşaldılacaq'
-                         : 'Bu masa və bütün sifarişlər silinəcək'}
+                         ? t('all_connected_tables_cleared')
+                         : t('this_table_orders_deleted')}
                      </p>
                    </div>
                    <div className="flex gap-3">
                      <button onClick={() => setConfirmAction(null)}
                        className={`flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border transition-all ${lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}>
-                       Geri
+                       {t('back')}
                      </button>
                       <button onClick={() => {
                         const doAction = () => {
@@ -852,22 +847,22 @@ export function ActionSheet({
                         }
                       }}
                        className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-rose-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-rose-500/20`}>
-                       Təsdiqlə
+                       t('confirm')
                      </button>
                    </div>
                  </motion.div>
                 )}
 
                 {currentView === 'merge' && (
-                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleViewSwap} key="ui-bar" className="flex items-center gap-5 w-full">
+                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-bar" className="flex items-center gap-5 w-full">
                    <div className="flex flex-col mr-auto min-w-[140px]">
-                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">Masaları Birləşdir</span>
+                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">{t('merge_tables')}</span>
                      <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                       {mergeParent ? `Əsas: Masa ${mergeParent} + ${(selectedForMerge?.length || 1) - 1} uşaq` : 'Əsas masanı seçin'}
+                       {mergeParent ? `${t('main_label')} ${mergeParent} + ${(selectedForMerge?.length || 1) - 1} ${t('child')}` : t('select_main_table')}
                      </span>
                    </div>
                    <div className="flex items-center gap-3">
-                     <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><XCircle size={18} strokeWidth={3} /></button>
+                     <button onClick={onCancelMode} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-95 transition-all"><XCircle size={18} strokeWidth={3} /></button>
                       <button onClick={() => {
                         const doMerge = () => {
                           onConfirmMerge?.();
@@ -878,25 +873,25 @@ export function ActionSheet({
                         } else {
                           doMerge();
                         }
-                      }} disabled={!mergeParent || (selectedForMerge?.length || 0) < 2} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>Təsdiqlə</button>
+                      }} disabled={!mergeParent || (selectedForMerge?.length || 0) < 2} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>{t('confirm')}</button>
                    </div>
                  </motion.div>
                 )}
 
                 {currentView === 'transfer' && (
-                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appleViewSwap} key="ui-transfer" className="flex items-center gap-5 w-full">
+                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-transfer" className="flex items-center gap-5 w-full">
                    <div className="flex flex-col mr-auto min-w-[140px]">
-                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">Köçürmə</span>
+                     <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">{t('transfer')}</span>
                       <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
                         {transferSource && transferTarget
                           ? `Masa ${transferSource} → Masa ${transferTarget}`
                           : transferSource
-                            ? `Mənbə: Masa ${transferSource} — hədəf seçin`
-                            : 'Mənbə masanı seçin'}
+                            ? `${t('source')}: ${t('table_label')} ${transferSource} — ${t('select_target')}`
+                            : t('select_source_table')}
                       </span>
                    </div>
                    <div className="flex items-center gap-3">
-                     <button onClick={onCancelTransfer} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-90 transition-all"><XCircle size={18} strokeWidth={3} /></button>
+                     <button onClick={onCancelTransfer} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-95 transition-all"><XCircle size={18} strokeWidth={3} /></button>
                       <button onClick={() => {
                         const doTransfer = () => {
                           onConfirmTransfer?.();
@@ -907,7 +902,7 @@ export function ActionSheet({
                         } else {
                           doTransfer();
                         }
-                      }} disabled={!transferSource || !transferTarget} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>Təsdiqlə</button>
+                      }} disabled={!transferSource || !transferTarget} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>{t('confirm')}</button>
                    </div>
                  </motion.div>
                 )}

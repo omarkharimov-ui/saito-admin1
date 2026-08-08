@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, User, MapPin, Clock, FileText, Banknote, CreditCard, Wifi, Timer, Loader2, ChevronDown, MapPinOff } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 
 export interface CheckoutData {
   customer_phone: string;
@@ -34,10 +35,10 @@ interface CheckoutModalProps {
 }
 
 const PAYMENT_METHODS = [
-  { value: 'cash' as const, label: 'Nağd', icon: Banknote, color: 'emerald' },
-  { value: 'card' as const, label: 'Kart', icon: CreditCard, color: 'blue' },
-  { value: 'online' as const, label: 'Online', icon: Wifi, color: 'purple' },
-  { value: 'pay_later' as const, label: 'Sonra', icon: Timer, color: 'amber' },
+  { value: 'cash' as const, labelKey: 'cash', icon: Banknote, color: 'emerald' },
+  { value: 'card' as const, labelKey: 'card', icon: CreditCard, color: 'blue' },
+  { value: 'online' as const, labelKey: 'pay_online', icon: Wifi, color: 'purple' },
+  { value: 'pay_later' as const, labelKey: 'pay_later', icon: Timer, color: 'amber' },
 ];
 
 const ADDRESS_STORAGE_KEY = 'saito_delivery_addresses';
@@ -66,6 +67,7 @@ interface Zone {
 
 export default function CheckoutModal({ open, mode, total, currency = '₼', onSubmit, onClose }: CheckoutModalProps) {
   const { lightMode } = useTheme();
+  const { t } = useLanguage();
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
@@ -208,7 +210,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
         delivery_intercom: intercom,
         delivery_zone: zone,
         delivery_fee: fee,
-        estimated_pickup_time: pickupTime === 'custom' ? customTime : pickupTime === 'now' ? '' : `${pickupTime} dəq`,
+          estimated_pickup_time: pickupTime === 'custom' ? customTime : pickupTime === 'now' ? '' : `${pickupTime} ${t('min_abbrev')}`,
         scheduled_date: scheduledDate,
         payment_method: paymentMethod,
       });
@@ -230,17 +232,17 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
   return (
     <AnimatePresence>
     <motion.div
-      key="checkout-backdrop"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={appleBackdrop}
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-      style={{ paddingBottom: 'var(--vk-height, 0px)' }}
-      onClick={handleClose}
-    >
-      <motion.div
+       key="checkout-backdrop"
+       initial={{ opacity: 0 }}
+       animate={{ opacity: 1 }}
+       exit={{ opacity: 0 }}
+       transition={fastExit}
+className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4"
+        onClick={handleClose}
+      >
+       <motion.div
         {...appleCard}
+        transition={fastExit}
         className={`w-full max-w-lg rounded-3xl shadow-2xl border overflow-hidden ${
           lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
         }`}
@@ -250,10 +252,10 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
         <div className="flex items-center justify-between p-6 pb-4 border-b border-white/10">
           <div>
             <h2 className={`text-xl font-black ${lightMode ? 'text-black' : 'text-white'}`}>
-              {mode === 'takeaway' ? 'Gel-Al Ödənişi' : 'Çatdırma Ödənişi'}
+              {mode === 'takeaway' ? t('takeaway_payment') : t('delivery_payment')}
             </h2>
             <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-              {mode === 'takeaway' ? 'Müştəri məlumatları' : 'Müştəri və ünvan'}
+              {mode === 'takeaway' ? t('customer_info') : t('customer_and_address')}
             </p>
           </div>
           {total > 0 && (
@@ -271,28 +273,28 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
         {/* Body */}
         <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto relative">
           {/* Blur overlay behind modal content */}
-          <div className="absolute inset-0 backdrop-blur-sm bg-black/10 dark:bg-black/20 pointer-events-none z-0" />
+          <div className="absolute inset-0 bg-black/10 dark:bg-black/20 pointer-events-none z-0" />
           <div className="relative z-10">
           {/* Phone + Name */}
           {mode === 'takeaway' && (
             <>
               <div>
                 <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                  Götürülmə Vaxtı
+                  {t('pickup_time')}
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {[
-                    { value: 'now', label: 'İndi' },
-                    { value: '15', label: '15 dəq' },
-                    { value: '30', label: '30 dəq' },
-                    { value: 'custom', label: 'Xüsusi' },
+                    { value: 'now', labelKey: 'pickup_now' },
+                    { value: '15', labelKey: 'pickup_15' },
+                    { value: '30', labelKey: 'pickup_30' },
+                    { value: 'custom', labelKey: 'pickup_custom' },
                   ].map(opt => (
                     <button key={opt.value} type="button" onClick={() => setPickupTime(opt.value)}
                       className={`py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${
                         pickupTime === opt.value ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                           : lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 text-white/40 hover:bg-white/10'
                       }`}
-                    >{opt.label}</button>
+                    >{t(opt.labelKey as any)}</button>
                   ))}
                 </div>
                 {pickupTime === 'custom' && (
@@ -304,7 +306,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
               </div>
               <div>
                 <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                  Planlaşdırılmış Tarix
+                  {t('scheduled_date')}
                 </label>
                 <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)}
                   min={new Date().toISOString().slice(0, 10)} className={inputClass}
@@ -316,7 +318,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
           {/* Payment method */}
           <div>
             <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-              Ödəniş Növü
+              {t('payment_method_label')}
             </label>
             <div className="grid grid-cols-4 gap-2">
               {PAYMENT_METHODS.map(m => {
@@ -330,7 +332,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                     style={paymentMethod === m.value ? { backgroundColor: `var(--tw-${m.color}-500, ${m.color === 'emerald' ? '#10b981' : m.color === 'blue' ? '#3b82f6' : m.color === 'purple' ? '#a855f7' : '#f59e0b'})` } : undefined}
                   >
                     <Icon size={16} />
-                    <span>{m.label}</span>
+                    <span>{t(m.labelKey as any)}</span>
                   </button>
                 );
               })}
@@ -340,12 +342,12 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
           {/* Note */}
           <div>
             <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-              Qeyd
+              {t('notes')}
             </label>
             <div className="relative">
               <FileText size={16} className={`absolute left-3 top-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`} />
               <textarea value={note} onChange={(e) => setNote(e.target.value)}
-                placeholder={mode === 'delivery' ? 'Kuryerə qeyd: "Qapı zəngi etmə", "Lift yoxdur"...' : 'Xüsusi qeyd'}
+                placeholder={mode === 'delivery' ? t('delivery_note_placeholder') : t('custom_note_placeholder')}
                 rows={2} className={`${inputClass} pl-10 resize-none`}
               />
             </div>
@@ -358,7 +360,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
           {/* Total */}
           <div className="flex items-center justify-between mb-4">
             <span className={`text-sm font-black uppercase tracking-wider ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
-              Cəmi
+              {t('total')}
             </span>
             <span className={`text-2xl font-black ${lightMode ? 'text-black' : 'text-white'}`}>
               {total.toFixed(2)} {currency}
@@ -374,14 +376,14 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                   : 'border-white/10 text-white/50 hover:bg-white/5'
               }`}
             >
-              Geri
+              {t('back')}
             </button>
             <button
               onClick={handleSubmit}
               disabled={submitting || !isDeliveryValid}
               className="flex-1 py-4 rounded-2xl bg-emerald-500 text-white text-sm font-black uppercase tracking-wider hover:bg-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
             >
-              {submitting ? 'Göndərilir...' : mode === 'takeaway' ? 'Sifarişi Yarat' : 'Çatdırılma Yarat'}
+              {submitting ? t('submitting') : mode === 'takeaway' ? t('create_takeaway_order') : t('create_delivery_order')}
             </button>
           </div>
         </div>

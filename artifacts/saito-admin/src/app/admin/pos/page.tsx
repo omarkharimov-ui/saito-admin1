@@ -3,14 +3,17 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos } from './hooks/usePos';
 import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid, type ProductGridRef } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
+import { fastExit, appleViewSwap } from '@/lib/modal-transitions';
+import { playHapticSound } from '@/lib/haptic';
 import ReservationActionSheet from './components/ReservationActionSheet';
 import TakeawayOrders from './components/TakeawayOrders';
 import DeliveryOrders from './components/DeliveryOrders';
@@ -18,7 +21,7 @@ import CheckoutModal from './components/CheckoutModal';
 import { CashDrawerPanel } from './components/CashDrawerPanel';
 import { VirtualKeyboardProvider } from './components/VirtualKeyboard';
 import { OrderHistory } from './components/OrderHistory';
-import { FloorSkeleton, ProductGridSkeleton, CartSkeleton, TakeawayOrdersSkeleton, DeliveryOrdersSkeleton } from './components/PosSkeletons';
+import { FloorSkeleton, ProductGridSkeleton, CartSkeleton } from './components/PosSkeletons';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
 import { toast } from '@/lib/toast';
 import { printReceipt, getReceiptSettings, printReservation } from '@/lib/print/PrintService';
@@ -43,6 +46,7 @@ interface PosReceipt {
 
 export default function POSPage() {
   const { lightMode, setLightMode } = useTheme();
+  const { t } = useLanguage();
   const pos = usePos();
   const router = useRouter();
    
@@ -111,11 +115,11 @@ export default function POSPage() {
         const data = await res.json();
         setTakeawayOrders(data.orders || []);
       } else {
-        toast.error('Gel-al sifarişlər yüklənə bilmədi');
+        toast.error(t('takeaway_orders_load_error'));
       }
     } catch (e) {
       console.error('Failed to fetch takeaway orders:', e);
-      toast.error('Gel-al sifarişlər yüklənə bilmədi');
+      toast.error(t('takeaway_orders_load_error'));
     }
   }, []);
 
@@ -126,11 +130,11 @@ export default function POSPage() {
         const data = await res.json();
         setDeliveryOrders(data.orders || []);
       } else {
-        toast.error('Çatdırma sifarişləri yüklənə bilmədi');
+        toast.error(t('delivery_orders_load_error'));
       }
     } catch (e) {
       console.error('Failed to fetch delivery orders:', e);
-      toast.error('Çatdırma sifarişləri yüklənə bilmədi');
+      toast.error(t('delivery_orders_load_error'));
     }
   }, []);
 
@@ -170,7 +174,15 @@ export default function POSPage() {
         return;
       } catch { localStorage.removeItem('pos_session'); }
     }
-    // 2) Try to restore from existing saito_token cookie (staff-login or admin-login)
+    // 2) Development bypass — skip auth in dev mode
+    if (process.env.NODE_ENV === 'development') {
+      const devSession = { staffId: 'dev-001', name: 'DEV User', role: 'admin' };
+      setPosSession(devSession);
+      setPosRole('admin');
+      localStorage.setItem('pos_session', JSON.stringify(devSession));
+      return;
+    }
+    // 3) Try to restore from existing saito_token cookie (staff-login or admin-login)
     (async () => {
       try {
         const res = await fetch('/api/pos/session', { cache: 'no-store' });
@@ -201,6 +213,12 @@ export default function POSPage() {
     window.addEventListener('pos:unauthorized', onUnauthorized);
     return () => window.removeEventListener('pos:unauthorized', onUnauthorized);
   }, [posSession]);
+
+  // Pre-fetch takeaway & delivery orders on mount so they're instant when switching tabs
+  useEffect(() => {
+    fetchTakeawayOrders();
+    fetchDeliveryOrders();
+  }, [fetchTakeawayOrders, fetchDeliveryOrders]);
 
   const handlePosLogout = () => {
     setPosSession(null);
@@ -370,7 +388,7 @@ export default function POSPage() {
       const activeOrders = (ordersData.orders || []).filter((o: any) =>
         !['paid', 'cancelled', 'closed'].includes(o.status) && tableNumbers.includes(o.table_number)
       );
-      if (activeOrders.length === 0) { toast.error('Sifariş tapılmadı'); return; }
+      if (activeOrders.length === 0) { toast.error(t('order_not_found')); return; }
       const settings = await getReceiptSettings();
       for (const order of activeOrders) {
         const items = (order.order_items || []).map((item: any) => ({
@@ -403,9 +421,9 @@ export default function POSPage() {
           copies: 1,
         });
       }
-      toast.success('Hesab çap olundu');
+      toast.success(t('bill_printed'));
     } catch {
-      toast.error('Çap xətası');
+      toast.error(t('print_error'));
     }
   };
 
@@ -424,10 +442,10 @@ export default function POSPage() {
     ready: 'payment_pending',
   };
   const TAKEAWAY_STATUS_LABEL: Record<string, string> = {
-    new: 'Təsdiqləndi',
-    confirmed: 'Mətbəxdə',
-    in_kitchen: 'Hazırdır',
-    ready: 'Ödənişə',
+    new: t('status_new'),
+    confirmed: t('kitchen_in_progress'),
+    in_kitchen: t('kitchen_ready'),
+    ready: t('payment_pending'),
   };
 
   const handleTakeawayStatusAdvance = async () => {
@@ -447,10 +465,10 @@ export default function POSPage() {
         pos.fetchData();
         fetchTakeawayOrders();
       } else {
-        toast.error('Status dəyişdirilə bilmədi');
+        toast.error(t('status_change_error'));
       }
     } catch {
-      toast.error('Xəta baş verdi');
+        toast.error(t('error_occurred'));
     }
   };
 
@@ -462,15 +480,15 @@ export default function POSPage() {
         body: JSON.stringify({ table_number: tableNumber, bill_requested: true }),
       });
       if (res.ok) {
-        toast.success('Hesab çağırıldı — kassirə göndərildi');
+        toast.success(t('bill_called'));
         pos.fetchData();
         setActionSheetOpen(false);
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Xəta');
+        toast.error(err.error || t('error_occurred'));
       }
     } catch (e: any) {
-      toast.error(e.message || 'Xəta');
+      toast.error(e.message || t('error_occurred'));
     }
   };
 
@@ -490,15 +508,15 @@ export default function POSPage() {
         }),
       });
       if (res.ok) {
-        toast.success(`Status yeniləndi: ${status}`);
+        toast.success(t('status_updated').replace('{status}', status));
         setActionSheetOpen(false);
         pos.fetchData();
       } else {
         const err = await res.json();
-        toast.error(err.error || 'Status yenilənmədi');
+        toast.error(err.error || t('status_not_updated'));
       }
     } catch (e: any) {
-      toast.error(e.message || 'Xəta');
+      toast.error(e.message || t('error_occurred'));
     }
   };
 
@@ -508,7 +526,7 @@ export default function POSPage() {
       ? [actionSheetTable.table_number, ...actionSheetGroup.children.map((c: any) => c.table_number)]
       : (actionSheetTable ? [actionSheetTable.table_number] : []);
 
-    toast.loading('Ödəniş işlənir...', { id: 'action-toast' });
+    toast.loading(t('processing_payment'), { id: 'action-toast' });
     try {
       // For takeaway/delivery: pay for the SPECIFIC selected order
       if (posMode !== 'dine_in' && actionSheetTable?.id) {
@@ -518,7 +536,7 @@ export default function POSPage() {
         const specificOrder = (specificData.orders || [])[0];
         
         if (!specificOrder) {
-          toast.error('Sifariş tapılmadı', { id: 'action-toast' });
+          toast.error(t('order_not_found'), { id: 'action-toast' });
           return;
         }
 
@@ -539,11 +557,11 @@ export default function POSPage() {
 
         if (!payRes.ok) {
           const err = await payRes.json();
-          toast.error(err.error || 'Ödəniş uğursuz oldu', { id: 'action-toast' });
+          toast.error(err.error || t('payment_failed'), { id: 'action-toast' });
           return;
         }
 
-        toast.success('Sifariş ödənildi', { id: 'action-toast' });
+        toast.success(t('order_paid'), { id: 'action-toast' });
         setReceiptView({
           tableNumber: actionSheetTable?.table_number ?? '-',
           orderId: specificOrder.id,
@@ -583,7 +601,7 @@ export default function POSPage() {
       }
       
       if (activeOrders.length === 0) {
-        toast.error('Aktiv sifariş tapılmadı', { id: 'action-toast' });
+        toast.error(t('active_order_not_found'), { id: 'action-toast' });
         return;
       }
 
@@ -614,10 +632,10 @@ export default function POSPage() {
       }
 
       if (failedOrders.length > 0) {
-        toast.error(`${failedOrders.length} sifariş ödənilərkən xəta baş verdi. Yenidən cəhd edin.`, { id: 'action-toast' });
+        toast.error(`${failedOrders.length} ${t('payment_error_retry')}`, { id: 'action-toast' });
         return;
       } else {
-        toast.success('Bütün sifarişlər ödənildi', { id: 'action-toast' });
+        toast.success(t('all_orders_paid'), { id: 'action-toast' });
       }
 
       setPaymentView(false);
@@ -695,7 +713,7 @@ export default function POSPage() {
         }
       }
     } catch (e: any) {
-      toast.error(e.message || 'Ödəniş xətası');
+      toast.error(e.message || t('payment_error'));
     }
   };
 
@@ -706,7 +724,7 @@ export default function POSPage() {
     const tableNumbers = actionSheetGroup
       ? [actionSheetTable.table_number, ...(actionSheetGroup.children?.map((c: any) => c.table_number) || [])]
       : (actionSheetTable ? [actionSheetTable.table_number] : []);
-    toast.loading('Ödəniş işlənir...', { id: 'action-toast' });
+    toast.loading(t('processing_payment'), { id: 'action-toast' });
     try {
       const ordersRes = await apiFetch('/api/orders');
       if (!ordersRes.ok) throw new Error('Failed to fetch orders');
@@ -723,7 +741,7 @@ export default function POSPage() {
       const grandTotal = activeOrders.reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0);
       const orderCount = activeOrders.length;
       if (orderCount === 0) {
-        toast.error('Ödəniləcək sifariş tapılmadı', { id: 'action-toast' });
+        toast.error(t('order_to_pay_not_found'), { id: 'action-toast' });
         return;
       }
       for (let i = 0; i < orderCount; i++) {
@@ -754,10 +772,10 @@ export default function POSPage() {
       }
 
       if (failedOrders.length > 0) {
-        toast.error(`${failedOrders.length} sifariş ödənilərkən xəta baş verdi.`, { id: 'action-toast' });
+        toast.error(`${failedOrders.length} ${t('payment_error_retry_short')}`, { id: 'action-toast' });
         return;
       } else {
-        toast.success('Bölünmüş ödəniş tamamlandı', { id: 'action-toast' });
+        toast.success(t('split_payment_complete'), { id: 'action-toast' });
       }
 
       setPaymentView(false);
@@ -799,16 +817,16 @@ export default function POSPage() {
         }
       }
     } catch (e: any) {
-      toast.error(e.message || 'Ödəniş xətası');
+      toast.error(e.message || t('payment_error'));
     }
   };
 
   const handleDismissGroup = async () => {
     if (!actionSheetTable) return;
-    toast.loading('Qrup boşaldılır...', { id: 'action-toast' });
+    toast.loading(t('clearing_group'), { id: 'action-toast' });
     await pos.dismissTable(actionSheetTable.table_number);
     setActionSheetOpen(false);
-    toast.success('Qrup boşaldıldı', { id: 'action-toast' });
+    toast.success(t('group_cleared'), { id: 'action-toast' });
   };
 
   const activeFloor = selectedFloor 
@@ -838,9 +856,11 @@ export default function POSPage() {
 
   const handleTableTap = (table: any) => {
     if (posMode !== 'dine_in') {
-      toast.error('Bu rejimdə masa seçə bilməzsiniz. Sifarişi gel-al və ya çatdır rejimindəsiz.', { id: 'action-toast' });
+      toast.error(t('table_selection_disabled'), { id: 'action-toast' });
       return;
     }
+
+    playHapticSound('select');
 
     if (table.status === 'empty' && !mergeMode && !transferMode) {
       pos.selectTable(table);
@@ -865,13 +885,13 @@ export default function POSPage() {
       if (!transferSource) {
         const t = table;
         if (!t || t.status === 'empty') {
-          toast.error('Boş masadan köçürmə edə bilməzsiniz');
+          toast.error(t('transfer_from_empty_table'));
           return;
         }
         setTransferSource(table.table_number);
-        toast(`Mənbə: Masa ${table.table_number}. İndi hədəf seçin.`);
+        toast(t('source_select_target').replace('{table}', String(table.table_number)));
       } else if (table.table_number === transferSource) {
-        toast.error('Eyni masanı seçdiz');
+        toast.error(t('same_table_selected'));
       } else {
         setTransferTarget(table.table_number);
         setTransferConfirm(true);
@@ -904,7 +924,7 @@ export default function POSPage() {
           message: `Masa ${transferSource} → ${targetTable}`,
           timestamp: Date.now()
         });
-        toast.success('Masa köçürüldü');
+        toast.success(t('table_transferred'));
         setTimeout(() => setLastUndo(null), 5000);
         setTransferMode(false);
         setTransferSource(null);
@@ -924,13 +944,13 @@ export default function POSPage() {
           if (target) pos.selectTable(target);
         }
       } else {
-        toast.error(data.error || 'Köçürmə uğursuz oldu');
+        toast.error(data.error || t('transfer_failed'));
         setTransferMode(false);
         setTransferSource(null);
         setTransferTarget(null);
       }
     } catch (e: any) {
-      toast.error(e.message || 'Köçürmə xətası');
+      toast.error(e.message || t('transfer_error'));
       setTransferMode(false);
       setTransferSource(null);
       setTransferTarget(null);
@@ -947,7 +967,7 @@ export default function POSPage() {
     const resId = table.reservation_id;
     setReservationArrival(null);
     if (!resId) {
-      toast.error('Rezervasiya ID tapılmadı');
+      toast.error(t('reservation_id_not_found'));
       return;
     }
     try {
@@ -956,11 +976,11 @@ export default function POSPage() {
         p_performed_by: posSession?.staffId || null,
       });
       if (error) {
-        toast.error(error.message || 'Qonaq gəlmədi');
+        toast.error(error.message || t('guest_not_arrived'));
         return;
       }
       if (data?.success) {
-        toast.success('Qonaq gəldi — masa açıldı');
+        toast.success(t('guest_arrived'));
         await pos.fetchData();
         try {
           const freshRes = await apiFetch('/api/pos/tables');
@@ -972,10 +992,10 @@ export default function POSPage() {
           }
         } catch { /* fallback to stale data */ }
       } else {
-        toast.error('Qonaq gəlmədi');
+        toast.error(t('guest_not_arrived'));
       }
     } catch (e: any) {
-      toast.error(e.message || 'Xəta');
+      toast.error(e.message || t('error_occurred'));
     }
   };
 
@@ -996,14 +1016,14 @@ export default function POSPage() {
         });
         const data = await res.json();
         if (res.ok) {
-          toast.success('Köçürmə geri alındı');
+          toast.success(t('transfer_reverted'));
           setLastUndo(null);
           pos.fetchData();
         } else {
-          toast.error(data.error || 'Geri alınmadı');
+          toast.error(data.error || t('revert_failed'));
         }
       } catch (e: any) {
-        toast.error(e.message || 'Geri alma xətası');
+        toast.error(e.message || t('revert_error'));
       }
       return;
     }
@@ -1016,14 +1036,14 @@ export default function POSPage() {
         });
         const data = await res.json();
         if (res.ok) {
-          toast.success('Ayırma geri alındı');
+          toast.success(t('split_reverted'));
           setLastUndo(null);
           pos.fetchData();
         } else {
-          toast.error(data.error || 'Geri alınmadı');
+          toast.error(data.error || t('revert_failed'));
         }
       } catch (e: any) {
-        toast.error(e.message || 'Geri alma xətası');
+        toast.error(e.message || t('revert_error'));
       }
       return;
     }
@@ -1033,7 +1053,7 @@ export default function POSPage() {
   const handleUnmerge = async () => {
     if (!actionSheetTable) return;
     if (selectedForUnmerge.length === 0) {
-      toast.error('Zəhmət olmasa ən azı bir masa seçin', { id: 'action-toast' });
+      toast.error(t('select_table_first'), { id: 'action-toast' });
       return;
     }
     try {
@@ -1042,9 +1062,9 @@ export default function POSPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ primary_table_number: actionSheetTable.table_number, child_table_numbers: selectedForUnmerge }),
       });
-      const result = res.ok ? await res.json() : { error: (await res.json()).error || 'Xəta' };
+      const result = res.ok ? await res.json() : { error: (await res.json()).error || t('error') };
       if (res.ok) {
-        toast.success('Masalar ayrıldı', { id: 'action-toast' });
+        toast.success(t('tables_split'), { id: 'action-toast' });
         setUnmergeMode(false);
         setSelectedForUnmerge([]);
         setActionSheetOpen(false);
@@ -1053,16 +1073,16 @@ export default function POSPage() {
           setLastUndo({
             action: 'unmerge',
             data: { ...result.undo, action: 'unmerge' },
-            message: `Masa ${actionSheetTable.table_number} ayrıldı`,
+            message: t('table_split_short').replace('{table}', String(actionSheetTable.table_number)),
             timestamp: Date.now(),
           });
           setTimeout(() => setLastUndo(null), 5000);
         }
       } else {
-        toast.error(result.error || 'Ayırma uğursuz oldu', { id: 'action-toast' });
+        toast.error(result.error || t('split_failed'), { id: 'action-toast' });
       }
     } catch (e: any) {
-      toast.error(e.message || 'Ayırma xətası', { id: 'action-toast' });
+      toast.error(e.message || t('split_error'), { id: 'action-toast' });
     }
   };
 
@@ -1070,7 +1090,8 @@ export default function POSPage() {
     g.parent.table_number === actionSheetTable?.table_number
   );
 
-  const handleOpenAction = (table: any) => {
+   const handleOpenAction = (table: any) => {
+    playHapticSound('on');
     if (posMode !== 'dine_in') {
       setActionSheetTable({
         table_number: null,
@@ -1117,7 +1138,7 @@ export default function POSPage() {
     payment_method: string;
   }) => {
     if (!pos.cart || pos.cart.items.length === 0) {
-      toast.error('Səbət boşdur');
+      toast.error(t('cart_empty'));
       return;
     }
 
@@ -1169,7 +1190,7 @@ export default function POSPage() {
 
   const handleOpenCheckout = () => {
     if (!pos.cart || pos.cart.items.length === 0) {
-      toast.error('Əvvəlcə məhsul əlavə edin');
+      toast.error(t('add_items_hint'));
       return;
     }
     setCheckoutOpen(true);
@@ -1183,10 +1204,10 @@ export default function POSPage() {
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-zinc-950">
           <div className="flex flex-col items-center gap-4">
             <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-            <p className="text-xs text-white/30 font-bold uppercase tracking-widest">Yüklənir...</p>
+            <p className="text-xs text-white/30 font-bold uppercase tracking-widest">{t('loading')}</p>
+           </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* MODE SWITCHER — always visible */}
       <div className="flex items-center gap-4 px-6 pt-4 pb-2">
@@ -1197,38 +1218,42 @@ export default function POSPage() {
               window.dispatchEvent(new CustomEvent('pos-toggle-sidebar'));
             }}
             className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-            title="Menyu"
+            title={t('menu')}
           >
             <PanelLeftClose size={16} />
           </button>
           <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
-            {([
-              { mode: 'dine_in' as const, icon: Utensils, label: 'İçəridə', activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#10b981' },
-              { mode: 'takeaway' as const, icon: UserCheck, label: 'Gel-Al', activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
-              { mode: 'delivery' as const, icon: Bike, label: 'Çatdır', activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
-            ]).map(({ mode, icon: Icon, label, activeBg, activeText, innerColor }) => (
-              <button
-                key={mode}
+          {[
+            { mode: 'dine_in' as const, icon: Utensils, label: t('dine_in'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#10b981' },
+            { mode: 'takeaway' as const, icon: UserCheck, label: t('takeaway'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
+            { mode: 'delivery' as const, icon: Bike, label: t('delivery'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
+          ].map(({ mode, icon: Icon, label, activeBg, activeText, innerColor }) => (
+            <button
+              key={mode}
                 onClick={() => {
-                  setPosMode(mode);
-                  pos.setActiveView('floor');
+                   playHapticSound('select');
+                   setPosMode(mode);
+                   pos.setActiveView('floor');
                 }}
-                className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-colors z-10"
-                style={{ color: posMode === mode ? activeText : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}
-              >
-                {posMode === mode && (
+              className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
+              style={{ color: posMode === mode ? activeText : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}
+            >
+              {posMode === mode && (
+                <AnimatePresence>
                   <motion.div
-                    layoutId="activeModeTab"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    key={`mode-pill-${mode}`}
+                    layoutId="pos-mode-pill"
                     className="absolute inset-0 rounded-full z-0"
                     style={{ backgroundColor: activeBg }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
                   />
-                )}
-                <div className="relative z-10 w-2 h-2 rounded-full" style={{ backgroundColor: innerColor }} />
-                <Icon size={14} className="relative z-10" style={posMode === mode ? { color: activeText } : undefined} />
-                <span className="relative z-10">{label}</span>
-              </button>
-            ))}
+                </AnimatePresence>
+              )}
+              <div className="relative z-10 w-2 h-2 rounded-full" style={{ backgroundColor: innerColor }} />
+              <Icon size={14} className="relative z-10" style={posMode === mode ? { color: activeText } : undefined} />
+              <span className="relative z-10">{label}</span>
+            </button>
+          ))}
           </div>
           {pos.floors.length > 1 && posMode === 'dine_in' && (
             <LiquidDropdown
@@ -1241,19 +1266,19 @@ export default function POSPage() {
           <button
             onClick={() => setOrderHistoryOpen(true)}
             className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-            title="Sifariş Tarixçəsi"
+            title={t('order_history')}
           >
             <History size={16} />
-            <span className="hidden sm:inline">Tarixçə</span>
+            <span className="hidden sm:inline">{t('history')}</span>
           </button>
           {isCashierOrAdmin && (
             <button
               onClick={() => setCashDrawerOpen(true)}
               className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-              title="Kassa / Smena"
+              title={t("cash_drawer")}
             >
               <Wallet size={16} />
-              <span className="hidden sm:inline">Kassa</span>
+              <span className="hidden sm:inline">{t('cash_drawer')}</span>
             </button>
           )}
           <button
@@ -1268,22 +1293,28 @@ export default function POSPage() {
               <button
                 onClick={handlePosLogout}
                 className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all"
-                title="Çıxış"
+                title={t('logout')}
               >
                 <X size={14} />
               </button>
             </div>
           )}
         </div>
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         {posMode === 'dine_in' && pos.activeView === 'floor' && pos.loading && (
-          <div key="floor-skeleton" className="h-full flex flex-col p-6">
+           <div key="floor-skeleton" className="h-full flex flex-col p-6">
             <FloorSkeleton />
           </div>
         )}
 
-        {posMode === 'dine_in' && pos.activeView === 'floor' && !pos.loading && (
-                <div key="floor" className="h-full flex flex-col p-6">
+         {posMode === 'dine_in' && pos.activeView === 'floor' && !pos.loading && (
+                <motion.div key="floor"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={fastExit}
+                  className="h-full flex flex-col p-6"
+                >
                 {cleanMode && (
                   <div className="flex items-center justify-between gap-3 mb-6">
                     <button
@@ -1292,59 +1323,63 @@ export default function POSPage() {
                         setCleanMode(false);
                       }}
                       className="flex items-center gap-2 px-3 py-2 rounded-full border border-white/10 bg-black/50 backdrop-blur-md text-white/80 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-wider transition-all"
-                      title="Geri"
+                      title={t("back")}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M19 12H5M12 19l-7-7 7-7"/>
                       </svg>
-                      <span className="hidden sm:inline">Geri</span>
+                      <span className="hidden sm:inline">{t('back')}</span>
                     </button>
                     <div className="flex items-center gap-2">
                      <button
                        onClick={() => router.push('/admin/reservations')}
                        className="flex items-center gap-2 px-3 py-2 rounded-full border border-white/10 text-white/80 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-wider transition-all"
-                       title="Rezervasiyalar"
+                       title={t('reservations')}
                      >
                        <Calendar size={16} />
-                       <span className="hidden sm:inline">Rezervasiyalar</span>
+                       <span className="hidden sm:inline">{t('reservations')}</span>
                      </button>
                      <button
-                       onClick={() => setWalkInOpen(true)}
-                       className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-wider hover:bg-amber-500/30 transition-all"
+onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
+                       className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-wider hover:bg-amber-500/30 transition-all active:scale-[0.95]"
                      >
                        <span>+</span>
-                       <span className="hidden sm:inline">Walk In</span>
-                     </button>
-                     <div className="flex items-center gap-1 rounded-full p-1 bg-white/5">
+                        <span className="hidden sm:inline">{t('walk_in')}</span>
+                      </button>
+                      <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
                        {[
-                         { active: !mergeMode && !transferMode, label: 'Normal' },
-                         { active: mergeMode, label: 'Birləşdir' },
-                         { active: transferMode, label: 'Köçür' },
-                       ].map(({ active, label }) => (
-                         <button
-                           key={label}
-                           onClick={() => {
-                             if (label === 'Normal') { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
-                             if (label === 'Birləşdir') { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); setTransferConfirm(false); setActionSheetOpen(true); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
-                             if (label === 'Köçür') { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(true); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
-                           }}
-                           className="relative px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors z-10"
-                           style={{ color: active ? '#ffffff' : 'rgba(255,255,255,0.6)' }}
-                         >
-                           {active && (
-                             <motion.div
-                               layoutId="activeActionTabClean"
-                               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                               className="absolute inset-0 rounded-full z-0 bg-blue-500"
-                             />
-                           )}
-                           <span className="relative z-10">{label}</span>
-                         </button>
-                       ))}
-                     </div>
-                     <button
-                       onClick={() => {
-                         if (!document.fullscreenElement) {
+                           { active: !mergeMode && !transferMode, label: t('normal_mode') },
+                           { active: mergeMode, label: t('merge') },
+                           { active: transferMode, label: t('transfer') },
+                        ].map(({ active, label }) => (
+                          <button
+                            key={label}
+                            onClick={() => {
+                               playHapticSound('tap');
+                               if (label === t('normal_mode')) { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                                if (label === t('merge')) { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                                if (label === t('transfer')) { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                            }}
+                            className="relative px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
+                            style={{ color: active ? '#ffffff' : 'rgba(255,255,255,0.6)' }}
+                          >
+                             {active && (
+                               <AnimatePresence>
+                                 <motion.div
+                                   key={`action-pill-${label}`}
+                                   layoutId="action-mode-pill-clean"
+                                   className="absolute inset-0 rounded-full z-0 bg-blue-500"
+                                   transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
+                                 />
+                               </AnimatePresence>
+                              )}
+                            <span className="relative z-10">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!document.fullscreenElement) {
                            document.documentElement.requestFullscreen().catch(() => {});
                          } else {
                            document.exitFullscreen();
@@ -1352,7 +1387,7 @@ export default function POSPage() {
                          setCleanMode(!cleanMode);
                        }}
                        className={`p-2.5 rounded-full border transition-all ${cleanMode ? 'bg-gold text-black border-gold' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                       title="Tam Ekran"
+                       title={t('fullscreen')}
                      >
                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
@@ -1367,41 +1402,44 @@ export default function POSPage() {
                      <button
                        onClick={() => router.push('/admin/reservations')}
                        className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                       title="Rezervasiyalar"
+                       title={t('reservations')}
                      >
                        <Calendar size={16} />
-                       <span className="hidden sm:inline">Rezervasiyalar</span>
+                       <span className="hidden sm:inline">{t('reservations')}</span>
                      </button>
                      <button
-                       onClick={() => setWalkInOpen(true)}
-                       className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-wider hover:bg-amber-500/20 transition-all"
+onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-wider hover:bg-amber-500/20 transition-all active:scale-[0.95]"
                      >
                        <span>+</span>
-                       <span className="hidden sm:inline">Walk In</span>
-                     </button>
-          <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-zinc-800'}`}>
+                        <span className="hidden sm:inline">{t('walk_in')}</span>
+                      </button>
+                      <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-zinc-800'}`}>
                         {[
-                          { active: !mergeMode && !transferMode, label: 'Normal' },
-                          { active: mergeMode, label: 'Birləşdir' },
-                          { active: transferMode, label: 'Köçür' },
+                          { active: !mergeMode && !transferMode, label: t('normal_mode') },
+                          { active: mergeMode, label: t('merge') },
+                          { active: transferMode, label: t('transfer') },
                         ].map(({ active, label }) => (
                           <button
                             key={label}
                             onClick={() => {
-                              if (label === 'Normal') { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
-                              if (label === 'Birləşdir') { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); setTransferConfirm(false); setActionSheetOpen(true); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
-                              if (label === 'Köçür') { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(true); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                              if (label === t('normal_mode')) { setMergeMode(false); setTransferMode(false); setSelectedForMerge([]); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                               if (label === t('merge')) { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
+                               if (label === t('transfer')) { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
                             }}
-                            className="relative px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors z-10"
+                            className="relative px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
                             style={{ color: active ? (lightMode ? '#ffffff' : '#ffffff') : lightMode ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)' }}
                           >
-                           {active && (
-                             <motion.div
-                               layoutId="activeActionTab"
-                               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                               className="absolute inset-0 rounded-full z-0 bg-blue-500"
-                             />
-                           )}
+                             {active && (
+                               <AnimatePresence>
+                                 <motion.div
+                                   key={`action-pill-${label}`}
+                                   layoutId="action-mode-pill-light"
+                                   className="absolute inset-0 rounded-full z-0 bg-blue-500"
+                                   transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
+                                 />
+                               </AnimatePresence>
+                             )}
                            <span className="relative z-10">{label}</span>
                          </button>
                        ))}
@@ -1416,17 +1454,17 @@ export default function POSPage() {
                          setCleanMode(!cleanMode);
                        }}
                        className={`p-3 rounded-full border transition-all ${cleanMode ? 'bg-gold text-black border-gold' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                       title="Tam Ekran"
+                       title={t('fullscreen')}
                      >
                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
                        </svg>
                      </button>
                   </div>
-                   </div>
+                 </div>
                )}
 
-                 {reservationArrival && (
+                  {reservationArrival && (
                    <ReservationActionSheet
                      open={!!reservationArrival}
                      onClose={() => setReservationArrival(null)}
@@ -1450,11 +1488,11 @@ export default function POSPage() {
                      onMoveTable={async () => {
                        setReservationArrival(null);
                        if (reservationArrival && reservationArrival.reservation_id) {
-                         const targetTable = prompt('Hədəf masa nömrəsini daxil edin:');
+                         const targetTable = prompt(t('target_table_prompt'));
                          if (!targetTable) return;
                          const targetNum = parseInt(targetTable, 10);
                          if (isNaN(targetNum)) {
-                           toast.error('Yanlış masa nömrəsi');
+                           toast.error(t('invalid_table_number'));
                            return;
                          }
                          try {
@@ -1469,25 +1507,25 @@ export default function POSPage() {
                              }),
                            });
                            if (res.ok) {
-                             toast.success(`Masa ${reservationArrival.table_number} → ${targetNum} köçürüldü`);
-                             pos.fetchData();
-                           } else {
-                             const err = await res.json().catch(() => ({ error: 'Xəta' }));
-                             toast.error(err.error || 'Köçürülə bilmədi');
-                           }
-                         } catch {
-                           toast.error('Köçürülə bilmədi');
+                              toast.success(t('table_transferred'));
+                              pos.fetchData();
+                            } else {
+                              const err = await res.json().catch(() => ({ error: t('error') }));
+                              toast.error(err.error || t('transfer_failed_short'));
+                            }
+                          } catch {
+                            toast.error(t('transfer_failed_short'));
                          }
                        }
                      }}
                      onMergeTable={async () => {
                        setReservationArrival(null);
                        if (reservationArrival && reservationArrival.reservation_id) {
-                         const extraTables = prompt('Birləşdirmək istədiyiniz masaları vergül ilə ayıraraq daxil edin (məs: 5,6,7):');
+                          const extraTables = prompt(t('merge_tables_prompt'));
                          if (!extraTables) return;
                          const tableNums = extraTables.split(',').map((t) => parseInt(t.trim(), 10)).filter((n) => !isNaN(n));
                          if (tableNums.length === 0) {
-                           toast.error('Yanlış masa nömrələri');
+                           toast.error(t('invalid_table_numbers'));
                            return;
                          }
                          tableNums.unshift(reservationArrival.table_number);
@@ -1502,14 +1540,14 @@ export default function POSPage() {
                              }),
                            });
                            if (res.ok) {
-                             toast.success('Masalar birləşdirildi');
+                             toast.success(t('tables_merged'));
                              pos.fetchData();
                            } else {
-                             const err = await res.json().catch(() => ({ error: 'Xəta' }));
-                             toast.error(err.error || 'Birləşdirilə bilmədi');
+                             const err = await res.json().catch(() => ({ error: t('error') }));
+                             toast.error(err.error || t('merge_failed'));
                            }
                          } catch {
-                           toast.error('Birləşdirilə bilmədi');
+                           toast.error(t('merge_failed'));
                          }
                        }
                      }}
@@ -1523,13 +1561,13 @@ export default function POSPage() {
                              body: JSON.stringify({ reservation_id: reservationArrival.reservation_id, terminal_id: pos.terminalId }),
                            });
                            if (res.ok) {
-                             toast.success('Rezervasiya ləğv edildi');
-                             pos.fetchData();
-                           } else {
-                             toast.error('Ləğv edilə bilmədi');
-                           }
-                         } catch {
-                           toast.error('Ləğv edilə bilmədi');
+                              toast.success(t('reservation_cancelled'));
+                              pos.fetchData();
+                            } else {
+                              toast.error(t('cancel_failed'));
+                            }
+                          } catch {
+                            toast.error(t('cancel_failed'));
                          }
                        }
                      }}
@@ -1543,13 +1581,13 @@ export default function POSPage() {
                              body: JSON.stringify({ reservation_id: reservationArrival.reservation_id, terminal_id: pos.terminalId }),
                            });
                            if (res.ok) {
-                             toast.success('No Show qeyd edildi');
-                             pos.fetchData();
-                           } else {
-                             toast.error('No Show edilə bilmədi');
-                           }
-                         } catch {
-                           toast.error('No Show edilə bilmədi');
+                              toast.success(t('no_show_recorded'));
+                              pos.fetchData();
+                            } else {
+                              toast.error(t('no_show_failed'));
+                            }
+                          } catch {
+                            toast.error(t('no_show_failed'));
                          }
                        }
                      }}
@@ -1576,16 +1614,64 @@ export default function POSPage() {
                            paperWidth: settings.paperWidth,
                            copies: settings.copies,
                          });
-                         toast.success('Bilet çap edildi');
+                         toast.success(t('ticket_printed'));
                        } catch (e: any) {
-                         toast.error(e.message || 'Çap xətası');
+                          toast.error(e.message || t('print_error'));
                        }
                      }}
                    />
-                 )}
-
-                <div className="flex-1 overflow-y-auto overscroll-contain">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  )}
+ 
+                 {/* Merge Preview — Apple-style summary card */}
+                 {mergeMode && selectedForMerge.length >= 2 && (() => {
+                   const mergeTables = selectedForMerge
+                     .map(num => visibleTables?.find((t: any) => t.table_number === num) || { table_number: num, guest_count: 0, status: 'empty', total_amount: 0, kitchen_status: null })
+                     .filter(Boolean);
+                   const parentTable = mergeTables[0];
+                   const childTables = mergeTables.slice(1);
+                   const totalGuests = mergeTables.reduce((s: number, t: any) => s + (t.guest_count || 0), 0);
+                   const orderCount = mergeTables.filter((t: any) => ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(t.status)).length;
+                   return (
+                     <AnimatePresence>
+                       <motion.div
+                         key="merge-preview"
+                         initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                         animate={{ opacity: 1, y: 0, scale: 1 }}
+                         exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                         transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                         className="mb-4"
+                       >
+                          <div className={`flex items-center gap-3 px-4 py-3 rounded-[24px] border shadow-lg ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
+                            <Users size={16} className="text-[var(--theme-accent)] shrink-0" />
+                            <div className="flex flex-col">
+                              <p className="text-[10px] uppercase tracking-widest font-black text-[var(--theme-text-secondary)] mb-0.5">
+                                {t('merge_preview')}
+                              </p>
+                              <p className="text-sm font-black text-[var(--theme-text)]">
+                                <span>{t('table_number')} {parentTable.table_number}</span>
+                                {childTables.map((t: any) => ` + ${t.table_number}`)}
+                                <span className="mx-2">·</span>
+                                <span className="text-[var(--theme-accent)]">{totalGuests} {t('guests')}</span>
+                                <span className="mx-2">·</span>
+                                <span className="text-[var(--theme-text-secondary)]">{orderCount} {t('orders')}</span>
+                              </p>
+                            </div>
+                          </div>
+                       </motion.div>
+                     </AnimatePresence>
+                   );
+                 })()}
+ 
+                 <div className="flex-1 overflow-y-auto overscroll-contain">
+                  <AnimatePresence mode="sync">
+                <motion.div
+                    key={`tables-${selectedFloor || 'default'}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={fastExit}
+                  >
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {visibleTables?.map((table: any) => {
                     const groupInfo = tableGroupInfo[table.table_number];
                     const isGroup = groupInfo && groupInfo.children.length > 0;
@@ -1612,50 +1698,68 @@ export default function POSPage() {
                       </div>
                     );
                   })}
-                </div>
-               </div>
-            </div>
-          )}
+                 </div>
+                 </motion.div>
+                  </AnimatePresence>
+                 </div>
+              </motion.div>
+            )}
 
-          {/* TAKEAWAY: Active orders list — renders instantly, own internal loading */}
-          {posMode === 'takeaway' && pos.activeView === 'floor' && (
-            <TakeawayOrders
-              key="takeaway-list"
-              orders={takeawayOrders}
-              onRefresh={fetchTakeawayOrders}
-              onNewOrder={() => {
-                pos.initializeTakeawayCart();
-                setEditingOrder(null);
-                pos.setActiveView('order');
-              }}
-              onSelectOrder={(order) => {
-                setEditingOrder(order);
-                pos.loadOrderIntoCart(order);
-                pos.setActiveView('order');
-              }}
-              onOpenActionSheet={handleOpenOrderSheet}
-            />
-          )}
+            {/* TAKEAWAY: Active orders list */}
+            {posMode === 'takeaway' && pos.activeView === 'floor' && (
+               <motion.div
+                  key="takeaway-wrapper"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={fastExit}
+               >
+              <TakeawayOrders
+                key="takeaway-list"
+                orders={takeawayOrders}
+                onRefresh={fetchTakeawayOrders}
+                onNewOrder={() => {
+                  pos.initializeTakeawayCart();
+                  setEditingOrder(null);
+                  pos.setActiveView('order');
+                }}
+                onSelectOrder={(order) => {
+                  setEditingOrder(order);
+                  pos.loadOrderIntoCart(order);
+                  pos.setActiveView('order');
+                }}
+                onOpenActionSheet={handleOpenOrderSheet}
+              />
+              </motion.div>
+            )}
 
-          {/* DELIVERY: Active orders list — renders instantly, own internal loading */}
-          {posMode === 'delivery' && pos.activeView === 'floor' && (
-            <DeliveryOrders
-              key="delivery-list"
-              orders={deliveryOrders}
-              onRefresh={fetchDeliveryOrders}
-              onNewOrder={() => {
-                pos.initializeTakeawayCart();
-                setEditingOrder(null);
-                pos.setActiveView('order');
-              }}
-              onSelectOrder={(order) => {
-                setEditingOrder(order);
-                pos.loadOrderIntoCart(order);
-                pos.setActiveView('order');
-              }}
-              onOpenActionSheet={handleOpenOrderSheet}
-            />
-          )}
+            {/* DELIVERY: Active orders list */}
+           {posMode === 'delivery' && pos.activeView === 'floor' && (
+               <motion.div
+                  key="delivery-wrapper"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={fastExit}
+                >
+               <DeliveryOrders
+                 key="delivery-list"
+                orders={deliveryOrders}
+                onRefresh={fetchDeliveryOrders}
+                onNewOrder={() => {
+                  pos.initializeTakeawayCart();
+                  setEditingOrder(null);
+                  pos.setActiveView('order');
+                }}
+                onSelectOrder={(order) => {
+                  setEditingOrder(order);
+                  pos.loadOrderIntoCart(order);
+                  pos.setActiveView('order');
+                }}
+                onOpenActionSheet={handleOpenOrderSheet}
+              />
+              </motion.div>
+            )}
 
            {/* ORDER VIEW: ProductGrid + CartPanel — works for ALL modes */}
            {pos.activeView === 'order' && pos.loading && (
@@ -1664,14 +1768,23 @@ export default function POSPage() {
                 <div className="w-full md:w-[400px] border-l p-6 bg-black/20"><CartSkeleton /></div>
              </div>
            )}
-           {pos.activeView === 'order' && !pos.loading && (
-             <div key="order" className="h-full w-full flex flex-col overflow-hidden">
-                 {/* ═══════════════════════════════════════════════ */}
-                 {/* SİFARİŞ — ProductGrid + CartPanel                */}
-                 {/* ═══════════════════════════════════════════════ */}
-                  <div className="flex-1 flex flex-row overflow-hidden min-h-0">
-                    <div className="flex-1 p-6 overflow-y-auto min-h-0 overscroll-contain">
-                        <ProductGrid
+             {pos.activeView === 'order' && !pos.loading && (
+                <motion.div
+                  key="order"
+                  className="h-full w-full flex flex-col overflow-hidden"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={fastExit}
+                >
+                   {/* ═══════════════════════════════════════════════ */}
+                   {/* SİFARİŞ — ProductGrid + CartPanel                */}
+                   {/* ═══════════════════════════════════════════════ */}
+                    <div className="flex-1 flex flex-row overflow-hidden min-h-0">
+                     <div
+                         className="flex-1 p-6 overflow-y-auto min-h-0 overscroll-contain"
+                       >
+                          <ProductGrid
                           ref={gridRef}
                           products={pos.products}
                           categories={pos.categories}
@@ -1684,104 +1797,70 @@ export default function POSPage() {
                             return acc;
                           }, {})}
                           outOfStock={new Set((pos.products ?? []).filter((p: any) => p.is_in_stock === false || p.is_available === false).map((p: any) => p.id))}
-                        />
-                    </div>
-                    <div className="w-[400px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0">
-                       {posMode !== 'dine_in' && (
-                          <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
-                           {editingOrder && (
-                             <div className="flex items-center justify-between gap-2">
-                               <div className="min-w-0">
-                                 <p className={`text-base font-black tracking-tight truncate ${lightMode ? 'text-black' : 'text-white'}`}>
-                                   {posMode === 'takeaway' ? `Gel-Al ${editingOrder.order_number || ''}` : `Çatdırılma ${editingOrder.order_number || ''}`}
-                                 </p>
-                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border mt-0.5 ${
-                                   editingOrder.status === 'paid' ? 'bg-green-500/15 border-green-500/25 text-green-400' :
-                                   editingOrder.status === 'cancelled' ? 'bg-red-500/15 border-red-500/25 text-red-400' :
-                                   'bg-amber-500/15 border-amber-500/25 text-amber-400'
-                                 }`}>
-                                   {editingOrder.status === 'paid' ? 'Ödənildi' : editingOrder.status === 'cancelled' ? 'Ləğv' : editingOrder.status === 'confirmed' ? 'Təsdiqləndi' : editingOrder.status === 'preparing' ? 'Hazırlanır' : editingOrder.status === 'ready' ? 'Hazırdır' : editingOrder.status}
-                                 </span>
-                               </div>
-                               {editingOrder.status !== 'paid' && editingOrder.status !== 'cancelled' && (
-                                 <div className="flex flex-col gap-1 shrink-0">
-                                   {editingOrder.status === 'confirmed' && (
-                                     <button onClick={() => handleDeliveryStatusUpdate('preparing', editingOrder.id)} className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider hover:bg-amber-600 active:scale-95 transition-all">
-                                       Hazırlanır
-                                     </button>
-                                   )}
-                                   {editingOrder.status === 'preparing' && (
-                                     <button onClick={() => handleDeliveryStatusUpdate('ready', editingOrder.id)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-[10px] font-black uppercase tracking-wider hover:bg-green-600 active:scale-95 transition-all">
-                                       Hazırdır
-                                     </button>
-                                   )}
-                                   {(editingOrder.status === 'ready' || editingOrder.status === 'delivered') && (
-                                     <button onClick={() => handleDeliveryStatusUpdate('paid', editingOrder.id)} className="px-3 py-1.5 rounded-lg bg-gold text-black text-[10px] font-black uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all">
-                                       Ödəniş Al
-                                     </button>
-                                   )}
-                                 </div>
-                               )}
-                             </div>
-                           )}
+                          />
+                      </div>
+                      <div
+                         className="w-[400px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
+                        >
+                             {posMode !== 'dine_in' && (
+                             <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
+                             <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                  {t('customer_phone')} {posMode === 'delivery' ? '*' : ''}
+                                </label>
+                                <input
+                                  type="tel"
+                                  value={pos.cart?.customer_phone || ''}
+                                  onChange={e => {
+                                    if (!pos.cart) return;
+                                    pos.setCart({ ...pos.cart, customer_phone: e.target.value || null });
+                                  }}
+                                  placeholder={t('phone_placeholder')}
+                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                />
+                              </div>
+                              <div>
+                                <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                  {t('customer_name')}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={pos.cart?.customer_name || ''}
+                                  onChange={e => {
+                                    if (!pos.cart) return;
+                                    pos.setCart({ ...pos.cart, customer_name: e.target.value || null });
+                                  }}
+                                  placeholder={t('customer_name_placeholder')}
+                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                />
+                              </div>
+                            </div>
 
-                           <div className="grid grid-cols-2 gap-2">
-                             <div>
-                               <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                 Telefon {posMode === 'delivery' ? '*' : ''}
-                               </label>
-                               <input
-                                 type="tel"
-                                 value={pos.cart?.customer_phone || ''}
-                                 onChange={e => {
-                                   if (!pos.cart) return;
-                                   pos.setCart({ ...pos.cart, customer_phone: e.target.value || null });
-                                 }}
-                                 placeholder="050 200 12 20"
-                                 className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                               />
-                             </div>
-                             <div>
-                               <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                 Ad Soyad
-                               </label>
-                               <input
-                                 type="text"
-                                 value={pos.cart?.customer_name || ''}
-                                 onChange={e => {
-                                   if (!pos.cart) return;
-                                   pos.setCart({ ...pos.cart, customer_name: e.target.value || null });
-                                 }}
-                                 placeholder="Müştəri adı"
-                                 className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                               />
-                             </div>
-                           </div>
-
-                           {posMode === 'delivery' && (
-                             <div>
-                               <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                 Çatdırma Ünvanı *
-                               </label>
-                               <textarea
-                                 value={pos.cart?.delivery_address || ''}
-                                 onChange={e => {
-                                   if (!pos.cart) return;
-                                   pos.setCart({ ...pos.cart, delivery_address: e.target.value || null });
-                                 }}
-                                 placeholder="Ünvan daxil edin"
-                                 rows={2}
-                                 className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all resize-none ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                               />
-                             </div>
-                           )}
+                            {posMode === 'delivery' && (
+                              <div>
+                                <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                  {t('delivery_address')} *
+                                </label>
+                                <textarea
+                                  value={pos.cart?.delivery_address || ''}
+                                  onChange={e => {
+                                    if (!pos.cart) return;
+                                    pos.setCart({ ...pos.cart, delivery_address: e.target.value || null });
+                                  }}
+                                  placeholder={t('address_placeholder')}
+                                  rows={2}
+                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all resize-none ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                />
+                              </div>
+                            )}
 
                            <div className="grid grid-cols-2 gap-2">
                              {posMode === 'delivery' && (
                                <div>
-                                 <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                   Çatdırma Haqqı (₼)
-                                 </label>
+                                  <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                    {t('delivery_fee')} (₼)
+                                  </label>
                                  <input
                                    type="number"
                                    step="0.01"
@@ -1797,19 +1876,19 @@ export default function POSPage() {
                                </div>
                              )}
                              <div>
-                               <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                                 Qeyd
-                               </label>
-                               <input
-                                 type="text"
-                                 value={pos.cart?.notes || ''}
-                                 onChange={e => {
-                                   if (!pos.cart) return;
-                                   pos.setCart({ ...pos.cart, notes: e.target.value });
-                                 }}
-                                 placeholder="Əlavə qeyd..."
-                                 className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                               />
+                                <label className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                                  {t('notes')}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={pos.cart?.notes || ''}
+                                  onChange={e => {
+                                    if (!pos.cart) return;
+                                    pos.setCart({ ...pos.cart, notes: e.target.value });
+                                  }}
+                                  placeholder={t('note_placeholder')}
+                                  className={`w-full rounded-xl px-3 py-2.5 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                                />
                              </div>
                            </div>
                          </div>
@@ -1824,11 +1903,11 @@ export default function POSPage() {
                             if (posMode !== 'dine_in') {
                               const phone = pos.cart?.customer_phone?.trim();
                               if (posMode === 'delivery' && !phone) {
-                                toast.error('Telefon nömrəsi daxil edin');
+                                toast.error(t('enter_phone'));
                                 return;
                               }
                               if (posMode === 'delivery' && !pos.cart?.delivery_address?.trim()) {
-                                toast.error('Çatdırma ünvanı daxil edin');
+                                toast.error(t('enter_address'));
                                 return;
                               }
                               pos.placeOrder(undefined, {
@@ -1883,10 +1962,10 @@ export default function POSPage() {
                            onRequestEditor={(productId) => {
                              gridRef.current?.toggleEditor(productId);
                            }}
-                        />
-                    </div>
-                  </div>
-             </div>
+                         />
+                     </div>
+                   </div>
+              </motion.div>
            )}
           </AnimatePresence>
 
@@ -1895,7 +1974,7 @@ export default function POSPage() {
         <CheckoutModal
           open={checkoutOpen}
           mode={posMode === 'delivery' ? 'delivery' : 'takeaway'}
-          total={(pos.cart?.items ?? []).reduce((s: number, i: any) => s + (i.total_price || 0), 0) + (posMode === 'delivery' ? (pos.cart?.delivery_fee || 0) : 0)}
+          total={(pos.cart?.items ?? []).reduce((s: number, i: any) => s + (i.total_price || 0), 0) * (1 + 0.18) + (posMode === 'delivery' ? (pos.cart?.delivery_fee || 0) : 0)}
           onSubmit={handleCheckoutSubmit}
           onClose={() => setCheckoutOpen(false)}
         />
@@ -1904,7 +1983,7 @@ export default function POSPage() {
           <ActionSheet
            table={actionSheetTable} 
            open={actionSheetOpen || paymentView} 
-            onClose={() => { setActionSheetOpen(false); setUnmergeMode(false); setPaymentView(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }} 
+            onClose={() => { playHapticSound('off'); setActionSheetOpen(false); setUnmergeMode(false); setPaymentView(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }} 
           onAddOrder={() => { if (actionSheetTable?.table_number && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(actionSheetTable.status)) { setFlashInfo({ tableNumber: actionSheetTable.table_number, nonce: Date.now() }); } pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
           onSeatGuests={() => {
             if (actionSheetTable?.reservation_id) {
@@ -1934,13 +2013,13 @@ export default function POSPage() {
                  body: JSON.stringify({ order_id: actionSheetTable.id, status: 'cancelled' }),
                });
                if (res.ok) {
-                 toast.success('Sifariş ləğv edildi');
+                 toast.success(t('order_cancelled'));
                  pos.fetchData();
                } else {
-                 toast.error('Ləğv edilə bilmədi');
+                 toast.error(t('cancel_failed'));
                }
              } catch {
-               toast.error('Xəta baş verdi');
+      toast.error(t('error_occurred'));
              }
            } else {
              pos.dismissTable(actionSheetTable.table_number);
@@ -2002,9 +2081,9 @@ export default function POSPage() {
 
       <AnimatePresence>
         {lastUndo && (
-          <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-6 px-8 py-4 rounded-[2rem] bg-zinc-900 text-white shadow-2xl border border-white/10">
+          <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} transition={fastExit} className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-6 px-8 py-4 rounded-[2rem] bg-zinc-900 text-white shadow-2xl border border-white/10">
             <span className="text-sm font-bold">{lastUndo.message}</span>
-            <button onClick={handleUndo} className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95">Geri Al</button>
+            <button onClick={handleUndo} className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95">{t('undo')}</button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2050,7 +2129,7 @@ export default function POSPage() {
                 campaignName={receiptView.discountName || undefined}
               />
               <div className="mt-4 text-center text-[11px] text-zinc-500">
-                {receiptView.paymentMethod === 'cash' ? 'Nağd' : receiptView.paymentMethod === 'card' ? 'Kart' : receiptView.paymentMethod}
+                {receiptView.paymentMethod === 'cash' ? t('cash') : receiptView.paymentMethod === 'card' ? t('card') : receiptView.paymentMethod}
                 {' · '}
                 {receiptView.total.toFixed(2)} ₼
               </div>
@@ -2059,7 +2138,7 @@ export default function POSPage() {
               {receiptTendered != null && receiptTendered > 0 && receiptView.paymentMethod === 'cash' && (
                 <div className="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
                   <div className="flex justify-between text-xs font-bold">
-                    <span className="text-emerald-600">Verilən:</span>
+                    <span className="text-emerald-600">{t('given')}:</span>
                     <span className="tabular-nums">{receiptTendered.toFixed(2)} ₼</span>
                   </div>
                   <div className="flex justify-between text-xs font-bold">
@@ -2068,7 +2147,7 @@ export default function POSPage() {
                   </div>
                   <div className="h-px bg-emerald-200 my-1" />
                   <div className="flex justify-between text-sm font-black">
-                    <span className="text-emerald-700">Qalıq:</span>
+                    <span className="text-emerald-600">{t('change')}:</span>
                     <span className="text-emerald-600 tabular-nums">
                       {receiptTendered >= receiptView.total
                         ? `${(receiptTendered - receiptView.total).toFixed(2)} ₼`
@@ -2082,7 +2161,7 @@ export default function POSPage() {
                 onClick={() => { setReceiptView(null); setReceiptTendered(undefined); }}
                 className="mt-4 w-full py-3 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-zinc-700 transition-all active:scale-95"
               >
-                Bağla
+                {t('close')}
               </button>
             </motion.div>
           </motion.div>
@@ -2116,42 +2195,43 @@ export default function POSPage() {
             style={{ paddingBottom: 'var(--vk-height, 0px)' }}
             onClick={() => setWalkInOpen(false)}
           >
-            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               onClick={e => e.stopPropagation()}
               className={`w-full max-w-sm rounded-3xl p-7 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
             >
-              <p className={`text-xl font-black tracking-tight mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>Walk In</p>
-              <p className={`text-[10px] font-black uppercase tracking-widest mb-5 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Yeni qonaq qeydi</p>
+              <p className={`text-xl font-black tracking-tight mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>{t('walk_in')}</p>
+              <p className={`text-[10px] font-black uppercase tracking-widest mb-5 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('new_guest')}</p>
               <div className="space-y-3 mb-5">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Masa №</label>
-                    <input type="number" min="1" value={walkInTable} onChange={e => setWalkInTable(e.target.value)} autoFocus
+                    <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('table_number')}</label>
+                   <input type="number" min="1" value={walkInTable} onChange={e => setWalkInTable(e.target.value)} autoFocus
                       className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
                     />
                   </div>
                   <div>
-                    <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Qonaq sayı</label>
+                    <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('guests')}</label>
                     <input type="number" min="1" value={walkInGuests} onChange={e => setWalkInGuests(e.target.value)}
                       className={`w-full rounded-2xl px-4 py-3 text-base font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Ad</label>
-                  <input type="text" value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder="Müştəri adı"
+                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_name')}</label>
+                  <input type="text" value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder={t('customer_name_placeholder')}
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
                   />
                 </div>
                 <div>
-                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Telefon</label>
-                  <input type="tel" value={walkInPhone} onChange={e => setWalkInPhone(e.target.value)} placeholder="+994 XX XXX XX XX"
+                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('customer_phone')}</label>
+                  <input type="tel" value={walkInPhone} onChange={e => setWalkInPhone(e.target.value)} placeholder={t('phone_placeholder')}
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
                   />
                 </div>
                 <div>
-                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Qeydlər</label>
-                  <textarea value={walkInNotes} onChange={e => setWalkInNotes(e.target.value)} placeholder="Xüsusi istəklər..."
+                  <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('notes')}</label>
+                  <textarea value={walkInNotes} onChange={e => setWalkInNotes(e.target.value)} placeholder={t('note_placeholder')}
                     rows={2}
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border resize-none ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black placeholder:text-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500'}`}
                   />
@@ -2160,21 +2240,21 @@ export default function POSPage() {
                   <input type="checkbox" id="walkInPreOrder" checked={walkInPreOrder} onChange={e => { setWalkInPreOrder(e.target.checked); if (!e.target.checked) { setWalkInScheduledDate(''); setWalkInScheduledTime(''); } }}
                     className="w-4 h-4 rounded border-zinc-300 text-amber-500 focus:ring-amber-500"
                   />
-                  <label htmlFor="walkInPreOrder" className={`text-[10px] font-black uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
-                    Əvvəlcədən sifariş
-                  </label>
+                      <label htmlFor="walkInPreOrder" className={`text-[10px] font-black uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
+                        {t('pre_order')}
+                      </label>
                 </div>
                 {walkInPreOrder && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Tarix</label>
+                      <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('date')}</label>
                       <input type="date" data-vk="none" value={walkInScheduledDate} onChange={e => setWalkInScheduledDate(e.target.value)}
                         min={new Date().toISOString().slice(0, 10)}
                         className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
                       />
                     </div>
                     <div>
-                      <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Vaxt</label>
+                      <label className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('time')}</label>
                       <input type="time" data-vk="none" value={walkInScheduledTime} onChange={e => setWalkInScheduledTime(e.target.value)}
                         className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
                       />
@@ -2184,7 +2264,7 @@ export default function POSPage() {
               </div>
               <div className="flex gap-3">
                 <button onClick={() => { setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); setWalkInPreOrder(false); setWalkInScheduledDate(''); setWalkInScheduledTime(''); }} className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
-                  Ləğv
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={async () => {
@@ -2197,15 +2277,15 @@ export default function POSPage() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ table_number: tableNum, guests, name: walkInName || null, phone: walkInPhone || null, order_type: 'dine_in', notes: walkInNotes || null, pre_order: walkInPreOrder, scheduled_date: walkInPreOrder ? walkInScheduledDate : null, scheduled_time: walkInPreOrder ? walkInScheduledTime : null }),
                       });
-                      if (res.ok) { toast.success(`Walk-in yaradıldı`); pos.fetchData(); }
-                      else { const err = await res.json(); toast.error(err.error || 'Walk-in uğursuz'); }
-                    } catch { toast.error('Xəta'); }
+                      if (res.ok) { toast.success(t('walk_in_created')); pos.fetchData(); }
+                      else { const err = await res.json(); toast.error(err.error || t('walk_in_failed')); }
+                    } catch { toast.error(t('error')); }
                     setWalkInOpen(false); setWalkInTable(''); setWalkInGuests('1'); setWalkInName(''); setWalkInPhone(''); setWalkInNotes(''); setWalkInPreOrder(false); setWalkInScheduledDate(''); setWalkInScheduledTime('');
                   }}
                   disabled={!walkInTable || Number(walkInTable) < 1}
                   className="flex-1 py-4 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-600 transition-all active:scale-95 disabled:opacity-30 shadow-lg shadow-amber-500/20"
                 >
-                  Təsdiqlə
+                  {t('confirm')}
                 </button>
               </div>
             </motion.div>

@@ -6,7 +6,7 @@ import { X, Phone, Clock, Users, Star, ChevronRight, Pencil, Printer, UserX, Mer
 import { toast } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
+import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
 
 interface ReservedTableModalProps {
   open: boolean;
@@ -57,13 +57,13 @@ export default function ReservedTableModal({
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          initial={{ opacity: 0, y: 100 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 100 }}
-          transition={appleCard}
-          className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center p-4 pointer-events-none"
-        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={fastExit}
+            className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+          >
           <div className="pointer-events-auto w-full max-w-md bg-white text-black rounded-2xl shadow-2xl border border-white/20 p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -99,7 +99,7 @@ export default function ReservedTableModal({
               {table.guest_count && (
                 <div className="flex items-center gap-2 text-xs text-zinc-600">
                   <Users size={14} className="text-zinc-400" />
-                  <span>{table.guest_count} nəfər</span>
+                  <span>{table.guest_count} t('person')</span>
                 </div>
               )}
             </div>
@@ -115,14 +115,14 @@ export default function ReservedTableModal({
               <button
                 onClick={onEditReservation}
                 className="px-4 py-4 rounded-2xl border border-zinc-200 text-zinc-600 text-xs font-black hover:bg-zinc-50 transition-all"
-                title="Redaktə"
+                title={t('edit')}
               >
                 <Pencil size={16} />
               </button>
               <button
                 onClick={() => setShowActions(!showActions)}
                 className="px-4 py-4 rounded-2xl border border-zinc-200 text-zinc-600 text-xs font-black hover:bg-zinc-50 transition-all"
-                title="Ətraflı"
+                title={t('details')}
               >
                 <ChevronRight size={16} />
               </button>
@@ -136,8 +136,8 @@ export default function ReservedTableModal({
                 >
                   <Move size={18} className="text-blue-500" />
                   <div className="text-left">
-                    <p className="text-sm font-bold text-zinc-900">Masa Dəyiş</p>
-                    <p className="text-[10px] text-zinc-500">Başqa boş masaya köçür</p>
+                    <p className="text-sm font-bold text-zinc-900">{t('change_table')}</p>
+                    <p className="text-[10px] text-zinc-500">{t('move_to_empty_table')}</p>
                   </div>
                 </button>
                 <button
@@ -146,8 +146,8 @@ export default function ReservedTableModal({
                 >
                   <Merge size={18} className="text-emerald-500" />
                   <div className="text-left">
-                    <p className="text-sm font-bold text-zinc-900">Masa Birləşdir</p>
-                    <p className="text-[10px] text-zinc-500">Yeni masa əlavə et</p>
+                    <p className="text-sm font-bold text-zinc-900">{t('merge_table')}</p>
+                    <p className="text-[10px] text-zinc-500">{t('add_new_table')}</p>
                   </div>
                 </button>
                 {table.reservation_phone && (
@@ -157,7 +157,7 @@ export default function ReservedTableModal({
                   >
                     <PhoneCall size={18} className="text-emerald-500" />
                     <div className="text-left">
-                      <p className="text-sm font-bold text-zinc-900">Zəng Et</p>
+                      <p className="text-sm font-bold text-zinc-900">{t('call')}</p>
                       <p className="text-[10px] text-zinc-500">{table.reservation_phone}</p>
                     </div>
                   </a>
@@ -179,7 +179,7 @@ export default function ReservedTableModal({
                   <UserX size={18} className="text-rose-500" />
                   <div className="text-left">
                     <p className="text-sm font-bold text-zinc-900">No Show</p>
-                    <p className="text-[10px] text-zinc-500">Qonaq gəlmədi</p>
+                    <p className="text-[10px] text-zinc-500">{t('guest_not_arrived')}</p>
                   </div>
                 </button>
                 <button
@@ -188,8 +188,8 @@ export default function ReservedTableModal({
                 >
                   <Ban size={18} className="text-rose-600" />
                   <div className="text-left">
-                    <p className="text-sm font-bold text-rose-600">Ləğv Et</p>
-                    <p className="text-[10px] text-rose-400">Rezervasiyanı ləğv et</p>
+                    <p className="text-sm font-bold text-rose-600">{t('cancel')}</p>
+                    <p className="text-[10px] text-rose-400">{t('cancel_reservation')}</p>
                   </div>
                 </button>
               </div>

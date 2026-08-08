@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useTheme } from '@/lib/theme/ThemeContext';
-import { appleCard, appleBackdrop } from '@/lib/modal-transitions';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { fastExit } from '@/lib/modal-transitions';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface ActionCardProps {
@@ -18,6 +19,7 @@ interface ActionCardProps {
 
 export function ActionCard({ icon, label, onClick, href, variant = 'default', disabled }: ActionCardProps) {
   const { lightMode } = useTheme();
+  const { t } = useLanguage();
 
   const baseClass = `flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all active:scale-95`;
   
@@ -70,6 +72,7 @@ interface TableActionSheetProps {
 
 export function TableActionSheet({ open, onClose, title, subtitle, badge, children }: TableActionSheetProps) {
   const { lightMode } = useTheme();
+  const { t } = useLanguage();
   const keyboardHeight = useKeyboardHeight();
 
   useEffect(() => {
@@ -82,10 +85,10 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, childr
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 100 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 100 }}
-      transition={appleCard}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={fastExit}
       className="fixed bottom-0 left-0 right-0 z-[120] flex items-center justify-center p-4 pointer-events-none"
       style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
     >
@@ -97,7 +100,7 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, childr
         </div>
         {children}
         <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all text-white/70">
-          Bağla
+          t('close')
         </button>
       </div>
     </motion.div>

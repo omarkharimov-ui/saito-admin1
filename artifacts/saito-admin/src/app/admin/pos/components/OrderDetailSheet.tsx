@@ -14,7 +14,7 @@ import { toast } from '@/lib/toast';
 import type { PosProduct } from '../types/shared';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useVirtualKeyboard } from './VirtualKeyboard';
-import { appleSheet, appleBackdrop, fastExit } from '@/lib/modal-transitions';
+import { appleBackdrop, slideUp, fastExit } from '@/lib/modal-transitions';
 
 interface OrderDetailSheetProps {
   order: any | null;
@@ -198,25 +198,20 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
       {open && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none" style={{ paddingBottom: bottomOffset > 0 ? bottomOffset + 16 : undefined }}>
           <motion.div
-            initial={{ opacity: 0, y: '100%' }}
-             animate={{ opacity: 1, y: 0 }}
-             exit={{ opacity: 0, y: '100%' }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={fastExit}
             className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30"
             onClick={onClose}
            />
 
            <motion.div
-            initial={{ opacity: 0, y: '100%' }}
-             animate={{ opacity: 1, y: 0 }}
-             exit={{ opacity: 0, y: '100%' }}
-             transition={fastExit}
-            className={`relative z-10 pointer-events-auto w-full mx-auto max-h-[92vh] flex flex-col overflow-hidden rounded-t-3xl shadow-[0_30px_60px_rgba(0,0,0,0.3)] border transition-all duration-300 ${
-              isWide ? 'max-w-6xl' : 'max-w-lg'
-            } ${
-              lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
-            }`}
-          >
+             {...slideUp}
+             className={`relative z-10 pointer-events-auto w-full mx-auto max-h-[92vh] flex flex-col overflow-hidden rounded-t-3xl shadow-[0_30px_60px_rgba(0,0,0,0.3)] border transition-all duration-300 ${
+               isWide ? 'max-w-6xl' : 'max-w-lg'
+             } ${
+               lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
+             }`}
+           >
             {/* Tab Bar */}
             <div className={`flex items-center gap-1 px-5 pt-4 pb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
               {([

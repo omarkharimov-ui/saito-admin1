@@ -24,22 +24,32 @@ export async function POST(request: NextRequest) {
     
     const supabase = await createAuthClient();
 
-    const { order_id, payment_method, cash_amount, card_amount, paid_amount, tip_amount, campaign_id, discount_amount, discount_type } = await request.json();
+    const { order_id, payment_method, cash_amount, card_amount, paid_amount, tip_amount, campaign_id, discount_amount, discount_type, per_item_allocations } = await request.json();
     if (!order_id) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
     }
 
     // Normalize the cash/card split regardless of what the frontend sent:
-    // - plain cash payment -> all cash
-    // - plain card payment -> all card
-    // - split payment -> the explicit cash_amount / card_amount
     const requestedTotal = Number(paid_amount) || 0;
     let cashPortion = Number(cash_amount) || 0;
     let cardPortion = Number(card_amount) || 0;
-    if (payment_method !== 'split' || (cashPortion === 0 && cardPortion === 0)) {
-      if (payment_method === 'cash') cashPortion = requestedTotal;
-      else cardPortion = requestedTotal;
+    
+    if (payment_method === 'cash') {
+      cashPortion = requestedTotal;
+      cardPortion = 0;
+    } else if (payment_method === 'card' || payment_method === 'qr' || payment_method === 'transfer' || payment_method === 'corporate' || payment_method === 'online' || payment_method === 'voucher') {
+      cashPortion = 0;
+      cardPortion = requestedTotal;
+    } else if (payment_method === 'split') {
+      if (cashPortion === 0 && cardPortion === 0) {
+        cashPortion = requestedTotal / 2;
+        cardPortion = requestedTotal / 2;
+      }
+    } else if (payment_method === 'pay_later') {
+      cashPortion = 0;
+      cardPortion = 0;
     }
+    
     const paidAmount = Math.round((cashPortion + cardPortion) * 100) / 100;
 
     // ─── Auto-apply active campaign if no campaign_id provided ───
@@ -90,9 +100,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // ─── Cash drawer ledger: log the CASH portion into the open session ───
-    // Skipped when the payment was a retry/duplicate (RPC already completed).
-    if (cashPortion > 0 && !data?.duplicate) {
+    // ─── Cash drawer ledger ───
+    if ((cashPortion > 0 || cardPortion > 0) && !data?.duplicate) {
       try {
         const s = svc();
         const { data: openSession } = await fetch(
@@ -101,21 +110,70 @@ export async function POST(request: NextRequest) {
         ).then(r => r.json()).then((rows: any) => ({ data: rows?.[0] || null })).catch(() => ({ data: null }));
 
         if (openSession?.id) {
-          await fetch(`${s.url}/rest/v1/cash_drawer_log`, {
-            method: 'POST',
-            headers: s.headers,
-            body: JSON.stringify({
-              session_id: openSession.id,
-              type: 'payment',
-              amount: cashPortion,
-              description: `Nağd ödəniş (order ${order_id})`,
-              order_id,
-              created_by: auth.user?.id || null,
-            }),
-          });
+          if (cashPortion > 0) {
+            await fetch(`${s.url}/rest/v1/cash_drawer_log`, {
+              method: 'POST',
+              headers: s.headers,
+              body: JSON.stringify({
+                session_id: openSession.id,
+                type: 'payment',
+                amount: cashPortion,
+                description: `Nağd ödəniş (order ${order_id})`,
+                order_id,
+                created_by: auth.user?.id || null,
+              }),
+            });
+          }
+          if (cardPortion > 0) {
+            await fetch(`${s.url}/rest/v1/cash_drawer_log`, {
+              method: 'POST',
+              headers: s.headers,
+              body: JSON.stringify({
+                session_id: openSession.id,
+                type: 'card_payment',
+                amount: cardPortion,
+                description: `${payment_method === 'voucher' ? 'Vouçer' : 'Kart'} ödəniş (order ${order_id})`,
+                order_id,
+                created_by: auth.user?.id || null,
+              }),
+            });
+          }
         }
       } catch (drawerErr) {
         console.error('[pay] cash drawer log failed (non-fatal):', drawerErr);
+      }
+    }
+
+    // ─── Store per-item payment allocations if provided ───
+    if (per_item_allocations && Array.isArray(per_item_allocations) && per_item_allocations.length > 0 && !data?.duplicate) {
+      try {
+        const s = svc();
+        const { data: openSession } = await fetch(
+          `${s.url}/rest/v1/cash_drawer_sessions?select=id&status=eq.open&order=opened_at.desc&limit=1`,
+          { headers: s.headers }
+        ).then(r => r.json()).then((rows: any) => ({ data: rows?.[0] || null })).catch(() => ({ data: null }));
+
+        const paymentRecords = per_item_allocations.map((alloc: any) => ({
+          order_id,
+          amount: Number(alloc.amount) || 0,
+          payment_method: alloc.payment_method || 'card',
+          method: alloc.payment_method || 'card',
+          currency: 'AZN',
+          status: 'completed',
+          transaction_id: `POS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          split_group_id: openSession?.id || null,
+          is_partial: true,
+          created_by: auth.user?.id || null,
+          performed_by: auth.user?.id || null,
+        }));
+        
+        await fetch(`${s.url}/rest/v1/order_payments`, {
+          method: 'POST',
+          headers: s.headers,
+          body: JSON.stringify(paymentRecords),
+        });
+      } catch (paymentErr) {
+        console.error('[pay] per-item payment records failed (non-fatal):', paymentErr);
       }
     }
 

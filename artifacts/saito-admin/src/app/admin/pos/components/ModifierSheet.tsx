@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Check } from 'lucide-react';
 import type { PosModifierSelection } from '../types/shared';
-import { appleSheet, appleBackdrop, fastExit } from '@/lib/modal-transitions';
+import { appleBackdrop, slideUp, fastExit } from '@/lib/modal-transitions';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useVirtualKeyboard } from './VirtualKeyboard';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -57,7 +57,7 @@ export function ModifierSheet({ open, productName, productPrice, variants = [], 
       {open && (
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit} className="fixed inset-0 z-[130] bg-black/50" onClick={onClose} />
-          <motion.div {...appleSheet} transition={fastExit} className="fixed bottom-0 inset-x-0 z-[140] max-h-[90vh] overflow-y-auto bg-[var(--theme-surface)] rounded-t-[40px] border-t border-white/[0.08] shadow-2xl p-6 pb-12" style={{ paddingBottom: bottomOffset > 0 ? bottomOffset + 24 : undefined }}>
+          <motion.div {...slideUp} transition={fastExit} className="fixed bottom-0 inset-x-0 z-[140] max-h-[90vh] overflow-y-auto bg-[var(--theme-surface)] rounded-t-[40px] border-t border-white/[0.08] shadow-2xl p-6 pb-12" style={{ paddingBottom: bottomOffset > 0 ? bottomOffset + 24 : undefined }}>
             <div className="max-w-2xl mx-auto space-y-8">
               {/* Header */}
               <div className="flex items-start justify-between">

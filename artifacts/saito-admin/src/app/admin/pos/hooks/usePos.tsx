@@ -570,7 +570,10 @@ export function usePos() {
       const campaignDiscount = typeof effective === 'object' && effective?.discount_amount ? effective.discount_amount : 0;
       const campaignDiscountType = typeof effective === 'object' && effective?.discount_type ? effective.discount_type : null;
       const existing = items.find(
-        i => String(i.product_id) === String(p.id) && (i.variant_id ?? null) === variantId
+        i => String(i.product_id) === String(p.id)
+          && (i.variant_id ?? null) === variantId
+          && JSON.stringify(i.modifiers || []) === JSON.stringify(opts?.modifiers || [])
+          && (i.special_notes || '') === (opts?.notes || '')
       );
       if (existing) {
         existing.quantity += 1;

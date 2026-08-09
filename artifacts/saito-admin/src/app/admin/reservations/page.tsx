@@ -439,7 +439,7 @@ export default function ReservationsPage() {
                       expired: 'bg-rose-500/10 text-rose-400',
                       archived: 'bg-zinc-500/10 text-zinc-400',
                     };
-                    return <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${colors[s] || 'bg-zinc-500/10 text-zinc-500'}`}>{s.replace('_', ' ')}</span>
+                    return <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${colors[s] || 'bg-zinc-500/10 text-zinc-500'}`}>{s.replace('_', ' ')}</span>
                   }}
                   onUpdateStatus={updateStatus} 
                   onEdit={(r) => { setEditingReservation(r); setUpsertModalOpen(true); }}

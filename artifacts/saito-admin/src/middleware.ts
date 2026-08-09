@@ -42,7 +42,12 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('redirect', url.pathname);
       return NextResponse.redirect(loginUrl);
     }
-    if (isAdmin && !['admin', 'superadmin'].includes(role || '')) {
+    const isPosRoute = url.pathname.startsWith('/admin/pos');
+    if (isPosRoute) {
+      if (!['admin', 'superadmin', 'cashier', 'waiter', 'kitchen'].includes(role || '')) {
+        return NextResponse.redirect(new URL('/unauthorized', request.url));
+      }
+    } else if (isAdmin && !['admin', 'superadmin'].includes(role || '')) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
     if (isKitchen && !['kitchen', 'superadmin', 'admin'].includes(role || '')) {
@@ -53,7 +58,11 @@ export async function middleware(request: NextRequest) {
   const isApiRoute = url.pathname.startsWith('/api/');
   const isPublicApi = url.pathname.startsWith('/api/public/') ||
                       url.pathname.startsWith('/api/auth/me') ||
-                      url.pathname.startsWith('/api/auth/pin-login');
+                      url.pathname.startsWith('/api/auth/pin-login') ||
+                      url.pathname.startsWith('/api/auth/staff-login') ||
+                      url.pathname.startsWith('/api/auth/send-code') ||
+                      url.pathname.startsWith('/api/auth/logout') ||
+                      url.pathname.startsWith('/api/pos/login');
 
   if (isApiRoute && !isPublicApi) {
     if (!valid) {

@@ -11,7 +11,7 @@ import {
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { PosTable } from '../types/shared';
-import { fastExit } from '@/lib/modal-transitions';
+import { fastExit, slideUp, morphView } from '@/lib/modal-transitions';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
 import { PinGuard } from './PinGuard';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
@@ -28,7 +28,7 @@ interface ActionSheetProps {
   onCancelTable?: () => void;
   onOpenPayment?: () => void;
   onPaymentMethodSelect?: (method: PaymentMethod, tenderedAmount?: number) => void;
-  onSplitConfirm?: (split: { cash: string; card: string }) => void;
+  onSplitConfirm?: (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }) => void;
   onDismissGroup?: () => void;
   onBackFromPayment?: () => void;
   onDeliveryStatus?: () => void;
@@ -142,7 +142,7 @@ export function ActionSheet({
   const isDeliveryOnly = posMode === 'delivery';
 
   const posRoleNorm = posRole?.toLowerCase() || '';
-  const isManagerOrAbove = isAtLeast(posRoleNorm, 'manager');
+  const isManagerOrAbove = isAtLeast(posRoleNorm, 'cashier');
   const waiterPinRequired = requiresPin(posRoleNorm);
 
   const actions = [
@@ -175,17 +175,14 @@ export function ActionSheet({
       {currentView !== 'none' && (
         <motion.div
           key="global-pos-root"
-          initial={{ opacity: 0, y: '100%' }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: '100%' }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
-          className="fixed inset-0 z-[120] flex items-end justify-center pointer-events-none pb-10"
+          {...slideUp}
+          className="fixed inset-0 z-[140] flex items-end justify-center pointer-events-none pb-10"
           style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
         >
            {/* Backdrop */}
            {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'split-by-items' || currentView === 'confirm-action') && (
            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              {...morphView} exit={{ opacity: 0 }}
               transition={fastExit}
               className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/20"
               onClick={onClose}
@@ -209,9 +206,9 @@ export function ActionSheet({
                   <div className={`w-10 h-1.5 rounded-full ${lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
                 </div>
               )}
-              <AnimatePresence mode="wait">
+              <AnimatePresence>
                 {currentView === 'actions' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-actions" transition={fastExit}>
+                  <motion.div key="ui-actions" {...morphView} transition={fastExit}>
                    <div className="text-center mb-6">
                        <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
                          {isMerged ? `${t('group')}${groupNumber || groupName}` : isTakeawayOrDelivery ? ((table as any)?.order_number ? `${posMode === 'delivery' ? t('delivery_short') : t('takeaway_short')} ${(table as any).order_number}` : t('order')) : `${t('table_label')} ${table?.table_number}`}
@@ -393,13 +390,13 @@ export function ActionSheet({
                         </div>
                       )}
                     </div>
-                  )}
-                  <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('close')}</button>
+                   )}
+                    <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('close')}</button>
                 </motion.div>
               )}
 
               {currentView === 'payment' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-payment" className="flex flex-col gap-2" transition={fastExit}>
+                <motion.div {...morphView} key="ui-payment" className="flex flex-col gap-2" transition={fastExit}>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('payment_method_label')}</p>
                    <p className="text-2xl font-black tracking-tighter mb-3 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
 
@@ -462,12 +459,12 @@ export function ActionSheet({
                          </button>
                     </>
                   )}
-                      <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
+                       <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
                  </motion.div>
                )}
 
               {currentView === 'cash-tendered' && (
-                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-cash-tendered" className="flex flex-col gap-3" transition={fastExit}>
+                 <motion.div {...morphView} key="ui-cash-tendered" className="flex flex-col gap-3" transition={fastExit}>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('cash_payment')}</p>
                   <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <div className="space-y-3">
@@ -498,7 +495,7 @@ export function ActionSheet({
                       )
                     )}
                   </div>
-                  <button onClick={() => { setCashTenderedView(false); setCashTenderedAmount(''); }} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
+                   <button onClick={() => { setCashTenderedView(false); setCashTenderedAmount(''); }} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
                   <button
                     onClick={() => { onPaymentMethodSelect?.('cash', Number(cashTenderedAmount) || 0); setCashTenderedView(false); setCashTenderedAmount(''); }}
                     disabled={!cashTenderedAmount || Number(cashTenderedAmount) <= 0 || Number(cashTenderedAmount) < (table?.total_amount || 0) * 0.99}
@@ -510,7 +507,7 @@ export function ActionSheet({
               )}
 
               {currentView === 'card-confirm' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-card-confirm" className="flex flex-col gap-3" transition={fastExit}>
+                <motion.div {...morphView} key="ui-card-confirm" className="flex flex-col gap-3" transition={fastExit}>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">{t('card_payment')}</p>
                   <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <div className="p-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center">
@@ -518,7 +515,7 @@ export function ActionSheet({
                     <p className="text-sm font-bold text-blue-400">{t('sent_to_terminal')}</p>
                     <p className="text-[10px] text-blue-400/60 mt-1">{t('customer_approach_terminal')}</p>
                   </div>
-                  <button onClick={() => { setCardConfirmView(false); }} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
+                   <button onClick={() => { setCardConfirmView(false); }} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
                   <button
                     onClick={() => { onPaymentMethodSelect?.('card'); setCardConfirmView(false); }}
                     className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-blue-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20"
@@ -529,7 +526,7 @@ export function ActionSheet({
               )}
 
                  {currentView === 'split-payment' && localSplit && (
-                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-split-payment" className="flex flex-col gap-3" transition={fastExit}>
+                   <motion.div {...morphView} key="ui-split-payment" className="flex flex-col gap-3" transition={fastExit}>
                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">{t('split_payment')}</p>
                      <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                      <div className="space-y-3">
@@ -587,7 +584,7 @@ export function ActionSheet({
                        const remaining = total - cash - card;
                        if (Math.abs(remaining) < 0.01) return null;
                        return (
-                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`p-3 rounded-xl text-center ${remaining > 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
+                         <motion.div {...morphView} className={`p-3 rounded-xl text-center ${remaining > 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
                            <p className={`text-xs font-bold ${remaining > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
                              {remaining > 0 ? `t('change'): ₼${remaining.toFixed(2)}` : `t('change_short') + ': ₼'${Math.abs(remaining).toFixed(2)}`}
                            </p>
@@ -595,7 +592,7 @@ export function ActionSheet({
                        );
                      })()}
                      <div className="flex gap-3 mt-2">
-                       <button onClick={() => { setLocalSplit(null); setCashTenderedView(false); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">{t('back')}</button>
+                        <button onClick={() => { setLocalSplit(null); setCashTenderedView(false); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
                        <button
                          onClick={() => { onSplitConfirm?.(localSplit); setLocalSplit(null); }}
                          disabled={(() => {
@@ -613,7 +610,7 @@ export function ActionSheet({
                 )}
 
               {currentView === 'split-by-items' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-split-by-items" className="flex flex-col gap-3">
+                <motion.div {...morphView} key="ui-split-by-items" className="flex flex-col gap-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">{t('split_by_item')}</p>
                   <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <div className="space-y-2 max-h-[280px] overflow-y-auto">
@@ -686,7 +683,7 @@ export function ActionSheet({
                     );
                   })()}
                   <div className="flex gap-3 mt-2">
-                    <button onClick={() => { setSplitByItemsView(false); setSplitItems({}); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">{t('back')}</button>
+                     <button onClick={() => { setSplitByItemsView(false); setSplitItems({}); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
                     <button
                       onClick={() => {
                         const items = (table as any)?.order_items || [];
@@ -698,7 +695,7 @@ export function ActionSheet({
                           if (splitItems[idx] !== 'card') return sum;
                           return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
                         }, 0);
-                        onSplitConfirm?.({ cash: cashTotal.toFixed(2), card: cardTotal.toFixed(2) });
+                         onSplitConfirm?.({ cash: cashTotal.toFixed(2), card: cardTotal.toFixed(2), items: splitItems });
                         setSplitByItemsView(false);
                         setSplitItems({});
                       }}
@@ -715,7 +712,7 @@ export function ActionSheet({
               )}
 
                 {currentView === 'customer' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-customer" className="flex flex-col gap-3">
+                  <motion.div {...morphView} key="ui-customer" className="flex flex-col gap-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">{t('customer')}</p>
                     <div className="relative mb-2">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
@@ -751,7 +748,7 @@ export function ActionSheet({
                         ))
                       )}
                     </div>
-                    <button onClick={() => setShowCustomerSearch(false)} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)]">{t('back')}</button>
+                     <button onClick={() => setShowCustomerSearch(false)} className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
                   </motion.div>
                 )}
 
@@ -825,7 +822,7 @@ export function ActionSheet({
               )}
 
                 {currentView === 'confirm-action' && (
-                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-confirm" className="flex flex-col gap-4 py-2">
+                 <motion.div {...morphView} key="ui-confirm" className="flex flex-col gap-4 py-2">
                    <div className="text-center">
                      <p className={`text-xl font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
                        {confirmAction === 'dismiss_group' ? t('clear_group_question') : t('clear_table_question')}
@@ -862,7 +859,7 @@ export function ActionSheet({
                 )}
 
                  {currentView === 'merge' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-bar" className="flex items-center gap-5 w-full">
+                  <motion.div {...morphView} key="ui-bar" className="flex items-center gap-5 w-full">
                     <div className="flex flex-col mr-auto min-w-[140px]">
                       <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">{t('merge_tables')}</span>
                       <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
@@ -887,7 +884,7 @@ export function ActionSheet({
                  )}
 
                  {currentView === 'transfer' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key="ui-transfer" className="flex items-center gap-5 w-full">
+                  <motion.div {...morphView} key="ui-transfer" className="flex items-center gap-5 w-full">
                     <div className="flex flex-col mr-auto min-w-[140px]">
                       <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">{t('transfer')}</span>
                        <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Calendar, Users, Phone, Clock, Trash2, Star, UserPlus, Zap } from 'lucide-react';
+import { Calendar, Users, Phone, Clock, Trash2, Star, UserPlus, Zap, ShoppingBag } from 'lucide-react';
 
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -116,10 +116,17 @@ export const ReservationTableRow = ({
           </span>
         </div>
       </td>
-      <td className="px-8 py-6 text-center font-bold text-xs">
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${lightMode ? 'bg-zinc-100 text-zinc-900' : 'bg-white/5 text-white'}`}>
-          <Users size={14} className="opacity-30" />{res.guests}
-        </span>
+      <td className="px-8 py-6 text-center">
+        <div className="flex flex-col items-center gap-1.5">
+          <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-black ${lightMode ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+            <Users size={18} className="opacity-70" />{res.guests}
+          </span>
+          {res.pre_order && (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${lightMode ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'}`}>
+              <ShoppingBag size={8} /> Öncədən
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-8 py-6">{statusBadge(res.status)}</td>
       <td className="px-8 py-6">
@@ -156,12 +163,19 @@ export const ReservationCard = ({
       whileHover={{ scale: 1.01 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       onClick={() => onSelect(res)}
-      className={`p-6 rounded-[2.5rem] border shadow-2xl transition-all ${
+      className={`p-6 rounded-[2.5rem] border shadow-2xl transition-all relative overflow-hidden ${
         lightMode 
-          ? 'bg-white border-zinc-100 shadow-zinc-200/50' 
-          : 'bg-[#0f0f0f] border-white/5 shadow-black/60'
+          ? 'bg-white border-amber-200 shadow-amber-100/50' 
+          : 'bg-[#0f0f0f] border-amber-500/20 shadow-black/60'
       }`}
     >
+      {res.pre_order && (
+        <div className="absolute top-4 right-4">
+          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${lightMode ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'}`}>
+            <ShoppingBag size={10} /> Öncədən
+          </span>
+        </div>
+      )}
       <div className="flex items-start justify-between mb-4">
         <div className="flex flex-col">
           <div className="flex items-center gap-2 mb-1">
@@ -174,8 +188,15 @@ export const ReservationCard = ({
       </div>
       <div className={`flex items-center gap-4 text-xs font-bold ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
          <span className="flex items-center gap-1.5"><Calendar size={14} className="opacity-30" /> {res.time}</span>
-         <span className="flex items-center gap-1.5"><Users size={14} className="opacity-30" /> {res.guests} Nəfər</span>
+         <span className="flex items-center gap-1.5"><Users size={18} className="opacity-40" /> <span className="text-lg font-black">{res.guests}</span> <span className="opacity-60">Nəfər</span></span>
       </div>
+      {res.pre_order && (
+        <div className="mt-3">
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${lightMode ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'}`}>
+            <ShoppingBag size={10} /> Öncədən Sifariş
+          </span>
+        </div>
+      )}
     </motion.div>
   );
 };

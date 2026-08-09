@@ -5,7 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, User, MapPin, Clock, FileText, Banknote, CreditCard, Wifi, Timer, Loader2, ChevronDown, MapPinOff } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
+import { appleBackdrop, slideUp } from '@/lib/modal-transitions';
+import { RollingNumber } from './RollingNumber';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 export interface CheckoutData {
   customer_phone: string;
@@ -89,6 +91,8 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
   const [zoneLoading, setZoneLoading] = useState(false);
   const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const [noteExpanded, setNoteExpanded] = useState(false);
+  const keyboardHeight = useKeyboardHeight();
   const addressInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
@@ -188,8 +192,6 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  if (!open) return null;
-
   const isDeliveryValid = mode === 'delivery' ? street.trim().length > 0 : true;
 
   const handleSubmit = async () => {
@@ -230,24 +232,22 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
   }`;
 
   return (
-    <AnimatePresence>
     <motion.div
        key="checkout-backdrop"
-       initial={{ opacity: 0, y: '100%' }}
-             animate={{ opacity: 1, y: 0 }}
-             exit={{ opacity: 0, y: '100%' }}
-       transition={fastExit}
-className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4"
-        onClick={handleClose}
-      >
+       initial={{ opacity: 0 }}
+       animate={{ opacity: 1 }}
+       exit={{ opacity: 0 }}
+       transition={appleBackdrop}
+       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4"
+       onClick={handleClose}
+    >
        <motion.div
-        {...appleCard}
-        transition={fastExit}
-        className={`w-full max-w-lg rounded-3xl shadow-2xl border overflow-hidden ${
-          lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
+         {...slideUp}
+         className={`w-full max-w-lg rounded-3xl shadow-2xl border overflow-hidden ${
+           lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
+         }`}
+         onClick={(e) => e.stopPropagation()}
+       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 pb-4 border-b border-white/10">
           <div>
@@ -339,20 +339,44 @@ className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-
             </div>
           </div>
 
-          {/* Note */}
-          <div>
-            <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-              {t('notes')}
-            </label>
-            <div className="relative">
-              <FileText size={16} className={`absolute left-3 top-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`} />
-              <textarea value={note} onChange={(e) => setNote(e.target.value)}
-                placeholder={mode === 'delivery' ? t('delivery_note_placeholder') : t('custom_note_placeholder')}
-                rows={2} className={`${inputClass} pl-10 resize-none`}
-              />
-            </div>
-          </div>
-          </div>
+           {/* Note */}
+           <div>
+             <AnimatePresence mode="wait">
+             {noteExpanded ? (
+               <motion.div
+                 key="note-expanded"
+                 initial={{ opacity: 0, scale: 0.95 }}
+                 animate={{ opacity: 1, scale: 1 }}
+                 exit={{ opacity: 0, scale: 0.95 }}
+                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                 className="w-full"
+               >
+                 <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                   {t('notes')}
+                 </label>
+                 <div className="relative">
+                   <FileText size={16} className={`absolute left-3 top-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`} />
+                   <textarea value={note} onChange={(e) => setNote(e.target.value)}
+                     placeholder={mode === 'delivery' ? t('delivery_note_placeholder') : t('custom_note_placeholder')}
+                     rows={3} className={`${inputClass} pl-10 resize-none`}
+                     style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : undefined }}
+                     autoFocus
+                   />
+                 </div>
+                 <button onClick={() => setNoteExpanded(false)} className="w-full mt-2 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('done')}</button>
+               </motion.div>
+             ) : (
+               <motion.button
+                 key="note-button"
+                 layout
+                 onClick={() => setNoteExpanded(true)} className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90"
+               >
+                 {t('add_note') || 'Qeyd əlavə et'}
+               </motion.button>
+             )}
+             </AnimatePresence>
+           </div>
+           </div>
         </div>
 
         {/* Footer */}
@@ -362,9 +386,7 @@ className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-
             <span className={`text-sm font-black uppercase tracking-wider ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
               {t('total')}
             </span>
-            <span className={`text-2xl font-black ${lightMode ? 'text-black' : 'text-white'}`}>
-              {total.toFixed(2)} {currency}
-            </span>
+            <RollingNumber value={total} prefix="" suffix={` ${currency}`} decimals={2} className="text-2xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]" duration={0.3} />
           </div>
 
           <div className="flex gap-3">
@@ -389,6 +411,5 @@ className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-
         </div>
       </motion.div>
     </motion.div>
-    </AnimatePresence>
   );
 }

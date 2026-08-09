@@ -55,7 +55,7 @@ export interface Order {
   returned_amount?: number;
 }
 
-export interface Reservation {
+ export interface Reservation {
   id: string;
   customer_name: string;
   phone: string | null;
@@ -65,6 +65,7 @@ export interface Reservation {
   status: 'pending' | 'confirmed' | 'checked_in' | 'completed' | 'cancelled' | 'no_show' | 'expired' | 'archived';
   notes: string | null;
   created_at: string;
+  pre_order?: boolean;
 }
 
 export interface TableFloor {

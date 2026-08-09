@@ -125,12 +125,12 @@ export function UpcomingReservations() {
                               ? `Bugün ${r.time}`
                               : `${r.date} ${r.time}`}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <Users size={10} />
+                          <span className="flex items-center gap-1 font-black text-white/80">
+                            <Users size={12} />
                             {r.guests || '?'} nəfər
                           </span>
                           {r.pre_order_total != null && (
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 text-amber-400">
                               <ShoppingBag size={10} />
                               {Number(r.pre_order_total).toFixed(2)} ₼
                             </span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 
 interface RollingNumberProps {
   value: number;
@@ -35,9 +35,15 @@ export function RollingNumber({
   }, [value, decimals]);
 
   const prevDigitsRef = useRef<string[]>([]);
-  const prev = prevDigitsRef.current;
-  const changed = prev.length > 0 && prev.join('') !== formatted.join('');
-  prevDigitsRef.current = formatted;
+  const prevValueRef = useRef<number | null>(null);
+  const isFirstRender = prevValueRef.current === null;
+
+  const changed = !isFirstRender && prevDigitsRef.current.join('') !== formatted.join('');
+
+  useEffect(() => {
+    prevValueRef.current = value;
+    prevDigitsRef.current = formatted;
+  });
 
   return (
     <span className={`inline-flex items-baseline ${className}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -48,25 +54,29 @@ export function RollingNumber({
             return (
               <span
                 key={`dot-${i}`}
-                className="inline-block text-center"
+                className="inline-block overflow-hidden relative"
                 style={{ width: '0.35em', height: DIGIT_HEIGHT, lineHeight: DIGIT_HEIGHT }}
               >
-                .
+                <span className="absolute inset-0 flex items-center justify-center">
+                  .
+                </span>
               </span>
             );
           }
 
-          const prevChar = changed && prev[i] !== undefined ? prev[i] : ch;
-          const digitChanged = prevChar !== ch;
+          const prevDigit = changed ? (prevDigitsRef.current[i] ?? ch) : ch;
+          const digitChanged = isFirstRender || prevDigit !== ch;
 
           if (!digitChanged) {
             return (
               <span
                 key={`static-${i}-${ch}`}
-                className="inline-block text-center overflow-hidden"
+                className="inline-block overflow-hidden relative"
                 style={{ width: '0.65em', height: DIGIT_HEIGHT, lineHeight: DIGIT_HEIGHT }}
               >
-                {ch}
+                <span className="absolute inset-0 flex items-center justify-center">
+                  {ch}
+                </span>
               </span>
             );
           }
@@ -89,7 +99,16 @@ export function RollingNumber({
           );
         })}
       </span>
-      {suffix && <span>{suffix}</span>}
+      {suffix && (
+        <span
+          className="inline-block overflow-hidden relative"
+          style={{ width: '0.65em', height: DIGIT_HEIGHT, lineHeight: DIGIT_HEIGHT }}
+        >
+          <span className="absolute inset-0 flex items-center justify-center">
+            {suffix}
+          </span>
+        </span>
+      )}
     </span>
   );
 }

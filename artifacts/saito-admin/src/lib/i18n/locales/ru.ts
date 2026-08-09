@@ -1363,6 +1363,11 @@ export const ru: TranslationMap = {
   // OrderHistory
   refund_success: 'Возврат выполнен успешно',
   refund_failed: 'Возврат не удался',
+  partial_refund: 'Частичный возврат',
+  refund_amount: 'Сумма возврата',
+  refund_reason: 'Причина',
+  refund_reason_placeholder: 'Введите причину...',
+  invalid_amount: 'Некорректная сумма',
   order_split: 'Заказ разделен',
   search_orders: 'Поиск по заказу, товару или клиенту...',
   no_search_results: 'Ничего не найдено',
@@ -1436,6 +1441,7 @@ export const ru: TranslationMap = {
 
   vat: 'НДС',
   add_note: 'Добавить заметку',
+  done: 'Готово',
   add_customer: 'Добавить клиента',
   edit_customer: 'Изменить клиента',
   edit_note: 'Изменить заметку',
@@ -1595,6 +1601,7 @@ export const ru: TranslationMap = {
   customer_approach_terminal: 'Клиент, подойдите к терминалу',
   split_short: 'Разделить',
   per_item: 'По товарам',
+  voucher_payment: 'Ваучер / Купон',
   separate_tables: 'Разделить столы',
   clear_group_question: 'Очистить группу?',
   clear_table_question: 'Очистить стол?',

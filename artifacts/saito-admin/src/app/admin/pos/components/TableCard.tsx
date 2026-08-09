@@ -280,6 +280,20 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                  </span>
                </div>
              )}
+             {isReserved && !table.reservation_name && (
+               <div className="mt-2">
+                 <span className={`text-sm font-bold truncate ${lightMode ? 'text-indigo-600' : 'text-indigo-300'}`}>
+                   {t('reserved' as any)} · {table.guest_count || '?'} {t('person' as any)}
+                 </span>
+               </div>
+             )}
+             {table.pre_order && (
+               <div className="mt-2">
+                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${lightMode ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'}`}>
+                   <ShoppingBag size={10} /> Öncədən
+                 </span>
+               </div>
+             )}
            </div>
          )}
 

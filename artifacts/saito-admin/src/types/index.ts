@@ -185,6 +185,7 @@ export interface Reservation {
   table_ids?: string[] | null;
   pre_order_items?: PreOrderItem[] | null;
   pre_order_total?: number | null;
+  pre_order?: boolean;
   kitchen_scheduled_at?: string | null;
   visitCount?: number;
 }

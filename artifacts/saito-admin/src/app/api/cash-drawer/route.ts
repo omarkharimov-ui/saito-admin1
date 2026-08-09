@@ -36,14 +36,26 @@ export async function GET() {
     todayStart.setHours(0, 0, 0, 0);
     const { data: todaySessions } = await s
       .from('cash_drawer_sessions')
-      .select('*')
+      .select('*, opened_by:opened_by(name), closed_by:closed_by(name)')
       .gte('opened_at', todayStart.toISOString())
       .order('opened_at', { ascending: false });
+
+    // Calculate card/voucher total from cash_drawer_log for each session
+    const sessionsWithCardTotal = await Promise.all((todaySessions || []).map(async (session: any) => {
+      const { data: cardLogs } = await s
+        .from('cash_drawer_log')
+        .select('amount')
+        .eq('session_id', session.id)
+        .eq('type', 'card_payment');
+      
+      const cardTotal = (cardLogs || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+      return { ...session, card_total: cardTotal };
+    }));
 
     return NextResponse.json({
       session: session || null,
       movements,
-      todaySessions: todaySessions || [],
+      todaySessions: sessionsWithCardTotal || [],
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

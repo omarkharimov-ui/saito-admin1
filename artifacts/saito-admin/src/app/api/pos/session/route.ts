@@ -44,12 +44,13 @@ export async function GET() {
       .maybeSingle();
 
     if (staff) {
-      // Normalize role to match what API auth expects (English lowercase)
+      // Normalize role to match what POS expects (English lowercase)
       const roleMap: Record<string, string> = {
-        'Kassir': 'manager', 'Ofisiant': 'waiter', 'Menecer': 'manager',
-        'Barmen': 'waiter', 'Aşpaz': 'waiter', 'Superadmin': 'superadmin',
+        'cashier': 'cashier',
+        'Ofisiant': 'waiter',
+        'superadmin': 'superadmin',
       };
-      const normalizedRole = roleMap[staff.role] || staff.role;
+      const normalizedRole = roleMap[staff.role] || staff.role.toLowerCase();
       return NextResponse.json({
         staffId: staff.id,
         name: staff.name,

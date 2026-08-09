@@ -118,6 +118,7 @@ export function CartPanel({
   const [numpadOpen, setNumpadOpen] = useState(false);
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
   const [noteEditing, setNoteEditing] = useState(false);
+  const noteInputRef = useRef<HTMLInputElement>(null);
 
   const [vatRate, setVatRate] = useState(0.18);
 
@@ -162,6 +163,15 @@ export function CartPanel({
       customInputRef.current.focus();
     }
   }, [showCustomReason]);
+
+  useEffect(() => {
+    if (noteEditing && keyboardHeight > 0 && noteInputRef.current) {
+      const timer = setTimeout(() => {
+        noteInputRef.current?.focus();
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [noteEditing, keyboardHeight]);
 
   if (!cart) {
     const msg = posMode !== 'dine_in' ? t('no_orders') || (posMode === 'takeaway' ? 'No orders' : 'No orders') : t('no_table_selected');
@@ -483,16 +493,16 @@ export function CartPanel({
                    <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                      {(item.unit_price * item.quantity).toFixed(2)} ₼
                    </span>
-                   <div className="flex items-center gap-2">
-                     <div className="flex items-center gap-1 rounded-xl border border-[var(--theme-border)] overflow-hidden">
-                       <button onClick={() => onUpdateQty?.(originalIdx, -1)} className="px-2 py-1 text-xs font-black hover:bg-white/10 transition-colors">−</button>
-                       <span className="px-2 py-1 text-xs font-black tabular-nums min-w-[1.5rem] text-center">{item.quantity}</span>
-                      <motion.button
-                        whileTap={{ scale: 0.95, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
-                        onClick={() => onUpdateQty?.(originalIdx, 1)}
-                        className="px-2 py-1 text-xs font-black hover:bg-white/10 transition-colors"
-                      >+</motion.button>
-                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
+                        <button onClick={() => onUpdateQty?.(originalIdx, -1)} className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95">−</button>
+                        <span className="w-12 h-11 flex items-center justify-center text-sm font-black tabular-nums">{item.quantity}</span>
+                       <motion.button
+                         whileTap={{ scale: 0.95, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
+                         onClick={() => onUpdateQty?.(originalIdx, 1)}
+                         className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95"
+                       >+</motion.button>
+                     </div>
                     <button onClick={() => onRequestEditor?.(item.product_id)} className={`p-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
                       <Hash size={14} />
                     </button>
@@ -623,62 +633,52 @@ export function CartPanel({
             </div>
           </div>
         )}
-         {/* Global note — tag style (not input field) */}
-         {!isEmpty && !lossMode && posMode === 'dine_in' && (
-           <div className="px-1">
-             {globalNote ? (
-                <motion.div
-                  key="note-tag"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
-                 className={`flex items-center justify-between gap-2 px-3 py-2 rounded-full text-[10px] font-medium border ${
-                   lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-700' : 'bg-white/5 border-white/10 text-white/70'}`}>
-                 <div className="flex items-center gap-1.5 min-w-0">
-                   <Tag size={10} className={lightMode ? 'text-zinc-500' : 'text-white/50'} />
-                   <span className="truncate">{globalNote}</span>
-                 </div>
-                 <button
-                   onClick={() => { setNoteEditing(true); }}
-                   className={`p-0.5 rounded-md transition-colors ${lightMode ? 'hover:bg-zinc-200 text-zinc-500' : 'hover:bg-white/10 text-white/40'}`}>
-                   <Edit2 size={10} />
-                 </button>
-               </motion.div>
-             ) : (
-                <motion.button
-                  key="note-add"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
-                 onClick={() => setNoteEditing(true)}
-                 className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-medium border transition-colors ${
-                   lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>
-                   <Tag size={10} />
-                   {t('add_note')}
-                 </motion.button>
-             )}
-
-{noteEditing && (
-             <AnimatePresence>
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}
-                  className="overflow-hidden">
-                 <input
-                   type="text"
-                   value={globalNote}
-                   onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
-                   onBlur={() => { setNoteEditing(false); }}
-                   onKeyDown={(e) => { if (e.key === 'Escape') setNoteEditing(false); }}
-                    placeholder={t('note_placeholder') || 'Note...'}
-                    className={`w-full mt-2 rounded-xl px-3 py-2 text-xs font-medium outline-none border transition-all ${lightMode ? 'bg-white border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
-                 />
-               </motion.div>
-             </AnimatePresence>
-           )}
-         </div>
-         )}
+          {/* Global note — in-place morph, no fixed overlay */}
+          {!isEmpty && !lossMode && posMode === 'dine_in' && (
+            <div className="px-1">
+              <AnimatePresence mode="sync">
+                {noteEditing ? (
+                  <motion.div
+                    layoutId="note-field"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                    className="w-full"
+                  >
+                    <div className={`w-full rounded-2xl p-4 border shadow-2xl ${
+                      lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
+                    }`}>
+                      <div className="relative">
+                        <Tag size={10} className={`absolute left-3 top-3 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`} />
+                        <input
+                          ref={noteInputRef}
+                          type="text"
+                          value={globalNote}
+                          onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
+                          onBlur={() => { setNoteEditing(false); }}
+                          onKeyDown={(e) => { if (e.key === 'Escape') setNoteEditing(false); }}
+                          placeholder={t('note_placeholder') || 'Qeyd...'}
+                          className={`w-full rounded-xl px-3 py-2 pl-8 text-xs font-medium outline-none border transition-all ${lightMode ? 'bg-white border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.button
+                    layoutId="note-field"
+                    onClick={() => setNoteEditing(true)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-medium border transition-colors ${
+                      lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                    }`}
+                  >
+                    <Tag size={10} />
+                    {globalNote ? globalNote : t('add_note')}
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
          {/* Footer actions removed from here */}
          <div className="w-full flex-shrink-0">
            <SendOrderButton

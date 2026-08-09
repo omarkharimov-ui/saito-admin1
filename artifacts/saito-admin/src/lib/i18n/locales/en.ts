@@ -1360,6 +1360,11 @@ export const en: TranslationMap = {
   // OrderHistory
   refund_success: 'Refund successful',
   refund_failed: 'Refund failed',
+  partial_refund: 'Partial Refund',
+  refund_amount: 'Refund Amount',
+  refund_reason: 'Reason',
+  refund_reason_placeholder: 'Enter reason...',
+  invalid_amount: 'Invalid amount',
   order_split: 'Order split',
   search_orders: 'Search by order, product or customer...',
   no_search_results: 'No search results',
@@ -1434,6 +1439,7 @@ export const en: TranslationMap = {
 
   vat: 'VAT',
   add_note: 'Add a note',
+  done: 'Done',
   add_customer: 'Add customer',
   edit_customer: 'Edit customer',
   edit_note: 'Edit note',
@@ -1594,6 +1600,7 @@ export const en: TranslationMap = {
   customer_approach_terminal: 'Customer, please approach the terminal',
   split_short: 'Split',
   per_item: 'Per Item',
+  voucher_payment: 'Voucher / Coupon',
   separate_tables: 'Separate Tables',
   clear_group_question: 'Clear group?',
   clear_table_question: 'Clear table?',

@@ -109,6 +109,7 @@ export interface PosTable {
   waiter_name?: string | null;
   has_pre_order?: boolean;
   pre_order_count?: number;
+  pre_order?: boolean;
   current_order_id?: string | null;
 }
 

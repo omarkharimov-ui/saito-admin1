@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText } from 'lucide-react';
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock, Clock, DollarSign, X, Loader2, User, FileText, CreditCard } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
-import { appleSheet, appleBackdrop, fastExit } from '@/lib/modal-transitions';
+import { appleBackdrop, slideUp, fastExit } from '@/lib/modal-transitions';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface CashDrawerSession {
@@ -18,12 +18,13 @@ interface CashDrawerSession {
   closing_balance: number | null;
   expected_balance: number | null;
   difference: number | null;
-  status: string;
   opened_at: string;
-  closed_at: string | null;
-  notes: string | null;
-  shift_start?: string;
-  shift_end?: string | null;
+  closed_at?: string;
+  status: string;
+  notes?: string;
+  card_total?: number;
+  opened_by?: { name?: string };
+  closed_by?: { name?: string };
 }
 
 interface CashDrawerMovement {
@@ -88,6 +89,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   const cashInTotal = movements.filter(m => m.type === 'cash_in').reduce((s, m) => s + m.amount, 0);
   const cashOutTotal = movements.filter(m => m.type === 'cash_out').reduce((s, m) => s + m.amount, 0);
   const paymentTotal = movements.filter(m => m.type === 'payment').reduce((s, m) => s + m.amount, 0);
+  const cardPaymentTotal = movements.filter(m => m.type === 'card_payment').reduce((s, m) => s + m.amount, 0);
 
   const handleOpenDrawer = async () => {
     setSubmitting(true);
@@ -184,6 +186,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     cash_in: { labelKey: 'cash_in', icon: ArrowDownCircle, color: 'text-green-500' },
     cash_out: { labelKey: 'expense', icon: ArrowUpCircle, color: 'text-red-500' },
     payment: { labelKey: 'cash_payment', icon: DollarSign, color: 'text-emerald-500' },
+    card_payment: { labelKey: 'card_payment', icon: CreditCard, color: 'text-blue-500' },
   };
 
   return (
@@ -195,8 +198,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
           onClick={onClose}
         />
         <motion.div
-          {...appleSheet}
-          transition={fastExit}
+          {...slideUp}
           className={`relative z-10 pointer-events-auto w-full max-w-md rounded-t-[2.5rem] shadow-[0_-20px_60px_rgba(0,0,0,0.3)] border ${
             lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
           } overflow-hidden max-h-[85vh] flex flex-col`}
@@ -222,7 +224,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
               <div className="space-y-4">
                 <div className={`p-5 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                   <p className={`text-sm font-bold mb-3 ${lightMode ? 'text-zinc-700' : 'text-zinc-300'}`}>
-                    t('cash_drawer_opening')
+                    {t('cash_drawer_opening')}
                   </p>
                   <div className="flex items-center gap-2 mb-4">
                     <DollarSign size={16} className="text-[var(--theme-text-muted)]" />
@@ -249,15 +251,15 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
               <div className="space-y-4">
                 {/* Shift info card */}
                 <div className={`p-5 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <User size={14} className="text-[var(--theme-text-muted)]" />
-                      <p className="text-xs font-bold text-[var(--theme-text)]">{session?.staff_name || 'Kassir'}</p>
+                     <div className="flex items-center justify-between mb-3">
+                       <div className="flex items-center gap-2">
+                        <User size={14} className="text-[var(--theme-text-muted)]" />
+                        <p className="text-xs font-bold text-[var(--theme-text)]">{session?.staff_name || 'Kassir'}</p>
+                      </div>
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-green-500">
+                        <Unlock size={10} /> {t('open')}
+                      </span>
                     </div>
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-green-500">
-                      <Unlock size={10} /> t('open')
-                    </span>
-                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
                       <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('shift_started')}</p>
@@ -275,26 +277,26 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)]">Cari Balans</p>
                     <span className="flex items-center gap-1 text-[10px] font-bold text-green-500">
-                      <Unlock size={10} /> t('open')
+                      <Unlock size={10} /> {t('open')}
                     </span>
                   </div>
                   <p className="text-3xl font-black tracking-tighter tabular-nums">
                     {currentBalance.toFixed(2)} <span className="text-lg text-[var(--theme-text-muted)]">₼</span>
                   </p>
-                  <div className="grid grid-cols-3 gap-3 mt-3">
-                    <div className={`p-2 rounded-xl ${lightMode ? 'bg-green-50 border border-green-200' : 'bg-green-500/10 border border-green-500/20'}`}>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-green-600">{t('cash')}</p>
-                      <p className="text-xs font-black tabular-nums text-green-600">{(paymentTotal + cashInTotal).toFixed(2)}₼</p>
-                    </div>
-                    <div className={`p-2 rounded-xl ${lightMode ? 'bg-blue-50 border border-blue-200' : 'bg-blue-500/10 border border-blue-500/20'}`}>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-blue-600">Kart</p>
-                      <p className="text-xs font-black tabular-nums text-blue-600">0.00₼</p>
-                    </div>
-                    <div className={`p-2 rounded-xl ${lightMode ? 'bg-red-50 border border-red-200' : 'bg-red-500/10 border border-red-500/20'}`}>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-red-600">{t('expense')}</p>
-                      <p className="text-xs font-black tabular-nums text-red-600">-{cashOutTotal.toFixed(2)}₼</p>
-                    </div>
-                  </div>
+                   <div className="grid grid-cols-3 gap-3 mt-3">
+                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-green-50 border border-green-200' : 'bg-green-500/10 border border-green-500/20'}`}>
+                       <p className="text-[8px] font-black uppercase tracking-widest text-green-600">{t('cash')}</p>
+                       <p className="text-xs font-black tabular-nums text-green-600">{(paymentTotal + cashInTotal).toFixed(2)}₼</p>
+                     </div>
+                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-blue-50 border border-blue-200' : 'bg-blue-500/10 border border-blue-500/20'}`}>
+                       <p className="text-[8px] font-black uppercase tracking-widest text-blue-600">Kart</p>
+                       <p className="text-xs font-black tabular-nums text-blue-600">{(session?.card_total || cardPaymentTotal).toFixed(2)}₼</p>
+                     </div>
+                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-red-50 border border-red-200' : 'bg-red-500/10 border border-red-500/20'}`}>
+                       <p className="text-[8px] font-black uppercase tracking-widest text-red-600">{t('expense')}</p>
+                       <p className="text-xs font-black tabular-nums text-red-600">-{cashOutTotal.toFixed(2)}₼</p>
+                     </div>
+                   </div>
                 </div>
 
                  {/* Actions */}
@@ -338,12 +340,12 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       placeholder={t('amount')}
                        className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                      />
-                     <input
-                       value={cashDesc}
-                       onChange={e => setCashDesc(e.target.value)}
-                       placeholder="t('open')lama (ixtiyari)"
-                       className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
-                     />
+                      <input
+                        value={cashDesc}
+                        onChange={e => setCashDesc(e.target.value)}
+                        placeholder={t('description_optional') || 'Açıqlama (ixtiyari)'}
+                        className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+                      />
                     <div className="flex gap-2">
                       <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
                         {t('back')}
@@ -436,47 +438,49 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
               </div>
             )}
 
-            {todaySessions.length > 0 && (
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('shift_entry')}</p>
-                <div className="space-y-1.5">
-                  {todaySessions.map(s => {
-                    const isOpen = s.status === 'open';
-                    return (
-                      <div key={s.id} className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {isOpen ? <Unlock size={14} className="text-green-500" /> : <Lock size={14} className="text-zinc-500" />}
-                            <span className="text-xs font-bold">{formatTime(s.opened_at)}</span>
-                          </div>
-                          <span className={`text-[9px] font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : 'text-zinc-500'}`}>
-                            {isOpen ? t('open') : t('closed')}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 mt-2">
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('opening')}</p>
-                            <p className="text-xs font-black tabular-nums">{(s.opening_balance || 0).toFixed(2)}₼</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('closing')}</p>
-                            <p className="text-xs font-black tabular-nums">{(s.closing_balance ?? (isOpen ? (s.opening_balance || 0) : 0)).toFixed(2)}₼</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('difference')}</p>
-                            <p className={`text-xs font-black tabular-nums ${
-                              s.difference == null ? 'text-[var(--theme-text-muted)]' : s.difference > 0 ? 'text-green-500' : s.difference < 0 ? 'text-red-500' : 'text-[var(--theme-text-muted)]'
-                            }`}>
-                              {s.difference == null ? '—' : `${s.difference > 0 ? '+' : ''}${s.difference.toFixed(2)}₼`}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+             {todaySessions.length > 0 && (
+               <div>
+                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('shift_entry')}</p>
+                 <div className="space-y-1.5">
+                   {todaySessions.map(s => {
+                     const isOpen = s.status === 'open';
+                     const staffName = s.opened_by?.name || s.staff_name || 'Kassir';
+                     return (
+                       <div key={s.id} className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+                         <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-2">
+                             {isOpen ? <Unlock size={14} className="text-green-500" /> : <Lock size={14} className="text-zinc-500" />}
+                             <span className="text-xs font-bold">{formatTime(s.opened_at)}</span>
+                           </div>
+                           <span className={`text-[9px] font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : 'text-zinc-500'}`}>
+                             {isOpen ? t('open') : t('closed')}
+                           </span>
+                         </div>
+                         <p className="text-[10px] text-[var(--theme-text-muted)] mt-1">{staffName}</p>
+                         <div className="grid grid-cols-3 gap-2 mt-2">
+                           <div>
+                             <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('opening')}</p>
+                             <p className="text-xs font-black tabular-nums">{(s.opening_balance || 0).toFixed(2)}₼</p>
+                           </div>
+                           <div>
+                             <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Kart</p>
+                             <p className="text-xs font-black tabular-nums text-blue-600">{(s.card_total || 0).toFixed(2)}₼</p>
+                           </div>
+                           <div>
+                             <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('difference')}</p>
+                             <p className={`text-xs font-black tabular-nums ${
+                               s.difference == null ? 'text-[var(--theme-text-muted)]' : s.difference > 0 ? 'text-green-500' : s.difference < 0 ? 'text-red-500' : 'text-[var(--theme-text-muted)]'
+                             }`}>
+                               {s.difference == null ? '—' : `${s.difference > 0 ? '+' : ''}${s.difference.toFixed(2)}₼`}
+                             </p>
+                           </div>
+                         </div>
+                       </div>
+                     );
+                   })}
+                 </div>
+               </div>
+             )}
           </div>
         </motion.div>
       </div>

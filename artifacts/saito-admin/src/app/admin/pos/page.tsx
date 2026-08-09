@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap } from '@/lib/modal-transitions';
 import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -12,7 +13,6 @@ import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid, type ProductGridRef } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
 import { ModifierSheet } from './components/ModifierSheet';
-import { fastExit, appleViewSwap } from '@/lib/modal-transitions';
 import { playHapticSound } from '@/lib/haptic';
 import ReservationActionSheet from './components/ReservationActionSheet';
 import TakeawayOrders from './components/TakeawayOrders';
@@ -80,9 +80,11 @@ export default function POSPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [posRole, setPosRole] = useState<string | null>(null);
   const posRoleNorm = posRole?.toLowerCase() || '';
-  const isCashierOrAdmin = ['kassir', 'superadmin', 'admin', 'manager'].includes(posRoleNorm);
-  const isManagerOrAbove = ['manager', 'superadmin'].includes(posRoleNorm);
+  const isCashierOrAdmin = ['cashier', 'superadmin'].includes(posRoleNorm);
+  const isManagerOrAbove = ['cashier', 'superadmin'].includes(posRoleNorm);
   const [posSession, setPosSession] = useState<{ staffId: string; name: string; role: string; shift?: string } | null>(null);
+  const [activeStaff, setActiveStaff] = useState<any[]>([]);
+  const [isClockedIn, setIsClockedIn] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const gridRef = useRef<ProductGridRef>(null);
   const [walkInOpen, setWalkInOpen] = useState(false);
@@ -97,6 +99,29 @@ export default function POSPage() {
 
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const [deliveryOrders, setDeliveryOrders] = useState<any[]>([]);
+
+  const checkoutTotal = useMemo(() => {
+    if (!pos.cart || pos.cart.items.length === 0) return 0;
+    const originalTotal = pos.cart.items.reduce((s: number, i: any) => s + ((i.original_unit_price ?? i.unit_price) * i.quantity), 0);
+    let total = originalTotal;
+    const itemBasedDiscount = pos.cart.items.reduce((s: number, i: any) => s + Math.max(0, ((i.original_unit_price ?? i.unit_price) - i.unit_price) * i.quantity), 0);
+    if (itemBasedDiscount > 0) {
+      total = originalTotal - itemBasedDiscount;
+    } else {
+      const discountAmount = pos.cart.discount_amount ?? 0;
+      if (discountAmount > 0) {
+        if (pos.cart.discount_type === 'percentage') {
+          total = originalTotal * (1 - discountAmount / 100);
+        } else {
+          total = Math.max(0, originalTotal - discountAmount);
+        }
+      }
+    }
+    const vatRate = 0.18;
+    const vatAmount = total / (1 + vatRate) * vatRate;
+    const deliveryFee = posMode === 'delivery' ? (pos.cart.delivery_fee || 0) : 0;
+    return total + vatAmount + deliveryFee;
+  }, [pos.cart, posMode]);
 
   useEffect(() => {
     if (!flashInfo) return;
@@ -194,7 +219,7 @@ export default function POSPage() {
     }
     // 2) Development bypass — skip auth in dev mode
     if (process.env.NODE_ENV === 'development') {
-      const devSession = { staffId: 'dev-001', name: 'DEV User', role: 'admin' };
+      const devSession = { staffId: 'dev-001', name: 'DEV User', role: 'superadmin' };
       setPosSession(devSession);
       setPosRole('admin');
       localStorage.setItem('pos_session', JSON.stringify(devSession));
@@ -218,6 +243,62 @@ export default function POSPage() {
       }
     })();
   }, []);
+
+  // Fetch active staff and clock status
+  useEffect(() => {
+    if (!posSession) return;
+
+    const fetchActiveStaff = async () => {
+      try {
+        const res = await fetch('/api/pos/staff');
+        if (res.ok) {
+          const data = await res.json();
+          setActiveStaff(data.activeStaff || []);
+          setIsClockedIn(data.activeStaff.some((s: any) => s.id === posSession.staffId));
+        }
+      } catch {}
+    };
+
+    fetchActiveStaff();
+    const interval = setInterval(fetchActiveStaff, 30000);
+    return () => clearInterval(interval);
+  }, [posSession]);
+
+  const handleClockIn = async () => {
+    try {
+      const res = await fetch('/api/pos/staff/clock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'in' }),
+      });
+      if (res.ok) {
+        setIsClockedIn(true);
+        const staffRes = await fetch('/api/pos/staff');
+        if (staffRes.ok) {
+          const data = await staffRes.json();
+          setActiveStaff(data.activeStaff || []);
+        }
+      }
+    } catch {}
+  };
+
+  const handleClockOut = async () => {
+    try {
+      const res = await fetch('/api/pos/staff/clock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'out' }),
+      });
+      if (res.ok) {
+        setIsClockedIn(false);
+        const staffRes = await fetch('/api/pos/staff');
+        if (staffRes.ok) {
+          const data = await staffRes.json();
+          setActiveStaff(data.activeStaff || []);
+        }
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     const onUnauthorized = () => {
@@ -735,7 +816,7 @@ export default function POSPage() {
     }
   };
 
-  const handleSplitConfirm = async (split: { cash: string; card: string }) => {
+  const handleSplitConfirm = async (split: { cash: string; card: string; items?: Record<number, 'cash' | 'card'> }) => {
     if (!actionSheetTable && posMode === 'dine_in') return;
     const cash = parseFloat(split.cash) || 0;
     const card = parseFloat(split.card) || 0;
@@ -762,30 +843,78 @@ export default function POSPage() {
         toast.error(t('order_to_pay_not_found'), { id: 'action-toast' });
         return;
       }
-      for (let i = 0; i < orderCount; i++) {
-        const activeOrder = activeOrders[i];
-        const orderTotal = Number(activeOrder.total_amount) || 0;
-        const orderRatio = grandTotal > 0 ? orderTotal / grandTotal : 1 / orderCount;
-        const orderCash = Math.round(cash * orderRatio * 100) / 100;
-        const orderCard = Math.round(card * orderRatio * 100) / 100;
-        const res = await apiFetch('/api/orders/pay', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            order_id: activeOrder.id,
-            payment_method: 'split',
-            cash_amount: orderCash,
-            card_amount: orderCard,
-            tip_amount: 0,
-            campaign_id: activeOrder.campaign_id || undefined,
-            discount_amount: activeOrder.discount_amount || 0,
-            discount_type: activeOrder.discount_type || 'fixed',
-          }),
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          failedOrders.push(activeOrder.id);
-          console.error(`Split payment failed for order ${activeOrder.id}:`, err);
+
+      // Per-item split: allocate payments to specific items
+      if (split.items && Object.keys(split.items).length > 0) {
+        for (const activeOrder of activeOrders) {
+          const orderItems = activeOrder.order_items || [];
+          let orderCash = 0;
+          let orderCard = 0;
+          const itemAllocations: any[] = [];
+          
+          for (let i = 0; i < orderItems.length; i++) {
+            const item = orderItems[i];
+            const itemTotal = Number(item.total_price || item.unit_price * item.quantity) || 0;
+            const paymentMethod = split.items[i];
+            
+            if (paymentMethod === 'cash') {
+              orderCash += itemTotal;
+              itemAllocations.push({ amount: itemTotal, payment_method: 'cash' });
+            } else if (paymentMethod === 'card') {
+              orderCard += itemTotal;
+              itemAllocations.push({ amount: itemTotal, payment_method: 'card' });
+            }
+          }
+          
+          const res = await apiFetch('/api/orders/pay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order_id: activeOrder.id,
+              payment_method: 'split',
+              cash_amount: Math.round(orderCash * 100) / 100,
+              card_amount: Math.round(orderCard * 100) / 100,
+              tip_amount: 0,
+              per_item_allocations: itemAllocations,
+              campaign_id: activeOrder.campaign_id || undefined,
+              discount_amount: activeOrder.discount_amount || 0,
+              discount_type: activeOrder.discount_type || 'fixed',
+            }),
+          });
+          
+          if (!res.ok) {
+            const err = await res.json();
+            failedOrders.push(activeOrder.id);
+            console.error(`Split payment failed for order ${activeOrder.id}:`, err);
+          }
+        }
+      } else {
+        // Proportional split across orders
+        for (let i = 0; i < orderCount; i++) {
+          const activeOrder = activeOrders[i];
+          const orderTotal = Number(activeOrder.total_amount) || 0;
+          const orderRatio = grandTotal > 0 ? orderTotal / grandTotal : 1 / orderCount;
+          const orderCash = Math.round(cash * orderRatio * 100) / 100;
+          const orderCard = Math.round(card * orderRatio * 100) / 100;
+          const res = await apiFetch('/api/orders/pay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order_id: activeOrder.id,
+              payment_method: 'split',
+              cash_amount: orderCash,
+              card_amount: orderCard,
+              tip_amount: 0,
+              campaign_id: activeOrder.campaign_id || undefined,
+              discount_amount: activeOrder.discount_amount || 0,
+              discount_type: activeOrder.discount_type || 'fixed',
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            failedOrders.push(activeOrder.id);
+            console.error(`Split payment failed for order ${activeOrder.id}:`, err);
+          }
         }
       }
 
@@ -1300,18 +1429,44 @@ export default function POSPage() {
           >
             {lightMode ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          {posSession && (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-white/30 hidden sm:inline">{posSession.name}</span>
-              <button
-                onClick={handlePosLogout}
-                className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all"
-                title={t('logout')}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
+           {posSession && (
+             <div className="flex items-center gap-2">
+               <div className="flex items-center gap-2">
+                 <div className={`w-2 h-2 rounded-full ${isClockedIn ? 'bg-emerald-400 shadow-lg shadow-emerald-400/40' : 'bg-zinc-500'}`} />
+                 <span className="text-[10px] font-bold text-white/30 hidden sm:inline">{posSession.name}</span>
+               </div>
+               {!isClockedIn ? (
+                 <button
+                   onClick={handleClockIn}
+                   className={`px-2 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'}`}
+                   title="Clock In"
+                 >
+                   Giriş
+                 </button>
+               ) : (
+                 <button
+                   onClick={handleClockOut}
+                   className={`px-2 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all ${lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 hover:bg-rose-500/20' : 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20'}`}
+                   title="Clock Out"
+                 >
+                   Çıxış
+                 </button>
+               )}
+               <button
+                 onClick={handlePosLogout}
+                 className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all"
+                 title={t('logout')}
+               >
+                 <X size={14} />
+               </button>
+             </div>
+           )}
+           {activeStaff.length > 0 && (
+             <div className="flex items-center gap-1">
+               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+               <span className="text-[10px] font-black text-emerald-400">{activeStaff.length} aktiv</span>
+             </div>
+           )}
         </div>
       <AnimatePresence mode="wait">
         {posMode === 'dine_in' && pos.activeView === 'floor' && pos.loading && (
@@ -1983,15 +2138,18 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
           </AnimatePresence>
 
       {/* CHECKOUT MODAL for Takeaway/Delivery */}
-      {checkoutOpen && (
-        <CheckoutModal
-          open={checkoutOpen}
-          mode={posMode === 'delivery' ? 'delivery' : 'takeaway'}
-          total={(pos.cart?.items ?? []).reduce((s: number, i: any) => s + (i.total_price || 0), 0) * (1 + 0.18) + (posMode === 'delivery' ? (pos.cart?.delivery_fee || 0) : 0)}
-          onSubmit={handleCheckoutSubmit}
-          onClose={() => setCheckoutOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {checkoutOpen && (
+          <CheckoutModal
+            key="checkout-modal"
+            open={checkoutOpen}
+            mode={posMode === 'delivery' ? 'delivery' : 'takeaway'}
+            total={checkoutTotal}
+            onSubmit={handleCheckoutSubmit}
+            onClose={() => setCheckoutOpen(false)}
+          />
+        )}
+      </AnimatePresence>
   
           <ActionSheet
            table={actionSheetTable} 
@@ -2118,17 +2276,14 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
       <AnimatePresence>
         {receiptView && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={appleBackdrop}
             className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4"
             onClick={() => { setReceiptView(null); setReceiptTendered(undefined); }}
           >
             <motion.div
-              initial={{ y: 30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 30, opacity: 0 }}
-              className="bg-white rounded-2xl p-4 shadow-2xl max-h-[90vh] overflow-auto"
+              {...slideUp}
+              className="bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-auto max-w-sm w-full"
               onClick={(e) => e.stopPropagation()}
             >
               <ReceiptPreview
@@ -2186,10 +2341,11 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
         {billNotify && (Date.now() - billNotify.time < 5000) && isCashierOrAdmin && (
           <motion.div
             key={`bill-notify-${billNotify.time}`}
-            initial={{ opacity: 0, y: -40, x: '-50%' }}
-            animate={{ opacity: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, y: -40, x: '-50%' }}
-            className="fixed top-20 left-1/2 z-[130] bg-rose-500 text-white px-6 py-3 rounded-2xl shadow-2xl shadow-rose-500/40 flex items-center gap-3 cursor-pointer"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={fastExit}
+            className="fixed top-20 left-1/2 z-[130] bg-rose-500 text-white px-6 py-3 rounded-[2rem] shadow-2xl shadow-rose-500/40 flex items-center gap-3 cursor-pointer"
             onClick={() => { setBillNotify(null); pos.setActiveView('floor'); }}
           >
             <span className="w-3 h-3 rounded-full bg-white animate-ping" />
@@ -2203,15 +2359,18 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
       {/* Walk-In Modal */}
       <AnimatePresence>
         {walkInOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={appleBackdrop}
             className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             style={{ paddingBottom: 'var(--vk-height, 0px)' }}
             onClick={() => setWalkInOpen(false)}
           >
-             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className={`w-full max-w-sm rounded-3xl p-7 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
-            >
+             <motion.div
+               {...slideUp}
+               onClick={e => e.stopPropagation()}
+               className={`w-full max-w-sm rounded-3xl p-7 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+             >
               <p className={`text-xl font-black tracking-tight mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>{t('walk_in')}</p>
               <p className={`text-[10px] font-black uppercase tracking-widest mb-5 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('new_guest')}</p>
               <div className="space-y-3 mb-5">

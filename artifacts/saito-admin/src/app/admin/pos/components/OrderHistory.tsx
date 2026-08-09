@@ -7,7 +7,7 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
 import { printReceipt, getReceiptSettings } from '@/lib/print/PrintService';
-import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
+import { appleBackdrop, slideUp, fastExit } from '@/lib/modal-transitions';
 import { PinGuard } from './PinGuard';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
 import { toast } from '@/lib/toast';
@@ -24,6 +24,7 @@ interface PaidOrder {
   created_at: string;
   updated_at: string;
   customer_name: string | null;
+  customer_note: string | null;
   order_items: {
     id: string;
     product_id: string;
@@ -52,6 +53,10 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   const [loading, setLoading] = useState(true);
   const [reprinting, setReprinting] = useState<string | null>(null);
   const [refunding, setRefunding] = useState<string | null>(null);
+  const [refundAmount, setRefundAmount] = useState<string>('');
+  const [refundReason, setRefundReason] = useState<string>('');
+  const [pendingRefundOrder, setPendingRefundOrder] = useState<PaidOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<PaidOrder | null>(null);
   const [splitting, setSplitting] = useState<string | null>(null);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
   const [pendingReprint, setPendingReprint] = useState<PaidOrder | null>(null);
@@ -133,23 +138,49 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
         paperWidth: settings.paperWidth,
         copies: settings.copies,
       });
+      
+      // Log reprint to server
+      try {
+        await apiFetch('/api/orders/reprint', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_id: order.id }),
+        });
+      } catch (e) {
+        console.error('Reprint log failed:', e);
+      }
     } catch { /* silent */ }
     setTimeout(() => setReprinting(null), 1500);
   };
 
   const handleRefund = async (order: PaidOrder) => {
+    setPendingRefundOrder(order);
+    setRefundAmount((Number(order.paid_amount || order.total_amount) || 0).toString());
+    setRefundReason('');
+  };
+
+  const confirmPartialRefund = async () => {
+    if (!pendingRefundOrder) return;
+    const amount = parseFloat(refundAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error(t('invalid_amount'));
+      return;
+    }
     const posRoleNorm = posRole?.toLowerCase() || '';
     if (requiresPin(posRoleNorm)) {
-      setPendingRefund(order);
       setPinGuardOpen(true);
       return;
     }
-    await doRefund(order);
+    await doRefund(pendingRefundOrder, amount, refundReason);
+    setPendingRefundOrder(null);
+    setRefundAmount('');
+    setRefundReason('');
   };
 
-  const doRefund = async (order: PaidOrder) => {
+  const doRefund = async (order: PaidOrder, amount?: number, reason?: string) => {
     setRefunding(order.id);
     try {
+      const refundAmount = amount || Number(order.paid_amount || order.total_amount) || 0;
       const res = await apiFetch('/api/orders/complete-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -157,8 +188,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
           order_id: order.id,
           payments: [{
             method: order.payment_method || 'cash',
-            amount: Number(order.paid_amount || order.total_amount) || 0,
+            amount: refundAmount,
             is_refund: true,
+            reason: reason || 'Refund',
           }],
         }),
       });
@@ -170,8 +202,8 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
         toast.error(err.error || t('refund_failed'));
       }
     } catch { toast.error(t('error_occurred')); }
-      setTimeout(() => setRefunding(null), 1500);
-    };
+    setTimeout(() => setRefunding(null), 1500);
+  };
 
     const handleSplit = async (order: PaidOrder) => {
     const posRoleNorm = posRole?.toLowerCase() || '';
@@ -229,20 +261,18 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
   return (
     <AnimatePresence>
       <motion.div
-        key="order-history-backdrop"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={fastExit}
-        className="fixed inset-0 z-[125] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <motion.div
-        {...appleCard}
-        transition={fastExit}
-        className={`relative w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col ${
-          lightMode ? 'bg-white' : 'bg-zinc-900'
-        }`}
-        onClick={e => e.stopPropagation()}
+        className="fixed inset-0 z-[125] flex items-end justify-center bg-black/20"
+        onClick={onClose}
       >
+        <motion.div
+          {...slideUp}
+          className={`relative w-full max-w-lg rounded-t-[2.5rem] shadow-[0_-20px_60px_rgba(0,0,0,0.3)] border ${
+            lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
+          } overflow-hidden max-h-[85vh] flex flex-col`}
+          onClick={e => e.stopPropagation()}
+        >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -332,8 +362,9 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
             filteredOrders.map(order => (
               <div
                 key={order.id}
-                className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
-                  lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/5'
+                onClick={() => setSelectedOrder(order)}
+                className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer ${
+                  lightMode ? 'bg-zinc-50 border-zinc-100 hover:border-zinc-200' : 'bg-white/5 border-white/5 hover:border-white/10'
                 }`}
               >
                 <div className="flex-1 min-w-0">
@@ -405,12 +436,139 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
           )}
         </div>
       </motion.div>
+
+      {/* Partial Refund Dialog */}
+      <AnimatePresence>
+        {pendingRefundOrder && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={fastExit}
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => { setPendingRefundOrder(null); setRefundAmount(''); setRefundReason(''); }}
+          >
+            <motion.div
+              {...slideUp}
+              onClick={e => e.stopPropagation()}
+              className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+            >
+              <h3 className="text-base font-black mb-4">{t('partial_refund') || 'Partial Refund'}</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                    {t('refund_amount') || 'Refund Amount'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    max={Number(pendingRefundOrder.paid_amount || pendingRefundOrder.total_amount)}
+                    value={refundAmount}
+                    onChange={e => setRefundAmount(e.target.value)}
+                    className={`w-full rounded-xl px-4 py-3 text-sm font-black outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
+                  />
+                  <p className="text-[10px] opacity-40 mt-1">
+                    Max: ₼{(Number(pendingRefundOrder.paid_amount || pendingRefundOrder.total_amount) || 0).toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                    {t('refund_reason') || 'Reason'}
+                  </label>
+                  <input
+                    type="text"
+                    value={refundReason}
+                    onChange={e => setRefundReason(e.target.value)}
+                    placeholder={t('refund_reason_placeholder') || 'Enter reason...'}
+                    className={`w-full rounded-xl px-4 py-3 text-sm font-medium outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button onClick={() => { setPendingRefundOrder(null); setRefundAmount(''); setRefundReason(''); }} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
+                    {t('cancel')}
+                  </button>
+                  <button
+                    onClick={confirmPartialRefund}
+                    disabled={!refundAmount || parseFloat(refundAmount) <= 0}
+                    className="flex-[2] py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-amber-500 text-white disabled:opacity-50"
+                  >
+                    {t('refund')}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Order Detail View */}
+      <AnimatePresence>
+        {selectedOrder && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={fastExit}
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setSelectedOrder(null)}
+          >
+            <motion.div
+              {...slideUp}
+              onClick={e => e.stopPropagation()}
+              className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-black">
+                  {selectedOrder.table_number ? `Masa ${selectedOrder.table_number}` : selectedOrder.order_source === 'takeaway' ? 'Götürüş' : selectedOrder.order_source === 'delivery' ? 'Çatdırılma' : 'Sifariş'}
+                </h3>
+                <button onClick={() => setSelectedOrder(null)} className={`p-2 rounded-xl ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/5'}`}>
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="space-y-3">
+                <div className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-muted)] mb-1">Məbləğ</p>
+                  <p className="text-xl font-black tabular-nums">₼{(Number(selectedOrder.total_amount) || 0).toFixed(2)}</p>
+                </div>
+                
+                {selectedOrder.order_items && selectedOrder.order_items.length > 0 && (
+                  <div className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">Məhsullar</p>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {selectedOrder.order_items.map((item: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>
+                              {item.quantity}x {item.product_name || 'Məhsul'}
+                            </p>
+                            {item.special_notes && (
+                              <p className="text-[10px] opacity-40 truncate">{item.special_notes}</p>
+                            )}
+                          </div>
+                          <span className={`text-xs font-black tabular-nums ml-2 ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
+                            ₼{(Number(item.total_price || item.unit_price * item.quantity) || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {selectedOrder.customer_note && (
+                  <div className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-muted)] mb-1">Qeyd</p>
+                    <p className="text-xs">{selectedOrder.customer_note}</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <PinGuard
         open={pinGuardOpen}
-        onClose={() => { setPinGuardOpen(false); setPendingReprint(null); setPendingRefund(null); setPendingSplit(null); }}
+        onClose={() => { setPinGuardOpen(false); setPendingReprint(null); setPendingRefundOrder(null); setPendingSplit(null); }}
         onVerified={() => {
           if (pendingReprint) doReprint(pendingReprint);
-          else if (pendingRefund) doRefund(pendingRefund);
+          else if (pendingRefundOrder) { doRefund(pendingRefundOrder, parseFloat(refundAmount), refundReason); setPendingRefundOrder(null); setRefundAmount(''); setRefundReason(''); }
           else if (pendingSplit) doSplit(pendingSplit);
         }}
         action={pendingRefund ? 'refund' : pendingSplit ? 'split' : 'reprint'}

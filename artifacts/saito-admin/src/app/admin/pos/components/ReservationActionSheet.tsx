@@ -6,7 +6,7 @@ import { PhoneCall, Clock, Users, Star, CheckCircle, Pencil, Printer, UserX, Ban
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { TableActionSheet, ActionCard, ActionGrid } from './TableActionSheet';
-import { appleBackdrop, fastExit } from '@/lib/modal-transitions';
+import { appleBackdrop, slideUp, fastExit } from '@/lib/modal-transitions';
 
 interface Reservation {
   table_number: number;
@@ -128,9 +128,7 @@ export default function ReservationActionSheet({
       {open && (
         <>
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={fastExit}
             className="fixed inset-0 z-[119] pointer-events-auto bg-black/10 dark:bg-black/30"
             onClick={onClose}
@@ -149,13 +147,18 @@ export default function ReservationActionSheet({
                 </span>
               </span>
             }
-            badge={
-              table.is_vip ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest bg-amber-500/15 border-amber-500/25 text-amber-400">
-                  <Star size={10} /> VIP
-                </span>
-              ) : undefined
-            }
+             badge={
+               table.is_vip ? (
+                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest bg-amber-500/15 border-amber-500/25 text-amber-400">
+                   <Star size={10} /> VIP
+                 </span>
+               ) : undefined
+             }
+             guestCount={
+               <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-black">
+                 <Users size={18} /> {table.guest_count} Nəfər
+               </span>
+             }
           >
             {primaryActions}
             {secondaryActions}

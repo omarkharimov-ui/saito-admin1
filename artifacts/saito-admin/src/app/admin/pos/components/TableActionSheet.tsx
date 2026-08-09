@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { fastExit } from '@/lib/modal-transitions';
+import { fastExit, slideUp } from '@/lib/modal-transitions';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface ActionCardProps {
@@ -67,10 +67,11 @@ interface TableActionSheetProps {
   title: string;
   subtitle?: ReactNode;
   badge?: ReactNode;
+  guestCount?: ReactNode;
   children: ReactNode;
 }
 
-export function TableActionSheet({ open, onClose, title, subtitle, badge, children }: TableActionSheetProps) {
+export function TableActionSheet({ open, onClose, title, subtitle, badge, guestCount, children }: TableActionSheetProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
   const keyboardHeight = useKeyboardHeight();
@@ -85,9 +86,7 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, childr
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: '100%' }}
-             animate={{ opacity: 1, y: 0 }}
-             exit={{ opacity: 0, y: '100%' }}
+      {...slideUp}
       transition={fastExit}
       className="fixed bottom-0 left-0 right-0 z-[120] flex items-center justify-center p-4 pointer-events-none"
       style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
@@ -96,6 +95,7 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, childr
         <div className="text-center mb-6">
           <p className="text-2xl font-black tracking-tighter mb-1 leading-none text-white">{title}</p>
           {badge && <div className="mt-2">{badge}</div>}
+          {guestCount && <div className="mt-3">{guestCount}</div>}
           {subtitle && <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mt-2 text-white/50">{subtitle}</p>}
         </div>
         {children}

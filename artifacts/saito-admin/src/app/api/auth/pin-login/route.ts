@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyPin } from '@/lib/crypto';
+import crypto from 'crypto';
 
 function svc() {
   return createClient(

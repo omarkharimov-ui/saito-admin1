@@ -20,13 +20,25 @@ export async function GET() {
 
   const { SUPABASE_URL, headers } = getHeaders();
   try {
-    const [floorsRes, ordersRes] = await Promise.all([
+    const [floorsRes, ordersRes, reservationsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(quantity)&status=neq.paid&status=neq.cancelled&status=neq.closed&order=created_at.desc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*)&status=neq.paid&status=neq.cancelled&status=neq.closed&order=created_at.desc`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/reservations?select=id,pre_order,table_ids&status=neq.cancelled&status=neq.no_show&status=neq.archived`, { headers }),
     ]);
 
     const rawFloors = await floorsRes.json();
     const rawOrders = await ordersRes.json();
+    const rawReservations = await reservationsRes.json();
+
+    const reservationByTable: Record<number, { pre_order: boolean }> = {};
+    (rawReservations || []).forEach((r: any) => {
+      const tableIds = Array.isArray(r.table_ids) ? r.table_ids : (r.table_number ? [r.table_number] : []);
+      tableIds.forEach((tNum: number) => {
+        if (!reservationByTable[tNum] || r.pre_order) {
+          reservationByTable[tNum] = { pre_order: !!r.pre_order };
+        }
+      });
+    });
 
     const ordersByTable: Record<number, any[]> = {};
     const kitchenStatusByTable: Record<number, string> = {};
@@ -106,14 +118,16 @@ export async function GET() {
         ...f,
         last_activity_at: groupLastActivity,
         status: computedStatus,
-        total_amount: isChild || isParent ? groupTotalAmount : tableOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0),
-        guest_count: isChild || isParent ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0)),
-        item_count: isChild || isParent ? groupItemCount : tableOrders.reduce((s, o) => s + (o.order_items || []).reduce((si: number, it: any) => si + Number(it.quantity || 0), 0), 0),
+        total_amount: isChild || isParent ? groupTotalAmount : tableOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0),
+        guest_count: isChild || isParent ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s: any, o: any) => s + Number(o.guest_count || 0), 0)),
+        item_count: isChild || isParent ? groupItemCount : tableOrders.reduce((s: any, o: any) => s + (o.order_items || []).reduce((si: number, it: any) => si + Number(it.quantity || 0), 0), 0),
         merged_with: isChild || isParent ? allInGroup : [],
         is_group: isChild || isParent,
         parent_table_number: parentTableNumber,
-        order_ids: isChild || isParent ? groupOrderIds : tableOrders.map(o => o.id),
-        kitchen_status: kitchenStatusByTable[f.table_number] || null
+        order_ids: isChild || isParent ? groupOrderIds : tableOrders.map((o: any) => o.id),
+        kitchen_status: kitchenStatusByTable[f.table_number] || null,
+        orders: isChild || isParent ? ordersByTable[parentTableNumber] || [] : (ordersByTable[f.table_number] || []),
+        pre_order: reservationByTable[f.table_number]?.pre_order || false,
       };
 
       floorMap[fn].tables.push(processedTable);

@@ -1359,6 +1359,11 @@ export const az = {
   // OrderHistory
   refund_success: 'Qaytarma uğurla tamamlandı',
   refund_failed: 'Qaytarma uğursuz',
+  partial_refund: 'Qismi qaytarma',
+  refund_amount: 'Qaytarma məbləği',
+  refund_reason: 'Səbəb',
+  refund_reason_placeholder: 'Səbəb daxil edin...',
+  invalid_amount: 'Yanlış məbləğ',
   order_split: 'Sifariş bölündü',
   search_orders: 'Sifariş, məhsul və ya müştəri axtar...',
   no_search_results: 'Axtarış nəticəsi yoxdur',
@@ -1433,6 +1438,7 @@ export const az = {
 
   vat: 'VAT',
   add_note: 'Qeyd əlavə et',
+  done: 'Oldu',
   add_customer: 'Müştəri əlavə et',
   edit_customer: 'Müştərini düzəl',
   edit_note: 'Qeydə düzəl',
@@ -1592,6 +1598,7 @@ export const az = {
   customer_approach_terminal: 'Müştəri kartı terminala yaxınlaşdırsın',
   split_short: 'Böl',
   per_item: 'Məhsula görə',
+  voucher_payment: 'Kupon / Voucher',
   separate_tables: 'Masaları Ayır',
   clear_group_question: 'Qrupu boşaltmaq?',
   clear_table_question: 'Masanı boşaltmaq?',

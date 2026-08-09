@@ -8,6 +8,7 @@ import ClientLayout from "@/components/layout/ClientLayout";
 import { CustomNotificationProvider } from "@/components/CustomNotification";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: "SAITO Admin",
@@ -25,7 +26,6 @@ export const metadata: Metadata = {
 
 export const viewport = {
   themeColor: '#000000',
-  interactiveWidget: 'resizes-content',
 };
 
 export default function RootLayout({
@@ -62,11 +62,13 @@ export default function RootLayout({
             <UIProvider>
               <CartProvider>
                 <CustomNotificationProvider />
-                <ClientLayout>
-                  <main className="flex-1 overflow-y-auto scrollbar-none">
-                    {children}
-                  </main>
-                </ClientLayout>
+                <ErrorBoundary>
+                  <ClientLayout>
+                    <main className="flex-1 overflow-y-auto scrollbar-none">
+                      {children}
+                    </main>
+                  </ClientLayout>
+                </ErrorBoundary>
               </CartProvider>
             </UIProvider>
           </LegacyLanguageProvider>

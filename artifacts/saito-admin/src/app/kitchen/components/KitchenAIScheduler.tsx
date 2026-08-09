@@ -270,8 +270,8 @@ export function KitchenAIScheduler({ lightMode }: { lightMode?: boolean }) {
             </div>
             <div className="flex items-center gap-3 text-xs text-white/40">
               <span className="flex items-center gap-1"><Clock size={10} />{s.time}</span>
-              <span className="flex items-center gap-1"><Users size={10} />{s.guests} nəfər</span>
-              <span className="flex items-center gap-1"><ShoppingBag size={10} />{s.pre_order_total?.toFixed(2)} ₼</span>
+              <span className="flex items-center gap-1 font-black text-white/80"><Users size={12} />{s.guests} nəfər</span>
+              {s.pre_order_total ? <span className="flex items-center gap-1 text-amber-400"><ShoppingBag size={10} />{s.pre_order_total.toFixed(2)} ₼</span> : null}
             </div>
           </div>
           <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider ${

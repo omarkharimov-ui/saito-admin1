@@ -6,7 +6,7 @@ import { X, Phone, Clock, Users, Star, ChevronRight, Pencil, Printer, UserX, Mer
 import { toast } from '@/lib/toast';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { appleCard, appleBackdrop, fastExit } from '@/lib/modal-transitions';
+import { appleBackdrop, slideUp, fastExit } from '@/lib/modal-transitions';
 
 interface ReservedTableModalProps {
   open: boolean;
@@ -57,14 +57,17 @@ export default function ReservedTableModal({
   return (
     <AnimatePresence>
       {open && (
-          <motion.div
-            initial={{ opacity: 0, y: '100%' }}
-             animate={{ opacity: 1, y: 0 }}
-             exit={{ opacity: 0, y: '100%' }}
-            transition={fastExit}
-            className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center p-4 pointer-events-none"
-          >
-          <div className="pointer-events-auto w-full max-w-md bg-white text-black rounded-2xl shadow-2xl border border-white/20 p-5">
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          transition={fastExit}
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"
+          onClick={onClose}
+        >
+        <motion.div
+          {...slideUp}
+          className="pointer-events-auto w-full max-w-md bg-white text-black rounded-[2.5rem] shadow-2xl border border-white/20 p-5"
+          onClick={e => e.stopPropagation()}
+        >
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 mb-1">Rezervasyon</p>
@@ -97,9 +100,9 @@ export default function ReservedTableModal({
                 </div>
               )}
               {table.guest_count && (
-                <div className="flex items-center gap-2 text-xs text-zinc-600">
-                  <Users size={14} className="text-zinc-400" />
-                  <span>{table.guest_count} t('person')</span>
+                <div className="flex items-center gap-2 text-base text-zinc-900 font-black">
+                  <Users size={18} className="text-amber-500" />
+                  <span>{table.guest_count} Nəfər</span>
                 </div>
               )}
             </div>
@@ -192,10 +195,10 @@ export default function ReservedTableModal({
                     <p className="text-[10px] text-rose-400">{t('cancel_reservation')}</p>
                   </div>
                 </button>
-              </div>
-            )}
-          </div>
-        </motion.div>
+               </div>
+             )}
+           </motion.div>
+         </motion.div>
       )}
     </AnimatePresence>
   );

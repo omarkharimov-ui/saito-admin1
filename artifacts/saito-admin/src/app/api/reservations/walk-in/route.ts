@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: shiftCheck.error }, { status: 403 });
     }
 
-    const { table_number, guests, name, phone, order_type, notes } = await request.json();
+    const { table_number, guests, name, phone, order_type, notes, pre_order, scheduled_date, scheduled_time } = await request.json();
     if (!table_number) {
       return NextResponse.json({ error: 'table_number is required' }, { status: 400 });
     }
@@ -38,6 +38,9 @@ export async function POST(request: NextRequest) {
           p_order_type: order_type || 'dine_in',
           p_notes: notes || null,
           p_user_id: auth.user?.id || null,
+          p_pre_order: !!pre_order,
+          p_scheduled_date: scheduled_date || null,
+          p_scheduled_time: scheduled_time || null,
         }),
     });
 

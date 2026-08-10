@@ -8,6 +8,14 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
+async function fetchJson(url: string, headers: Record<string, string>) {
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return res.json();
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
@@ -20,12 +28,19 @@ export async function POST(req: NextRequest) {
 
     const s = svc();
 
-    const primaryHasOrderRes = await fetch(`${s.url}/rest/v1/orders?table_number=eq.${primary_table_number}&status=not.in.(paid,cancelled,closed)&select=id`, { headers: s.headers });
-    const primaryOrders = await primaryHasOrderRes.json();
-    const primaryHasOrder = (primaryOrders || []).length > 0;
-
     const childTableNumbers = child_table_numbers.map((n: any) => Number(n));
     const childWhere = `table_number=in.(${childTableNumbers.join(',')})`;
+
+    const [primaryFloor, childFloors, primaryOrders, childOrders] = await Promise.all([
+      fetchJson(`${s.url}/rest/v1/table_floors?table_number=eq.${primary_table_number}&select=table_number,status,guest_count,total_amount,merged_into_table,reservation_id,reservation_name,reservation_phone,reservation_time`, s.headers),
+      fetchJson(`${s.url}/rest/v1/table_floors?${childWhere}&select=table_number,status,guest_count,total_amount,merged_into_table,reservation_id,reservation_name,reservation_phone,reservation_time`, s.headers),
+      fetchJson(`${s.url}/rest/v1/orders?table_number=eq.${primary_table_number}&status=not.in.(paid,cancelled,closed)&select=id,table_number,status,total_amount,guest_count,merged_into,version,order_items(*)`, s.headers),
+      childTableNumbers.length > 0
+        ? fetchJson(`${s.url}/rest/v1/orders?table_number=in.(${childTableNumbers.join(',')})&status=not.in.(paid,cancelled,closed)&select=id,table_number,status,total_amount,guest_count,merged_into,version,order_items(*)`, s.headers)
+        : Promise.resolve([]),
+    ]);
+
+    const primaryHasOrder = (primaryOrders || []).length > 0;
 
     await fetch(`${s.url}/rest/v1/table_floors?${childWhere}`, {
       method: 'PATCH',
@@ -62,10 +77,29 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const undo = {
+      parentTable: primary_table_number,
+      parentOrderId: primaryOrders?.[0]?.id || null,
+      parentOldTotal: primaryOrders?.[0]?.total_amount ?? primaryFloor?.[0]?.total_amount ?? 0,
+      parentOldGuests: primaryOrders?.[0]?.guest_count ?? primaryFloor?.[0]?.guest_count ?? null,
+      childTables: childTableNumbers.map((tableNumber: number) => {
+        const floor = childFloors?.find((t: any) => Number(t.table_number) === Number(tableNumber));
+        const order = childOrders?.find((o: any) => Number(o.table_number) === Number(tableNumber)) || null;
+        return {
+          tableNumber,
+          orderId: order?.id || null,
+          totalAmount: order?.total_amount ?? floor?.total_amount ?? 0,
+          guestCount: order?.guest_count ?? floor?.guest_count ?? null,
+          tableState: floor || null,
+          orderState: order || null,
+        };
+      }),
+    };
+
     return NextResponse.json({
       success: true,
       data: { primaryTable: primary_table_number, childTables: childTableNumbers },
-      undo: { primaryTable: primary_table_number, childTables: childTableNumbers },
+      undo,
     });
   } catch (error: any) {
     console.error('[API /orders/unmerge] Error:', error);

@@ -73,6 +73,13 @@ export async function POST(request: Request) {
     }));
 
     if (rows.length === 0) {
+      const { error: clearErr } = await supabase
+        .from('reservations')
+        .update({ pre_order_items: null, pre_order_total: null })
+        .eq('id', reservation_id);
+      if (clearErr) {
+        return NextResponse.json({ error: clearErr.message }, { status: 400 });
+      }
       return NextResponse.json({ success: true, items: [] });
     }
 
@@ -85,6 +92,20 @@ export async function POST(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    const cache = (data || []).map((item: any) => ({
+      product_id: item.product_id || null,
+      product_name: item.product_name || 'Məhsul',
+      quantity: Number(item.quantity || 0),
+      unit_price: Number(item.unit_price || 0),
+      modifiers: item.modifiers || [],
+      special_notes: item.special_notes || '',
+    }));
+    const total = cache.reduce((s: number, i: any) => s + i.unit_price * i.quantity, 0);
+    await supabase
+      .from('reservations')
+      .update({ pre_order_items: cache.length > 0 ? cache : null, pre_order_total: cache.length > 0 ? total : null })
+      .eq('id', reservation_id);
 
     return NextResponse.json({ success: true, items: data || [] });
   } catch (error: any) {

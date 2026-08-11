@@ -229,6 +229,11 @@ export function usePos() {
     const switchingToDifferentTable = selectedTable?.table_number !== table.table_number;
     const reqId = ++selectTableReqId.current;
 
+    // Opening a normal (non-reserved) table always exits reservation mode —
+    // otherwise the order panel would keep showing the PRE-ORDER UI on tables
+    // that are just ordinary occupied/empty tables.
+    if (!opts?.allowReserved) exitReservationMode();
+
     setSelectedTable(table);
     setActiveView('order');
 
@@ -324,12 +329,14 @@ export function usePos() {
           setCart(prev => {
             if (!prev) return null;
             const merged = serverItems.map((i: any) => ({ ...i }));
-            // Merge in any unsent (draft) items from local state. draftItems (the
-            // pre-fetch snapshot) and prev.items overlap for the same-table case,
-            // so dedupe by key — otherwise drafts get added twice per re-entry
-            // (and quadruple after entering the table twice).
+            // Merge in any unsent (draft) items from local state — but ONLY when
+            // re-entering the SAME table. Leaving a table (switching to another)
+            // auto-discards the drafts, mirroring reservation drafts.
+            const carryDrafts = !switchingToDifferentTable;
             const seen = new Set<string>();
-            for (const u of [...draftItems, ...prev.items.filter(i => (i.sentQuantity ?? 0) === 0)]) {
+            for (const u of carryDrafts
+              ? [...draftItems, ...prev.items.filter(i => (i.sentQuantity ?? 0) === 0)]
+              : []) {
               const key = `${u.product_id}__${u.variant_id || ''}`;
               if (seen.has(key)) continue;
               seen.add(key);
@@ -357,8 +364,9 @@ export function usePos() {
       }
     } catch (e) {
       console.error('Failed to load existing order items:', e);
-      // On failure, still restore drafts so the user does not lose work.
-      if (draftItems.length > 0 && reqId === selectTableReqId.current) {
+      // On failure, restore drafts only when re-entering the same table; leaving
+      // a table discards them (same auto-delete rule as above).
+      if (draftItems.length > 0 && !switchingToDifferentTable && reqId === selectTableReqId.current) {
         setCart(prev => {
           if (!prev) return null;
           return {
@@ -546,92 +554,88 @@ export function usePos() {
     p: PosProduct,
     opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[] }
   ) => {
+    const base = cartRef.current ?? {
+      table_number: selectedTable?.table_number || null,
+      guest_count: selectedTable?.guest_count || 1,
+      items: [],
+      notes: '',
+      order_type: posMode,
+    };
+    const items = base.items.map(i => ({ ...i }));
+    const variant = opts?.variantId
+      ? (variantsByProduct[p.id] || []).find(v => v.id === opts.variantId)
+      : undefined;
+    const variantId = opts?.variantId ?? null;
+    const basePrice = variant ? Number(variant.discount_price != null && variant.discount_price !== '' ? variant.discount_price : variant.price) : (p.price ?? 0);
+    const effective = (p as any).effective_price;
+    const unitPrice = typeof effective === 'number' ? effective : effective?.effective_price ?? basePrice;
+    const campaignId = typeof effective === 'object' && effective?.campaign_id ? effective.campaign_id : null;
+    const campaignDiscount = typeof effective === 'object' && effective?.discount_amount ? effective.discount_amount : 0;
+    const campaignDiscountType = typeof effective === 'object' && effective?.discount_type ? effective.discount_type : null;
+    const existing = items.find(
+      i => String(i.product_id) === String(p.id)
+        && (i.variant_id ?? null) === variantId
+        && JSON.stringify(i.modifiers || []) === JSON.stringify(opts?.modifiers || [])
+        && (i.special_notes || '') === (opts?.notes || '')
+    );
+    if (existing) {
+      existing.quantity += 1;
+      existing.total_price = existing.unit_price * existing.quantity;
+      setCart({ ...base, items });
+      return;
+    }
+    const newItem = {
+      product_id: p.id,
+      product_name: p.name,
+      unit_price: unitPrice,
+      original_unit_price: basePrice,
+      quantity: 1,
+      total_price: unitPrice,
+      modifiers: opts?.modifiers ?? [],
+      variant_id: variantId,
+      special_notes: opts?.notes ?? '',
+      campaign_id: campaignId,
+      campaign_discount_amount: campaignDiscount,
+      campaign_discount_type: campaignDiscountType,
+      is_pre_order: reservationMode,
+      pre_order_id: null,
+    };
+    const newIndex = items.length;
+    items.push(newItem);
+    setCart({ ...base, items });
 
-    setCart(prev => {
-      let base = prev;
-      if (!base) {
-        base = {
-          table_number: selectedTable?.table_number || null,
-          guest_count: selectedTable?.guest_count || 1,
-          items: [],
-          notes: '',
-          order_type: posMode
-        };
-      }
-      const items = base.items.map(i => ({ ...i }));
-      const variant = opts?.variantId
-        ? (variantsByProduct[p.id] || []).find(v => v.id === opts.variantId)
-        : undefined;
-      const variantId = opts?.variantId ?? null;
-      const basePrice = variant ? Number(variant.discount_price != null && variant.discount_price !== '' ? variant.discount_price : variant.price) : (p.price ?? 0);
-      const effective = (p as any).effective_price;
-      const unitPrice = typeof effective === 'number' ? effective : effective?.effective_price ?? basePrice;
-      const campaignId = typeof effective === 'object' && effective?.campaign_id ? effective.campaign_id : null;
-      const campaignDiscount = typeof effective === 'object' && effective?.discount_amount ? effective.discount_amount : 0;
-      const campaignDiscountType = typeof effective === 'object' && effective?.discount_type ? effective.discount_type : null;
-      const existing = items.find(
-        i => String(i.product_id) === String(p.id)
-          && (i.variant_id ?? null) === variantId
-          && JSON.stringify(i.modifiers || []) === JSON.stringify(opts?.modifiers || [])
-          && (i.special_notes || '') === (opts?.notes || '')
-      );
-      if (existing) {
-        existing.quantity += 1;
-        existing.total_price = existing.unit_price * existing.quantity;
-      } else {
-        const newItem = {
-          product_id: p.id,
-          product_name: p.name,
-          unit_price: unitPrice,
-          original_unit_price: basePrice,
-          quantity: 1,
-          total_price: unitPrice,
-          modifiers: opts?.modifiers ?? [],
-          variant_id: variantId,
-          special_notes: opts?.notes ?? '',
-          campaign_id: campaignId,
-          campaign_discount_amount: campaignDiscount,
-          campaign_discount_type: campaignDiscountType,
-          is_pre_order: reservationMode,
-          pre_order_id: null,
-        };
-        items.push(newItem);
-
-        if (reservationMode && reservationId) {
-          apiFetch('/api/reservations/pre-order-items', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              reservation_id: reservationId,
-              items: [{
-                product_id: p.id,
-                product_name: p.name,
-                quantity: 1,
-                unit_price: unitPrice,
-                modifiers: opts?.modifiers ?? [],
-                special_notes: opts?.notes ?? '',
-              }],
-            }),
-          })
-            .then(r => r.json().catch(() => null))
-            .then(data => {
-              const saved = Array.isArray(data?.items) ? data.items[0] : null;
-              if (saved?.id) {
-                setCart(prev => prev ? {
-                  ...prev,
-                  items: prev.items.map(it =>
-                    it.is_pre_order && !it.pre_order_id && it.product_id === p.id && (it.variant_id ?? null) === variantId
-                      ? { ...it, pre_order_id: saved.id }
-                      : it
-                  ),
-                } : null);
-              }
-            })
-            .catch(() => {});
-        }
-      }
-      return { ...base, items };
-    });
+    if (reservationMode && reservationId) {
+      apiFetch('/api/reservations/pre-order-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reservation_id: reservationId,
+          items: [{
+            product_id: p.id,
+            product_name: p.name,
+            quantity: 1,
+            unit_price: unitPrice,
+            modifiers: opts?.modifiers ?? [],
+            special_notes: opts?.notes ?? '',
+          }],
+        }),
+      })
+        .then(r => r.json().catch(() => null))
+        .then(data => {
+          const saved = Array.isArray(data?.items) ? data.items[0] : null;
+          if (saved?.id) {
+            setCart(prev => prev ? {
+              ...prev,
+              items: prev.items.map((it, idx) =>
+                idx === newIndex && it.is_pre_order && !it.pre_order_id
+                  ? { ...it, pre_order_id: saved.id }
+                  : it
+              ),
+            } : null);
+          }
+        })
+        .catch(() => {});
+    }
   };
 
   const addComboToCart = (combo: any, opts?: { notes?: string }) => {
@@ -875,11 +879,42 @@ export function usePos() {
   const clearCart = () => {
     const current = cart;
     if (!current) return;
-    // Remove unsent (draft) items entirely
+
+    if (reservationMode) {
+      // Reservation mode: keep saved pre-order items (reset to their saved
+      // quantity, undoing any qty increases), remove draft items entirely —
+      // and sync the backend so cleared drafts don't reappear on reload.
+      const keptItems = current.items
+        .filter(item => (item.sentQuantity ?? 0) > 0)
+        .map(item => ({ ...item, quantity: item.sentQuantity ?? item.quantity }));
+      setCart(prev => prev ? { ...prev, items: keptItems } : null);
+      if (reservationId) {
+        apiFetch('/api/reservations/pre-order-items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reservation_id: reservationId,
+            replace: true,
+            items: keptItems.map(i => ({
+              id: i.pre_order_id || undefined,
+              product_id: i.product_id,
+              product_name: i.product_name,
+              quantity: i.quantity,
+              unit_price: i.unit_price,
+              modifiers: i.modifiers || [],
+              special_notes: i.special_notes || '',
+            })),
+          }),
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    // Remove unsent (draft) items entirely; reset saved items back to their
+    // sent quantity (undo unsent additions)
     const draftIds = current.items
       .filter(item => (item.sentQuantity ?? 0) === 0 && (item as any).id)
       .map(item => (item as any).id);
-    // For sent items, reset quantity back to sentQuantity (undo unsent additions)
     const keptItems = current.items
       .filter(item => (item.sentQuantity ?? 0) > 0)
       .map(item => ({ ...item, quantity: item.sentQuantity ?? item.quantity }));
@@ -1152,7 +1187,27 @@ export function usePos() {
         reservationItems = Array.isArray(data.items) ? data.items : [];
       }
 
-      const merged = reservationItems;
+      // Merge duplicate rows (same product + same modifiers/notes) into one entry
+      const merged = (() => {
+        const byKey = new Map<string, any>();
+        for (const r of reservationItems) {
+          const key = [
+            r.product_id,
+            r.variant_id ?? null,
+            JSON.stringify(r.modifiers || []),
+            r.special_notes || '',
+          ].join('|');
+          const ex = byKey.get(key);
+          if (ex) {
+            ex.quantity = (Number(ex.quantity) || 0) + (Number(r.quantity) || 1);
+            ex.total_price = (Number(ex.unit_price) || 0) * (ex.quantity || 1);
+            if (!ex.id && r.id) ex.id = r.id;
+          } else {
+            byKey.set(key, { ...r });
+          }
+        }
+        return [...byKey.values()];
+      })();
       setReservationPreOrderItems(merged);
 
       const cartItems: PosCartItem[] = merged.map((item: any) => ({
@@ -1168,7 +1223,7 @@ export function usePos() {
         campaign_id: null,
         campaign_discount_amount: 0,
         campaign_discount_type: null,
-        sentQuantity: item._draft ? (item.quantity || 1) : 0,
+        sentQuantity: Number(item.quantity) || 1,
         is_pre_order: true,
         pre_order_id: item.id || item._order_id,
       }));

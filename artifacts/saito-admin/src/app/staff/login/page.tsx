@@ -4,9 +4,11 @@ import React, { useState } from 'react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
 
 export default function StaffLogin() {
   const { t } = useLanguage();
+  const searchParams = useSearchParams();
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -29,7 +31,8 @@ export default function StaffLogin() {
         return;
       }
       toast.success(`Xoş gəldin, ${data.name}!`);
-      window.location.href = '/admin/pos';
+      const redirect = searchParams.get('redirect');
+      window.location.href = redirect && redirect.startsWith('/') ? redirect : '/admin/pos';
     } catch {
       toast.error('Giriş xətası');
     } finally {

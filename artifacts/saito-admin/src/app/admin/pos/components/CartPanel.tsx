@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -13,6 +14,7 @@ import { RollingNumber } from './RollingNumber';
 import { PinGuard } from './PinGuard';
 import { Numpad } from './Numpad';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { useVirtualKeyboard } from './VirtualKeyboard';
 
 interface CartPanelProps {
   cart: PosCart | null;
@@ -103,7 +105,6 @@ export function CartPanel({
   const { lightMode } = useTheme();
   const keyboardHeight = useKeyboardHeight();
   const customInputRef = useRef<HTMLInputElement>(null);
-
   const [lossMode, setLossMode] = useState(false);
   const [selectedForLoss, setSelectedForLoss] = useState<Map<number, number>>(new Map());
   const [showCustomReason, setShowCustomReason] = useState(false);
@@ -117,8 +118,10 @@ export function CartPanel({
   const [lossReason, setLossReason] = useState('');
   const [numpadOpen, setNumpadOpen] = useState(false);
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
-  const [noteEditing, setNoteEditing] = useState(false);
-  const noteInputRef = useRef<HTMLInputElement>(null);
+  const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const { height: vkHeight, isOpen: vkOpen, close: closeVk } = useVirtualKeyboard();
+  const noteInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const loadedNoteRef = useRef('');
 
   const [vatRate, setVatRate] = useState(0.18);
 
@@ -164,14 +167,40 @@ export function CartPanel({
     }
   }, [showCustomReason]);
 
+  /* ─── Global note: portal + floating bar above the virtual keyboard ─── */
+  const openNoteEditor = () => {
+    loadedNoteRef.current = globalNote;
+    setIsNoteOpen(true);
+  };
+
+  // Save current note (already persisted live on every keystroke) and close.
+  const closeNoteEditor = () => {
+    setIsNoteOpen(false);
+    noteInputRef.current?.blur();
+    closeVk();
+  };
+
+  // GİZLƏ / LƏĞV ET → revert to the value the note had when the editor opened.
+  const discardNote = () => {
+    setGlobalNote(loadedNoteRef.current);
+    onUpdateGlobalNote?.(loadedNoteRef.current);
+    setIsNoteOpen(false);
+    noteInputRef.current?.blur();
+    closeVk();
+  };
+
+  // Keyboard dismissed via its backdrop / Gizlə key / Escape → close the note too.
+  // Only when the keyboard was ALREADY open and just closed, so the moment the
+  // note opens (keyboard not mounted yet) is never mistaken for a close.
+  const vkOpenPrevRef = useRef(vkOpen);
   useEffect(() => {
-    if (noteEditing && keyboardHeight > 0 && noteInputRef.current) {
-      const timer = setTimeout(() => {
-        noteInputRef.current?.focus();
-      }, 250);
-      return () => clearTimeout(timer);
+    const wasOpen = vkOpenPrevRef.current;
+    vkOpenPrevRef.current = vkOpen;
+    if (wasOpen && !vkOpen && isNoteOpen) {
+      setIsNoteOpen(false);
+      noteInputRef.current?.blur();
     }
-  }, [noteEditing, keyboardHeight]);
+  }, [vkOpen, isNoteOpen]);
 
   if (!cart) {
     const msg = posMode !== 'dine_in' ? t('no_orders') || (posMode === 'takeaway' ? 'No orders' : 'No orders') : t('no_table_selected');
@@ -186,6 +215,7 @@ export function CartPanel({
 
   const originalTotal = cart.items.reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
   const isEmpty = cart.items.length === 0;
+  const hasDraft = cart.items.some(i => (i.sentQuantity ?? 0) < i.quantity);
 
   if (isEmpty) {
     return (
@@ -292,7 +322,7 @@ export function CartPanel({
   return (
     <div className="flex flex-col flex-1 min-h-0 px-6 relative" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0 pb-4 pt-6">
+      <div className={`flex items-center justify-between flex-shrink-0 pt-6 ${isReservationMode ? 'pb-3 border-b border-[var(--theme-border)]' : 'pb-4'}`}>
         <div className="flex items-center gap-2">
           <button onClick={onBack}
             className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
@@ -301,13 +331,23 @@ export function CartPanel({
           
           <div>
             <p className="text-lg font-bold text-[var(--theme-text)]">
-              {mergedChildNumbers && mergedChildNumbers.length > 0 ? `${t('group_label')} ${cart.table_number ?? '-'}` : posMode === 'takeaway' ? t('takeaway') : posMode === 'delivery' ? t('delivery') : `${t('table_label')} ${cart.table_number ?? '-'}`}
+              <span className="inline-flex items-center gap-2">
+                {mergedChildNumbers && mergedChildNumbers.length > 0 ? `${t('group_label')} ${cart.table_number ?? '-'}` : posMode === 'takeaway' ? t('takeaway') : posMode === 'delivery' ? t('delivery') : `${t('table_label')} ${cart.table_number ?? '-'}`}
+                {isReservationMode && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">PRE-ORDER</span>
+                )}
+              </span>
               {mergedChildNumbers && mergedChildNumbers.length > 0 && (
                 <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>
                   <GitMerge size={10} /> {[cart.table_number, ...mergedChildNumbers].join('+')}
                 </span>
               )}
             </p>
+            {isReservationMode && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-[10px] font-medium text-[var(--theme-text-secondary)]">Rezervasiya üçün öncədən sifariş</span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="flex items-center gap-1.5">
                 <span className={`text-sm font-black tabular-nums leading-none ${
@@ -421,29 +461,63 @@ export function CartPanel({
         </div>
       )}
 
-      {/* Cart Quick Actions Row */}
+      {/* Cart Quick Actions Row — single morphing surface */}
       {!isEmpty && (
-        <div className={`flex items-center gap-2 pb-4 mb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
-          <button
-            onClick={onClearDraft}
-            className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
-              lightMode 
-                ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
-                : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
-            }`}
-          >
-            {t('clear')}
-          </button>
-          <button
-            onClick={lossMode ? exitLossMode : () => setPinGuardOpen(true)}
-            className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all border ${
-              lossMode 
-                ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-white')
-                : (lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900' : 'bg-white/5 border-white/10 text-white/40 hover:text-white')
-            }`}
-          >
-            {lossMode ? t('loss_mode_cancel') : t('loss_mode')}
-          </button>
+        <div className={`pt-3 pb-4 mb-2 border-t ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
+          <div className="relative flex items-stretch">
+            <motion.div
+              initial={false}
+              style={{
+                flex: 'none',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                transformOrigin: 'left center',
+                width: '0%',
+                marginRight: 0,
+                clipPath: 'inset(0% 100% 0% 0%)',
+              }}
+              animate={{
+                width: hasDraft ? '50%' : '0%',
+                clipPath: hasDraft ? 'inset(0% 0% 0% 0%)' : 'inset(0% 100% 0% 0%)',
+                marginRight: hasDraft ? 8 : 0,
+              }}
+              transition={{
+                width: { type: 'tween', duration: 0.55, ease: [0.22, 1.2, 0.36, 1] },
+                clipPath: { type: 'tween', duration: 0.55, ease: [0.22, 1.2, 0.36, 1] },
+                marginRight: { type: 'tween', duration: 0.55, ease: [0.22, 1.2, 0.36, 1] },
+              }}
+            >
+              <button
+                onClick={onClearDraft}
+                title={t('clear')}
+                tabIndex={hasDraft ? 0 : -1}
+                style={{ pointerEvents: hasDraft ? 'auto' : 'none', width: '100%' }}
+                className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border ${
+                  lightMode 
+                    ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
+                    : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
+                }`}
+              >
+                {t('clear')}
+              </button>
+            </motion.div>
+
+            <motion.button
+              initial={false}
+              onClick={lossMode ? exitLossMode : () => setPinGuardOpen(true)}
+              animate={{ scale: hasDraft ? [1, 0.985, 1] : 1 }}
+              transition={{
+                scale: { type: 'tween', duration: 0.55, times: [0, 0.12, 1], ease: [0.4, 0, 0.2, 1] },
+              }}
+              className={`flex-1 min-w-0 flex items-center justify-center py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border ${
+                lossMode 
+                  ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-white')
+                  : (lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900' : 'bg-white/5 border-white/10 text-white/40 hover:text-white')
+              }`}
+            >
+              <span className="whitespace-nowrap">{lossMode ? t('loss_mode_cancel') : t('loss_mode')}</span>
+            </motion.button>
+          </div>
         </div>
       )}
 
@@ -461,21 +535,25 @@ export function CartPanel({
           className="transition-opacity duration-150 ease-in-out"
           style={{ opacity: isEmpty ? 0 : 1 }}
         >
+          <AnimatePresence initial={false}>
           {filteredItems.map((item, idx) => {
             const originalIdx = cart.items.indexOf(item);
             const isChecked = selectedForLoss.has(originalIdx);
             const lossQty = selectedForLoss.get(originalIdx) ?? 0;
+            const lineKey = item.id ?? `${item.product_id}|${item.variant_id ?? ''}|${(item.modifiers ?? []).map(m => `${m.id}:${m.name}`).join(',')}|${item.special_notes ?? ''}`;
 
             return (
-              <div
-                key={`${item.product_id}__${originalIdx}`}
+              <motion.div
+                key={lineKey}
+                layout
+                initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                animate={{ opacity: confirming && isChecked ? 0 : 1, scale: confirming && isChecked ? 0.95 : 1 }}
+                exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.14, ease: 'easeIn' } }}
+                transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.9 }}
                 data-cart-item
-                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] transition-all duration-200 ${confirming && isChecked ? 'opacity-0 scale-95' : ''} ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`} px-3.5 py-3`}
+                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`} px-3.5 py-3`}
               >
-                <motion.div data-cart-item className="flex items-center gap-2.5"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.1, ease: [0.4, 0, 0.2, 1] }}>
+                <div className="flex items-center gap-2.5">
                   {lossMode && (
                     <button onClick={() => toggleLossSelection(originalIdx)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-95 ${isChecked ? (lightMode ? 'bg-red-600 border-red-600' : 'bg-red-500 border-red-500') : (lightMode ? 'border-gray-400' : 'border-white/30')}`}>
                       {isChecked && <CheckCircle size={14} className="text-white" />}
@@ -507,10 +585,11 @@ export function CartPanel({
                       <Hash size={14} />
                     </button>
                   </div>
-                </motion.div>
-              </div>
+                </div>
+              </motion.div>
             );
           })}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -633,50 +712,18 @@ export function CartPanel({
             </div>
           </div>
         )}
-          {/* Global note — in-place morph, no fixed overlay */}
+          {/* Global note — static trigger; the editor floats via portal above the keyboard */}
           {!isEmpty && !lossMode && posMode === 'dine_in' && (
             <div className="px-1">
-              <AnimatePresence mode="sync">
-                {noteEditing ? (
-                  <motion.div
-                    layoutId="note-field"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-                    className="w-full"
-                  >
-                    <div className={`w-full rounded-2xl p-4 border shadow-2xl ${
-                      lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
-                    }`}>
-                      <div className="relative">
-                        <Tag size={10} className={`absolute left-3 top-3 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`} />
-                        <input
-                          ref={noteInputRef}
-                          type="text"
-                          value={globalNote}
-                          onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
-                          onBlur={() => { setNoteEditing(false); }}
-                          onKeyDown={(e) => { if (e.key === 'Escape') setNoteEditing(false); }}
-                          placeholder={t('note_placeholder') || 'Qeyd...'}
-                          className={`w-full rounded-xl px-3 py-2 pl-8 text-xs font-medium outline-none border transition-all ${lightMode ? 'bg-white border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:border-zinc-400/50'}`}
-                        />
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.button
-                    layoutId="note-field"
-                    onClick={() => setNoteEditing(true)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-medium border transition-colors ${
-                      lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
-                    }`}
-                  >
-                    <Tag size={10} />
-                    {globalNote ? globalNote : t('add_note')}
-                  </motion.button>
-                )}
-              </AnimatePresence>
+              <button
+                onClick={openNoteEditor}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-medium border transition-colors ${
+                  lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                }`}
+              >
+                <Tag size={10} />
+                <span className="truncate min-w-0 max-w-[220px]">{globalNote ? globalNote : t('add_note')}</span>
+              </button>
             </div>
           )}
          {/* Footer actions removed from here */}
@@ -685,7 +732,7 @@ export function CartPanel({
             disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
             status={lossMode ? 'idle' : orderButtonStatus}
             variant={lossMode ? 'loss' : 'send'}
-             label={lossMode ? t('loss_confirm') : (isReservationMode ? `${reservation?.name ? reservation.name + ' — ' : ''}Pre-order Yadda Saxla` : (hasExistingOrder ? t('resend') : t('send_to_kitchen')))}
+             label={lossMode ? t('loss_confirm') : (isReservationMode ? 'PRE-ORDER SİFARİŞİ YADDA SAXLA' : (hasExistingOrder ? t('resend') : t('send_to_kitchen')))}
             onClick={lossMode ? confirmLoss : onPlaceOrder}
             isDirty={isDirty}
             className="w-full"
@@ -716,6 +763,59 @@ export function CartPanel({
           }
         }}
       />
+
+      {createPortal(
+        <AnimatePresence>
+          {isNoteOpen && (
+            <motion.div
+              key="note-backdrop"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeNoteEditor}
+            />
+          )}
+          {isNoteOpen && (
+            <motion.div
+              key="note-bar"
+              className="fixed z-[10000] left-0 right-0 p-4 bg-[#25252D] border-t border-white/10 shadow-2xl flex flex-col gap-3 max-w-2xl mx-auto rounded-t-2xl"
+              style={{ bottom: vkHeight }}
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+            >
+              <textarea
+                ref={noteInputRef}
+                autoFocus
+                value={globalNote}
+                onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); closeNoteEditor(); } }}
+                placeholder={t('note_placeholder') || 'Qeyd yaz...'}
+                className="w-full h-24 text-lg bg-[#18181C] text-white p-3 rounded-xl border border-white/10 focus:outline-none focus:border-amber-500 resize-none"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={discardNote}
+                  className="px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
+                >
+                  GİZLƏ / LƏĞV ET
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={closeNoteEditor}
+                  className="px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-emerald-500 text-black hover:bg-emerald-400 transition-colors"
+                >
+                  TƏSDİQLƏ
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
     </div>
   );

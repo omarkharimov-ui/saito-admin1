@@ -85,8 +85,19 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
-    const totalAmount = (pre_order_items || []).reduce(
-      (sum: number, item: any) => sum + (item.unit_price * item.quantity),
+    // Pre-orders live in reservation_preorder_items (single source of truth).
+    // Fall back to the request body only for legacy clients that still send it.
+    const preRes = await fetch(
+      `${svc().url}/rest/v1/reservation_preorder_items?select=*&reservation_id=eq.${reservation_id}`,
+      { headers: svc().headers }
+    );
+    const preRows: any[] = await preRes.json();
+    const effectivePreOrders = Array.isArray(preRows) && preRows.length > 0
+      ? preRows
+      : (pre_order_items || []);
+
+    const totalAmount = (effectivePreOrders || []).reduce(
+      (sum: number, item: any) => sum + (Number(item.unit_price || 0) * Number(item.quantity || 0)),
       0
     );
 
@@ -176,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3b. Insert pre-order items into order_items (dedup by product_id__quantity)
-    if (pre_order_items && pre_order_items.length > 0) {
+    if (effectivePreOrders && effectivePreOrders.length > 0) {
       const existingItemsRes = await fetch(
         `${svc().url}/rest/v1/order_items?select=product_id,quantity&order_id=eq.${createdOrder.id}`,
         { headers: svc().headers }
@@ -184,7 +195,7 @@ export async function POST(request: NextRequest) {
       const existingItems: any[] = await existingItemsRes.json();
       const seen = new Set(existingItems.map((i: any) => `${i.product_id}__${i.quantity}`));
 
-      for (const item of pre_order_items) {
+      for (const item of effectivePreOrders) {
         const dedupKey = `${item.product_id}__${item.quantity}`;
         if (seen.has(dedupKey)) continue;
         seen.add(dedupKey);
@@ -197,7 +208,7 @@ export async function POST(request: NextRequest) {
             product_name: item.product_name,
             quantity: item.quantity,
             unit_price: item.unit_price,
-            total_price: item.unit_price * item.quantity,
+            total_price: Number(item.unit_price || 0) * Number(item.quantity || 0),
             modifiers: item.modifiers || [],
             special_notes: item.special_notes || '',
             kitchen_status: 'reserved',
@@ -225,8 +236,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 4b. IMMEDIATE KITCHEN HINT: Notify kitchen about the reservation
-    const hintText = pre_order_items && pre_order_items.length > 0
-      ? `Masa ${table_number} — ${reservation.name} (${reservation.guests} nəfər) üçün rezervasiya təsdiqləndi. Öncədən sifariş var (${pre_order_items.length} məhsul).`
+    const hintText = effectivePreOrders && effectivePreOrders.length > 0
+      ? `Masa ${table_number} — ${reservation.name} (${reservation.guests} nəfər) üçün rezervasiya təsdiqləndi. Öncədən sifariş var (${effectivePreOrders.length} məhsul).`
       : `Masa ${table_number} — ${reservation.name} (${reservation.guests} nəfər) üçün rezervasiya təsdiqləndi.`;
     await fetch(`${svc().url}/rest/v1/notifications`, {
       method: 'POST',
@@ -241,7 +252,7 @@ export async function POST(request: NextRequest) {
           table_ids,
           guest_name: reservation.name,
           guest_count: reservation.guests,
-          pre_order_count: pre_order_items?.length || 0,
+          pre_order_count: effectivePreOrders?.length || 0,
         },
         created_at: new Date().toISOString(),
       }),
@@ -249,7 +260,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Kitchen schedule logic
     let kitchen_scheduled_at = null;
-    if (pre_order_items && pre_order_items.length > 0) {
+    if (effectivePreOrders && effectivePreOrders.length > 0) {
       let minutesBefore = schedule_minutes_before || Number(reservation.kitchen_notify_before_minutes) || 120;
       const [hours, minutes] = reservation.time.split(':').map(Number);
       const reservationDate = new Date(reservation.date);
@@ -270,13 +281,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const columnCache = (effectivePreOrders || []).map((item: any) => ({
+      product_id: item.product_id || null,
+      product_name: item.product_name || 'Məhsul',
+      quantity: Number(item.quantity || 0),
+      unit_price: Number(item.unit_price || 0),
+      modifiers: item.modifiers || [],
+      special_notes: item.special_notes || '',
+    }));
+
     await fetch(`${svc().url}/rest/v1/reservations?id=eq.${reservation_id}`, {
       method: 'PATCH',
       headers: svc().headers,
       body: JSON.stringify({
         table_number,
         table_ids: table_ids,
-        pre_order_items: pre_order_items || null,
+        pre_order_items: columnCache.length > 0 ? columnCache : null,
         pre_order_total: totalAmount || null,
         kitchen_scheduled_at,
         kitchen_hint_sent: true,

@@ -40,6 +40,31 @@ export async function GET(request: Request) {
   }
 }
 
+// Keep reservations.pre_order_items (JSONB column) in sync with the
+// reservation_preorder_items table so every reader (admin cards, kitchen AI
+// scheduler, upcoming widget) sees the same data no matter which surface wrote.
+async function syncColumn(supabase: any, reservation_id: string, rows: any[]) {
+  const cache = (rows || []).map((item: any) => ({
+    product_id: item.product_id || null,
+    product_name: item.product_name || 'Məhsul',
+    quantity: Number(item.quantity || 0),
+    unit_price: Number(item.unit_price || 0),
+    modifiers: item.modifiers || [],
+    special_notes: item.special_notes || '',
+  }));
+  const total = cache.reduce((s: number, i: any) => s + i.unit_price * i.quantity, 0);
+  const { error } = await supabase
+    .from('reservations')
+    .update({
+      pre_order_items: cache.length > 0 ? cache : null,
+      pre_order_total: cache.length > 0 ? total : null,
+    })
+    .eq('id', reservation_id);
+  if (error) {
+    console.error('[pre-order-items] Column cache sync failed:', error.message);
+  }
+}
+
 export async function POST(request: Request) {
   const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
   if (!auth.authenticated) {
@@ -73,6 +98,16 @@ export async function POST(request: Request) {
     }));
 
     if (rows.length === 0) {
+      if (replace) {
+        const { error: delErr } = await supabase
+          .from('reservation_preorder_items')
+          .delete()
+          .eq('reservation_id', reservation_id);
+        if (delErr) {
+          return NextResponse.json({ error: delErr.message }, { status: 400 });
+        }
+      }
+      await syncColumn(supabase, reservation_id, []);
       return NextResponse.json({ success: true, items: [] });
     }
 
@@ -85,6 +120,8 @@ export async function POST(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    await syncColumn(supabase, reservation_id, data || []);
 
     return NextResponse.json({ success: true, items: data || [] });
   } catch (error: any) {

@@ -339,6 +339,10 @@ export default function POSPage() {
    const [reservationMode, setReservationMode] = useState(false);
    const [reservationId, setReservationId] = useState<string | null>(null);
    const [reservationGuest, setReservationGuest] = useState<string | null>(null);
+   // One-shot guard: the pre-order handoff from the reservations page must run
+   // exactly once — not re-fire on every floor refresh (which would re-open the
+   // reserved table and re-enable reservation mode on normal tables).
+   const preorderHandoffConsumed = useRef(false);
 
    useEffect(() => {
      if (posMode === 'dine_in') return;
@@ -349,6 +353,7 @@ export default function POSPage() {
    }, [posMode]);
 
   useEffect(() => {
+    if (preorderHandoffConsumed.current) return;
     const resId = searchParams.get('resId') || searchParams.get('reservation_id');
     const tableIds = (searchParams.get('tableIds') || '').split(',').filter(Boolean);
     const guestName = searchParams.get('guestName') || '';
@@ -365,6 +370,7 @@ export default function POSPage() {
 
     if (!finalResId || finalTableIds.length === 0) return;
 
+    preorderHandoffConsumed.current = true;
     setReservationMode(true);
     setReservationId(finalResId);
     setReservationGuest(finalGuest || null);
@@ -1010,6 +1016,10 @@ export default function POSPage() {
     playHapticSound('select');
 
     if (table.status === 'empty' && !mergeMode && !transferMode) {
+      pos.exitReservationMode();
+      setReservationMode(false);
+      setReservationId(null);
+      setReservationGuest(null);
       pos.selectTable(table);
       return;
     }
@@ -1049,6 +1059,10 @@ export default function POSPage() {
     if (['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(table.status)) {
       setFlashInfo({ tableNumber: table.table_number, nonce: Date.now() });
     }
+    pos.exitReservationMode();
+    setReservationMode(false);
+    setReservationId(null);
+    setReservationGuest(null);
     pos.selectTable(table);
   };
 
@@ -1357,7 +1371,7 @@ export default function POSPage() {
         )}
 
        {/* MODE SWITCHER — always visible */}
-       <div className="flex items-center gap-4 px-6 pt-4 pb-2">
+       <div className="flex items-center gap-4 px-6 pt-2 pb-2">
            <h1 className="text-2xl font-black tracking-tighter">POS</h1>
            <button
              onClick={() => {
@@ -1968,7 +1982,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                           />
                       </div>
                       <div
-                         className="w-[400px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
+                         className="w-[440px] flex-shrink-0 border-l flex flex-col overflow-hidden min-h-0"
                         >
                              {posMode !== 'dine_in' && (
                              <div className="flex-shrink-0 overflow-y-auto min-h-0 max-h-[44%] px-4 pt-3 pb-2 space-y-2.5 border-b border-black/5 dark:border-white/10 overscroll-contain">
@@ -2092,7 +2106,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                               pos.placeOrder(autoCampaign ? { id: autoCampaign.id, type: 'AUTO' } : undefined, undefined, posSession?.staffId);
                             }
                           }}
-                         onBack={() => { if (pos.selectedTable && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(pos.selectedTable.status)) { setFlashInfo({ tableNumber: pos.selectedTable.table_number, nonce: Date.now() }); } pos.setActiveView('floor'); setEditingOrder(null); }}
+                         onBack={() => { pos.clearCart(); pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null); if (pos.selectedTable && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(pos.selectedTable.status)) { setFlashInfo({ tableNumber: pos.selectedTable.table_number, nonce: Date.now() }); } pos.setActiveView('floor'); setEditingOrder(null); }}
                          orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                          onUpdateGuests={(delta) => pos.updateGuestCount(delta)}

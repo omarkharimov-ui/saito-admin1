@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createAuthClient } from '@/lib/api-auth';
 import { verifyPin } from '@/lib/crypto';
 import crypto from 'crypto';
 
@@ -10,9 +10,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '4 rəqəmli PIN daxil edin' }, { status: 400 });
     }
 
+    // Use the service-role client: RLS blocks the anon key from reading staff.pin_hash,
+    // which made every PIN return "Yanlış PIN".
+    const supabase = await createAuthClient();
     const { data: staff, error } = await supabase
       .from('staff')
-      .select('id, full_name, role, pin_hash, is_active')
+      .select('id, name, full_name, role, pin_hash, is_active')
       .eq('is_active', true)
       .limit(100);
 
@@ -30,12 +33,17 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     const roleMap: Record<string, string> = {
+      'superadmin': 'superadmin',
       'Ofisiant': 'cashier',
       'Baş Ofisiant': 'cashier',
       'Menecer': 'manager',
       'Barmen': 'cashier',
       'Aşpaz': 'kitchen',
       'Kassa': 'cashier',
+      'cashier': 'cashier',
+      'waiter': 'waiter',
+      'kitchen': 'kitchen',
+      'manager': 'manager',
     };
 
     await supabase.from('sessions').insert({
@@ -45,7 +53,7 @@ export async function POST(req: NextRequest) {
       expires_at: expiresAt,
     });
 
-    const res = NextResponse.json({ success: true, role: matched.role, name: matched.full_name });
+    const res = NextResponse.json({ success: true, role: matched.role, name: matched.full_name || matched.name });
     res.cookies.set('saito_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

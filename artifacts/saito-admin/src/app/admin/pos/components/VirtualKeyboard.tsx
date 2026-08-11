@@ -232,7 +232,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
   };
 
   const keyboard = activeEl && (
-    <div ref={keyboardRef} className="fixed bottom-0 left-0 right-0 z-[210] bg-zinc-900/95 border-t border-zinc-800 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-2xl">
+    <div ref={keyboardRef} className="fixed bottom-0 left-0 right-0 z-[9999] bg-[#1E1E24] border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-2xl">
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/30">
           <Keyboard size={12} />
@@ -243,7 +243,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
           onClick={() => close()}
           className="px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-white/10 text-white/70 hover:bg-white/15 active:scale-95 transition-all"
         >
-          t('hide')
+          {t('hide')}
         </button>
       </div>
       <div className="w-full max-w-[900px] mx-auto">
@@ -260,7 +260,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleKeyPress({ action: 'clear', label: t('clear') }); }}
                 className="h-[54px] rounded-xl border border-zinc-700/50 bg-zinc-800 text-white/70 text-xs font-bold uppercase tracking-wider active:scale-95 transition-transform"
               >
-                t('clear')
+                {t('clear')}
               </button>
               {renderKey({ action: 'done', label: t('hide') })}
             </div>
@@ -299,7 +299,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={fastExit}
-            className="fixed inset-0 z-[205]"
+            className="fixed inset-0 z-[998] bg-black/40 backdrop-blur-sm"
             onPointerDown={close}
           />
         )}

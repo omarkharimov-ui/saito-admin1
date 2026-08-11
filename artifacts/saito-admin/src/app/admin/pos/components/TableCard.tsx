@@ -201,6 +201,13 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
             <span className={`text-2xl font-black tracking-tighter ${isSelected ? (lightMode ? 'text-zinc-900' : 'text-white') : isDirty ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isWaiting ? (lightMode ? 'text-amber-700' : 'text-amber-400') : isReserved ? (lightMode ? 'text-indigo-600' : 'text-indigo-400') : (lightMode ? 'text-gray-900' : 'text-white')}`}>
               {t('table' as any)} {table.table_number}
             </span>
+            {table.pre_order && (
+              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black leading-none uppercase tracking-tight ${
+                lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'
+              }`}>
+                Pre-order
+              </span>
+            )}
             {isGroup && groupNumber && (
               <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black leading-none uppercase tracking-tight ${
                 lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
@@ -249,6 +256,29 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                </div>
              )}
              
+             {/* Reservation name first */}
+             {isWaiting && table.reservation_name && (
+               <div className="mb-2">
+                 <span className={`text-sm font-bold truncate ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
+                   {table.reservation_name || table.reservation_phone || t('guest_pending')}
+                 </span>
+               </div>
+             )}
+             {isReserved && table.reservation_name && (
+               <div className="mb-2">
+                 <span className={`text-sm font-bold truncate ${lightMode ? 'text-indigo-950' : 'text-white'}`}>
+                   {table.reservation_name || table.reservation_phone || table.table_number}
+                 </span>
+               </div>
+             )}
+             {isReserved && !table.reservation_name && (
+               <div className="mb-2">
+                 <span className={`text-sm font-bold truncate ${lightMode ? 'text-indigo-600' : 'text-indigo-300'}`}>
+                   {t('reserved' as any)} · {table.guest_count || '?'} {t('person' as any)}
+                 </span>
+               </div>
+             )}
+
              {/* Compact info labels */}
              <div className="flex items-center gap-2 flex-wrap">
                {displayGuests && (
@@ -265,35 +295,13 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                )}
              </div>
 
-             {/* Reservation info for waiting/reserved */}
-             {isWaiting && table.reservation_name && (
-               <div className="mt-2">
-                 <span className={`text-sm font-bold truncate ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>
-                   {table.reservation_name || table.reservation_phone || t('guest_pending')}
-                 </span>
-               </div>
-             )}
-             {isReserved && table.reservation_name && (
-               <div className="mt-2">
-                 <span className={`text-sm font-bold truncate ${lightMode ? 'text-indigo-950' : 'text-white'}`}>
-                   {table.reservation_name || table.reservation_phone || table.table_number}
-                 </span>
-               </div>
-             )}
-             {isReserved && !table.reservation_name && (
-               <div className="mt-2">
-                 <span className={`text-sm font-bold truncate ${lightMode ? 'text-indigo-600' : 'text-indigo-300'}`}>
-                   {t('reserved' as any)} · {table.guest_count || '?'} {t('person' as any)}
-                 </span>
-               </div>
-             )}
-             {table.pre_order && (
-               <div className="mt-2">
-                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${lightMode ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'}`}>
-                   <ShoppingBag size={10} /> Öncədən
-                 </span>
-               </div>
-             )}
+              {table.pre_order && (
+                <div className="mt-2">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'}`}>
+                    <ShoppingBag size={10} /> Pre-order
+                  </span>
+                </div>
+              )}
            </div>
          )}
 

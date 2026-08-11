@@ -30,12 +30,25 @@ export async function GET() {
     const rawOrders = await ordersRes.json();
     const rawReservations = await reservationsRes.json();
 
+    // Pre-order flag: single source of truth is reservation_preorder_items.
+    const resIds = (rawReservations || []).map((r: any) => r.id).filter(Boolean);
+    let resWithPreOrder = new Set<string>();
+    if (resIds.length > 0) {
+      const preRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/reservation_preorder_items?select=reservation_id&reservation_id=in.(${resIds.join(',')})`,
+        { headers }
+      );
+      const preRows = await preRes.json();
+      if (Array.isArray(preRows)) resWithPreOrder = new Set(preRows.map((i: any) => i.reservation_id));
+    }
+
     const reservationByTable: Record<number, { pre_order: boolean }> = {};
     (rawReservations || []).forEach((r: any) => {
+      const hasPre = !!r.pre_order || resWithPreOrder.has(r.id);
       const tableIds = Array.isArray(r.table_ids) ? r.table_ids : (r.table_number ? [r.table_number] : []);
       tableIds.forEach((tNum: number) => {
-        if (!reservationByTable[tNum] || r.pre_order) {
-          reservationByTable[tNum] = { pre_order: !!r.pre_order };
+        if (!reservationByTable[tNum] || hasPre) {
+          reservationByTable[tNum] = { pre_order: hasPre };
         }
       });
     });

@@ -24,12 +24,14 @@ export async function POST(request: NextRequest) {
     const draftOrder = Array.isArray(draftOrders) && draftOrders.length > 0 ? draftOrders[0] : null;
 
     let orderId: string;
+    let tableNumber: number | null = null;
+
     if (draftOrder) {
       orderId = draftOrder.id;
+      const resRes = await fetch(`${s.url}/rest/v1/reservations?select=table_number&id=eq.${reservation_id}`, { headers: s.headers });
+      const resData = await resRes.json();
+      tableNumber = resData?.[0]?.table_number || null;
     } else {
-      // No draft exists (reservation confirmed without a table, or pre-orders
-      // were added after confirmation). Build the order from the single source
-      // of truth: reservation_preorder_items.
       const resRes = await fetch(
         `${s.url}/rest/v1/reservations?select=*&id=eq.${reservation_id}`,
         { headers: s.headers }
@@ -40,6 +42,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
       }
 
+      tableNumber = reservation.table_number || null;
       const preRes = await fetch(
         `${s.url}/rest/v1/reservation_preorder_items?select=*&reservation_id=eq.${reservation_id}`,
         { headers: s.headers }
@@ -47,7 +50,6 @@ export async function POST(request: NextRequest) {
       const preRows: any[] = await preRes.json();
       const items: any[] = Array.isArray(preRows) ? preRows : [];
 
-      const table_number = reservation.table_number || '0';
       const totalAmount = items.reduce(
         (sum: number, item: any) => sum + (Number(item.unit_price || 0) * Number(item.quantity || 0)),
         0
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: { ...s.headers, 'Prefer': 'return=representation' },
         body: JSON.stringify({
-          table_number,
+          table_number: tableNumber || 0,
           reservation_id,
           status: 'confirmed',
           kitchen_status: 'reserved',
@@ -109,6 +111,15 @@ export async function POST(request: NextRequest) {
       headers: s.headers,
       body: JSON.stringify({ kitchen_status: 'pending' }),
     });
+
+    // SSOT: link order to table_floors if table_number exists
+    if (tableNumber && tableNumber > 0) {
+      await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${tableNumber}`, {
+        method: 'PATCH',
+        headers: s.headers,
+        body: JSON.stringify({ current_order_id: orderId, status: 'occupied', last_activity_at: now }),
+      });
+    }
 
     return NextResponse.json({ success: true, sent: 1 });
   } catch (error: any) {

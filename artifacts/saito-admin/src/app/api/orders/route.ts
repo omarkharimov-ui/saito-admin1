@@ -294,7 +294,7 @@ export async function POST(request: Request) {
         const patched = await patchRes.json();
         if (!patched || (Array.isArray(patched) && patched.length === 0)) throw new Error('CONCURRENCY_CONFLICT');
 
-        // Update table_floors total_amount
+        // Update table_floors total_amount and keep current_order_id (SSOT)
         const tableOrdersRes = await fetch(`${svc().url}/rest/v1/orders?table_number=eq.${table_number}&status=not.in.(paid,cancelled)`, { headers: svc().headers });
         const tableOrders = tableOrdersRes.ok ? await tableOrdersRes.json() : [];
         const tableTotal = tableOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
@@ -354,11 +354,11 @@ export async function POST(request: Request) {
         activeOrderId = created?.[0]?.id;
         if (!activeOrderId) throw new Error('Order creation failed: no id returned');
 
-        // Mark table as occupied with total (dine-in only)
+        // Mark table as occupied with current_order_id (SSOT)
         if (table_number) {
           await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
             method: 'PATCH', headers: svc().headers,
-            body: JSON.stringify({ status: 'occupied', total_amount: discountedTotal, last_activity_at: new Date().toISOString() }),
+            body: JSON.stringify({ status: 'occupied', current_order_id: activeOrderId, total_amount: discountedTotal, last_activity_at: new Date().toISOString() }),
           });
         }
       }

@@ -23,189 +23,172 @@ export async function GET() {
     const [floorsRes, ordersRes, reservationsRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/table_floors?select=*&order=sort_order.asc`, { headers }),
       fetch(`${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*)&status=neq.paid&status=neq.cancelled&status=neq.closed&order=created_at.desc`, { headers }),
-      fetch(`${SUPABASE_URL}/rest/v1/reservations?select=id,pre_order,table_ids&status=neq.cancelled&status=neq.no_show&status=neq.archived`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/reservations?select=*&status=neq.cancelled&status=neq.no_show&status=neq.archived`, { headers }),
     ]);
 
     const rawFloors = await floorsRes.json();
     const rawOrders = await ordersRes.json();
     const rawReservations = await reservationsRes.json();
 
-    // Pre-order flag: single source of truth is reservation_preorder_items.
-    const resIds = (rawReservations || []).map((r: any) => r.id).filter(Boolean);
-    const resWithPreOrder = new Set<string>();
-    if (resIds.length > 0) {
-      const preRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/reservation_preorder_items?select=reservation_id&reservation_id=in.(${resIds.join(',')})`,
+    // ─── SSOT: table_floors drives everything ───
+    // reservation_id -> reservation metadata (name, phone, time, pre_order)
+    // current_order_id -> current active order (items, totals, kitchen_status)
+    // orders by table_number -> order history / fallback for data migration
+
+    const floorByNumber = new Map<number, any>();
+    const reservationIds = new Set<string>();
+    const currentOrderIds = new Set<string>();
+
+    (rawFloors || []).forEach((f: any) => {
+      floorByNumber.set(f.table_number, f);
+      if (f.reservation_id) reservationIds.add(f.reservation_id);
+      if (f.current_order_id) currentOrderIds.add(f.current_order_id);
+    });
+
+    // Fetch only reservations linked from table_floors
+    const resMap = new Map<string, any>();
+    if (reservationIds.size > 0) {
+      const resRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/reservations?select=*&id=in.(${Array.from(reservationIds).join(',')})`,
         { headers }
       );
-      const preRows = await preRes.json();
-      if (Array.isArray(preRows)) {
-        preRows.forEach((i: any) => resWithPreOrder.add(i.reservation_id));
-      }
+      const resData = await resRes.json();
+      (resData || []).forEach((r: any) => resMap.set(r.id, r));
     }
 
-    // reservation_id -> has pre-order
+    // Pre-order flag from reservation
     const resPreOrder = new Map<string, boolean>();
-    (rawReservations || []).forEach((r: any) => {
-      resPreOrder.set(r.id, !!r.pre_order || resWithPreOrder.has(r.id));
+    resMap.forEach((r: any, id: string) => {
+      resPreOrder.set(id, !!r.pre_order);
     });
 
-    // table_floors.id (uuid) -> table_number, and table_number -> floor record
-    const floorIdToNumber = new Map<string, number>();
-    const floorByNumber = new Map<number, any>();
-    (rawFloors || []).forEach((f: any) => {
-      if (f.id != null) floorIdToNumber.set(String(f.id), f.table_number);
-      if (f.table_number != null) floorByNumber.set(f.table_number, f);
-    });
+    // Fetch only current orders linked from table_floors
+    const currentOrderMap = new Map<string, any>();
+    if (currentOrderIds.size > 0) {
+      const ordRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/orders?select=*,order_items(*)&id=in.(${Array.from(currentOrderIds).join(',')})`,
+        { headers }
+      );
+      const ordData = await ordRes.json();
+      (ordData || []).forEach((o: any) => currentOrderMap.set(o.id, o));
+    }
 
-    // table_number -> has pre-order. A reservation can be linked to a table via
-    // reservations.table_ids (uuids OR table numbers), reservations.table_number,
-    // or table_floors.reservation_id (the authoritative link written by the
-    // reserve-table flow) — all three must be honoured so the badge lands on the
-    // correct reserved table.
-    const reservationByTable: Record<number, { pre_order: boolean }> = {};
-    const markTable = (tNum: any, hasPre: boolean) => {
-      const n = Number(tNum);
-      if (!Number.isFinite(n)) return;
-      if (!reservationByTable[n] || hasPre) reservationByTable[n] = { pre_order: hasPre };
-    };
-
-    (rawReservations || []).forEach((r: any) => {
-      const hasPre = resPreOrder.get(r.id);
-      if (!hasPre) return;
-      const ids = Array.isArray(r.table_ids) ? r.table_ids : (r.table_number ? [r.table_number] : []);
-      ids.forEach((id: any) => {
-        const num = typeof id === 'number' ? id : floorIdToNumber.get(String(id));
-        if (num != null) markTable(num, true);
-      });
-      if (r.table_number != null) markTable(r.table_number, true);
-    });
-
-    // Reservations whose table_ids/table_number are missing/out-of-sync still
-    // reach the reserved table through table_floors.reservation_id.
-    (rawFloors || []).forEach((f: any) => {
-      if (f.reservation_id && resPreOrder.get(f.reservation_id)) {
-        markTable(f.table_number, true);
-      }
-    });
-
+    // All orders by table_number for history / fallback
     const ordersByTable: Record<number, any[]> = {};
-    const kitchenStatusByTable: Record<number, string> = {};
-    rawOrders.forEach((o: any) => {
+    (rawOrders || []).forEach((o: any) => {
       if (!ordersByTable[o.table_number]) ordersByTable[o.table_number] = [];
       ordersByTable[o.table_number].push(o);
-      if (o.kitchen_status && !kitchenStatusByTable[o.table_number]) {
-        kitchenStatusByTable[o.table_number] = o.kitchen_status;
-      }
     });
 
-    const floorMap: Record<string, any> = {};
-    const childTableNumbers = new Set<number>();
+    // Merged groups from table_floors
     const parentToChildren: Record<number, number[]> = {};
-    const tableNumberToFloor = new Map<number, any>();
-
-    rawFloors.forEach((f: any) => {
-      tableNumberToFloor.set(f.table_number, f);
+    (rawFloors || []).forEach((f: any) => {
       if (f.merged_into_table) {
-        childTableNumbers.add(f.table_number);
         if (!parentToChildren[f.merged_into_table]) parentToChildren[f.merged_into_table] = [];
         parentToChildren[f.merged_into_table].push(f.table_number);
       }
     });
 
-    rawFloors.forEach((f: any) => {
+    const floorMap: Record<string, any> = {};
+
+    (rawFloors || []).forEach((f: any) => {
       const fn = f.floor_name || 'Main';
       if (!floorMap[fn]) floorMap[fn] = { name: fn, tables: [], merged_groups: [] };
 
-      const tableOrders = ordersByTable[f.table_number] || [];
-      
+      const reservation = f.reservation_id ? resMap.get(f.reservation_id) : null;
+      const currentOrder = f.current_order_id ? currentOrderMap.get(f.current_order_id) : null;
+      const hasPreOrder = f.reservation_id ? (resPreOrder.get(f.reservation_id) || false) : false;
+
+      // Status from table_floors is authoritative.
+      // Only override if table has a linked order but floor shows empty/dirty
+      // (data migration safety net).
+      let status = f.status;
+      if (currentOrder && ['empty', 'dirty'].includes(status)) {
+        status = 'occupied';
+      }
+
       const isParent = parentToChildren[f.table_number] !== undefined;
       const isChild = f.merged_into_table !== null;
       const parentTableNumber = isChild ? f.merged_into_table : f.table_number;
-      
       const childrenNums = parentToChildren[parentTableNumber] || [];
       const allInGroup = [parentTableNumber, ...childrenNums];
-      
+
+      // Aggregate group data from table_floors + linked orders
       let groupTotalAmount = 0;
       let groupGuestCount = 0;
       let groupItemCount = 0;
       let groupOrderIds: string[] = [];
       let groupLastActivity: string | null = null;
-      
-      allInGroup.forEach(tNum => {
-        const tOrders = ordersByTable[tNum] || [];
-        groupTotalAmount += tOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-        
-        const tableObj = tableNumberToFloor.get(tNum);
-        if (tableObj?.guest_count) groupGuestCount += tableObj.guest_count;
-        else if (tOrders.length > 0) groupGuestCount += tOrders.reduce((s, o) => s + Number(o.guest_count || 0), 0);
-        
-        tOrders.forEach((o: any) => {
+
+      allInGroup.forEach((tNum: number) => {
+        const tFloor = floorByNumber.get(tNum);
+        const tOrder = tFloor?.current_order_id ? currentOrderMap.get(tFloor.current_order_id) : null;
+        const tAllOrders = ordersByTable[tNum] || [];
+
+        groupTotalAmount += (tFloor?.total_amount || 0) + tAllOrders.reduce((s: any, o: any) => s + Number(o.total_amount || 0), 0);
+        groupGuestCount += (tFloor?.guest_count || 0) || tAllOrders.reduce((s: any, o: any) => s + Number(o.guest_count || 0), 0);
+        tAllOrders.forEach((o: any) => {
           groupItemCount += (o.order_items || []).reduce((s: number, it: any) => s + Number(it.quantity || 0), 0);
         });
-        
-        groupOrderIds = [...groupOrderIds, ...tOrders.map(o => o.id)];
-        tOrders.forEach(o => {
+        groupOrderIds = [...groupOrderIds, ...(tFloor?.current_order_id ? [tFloor.current_order_id] : []), ...tAllOrders.map((o: any) => o.id)];
+        tAllOrders.forEach((o: any) => {
           if (o.updated_at && (!groupLastActivity || o.updated_at > groupLastActivity)) {
             groupLastActivity = o.updated_at;
           }
         });
       });
 
-      // Status: a reserved/waiting table must keep that status even if it has
-      // no active orders yet (or only a draft). Otherwise derive occupied from
-      // active orders, falling back to the stored floor status.
-      const hasOrders = (ordersByTable[f.table_number]?.length || 0) > 0;
-      const computedStatus =
-        f.status === 'reserved' || f.status === 'waiting'
-          ? f.status
-          : hasOrders
-            ? 'occupied'
-            : f.status;
+      const tableOrders = currentOrder ? [currentOrder] : (ordersByTable[f.table_number] || []);
+      const singleOrderIds = f.current_order_id ? [f.current_order_id] : tableOrders.map((o: any) => o.id);
 
       const processedTable = {
         ...f,
-        last_activity_at: groupLastActivity,
-        status: computedStatus,
-        total_amount: isChild || isParent ? groupTotalAmount : tableOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0),
-        guest_count: isChild || isParent ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s: any, o: any) => s + Number(o.guest_count || 0), 0)),
-        item_count: isChild || isParent ? groupItemCount : tableOrders.reduce((s: any, o: any) => s + (o.order_items || []).reduce((si: number, it: any) => si + Number(it.quantity || 0), 0), 0),
+        last_activity_at: groupLastActivity || f.last_activity_at,
+        status: (isChild || isParent) ? (status === 'empty' || status === 'dirty' ? 'occupied' : status) : status,
+        total_amount: (isChild || isParent) ? groupTotalAmount : (f.total_amount || tableOrders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0)),
+        guest_count: (isChild || isParent) ? (groupGuestCount || 1) : (f.guest_count || tableOrders.reduce((s: any, o: any) => s + Number(o.guest_count || 0), 0)),
+        item_count: (isChild || isParent) ? groupItemCount : tableOrders.reduce((s: any, o: any) => s + (o.order_items || []).reduce((si: number, it: any) => si + Number(it.quantity || 0), 0), 0),
         merged_with: isChild || isParent ? allInGroup : [],
         is_group: isChild || isParent,
         parent_table_number: parentTableNumber,
-        order_ids: isChild || isParent ? groupOrderIds : tableOrders.map((o: any) => o.id),
-        kitchen_status: kitchenStatusByTable[f.table_number] || null,
-        orders: isChild || isParent ? ordersByTable[parentTableNumber] || [] : (ordersByTable[f.table_number] || []),
-        // Pre-order badge only makes sense on a table that actually carries a
-        // reservation (status reserved or a reservation_id link). This stops an
-        // orphaned/stale pre-order item from decorating an empty, un-reserved table.
-        pre_order: (f.status === 'reserved' || !!f.reservation_id) ? (reservationByTable[f.table_number]?.pre_order || false) : false,
+        order_ids: isChild || isParent ? groupOrderIds : singleOrderIds,
+        kitchen_status: currentOrder?.kitchen_status || f.kitchen_status || tableOrders[0]?.kitchen_status || null,
+        orders: (isChild || isParent) ? allInGroup.map((tNum: number) => {
+          const tFloor = floorByNumber.get(tNum);
+          const tOrder = tFloor?.current_order_id ? currentOrderMap.get(tFloor.current_order_id) : null;
+          return tOrder || ordersByTable[tNum]?.[0] || null;
+        }).filter(Boolean) : tableOrders,
+        reservation_name: reservation?.name || f.reservation_name,
+        reservation_phone: reservation?.phone || f.reservation_phone,
+        reservation_time: reservation?.time || f.reservation_time,
+        pre_order: hasPreOrder,
       };
 
       floorMap[fn].tables.push(processedTable);
 
       if (isParent && !floorMap[fn].merged_groups.find((g: any) => g.id === `group-${f.table_number}`)) {
-        const parentOrders = ordersByTable[f.table_number] || [];
+        const parentOrder = f.current_order_id ? currentOrderMap.get(f.current_order_id) : null;
         floorMap[fn].merged_groups.push({
           id: `group-${f.table_number}`,
-          parent: { ...processedTable, total_amount: parentOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0) },
-          children: childrenNums.map(ctn => {
-            const cTable = tableNumberToFloor.get(ctn);
-            const cOrders = ordersByTable[ctn] || [];
+          parent: { ...processedTable, total_amount: parentOrder?.total_amount || f.total_amount || 0 },
+          children: childrenNums.map((ctn: number) => {
+            const cFloor = floorByNumber.get(ctn);
+            const cOrder = cFloor?.current_order_id ? currentOrderMap.get(cFloor.current_order_id) : null;
             return {
-              ...cTable,
-              total_amount: cOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0)
+              ...cFloor,
+              total_amount: cOrder?.total_amount || cFloor?.total_amount || 0,
+              guest_count: cFloor?.guest_count || cOrder?.guest_count || 1,
             };
           }),
           total_guests: groupGuestCount,
-          total_amount: groupTotalAmount
+          total_amount: groupTotalAmount,
         });
       }
     });
 
-    const result = Object.values(floorMap).map(f => ({
+    const result = Object.values(floorMap).map((f: any) => ({
       ...f,
-      tables: f.tables.sort((a: any, b: any) => a.table_number - b.table_number)
+      tables: f.tables.sort((a: any, b: any) => a.table_number - b.table_number),
     }));
 
     return NextResponse.json({ floors: result }, {

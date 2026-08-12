@@ -66,7 +66,7 @@ export default function ReservationActionSheet({
         onClick={onEditReservation}
       />
       <ActionCard
-        icon={<span className="text-[9px] font-black tracking-widest uppercase">+</span>}
+        icon={<span className="text-xs font-black tracking-widest uppercase">+</span>}
         label={t('details')}
         variant="default"
         onClick={() => setShowActions(!showActions)}
@@ -140,7 +140,7 @@ export default function ReservationActionSheet({
             subtitle={
               <span className="inline-flex flex-col items-center gap-1">
                 {table.reservation_name && <span>{table.reservation_name}</span>}
-                <span className="inline-flex items-center gap-3 text-[9px] font-bold uppercase tracking-widest opacity-60">
+                <span className="inline-flex items-center gap-3 text-xs font-bold uppercase tracking-widest opacity-60">
                   {table.reservation_time && <span className="flex items-center gap-1"><Clock size={10} /> {table.reservation_time}</span>}
                   {table.guest_count && <span className="flex items-center gap-1"><Users size={10} /> {table.guest_count} t('person')</span>}
                   {table.reservation_phone && <span className="flex items-center gap-1"><PhoneCall size={10} /> {maskPhone(table.reservation_phone)}</span>}
@@ -149,7 +149,7 @@ export default function ReservationActionSheet({
             }
              badge={
                table.is_vip ? (
-                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest bg-amber-500/15 border-amber-500/25 text-amber-400">
+                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-black uppercase tracking-widest bg-amber-500/15 border-amber-500/25 text-amber-400">
                    <Star size={10} /> VIP
                  </span>
                ) : undefined

@@ -172,7 +172,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   return (
          <div
          onClick={() => { onTap(); }}
-          className={`relative h-[180px] rounded-[24px] p-5 text-left transition-all duration-200 overflow-hidden border cursor-pointer group active:scale-[0.97]
+          className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 overflow-hidden border cursor-pointer group active:scale-[0.97] shadow-card
            ${isTransferSource
              ? (lightMode ? 'bg-zinc-100 border-transparent opacity-60' : 'bg-zinc-800/50 border-transparent opacity-50')
              : isTransferTarget
@@ -202,14 +202,14 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
               {t('table' as any)} {table.table_number}
             </span>
             {table.pre_order && (
-              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black leading-none uppercase tracking-tight ${
+              <span className={`px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
                 lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'
               }`}>
                 Pre-order
               </span>
             )}
             {isGroup && groupNumber && (
-              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black leading-none uppercase tracking-tight ${
+              <span className={`px-1.5 py-0.5 rounded-md text-xs font-black leading-none uppercase tracking-tight ${
                 lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
               }`}>
                 {t('group_label')} {groupNumber}
@@ -219,11 +219,11 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
            <div className="flex items-center gap-1">
              {isTransferSource ? (
                <div className="w-7 h-7 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center">
-                 <span className="text-[8px] font-black text-rose-400">M</span>
+                 <span className="text-xs font-black text-rose-400">M</span>
                </div>
              ) : isTransferTarget ? (
                <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
-                 <span className="text-[8px] font-black text-emerald-400">H</span>
+                 <span className="text-xs font-black text-emerald-400">H</span>
                </div>
              ) : selectionMode ? (
                <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
@@ -250,7 +250,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
              {/* Amount as hero element */}
              {displayAmount && (
                <div className="mb-2">
-                 <p className={`text-3xl font-black tracking-tight ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
+                 <p className={`text-[32px] font-black tracking-tight ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
                    ₼{displayAmount.toFixed(2)}
                  </p>
                </div>
@@ -282,13 +282,13 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
              {/* Compact info labels */}
              <div className="flex items-center gap-2 flex-wrap">
                {displayGuests && (
-                 <span className={`inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-tight ${lightMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
+                 <span className={`inline-flex items-center gap-1 text-xs font-black uppercase tracking-tight ${lightMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
                    <Users size={13} />
                    {displayGuests}
                  </span>
                )}
                {(table.item_count ?? 0) > 0 && (
-                 <span className={`inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-tight ${lightMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
+                 <span className={`inline-flex items-center gap-1 text-xs font-black uppercase tracking-tight ${lightMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
                    <ShoppingBag size={13} />
                    {table.item_count}
                  </span>
@@ -297,7 +297,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
 
               {table.pre_order && (
                 <div className="mt-2">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'}`}>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-white/10 text-white/70 border border-white/20'}`}>
                     <ShoppingBag size={10} /> Pre-order
                   </span>
                 </div>
@@ -309,7 +309,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         {isGroup && mergedChildNumbers && (
           <div className="absolute top-[68px] right-5 flex flex-col gap-1">
             {mergedChildNumbers.map((num: number) => (
-              <span key={num} className={`px-1.5 py-0.5 rounded-md text-[11px] font-bold border ${
+              <span key={num} className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${
                 lightMode 
                   ? 'bg-blue-50 border-blue-200 text-blue-700' 
                   : 'bg-white/5 border-white/10 text-white/60'
@@ -331,7 +331,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                   className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${
+                   className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${
                      kitchenStatus === 'preparing' || kitchenStatus === 'cooking'
                        ? lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300'
                        : kitchenStatus === 'ready'
@@ -352,7 +352,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${currentStatus.bg}`}>
+                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${currentStatus.bg}`}>
                   {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={currentStatus.iconColor} />}
                 {showOccupiedFlash ? t('occupied' as any) : currentStatus.label}
                   {table.status === 'dirty' && (
@@ -366,24 +366,24 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
               )}
             </AnimatePresence>
              {table.bill_requested && (
-               <span className="shrink-0 relative px-2.5 py-1 rounded-lg text-[9px] font-black border-2 border-rose-500 bg-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/30 flex items-center gap-1">
+               <span className="shrink-0 relative px-2.5 py-1 rounded-lg text-xs font-black border-2 border-rose-500 bg-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/30 flex items-center gap-1">
                  <Receipt size={10} strokeWidth={2.5} />
                  {t('bill_requested' as any)}
                </span>
              )}
              {table.has_pending && (
-                <span className={`shrink-0 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                <span className={`shrink-0 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest flex items-center gap-1 ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
                    <Clock size={10} strokeWidth={2.5} />
                    {t('pending_status' as any)}
                 </span>
              )}
              {table.waiter_name && (
-               <span className={`shrink-0 px-2 py-0.5 rounded-md text-[9px] font-black border whitespace-nowrap ${lightMode ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-blue-500/10 border-blue-400/20 text-blue-400'}`}>
+               <span className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-black border whitespace-nowrap ${lightMode ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-blue-500/10 border-blue-400/20 text-blue-400'}`}>
                  {table.waiter_name}
                </span>
              )}
               {Number(table.order_count || 0) > 0 && (
-                <span className={`shrink-0 px-2 py-0.5 rounded-md text-[9px] font-black border whitespace-nowrap ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                <span className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-black border whitespace-nowrap ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
                   {table.order_count}
                 </span>
               )}

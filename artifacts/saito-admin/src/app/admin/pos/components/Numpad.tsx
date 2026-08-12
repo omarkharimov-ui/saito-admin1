@@ -70,11 +70,11 @@ export function Numpad({ open, value, min = 1, max = 99, onClose, onConfirm }: N
             {...appleCard}
             transition={fastExit}
             onClick={e => e.stopPropagation()}
-            className={`w-72 rounded-3xl p-5 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+            className={`w-72 rounded-3xl p-5 shadow-elevated border backdrop-blur-2xl ${lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'}`}
           >
             {/* Display */}
             <div className={`text-center mb-4 py-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/10'}`}>
-              <p className="text-4xl font-black tabular-nums text-[var(--theme-accent)]">{display || '—'}</p>
+              <p className="text-[32px] font-black tabular-nums text-[var(--theme-accent)]">{display || '—'}</p>
             </div>
 
             {/* Keypad */}
@@ -111,7 +111,7 @@ export function Numpad({ open, value, min = 1, max = 99, onClose, onConfirm }: N
             </button>
             <button
               onClick={onClose}
-              className="w-full mt-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all"
+              className="w-full mt-2 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all"
             >
               t('cancel')
             </button>

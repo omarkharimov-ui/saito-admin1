@@ -34,7 +34,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
       disabled={disabled}
       onClick={handleClick}
       className={`
-        relative h-[72px] rounded-[24px] font-black uppercase tracking-[0.2em] text-[13px]
+        relative h-[72px] rounded-4xl font-black uppercase tracking-[0.2em] text-[13px]
         flex items-center justify-center gap-3 transition-all duration-150
         ${status === 'loading' ? 'cursor-wait' : 'cursor-pointer'}
         ${variant === 'loss' 
@@ -100,7 +100,7 @@ export function SendOrderButton({ disabled = false, status, onClick, label, vari
             className="flex items-center gap-2"
           >
             <span className="text-xl leading-none text-red-400">×</span>
-            <span className="text-[11px] font-black text-red-300 uppercase tracking-wider">{t('error_retry')}</span>
+            <span className="text-xs font-black text-red-300 uppercase tracking-wider">{t('error_retry')}</span>
           </motion.span>
         ) : (
             <motion.span

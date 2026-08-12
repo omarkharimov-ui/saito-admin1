@@ -208,7 +208,7 @@ export function CartPanel({
       <div className="flex flex-col items-center justify-center h-full py-12 text-[var(--theme-text-muted)]">
         <ShoppingBag size={48} className="mb-4 opacity-20" />
         <p className="text-sm font-medium">{msg}</p>
-        <p className="text-[10px] mt-1 opacity-60">{t('add_items_hint')}</p>
+        <p className="text-xs mt-1 opacity-60">{t('add_items_hint')}</p>
       </div>
     );
   }
@@ -334,18 +334,18 @@ export function CartPanel({
               <span className="inline-flex items-center gap-2">
                 {mergedChildNumbers && mergedChildNumbers.length > 0 ? `${t('group_label')} ${cart.table_number ?? '-'}` : posMode === 'takeaway' ? t('takeaway') : posMode === 'delivery' ? t('delivery') : `${t('table_label')} ${cart.table_number ?? '-'}`}
                 {isReservationMode && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">PRE-ORDER</span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">PRE-ORDER</span>
                 )}
               </span>
               {mergedChildNumbers && mergedChildNumbers.length > 0 && (
-                <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-bold tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>
+                <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>
                   <GitMerge size={10} /> {[cart.table_number, ...mergedChildNumbers].join('+')}
                 </span>
               )}
             </p>
             {isReservationMode && (
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[10px] font-medium text-[var(--theme-text-secondary)]">Rezervasiya üçün öncədən sifariş</span>
+                <span className="text-xs font-medium text-[var(--theme-text-secondary)]">Rezervasiya üçün öncədən sifariş</span>
               </div>
             )}
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -412,23 +412,23 @@ export function CartPanel({
                       setCustomerEditing(false);
                     }}
                     placeholder={t('customer_name_placeholder')}
-                     className={`flex-1 min-w-0 rounded-lg px-2 py-0.5 text-[10px] font-bold outline-none border transition-all ${lightMode ? 'bg-white border-blue-300 text-black focus:border-zinc-400' : 'bg-white/5 border-blue-500/30 text-white focus:border-zinc-400/50'}`}
+                     className={`flex-1 min-w-0 rounded-lg px-2 py-0.5 text-xs font-bold outline-none border transition-all ${lightMode ? 'bg-white border-blue-300 text-black focus:border-zinc-400' : 'bg-white/5 border-blue-500/30 text-white focus:border-zinc-400/50'}`}
                   />
                 </div>
               ) : cart.customer_name ? (
                 <button onClick={() => { setCustomerEditing(true); setCustomerInput(cart.customer_name || ''); }}
                   className="flex items-center gap-1.5 mt-1 group">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black ${lightMode ? 'bg-blue-100 text-blue-600' : 'bg-blue-500/20 text-blue-400'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${lightMode ? 'bg-blue-100 text-blue-600' : 'bg-blue-500/20 text-blue-400'}`}>
                     {cart.customer_name.slice(0, 1).toUpperCase()}
                   </div>
-                  <span className="text-[10px] font-bold text-blue-400 truncate">{cart.customer_name}</span>
-                  <span className="text-[9px] text-[var(--theme-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">{t('edit_customer')}</span>
+                  <span className="text-xs font-bold text-blue-400 truncate">{cart.customer_name}</span>
+                  <span className="text-xs text-[var(--theme-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">{t('edit_customer')}</span>
                 </button>
               ) : (
                 <button onClick={() => { setCustomerEditing(true); setCustomerInput(''); }}
                   className="flex items-center gap-1.5 mt-1 text-[var(--theme-text-muted)] hover:text-blue-400 transition-colors">
                   <User size={12} />
-                  <span className="text-[10px] font-bold">{t('add_customer')}</span>
+                  <span className="text-xs font-bold">{t('add_customer')}</span>
                 </button>
               )
             ) : null}
@@ -438,7 +438,7 @@ export function CartPanel({
             {campaignDiscount > 0 ? (
               <div className="flex items-center gap-1.5 mt-1">
                 <Receipt size={12} className="text-[var(--theme-text-secondary)]" />
-                <span className="text-[10px] font-bold text-[var(--theme-text-secondary)]">
+                <span className="text-xs font-bold text-[var(--theme-text-secondary)]">
                   {t('campaign_applied')}: −{campaignDiscount.toFixed(2)} ₼
                 </span>
               </div>
@@ -449,7 +449,7 @@ export function CartPanel({
 
       {/* Compact customer info summary — takeaway/delivery (name shown in header, only show phone/address here) */}
       {(posMode === 'takeaway' || posMode === 'delivery') && (cart.customer_phone || cart.delivery_street) && (
-        <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 mb-2 rounded-xl text-[10px] font-semibold ${lightMode ? 'bg-zinc-50 border border-zinc-100 text-zinc-500' : 'bg-white/5 border border-white/5 text-white/40'}`}>
+        <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 mb-2 rounded-xl text-xs font-semibold ${lightMode ? 'bg-zinc-50 border border-zinc-100 text-zinc-500' : 'bg-white/5 border border-white/5 text-white/40'}`}>
           {cart.customer_phone && (
             <span>{cart.customer_phone}</span>
           )}
@@ -461,20 +461,17 @@ export function CartPanel({
         </div>
       )}
 
-      {/* Cart Quick Actions Row — single morphing surface */}
+      {/* Cart Quick Actions Row — single morphing surface: Təmizlə (clear) left, İtki (write off) right */}
       {!isEmpty && (
         <div className={`pt-3 pb-4 mb-2 border-t ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
           <div className="relative flex items-stretch">
-            <motion.div
+              <motion.div
               initial={false}
               style={{
                 flex: 'none',
                 overflow: 'hidden',
                 whiteSpace: 'nowrap',
                 transformOrigin: 'left center',
-                width: '0%',
-                marginRight: 0,
-                clipPath: 'inset(0% 100% 0% 0%)',
               }}
               animate={{
                 width: hasDraft ? '50%' : '0%',
@@ -492,7 +489,7 @@ export function CartPanel({
                 title={t('clear')}
                 tabIndex={hasDraft ? 0 : -1}
                 style={{ pointerEvents: hasDraft ? 'auto' : 'none', width: '100%' }}
-                className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border ${
+                className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border ${
                   lightMode 
                     ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
                     : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
@@ -509,7 +506,7 @@ export function CartPanel({
               transition={{
                 scale: { type: 'tween', duration: 0.55, times: [0, 0.12, 1], ease: [0.4, 0, 0.2, 1] },
               }}
-              className={`flex-1 min-w-0 flex items-center justify-center py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border ${
+              className={`flex-1 min-w-0 flex items-center justify-center py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border ${
                 lossMode 
                   ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-white')
                   : (lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900' : 'bg-white/5 border-white/10 text-white/40 hover:text-white')
@@ -562,10 +559,10 @@ export function CartPanel({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
                     {item.modifiers?.length ? (
-                      <p className="text-[10px] truncate text-[var(--theme-text-secondary)]">{(item.modifiers ?? []).map(m => m.name).join(', ')}</p>
+                      <p className="text-xs truncate text-[var(--theme-text-secondary)]">{(item.modifiers ?? []).map(m => m.name).join(', ')}</p>
                     ) : null}
                     {item.hold_until ? (
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-orange-500 mt-0.5"><Pause size={9} />{t('waiting')}</span>
+                      <span className="inline-flex items-center gap-0.5 text-xs font-bold text-orange-500 mt-0.5"><Pause size={9} />{t('waiting')}</span>
                     ) : null}
                   </div>
                    <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>
@@ -617,25 +614,25 @@ export function CartPanel({
              >
                 {/* Subtotal */}
                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('subtotal_label')}</span>
-                   <NumberRoll value={originalTotal} prefix="" suffix=" ₼" decimals={2} className="text-[11px] font-medium tabular-nums text-[var(--theme-text-secondary)]" />
+                    <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('subtotal_label')}</span>
+                   <NumberRoll value={originalTotal} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
                 </div>
                 {/* Discount */}
                 {cartDiscountAmount > 0 && (
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-widest font-medium text-emerald-400">{t('discount_label')}</span>
-                    <NumberRoll value={cartDiscountAmount} prefix="−" suffix=" ₼" decimals={2} className="text-[11px] font-medium tabular-nums text-emerald-400" />
+                    <span className="text-xs uppercase tracking-widest font-medium text-emerald-400">{t('discount_label')}</span>
+                    <NumberRoll value={cartDiscountAmount} prefix="−" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-emerald-400" />
                   </div>
                 )}
                 {/* VAT */}
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('vat')}</span>
-                  <NumberRoll value={vatAmount} prefix="" suffix=" ₼" decimals={2} className="text-[11px] font-medium tabular-nums text-[var(--theme-text-secondary)]" />
+                  <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('vat')}</span>
+                  <NumberRoll value={vatAmount} prefix="" suffix=" ₼" decimals={2} className="text-xs font-medium tabular-nums text-[var(--theme-text-secondary)]" />
                 </div>
                  {/* TOTAL — biggest, most prominent */}
                   <div className="flex items-center justify-between pt-1 border-t border-[var(--theme-border)]">
-                    <span className="text-[11px] uppercase tracking-widest font-bold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
-                    <RollingNumber value={grandTotal} prefix="" suffix=" ₼" decimals={2} className="text-3xl font-black tracking-tight tabular-nums text-[var(--theme-accent)]" duration={0.3} />
+                    <span className="text-xs uppercase tracking-widest font-bold text-[var(--theme-text-secondary)]">{t('total_label')}</span>
+                    <RollingNumber value={grandTotal} prefix="" suffix=" ₼" decimals={2} className="text-[32px] font-black tracking-tight tabular-nums text-[var(--theme-accent)]" duration={0.3} />
                   </div>
              </motion.div>
            )}
@@ -644,7 +641,7 @@ export function CartPanel({
         {/* Loss reason bar */}
         {lossMode && hasLossSelection && (
           <div className="px-1 space-y-2">
-            <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('loss_reason_title')}</p>
+            <p className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('loss_reason_title')}</p>
             <AnimatePresence mode="wait">
             {showCustomReason ? (
              <motion.div
@@ -694,7 +691,7 @@ export function CartPanel({
                   ))}
                 </div>
                 <button onClick={() => setShowCustomReason(true)}
-                  className="px-3 py-1.5 rounded-xl text-[11px] font-medium border border-dashed border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-text-muted)] transition-all">
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium border border-dashed border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-text-muted)] transition-all">
                   + {t('other')}
                 </button>
               </motion.div>
@@ -708,7 +705,7 @@ export function CartPanel({
           <div className={`flex items-center justify-between px-3 py-2 rounded-2xl ${lightMode ? 'bg-zinc-100 border border-zinc-200' : 'bg-white/5 border border-white/10'}`}>
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full animate-pulse ${lightMode ? 'bg-zinc-600' : 'bg-white/60'}`} />
-               <span className={`text-[10px] font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>{t('campaign_applied')}</span>
+               <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>{t('campaign_applied')}</span>
             </div>
           </div>
         )}
@@ -717,7 +714,7 @@ export function CartPanel({
             <div className="px-1">
               <button
                 onClick={openNoteEditor}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-medium border transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium border transition-colors ${
                   lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
                 }`}
               >
@@ -779,7 +776,7 @@ export function CartPanel({
           {isNoteOpen && (
             <motion.div
               key="note-bar"
-              className="fixed z-[10000] left-0 right-0 p-4 bg-[#25252D] border-t border-white/10 shadow-2xl flex flex-col gap-3 max-w-2xl mx-auto rounded-t-2xl"
+              className="fixed z-[10000] left-0 right-0 p-4 bg-[#25252D]/90 border-t border-white/10 shadow-elevated flex flex-col gap-3 max-w-2xl mx-auto rounded-t-2xl backdrop-blur-2xl"
               style={{ bottom: vkHeight }}
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -799,14 +796,14 @@ export function CartPanel({
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={discardNote}
-                  className="px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
+                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
                 >
                   GİZLƏ / LƏĞV ET
                 </button>
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={closeNoteEditor}
-                  className="px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-emerald-500 text-black hover:bg-emerald-400 transition-colors"
+                  className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-emerald-500 text-black hover:bg-emerald-400 transition-colors"
                 >
                   TƏSDİQLƏ
                 </button>

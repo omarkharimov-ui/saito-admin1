@@ -263,14 +263,14 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={fastExit}
-        className="fixed inset-0 z-[125] flex items-end justify-center bg-black/20"
-        onClick={onClose}
-      >
+          className="fixed inset-0 z-[125] flex items-end justify-center bg-black/20 backdrop-blur-sm"
+          onClick={onClose}
+        >
         <motion.div
           {...slideUp}
-          className={`relative w-full max-w-lg rounded-t-[2.5rem] shadow-[0_-20px_60px_rgba(0,0,0,0.3)] border ${
-            lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col`}
+          className={`relative w-full max-w-lg rounded-t-6xl shadow-overlay border ${
+            lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
+          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-2xl`}
           onClick={e => e.stopPropagation()}
         >
         {/* Header */}
@@ -292,7 +292,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
             <button
               key={f.id}
               onClick={() => setFilter(f.id as any)}
-              className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all ${
                 filter === f.id
                   ? 'bg-emerald-500 text-white'
                   : lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'
@@ -327,21 +327,21 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
               type="date"
               value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
-              className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-bold outline-none border transition-all ${
+              className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold outline-none border transition-all ${
                 lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-700' : 'bg-white/5 border-white/10 text-zinc-300'
               }`}
             />
-            <span className={`text-[10px] font-bold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>→</span>
+            <span className={`text-xs font-bold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>→</span>
             <input
               type="date"
               value={dateTo}
               onChange={e => setDateTo(e.target.value)}
-              className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-bold outline-none border transition-all ${
+              className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold outline-none border transition-all ${
                 lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-700' : 'bg-white/5 border-white/10 text-zinc-300'
               }`}
             />
             {(dateFrom || dateTo) && (
-              <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors">
+              <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-xs font-bold text-emerald-500 hover:text-emerald-600 transition-colors">
                 {t('clear')}
               </button>
             )}
@@ -372,7 +372,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     <span className="text-xs font-black tabular-nums">
                        {order.table_number ? `${t('table_label')} ${order.table_number}` : order.order_source === 'takeaway' ? `${t('takeaway_short')} ${order.order_number || ''}` : order.order_source === 'delivery' ? `${t('delivery_short')} ${order.order_number || ''}` : `#${order.order_number || order.id.slice(0, 8)}`}
                     </span>
-                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                    <span className={`text-xs font-bold uppercase px-1.5 py-0.5 rounded ${
                       order.order_source === 'takeaway' ? 'bg-amber-500/10 text-amber-500' :
                       order.order_source === 'delivery' ? 'bg-blue-500/10 text-blue-500' :
                       'bg-emerald-500/10 text-emerald-500'
@@ -381,11 +381,11 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     </span>
                   </div>
                   <div className="flex items-center gap-3 mt-1">
-                    <span className="text-[10px] opacity-40 flex items-center gap-1">
+                    <span className="text-xs opacity-40 flex items-center gap-1">
                       <Clock size={10} />
                       {new Date(order.created_at).toLocaleTimeString('az', { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    <span className="text-[10px] opacity-40">
+                    <span className="text-xs opacity-40">
                       {new Date(order.created_at).toLocaleDateString('az')}
                     </span>
                     <span className="text-xs font-black tabular-nums">
@@ -449,12 +449,12 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
             <motion.div
               {...slideUp}
               onClick={e => e.stopPropagation()}
-              className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+              className={`w-full max-w-sm rounded-3xl p-6 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
             >
               <h3 className="text-base font-black mb-4">{t('partial_refund') || 'Partial Refund'}</h3>
               <div className="space-y-3">
                 <div>
-                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                  <label className={`block text-xs font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                     {t('refund_amount') || 'Refund Amount'}
                   </label>
                   <input
@@ -465,12 +465,12 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     onChange={e => setRefundAmount(e.target.value)}
                     className={`w-full rounded-xl px-4 py-3 text-sm font-black outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                   />
-                  <p className="text-[10px] opacity-40 mt-1">
+                  <p className="text-xs opacity-40 mt-1">
                     Max: ₼{(Number(pendingRefundOrder.paid_amount || pendingRefundOrder.total_amount) || 0).toFixed(2)}
                   </p>
                 </div>
                 <div>
-                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                  <label className={`block text-xs font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                     {t('refund_reason') || 'Reason'}
                   </label>
                   <input
@@ -511,7 +511,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
             <motion.div
               {...slideUp}
               onClick={e => e.stopPropagation()}
-              className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+              className={`w-full max-w-md rounded-3xl p-6 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-black">
@@ -524,13 +524,13 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
               
               <div className="space-y-3">
                 <div className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-muted)] mb-1">Məbləğ</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)] mb-1">Məbləğ</p>
                   <p className="text-xl font-black tabular-nums">₼{(Number(selectedOrder.total_amount) || 0).toFixed(2)}</p>
                 </div>
                 
                 {selectedOrder.order_items && selectedOrder.order_items.length > 0 && (
                   <div className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">Məhsullar</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">Məhsullar</p>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {selectedOrder.order_items.map((item: any, idx: number) => (
                         <div key={idx} className="flex items-center justify-between">
@@ -539,7 +539,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                               {item.quantity}x {item.product_name || 'Məhsul'}
                             </p>
                             {item.special_notes && (
-                              <p className="text-[10px] opacity-40 truncate">{item.special_notes}</p>
+                              <p className="text-xs opacity-40 truncate">{item.special_notes}</p>
                             )}
                           </div>
                           <span className={`text-xs font-black tabular-nums ml-2 ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
@@ -553,7 +553,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                 
                 {selectedOrder.customer_note && (
                   <div className={`p-3 rounded-xl ${lightMode ? 'bg-zinc-50' : 'bg-white/5'}`}>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--theme-text-muted)] mb-1">Qeyd</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)] mb-1">Qeyd</p>
                     <p className="text-xs">{selectedOrder.customer_note}</p>
                   </div>
                 )}

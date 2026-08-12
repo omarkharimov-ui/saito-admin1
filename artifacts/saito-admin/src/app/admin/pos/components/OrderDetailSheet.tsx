@@ -200,16 +200,16 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={fastExit}
-            className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30"
+            className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30 backdrop-blur-sm"
             onClick={onClose}
            />
 
            <motion.div
              {...slideUp}
-             className={`relative z-10 pointer-events-auto w-full mx-auto max-h-[92vh] flex flex-col overflow-hidden rounded-t-3xl shadow-[0_30px_60px_rgba(0,0,0,0.3)] border transition-all duration-300 ${
+             className={`relative z-10 pointer-events-auto w-full mx-auto max-h-[92vh] flex flex-col overflow-hidden rounded-t-3xl shadow-overlay border transition-all duration-300 backdrop-blur-2xl ${
                isWide ? 'max-w-6xl' : 'max-w-lg'
              } ${
-               lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
+               lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
              }`}
            >
             {/* Tab Bar */}
@@ -266,11 +266,11 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${cfg.bg} ${cfg.color} ${cfg.border}`}>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${cfg.bg} ${cfg.color} ${cfg.border}`}>
                             <StatusIcon size={12} strokeWidth={3} />
                             {t(cfg.labelKey as any)}
                           </span>
-                          <span className={`text-[10px] font-bold tracking-wide ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                          <span className={`text-xs font-bold tracking-wide ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                             {timeAgo(order.created_at, t)}
                           </span>
                         </div>
@@ -280,7 +280,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {/* Customer Info */}
                     {(order.customer_name || order.customer_phone || order.delivery_district || order.delivery_street || order.delivery_address) && (
                       <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-150' : 'bg-white/[0.03] border-white/[0.06]'}`}>
-                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                        <p className={`text-xs font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                           t('customer_info')
                         </p>
                         <div className="flex flex-wrap gap-3">
@@ -315,7 +315,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {/* Delivery Address */}
                     {(order.delivery_street || order.delivery_address || order.delivery_district) && (
                       <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-blue-50/50 border-blue-100' : 'bg-blue-500/5 border-blue-500/10'}`}>
-                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-blue-400' : 'text-blue-300/60'}`}>
+                        <p className={`text-xs font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-blue-400' : 'text-blue-300/60'}`}>
                           t('delivery_address')
                         </p>
                         <div className="space-y-2">
@@ -360,7 +360,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {/* Scheduled Date */}
                     {order.scheduled_date && (
                       <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-amber-50/50 border-amber-100' : 'bg-amber-500/5 border-amber-500/10'}`}>
-                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 ${lightMode ? 'text-amber-400' : 'text-amber-300/60'}`}>
+                        <p className={`text-xs font-black uppercase tracking-[0.2em] mb-1 ${lightMode ? 'text-amber-400' : 'text-amber-300/60'}`}>
                           t('scheduled_date')
                         </p>
                         <p className={`text-sm font-bold ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{order.scheduled_date}</p>
@@ -370,7 +370,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {/* Courier (delivery only) */}
                     {posMode === 'delivery' && (
                       <div className={`p-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-150' : 'bg-white/[0.03] border-white/[0.06]'}`}>
-                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                        <p className={`text-xs font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                           Kuryer
                         </p>
                         {order.courier_name ? (
@@ -383,7 +383,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                             </div>
                             <button
                               onClick={() => handleAssignCourier('', '')}
-                              className={`text-[10px] font-bold ${lightMode ? 'text-zinc-400 hover:text-red-500' : 'text-white/30 hover:text-red-400'}`}
+                              className={`text-xs font-bold ${lightMode ? 'text-zinc-400 hover:text-red-500' : 'text-white/30 hover:text-red-400'}`}
                             >
                               t('change')
                             </button>
@@ -412,7 +412,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
 
                     {/* Order Items */}
                     <div>
-                      <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                      <p className={`text-xs font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                         t('order') ({order.items?.length ?? 0})
                       </p>
                       <div className="space-y-2">
@@ -433,13 +433,13 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                                   ₼{(item.total_price ?? item.unit_price * item.quantity).toFixed(2)}
                                 </p>
                               </div>
-                              <p className={`text-[10px] font-bold mt-0.5 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                              <p className={`text-xs font-bold mt-0.5 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                                 ₼{item.unit_price.toFixed(2)} × {item.quantity}
                               </p>
                               {item.modifiers?.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1.5">
                                   {item.modifiers.map((mod: any, mi: number) => (
-                                    <span key={mi} className={`px-2 py-0.5 rounded-md text-[9px] font-bold ${lightMode ? 'bg-zinc-200 text-zinc-600' : 'bg-white/5 text-white/40'}`}>
+                                    <span key={mi} className={`px-2 py-0.5 rounded-md text-xs font-bold ${lightMode ? 'bg-zinc-200 text-zinc-600' : 'bg-white/5 text-white/40'}`}>
                                       {mod.name || mod.modifier_name || `Mod ${mi + 1}`}
                                     </span>
                                   ))}
@@ -448,7 +448,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                               {item.special_notes && (
                                 <div className="flex items-center gap-1.5 mt-1.5">
                                   <FileText size={10} className={lightMode ? 'text-zinc-400' : 'text-white/25'} />
-                                  <p className={`text-[10px] font-bold italic ${lightMode ? 'text-zinc-500' : 'text-white/35'}`}>{item.special_notes}</p>
+                                  <p className={`text-xs font-bold italic ${lightMode ? 'text-zinc-500' : 'text-white/35'}`}>{item.special_notes}</p>
                                 </div>
                               )}
                             </div>
@@ -463,7 +463,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                         <div className="flex items-start gap-2.5">
                           <FileText size={14} className="text-amber-500 mt-0.5 shrink-0" />
                           <div>
-                            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 text-amber-500`}>{t('custom_note')}</p>
+                            <p className={`text-xs font-black uppercase tracking-[0.2em] mb-1 text-amber-500`}>{t('custom_note')}</p>
                             <p className={`text-sm font-bold leading-relaxed ${lightMode ? 'text-amber-800' : 'text-amber-200/80'}`}>{order.special_notes}</p>
                           </div>
                         </div>
@@ -484,7 +484,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                           </div>
                         )}
                         <div className={`flex justify-between items-center pt-2 border-t ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('total')}</span>
+                          <span className={`text-xs font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('total')}</span>
                           <span className={`text-xl font-black tabular-nums ${lightMode ? 'text-black' : 'text-white'}`}>₼{order.total_amount.toFixed(2)}</span>
                         </div>
                       </div>
@@ -493,7 +493,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {/* Status Flow */}
                     {nextStatus && onStatusChange && (
                       <div>
-                        <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                        <p className={`text-xs font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                           t('next_step')
                         </p>
                         <button
@@ -522,12 +522,12 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                  >
                   {/* Existing order items */}
                   <div className={`px-5 pt-4 pb-3 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
-                    <p className={`text-[9px] font-black uppercase tracking-[0.2em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                    <p className={`text-xs font-black uppercase tracking-[0.2em] mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                       {t('current_order')} ({order.items?.length ?? 0} {t('product')})
                     </p>
                     <div className="flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto">
                       {order.items?.map((item: any, idx: number) => (
-                        <span key={idx} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold ${lightMode ? 'bg-zinc-100 text-zinc-600' : 'bg-white/5 text-white/50'}`}>
+                        <span key={idx} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${lightMode ? 'bg-zinc-100 text-zinc-600' : 'bg-white/5 text-white/50'}`}>
                           {item.quantity}x {item.product_name}
                           <span className="text-zinc-400">₼{(item.total_price ?? item.unit_price * item.quantity).toFixed(2)}</span>
                         </span>
@@ -558,7 +558,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                         <div className="flex gap-1.5 overflow-x-auto">
                           <button
                             onClick={() => setSelectedCategory(null)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase whitespace-nowrap transition-all ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase whitespace-nowrap transition-all ${
                               !selectedCategory
                                 ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black')
                                 : (lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-white/40')
@@ -570,7 +570,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                             <button
                               key={cat.id}
                               onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase whitespace-nowrap transition-all ${
+                              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase whitespace-nowrap transition-all ${
                                 selectedCategory === cat.id
                                   ? (lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black')
                                   : (lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-white/40')
@@ -600,11 +600,11 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                                 <p className={`text-xs font-black truncate ${lightMode ? 'text-black' : 'text-white'}`}>
                                   {product.name}
                                 </p>
-                                <p className={`text-[10px] font-bold mt-1 ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
+                                <p className={`text-xs font-bold mt-1 ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
                                   ₼{product.price.toFixed(2)}
                                 </p>
                                 {addedCount > 0 && (
-                                  <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center">
+                                  <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500 text-white text-xs font-black flex items-center justify-center">
                                     {addedCount}
                                   </span>
                                 )}
@@ -619,7 +619,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                     {additions.length > 0 && (
                       <div className={`w-[240px] flex flex-col border-l ${lightMode ? 'border-zinc-100 bg-zinc-50/50' : 'border-white/5 bg-white/[0.02]'}`}>
                         <div className="px-4 pt-4 pb-3">
-                          <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
+                          <p className={`text-xs font-black uppercase tracking-[0.2em] ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
                             t('to_add') ({additions.length})
                           </p>
                         </div>
@@ -627,8 +627,8 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                           {additions.map(a => (
                             <div key={a.product.id} className={`flex items-center gap-2 p-2.5 rounded-xl border ${lightMode ? 'bg-white border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
                               <div className="flex-1 min-w-0">
-                                <p className={`text-[11px] font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>{a.product.name}</p>
-                                <p className={`text-[10px] font-bold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>₼{a.product.price.toFixed(2)}</p>
+                                <p className={`text-xs font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>{a.product.name}</p>
+                                <p className={`text-xs font-bold ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>₼{a.product.price.toFixed(2)}</p>
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <button
@@ -652,7 +652,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                         </div>
                         <div className={`px-4 py-4 border-t ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
                           <div className="flex justify-between items-center mb-3">
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('total')}</span>
+                            <span className={`text-xs font-black uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('total')}</span>
                             <span className={`text-lg font-black tabular-nums ${lightMode ? 'text-black' : 'text-white'}`}>₼{additionsTotal.toFixed(2)}</span>
                           </div>
                           <button

@@ -232,16 +232,16 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
   };
 
   const keyboard = activeEl && (
-    <div ref={keyboardRef} className="fixed bottom-0 left-0 right-0 z-[9999] bg-[#1E1E24] border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-2xl">
+    <div ref={keyboardRef} className="fixed bottom-0 left-0 right-0 z-[9999] bg-[#1E1E24]/95 border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-elevated backdrop-blur-2xl">
       <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/30">
+        <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white/30">
           <Keyboard size={12} />
           Virtual Keyboard
         </div>
         <button
           onPointerDown={(e) => e.preventDefault()}
           onClick={() => close()}
-          className="px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-white/10 text-white/70 hover:bg-white/15 active:scale-95 transition-all"
+          className="px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest bg-white/10 text-white/70 hover:bg-white/15 active:scale-95 transition-all"
         >
           {t('hide')}
         </button>

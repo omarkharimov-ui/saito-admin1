@@ -44,10 +44,10 @@
   --radius-modal:   20px;
   --radius-drawer:  24px;
 
-  /* Shadow system */
-  --shadow-card:    0 1px 2px rgba(0,0,0,.22), 0 8px 24px rgba(0,0,0,.24);
-  --shadow-elevated:0 2px 8px rgba(0,0,0,.28), 0 16px 40px rgba(0,0,0,.28);
-  --shadow-overlay: 0 8px 30px rgba(0,0,0,.30);
+  /* Shadow system — layered Apple-style depth */
+  --shadow-card:    0 2px 4px rgba(0,0,0,.35), 0 12px 28px rgba(0,0,0,.35), 0 32px 64px rgba(0,0,0,.16);
+  --shadow-elevated:0 4px 8px rgba(0,0,0,.40), 0 20px 44px rgba(0,0,0,.45), 0 56px 112px rgba(0,0,0,.22);
+  --shadow-overlay: 0 8px 24px rgba(0,0,0,.40), 0 40px 80px rgba(0,0,0,.50), 0 80px 160px rgba(0,0,0,.30);
 
   /* Focus states */
   --focus-ring:     0 0 0 4px rgba(255,255,255,.18);
@@ -89,9 +89,9 @@ html[data-theme="light"] {
   --border-default: var(--border-soft);
   --border-focus:   rgba(17,17,17,.18);
 
-  --shadow-card:    0 1px 2px rgba(0,0,0,.03), 0 8px 24px rgba(0,0,0,.04);
-  --shadow-elevated:0 2px 6px rgba(0,0,0,.04), 0 12px 28px rgba(0,0,0,.06);
-  --shadow-overlay: 0 8px 30px rgba(0,0,0,.10);
+  --shadow-card:    0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06), 0 20px 48px rgba(0,0,0,.05);
+  --shadow-elevated:0 2px 6px rgba(0,0,0,.05), 0 16px 40px rgba(0,0,0,.10), 0 48px 96px rgba(0,0,0,.08);
+  --shadow-overlay: 0 4px 16px rgba(0,0,0,.10), 0 32px 64px rgba(0,0,0,.16);
 
   --focus-ring:     0 0 0 4px rgba(0,0,0,.08);
 }

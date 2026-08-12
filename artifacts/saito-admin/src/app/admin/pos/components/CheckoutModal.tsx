@@ -238,14 +238,14 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
        animate={{ opacity: 1 }}
        exit={{ opacity: 0 }}
        transition={appleBackdrop}
-       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4"
+       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
        onClick={handleClose}
     >
        <motion.div
          {...slideUp}
-         className={`w-full max-w-lg rounded-3xl shadow-2xl border overflow-hidden ${
-           lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
-         }`}
+          className={`w-full max-w-lg rounded-3xl shadow-elevated border overflow-hidden backdrop-blur-2xl ${
+            lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
+          }`}
          onClick={(e) => e.stopPropagation()}
        >
         {/* Header */}
@@ -254,7 +254,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
             <h2 className={`text-xl font-black ${lightMode ? 'text-black' : 'text-white'}`}>
               {mode === 'takeaway' ? t('takeaway_payment') : t('delivery_payment')}
             </h2>
-            <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+            <p className={`text-xs font-black uppercase tracking-widest mt-1 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
               {mode === 'takeaway' ? t('customer_info') : t('customer_and_address')}
             </p>
           </div>
@@ -279,7 +279,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
           {mode === 'takeaway' && (
             <>
               <div>
-                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                <label className={`block text-xs font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                   {t('pickup_time')}
                 </label>
                 <div className="grid grid-cols-4 gap-2">
@@ -290,7 +290,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                     { value: 'custom', labelKey: 'pickup_custom' },
                   ].map(opt => (
                     <button key={opt.value} type="button" onClick={() => setPickupTime(opt.value)}
-                      className={`py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${
+                      className={`py-2.5 rounded-xl text-xs font-black uppercase transition-all ${
                         pickupTime === opt.value ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                           : lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 text-white/40 hover:bg-white/10'
                       }`}
@@ -305,7 +305,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                 )}
               </div>
               <div>
-                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                <label className={`block text-xs font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                   {t('scheduled_date')}
                 </label>
                 <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)}
@@ -317,7 +317,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
 
           {/* Payment method */}
           <div>
-            <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+            <label className={`block text-xs font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
               {t('payment_method_label')}
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -325,7 +325,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                 const Icon = m.icon;
                 return (
                   <button key={m.value} type="button" onClick={() => setPaymentMethod(m.value)}
-                    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
+                    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl text-xs font-black uppercase transition-all ${
                       paymentMethod === m.value ? `bg-${m.color}-500 text-white shadow-lg`
                         : lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 text-white/40 hover:bg-white/10'
                     }`}
@@ -351,7 +351,7 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                  className="w-full"
                >
-                 <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                 <label className={`block text-xs font-black uppercase tracking-widest mb-2 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
                    {t('notes')}
                  </label>
                  <div className="relative">
@@ -363,13 +363,13 @@ export default function CheckoutModal({ open, mode, total, currency = '₼', onS
                      autoFocus
                    />
                  </div>
-                 <button onClick={() => setNoteExpanded(false)} className="w-full mt-2 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('done')}</button>
+                 <button onClick={() => setNoteExpanded(false)} className="w-full mt-2 py-3 rounded-4xl text-xs font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('done')}</button>
                </motion.div>
              ) : (
                <motion.button
                  key="note-button"
                  layout
-                 onClick={() => setNoteExpanded(true)} className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90"
+                 onClick={() => setNoteExpanded(true)} className="w-full py-4 rounded-4xl text-xs font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90"
                >
                  {t('add_note') || 'Qeyd əlavə et'}
                </motion.button>

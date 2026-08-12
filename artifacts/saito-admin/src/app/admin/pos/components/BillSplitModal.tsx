@@ -150,7 +150,7 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
              animate={{ opacity: 1, y: 0 }}
              exit={{ opacity: 0, y: '100%' }} transition={fastExit} className="fixed inset-0 z-[150] bg-black/60" onClick={onClose} />
           <motion.div {...appleCard} transition={fastExit} className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
-            <div className={`border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'} rounded-[2.5rem] w-full max-w-xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col pointer-events-auto`}>
+            <div className={`border ${lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'} rounded-6xl w-full max-w-xl max-h-[85vh] overflow-hidden shadow-elevated backdrop-blur-2xl flex flex-col pointer-events-auto`}>
               {/* Header */}
               <div className={`p-8 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'} flex items-center justify-between`}>
                 <div>
@@ -196,7 +196,7 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
                       <div className="flex items-center gap-3">
                          <div className={`flex items-center rounded-xl p-1 border ${lightMode ? 'bg-zinc-100 border-zinc-200' : 'bg-black/40 border-white/5'}`}>
                             <button onClick={() => updateStandalone(item.id, -1, item.quantity)} className={`w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition-all ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}><Minus size={14} /></button>
-                            <span className={`w-8 text-center text-sm font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{selQty} <span className={`text-[10px] ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>/ {item.quantity}</span></span>
+                            <span className={`w-8 text-center text-sm font-black tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{selQty} <span className={`text-xs ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>/ {item.quantity}</span></span>
                             <button onClick={() => updateStandalone(item.id, 1, item.quantity)} className="w-8 h-8 rounded-lg hover:bg-blue-500/10 text-blue-500 flex items-center justify-center transition-all"><Plus size={14} /></button>
                          </div>
                       </div>
@@ -212,11 +212,11 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
               <div className={`p-8 border-t space-y-4 ${lightMode ? 'border-zinc-100 bg-zinc-50' : 'border-white/5 bg-black/20'}`}>
                  <div className="flex items-center justify-between">
                     <div>
-                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>{t('selected_total')}</p>
+                        <p className={`text-xs font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>{t('selected_total')}</p>
                         <p className="text-2xl font-black text-blue-500 tabular-nums">{selectedTotal.toFixed(2)} ₼</p>
                     </div>
                     <div className="text-right">
-                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>{t('product_count')}</p>
+                        <p className={`text-xs font-black uppercase tracking-widest mb-1 ${lightMode ? 'text-zinc-400' : 'text-white/20'}`}>{t('product_count')}</p>
                         <p className={`text-lg font-black ${lightMode ? 'text-zinc-900' : 'text-white/80'}`}>{selectedCount} t('pcs')</p>
                     </div>
                  </div>

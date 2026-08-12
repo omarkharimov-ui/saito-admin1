@@ -214,7 +214,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder={t('search_products' as any)}
-           className={`peer w-full rounded-[20px] pl-12 pr-4 py-3 text-sm outline-none border bg-[var(--theme-surface-muted)] transition-all duration-200
+           className={`peer w-full rounded-3xl pl-12 pr-4 py-3 text-sm outline-none border bg-[var(--theme-surface-muted)] transition-all duration-200
              ${lightMode
                ? 'text-gray-900 border-zinc-300 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200 shadow-md shadow-black/5 focus:shadow-[0_0_20px_rgba(120,120,120,0.25)]'
                : 'text-white border-white/10 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20 shadow-md shadow-black/20 focus:shadow-[0_0_20px_rgba(120,120,120,0.3)]'}`}
@@ -227,7 +227,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
           <button
             key={tab.id}
             onClick={() => setActiveFilter(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all border ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all border ${
               activeFilter === tab.id
                 ? 'bg-blue-500 text-white border-blue-500 shadow-lg shadow-blue-500/20'
                 : lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
@@ -253,7 +253,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       <div className="flex-1 overflow-y-auto pr-1 pt-2 relative z-0">
         {outOfStock && outOfStock.size > 0 && (
           <div className="flex items-center justify-end mb-3 flex-shrink-0 pr-1">
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${lightMode ? 'bg-rose-50 text-rose-500' : 'bg-rose-500/10 text-rose-400'}`}>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${lightMode ? 'bg-rose-50 text-rose-500' : 'bg-rose-500/10 text-rose-400'}`}>
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
               {outOfStock.size} {t('out_of_stock')}
             </span>
@@ -280,7 +280,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                    layoutId={layoutId}
                    transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
                    whileTap={{ scale: 0.96, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
-                   className={`relative flex flex-col rounded-[28px] border overflow-hidden cursor-pointer ${cardBg} ${
+                   className={`relative flex flex-col rounded-4xl border overflow-hidden cursor-pointer shadow-card ${cardBg} ${
                      isOutOfStock ? 'opacity-50 grayscale border-rose-500/30' : ''
                    }`}
                    onClick={() => { if (!isOutOfStock) { handleCardClick(item); } }}
@@ -293,7 +293,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                        initial={{ scale: 1 }}
                        animate={bounceMap[item.id] ? { scale: [1, 1.1, 1.02, 1] } : { scale: 1 }}
                        transition={{ duration: bounceMap[item.id] ? 0.4 : 0.2, ease: "easeOut" }}
-                        className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2.5 py-1 border text-[10px] font-black tabular-nums ${lightMode ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}
+                        className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2.5 py-1 border text-xs font-black tabular-nums ${lightMode ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}
                         >
                         <ShoppingCart size={10} className="text-white" />
                         <motion.span
@@ -301,13 +301,13 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           initial={{ scale: 1 }}
                           animate={pulseMap[item.id] ? { scale: [1, 1.15, 1.03, 1] } : { scale: 1 }}
                           transition={{ duration: pulseMap[item.id] ? 0.5 : 0.25, ease: "easeOut" }}
-                          className="text-[10px] font-black text-white whitespace-nowrap">
+                          className="text-xs font-black text-white whitespace-nowrap">
                           {count}
                         </motion.span>
                       </motion.div>
                   )}
                   {isOutOfStock && (
-                    <div className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2 py-1 border text-[10px] font-black tabular-nums ${lightMode ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}>
+                    <div className={`absolute top-2 left-2 z-20 flex items-center gap-1 rounded-full px-2 py-1 border text-xs font-black tabular-nums ${lightMode ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}>
                       <Ban size={10} className="text-white" />
                       <span className="whitespace-nowrap">{t('out_of_stock')}</span>
                     </div>
@@ -316,7 +316,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                   <motion.div
                     className="flex flex-col h-full p-3"
                   >
-                    <div className="aspect-square w-full overflow-hidden rounded-[20px] bg-white/50 dark:bg-black/20">
+                    <div className="aspect-square w-full overflow-hidden rounded-3xl bg-white/50 dark:bg-black/20">
                       {item.image_url && !failedImages.has(item.image_url) ? (
                         <img src={retryingImages.has(item.image_url) ? `${item.image_url}?t=${Date.now()}` : item.image_url} alt={name}
                           onError={() => {
@@ -336,7 +336,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                     </div>
                     <div className="pt-4 px-1 space-y-1">
                       {item.effective_price?.campaign_badge && (
-                        <span className="inline-block text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full mb-1"
+                        <span className="inline-block text-xs font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full mb-1"
                           style={{ color: item.effective_price.campaign_badge || '#D4AF37', backgroundColor: `${item.effective_price.campaign_badge || '#D4AF37'}20` }}>
                           {item.effective_price.campaign_label || t('savings') || 'Endirim'}
                         </span>
@@ -347,7 +347,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                           {item.effective_price && item.effective_price.effective_price < item.effective_price.base_price ? (
                             <>
                               <p className={`text-sm font-black ${cardPrice}`}>₼ {item.effective_price.effective_price.toFixed(2)}</p>
-                              <p className={`text-[11px] font-bold line-through ${compactPriceLine}`}>₼ {item.effective_price.base_price.toFixed(2)}</p>
+                              <p className={`text-xs font-bold line-through ${compactPriceLine}`}>₼ {item.effective_price.base_price.toFixed(2)}</p>
                             </>
                           ) : (
                             <p className={`text-sm font-black ${cardPrice}`}>₼ {(item.effective_price?.effective_price ?? item.price)?.toFixed(2)}</p>
@@ -355,7 +355,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                         </div>
                          <div className="flex items-center gap-1.5 min-w-0">
                            {isCombo && (
-                             <span className={`inline-block text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${comboLabelBg}`}>
+                             <span className={`inline-block text-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${comboLabelBg}`}>
                                {t('combos')}
                              </span>
                            )}
@@ -374,7 +374,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                      className={`absolute top-0 z-50 w-[440px] rounded-[28px] border shadow-2xl overflow-hidden ${
+                      className={`absolute top-0 z-50 w-[440px] rounded-4xl border shadow-elevated overflow-hidden ${
                         anchor.side === 'right' ? 'right-0' : 'left-0'
                       } ${expandedBg}`}
                       style={{

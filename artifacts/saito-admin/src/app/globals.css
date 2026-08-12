@@ -154,6 +154,15 @@ body { background-color: var(--theme-bg); color: var(--theme-text); }
   --color-gold-hover:  var(--gold-hover);
   --font-serif: "Playfair Display", serif;
   --font-sans:  "Noto Sans", var(--font-geist-sans), "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  /* Radius design scale — canonical tokens (12/16/20/24/32/40/48) */
+  --radius-xl:      0.75rem;   /* 12px — inputs, small cards */
+  --radius-2xl:     1rem;      /* 16px — cards */
+  --radius-3xl:     1.25rem;   /* 20px — modals, standard cards */
+  --radius-4xl:     1.5rem;    /* 24px — drawers, action tiles */
+  --radius-5xl:     2rem;      /* 32px — toasts, notices */
+  --radius-6xl:     2.5rem;    /* 40px — table sheets */
+  --radius-7xl:     3rem;      /* 48px — POS kapsul */
 }
 
 .scrollbar-none {
@@ -253,8 +262,8 @@ body {
   .backdrop-blur-xl,
   .backdrop-blur-2xl,
   .backdrop-blur-3xl {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 }
 

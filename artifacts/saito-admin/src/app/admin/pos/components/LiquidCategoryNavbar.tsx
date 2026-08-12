@@ -83,7 +83,7 @@ export function LiquidCategoryNavbar({ categories, activeId, onChange, allLabel 
                />
              )}
             
-            <span className={`relative z-10 text-[10px] font-medium uppercase tracking-wider transition-colors duration-200 whitespace-nowrap ${
+            <span className={`relative z-10 text-xs font-medium uppercase tracking-wider transition-colors duration-200 whitespace-nowrap ${
               isActive 
                 ? (lightMode ? 'text-black' : 'text-black') 
                 : (lightMode ? 'text-zinc-500 hover:text-zinc-800' : 'text-white/50 hover:text-white/80')

@@ -20,7 +20,7 @@ export function FloorSkeleton() {
       </div>
       <div className="grid grid-cols-4 gap-4">
         {Array.from({ length: 16 }).map((_, i) => (
-          <div key={i} className={`rounded-[24px] p-5 border ${lightMode ? 'bg-white border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+          <div key={i} className={`rounded-4xl p-5 border ${lightMode ? 'bg-white border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
             <div className="flex items-center justify-between mb-4">
               <Bone className="w-8 h-8 rounded-full" />
               <Bone className="w-12 h-5 rounded-full" />
@@ -41,7 +41,7 @@ export function FloorSkeleton() {
             />
           ))}
         </div>
-        <span className="text-[10px] font-bold text-[var(--theme-text-muted)] ml-2">Yüklənir...</span>
+        <span className="text-xs font-bold text-[var(--theme-text-muted)] ml-2">Yüklənir...</span>
       </div>
     </div>
   );
@@ -51,7 +51,7 @@ export function ProductGridSkeleton() {
   const { lightMode } = useTheme();
   return (
     <div className="flex flex-col h-full">
-      <Bone className="w-full h-14 rounded-[20px] mb-6" />
+      <Bone className="w-full h-14 rounded-3xl mb-6" />
       <div className="flex gap-2 mb-4">
         {Array.from({ length: 5 }).map((_, i) => (
           <Bone key={i} className="w-20 h-8 rounded-full" />
@@ -60,8 +60,8 @@ export function ProductGridSkeleton() {
       <div className="flex-1 pt-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5">
           {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className={`flex flex-col rounded-[28px] p-4 ${lightMode ? 'bg-[#f4f4f7]' : 'bg-white/[0.08]'}`}>
-              <Bone className="aspect-square w-full rounded-[20px] mb-4" />
+            <div key={i} className={`flex flex-col rounded-4xl p-4 ${lightMode ? 'bg-[#f4f4f7]' : 'bg-white/[0.08]'}`}>
+              <Bone className="aspect-square w-full rounded-3xl mb-4" />
               <Bone className="w-3/4 h-4 mb-2" />
               <Bone className="w-1/2 h-3" />
             </div>
@@ -107,7 +107,7 @@ export function DeliveryOrdersSkeleton() {
       </div>
       <div className="grid grid-cols-4 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className={`rounded-[24px] p-5 h-[180px] border ${lightMode ? 'bg-white border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+          <div key={i} className={`rounded-4xl p-5 h-[180px] border ${lightMode ? 'bg-white border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
             <div className="flex items-center justify-between mb-3">
               <Bone className="w-10 h-10 rounded-full" />
               <Bone className="w-16 h-5 rounded-full" />
@@ -132,7 +132,7 @@ export function TakeawayOrdersSkeleton() {
       </div>
       <div className="grid grid-cols-4 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className={`rounded-[24px] p-5 h-[180px] border ${lightMode ? 'bg-white border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+          <div key={i} className={`rounded-4xl p-5 h-[180px] border ${lightMode ? 'bg-white border-zinc-100' : 'bg-white/[0.03] border-white/[0.06]'}`}>
             <div className="flex items-center justify-between mb-3">
               <Bone className="w-10 h-10 rounded-full" />
               <Bone className="w-16 h-5 rounded-full" />

@@ -66,20 +66,20 @@ function getTimerStyles(color: 'green' | 'yellow' | 'red' | 'purple', lightMode:
 function getOrderBadge(order: KDSOrder, lightMode: boolean) {
   if (order.order_source === 'takeaway') {
     return (
-      <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold tracking-wider ${lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/10 text-amber-300'}`}>
+      <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold tracking-wider ${lightMode ? 'bg-amber-100 text-amber-700' : 'bg-amber-500/10 text-amber-300'}`}>
         <Package size={10} /> GEL-AL
       </span>
     );
   }
   if (order.order_source === 'delivery') {
     return (
-      <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold tracking-wider ${lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/10 text-blue-300'}`}>
+      <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold tracking-wider ${lightMode ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/10 text-blue-300'}`}>
         <Truck size={10} /> ÇATDIR
       </span>
     );
   }
   return (
-    <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold tracking-wider ${lightMode ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/10 text-emerald-300'}`}>
+    <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold tracking-wider ${lightMode ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/10 text-emerald-300'}`}>
       <Utensils size={10} /> İCƏRİDƏ
     </span>
   );
@@ -270,14 +270,14 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                         </span>
                         {getOrderBadge(order, lightMode)}
                         {(timer.color === 'red' || timer.color === 'purple') && (
-                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold tracking-wider border ${getTimerStyles(timer.color, lightMode)}`}>
+                          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold tracking-wider border ${getTimerStyles(timer.color, lightMode)}`}>
                             <AlertTriangle size={10} />
                             {timer.text}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[9px] font-bold tracking-[0.18em] border ${getTimerStyles(timer.color, lightMode)}`}>
+                        <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold tracking-[0.18em] border ${getTimerStyles(timer.color, lightMode)}`}>
                           <Timer size={10} />
                           {Math.floor(timer.elapsed)}d
                         </span>
@@ -287,7 +287,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
 
                     {/* Customer info for takeaway/delivery */}
                     {order.order_source !== 'dine_in' && order.customer_phone && (
-                      <p className={`text-[10px] mb-2 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
+                      <p className={`text-xs mb-2 ${lightMode ? 'text-gray-500' : 'text-white/40'}`}>
                         {order.customer_phone}
                       </p>
                     )}
@@ -303,7 +303,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                                 {item.name}
                               </span>
                               {item.modifiers?.length ? (
-                                <span className={`text-[9px] shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
+                                <span className={`text-xs shrink-0 ${lightMode ? 'text-gray-400' : 'text-white/30'}`}>
                                   {(item.modifiers ?? []).map(m => m.name).join(', ')}
                                 </span>
                               ) : null}
@@ -313,7 +313,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                               {!itemReady ? (
                                 <button
                                   onClick={() => handleItemStatus(item.id, 'ready')}
-                                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all active:scale-95 ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:border-emerald-300 hover:text-emerald-500' : 'bg-white/5 border-white/10 text-white/40 hover:border-emerald-500/30 hover:text-emerald-400'}`}
+                                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border transition-all active:scale-95 ${lightMode ? 'bg-white border-gray-200 text-gray-500 hover:border-emerald-300 hover:text-emerald-500' : 'bg-white/5 border-white/10 text-white/40 hover:border-emerald-500/30 hover:text-emerald-400'}`}
                                 >
                                   ✓
                                 </button>
@@ -330,7 +330,7 @@ export function KDSView({ onBack }: { onBack: () => void }) {
                     {order.customer_note && (
                       <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl mb-2 ${lightMode ? 'bg-amber-50 border border-amber-200' : 'bg-amber-500/5 border border-amber-500/10'}`}>
                         <Bell size={10} className={lightMode ? 'text-amber-600' : 'text-amber-400'} />
-                        <span className={`text-[10px] font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{order.customer_note}</span>
+                        <span className={`text-xs font-medium ${lightMode ? 'text-amber-700' : 'text-amber-300'}`}>{order.customer_note}</span>
                       </div>
                     )}
 

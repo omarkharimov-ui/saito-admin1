@@ -32,25 +32,61 @@ export async function GET() {
 
     // Pre-order flag: single source of truth is reservation_preorder_items.
     const resIds = (rawReservations || []).map((r: any) => r.id).filter(Boolean);
-    let resWithPreOrder = new Set<string>();
+    const resWithPreOrder = new Set<string>();
     if (resIds.length > 0) {
       const preRes = await fetch(
         `${SUPABASE_URL}/rest/v1/reservation_preorder_items?select=reservation_id&reservation_id=in.(${resIds.join(',')})`,
         { headers }
       );
       const preRows = await preRes.json();
-      if (Array.isArray(preRows)) resWithPreOrder = new Set(preRows.map((i: any) => i.reservation_id));
+      if (Array.isArray(preRows)) {
+        preRows.forEach((i: any) => resWithPreOrder.add(i.reservation_id));
+      }
     }
 
-    const reservationByTable: Record<number, { pre_order: boolean }> = {};
+    // reservation_id -> has pre-order
+    const resPreOrder = new Map<string, boolean>();
     (rawReservations || []).forEach((r: any) => {
-      const hasPre = !!r.pre_order || resWithPreOrder.has(r.id);
-      const tableIds = Array.isArray(r.table_ids) ? r.table_ids : (r.table_number ? [r.table_number] : []);
-      tableIds.forEach((tNum: number) => {
-        if (!reservationByTable[tNum] || hasPre) {
-          reservationByTable[tNum] = { pre_order: hasPre };
-        }
+      resPreOrder.set(r.id, !!r.pre_order || resWithPreOrder.has(r.id));
+    });
+
+    // table_floors.id (uuid) -> table_number, and table_number -> floor record
+    const floorIdToNumber = new Map<string, number>();
+    const floorByNumber = new Map<number, any>();
+    (rawFloors || []).forEach((f: any) => {
+      if (f.id != null) floorIdToNumber.set(String(f.id), f.table_number);
+      if (f.table_number != null) floorByNumber.set(f.table_number, f);
+    });
+
+    // table_number -> has pre-order. A reservation can be linked to a table via
+    // reservations.table_ids (uuids OR table numbers), reservations.table_number,
+    // or table_floors.reservation_id (the authoritative link written by the
+    // reserve-table flow) — all three must be honoured so the badge lands on the
+    // correct reserved table.
+    const reservationByTable: Record<number, { pre_order: boolean }> = {};
+    const markTable = (tNum: any, hasPre: boolean) => {
+      const n = Number(tNum);
+      if (!Number.isFinite(n)) return;
+      if (!reservationByTable[n] || hasPre) reservationByTable[n] = { pre_order: hasPre };
+    };
+
+    (rawReservations || []).forEach((r: any) => {
+      const hasPre = resPreOrder.get(r.id);
+      if (!hasPre) return;
+      const ids = Array.isArray(r.table_ids) ? r.table_ids : (r.table_number ? [r.table_number] : []);
+      ids.forEach((id: any) => {
+        const num = typeof id === 'number' ? id : floorIdToNumber.get(String(id));
+        if (num != null) markTable(num, true);
       });
+      if (r.table_number != null) markTable(r.table_number, true);
+    });
+
+    // Reservations whose table_ids/table_number are missing/out-of-sync still
+    // reach the reserved table through table_floors.reservation_id.
+    (rawFloors || []).forEach((f: any) => {
+      if (f.reservation_id && resPreOrder.get(f.reservation_id)) {
+        markTable(f.table_number, true);
+      }
     });
 
     const ordersByTable: Record<number, any[]> = {};
@@ -140,7 +176,10 @@ export async function GET() {
         order_ids: isChild || isParent ? groupOrderIds : tableOrders.map((o: any) => o.id),
         kitchen_status: kitchenStatusByTable[f.table_number] || null,
         orders: isChild || isParent ? ordersByTable[parentTableNumber] || [] : (ordersByTable[f.table_number] || []),
-        pre_order: reservationByTable[f.table_number]?.pre_order || false,
+        // Pre-order badge only makes sense on a table that actually carries a
+        // reservation (status reserved or a reservation_id link). This stops an
+        // orphaned/stale pre-order item from decorating an empty, un-reserved table.
+        pre_order: (f.status === 'reserved' || !!f.reservation_id) ? (reservationByTable[f.table_number]?.pre_order || false) : false,
       };
 
       floorMap[fn].tables.push(processedTable);

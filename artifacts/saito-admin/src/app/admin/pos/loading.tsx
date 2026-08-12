@@ -36,7 +36,7 @@ export default function POSLoading() {
                    transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
                   className="col-span-1"
                 >
-                  <div className="w-full aspect-[4/5] rounded-[2rem] bg-white/5 border border-white/5 animate-pulse" />
+                  <div className="w-full aspect-[4/5] rounded-5xl bg-white/5 border border-white/5 animate-pulse" />
                 </motion.div>
               ))}
             </div>

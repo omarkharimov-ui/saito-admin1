@@ -87,7 +87,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
             {...appleCard}
             transition={fastExit}
             onClick={e => e.stopPropagation()}
-            className={`w-80 rounded-3xl p-7 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+            className={`w-80 rounded-3xl p-7 shadow-elevated border backdrop-blur-2xl ${lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'}`}
           >
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
@@ -99,7 +99,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
               </button>
             </div>
 
-            <p className={`text-[10px] font-bold uppercase tracking-widest mb-4 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+            <p className={`text-xs font-bold uppercase tracking-widest mb-4 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
               {title || `${t(ACTION_LABELS[action] as any || 'admin_action')} ${t('pin_for')}`}
             </p>
 
@@ -132,13 +132,13 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
             </AnimatePresence>
 
             <div className="flex gap-3 mt-5">
-              <button onClick={onClose} className={`flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+              <button onClick={onClose} className={`flex-1 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
                 t('cancel')
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={pin.length < 4 || verifying}
-                className="flex-1 py-3.5 rounded-2xl bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20"
+                className="flex-1 py-3.5 rounded-2xl bg-amber-500 text-white text-xs font-black uppercase tracking-widest hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20"
               >
                 {verifying ? (
                   <span className="inline-flex items-center gap-2">

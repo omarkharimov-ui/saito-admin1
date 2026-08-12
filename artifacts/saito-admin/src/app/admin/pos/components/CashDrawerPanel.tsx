@@ -194,14 +194,14 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
       <div className="fixed inset-0 z-[130] flex items-end justify-center pointer-events-none" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit}
-          className="fixed inset-0 z-0 pointer-events-auto bg-black/20"
+          className="fixed inset-0 z-0 pointer-events-auto bg-black/20 backdrop-blur-sm"
           onClick={onClose}
         />
         <motion.div
           {...slideUp}
-          className={`relative z-10 pointer-events-auto w-full max-w-md rounded-t-[2.5rem] shadow-[0_-20px_60px_rgba(0,0,0,0.3)] border ${
-            lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col`}
+          className={`relative z-10 pointer-events-auto w-full max-w-md rounded-t-6xl shadow-overlay border ${
+            lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
+          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-2xl`}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 pb-4">
@@ -256,17 +256,17 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                         <User size={14} className="text-[var(--theme-text-muted)]" />
                         <p className="text-xs font-bold text-[var(--theme-text)]">{session?.staff_name || 'Kassir'}</p>
                       </div>
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-green-500">
+                      <span className="flex items-center gap-1 text-xs font-bold text-green-500">
                         <Unlock size={10} /> {t('open')}
                       </span>
                     </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('shift_started')}</p>
+                      <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('shift_started')}</p>
                       <p className="text-xs font-black tabular-nums">{formatTime(session.opened_at)}</p>
                     </div>
                     <div className={`p-2 rounded-xl ${lightMode ? 'bg-white border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('duration')}</p>
+                      <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('duration')}</p>
                       <p className="text-xs font-black tabular-nums">{shiftDuration}</p>
                     </div>
                   </div>
@@ -275,25 +275,25 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                 {/* Balance card */}
                 <div className={`p-5 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)]">Cari Balans</p>
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-green-500">
+                    <p className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-muted)]">Cari Balans</p>
+                    <span className="flex items-center gap-1 text-xs font-bold text-green-500">
                       <Unlock size={10} /> {t('open')}
                     </span>
                   </div>
-                  <p className="text-3xl font-black tracking-tighter tabular-nums">
+                  <p className="text-[32px] font-black tracking-tighter tabular-nums">
                     {currentBalance.toFixed(2)} <span className="text-lg text-[var(--theme-text-muted)]">₼</span>
                   </p>
                    <div className="grid grid-cols-3 gap-3 mt-3">
                      <div className={`p-2 rounded-xl ${lightMode ? 'bg-green-50 border border-green-200' : 'bg-green-500/10 border border-green-500/20'}`}>
-                       <p className="text-[8px] font-black uppercase tracking-widest text-green-600">{t('cash')}</p>
+                       <p className="text-xs font-black uppercase tracking-widest text-green-600">{t('cash')}</p>
                        <p className="text-xs font-black tabular-nums text-green-600">{(paymentTotal + cashInTotal).toFixed(2)}₼</p>
                      </div>
                      <div className={`p-2 rounded-xl ${lightMode ? 'bg-blue-50 border border-blue-200' : 'bg-blue-500/10 border border-blue-500/20'}`}>
-                       <p className="text-[8px] font-black uppercase tracking-widest text-blue-600">Kart</p>
+                       <p className="text-xs font-black uppercase tracking-widest text-blue-600">Kart</p>
                        <p className="text-xs font-black tabular-nums text-blue-600">{(session?.card_total || cardPaymentTotal).toFixed(2)}₼</p>
                      </div>
                      <div className={`p-2 rounded-xl ${lightMode ? 'bg-red-50 border border-red-200' : 'bg-red-500/10 border border-red-500/20'}`}>
-                       <p className="text-[8px] font-black uppercase tracking-widest text-red-600">{t('expense')}</p>
+                       <p className="text-xs font-black uppercase tracking-widest text-red-600">{t('expense')}</p>
                        <p className="text-xs font-black tabular-nums text-red-600">-{cashOutTotal.toFixed(2)}₼</p>
                      </div>
                    </div>
@@ -307,21 +307,21 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                        className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}
                      >
                        <ArrowDownCircle size={20} strokeWidth={2.5} />
-                       <span className="text-[9px] font-black uppercase tracking-widest">Daxilolma</span>
+                       <span className="text-xs font-black uppercase tracking-widest">Daxilolma</span>
                      </button>
                      <button
                        onClick={() => { setView('cash-out'); setCashAmount(''); setCashDesc(''); }}
                        className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-red-50 border-red-200 text-red-600' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}
                      >
                        <ArrowUpCircle size={20} strokeWidth={2.5} />
-                       <span className="text-[9px] font-black uppercase tracking-widest">{t('expense')}</span>
+                       <span className="text-xs font-black uppercase tracking-widest">{t('expense')}</span>
                      </button>
                      <button
                        onClick={() => { setView('close'); setCashAmount(String(currentBalance.toFixed(2))); setCashDesc(''); }}
                        className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all active:scale-95 ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/10 text-zinc-300'}`}
                      >
                        <Lock size={20} strokeWidth={2.5} />
-                       <span className="text-[9px] font-black uppercase tracking-widest">{t('end_shift')}</span>
+                       <span className="text-xs font-black uppercase tracking-widest">{t('end_shift')}</span>
                      </button>
                    </div>
                  )}
@@ -366,7 +366,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                   <div className={`p-5 rounded-2xl border space-y-3 ${lightMode ? 'bg-zinc-50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
                     <p className="text-sm font-bold text-zinc-500">{t('cash_drawer_closing')}</p>
                     <div className={`p-3 rounded-xl ${lightMode ? 'bg-white border border-zinc-200' : 'bg-white/5 border border-white/10'}`}>
-                      <p className="text-[10px] font-bold text-[var(--theme-text-muted)]">{t('expected_balance')}</p>
+                      <p className="text-xs font-bold text-[var(--theme-text-muted)]">{t('expected_balance')}</p>
                       <p className="text-lg font-black tabular-nums">{currentBalance.toFixed(2)}₼</p>
                     </div>
                     <input
@@ -412,7 +412,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                 {/* Movement log */}
                 {movements.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('transactions')}</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('transactions')}</p>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {[...movements].reverse().map(m => {
                         const cfg = typeLabels[m.type] || typeLabels.cash_in;
@@ -422,7 +422,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                             <Icon size={14} className={cfg.color} />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-bold truncate">{t(cfg.labelKey as any)}{m.description ? ` — ${m.description}` : ''}</p>
-                              <p className="text-[10px] text-[var(--theme-text-muted)]">{formatTime(m.created_at)}</p>
+                              <p className="text-xs text-[var(--theme-text-muted)]">{formatTime(m.created_at)}</p>
                             </div>
                             <span className={`text-xs font-black tabular-nums ${
                               m.type === 'cash_out' ? 'text-red-500' : 'text-green-500'
@@ -440,7 +440,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
 
              {todaySessions.length > 0 && (
                <div>
-                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('shift_entry')}</p>
+                 <p className="text-xs font-bold uppercase tracking-widest text-[var(--theme-text-muted)] mb-2">{t('shift_entry')}</p>
                  <div className="space-y-1.5">
                    {todaySessions.map(s => {
                      const isOpen = s.status === 'open';
@@ -452,22 +452,22 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                              {isOpen ? <Unlock size={14} className="text-green-500" /> : <Lock size={14} className="text-zinc-500" />}
                              <span className="text-xs font-bold">{formatTime(s.opened_at)}</span>
                            </div>
-                           <span className={`text-[9px] font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : 'text-zinc-500'}`}>
+                           <span className={`text-xs font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : 'text-zinc-500'}`}>
                              {isOpen ? t('open') : t('closed')}
                            </span>
                          </div>
-                         <p className="text-[10px] text-[var(--theme-text-muted)] mt-1">{staffName}</p>
+                         <p className="text-xs text-[var(--theme-text-muted)] mt-1">{staffName}</p>
                          <div className="grid grid-cols-3 gap-2 mt-2">
                            <div>
-                             <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('opening')}</p>
+                             <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('opening')}</p>
                              <p className="text-xs font-black tabular-nums">{(s.opening_balance || 0).toFixed(2)}₼</p>
                            </div>
                            <div>
-                             <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Kart</p>
+                             <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">Kart</p>
                              <p className="text-xs font-black tabular-nums text-blue-600">{(s.card_total || 0).toFixed(2)}₼</p>
                            </div>
                            <div>
-                             <p className="text-[8px] font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('difference')}</p>
+                             <p className="text-xs font-black uppercase tracking-widest text-[var(--theme-text-muted)]">{t('difference')}</p>
                              <p className={`text-xs font-black tabular-nums ${
                                s.difference == null ? 'text-[var(--theme-text-muted)]' : s.difference > 0 ? 'text-green-500' : s.difference < 0 ? 'text-red-500' : 'text-[var(--theme-text-muted)]'
                              }`}>

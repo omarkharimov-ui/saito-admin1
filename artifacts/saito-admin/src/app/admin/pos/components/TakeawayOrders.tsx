@@ -67,7 +67,7 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
-                  className={`relative h-[180px] rounded-[24px] p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
+                  className={`relative h-[180px] rounded-4xl p-5 text-left transition-all duration-200 group overflow-hidden border cursor-pointer ${
                     lightMode
                       ? 'bg-white border-emerald-500 shadow-sm'
                       : 'bg-zinc-900 border-emerald-500/60 shadow-sm'
@@ -82,13 +82,13 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                     </button>
                   </div>
 
-                  <span className={`absolute top-5 left-5 text-4xl font-black tracking-tighter ${
+                  <span className={`absolute top-5 left-5 text-[32px] font-black tracking-tighter ${
                     lightMode ? 'text-gray-900' : 'text-white'
                   }`}>
                     `${t('takeaway_short')} ${order.order_number || ''}`                  </span>
 
                   {elapsed > 0 && (
-                    <span className={`absolute top-14 right-5 flex items-center gap-1 text-[10px] font-bold tabular-nums ${
+                    <span className={`absolute top-14 right-5 flex items-center gap-1 text-xs font-bold tabular-nums ${
                       lightMode ? 'text-zinc-400' : 'text-white/40'
                     }`}>
                       <Clock size={10} strokeWidth={3} />
@@ -100,7 +100,7 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                     {order.customer_name && (
                       <div className="flex items-center gap-1.5">
                         <User size={11} className="text-emerald-400" />
-                        <span className={`text-[11px] font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                        <span className={`text-xs font-bold truncate ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
                           {order.customer_name}
                         </span>
                       </div>
@@ -108,7 +108,7 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                     {order.customer_phone && (
                       <div className="flex items-center gap-1.5">
                         <Phone size={11} className="text-emerald-400" />
-                        <span className={`text-[11px] font-bold tabular-nums ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                        <span className={`text-xs font-bold tabular-nums ${lightMode ? 'text-zinc-600' : 'text-zinc-400'}`}>
                           {order.customer_phone}
                         </span>
                       </div>
@@ -116,7 +116,7 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                   </div>
 
                   <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
-                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${lightMode ? status.bg : status.bgDark}`}>
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${lightMode ? status.bg : status.bgDark}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${lightMode ? status.dot : status.dotDark}`} />
                       <span className={`${lightMode ? status.text : status.textDark}`}>{t(status.labelKey as any)}</span>
                     </div>

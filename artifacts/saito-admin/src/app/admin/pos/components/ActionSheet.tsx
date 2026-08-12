@@ -152,6 +152,7 @@ export function ActionSheet({
     { id: 'bill_request', icon: Receipt, label: t('call_bill'), visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isManagerOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
     { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) },
+    { id: 'clear', icon: BrushCleaning, label: t('clear'), visible: table?.status === 'empty' || table?.status === 'dirty' },
     ...(posMode === 'delivery' ? [
       { id: 'delivery_status', icon: Car, label: t('delivery_status'), visible: true },
     ] : []),
@@ -176,7 +177,7 @@ export function ActionSheet({
         <motion.div
           key="global-pos-root"
           {...slideUp}
-          className="fixed inset-0 z-[140] flex items-end justify-center pointer-events-none pb-10"
+          className="fixed inset-0 z-[110] flex items-end justify-center pointer-events-none pb-10"
           style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
         >
            {/* Backdrop */}
@@ -192,12 +193,14 @@ export function ActionSheet({
             {/* THE STABLE MORPHING KAPSUL */}
             <motion.div
                key="pos-hybrid-kapsul"
-               className={`relative z-10 pointer-events-auto overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.25)] border ${
-                 lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900/95 border-white/10'
+               layout
+               transition={{ layout: { duration: 0.3, ease: 'easeInOut' } }}
+               className={`relative z-10 pointer-events-auto overflow-hidden shadow-elevated border backdrop-blur-2xl transition-[border-radius,padding] duration-300 ease-out ${
+                 lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/80 border-white/10'
                 } ${
                  currentView === 'merge' || currentView === 'split-payment' || currentView === 'transfer'
-                   ? 'rounded-full px-6 py-3 min-w-[320px] max-w-md mx-auto' 
-                   : 'rounded-[3rem] p-8 w-[92%] max-w-md mx-auto'
+                   ? 'rounded-full px-6 py-3 w-[92%] max-w-md mx-auto' 
+                   : 'rounded-7xl p-8 w-[92%] max-w-md mx-auto'
                }`}
             >
               {/* Apple Maps style drag indicator */}
@@ -206,7 +209,7 @@ export function ActionSheet({
                   <div className={`w-10 h-1.5 rounded-full ${lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
                 </div>
               )}
-              <AnimatePresence>
+              <AnimatePresence mode="popLayout">
                 {currentView === 'actions' && (
                   <motion.div key="ui-actions" {...morphView} transition={fastExit}>
                    <div className="text-center mb-6">
@@ -261,32 +264,32 @@ export function ActionSheet({
                   {table?.status === 'reserved' ? (
                     <div className="grid grid-cols-3 gap-3">
                       <button onClick={onSeatGuests}
-                        className="flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all bg-indigo-500/10 border-indigo-500/20 text-indigo-600 active:scale-95">
-                        <CheckCircle size={28} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('place')}</span>
+                        className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all bg-indigo-500/10 border-indigo-500/20 text-indigo-600 active:scale-95">
+                        <CheckCircle size={24} strokeWidth={2.5} />
+                        <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{t('place')}</span>
                       </button>
                       <button onClick={() => router.push(`/admin/reservations?edit=${table?.reservation_id}`)}
-                        className="flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all bg-zinc-100 border-zinc-200 text-zinc-600 active:scale-95">
-                        <Pencil size={28} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('edit')}</span>
+                        className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all bg-zinc-100 border-zinc-200 text-zinc-600 active:scale-95">
+                        <Pencil size={24} strokeWidth={2.5} />
+                        <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{t('edit')}</span>
                       </button>
                       <button onClick={() => setConfirmAction('cancel_table')}
-                        className="flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all bg-rose-500/10 border-rose-500/20 text-rose-600 active:scale-95">
-                        <Ban size={28} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('cancel')}</span>
+                        className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all bg-rose-500/10 border-rose-500/20 text-rose-600 active:scale-95">
+                        <Ban size={24} strokeWidth={2.5} />
+                        <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{t('cancel')}</span>
                       </button>
                       {table?.reservation_phone && (
                         <a href={`tel:${table.reservation_phone}`}
-                          className="flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all bg-zinc-100 border-zinc-200 text-zinc-600 active:scale-95">
-                          <PhoneCall size={28} strokeWidth={2.5} />
-                          <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('call')}</span>
+                          className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all bg-zinc-100 border-zinc-200 text-zinc-600 active:scale-95">
+                          <PhoneCall size={24} strokeWidth={2.5} />
+                          <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{t('call')}</span>
                         </a>
                       )}
                     </div>
                   ) : isDirty ? (
                     <div className="flex flex-col gap-3">
                     <button onClick={onClearTable}
-                        className={`flex items-center justify-center gap-3 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${
+                        className={`flex items-center justify-center gap-3 py-3.5 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all ${
                           lightMode ? 'bg-gold text-black shadow-lg shadow-gold/30' : 'bg-gold text-black shadow-lg shadow-gold/30'
                         } active:scale-[0.98]`}>
                         <BrushCleaning size={18} strokeWidth={2} />
@@ -297,20 +300,20 @@ export function ActionSheet({
                     <div className="grid grid-cols-3 gap-3">
                       {isManagerOrAbove && isOccupied && (table?.total_amount ?? 0) > 0 && (
                         <button onClick={onOpenPayment}
-                          className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-gold/10 border-gold/20 text-gold' : 'bg-gold/10 border-gold/20 text-gold'} active:scale-95`}>
-                          <CreditCard size={28} strokeWidth={2.5} />
-                          <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('close_bill')}</span>
+                          className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-gold/10 border-gold/20 text-gold' : 'bg-gold/10 border-gold/20 text-gold'} active:scale-95`}>
+                          <CreditCard size={24} strokeWidth={2.5} />
+                          <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{t('close_bill')}</span>
                         </button>
                       )}
                       <button onClick={onUnmerge}
-                        className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'} active:scale-95`}>
-                        <Split size={28} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('split_tables')}</span>
+                        className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'} active:scale-95`}>
+                        <Split size={24} strokeWidth={2.5} />
+                        <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{t('split_tables')}</span>
                       </button>
                       <button onClick={() => setConfirmAction('dismiss_group')}
-                        className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'} active:scale-95`}>
-                        <Trash2 size={28} strokeWidth={2.5} />
-                        <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{t('clear_group')}</span>
+                        className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'} active:scale-95`}>
+                        <Trash2 size={24} strokeWidth={2.5} />
+                        <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{t('clear_group')}</span>
                       </button>
                     </div>
                    ) : (
@@ -319,13 +322,13 @@ export function ActionSheet({
                       <div>
                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('main_actions')}</p>
                         <div className="grid grid-cols-3 gap-3">
-                          {visibleActions.filter(a => ['add_order', 'customer', 'close_bill'].includes(a.id)).map((action) => {
+                          {visibleActions.filter(a => ['add_order', 'customer', 'close_bill', 'clear'].includes(a.id)).map((action) => {
                             if (action.id === 'customer') {
                               return (
                                 <button key={action.id} onClick={() => setShowCustomerSearch(true)}
-                                  className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
-                                  <User size={28} strokeWidth={2.5} />
-                                  <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{customerName || t('customer')}</span>
+                                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
+                                  <User size={24} strokeWidth={2.5} />
+                                  <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{customerName || t('customer')}</span>
                                 </button>
                               );
                             }
@@ -339,18 +342,19 @@ export function ActionSheet({
                                   takeaway_status: onTakeawayStatus,
                                   bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
                                   print_bill: onPrintBill,
+                                  clear: onClearTable,
                                 }[action.id as string];
                                 if (fn) fn();
                               }}
-                                className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${
+                                className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
                                   action.id === 'bill_request'
                                     ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                                     : action.id === 'cancel_table'
                                     ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                                     : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
                                 } active:scale-95`}>
-                                <action.icon size={28} strokeWidth={2.5} />
-                                <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
+                                <action.icon size={24} strokeWidth={2.5} />
+                                <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{action.label}</span>
                               </button>
                             );
                           })}
@@ -372,18 +376,19 @@ export function ActionSheet({
                                   takeaway_status: onTakeawayStatus,
                                   bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
                                   print_bill: onPrintBill,
+                                  clear: onClearTable,
                                 }[action.id as string];
                                 if (fn) fn();
                               }}
-                                className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[1.5rem] border transition-all ${
+                                className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
                                   action.id === 'bill_request'
                                     ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                                     : action.id === 'cancel_table'
                                     ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                                     : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
                                 } active:scale-95`}>
-                                <action.icon size={28} strokeWidth={2.5} />
-                                <span className="text-[9px] font-black tracking-widest uppercase text-center px-1">{action.label}</span>
+                                <action.icon size={24} strokeWidth={2.5} />
+                                <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{action.label}</span>
                               </button>
                             ))}
                           </div>
@@ -396,7 +401,7 @@ export function ActionSheet({
               )}
 
               {currentView === 'payment' && (
-                <motion.div {...morphView} key="ui-payment" className="flex flex-col gap-2" transition={fastExit}>
+                <motion.div key="ui-payment" {...morphView} className="flex flex-col gap-2" transition={fastExit}>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('payment_method_label')}</p>
                    <p className="text-2xl font-black tracking-tighter mb-3 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
 
@@ -464,7 +469,7 @@ export function ActionSheet({
                )}
 
               {currentView === 'cash-tendered' && (
-                 <motion.div {...morphView} key="ui-cash-tendered" className="flex flex-col gap-3" transition={fastExit}>
+                 <motion.div key="ui-cash-tendered" {...morphView} className="flex flex-col gap-3" transition={fastExit}>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('cash_payment')}</p>
                   <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <div className="space-y-3">
@@ -507,7 +512,7 @@ export function ActionSheet({
               )}
 
               {currentView === 'card-confirm' && (
-                <motion.div {...morphView} key="ui-card-confirm" className="flex flex-col gap-3" transition={fastExit}>
+                <motion.div key="ui-card-confirm" {...morphView} className="flex flex-col gap-3" transition={fastExit}>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">{t('card_payment')}</p>
                   <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <div className="p-5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center">
@@ -526,7 +531,7 @@ export function ActionSheet({
               )}
 
                  {currentView === 'split-payment' && localSplit && (
-                   <motion.div {...morphView} key="ui-split-payment" className="flex flex-col gap-3" transition={fastExit}>
+                   <motion.div key="ui-split-payment" {...morphView} className="flex flex-col gap-3" transition={fastExit}>
                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">{t('split_payment')}</p>
                      <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                      <div className="space-y-3">
@@ -584,7 +589,7 @@ export function ActionSheet({
                        const remaining = total - cash - card;
                        if (Math.abs(remaining) < 0.01) return null;
                        return (
-                         <motion.div {...morphView} className={`p-3 rounded-xl text-center ${remaining > 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
+                          <motion.div key="ui-split-remaining" {...morphView} className={`p-3 rounded-xl text-center ${remaining > 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
                            <p className={`text-xs font-bold ${remaining > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
                              {remaining > 0 ? `t('change'): ₼${remaining.toFixed(2)}` : `t('change_short') + ': ₼'${Math.abs(remaining).toFixed(2)}`}
                            </p>
@@ -610,7 +615,7 @@ export function ActionSheet({
                 )}
 
               {currentView === 'split-by-items' && (
-                <motion.div {...morphView} key="ui-split-by-items" className="flex flex-col gap-3">
+                <motion.div key="ui-split-by-items" {...morphView} className="flex flex-col gap-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">{t('split_by_item')}</p>
                   <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
                   <div className="space-y-2 max-h-[280px] overflow-y-auto">
@@ -712,7 +717,7 @@ export function ActionSheet({
               )}
 
                 {currentView === 'customer' && (
-                  <motion.div {...morphView} key="ui-customer" className="flex flex-col gap-3">
+                  <motion.div key="ui-customer" {...morphView} className="flex flex-col gap-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-1">{t('customer')}</p>
                     <div className="relative mb-2">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
@@ -822,7 +827,7 @@ export function ActionSheet({
               )}
 
                 {currentView === 'confirm-action' && (
-                 <motion.div {...morphView} key="ui-confirm" className="flex flex-col gap-4 py-2">
+                 <motion.div key="ui-confirm" {...morphView} className="flex flex-col gap-4 py-2">
                    <div className="text-center">
                      <p className={`text-xl font-black tracking-tight ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
                        {confirmAction === 'dismiss_group' ? t('clear_group_question') : t('clear_table_question')}
@@ -859,7 +864,7 @@ export function ActionSheet({
                 )}
 
                  {currentView === 'merge' && (
-                  <motion.div {...morphView} key="ui-bar" className="flex items-center gap-5 w-full">
+                  <motion.div key="ui-bar" {...morphView} className="flex items-center gap-5 w-full">
                     <div className="flex flex-col mr-auto min-w-[140px]">
                       <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500 mb-0.5">{t('merge_tables')}</span>
                       <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
@@ -884,7 +889,7 @@ export function ActionSheet({
                  )}
 
                  {currentView === 'transfer' && (
-                  <motion.div {...morphView} key="ui-transfer" className="flex items-center gap-5 w-full">
+                  <motion.div key="ui-transfer" {...morphView} className="flex items-center gap-5 w-full">
                     <div className="flex flex-col mr-auto min-w-[140px]">
                       <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">{t('transfer')}</span>
                        <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>

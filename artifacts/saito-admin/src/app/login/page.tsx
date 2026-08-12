@@ -1,17 +1,25 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
 
   useEffect(() => {
-    const target = '/staff/login' + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '');
-    router.replace(target);
+    const target = redirect || '/staff/login';
+    router.replace(target.startsWith('/') ? target : `/${target}`);
   }, [router, redirect]);
 
   return null;
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  );
 }

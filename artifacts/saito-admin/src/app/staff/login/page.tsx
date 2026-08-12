@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 
-export default function StaffLogin() {
+function LoginForm() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const [pin, setPin] = useState('');
@@ -74,5 +74,28 @@ export default function StaffLogin() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function StaffLogin() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">🔒</span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">İşçi Girişi</h1>
+            <p className="text-white/40 text-sm mt-1">PIN kodunuzu daxil edin</p>
+          </div>
+          <div className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-center text-2xl font-black tracking-[0.5em] text-white placeholder:text-white/20">
+            &nbsp;
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

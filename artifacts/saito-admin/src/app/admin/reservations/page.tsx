@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { Reservation } from '@/types';
-import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, ArrowRight, Clock, ChevronLeft, Plus, Trash2, ChefHat, Tag } from 'lucide-react';
+import { X, Users, Phone, Calendar, ShoppingBag, Timer, Star, CheckCircle, Table as TableIcon, Zap, ArrowRight, Clock, ChevronLeft, Plus, Trash2, ChefHat, Tag, Merge } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useNotifications } from '../context/NotificationContext';
@@ -42,6 +42,8 @@ export default function ReservationsPage() {
   const [archiveSelectionMode, setArchiveSelectionMode] = useState(false);
   const [selectedArchiveIds, setSelectedArchiveIds] = useState<string[]>([]);
   const [confirmDeleteReservation, setConfirmDeleteReservation] = useState<{ id: string; guest: string } | null>(null);
+  const [confirmMergeTables, setConfirmMergeTables] = useState(false);
+  const [merging, setMerging] = useState(false);
   const [confirmClearArchiveModal, setConfirmClearArchiveModal] = useState(false);
   const [clearingArchive, setClearingArchive] = useState(false);
 
@@ -478,6 +480,34 @@ export default function ReservationsPage() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const handleMergeTables = async () => {
+    if (!selectedRes || selectedTableIds.length < 2) return;
+    setMerging(true);
+    try {
+      const res = await apiFetch('/api/reservations/merge-tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reservation_id: selectedRes.id,
+          table_numbers: selectedTableIds.map(id => Number(tables.find(t => t.id === id)?.table_number)),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Birləşdirmə uğursuz oldu');
+      }
+      toast.success(`${selectedTableIds.length} masa birləşdirildi`);
+      setConfirmMergeTables(false);
+      setSelectedTableIds([]);
+      setModalView('main');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Birləşdirmə xətası');
+    } finally {
+      setMerging(false);
+    }
+  };
+
   const updateStatus = async (id: string, status: string) => {
     try {
       const res = await apiFetch('/api/reservations/reserve-table', {
@@ -897,7 +927,7 @@ export default function ReservationsPage() {
                           ))}
                        </div>
 
-                       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
+                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
                           {tables
                             .filter(t => (t.floor_name || 'Zal 1') === selectedFloorName)
                             .filter(t => !t.status || t.status === 'empty' || selectedTableIds.includes(t.id))
@@ -911,8 +941,13 @@ export default function ReservationsPage() {
                                 <span className="text-[8px] font-black uppercase opacity-60">BOŞ</span>
                              </button>
                           ))}
-                       </div>
-                        <button onClick={() => setModalView('main')} className={`w-full py-6 rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl transition-all ${lightMode ? 'bg-zinc-900 text-white shadow-zinc-900/30' : 'bg-blue-500 text-white shadow-blue-500/30'}`}>Seçimi Təsdiqlə və Geri Qayıt</button>
+                        </div>
+                         {selectedTableIds.length >= 2 && (
+                           <button onClick={() => setConfirmMergeTables(true)} className={`w-full py-6 rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl transition-all ${lightMode ? 'bg-amber-500 text-white shadow-amber-500/30' : 'bg-amber-500 text-white shadow-amber-500/30'}`}>
+                             <Merge size={20} className="inline mr-2" /> Birləşdir (Merge)
+                           </button>
+                         )}
+                         <button onClick={() => setModalView('main')} className={`w-full py-6 rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl transition-all ${lightMode ? 'bg-zinc-900 text-white shadow-zinc-900/30' : 'bg-blue-500 text-white shadow-blue-500/30'}`}>Seçimi Təsdiqlə və Geri Qayıt</button>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -971,6 +1006,31 @@ export default function ReservationsPage() {
         title={t('delete_selected')} 
         description={t('archive_delete_confirm')} 
       />
+
+      <AnimatePresence>
+        {confirmMergeTables && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !merging && setConfirmMergeTables(false)} className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} onClick={(e) => e.stopPropagation()} className={`relative w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}>
+              <div className="text-center mb-6">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${lightMode ? 'bg-amber-100 text-amber-600' : 'bg-amber-500/15 text-amber-400'}`}>
+                  <Merge size={28} />
+                </div>
+                <h3 className="text-2xl font-black tracking-tight mb-2">Masaları Birləşdir</h3>
+                <p className={`text-sm ${lightMode ? 'text-zinc-600' : 'text-white/60'}`}>
+                  {selectedTableIds.length} masa birləşdiriləcək: <strong>{selectedTableIds.map(id => tables.find(t => t.id === id)?.table_number).filter(Boolean).join(' + ')}</strong>
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setConfirmMergeTables(false)} disabled={merging} className={`flex-1 py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all ${lightMode ? 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}>Ləğv et</button>
+                <button onClick={handleMergeTables} disabled={merging} className="flex-1 py-4 rounded-2xl bg-amber-500 text-white text-sm font-black uppercase tracking-widest hover:bg-amber-600 active:scale-95 transition-all disabled:opacity-50">
+                  {merging ? 'Birləşdirilir...' : 'Birləşdir'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {noteEditing && createPortal(
         <motion.div

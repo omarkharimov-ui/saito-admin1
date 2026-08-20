@@ -1499,19 +1499,6 @@ export default function POSPage() {
                 >
                 {cleanMode && (
                   <div className="flex items-center justify-between gap-3 mb-6">
-                    <button
-                      onClick={() => {
-                        if (document.fullscreenElement) document.exitFullscreen();
-                        setCleanMode(false);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 rounded-full border border-white/10 bg-black/50 backdrop-blur-md text-white/80 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-wider transition-all"
-                      title={t("back")}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M19 12H5M12 19l-7-7 7-7"/>
-                      </svg>
-                      <span className="hidden sm:inline">{t('back')}</span>
-                    </button>
                     <div className="flex items-center gap-2">
                      <button
                        onClick={() => router.push('/admin/reservations')}

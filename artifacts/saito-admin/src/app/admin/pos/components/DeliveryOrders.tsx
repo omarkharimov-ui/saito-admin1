@@ -67,6 +67,7 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
               const elapsed = order.created_at
                 ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)
                 : 0;
+              const elapsedText = elapsed < 1 ? '< 1 min' : elapsed < 60 ? `${elapsed} min` : `${Math.floor(elapsed / 60)}h ${elapsed % 60}m`;
 
               return (
                 <div
@@ -90,17 +91,17 @@ export default function DeliveryOrders({ orders, onRefresh: _onRefresh, onNewOrd
                   <span className={`absolute top-5 left-5 text-[32px] font-black tracking-tighter ${
                     lightMode ? 'text-gray-900' : 'text-white'
                   }`}>
-                    `{t('delivery_short')} ${order.order_number || ''}`
+                    {t('delivery_short')} {order.order_number || ''}
                   </span>
 
-                  {elapsed > 0 && (
-                    <span className={`absolute top-14 right-5 flex items-center gap-1 text-xs font-bold tabular-nums ${
-                      lightMode ? 'text-zinc-400' : 'text-white/40'
-                    }`}>
-                      <Clock size={10} strokeWidth={3} />
-                      {elapsed} {t('min_abbrev')}
-                    </span>
-                  )}
+                      {elapsed > 0 && (
+                        <span className={`absolute top-14 right-5 flex items-center gap-1 text-xs font-bold tabular-nums ${
+                          lightMode ? 'text-zinc-400' : 'text-white/40'
+                        }`}>
+                          <Clock size={10} strokeWidth={3} />
+                          {elapsedText}
+                        </span>
+                      )}
 
                    <div className="absolute top-[68px] left-5 right-5 flex flex-col gap-1">
                      {order.customer_name && (

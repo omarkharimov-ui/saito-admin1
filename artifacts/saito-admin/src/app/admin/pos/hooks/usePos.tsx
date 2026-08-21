@@ -182,6 +182,8 @@ export function usePos() {
   const cartRef = useRef(cart);
   useEffect(() => { cartRef.current = cart; }, [cart]);
 
+  const draftRestoredRef = useRef(false);
+
   useEffect(() => {
     fetchData();
     const channel = createRealtimeChannel('pos-sync')
@@ -197,10 +199,6 @@ export function usePos() {
       })
       .subscribe();
 
-    // Polling fallback: realtime events can be delayed or dropped (e.g. on slow
-    // Supabase connections or tab backgrounding), so refresh the floor on a
-    // timer too. This guarantees the UI reflects table/order changes without a
-    // manual page refresh.
     const poll = setInterval(() => fetchFloorRef.current(), 3000);
 
     return () => { 
@@ -208,6 +206,46 @@ export function usePos() {
       removeRealtimeChannel(channel); 
     };
   }, [fetchData, terminalId]);
+
+  useEffect(() => {
+    if (posMode !== 'takeaway' && posMode !== 'delivery') return;
+    if (!cart) return;
+    if (cart.order_id) return;
+    if (draftRestoredRef.current) return;
+    const isEmpty = !(cart.items?.length) && !cart.customer_name && !cart.customer_phone && !cart.delivery_address;
+    if (!isEmpty) return;
+    try {
+      const draft = sessionStorage.getItem('pos_takeaway_draft');
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        if (parsed.posMode === posMode && parsed.version === 1 && parsed.cart) {
+          setCart(parsed.cart);
+          draftRestoredRef.current = true;
+        }
+      }
+    } catch {
+      // ignore draft restore errors
+    }
+  }, [posMode, cart]);
+
+  useEffect(() => {
+    if (posMode !== 'takeaway' && posMode !== 'delivery') return;
+    if (!cart) return;
+    if (cart.order_id) {
+      try { sessionStorage.removeItem('pos_takeaway_draft'); } catch {}
+      return;
+    }
+    const hasData = (cart.items?.length || 0) > 0 || cart.customer_name || cart.customer_phone || cart.delivery_address;
+    if (!hasData) {
+      try { sessionStorage.removeItem('pos_takeaway_draft'); } catch {}
+      return;
+    }
+    try {
+      sessionStorage.setItem('pos_takeaway_draft', JSON.stringify({ posMode, cart, version: 1 }));
+    } catch {
+      // ignore storage errors
+    }
+  }, [posMode, cart]);
 
   const selectTable = async (table: PosTable, opts?: { allowReserved?: boolean }) => {
     const sameTable =
@@ -979,6 +1017,68 @@ export function usePos() {
     } : null);
   };
 
+  const switchMode = (mode: 'dine_in' | 'takeaway' | 'delivery') => {
+    setPosMode(mode);
+    setCart(prev => {
+      if (!prev) return null;
+      const base = { ...prev, order_type: mode };
+      if (mode === 'dine_in') {
+        return {
+          ...base,
+          table_number: null,
+          guest_count: 1,
+          reservation_id: null,
+          delivery_address: null,
+          delivery_district: null,
+          delivery_street: null,
+          delivery_building: null,
+          delivery_floor: null,
+          delivery_apartment: null,
+          delivery_intercom: null,
+          delivery_zone: null,
+          delivery_fee: 0,
+          estimated_delivery_time: null,
+          courier_id: null,
+          courier_name: null,
+          tracking_number: null,
+          delivered_at: null,
+        };
+      }
+      if (mode === 'takeaway') {
+        return {
+          ...base,
+          table_number: null,
+          guest_count: 1,
+          reservation_id: null,
+          delivery_address: null,
+          delivery_district: null,
+          delivery_street: null,
+          delivery_building: null,
+          delivery_floor: null,
+          delivery_apartment: null,
+          delivery_intercom: null,
+          delivery_zone: null,
+          delivery_fee: 0,
+          estimated_delivery_time: null,
+          courier_id: null,
+          courier_name: null,
+          tracking_number: null,
+          delivered_at: null,
+        };
+      }
+      if (mode === 'delivery') {
+        return {
+          ...base,
+          table_number: null,
+          guest_count: 1,
+          reservation_id: null,
+          estimated_delivery_time: null,
+        };
+      }
+      return base;
+    });
+  };
+
   const updateOrderType = (type: 'dine_in' | 'takeaway' | 'delivery') => {
     setPosMode(type);
     setCart(prev => prev ? { ...prev, order_type: type } : null);
@@ -1311,13 +1411,13 @@ export function usePos() {
     }
   };
 
-   return {
-     floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, posMode,
-     fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo,
-     setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
-     updateCartCustomer, updateOrderType, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
-     reservationMode, reservationId, reservationPreOrderItems, reservationInfo,
-     enterReservationMode, exitReservationMode, guestArrived, savePreOrder, terminalId,
-     expandedProductId, setExpandedProductId
-   };
+    return {
+      floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, posMode,
+      fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo,
+      setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
+      updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
+      reservationMode, reservationId, reservationPreOrderItems, reservationInfo,
+      enterReservationMode, exitReservationMode, guestArrived, savePreOrder, terminalId,
+      expandedProductId, setExpandedProductId
+    };
 }

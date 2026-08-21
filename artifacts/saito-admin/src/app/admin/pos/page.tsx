@@ -17,7 +17,6 @@ import { playHapticSound } from '@/lib/haptic';
 import ReservationActionSheet from './components/ReservationActionSheet';
 import TakeawayOrders from './components/TakeawayOrders';
 import DeliveryOrders from './components/DeliveryOrders';
-import CheckoutModal from './components/CheckoutModal';
 import { CashDrawerPanel } from './components/CashDrawerPanel';
 import { VirtualKeyboardProvider } from './components/VirtualKeyboard';
 import { OrderHistory } from './components/OrderHistory';
@@ -77,7 +76,6 @@ export default function POSPage() {
   const [receiptTendered, setReceiptTendered] = useState<number | undefined>(undefined);
   const posMode = pos.posMode;
   const setPosMode = pos.setPosMode;
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [posRole, setPosRole] = useState<string | null>(null);
   const posRoleNorm = posRole?.toLowerCase() || '';
   const isCashierOrAdmin = ['cashier', 'superadmin'].includes(posRoleNorm);
@@ -169,13 +167,13 @@ export default function POSPage() {
   }, [posMode, fetchTakeawayOrders, fetchDeliveryOrders]);
 
   useEffect(() => {
-    if (actionSheetOpen || paymentView || checkoutOpen) return;
+    if (actionSheetOpen || paymentView) return;
     const poll = setInterval(() => {
       if (posMode === 'takeaway') fetchTakeawayOrders();
       if (posMode === 'delivery') fetchDeliveryOrders();
     }, 15000);
     return () => clearInterval(poll);
-  }, [posMode, fetchTakeawayOrders, fetchDeliveryOrders, actionSheetOpen, paymentView, checkoutOpen]);
+  }, [posMode, fetchTakeawayOrders, fetchDeliveryOrders, actionSheetOpen, paymentView]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1281,82 +1279,6 @@ export default function POSPage() {
     setActionSheetOpen(true);
   };
 
-  const handleCheckoutSubmit = async (checkoutData: {
-    customer_phone: string;
-    customer_name: string;
-    customer_note: string;
-    delivery_address: string;
-    delivery_district: string;
-    delivery_street: string;
-    delivery_building: string;
-    delivery_floor: string;
-    delivery_apartment: string;
-    delivery_intercom: string;
-    delivery_zone: string;
-    delivery_fee: number;
-    estimated_pickup_time: string;
-    scheduled_date: string;
-    payment_method: string;
-  }) => {
-    if (!pos.cart || pos.cart.items.length === 0) {
-      toast.error(t('cart_empty'));
-      return;
-    }
-
-    // Also update cart for UI consistency (non-blocking)
-    pos.setCart({
-      ...pos.cart,
-      customer_phone: checkoutData.customer_phone || null,
-      customer_name: checkoutData.customer_name || null,
-      notes: checkoutData.customer_note || '',
-      delivery_address: checkoutData.delivery_address || null,
-      delivery_district: checkoutData.delivery_district || null,
-      delivery_street: checkoutData.delivery_street || null,
-      delivery_building: checkoutData.delivery_building || null,
-      delivery_floor: checkoutData.delivery_floor || null,
-      delivery_apartment: checkoutData.delivery_apartment || null,
-      delivery_intercom: checkoutData.delivery_intercom || null,
-      delivery_zone: checkoutData.delivery_zone || null,
-      delivery_fee: checkoutData.delivery_fee || 0,
-      estimated_delivery_time: checkoutData.estimated_pickup_time || null,
-      scheduled_date: checkoutData.scheduled_date || null,
-    });
-
-    setCheckoutOpen(false);
-
-    // Pass checkout data directly to placeOrder to avoid React state race condition
-    const autoCampaign = pos.getAutoCampaign(pos.cart);
-    await pos.placeOrder(autoCampaign ? { id: autoCampaign.id, type: 'AUTO' } : undefined, {
-      customer_phone: checkoutData.customer_phone,
-      customer_name: checkoutData.customer_name,
-      customer_note: checkoutData.customer_note,
-      delivery_address: checkoutData.delivery_address,
-      delivery_district: checkoutData.delivery_district,
-      delivery_street: checkoutData.delivery_street,
-      delivery_building: checkoutData.delivery_building,
-      delivery_floor: checkoutData.delivery_floor,
-      delivery_apartment: checkoutData.delivery_apartment,
-      delivery_intercom: checkoutData.delivery_intercom,
-      delivery_zone: checkoutData.delivery_zone,
-      delivery_fee: checkoutData.delivery_fee,
-      estimated_delivery_time: checkoutData.estimated_pickup_time,
-      payment_method: checkoutData.payment_method,
-    }, posSession?.staffId);
-
-    // Process payment
-    // (payment will be handled after order is placed - order goes to kitchen first)
-    // For takeaway: order status = confirmed, kitchen picks it up
-    // For delivery: order status = pending, kitchen prepares
-  };
-
-  const handleOpenCheckout = () => {
-    if (!pos.cart || pos.cart.items.length === 0) {
-      toast.error(t('add_items_hint'));
-      return;
-    }
-    setCheckoutOpen(true);
-  };
-
   return (
     <VirtualKeyboardProvider>
     <div className="flex-1 min-h-0 w-full h-full flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] overflow-hidden">
@@ -1388,12 +1310,12 @@ export default function POSPage() {
              { mode: 'takeaway' as const, icon: UserCheck, label: t('takeaway'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
              { mode: 'delivery' as const, icon: Bike, label: t('delivery'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
            ].map(({ mode, icon: Icon, label, activeBg, activeText, innerColor }) => (
-             <button
-               key={mode}
-                 onClick={() => {
-                    setPosMode(mode);
-                    pos.setActiveView('floor');
-                 }}
+              <button
+                key={mode}
+                  onClick={() => {
+                     pos.switchMode(mode);
+                     pos.setActiveView('floor');
+                  }}
                className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
                style={{ color: posMode === mode ? activeText : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}
              >
@@ -2136,23 +2058,9 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                    </div>
               </motion.div>
            )}
-          </AnimatePresence>
+           </AnimatePresence>
 
-      {/* CHECKOUT MODAL for Takeaway/Delivery */}
-      <AnimatePresence>
-        {checkoutOpen && (
-          <CheckoutModal
-            key="checkout-modal"
-            open={checkoutOpen}
-            mode={posMode === 'delivery' ? 'delivery' : 'takeaway'}
-            total={checkoutTotal}
-            onSubmit={handleCheckoutSubmit}
-            onClose={() => setCheckoutOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-  
-          <ActionSheet
+           <ActionSheet
            table={actionSheetTable} 
            open={actionSheetOpen || paymentView} 
             onClose={() => { playHapticSound('off'); setActionSheetOpen(false); setUnmergeMode(false); setPaymentView(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }} 

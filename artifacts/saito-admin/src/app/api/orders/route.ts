@@ -216,6 +216,17 @@ export async function POST(request: Request) {
         throw new Error('table_number and items required');
       }
 
+      const effectiveOrderType = order_type || order_source || 'dine_in';
+      if ((effectiveOrderType === 'delivery') && (!customer_phone || !delivery_address)) {
+        throw new Error('customer_phone and delivery_address are required for delivery orders');
+      }
+      if ((effectiveOrderType === 'takeaway') && !customer_phone) {
+        throw new Error('customer_phone is required for takeaway orders');
+      }
+      if (effectiveOrderType === 'delivery' && (delivery_fee === undefined || delivery_fee === null || Number.isNaN(Number(delivery_fee)))) {
+        throw new Error('delivery_fee must be a valid number');
+      }
+
       // Single source of truth for pricing: each item's unit_price is already
       // the FINAL (post-campaign) price by the time it reaches the server
       // (see usePos.placeOrder / addToCart, which bake the item discount into
@@ -283,6 +294,7 @@ export async function POST(request: Request) {
             payment_method: payment_method || null,
             is_rush: is_rush || false,
             assigned_to: assigned_to || null,
+            order_type: order_type || order_source || 'dine_in',
             order_source: order_source || order_type || 'dine_in',
             updated_by_terminal_id: terminal_id || null,
             discount_amount: accumulatedDiscount,

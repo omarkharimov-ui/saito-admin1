@@ -9,8 +9,9 @@ function LoginContent() {
   const redirect = searchParams.get('redirect');
 
   useEffect(() => {
-    const target = redirect || '/staff/login';
-    router.replace(target.startsWith('/') ? target : `/${target}`);
+    const target = redirect && redirect.startsWith('/') ? redirect : '/staff/login';
+    const destination = `/staff/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`;
+    router.replace(destination);
   }, [router, redirect]);
 
   return null;

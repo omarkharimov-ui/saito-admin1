@@ -33,6 +33,7 @@ interface ActionSheetProps {
   onBackFromPayment?: () => void;
   onDeliveryStatus?: () => void;
   onTakeawayStatus?: () => void;
+  onMarkServed?: () => void;
   onSelectCustomer?: (customerId: string | null, customerName: string | null) => void;
   customerId?: string | null;
   customerName?: string | null;
@@ -78,7 +79,7 @@ interface ActionSheetProps {
 export function ActionSheet({ 
   table, open, onClose, onAddOrder, onUnmerge, onCancelTable,
   onOpenPayment, onPaymentMethodSelect, onSplitConfirm, onDismissGroup,
-  onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onSelectCustomer, customerId, customerName,
+  onBackFromPayment, onDeliveryStatus, onTakeawayStatus, onMarkServed, onSelectCustomer, customerId, customerName,
   mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, onBillRequest, onPrintBill, onClearTable, onSeatGuests, posRole, groupNumber,
   paymentView, transferConfirm, transferSource, transferTarget,   onConfirmTransfer, onCancelTransfer, onCheckout,
@@ -172,6 +173,9 @@ export function ActionSheet({
     ] : []),
     ...(posMode === 'takeaway' ? [
       { id: 'takeaway_status', icon: ChevronRight, label: t('next_step'), visible: true },
+    ] : []),
+    ...(posMode === 'dine_in' && table?.status === 'ready' ? [
+      { id: 'mark_served', icon: CheckCircle, label: t('mark_served'), visible: true },
     ] : []),
     ...(isTakeawayOrDelivery ? [
       { id: 'checkout', icon: ShoppingBag, label: t('create_order'), visible: true },
@@ -354,6 +358,7 @@ export function ActionSheet({
                                    cancel_table: () => setConfirmAction('cancel_table'),
                                    delivery_status: onDeliveryStatus,
                                    takeaway_status: onTakeawayStatus,
+                                   mark_served: onMarkServed,
                                    assign_courier: onOpenCourierPicker,
                                    bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
                                    print_bill: onPrintBill,
@@ -381,7 +386,7 @@ export function ActionSheet({
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
                           <div className="grid grid-cols-3 gap-3">
-                            {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier'].includes(a.id)).map((action) => (
+                            {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier'].includes(a.id)).map((action) => (
                               <button key={action.id} onClick={() => {
                                 const fn = {
                                   add_order: onAddOrder,

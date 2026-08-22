@@ -661,6 +661,17 @@ export default function POSPage() {
   const handleDeliveryStatusPick = async () => {
     await handleOpenStatusPicker('delivery');
   };
+  const handleMarkServed = async () => {
+    if (!actionSheetTable) return;
+    try {
+      await orderStateMachine.transition(actionSheetTable.id, 'served');
+      setActionSheetOpen(false);
+      pos.fetchData();
+    } catch (e: any) {
+      toast.error(e.message || t('error_occurred'));
+    }
+  };
+
 
   const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | string, tenderedAmount?: number) => {
     if (!actionSheetTable) return;
@@ -2122,6 +2133,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
           onBackFromPayment={handleBackFromPayment}
            onDeliveryStatus={handleDeliveryStatusPick}
            onTakeawayStatus={() => handleOpenStatusPicker('order')}
+           onMarkServed={handleMarkServed}
           onCancelTable={async () => {
             if (!actionSheetTable) return;
             if (posMode === 'takeaway' || posMode === 'delivery') {

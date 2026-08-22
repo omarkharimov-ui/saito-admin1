@@ -909,6 +909,9 @@ export function usePos() {
         // Refresh to clear any stale state so the user sees current server data
         fetchFloor().catch(() => {});
       }
+    } catch (e: any) {
+      console.error('[placeOrder] failed:', e);
+      toast.error(e.message || t('order_not_sent'), { id: 'action-toast' });
     } finally {
       setPlacingOrder(false);
     }

@@ -96,6 +96,7 @@ export default function POSPage() {
   const [courierPickerOpen, setCourierPickerOpen] = useState(false);
   const [couriers, setCouriers] = useState<any[]>([]);
   const [couriersLoading, setCouriersLoading] = useState(false);
+  const pickedUpTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const posMode = pos.posMode;
   const setPosMode = pos.setPosMode;
   const [posRole, setPosRole] = useState<string | null>(null);
@@ -620,6 +621,20 @@ export default function POSPage() {
         courierId,
         courierName,
       });
+      // Auto-advance picked_up → in_transit after 30s
+      const existing = pickedUpTimersRef.current.get(actionSheetTable.id);
+      if (existing) clearTimeout(existing);
+      const timer = setTimeout(async () => {
+        pickedUpTimersRef.current.delete(actionSheetTable.id);
+        const current = (actionSheetTable?.delivery_status === 'picked_up')
+          ? await orderStateMachine.getValidTransitions('picked_up', 'delivery')
+          : [];
+        const next = current.find(t => t.to_status === 'in_transit')?.to_status;
+        if (next) {
+          await orderStateMachine.transitionDelivery(actionSheetTable.id, next as any);
+        }
+      }, 30000);
+      pickedUpTimersRef.current.set(actionSheetTable.id, timer);
     }
   };
 

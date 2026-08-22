@@ -157,9 +157,9 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
     served: {
       icon: CheckCircle2,
       label: t('order_served' as any),
-      bg: lightMode ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-blue-500/25 border-blue-400/60 text-blue-300',
-      iconColor: lightMode ? 'text-blue-700' : 'text-blue-400',
-      dotColor: lightMode ? 'bg-blue-500' : 'bg-blue-400',
+      bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+      iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+      dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
     },
     empty: {
       icon: null,
@@ -196,9 +196,9 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                      : isOverdue 
                        ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
                        : isServed
-                         ? (lightMode ? 'bg-white border-amber-400 shadow-sm' : 'bg-zinc-900 border-amber-500/60 shadow-sm')
-                       : isOccupied
                          ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-sm')
+                       : isOccupied
+                         ? (lightMode ? 'bg-white border-amber-400 shadow-sm' : 'bg-zinc-900 border-amber-500/60 shadow-sm')
                          : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
            } ${
              isGroup ? (lightMode ? 'border-l-[3px] border-l-blue-500 bg-blue-50/30' : 'border-l-[3px] border-l-blue-500 bg-blue-500/[0.03]') : ''
@@ -334,7 +334,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
              <AnimatePresence mode="wait">
-              {!showOccupiedFlash && isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' ? (
+              {!showOccupiedFlash && isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' && table.status !== 'served' ? (
                 <motion.div
                   key="kitchen"
                   initial={{ opacity: 0, y: 4 }}

@@ -613,8 +613,7 @@ export default function POSPage() {
     setCourierPickerOpen(false);
     const currentStatus = actionSheetTable.delivery_status || actionSheetTable.status;
     const transitions = await orderStateMachine.getValidTransitions(currentStatus, 'delivery');
-    const targetStatus = transitions.find(t => t.to_status === 'waiting_courier')?.to_status
-      || transitions.find(t => t.to_status === 'picked_up')?.to_status
+    const targetStatus = transitions.find(t => t.to_status === 'picked_up')?.to_status
       || transitions[0]?.to_status;
     if (targetStatus) {
       await orderStateMachine.transitionDelivery(actionSheetTable.id, targetStatus as any, {

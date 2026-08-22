@@ -11,7 +11,7 @@ export type OrderStatus =
 
 export type DeliveryStatus =
   | 'pending' | 'confirmed' | 'preparing' | 'ready'
-  | 'waiting_courier' | 'picked_up' | 'in_transit'
+  | 'picked_up'
   | 'delivered' | 'completed' | 'cancelled';
 
 export interface ValidTransition {

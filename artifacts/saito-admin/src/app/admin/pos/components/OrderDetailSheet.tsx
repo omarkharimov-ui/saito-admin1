@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Clock, User, Phone, MapPin, Timer, FileText, CreditCard, ChevronRight,
-  Package, Truck, CheckCircle2, CircleDot, Utensils, Ban, Car, Plus, Minus,
-  Search
+  Package, CheckCircle2, CircleDot, Utensils, Ban, Car, Plus, Minus,
+  Search, UserCheck
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -29,15 +29,15 @@ interface OrderDetailSheetProps {
   onAddToExistingOrder?: (orderId: string, items: any[]) => Promise<boolean>;
 }
 
-const DELIVERY_FLOW = ['pending', 'confirmed', 'preparing', 'ready', 'in_transit', 'delivered', 'paid'] as const;
+const DELIVERY_FLOW = ['pending', 'confirmed', 'preparing', 'ready', 'picked_up', 'delivered', 'paid'] as const;
 const TAKEAWAY_FLOW = ['confirmed', 'preparing', 'ready', 'paid'] as const;
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; labelKey: string; next: string | null }> = {
   pending:    { color: 'text-zinc-500', bg: 'bg-zinc-500/10', border: 'border-zinc-500/20', labelKey: 'status_waiting', next: 'confirmed' },
   confirmed:  { color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20', labelKey: 'status_confirmed', next: 'preparing' },
   preparing:  { color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', labelKey: 'status_preparing', next: 'ready' },
-  ready:      { color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/20', labelKey: 'ready', next: 'in_transit' },
-  in_transit:  { color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20', labelKey: 'status_in_transit', next: 'delivered' },
+  ready:      { color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20', labelKey: 'ready', next: 'picked_up' },
+  picked_up:  { color: 'text-cyan-500', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', labelKey: 'delivery_status_picked_up', next: 'delivered' },
   delivered:  { color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', labelKey: 'status_delivered', next: 'paid' },
   paid:       { color: 'text-green-500', bg: 'bg-green-500/15', border: 'border-green-500/25', labelKey: 'payment_status', next: null },
   cancelled:  { color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', labelKey: 'cancelled', next: null },
@@ -48,7 +48,7 @@ const STATUS_ICONS: Record<string, typeof Clock> = {
   confirmed: CheckCircle2,
   preparing: Utensils,
   ready: Package,
-  in_transit: Truck,
+  picked_up: UserCheck,
   delivered: CheckCircle2,
   paid: CreditCard,
   cancelled: Ban,

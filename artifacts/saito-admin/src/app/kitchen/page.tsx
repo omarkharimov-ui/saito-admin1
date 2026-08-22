@@ -722,11 +722,11 @@ export default function KitchenPage() {
         order: 'created_at.desc'
       });
 
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/orders?${queryParams.toString()}`, {
+      const response = await fetch('/api/kitchen/orders', {
         headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
         },
+        cache: 'no-store',
       });
 
       if (!response.ok) {

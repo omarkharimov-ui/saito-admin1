@@ -15,6 +15,7 @@ import type { PosProduct } from '../types/shared';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useVirtualKeyboard } from './VirtualKeyboard';
 import { appleBackdrop, slideUp, fastExit } from '@/lib/modal-transitions';
+import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
 
 interface OrderDetailSheetProps {
   order: any | null;
@@ -74,6 +75,16 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
   const { height: vkHeight } = useVirtualKeyboard();
   const bottomOffset = Math.max(keyboardHeight, vkHeight);
   const { t } = useLanguage();
+  const orderStateMachine = useOrderStateMachine({
+    onTransition: (result) => {
+      if (result.success) {
+        toast.success(t('status_updated').replace('{status}', result.new_status || ''));
+      }
+    },
+    onError: (error) => {
+      toast.error(error);
+    },
+  });
   const [couriers, setCouriers] = useState<any[]>([]);
   const [assigningCourier, setAssigningCourier] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('info');
@@ -113,10 +124,9 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
     if (!order?.id) return;
     setAssigningCourier(true);
     try {
-      await apiFetch('/api/orders/delivery-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: order.id, courier_id: courierId, courier_name: courierName, status: order.status || 'pending' }),
+      await orderStateMachine.transitionDelivery(order.id, 'picked_up' as any, {
+        courierId,
+        courierName,
       });
       order.courier_id = courierId;
       order.courier_name = courierName;
@@ -490,25 +500,7 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
                       </div>
                     </div>
 
-                    {/* Status Flow */}
-                    {nextStatus && onStatusChange && (
-                      <div>
-                        <p className={`text-xs font-black uppercase tracking-[0.2em] mb-3 ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>
-                          t('next_step')
-                        </p>
-                        <button
-                          onClick={() => onStatusChange(nextStatus)}
-                          className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border font-black text-sm uppercase tracking-wider transition-all active:scale-[0.98] ${
-                            lightMode
-                              ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800'
-                              : 'bg-white text-black border-white hover:bg-white/90'
-                          }`}
-                        >
-                          <span>{t(STATUS_CONFIG[nextStatus]?.labelKey as any) || nextStatus}</span>
-                          <ChevronRight size={18} strokeWidth={3} />
-                        </button>
-                      </div>
-                    )}
+                     {/* Status Flow is handled automatically via state machine / kitchen RPCs */}
                   </div>
                 </motion.div>
               )}

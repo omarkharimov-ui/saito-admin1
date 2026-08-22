@@ -8,6 +8,7 @@ import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clo
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { usePos } from './hooks/usePos';
+import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
 import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid, type ProductGridRef } from './components/ProductGrid';
@@ -48,6 +49,20 @@ export default function POSPage() {
   const { t } = useLanguage();
   const pos = usePos();
   const router = useRouter();
+  const orderStateMachine = useOrderStateMachine({
+    onTransition: (result) => {
+      if (result.success) {
+        toast.success(t('status_updated').replace('{status}', result.new_status || ''));
+        setActionSheetOpen(false);
+        pos.fetchData();
+        if (posMode === 'takeaway') fetchTakeawayOrders();
+        if (posMode === 'delivery') fetchDeliveryOrders();
+      }
+    },
+    onError: (error) => {
+      toast.error(error);
+    },
+  });
    
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
@@ -74,6 +89,13 @@ export default function POSPage() {
   const [paymentView, setPaymentView] = useState(false);
   const [receiptView, setReceiptView] = useState<PosReceipt | null>(null);
   const [receiptTendered, setReceiptTendered] = useState<number | undefined>(undefined);
+  const [statusPickerOpen, setStatusPickerOpen] = useState(false);
+  const [statusPickerTransitions, setStatusPickerTransitions] = useState<{ to_status: string; description: string | null; requires_role: string | null; requires_manager_pin: boolean }[]>([]);
+  const [statusPickerEntity, setStatusPickerEntity] = useState<'order' | 'delivery'>('order');
+  const [statusPickerLoading, setStatusPickerLoading] = useState(false);
+  const [courierPickerOpen, setCourierPickerOpen] = useState(false);
+  const [couriers, setCouriers] = useState<any[]>([]);
+  const [couriersLoading, setCouriersLoading] = useState(false);
   const posMode = pos.posMode;
   const setPosMode = pos.setPosMode;
   const [posRole, setPosRole] = useState<string | null>(null);
@@ -538,40 +560,67 @@ export default function POSPage() {
     setActionSheetOpen(true);
   };
 
-  const TAKEAWAY_STATUS_NEXT: Record<string, string> = {
-    new: 'confirmed',
-    confirmed: 'in_kitchen',
-    in_kitchen: 'ready',
-    ready: 'payment_pending',
-  };
-  const TAKEAWAY_STATUS_LABEL: Record<string, string> = {
-    new: t('status_new'),
-    confirmed: t('kitchen_in_progress'),
-    in_kitchen: t('kitchen_ready'),
-    ready: t('payment_pending'),
+  const handleOpenStatusPicker = async (entity: 'order' | 'delivery') => {
+    if (!actionSheetTable) return;
+    setStatusPickerEntity(entity);
+    setStatusPickerLoading(true);
+    setStatusPickerOpen(true);
+    try {
+      const currentStatus = entity === 'delivery'
+        ? (actionSheetTable.delivery_status || actionSheetTable.status)
+        : actionSheetTable.status;
+      const transitions = await orderStateMachine.getValidTransitions(currentStatus, entity);
+      setStatusPickerTransitions(transitions);
+    } catch (e) {
+      toast.error(t('error_occurred'));
+      setStatusPickerOpen(false);
+    } finally {
+      setStatusPickerLoading(false);
+    }
   };
 
-  const handleTakeawayStatusAdvance = async () => {
+  const handleStatusTransitionSelect = async (toStatus: string) => {
     if (!actionSheetTable) return;
-    const current = actionSheetTable.status;
-    const next = TAKEAWAY_STATUS_NEXT[current];
-    if (!next) return;
-    try {
-      const res = await apiFetch('/api/orders/delivery-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: actionSheetTable.id, status: next }),
+    setStatusPickerOpen(false);
+    if (statusPickerEntity === 'delivery') {
+      await orderStateMachine.transitionDelivery(actionSheetTable.id, toStatus as any, {
+        courierId: actionSheetTable.courier_id,
+        courierName: actionSheetTable.courier_name,
       });
+    } else {
+      await orderStateMachine.transition(actionSheetTable.id, toStatus as any);
+    }
+  };
+
+  const handleOpenCourierPicker = async () => {
+    setCourierPickerOpen(true);
+    setCouriersLoading(true);
+    try {
+      const res = await apiFetch('/api/couriers?active=true');
       if (res.ok) {
-        toast.success(`${TAKEAWAY_STATUS_LABEL[current] || current}`);
-        setActionSheetTable({ ...actionSheetTable, status: next });
-        pos.fetchData();
-        fetchTakeawayOrders();
-      } else {
-        toast.error(t('status_change_error'));
+        const data = await res.json();
+        setCouriers(data.couriers || []);
       }
     } catch {
-        toast.error(t('error_occurred'));
+      toast.error(t('error_occurred'));
+    } finally {
+      setCouriersLoading(false);
+    }
+  };
+
+  const handleAssignCourier = async (courierId: string, courierName: string) => {
+    if (!actionSheetTable) return;
+    setCourierPickerOpen(false);
+    const currentStatus = actionSheetTable.delivery_status || actionSheetTable.status;
+    const transitions = await orderStateMachine.getValidTransitions(currentStatus, 'delivery');
+    const targetStatus = transitions.find(t => t.to_status === 'waiting_courier')?.to_status
+      || transitions.find(t => t.to_status === 'picked_up')?.to_status
+      || transitions[0]?.to_status;
+    if (targetStatus) {
+      await orderStateMachine.transitionDelivery(actionSheetTable.id, targetStatus as any, {
+        courierId,
+        courierName,
+      });
     }
   };
 
@@ -595,32 +644,8 @@ export default function POSPage() {
     }
   };
 
-  const handleDeliveryStatusUpdate = async (status: string, orderIdOverride?: string) => {
-    const orderId = orderIdOverride || actionSheetTable?.id || actionSheetTable?.order_ids?.[0];
-    if (!orderId) return;
-    try {
-      const res = await apiFetch('/api/orders/delivery-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          order_id: orderId,
-          status,
-          courier_id: actionSheetTable?.courier_id,
-          courier_name: actionSheetTable?.courier_name,
-          tracking_number: actionSheetTable?.tracking_number,
-        }),
-      });
-      if (res.ok) {
-        toast.success(t('status_updated').replace('{status}', status));
-        setActionSheetOpen(false);
-        pos.fetchData();
-      } else {
-        const err = await res.json();
-        toast.error(err.error || t('status_not_updated'));
-      }
-    } catch (e: any) {
-      toast.error(e.message || t('error_occurred'));
-    }
+  const handleDeliveryStatusPick = async () => {
+    await handleOpenStatusPicker('delivery');
   };
 
   const handlePaymentMethodSelect = async (method: 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | string, tenderedAmount?: number) => {
@@ -2080,32 +2105,23 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
          onOpenPayment={handleOpenPayment}
          onPaymentMethodSelect={handlePaymentMethodSelect}
          onSplitConfirm={handleSplitConfirm}
-         onBackFromPayment={handleBackFromPayment}
-          onDeliveryStatus={() => { if (actionSheetTable) handleDeliveryStatusUpdate('confirmed'); }}
-          onTakeawayStatus={handleTakeawayStatusAdvance}
-         onCancelTable={async () => {
-           if (!actionSheetTable) return;
-           if (posMode === 'takeaway' || posMode === 'delivery') {
-             try {
-               const res = await apiFetch('/api/orders/delivery-status', {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ order_id: actionSheetTable.id, status: 'cancelled' }),
-               });
-               if (res.ok) {
-                 toast.success(t('order_cancelled'));
-                 pos.fetchData();
-               } else {
-                 toast.error(t('cancel_failed'));
-               }
-             } catch {
-      toast.error(t('error_occurred'));
-             }
-           } else {
-             pos.dismissTable(actionSheetTable.table_number);
-           }
-           setActionSheetOpen(false);
-         }}
+          onBackFromPayment={handleBackFromPayment}
+           onDeliveryStatus={handleDeliveryStatusPick}
+           onTakeawayStatus={() => handleOpenStatusPicker('order')}
+          onCancelTable={async () => {
+            if (!actionSheetTable) return;
+            if (posMode === 'takeaway' || posMode === 'delivery') {
+              setActionSheetOpen(false);
+              if (posMode === 'delivery') {
+                await orderStateMachine.transitionDelivery(actionSheetTable.id, 'cancelled');
+              } else {
+                await orderStateMachine.transition(actionSheetTable.id, 'cancelled');
+              }
+            } else {
+              pos.dismissTable(actionSheetTable.table_number);
+              setActionSheetOpen(false);
+            }
+          }}
          onDismissGroup={handleDismissGroup}
           paymentView={paymentView}
           mergeMode={mergeMode}
@@ -2144,9 +2160,20 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
             transferConfirm={transferConfirm}
             transferSource={transferSource}
             transferTarget={transferTarget}
-            onConfirmTransfer={() => { if (transferTarget) handleConfirmTransfer(transferTarget); setTransferConfirm(false); setActionSheetOpen(false); }}
-            onCancelTransfer={() => { setTransferConfirm(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
-          />
+             onConfirmTransfer={() => { if (transferTarget) handleConfirmTransfer(transferTarget); setTransferConfirm(false); setActionSheetOpen(false); }}
+             onCancelTransfer={() => { setTransferConfirm(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }}
+             statusPickerTransitions={statusPickerTransitions}
+             onSelectTransition={handleStatusTransitionSelect}
+             statusPickerLoading={statusPickerLoading}
+             onCloseStatusPicker={() => setStatusPickerOpen(false)}
+             statusPickerOpen={statusPickerOpen}
+             courierPickerOpen={courierPickerOpen}
+             couriers={couriers}
+             couriersLoading={couriersLoading}
+             onOpenCourierPicker={handleOpenCourierPicker}
+             onAssignCourier={handleAssignCourier}
+             onCloseCourierPicker={() => setCourierPickerOpen(false)}
+           />
 
       <CashDrawerPanel
         open={cashDrawerOpen}

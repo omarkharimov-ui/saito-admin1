@@ -39,12 +39,12 @@ export function useOrderStateMachine(options?: UseOrderStateMachineOptions) {
   const [transitioning, setTransitioning] = useState(false);
   const [validTransitions, setValidTransitions] = useState<ValidTransition[]>([]);
 
-  const getValidTransitions = useCallback(async (currentStatus: OrderStatus): Promise<ValidTransition[]> => {
+  const getValidTransitions = useCallback(async (currentStatus: string, entity: 'order' | 'delivery' = 'order'): Promise<ValidTransition[]> => {
     try {
       const res = await apiFetch(`/api/rpc/get_valid_transitions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_entity: 'order', p_current_status: currentStatus }),
+        body: JSON.stringify({ p_entity: entity, p_current_status: currentStatus }),
       });
       if (res.ok) {
         const data = await res.json();

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Search, Phone, Smartphone, Building2, Gift, Car, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning
+  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -62,6 +62,17 @@ interface ActionSheetProps {
   onConfirmTransfer?: () => void;
   onCancelTransfer?: () => void;
   onCheckout?: () => void;
+  statusPickerTransitions?: { to_status: string; description: string | null; requires_role: string | null; requires_manager_pin: boolean }[];
+  onSelectTransition?: (toStatus: string) => void;
+  statusPickerLoading?: boolean;
+  onCloseStatusPicker?: () => void;
+  statusPickerOpen?: boolean;
+  courierPickerOpen?: boolean;
+  couriers?: any[];
+  couriersLoading?: boolean;
+  onOpenCourierPicker?: () => void;
+  onAssignCourier?: (courierId: string, courierName: string) => void;
+  onCloseCourierPicker?: () => void;
 }
 
 export function ActionSheet({ 
@@ -71,7 +82,9 @@ export function ActionSheet({
   mergeMode, transferMode, mergeParent, unmergeMode, isMerged, mergedGroupChildren, selectedForMerge, selectedForUnmerge,
   onToggleUnmerge, onConfirmUnmerge, onCancelMode, onConfirmMerge, onBillRequest, onPrintBill, onClearTable, onSeatGuests, posRole, groupNumber,
   paymentView, transferConfirm, transferSource, transferTarget,   onConfirmTransfer, onCancelTransfer, onCheckout,
-  posMode = 'dine_in'
+  posMode = 'dine_in',
+  statusPickerTransitions, onSelectTransition, statusPickerLoading, onCloseStatusPicker, statusPickerOpen,
+  courierPickerOpen, couriers, couriersLoading, onOpenCourierPicker, onAssignCourier, onCloseCourierPicker
 }: ActionSheetProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -155,6 +168,7 @@ export function ActionSheet({
     { id: 'clear', icon: BrushCleaning, label: t('clear'), visible: table?.status === 'empty' || table?.status === 'dirty' },
     ...(posMode === 'delivery' ? [
       { id: 'delivery_status', icon: Car, label: t('delivery_status'), visible: true },
+      { id: 'assign_courier', icon: UserCheck, label: t('assign_courier' as any) || 'Assign Courier', visible: true },
     ] : []),
     ...(posMode === 'takeaway' ? [
       { id: 'takeaway_status', icon: ChevronRight, label: t('next_step'), visible: true },
@@ -168,7 +182,7 @@ export function ActionSheet({
   const mergedChildren = unmergeMode && table ? (mergedGroupChildren ?? []) : [];
   const showSplitForm = !!localSplit;
   const showCustomerForm = showCustomerSearch;
-  const currentView = confirmAction ? 'confirm-action' : splitByItemsView ? 'split-by-items' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : (transferMode || transferConfirm) ? 'transfer' : unmergeMode ? 'split' : open ? 'actions' : 'none';
+  const currentView = confirmAction ? 'confirm-action' : splitByItemsView ? 'split-by-items' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : (transferMode || transferConfirm) ? 'transfer' : unmergeMode ? 'split' : courierPickerOpen ? 'courier-select' : statusPickerOpen ? 'status-select' : open ? 'actions' : 'none';
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
@@ -322,30 +336,31 @@ export function ActionSheet({
                       <div>
                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('main_actions')}</p>
                         <div className="grid grid-cols-3 gap-3">
-                          {visibleActions.filter(a => ['add_order', 'customer', 'close_bill', 'clear'].includes(a.id)).map((action) => {
-                            if (action.id === 'customer') {
-                              return (
-                                <button key={action.id} onClick={() => setShowCustomerSearch(true)}
-                                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
-                                  <User size={24} strokeWidth={2.5} />
-                                  <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{customerName || t('customer')}</span>
-                                </button>
-                              );
-                            }
-                              return (
-                              <button key={action.id} onClick={() => {
-                                const fn = {
-                                  add_order: onAddOrder,
-                                  close_bill: onOpenPayment,
-                                  cancel_table: () => setConfirmAction('cancel_table'),
-                                  delivery_status: onDeliveryStatus,
-                                  takeaway_status: onTakeawayStatus,
-                                  bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
-                                  print_bill: onPrintBill,
-                                  clear: onClearTable,
-                                }[action.id as string];
-                                if (fn) fn();
-                              }}
+                           {visibleActions.filter(a => ['add_order', 'customer', 'close_bill', 'clear'].includes(a.id)).map((action) => {
+                             if (action.id === 'customer') {
+                               return (
+                                 <button key={action.id} onClick={() => setShowCustomerSearch(true)}
+                                   className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
+                                   <User size={24} strokeWidth={2.5} />
+                                   <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{customerName || t('customer')}</span>
+                                 </button>
+                               );
+                             }
+                               return (
+                               <button key={action.id} onClick={() => {
+                                 const fn = {
+                                   add_order: onAddOrder,
+                                   close_bill: onOpenPayment,
+                                   cancel_table: () => setConfirmAction('cancel_table'),
+                                   delivery_status: onDeliveryStatus,
+                                   takeaway_status: onTakeawayStatus,
+                                   assign_courier: onOpenCourierPicker,
+                                   bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
+                                   print_bill: onPrintBill,
+                                   clear: onClearTable,
+                                 }[action.id as string];
+                                 if (fn) fn();
+                               }}
                                 className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
                                   action.id === 'bill_request'
                                     ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
@@ -362,11 +377,11 @@ export function ActionSheet({
                       </div>
 
                       {/* Secondary actions section */}
-                      {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status'].includes(a.id)) && (
+                      {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier'].includes(a.id)) && (
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
                           <div className="grid grid-cols-3 gap-3">
-                            {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status'].includes(a.id)).map((action) => (
+                            {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier'].includes(a.id)).map((action) => (
                               <button key={action.id} onClick={() => {
                                 const fn = {
                                   add_order: onAddOrder,
@@ -374,6 +389,7 @@ export function ActionSheet({
                                   cancel_table: () => setConfirmAction('cancel_table'),
                                   delivery_status: onDeliveryStatus,
                                   takeaway_status: onTakeawayStatus,
+                                  assign_courier: onOpenCourierPicker,
                                   bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
                                   print_bill: onPrintBill,
                                   clear: onClearTable,
@@ -888,36 +904,116 @@ export function ActionSheet({
                   </motion.div>
                  )}
 
-                 {currentView === 'transfer' && (
-                  <motion.div key="ui-transfer" {...morphView} className="flex items-center gap-5 w-full">
-                    <div className="flex flex-col mr-auto min-w-[140px]">
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">{t('transfer')}</span>
-                       <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                         {transferSource && transferTarget
-                           ? `Masa ${transferSource} → Masa ${transferTarget}`
-                           : transferSource
-                             ? `${t('source')}: ${t('table_label')} ${transferSource} — ${t('select_target')}`
-                             : t('select_source_table')}
-                       </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button onClick={onCancelTransfer} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-95 transition-all"><XCircle size={18} strokeWidth={3} /></button>
-                       <button onClick={() => {
-                         const doTransfer = () => {
-                           onConfirmTransfer?.();
-                         };
-                         if (waiterPinRequired) {
-                           setPendingAction({ fn: doTransfer, action: 'transfer' });
-                           setPinGuardOpen(true);
-                         } else {
-                           doTransfer();
-                         }
-                       }} disabled={!transferSource || !transferTarget} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>{t('confirm')}</button>
-                    </div>
-                  </motion.div>
-                 )}
+                  {currentView === 'transfer' && (
+                   <motion.div key="ui-transfer" {...morphView} className="flex items-center gap-5 w-full">
+                     <div className="flex flex-col mr-auto min-w-[140px]">
+                       <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">{t('transfer')}</span>
+                        <span className={`text-xs font-black truncate ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
+                          {transferSource && transferTarget
+                            ? `Masa ${transferSource} → Masa ${transferTarget}`
+                            : transferSource
+                              ? `${t('source')}: ${t('table_label')} ${transferSource} — ${t('select_target')}`
+                              : t('select_source_table')}
+                        </span>
+                     </div>
+                     <div className="flex items-center gap-3">
+                       <button onClick={onCancelTransfer} className="p-2.5 rounded-full bg-rose-500/10 text-rose-500 active:scale-95 transition-all"><XCircle size={18} strokeWidth={3} /></button>
+                        <button onClick={() => {
+                          const doTransfer = () => {
+                            onConfirmTransfer?.();
+                          };
+                          if (waiterPinRequired) {
+                            setPendingAction({ fn: doTransfer, action: 'transfer' });
+                            setPinGuardOpen(true);
+                          } else {
+                            doTransfer();
+                          }
+                        }} disabled={!transferSource || !transferTarget} className={`px-7 py-3 rounded-full text-[10px] font-black shadow-lg ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'} active:scale-95 transition-all disabled:opacity-30`}>{t('confirm')}</button>
+                     </div>
+                   </motion.div>
+                   )}
 
-              </AnimatePresence>
+                  {currentView === 'courier-select' && (
+                    <motion.div key="ui-courier-select" {...morphView} className="flex flex-col gap-4">
+                      <div className="text-center">
+                        <p className={`text-2xl font-black tracking-tighter mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>
+                          {t('assign_courier' as any) || 'Assign Courier'}
+                        </p>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                          {t('select_courier' as any) || 'Select a courier'}
+                        </p>
+                      </div>
+                      {couriersLoading ? (
+                        <div className="flex justify-center py-6">
+                          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      ) : (couriers || []).length > 0 ? (
+                        <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                          {(couriers || []).map((c: any) => (
+                            <button
+                              key={c.id}
+                              onClick={() => onAssignCourier?.(c.id, c.name)}
+                              className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border font-black text-sm uppercase tracking-wider transition-all active:scale-[0.98] ${
+                                lightMode
+                                  ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800'
+                                  : 'bg-white text-black border-white hover:bg-white/90'
+                              }`}
+                            >
+                              <span>{c.name}</span>
+                              <ChevronRight size={18} strokeWidth={3} />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={`text-center text-xs py-4 ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                          {t('no_courier_found' as any) || 'No couriers available'}
+                        </p>
+                      )}
+                      <button onClick={onCloseCourierPicker} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
+                    </motion.div>
+                  )}
+
+                  {currentView === 'status-select' && (
+                    <motion.div key="ui-status-select" {...morphView} className="flex flex-col gap-4">
+                      <div className="text-center">
+                        <p className={`text-2xl font-black tracking-tighter mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>
+                          {t('next_step')}
+                        </p>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                           {posMode === 'delivery' ? t('delivery_status') : t('next_step')}
+                        </p>
+                      </div>
+                      {statusPickerLoading ? (
+                        <div className="flex justify-center py-6">
+                          <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      ) : statusPickerTransitions && statusPickerTransitions.length > 0 ? (
+                        <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                          {statusPickerTransitions.map((tr) => (
+                            <button
+                              key={tr.to_status}
+                              onClick={() => onSelectTransition?.(tr.to_status)}
+                              className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border font-black text-sm uppercase tracking-wider transition-all active:scale-[0.98] ${
+                                lightMode
+                                  ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800'
+                                  : 'bg-white text-black border-white hover:bg-white/90'
+                              }`}
+                            >
+                              <span>{tr.description || tr.to_status}</span>
+                              <ChevronRight size={18} strokeWidth={3} />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={`text-center text-xs py-4 ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                          {t('no_valid_transitions' as any) || 'No transitions available'}
+                        </p>
+                      )}
+                      <button onClick={onCloseStatusPicker} className="w-full mt-2 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('back')}</button>
+                    </motion.div>
+                  )}
+
+               </AnimatePresence>
            </motion.div>
          </motion.div>
        )}

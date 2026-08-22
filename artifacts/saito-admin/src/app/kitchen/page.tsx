@@ -1006,18 +1006,11 @@ export default function KitchenPage() {
     if (newStatus === 'completed') {
       const order = orders.find(o => o.id === id);
       if (order) pushUndo(`MASA ${order.table_number} — tamamlandı`, order);
-      const { error: rpcError } = await supabase.rpc('mark_order_ready', { p_order_id: id });
-      if (rpcError) {
-        console.error('[updateOrderStatus] mark_order_ready failed:', rpcError);
-        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
-        return;
-      }
-      const { error: updateError } = await supabase.from('orders').update({ status: 'completed', kitchen_status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
-      if (updateError) {
-        console.error('[updateOrderStatus] order update failed:', updateError);
-        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
-        return;
-      }
+      await supabase
+        .from('order_items')
+        .update({ kitchen_status: 'completed' })
+        .eq('order_id', id)
+        .neq('kitchen_status', 'completed');
     } else if (newStatus === 'preparing') {
       const { error } = await supabase.rpc('prepare_order_items', { p_order_id: id });
       if (error) {

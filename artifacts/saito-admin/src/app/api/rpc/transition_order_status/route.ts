@@ -1,0 +1,33 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
+
+export async function POST(request: NextRequest) {
+  try {
+    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    if (!auth.authenticated) return auth;
+
+    const body = await request.json();
+    const supabase = await createAuthClient();
+
+    const { data, error } = await supabase.rpc('transition_order_status', {
+      p_order_id: body.p_order_id,
+      p_new_status: body.p_new_status,
+      p_performed_by: body.p_performed_by || null,
+      p_employee_name: body.p_employee_name || null,
+      p_reason: body.p_reason || null,
+      p_metadata: body.p_metadata || null,
+      p_ip_address: body.p_ip_address || null,
+      p_device_id: body.p_device_id || null,
+    });
+
+    if (error) {
+      console.error('[transition_order_status] RPC error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data);
+  } catch (e: any) {
+    console.error('[transition_order_status] Fatal:', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}

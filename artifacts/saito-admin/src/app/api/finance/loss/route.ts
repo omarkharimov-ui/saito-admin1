@@ -42,10 +42,16 @@ export async function POST(req: NextRequest) {
         .update({ kitchen_status: 'cancelled' })
         .in('order_id', orderIds);
 
-      await supabase
-        .from('orders')
-        .update({ status: 'cancelled', kitchen_status: 'cancelled' })
-        .in('id', orderIds);
+      for (const orderId of orderIds) {
+        try {
+          await supabase.rpc('transition_order_status', {
+            p_order_id: orderId,
+            p_new_status: 'cancelled',
+          });
+        } catch (e) {
+          console.error('transition_order_status failed for loss', orderId, e);
+        }
+      }
     }
 
     // Clear table_floors status so table shows as available

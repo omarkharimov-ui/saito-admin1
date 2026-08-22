@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt } from 'lucide-react';
+import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -152,6 +152,13 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+    },
+    served: {
+      icon: CheckCircle2,
+      label: t('order_served' as any),
+      bg: lightMode ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-blue-500/25 border-blue-400/60 text-blue-300',
+      iconColor: lightMode ? 'text-blue-700' : 'text-blue-400',
+      dotColor: lightMode ? 'bg-blue-500' : 'bg-blue-400',
     },
     empty: {
       icon: null,

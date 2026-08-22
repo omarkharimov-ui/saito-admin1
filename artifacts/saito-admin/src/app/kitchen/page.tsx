@@ -1019,12 +1019,14 @@ export default function KitchenPage() {
         return;
       }
     } else if (newStatus === 'ready') {
+      const order = orders.find(o => o.id === id);
       const { error } = await supabase.rpc('mark_order_ready', { p_order_id: id });
       if (error) {
         console.error('[updateOrderStatus] mark_order_ready failed:', error);
         toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
         return;
       }
+      if (order) await supabase.from('table_floors').update({ status: 'ready' }).eq('table_number', order.table_number);
     }
     fetchOrdersRef.current();
   };
@@ -1039,6 +1041,7 @@ export default function KitchenPage() {
       toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
       return;
     }
+    await supabase.from('table_floors').update({ status: 'ready' }).eq('table_number', order.table_number);
     fetchOrdersRef.current();
     if (activeTab !== 'ready') setActiveTab('ready');
   };

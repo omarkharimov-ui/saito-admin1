@@ -665,6 +665,10 @@ export default function POSPage() {
     if (!actionSheetTable) return;
     try {
       await orderStateMachine.transition(actionSheetTable.id, 'served');
+      await supabase
+        .from('table_floors')
+        .update({ status: 'served' })
+        .eq('table_number', actionSheetTable.table_number);
       setActionSheetOpen(false);
       pos.fetchData();
     } catch (e: any) {

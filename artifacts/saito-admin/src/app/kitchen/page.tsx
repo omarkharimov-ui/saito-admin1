@@ -1041,7 +1041,11 @@ export default function KitchenPage() {
       toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
       return;
     }
-    await supabase.from('table_floors').update({ status: 'ready' }).eq('table_number', order.table_number);
+    const tableUpdate = await supabase.from('table_floors').update({ status: 'ready' }).eq('table_number', order.table_number);
+    if (tableUpdate.error) {
+      console.error('[kitchen] table_floors update failed:', tableUpdate.error);
+      toast.error('Masa statusu yenilənərkən xəta baş verdi', { duration: 2500 });
+    }
     fetchOrdersRef.current();
     if (activeTab !== 'ready') setActiveTab('ready');
   };

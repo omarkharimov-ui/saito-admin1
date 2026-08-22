@@ -1,4 +1,4 @@
-CREATE FUNCTION public.create_takeaway_order (
+CREATE OR REPLACE FUNCTION public.create_takeaway_order (
   p_customer_phone        text                     DEFAULT NULL::text,
   p_customer_name         text                     DEFAULT NULL::text,
   p_customer_note         text                     DEFAULT NULL::text,
@@ -17,24 +17,25 @@ DECLARE
   v_item JSONB;
   v_total NUMERIC := 0;
 BEGIN
-  -- Generate order number
+  IF p_customer_phone IS NULL OR trim(p_customer_phone) = '' THEN
+    RAISE EXCEPTION 'customer_phone is required';
+  END IF;
+
   v_order_number := generate_takeaway_order_number();
 
-  -- Create order
   INSERT INTO orders (
-    order_number, order_source, status, kitchen_status,
+    order_number, order_type, order_source, status, kitchen_status,
     customer_phone, customer_name, customer_note,
     estimated_delivery_time, total_amount, guest_count,
     is_draft, version, created_at
   ) VALUES (
-    v_order_number, 'takeaway', 'confirmed', 'pending',
+    v_order_number, 'takeaway', 'takeaway', 'confirmed', 'pending',
     p_customer_phone, p_customer_name, p_customer_note,
     p_estimated_pickup_time, 0, 1,
     false, 1, now()
   )
   RETURNING id INTO v_order_id;
 
-  -- Add items if provided
   IF jsonb_array_length(p_items) > 0 THEN
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
     LOOP
@@ -60,7 +61,6 @@ BEGIN
     UPDATE orders SET total_amount = v_total WHERE id = v_order_id;
   END IF;
 
-  -- Log event
   PERFORM log_order_event(
     v_order_id, 'created',
     NULL,
@@ -76,8 +76,6 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.create_takeaway_order(text, text, text, timestamp WITH time zone, jsonb, uuid) TO anon;
-
-GRANT ALL ON FUNCTION public.create_takeaway_order(text, text, text, timestamp WITH time zone, jsonb, uuid) TO authenticated;
-
 GRANT ALL ON FUNCTION public.create_takeaway_order(text, text, text, timestamp WITH time zone, jsonb, uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.create_takeaway_order(text, text, text, timestamp WITH time zone, jsonb, uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.create_takeaway_order(text, text, text, timestamp WITH time zone, jsonb, uuid) FROM authenticated;

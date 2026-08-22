@@ -1,8 +1,15 @@
-CREATE FUNCTION public.create_delivery_order (
+CREATE OR REPLACE FUNCTION public.create_delivery_order (
   p_customer_phone          text                     DEFAULT NULL::text,
   p_customer_name           text                     DEFAULT NULL::text,
   p_customer_note           text                     DEFAULT NULL::text,
   p_delivery_address        text                     DEFAULT NULL::text,
+  p_delivery_district       text                     DEFAULT NULL::text,
+  p_delivery_street         text                     DEFAULT NULL::text,
+  p_delivery_building       text                     DEFAULT NULL::text,
+  p_delivery_floor          text                     DEFAULT NULL::text,
+  p_delivery_apartment      text                     DEFAULT NULL::text,
+  p_delivery_intercom       text                     DEFAULT NULL::text,
+  p_delivery_zone           text                     DEFAULT NULL::text,
   p_delivery_fee            numeric                  DEFAULT 0,
   p_estimated_delivery_time timestamp with time zone DEFAULT NULL::timestamp WITH time zone,
   p_items                   jsonb                    DEFAULT '[]'::jsonb,
@@ -19,24 +26,37 @@ DECLARE
   v_item JSONB;
   v_total NUMERIC := 0;
 BEGIN
-  -- Generate order number
+  IF p_customer_phone IS NULL OR trim(p_customer_phone) = '' THEN
+    RAISE EXCEPTION 'customer_phone is required';
+  END IF;
+
+  IF p_delivery_address IS NULL OR trim(p_delivery_address) = '' THEN
+    RAISE EXCEPTION 'delivery_address is required';
+  END IF;
+
+  IF p_delivery_fee IS NULL OR p_delivery_fee < 0 THEN
+    RAISE EXCEPTION 'delivery_fee must be a numeric value >= 0';
+  END IF;
+
   v_order_number := generate_delivery_order_number();
 
-  -- Create order
   INSERT INTO orders (
-    order_number, order_source, status, delivery_status,
+    order_number, order_type, order_source, status, delivery_status,
     customer_phone, customer_name, customer_note,
-    delivery_address, delivery_fee, estimated_delivery_time,
+    delivery_address, delivery_district, delivery_street, delivery_building,
+    delivery_floor, delivery_apartment, delivery_intercom, delivery_zone,
+    delivery_fee, estimated_delivery_time,
     total_amount, guest_count, is_draft, version, created_at
   ) VALUES (
-    v_order_number, 'delivery', 'new', 'pending',
+    v_order_number, 'delivery', 'delivery', 'new', 'pending',
     p_customer_phone, p_customer_name, p_customer_note,
-    p_delivery_address, COALESCE(p_delivery_fee, 0), p_estimated_delivery_time,
+    p_delivery_address, p_delivery_district, p_delivery_street, p_delivery_building,
+    p_delivery_floor, p_delivery_apartment, p_delivery_intercom, p_delivery_zone,
+    COALESCE(p_delivery_fee, 0), p_estimated_delivery_time,
     0, 1, false, 1, now()
   )
   RETURNING id INTO v_order_id;
 
-  -- Add items if provided
   IF jsonb_array_length(p_items) > 0 THEN
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
     LOOP
@@ -58,10 +78,9 @@ BEGIN
       v_total := v_total + (v_item->>'unit_price')::NUMERIC * COALESCE((v_item->>'quantity')::INTEGER, 1);
     END LOOP;
 
-    UPDATE orders SET total_amount = v_total + COALESCE(p_delivery_fee, 0) WHERE id = v_order_id;
+    UPDATE orders SET total_amount = v_total WHERE id = v_order_id;
   END IF;
 
-  -- Log event
   PERFORM log_order_event(
     v_order_id, 'created',
     NULL,
@@ -77,8 +96,6 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.create_delivery_order(text, text, text, text, numeric, timestamp WITH time zone, jsonb, uuid) TO anon;
-
-GRANT ALL ON FUNCTION public.create_delivery_order(text, text, text, text, numeric, timestamp WITH time zone, jsonb, uuid) TO authenticated;
-
-GRANT ALL ON FUNCTION public.create_delivery_order(text, text, text, text, numeric, timestamp WITH time zone, jsonb, uuid) TO service_role;
+GRANT ALL ON FUNCTION public.create_delivery_order(text, text, text, text, text, text, text, text, text, text, text, numeric, timestamp WITH time zone, jsonb, uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.create_delivery_order(text, text, text, text, text, text, text, text, text, text, text, text, numeric, timestamp WITH time zone, jsonb, uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.create_delivery_order(text, text, text, text, text, text, text, text, text, text, text, text, numeric, timestamp WITH time zone, jsonb, uuid) FROM authenticated;

@@ -33,7 +33,8 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   const [showKitchenStatus, setShowKitchenStatus] = useState(false);
   const [statusTransition, setStatusTransition] = useState<string | null>(null);
 
-  const isOccupied = ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(table.status);
+  const isOccupied = ['occupied', 'cooking', 'waiting_bill', 'waiting', 'ready', 'served'].includes(table.status);
+  const isServed = table.status === 'served';
   const isDirty = table.status === 'dirty';
   const isReserved = table.status === 'reserved';
   const isWaiting = table.status === 'waiting';
@@ -194,6 +195,8 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                      ? (lightMode ? 'bg-indigo-50/50 border-indigo-200' : 'bg-indigo-500/5 border-indigo-500/30')
                      : isOverdue 
                        ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
+                       : isServed
+                         ? (lightMode ? 'bg-white border-amber-400 shadow-sm' : 'bg-zinc-900 border-amber-500/60 shadow-sm')
                        : isOccupied
                          ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-sm')
                          : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')

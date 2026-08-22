@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2 } from 'lucide-react';
+import { MoreVertical, Users, Check, Clock, ShoppingBag, UserCheck, CalendarClock, CreditCard, Receipt, CheckCircle2, Utensils } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
@@ -33,7 +33,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   const [showKitchenStatus, setShowKitchenStatus] = useState(false);
   const [statusTransition, setStatusTransition] = useState<string | null>(null);
 
-  const isOccupied = ['occupied', 'cooking', 'waiting_bill', 'waiting', 'ready', 'served'].includes(table.status);
+  const isOccupied = ['occupied', 'cooking', 'waiting_bill', 'waiting', 'ordered', 'confirmed', 'in_kitchen', 'served', 'bill_requested', 'payment_pending', 'paid'].includes(table.status);
   const isServed = table.status === 'served';
   const isDirty = table.status === 'dirty';
   const isReserved = table.status === 'reserved';
@@ -154,6 +154,34 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
     },
+    ordered: {
+      icon: ShoppingBag,
+      label: t('table_ordered' as any),
+      bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+      iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+      dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+    },
+    confirmed: {
+      icon: CheckCircle2,
+      label: t('table_confirmed' as any),
+      bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+      iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+      dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+    },
+    in_kitchen: {
+      icon: Utensils,
+      label: t('table_in_kitchen' as any),
+      bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+      iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+      dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+    },
+    ready: {
+      icon: CheckCircle2,
+      label: t('table_ready' as any),
+      bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
+      iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
+      dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
+    },
     served: {
       icon: CheckCircle2,
       label: t('order_served' as any),
@@ -195,10 +223,10 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                      ? (lightMode ? 'bg-indigo-50/50 border-indigo-200' : 'bg-indigo-500/5 border-indigo-500/30')
                      : isOverdue 
                        ? (lightMode ? 'bg-white border-rose-500 shadow-sm' : 'bg-zinc-900 border-rose-500 shadow-md')
-                       : isServed
-                         ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-sm')
-                       : isOccupied
+                       : table.status === 'ready'
                          ? (lightMode ? 'bg-white border-amber-400 shadow-sm' : 'bg-zinc-900 border-amber-500/60 shadow-sm')
+                       : isOccupied
+                         ? (lightMode ? 'bg-white border-emerald-500 shadow-sm' : 'bg-zinc-900 border-emerald-500/60 shadow-sm')
                          : (lightMode ? 'bg-white border-zinc-200 shadow-sm' : 'bg-zinc-900 border-white/10 shadow-sm')
            } ${
              isGroup ? (lightMode ? 'border-l-[3px] border-l-blue-500 bg-blue-50/30' : 'border-l-[3px] border-l-blue-500 bg-blue-500/[0.03]') : ''

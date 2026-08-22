@@ -93,6 +93,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { action, data, id, version } = body;
+    console.log('[API /orders POST] received', { action, hasId: !!id, table_number: body.table_number, items: body.items?.length, order_type: body.order_type, order_source: body.order_source });
 
     if (auth.role === 'kitchen' && action !== 'update') {
       return NextResponse.json({ error: 'Kitchen can only update order status' }, { status: 403 });
@@ -320,7 +321,8 @@ export async function POST(request: Request) {
         }
       } else {
         // Create new order
-        const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
+        console.log('[API /orders POST] creating order', { table_number, status: status || 'confirmed', total_amount: discountedTotal });
+      const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
           method: 'POST',
           headers: { ...svc().headers, 'Prefer': 'return=representation' },
           body: JSON.stringify({
@@ -372,10 +374,12 @@ export async function POST(request: Request) {
 
         // Mark table as occupied with current_order_id (SSOT)
         if (table_number) {
+          console.log('[API /orders POST] updating table_floors', { table_number, activeOrderId });
           const tablePatchRes3 = await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
             method: 'PATCH', headers: svc().headers,
             body: JSON.stringify({ status: 'occupied', current_order_id: activeOrderId, total_amount: discountedTotal, last_activity_at: new Date().toISOString() }),
           });
+          console.log('[API /orders POST] table_floors update result:', tablePatchRes3.status);
           if (!tablePatchRes3.ok) {
             const errText = await tablePatchRes3.text();
             console.error('[POST /api/orders] table_floors update failed:', tablePatchRes3.status, errText);

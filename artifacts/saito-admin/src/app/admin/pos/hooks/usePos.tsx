@@ -747,6 +747,12 @@ export function usePos() {
     }
   };
 
+
+  const isValidUUID = (id: string | null | undefined) => {
+    if (!id) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  };
+
   const placeOrder = async (campaign?: { id?: string; type?: string }, checkoutOverrides?: {
     customer_phone?: string;
     customer_name?: string;
@@ -763,7 +769,17 @@ export function usePos() {
     estimated_delivery_time?: string;
     payment_method?: string;
   }, assignedTo?: string) => {
-    if (!cart || placingOrder) return;
+    console.log('[placeOrder] called', { 
+      cart: !!cart, 
+      placingOrder, 
+      cartTableNumber: cart?.table_number, 
+      cartItems: cart?.items?.length,
+      posMode 
+    });
+    if (!cart || placingOrder) {
+      console.log('[placeOrder] early return', { cart: !!cart, placingOrder });
+      return;
+    }
     setPlacingOrder(true);
     try {
       const unsent = cart.items
@@ -827,6 +843,7 @@ export function usePos() {
       }
       const computedDiscount = { amount: itemBasedDiscount, type: computedType };
 
+      console.log('[placeOrder] API payload', { table_number: cart?.table_number, unsent: unsent?.length, activeOrderId, posMode });
       const res = await apiFetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -858,7 +875,7 @@ export function usePos() {
                  estimated_delivery_time: checkoutOverrides?.estimated_delivery_time || cart.estimated_delivery_time || null,
                  scheduled_date: cart.scheduled_date || null,
                  reservation_id: cart.reservation_id || null,
-                 assigned_to: assignedTo || null,
+                 assigned_to: isValidUUID(assignedTo) ? assignedTo : null,
                  discount_amount: computedDiscount.amount,
                  discount_type: computedDiscount.type,
                  campaign_id: campaign?.id || null,
@@ -868,9 +885,11 @@ export function usePos() {
         ),
       });
       let createdOrderId: string | null = null;
+      console.log('[placeOrder] API response', { status: res.status, ok: res.ok });
       if (res.ok) {
         const data = await res.json();
         createdOrderId = data.data?.id || data.id || data.order?.id || activeOrderId;
+        console.log('[placeOrder] success', { createdOrderId, data });
         toast.success(t('order_sent'));
         logOperation('place_order', {
           order_id: createdOrderId,

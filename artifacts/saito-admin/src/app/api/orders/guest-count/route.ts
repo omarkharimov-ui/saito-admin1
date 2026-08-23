@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
 
-    if (!validateCsrfToken(request)) {
+    if (!validateCsrfToken(request, auth.authenticated)) {
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
 
@@ -41,19 +41,27 @@ export async function POST(request: NextRequest) {
 
     if (Array.isArray(orders) && orders.length > 0) {
       for (const o of orders) {
-        await fetch(`${s.url}/rest/v1/orders?id=eq.${o.id}`, {
+        const patchRes = await fetch(`${s.url}/rest/v1/orders?id=eq.${o.id}`, {
           method: 'PATCH',
           headers: s.headers,
           body: JSON.stringify({ guest_count: count }),
         });
+        if (!patchRes.ok) {
+          const errText = await patchRes.text().catch(() => 'Unknown error');
+          return NextResponse.json({ error: `Failed to update order ${o.id}: ${patchRes.status} ${errText}` }, { status: 500 });
+        }
       }
     }
 
-    await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+    const tablePatchRes = await fetch(`${s.url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
       method: 'PATCH',
       headers: s.headers,
       body: JSON.stringify({ guest_count: count }),
     });
+    if (!tablePatchRes.ok) {
+      const errText = await tablePatchRes.text().catch(() => 'Unknown error');
+      return NextResponse.json({ error: `Failed to update table_floors: ${tablePatchRes.status} ${errText}` }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true, guest_count: count });
   } catch (error: any) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Phone, User, Clock, ShoppingBag, UserCheck, MoreVertical } from 'lucide-react';
+import { Plus, Phone, User, Clock, ShoppingBag, UserCheck, MoreVertical, CreditCard, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -117,15 +117,26 @@ export default function TakeawayOrders({ orders, onRefresh: _onRefresh, onNewOrd
                     )}
                   </div>
 
-                  <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
-                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${lightMode ? status.bg : status.bgDark}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${lightMode ? status.dot : status.dotDark}`} />
-                      <span className={`${lightMode ? status.text : status.textDark}`}>{t(status.labelKey as any)}</span>
-                    </div>
-                    <p className={`text-base font-black tabular-nums ${lightMode ? 'text-emerald-600' : 'text-emerald-500'}`}>
-                      ₼{Number(order.total_amount || 0).toFixed(2)}
-                    </p>
-                  </div>
+                   <div className="absolute bottom-4 left-0 right-0 px-5 flex items-center justify-between">
+                     <div className="flex items-center gap-2 flex-wrap">
+                       <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${lightMode ? status.bg : status.bgDark}`}>
+                         <div className={`w-1.5 h-1.5 rounded-full ${lightMode ? status.dot : status.dotDark}`} />
+                         <span className={`${lightMode ? status.text : status.textDark}`}>{t(status.labelKey as any)}</span>
+                       </div>
+                       {order.status !== 'paid' && order.status !== 'cancelled' && order.status !== 'closed' && (
+                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                           <CreditCard size={10} strokeWidth={2.5} />
+                           ₼{Number(order.total_amount || 0).toFixed(2)}
+                         </span>
+                       )}
+                       {order.status === 'paid' && (
+                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-green-50 border-green-200 text-green-600' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}>
+                           <CheckCircle2 size={10} strokeWidth={2.5} />
+                           {t('paid' as any)}
+                         </span>
+                       )}
+                     </div>
+                   </div>
                 </div>
               );
             })}

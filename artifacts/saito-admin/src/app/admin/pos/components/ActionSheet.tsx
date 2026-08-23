@@ -160,7 +160,6 @@ export function ActionSheet({
   const waiterPinRequired = requiresPin(posRoleNorm);
 
   const actions = [
-    { id: 'add_order', icon: Plus, label: t('add_items'), visible: !isTakeawayOrDelivery },
     { id: 'customer', icon: User, label: customerName ? `${customerName}` : t('select_customer') || t('customer'), visible: true },
     { id: 'print_bill', icon: Printer, label: t('print_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'bill_request', icon: Receipt, label: t('call_bill'), visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
@@ -230,54 +229,67 @@ export function ActionSheet({
               <AnimatePresence mode="popLayout">
                 {currentView === 'actions' && (
                   <motion.div key="ui-actions" {...morphView} transition={fastExit}>
-                   <div className="text-center mb-6">
-                       <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
-                         {isMerged ? `${t('group')}${groupNumber || groupName}` : isTakeawayOrDelivery ? ((table as any)?.order_number ? `${posMode === 'delivery' ? t('delivery_short') : t('takeaway_short')} ${(table as any).order_number}` : t('order')) : `${t('table_label')} ${table?.table_number}`}
-                       </p>
-                       {isTakeawayOrDelivery && (table as any)?.status && (
-                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${
-                           (table as any).status === 'paid' ? 'bg-green-500/15 border-green-500/25 text-green-400'
-                             : (table as any).status === 'cancelled' ? 'bg-red-500/15 border-red-500/25 text-red-400'
-                             : (table as any).status === 'ready' ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
-                             : 'bg-amber-500/15 border-amber-500/25 text-amber-400'
-                         }`}>
-                           <div className={`w-1.5 h-1.5 rounded-full ${
-                             (table as any).status === 'paid' ? 'bg-green-400'
-                               : (table as any).status === 'cancelled' ? 'bg-red-400'
-                               : (table as any).status === 'ready' ? 'bg-emerald-400'
-                               : 'bg-amber-400'
-                           }`} />
-                           {((table as any).status === 'new' && 'Yeni') ||
-                            (t('status_confirmed')) ||
-                            (t('status_in_kitchen')) ||
-                            (t('ready')) ||
-                            (t('paid')) ||
-                            (t('cancelled')) ||
-                            (table as any).status}
-                         </span>
-                       )}
-                    {isMerged && (
-                      <div className="flex flex-wrap justify-center gap-1.5 mt-3 mb-4">
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'}`}>
-                          Masa {table?.table_number} (Əsas)
-                        </span>
-                        {mergedGroupChildren?.map(child => (
-                          <span key={child.table_number} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'}`}>
-                            Masa {child.table_number}
+                    <div className="text-center mb-6">
+                         <p className="text-2xl font-black tracking-tighter mb-1 leading-none">
+                          {isMerged ? `${t('group')}${groupNumber || groupName}` : isTakeawayOrDelivery ? ((table as any)?.order_number ? `${posMode === 'delivery' ? t('delivery_short') : t('takeaway_short')} ${(table as any).order_number}` : t('order')) : `${t('table_label')} ${table?.table_number}`}
+                        </p>
+                        {isTakeawayOrDelivery && (table as any)?.status && (
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 mt-2 rounded-full border text-[9px] font-black uppercase tracking-widest ${
+                            (table as any).status === 'paid' ? 'bg-green-500/15 border-green-500/25 text-green-400'
+                              : (table as any).status === 'cancelled' ? 'bg-red-500/15 border-red-500/25 text-red-400'
+                              : (table as any).status === 'ready' ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
+                              : 'bg-amber-500/15 border-amber-500/25 text-amber-400'
+                          }`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${
+                              (table as any).status === 'paid' ? 'bg-green-400'
+                                : (table as any).status === 'cancelled' ? 'bg-red-400'
+                                : (table as any).status === 'ready' ? 'bg-emerald-400'
+                                : 'bg-amber-400'
+                            }`} />
+                            {((table as any).status === 'new' && 'Yeni') ||
+                             (t('status_confirmed')) ||
+                             (t('status_in_kitchen')) ||
+                             (t('ready')) ||
+                             (t('paid')) ||
+                             (t('cancelled')) ||
+                             (table as any).status}
                           </span>
-                        ))}
-                      </div>
-                    )}
-                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-                      {isDirty
-                        ? t('needs_cleaning')
-                        : isMerged
-                          ? `${table?.guest_count || 0} Qonaq · ₼${(table?.total_amount || 0).toFixed(2)}`
-                          : isTakeawayOrDelivery
-                            ? `${(table as any)?.customer_name || ''} ${(table as any)?.customer_phone || ''}`.trim() || t('order')
-                            : isOccupied ? `${table?.guest_count} ${t('guests')} · ₼${(table?.total_amount || 0).toFixed(2)}` : t('empty_table')
-                      }
-                    </p>
+                        )}
+                     {isMerged && (
+                       <div className="flex flex-wrap justify-center gap-1.5 mt-3 mb-4">
+                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'}`}>
+                           Masa {table?.table_number} (Əsas)
+                         </span>
+                         {mergedGroupChildren?.map(child => (
+                           <span key={child.table_number} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'}`}>
+                             Masa {child.table_number}
+                           </span>
+                         ))}
+                       </div>
+                     )}
+                      <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">
+                        {isDirty
+                          ? t('needs_cleaning')
+                          : isMerged
+                            ? `${table?.guest_count || 0} Qonaq · ₼${(table?.total_amount || 0).toFixed(2)}`
+                            : isTakeawayOrDelivery
+                              ? `${(table as any)?.customer_name || ''} ${(table as any)?.customer_phone || ''}`.trim() || t('order')
+                              : isOccupied ? (
+                                  <span className="flex flex-col items-center gap-1">
+                                    <span>{table?.guest_count} {t('guests')} · ₼{(table?.total_amount || 0).toFixed(2)}</span>
+                                    {(table?.total_amount ?? 0) > 0 && (
+                                      <span className={`font-semibold ${
+                                        table?.status === 'paid' || table?.status === 'cleaning'
+                                          ? 'text-green-400'
+                                          : 'text-amber-400'
+                                      }`}>
+                                        {table?.status === 'paid' || table?.status === 'cleaning' ? `✓ ${t('paid' as any)}` : t('unpaid' as any)}
+                                      </span>
+                                    )}
+                                  </span>
+                                ) : t('empty_table')
+                        }
+                      </p>
                   </div>
                   {table?.status === 'reserved' ? (
                     <div className="grid grid-cols-3 gap-3">
@@ -336,21 +348,56 @@ export function ActionSheet({
                     </div>
                    ) : (
                     <div className="space-y-4">
-                      {/* Primary actions section */}
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('main_actions')}</p>
-                        <div className="grid grid-cols-3 gap-3">
-                           {visibleActions.filter(a => ['add_order', 'customer', 'close_bill', 'clear'].includes(a.id)).map((action) => {
-                             if (action.id === 'customer') {
-                               return (
-                                 <button key={action.id} onClick={() => setShowCustomerSearch(true)}
-                                   className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
-                                   <User size={24} strokeWidth={2.5} />
-                                   <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{customerName || t('customer')}</span>
-                                 </button>
-                               );
-                             }
-                               return (
+                       {/* Primary actions section */}
+                       <div>
+                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('main_actions')}</p>
+                         <div className="grid grid-cols-3 gap-3">
+                            {visibleActions.filter(a => ['customer', 'close_bill', 'clear'].includes(a.id)).map((action) => {
+                              if (action.id === 'customer') {
+                                return (
+                                  <button key={action.id} onClick={() => setShowCustomerSearch(true)}
+                                    className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'} active:scale-95`}>
+                                    <User size={24} strokeWidth={2.5} />
+                                    <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{customerName || t('customer')}</span>
+                                  </button>
+                                );
+                              }
+                                return (
+                                <button key={action.id} onClick={() => {
+                                  const fn = {
+                                    close_bill: onOpenPayment,
+                                    cancel_table: () => setConfirmAction('cancel_table'),
+                                    delivery_status: onDeliveryStatus,
+                                    takeaway_status: onTakeawayStatus,
+                                    mark_served: onMarkServed,
+                                    assign_courier: onOpenCourierPicker,
+                                    bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
+                                    print_bill: onPrintBill,
+                                    clear: onClearTable,
+                                  }[action.id as string];
+                                  if (fn) fn();
+                                }}
+                                 className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
+                                   action.id === 'bill_request'
+                                     ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                     : action.id === 'cancel_table'
+                                     ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                     : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
+                                 } active:scale-95`}>
+                                 <action.icon size={24} strokeWidth={2.5} />
+                                 <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{action.label}</span>
+                               </button>
+                             );
+                           })}
+                         </div>
+                       </div>
+
+                       {/* Secondary actions section */}
+                       {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served'].includes(a.id)) && (
+                         <div>
+                           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
+                           <div className="grid grid-cols-3 gap-3">
+                             {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier'].includes(a.id)).map((action) => (
                                <button key={action.id} onClick={() => {
                                  const fn = {
                                    add_order: onAddOrder,
@@ -358,68 +405,33 @@ export function ActionSheet({
                                    cancel_table: () => setConfirmAction('cancel_table'),
                                    delivery_status: onDeliveryStatus,
                                    takeaway_status: onTakeawayStatus,
-                                   mark_served: onMarkServed,
                                    assign_courier: onOpenCourierPicker,
                                    bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
                                    print_bill: onPrintBill,
                                    clear: onClearTable,
+                                   mark_served: onMarkServed,
                                  }[action.id as string];
                                  if (fn) fn();
                                }}
-                                className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
-                                  action.id === 'bill_request'
-                                    ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                    : action.id === 'cancel_table'
-                                    ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                                    : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
-                                } active:scale-95`}>
-                                <action.icon size={24} strokeWidth={2.5} />
-                                <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{action.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Secondary actions section */}
-                      {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier'].includes(a.id)) && (
-                        <div>
-                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
-                          <div className="grid grid-cols-3 gap-3">
-                            {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier'].includes(a.id)).map((action) => (
-                              <button key={action.id} onClick={() => {
-                                const fn = {
-                                  add_order: onAddOrder,
-                                  close_bill: onOpenPayment,
-                                  cancel_table: () => setConfirmAction('cancel_table'),
-                                  delivery_status: onDeliveryStatus,
-                                  takeaway_status: onTakeawayStatus,
-                                  assign_courier: onOpenCourierPicker,
-                                  bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
-                                  print_bill: onPrintBill,
-                                  clear: onClearTable,
-                                }[action.id as string];
-                                if (fn) fn();
-                              }}
-                                className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
-                                  action.id === 'bill_request'
-                                    ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                    : action.id === 'cancel_table'
-                                    ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                                    : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
-                                } active:scale-95`}>
-                                <action.icon size={24} strokeWidth={2.5} />
-                                <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{action.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                                 className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
+                                   action.id === 'bill_request'
+                                     ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                     : action.id === 'cancel_table'
+                                     ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                     : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
+                                 } active:scale-95`}>
+                                 <action.icon size={24} strokeWidth={2.5} />
+                                 <span className="text-xs font-black tracking-widest uppercase text-center px-1 min-h-[32px] flex items-center justify-center">{action.label}</span>
+                               </button>
+                             ))}
+                           </div>
+                         </div>
+                       )}
                     </div>
                    )}
-                    <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('close')}</button>
-                </motion.div>
-              )}
+                     <button onClick={onClose} className="w-full mt-5 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] hover:opacity-100 transition-all">{t('close')}</button>
+                 </motion.div>
+               )}
 
               {currentView === 'payment' && (
                 <motion.div key="ui-payment" {...morphView} className="flex flex-col gap-2" transition={fastExit}>

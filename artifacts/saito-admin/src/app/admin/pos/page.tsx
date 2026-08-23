@@ -663,8 +663,10 @@ export default function POSPage() {
   };
   const handleMarkServed = async () => {
     if (!actionSheetTable) return;
+    const orderId = actionSheetTable.current_order_id || actionSheetTable.order_ids?.[0] || (Array.isArray(actionSheetTable.orders) ? actionSheetTable.orders[0]?.id : undefined);
+    if (!orderId) return;
     try {
-      await orderStateMachine.transition(actionSheetTable.id, 'served');
+      await orderStateMachine.transition(orderId, 'served');
       setActionSheetOpen(false);
       pos.fetchData();
     } catch (e: any) {
@@ -2068,7 +2070,8 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                          onBack={() => { pos.clearCart(); pos.exitReservationMode(); setReservationMode(false); setReservationId(null); setReservationGuest(null); if (pos.selectedTable && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(pos.selectedTable.status)) { setFlashInfo({ tableNumber: pos.selectedTable.table_number, nonce: Date.now() }); } pos.setActiveView('floor'); setEditingOrder(null); }}
                          orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
-                         onUpdateGuests={(delta) => pos.updateGuestCount(delta)}
+                          onEditGuestCount={() => { setActionSheetOpen(true); }}
+                          onGuestCountSaved={() => pos.fetchData()}
                          onUpdateCustomer={(name) => pos.updateCartCustomer(pos.cart?.customer_id || null, name)}
                          onRecordLoss={handleRecordLoss}
                          onClearDraft={() => pos.clearCart()}
@@ -2114,27 +2117,27 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
            table={actionSheetTable} 
            open={actionSheetOpen || paymentView} 
             onClose={() => { playHapticSound('off'); setActionSheetOpen(false); setUnmergeMode(false); setPaymentView(false); setTransferMode(false); setTransferSource(null); setTransferTarget(null); }} 
-          onAddOrder={() => { if (actionSheetTable?.table_number && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(actionSheetTable.status)) { setFlashInfo({ tableNumber: actionSheetTable.table_number, nonce: Date.now() }); } pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
-          onSeatGuests={() => {
-            if (actionSheetTable?.reservation_id) {
-              setActionSheetOpen(false);
-              handleGuestArrived({
-                table_number: actionSheetTable.table_number,
-                reservation_id: actionSheetTable.reservation_id,
-                name: actionSheetTable.reservation_name || null,
-                guests: actionSheetTable.guest_count || 1,
-              });
-            }
-          }}
-         onUnmerge={() => setUnmergeMode(true)}
-         onOpenPayment={handleOpenPayment}
-         onPaymentMethodSelect={handlePaymentMethodSelect}
-         onSplitConfirm={handleSplitConfirm}
-          onBackFromPayment={handleBackFromPayment}
-           onDeliveryStatus={handleDeliveryStatusPick}
-           onTakeawayStatus={() => handleOpenStatusPicker('order')}
-           onMarkServed={handleMarkServed}
-          onCancelTable={async () => {
+           onAddOrder={() => { if (actionSheetTable?.table_number && ['occupied', 'cooking', 'waiting_bill', 'waiting'].includes(actionSheetTable.status)) { setFlashInfo({ tableNumber: actionSheetTable.table_number, nonce: Date.now() }); } pos.selectTable(actionSheetTable); setActionSheetOpen(false); }}
+           onSeatGuests={() => {
+             if (actionSheetTable?.reservation_id) {
+               setActionSheetOpen(false);
+               handleGuestArrived({
+                 table_number: actionSheetTable.table_number,
+                 reservation_id: actionSheetTable.reservation_id,
+                 name: actionSheetTable.reservation_name || null,
+                 guests: actionSheetTable.guest_count || 1,
+               });
+             }
+           }}
+          onUnmerge={() => setUnmergeMode(true)}
+          onOpenPayment={handleOpenPayment}
+          onPaymentMethodSelect={handlePaymentMethodSelect}
+          onSplitConfirm={handleSplitConfirm}
+           onBackFromPayment={handleBackFromPayment}
+            onDeliveryStatus={handleDeliveryStatusPick}
+            onTakeawayStatus={() => handleOpenStatusPicker('order')}
+            onMarkServed={handleMarkServed}
+           onCancelTable={async () => {
             if (!actionSheetTable) return;
             if (posMode === 'takeaway' || posMode === 'delivery') {
               setActionSheetOpen(false);

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export function validateCsrfToken(req: NextRequest): boolean {
+export function validateCsrfToken(req: NextRequest, authenticated = false): boolean {
   const csrfHeader = req.headers.get('x-csrf-token');
   const cookieHeader = req.headers.get('cookie') || '';
   
   const cookieMatch = cookieHeader.match(/saito_csrf=([^;]+)/);
   const cookieToken = cookieMatch ? cookieMatch[1] : null;
   
+  if (!authenticated) return true;
   if (!csrfHeader || !cookieToken) return false;
   if (csrfHeader !== cookieToken) return false;
   

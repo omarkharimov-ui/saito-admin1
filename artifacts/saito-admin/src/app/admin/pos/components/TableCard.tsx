@@ -33,7 +33,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
   const [showKitchenStatus, setShowKitchenStatus] = useState(false);
   const [statusTransition, setStatusTransition] = useState<string | null>(null);
 
-  const isOccupied = ['occupied', 'cooking', 'waiting_bill', 'waiting', 'ordered', 'confirmed', 'in_kitchen', 'served', 'bill_requested', 'payment_pending', 'paid'].includes(table.status);
+  const isOccupied = ['ordering', 'occupied', 'cooking', 'waiting_bill', 'waiting', 'ordered', 'confirmed', 'in_kitchen', 'served', 'dining', 'bill_requested', 'payment_pending', 'paid', 'cleaning'].includes(table.status);
   const isServed = table.status === 'served';
   const isDirty = table.status === 'dirty';
   const isReserved = table.status === 'reserved';
@@ -154,42 +154,84 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
     },
-    ordered: {
-      icon: ShoppingBag,
-      label: t('table_ordered' as any),
-      bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
-      iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
-      dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
-    },
-    confirmed: {
-      icon: CheckCircle2,
-      label: t('table_confirmed' as any),
-      bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
-      iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
-      dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
-    },
-    in_kitchen: {
-      icon: Utensils,
-      label: t('table_in_kitchen' as any),
-      bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
-      iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
-      dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
-    },
-    ready: {
-      icon: CheckCircle2,
-      label: t('table_ready' as any),
-      bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
-      iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
-      dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
-    },
-    served: {
-      icon: CheckCircle2,
-      label: t('order_served' as any),
-      bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
-      iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
-      dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
-    },
-    empty: {
+     ordered: {
+       icon: ShoppingBag,
+       label: t('table_ordered' as any),
+       bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+     },
+     confirmed: {
+       icon: CheckCircle2,
+       label: t('table_confirmed' as any),
+       bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+     },
+     in_kitchen: {
+       icon: Utensils,
+       label: t('table_in_kitchen' as any),
+       bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+     },
+     ready: {
+       icon: CheckCircle2,
+       label: t('table_ready' as any),
+       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
+       iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
+       dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
+     },
+     served: {
+       icon: CheckCircle2,
+       label: t('order_served' as any),
+       bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+     },
+     ordering: {
+       icon: Utensils,
+       label: t('table_ordered' as any),
+       bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+     },
+     dining: {
+       icon: CheckCircle2,
+       label: t('order_served' as any),
+       bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+     },
+     bill_requested: {
+       icon: Receipt,
+       label: t('bill_requested' as any),
+       bg: lightMode ? 'bg-rose-100 border-rose-400 text-rose-800' : 'bg-rose-500/25 border-rose-400/60 text-rose-300',
+       iconColor: lightMode ? 'text-rose-700' : 'text-rose-400',
+       dotColor: lightMode ? 'bg-rose-500' : 'bg-rose-400',
+     },
+     payment_pending: {
+       icon: CreditCard,
+       label: t('payment_pending' as any),
+       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
+       iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
+       dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
+     },
+     paid: {
+       icon: CheckCircle2,
+       label: t('paid' as any),
+       bg: lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-800' : 'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+       iconColor: lightMode ? 'text-emerald-700' : 'text-emerald-400',
+       dotColor: lightMode ? 'bg-emerald-500' : 'bg-emerald-400',
+     },
+     cleaning: {
+       icon: null,
+       label: t('needs_cleaning' as any),
+       bg: lightMode ? 'bg-amber-100 border-amber-400 text-amber-800' : 'bg-amber-500/25 border-amber-400/60 text-amber-300',
+       iconColor: lightMode ? 'text-amber-700' : 'text-amber-400',
+       dotColor: lightMode ? 'bg-amber-500' : 'bg-amber-400',
+     },
+     empty: {
       icon: null,
       label: t('empty' as any),
       bg: lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-500' : 'bg-white/10 border-white/20 text-zinc-400',
@@ -285,14 +327,14 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         {/* Main content: Amount hero + guests */}
         {showContent && (
           <div className="absolute top-[52px] left-5 right-5">
-             {/* Amount as hero element */}
-             {displayAmount && (
-               <div className="mb-2">
-                 <p className={`text-[32px] font-black tracking-tight ${lightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>
-                   ₼{displayAmount.toFixed(2)}
-                 </p>
-               </div>
-             )}
+              {/* Amount as hero element */}
+              {displayAmount && (
+                <div className="mb-2">
+                  <p className="text-[32px] font-black tracking-tight text-white">
+                    ₼{displayAmount.toFixed(2)}
+                  </p>
+                </div>
+              )}
              
              {/* Reservation name first */}
              {isWaiting && table.reservation_name && (
@@ -361,55 +403,55 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
         {/* Bottom row: Status badges + order count */}
         <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-             <AnimatePresence mode="wait">
-              {!showOccupiedFlash && isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' && table.status !== 'served' ? (
-                <motion.div
-                  key="kitchen"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                   className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${
-                     kitchenStatus === 'preparing' || kitchenStatus === 'cooking'
-                       ? lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300'
-                       : kitchenStatus === 'ready'
-                         ? lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
-                         : lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-600' : 'bg-white/10 border-white/20 text-zinc-300'
-                   }`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${
-                    kitchenStatus === 'preparing' || kitchenStatus === 'cooking' ? (lightMode ? 'bg-blue-500 animate-pulse' : 'bg-blue-400 animate-pulse')
-                      : kitchenStatus === 'ready' ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-400')
-                      : lightMode ? 'bg-zinc-400' : 'bg-white/40'
-                  }`} />
-                  {kitchenStatus === 'preparing' || kitchenStatus === 'cooking' ? t('kitchen_preparing' as any) : kitchenStatus === 'ready' ? t('kitchen_ready_badge' as any) : kitchenStatus === 'new' ? t('kitchen_new_badge' as any) : kitchenStatus === 'pending' ? t('kitchen_pending' as any) : kitchenStatus}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="status"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${currentStatus.bg}`}>
-                  {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={currentStatus.iconColor} />}
-                {showOccupiedFlash ? t('occupied' as any) : currentStatus.label}
-                  {table.status === 'dirty' && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 3v15" />
-                      <path d="M5 20h14v4H5z" />
-                      <path d="M9 16c1-2 3-2 6 0" />
-                    </svg>
-                  )}
-                </motion.div>
+              <AnimatePresence mode="wait">
+               {!showOccupiedFlash && isOccupied && showKitchenStatus && kitchenStatus && kitchenStatus !== 'completed' && kitchenStatus !== 'cancelled' && kitchenStatus !== 'ready' && table.status !== 'served' && table.status !== 'dining' ? (
+                 <motion.div
+                   key="kitchen"
+                   initial={{ opacity: 0, y: 4 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   exit={{ opacity: 0, y: -4 }}
+                   transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${
+                      kitchenStatus === 'preparing' || kitchenStatus === 'cooking'
+                        ? lightMode ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-blue-500/25 border-blue-400/50 text-blue-300'
+                        : kitchenStatus === 'ready'
+                          ? lightMode ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
+                          : lightMode ? 'bg-zinc-100 border-zinc-300 text-zinc-600' : 'bg-white/10 border-white/20 text-zinc-300'
+                    }`}>
+                   <div className={`w-1.5 h-1.5 rounded-full ${
+                     kitchenStatus === 'preparing' || kitchenStatus === 'cooking' ? (lightMode ? 'bg-blue-500 animate-pulse' : 'bg-blue-400 animate-pulse')
+                       : kitchenStatus === 'ready' ? (lightMode ? 'bg-emerald-500' : 'bg-emerald-400')
+                       : lightMode ? 'bg-zinc-400' : 'bg-white/40'
+                   }`} />
+                   {kitchenStatus === 'preparing' || kitchenStatus === 'cooking' ? t('kitchen_preparing' as any) : kitchenStatus === 'ready' ? t('table_ready' as any) : kitchenStatus === 'new' ? t('kitchen_new_badge' as any) : kitchenStatus === 'pending' ? t('kitchen_pending' as any) : kitchenStatus}
+                 </motion.div>
+               ) : (
+                 <motion.div
+                   key="status"
+                   initial={{ opacity: 0, y: 4 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   exit={{ opacity: 0, y: -4 }}
+                   transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+                   className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${currentStatus.bg}`}>
+                   {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={currentStatus.iconColor} />}
+                 {showOccupiedFlash ? t('occupied' as any) : currentStatus.label}
+                   {table.status === 'dirty' && (
+                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                       <path d="M12 3v15" />
+                       <path d="M5 20h14v4H5z" />
+                       <path d="M9 16c1-2 3-2 6 0" />
+                     </svg>
+                   )}
+                 </motion.div>
+               )}
+             </AnimatePresence>
+              {table.bill_requested && (
+                <span className="shrink-0 relative px-2.5 py-1 rounded-lg text-xs font-black border-2 border-rose-500 bg-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/30 flex items-center gap-1">
+                  <Receipt size={10} strokeWidth={2.5} />
+                  {t('bill_requested' as any)}
+                </span>
               )}
-            </AnimatePresence>
-             {table.bill_requested && (
-               <span className="shrink-0 relative px-2.5 py-1 rounded-lg text-xs font-black border-2 border-rose-500 bg-rose-500/20 text-rose-400 shadow-lg shadow-rose-500/30 flex items-center gap-1">
-                 <Receipt size={10} strokeWidth={2.5} />
-                 {t('bill_requested' as any)}
-               </span>
-             )}
-             {table.has_pending && (
+              {table.has_pending && (
                 <span className={`shrink-0 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest flex items-center gap-1 ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
                    <Clock size={10} strokeWidth={2.5} />
                    {t('pending_status' as any)}

@@ -7,6 +7,7 @@ import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, R
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
+import { apiFetch } from '@/lib/api-fetch';
 import type { PosCart, PosCartItem, LossItem } from '../types/shared';
 import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
 import { NumberRoll } from './NumberRoll';
@@ -43,10 +44,11 @@ interface CartPanelProps {
   onGuestArrived?: () => void;
   customerId?: string | null;
   customerName?: string | null;
-  guestCountLoading?: boolean;
   onUpdateItem?: (index: number, patch: Partial<PosCartItem>) => void;
   onUpdateOrderType?: (type: 'dine_in' | 'takeaway' | 'delivery') => void;
   posMode?: 'dine_in' | 'takeaway' | 'delivery';
+  onEditGuestCount?: () => void;
+  onGuestCountSaved?: () => void;
   onUpdateDeliveryFields?: (fields: {
     customer_phone?: string | null; customer_name?: string | null;
     delivery_address?: string | null; delivery_district?: string | null;
@@ -92,10 +94,11 @@ export function CartPanel({
   reservationPreOrderItems = [],
   onGuestArrived,
   customerId, customerName,
-  guestCountLoading = false,
   onUpdateItem,
   onUpdateOrderType,
   posMode = 'dine_in',
+  onEditGuestCount,
+  onGuestCountSaved,
   onUpdateDeliveryFields,
   onUpdateGlobalNote,
   onOpenModifiers,
@@ -119,6 +122,42 @@ export function CartPanel({
   const [numpadOpen, setNumpadOpen] = useState(false);
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const [guestEditing, setGuestEditing] = useState(false);
+  const [localGuestCount, setLocalGuestCount] = useState(cart?.guest_count ?? 1);
+  const guestEditRef = useRef<HTMLButtonElement>(null);
+  const [guestSaving, setGuestSaving] = useState(false);
+
+  const commitGuestCount = async (count: number): Promise<boolean> => {
+    setGuestSaving(true);
+    try {
+      const res = await apiFetch('/api/orders/guest-count', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: cart?.table_number, guest_count: count }),
+      });
+      if (res.ok) {
+        onGuestCountSaved?.();
+        return true;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.error || 'Qonaq sayı yenilənə bilmədi', { id: 'guest-count-error' });
+        return false;
+      }
+    } catch (e: any) {
+      console.error('[guest-count] save failed:', e);
+      toast.error(e?.message || 'Qonaq sayı yenilənə bilmədi', { id: 'guest-count-error' });
+      return false;
+    } finally {
+      setGuestSaving(false);
+    }
+  };
+
+  const handleGuestSave = async () => {
+    const success = await commitGuestCount(localGuestCount);
+    if (success) {
+      setGuestEditing(false);
+    }
+  };
   const { height: vkHeight, isOpen: vkOpen, close: closeVk } = useVirtualKeyboard();
   const noteInputRef = useRef<HTMLTextAreaElement | null>(null);
   const loadedNoteRef = useRef('');
@@ -141,12 +180,38 @@ export function CartPanel({
   }, [cart]);
 
   useEffect(() => {
-    return () => { if (lossExitTimerRef.current) clearTimeout(lossExitTimerRef.current); };
-  }, []);
+    setGlobalNote(cart?.notes || '');
+  }, [cart?.notes]);
 
   useEffect(() => {
     setGlobalNote(cart?.notes || '');
   }, [cart?.notes]);
+
+  useEffect(() => {
+    if (!guestEditing) {
+      setLocalGuestCount(cart?.guest_count ?? 1);
+    }
+  }, [cart?.guest_count, guestEditing]);
+
+  useEffect(() => {
+    if (!guestEditing) return;
+    const handleClickOutside = async (e: MouseEvent) => {
+      if (guestEditRef.current && !guestEditRef.current.contains(e.target as Node)) {
+        await handleGuestSave();
+      }
+    };
+    const handleEscape = async (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        await handleGuestSave();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [guestEditing, localGuestCount, guestSaving]);
 
   const ORDER_TYPE_OPTIONS = [
     { value: 'dine_in' as const, label: t('dine_in'), icon: Utensils, color: 'emerald' },
@@ -348,40 +413,72 @@ export function CartPanel({
                 <span className="text-xs font-medium text-[var(--theme-text-secondary)]">Rezervasiya üçün öncədən sifariş</span>
               </div>
             )}
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="flex items-center gap-1.5">
-                <span className={`text-sm font-black tabular-nums leading-none ${
-                  cart.items.length > 0 ? 'text-[var(--theme-text)]' : (lightMode ? 'text-zinc-300' : 'text-white/30')
-                }`}>
-                  {cart.items.length}
-                </span>
-                <ShoppingBag size={14} className="text-[var(--theme-text-secondary)]" />
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-sm font-black tabular-nums leading-none ${
+                    cart.items.length > 0 ? 'text-[var(--theme-text)]' : (lightMode ? 'text-zinc-300' : 'text-white/30')
+                  }`}>
+                    {cart.items.length}
+                  </span>
+                  <ShoppingBag size={14} className="text-[var(--theme-text-secondary)]" />
+                  <span className="text-xs text-[var(--theme-text-secondary)]">{t('items')}</span>
+                </div>
+                {posMode === 'dine_in' && (
+                  <>
+                    <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
+                    <div className="flex-shrink-0 overflow-hidden" style={{ width: 200 }}>
+                      <motion.button
+                        ref={guestEditRef}
+                        onClick={(e) => { e.stopPropagation(); setGuestEditing(true); }}
+                        className="flex items-center gap-1.5 group"
+                      >
+                        <Users size={14} className="text-[var(--theme-text-secondary)] group-hover:text-[var(--theme-text)]" />
+                        <motion.div layout className="flex items-center gap-1">
+                          {!guestEditing ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm font-black tabular-nums text-[var(--theme-text)] group-hover:text-emerald-400 transition-colors">{cart.guest_count}</span>
+                              <span className="text-xs text-[var(--theme-text-secondary)] group-hover:text-emerald-400 transition-colors">{t('guests')}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const next = Math.max(1, localGuestCount - 1);
+                                  setLocalGuestCount(next);
+                                }}
+                                disabled={localGuestCount <= 1 || guestSaving}
+                                className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-30 disabled:pointer-events-none"
+                              >
+                                −
+                              </button>
+                              <span className="text-base font-black tabular-nums text-[var(--theme-text)] min-w-[28px] text-center">{localGuestCount}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const next = localGuestCount + 1;
+                                  setLocalGuestCount(next);
+                                }}
+                                disabled={guestSaving}
+                                className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90"
+                              >
+                                +
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleGuestSave(); }}
+                                disabled={guestSaving}
+                                className="w-11 h-11 rounded-xl flex items-center justify-center text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-sm font-black leading-none transition-all active:scale-90 disabled:opacity-50"
+                              >
+                                {guestSaving ? '…' : '✓'}
+                              </button>
+                            </div>
+                          )}
+                        </motion.div>
+                      </motion.button>
+                    </div>
+                  </>
+                )}
               </div>
-              <span className="text-xs text-[var(--theme-text-secondary)]">{t('items')}</span>
-              {posMode === 'dine_in' && (
-                <>
-                  <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
-                  <div className="flex items-center gap-2">
-                    <Users size={14} className="text-[var(--theme-text-secondary)]" />
-                    {onUpdateGuests && (
-                      <button onClick={(e) => { e.stopPropagation(); onUpdateGuests(-1); }}
-                        disabled={guestCountLoading || (cart.guest_count ?? 1) <= 1}
-                        className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
-                        −
-                      </button>
-                    )}
-                     <span className="text-lg font-black tabular-nums text-[var(--theme-text)] min-w-[24px] text-center">{cart.guest_count}</span>
-                    {onUpdateGuests && (
-                      <button onClick={(e) => { e.stopPropagation(); onUpdateGuests(1); }}
-                        disabled={guestCountLoading}
-                        className="w-11 h-11 rounded-2xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
-                        +
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
             {(posMode === 'takeaway' || posMode === 'delivery') && cart.customer_name ? (
               <div className="flex items-center gap-2 mt-1.5">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${lightMode ? 'bg-blue-100 text-blue-600' : 'bg-blue-500/20 text-blue-400'}`}>

@@ -1,7 +1,12 @@
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const csrfToken = typeof document !== 'undefined' 
+  let csrfToken = typeof document !== 'undefined' 
     ? document.cookie.match(/saito_csrf=([^;]+)/)?.[1] 
     : null;
+  
+  if (!csrfToken && typeof document !== 'undefined') {
+    csrfToken = crypto.randomUUID();
+    document.cookie = `saito_csrf=${csrfToken}; path=/; max-age=3600; SameSite=Strict`;
+  }
   
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),

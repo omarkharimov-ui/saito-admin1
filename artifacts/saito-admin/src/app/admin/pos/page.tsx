@@ -2071,7 +2071,10 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                          orderButtonStatus={pos.placingOrder ? 'loading' : 'idle'}
                          onUpdateQty={(idx, delta) => pos.updateCartItemQty(idx, delta)}
                           onEditGuestCount={() => { setActionSheetOpen(true); }}
-                          onGuestCountSaved={() => pos.fetchData()}
+                          onGuestCountSaved={(count) => {
+                              if (pos.cart) pos.setCart({ ...pos.cart, guest_count: count });
+                              pos.fetchData();
+                            }}
                          onUpdateCustomer={(name) => pos.updateCartCustomer(pos.cart?.customer_id || null, name)}
                          onRecordLoss={handleRecordLoss}
                          onClearDraft={() => pos.clearCart()}

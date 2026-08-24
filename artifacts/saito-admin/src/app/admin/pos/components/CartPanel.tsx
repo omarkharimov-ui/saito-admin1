@@ -48,7 +48,7 @@ interface CartPanelProps {
   onUpdateOrderType?: (type: 'dine_in' | 'takeaway' | 'delivery') => void;
   posMode?: 'dine_in' | 'takeaway' | 'delivery';
   onEditGuestCount?: () => void;
-  onGuestCountSaved?: () => void;
+  onGuestCountSaved?: (count: number) => void;
   onUpdateDeliveryFields?: (fields: {
     customer_phone?: string | null; customer_name?: string | null;
     delivery_address?: string | null; delivery_district?: string | null;
@@ -124,10 +124,10 @@ export function CartPanel({
   const [isNoteOpen, setIsNoteOpen] = useState(false);
   const [guestEditing, setGuestEditing] = useState(false);
   const [localGuestCount, setLocalGuestCount] = useState(cart?.guest_count ?? 1);
-  const guestEditRef = useRef<HTMLButtonElement>(null);
+  const guestEditRef = useRef<HTMLDivElement>(null);
   const [guestSaving, setGuestSaving] = useState(false);
 
-  const commitGuestCount = async (count: number): Promise<boolean> => {
+  const commitGuestCount = useCallback(async (count: number): Promise<boolean> => {
     setGuestSaving(true);
     try {
       const res = await apiFetch('/api/orders/guest-count', {
@@ -136,7 +136,7 @@ export function CartPanel({
         body: JSON.stringify({ table_number: cart?.table_number, guest_count: count }),
       });
       if (res.ok) {
-        onGuestCountSaved?.();
+        onGuestCountSaved?.(count);
         return true;
       } else {
         const err = await res.json().catch(() => ({}));
@@ -150,14 +150,14 @@ export function CartPanel({
     } finally {
       setGuestSaving(false);
     }
-  };
+  }, [cart?.table_number, onGuestCountSaved]);
 
-  const handleGuestSave = async () => {
+  const handleGuestSave = useCallback(async () => {
     const success = await commitGuestCount(localGuestCount);
     if (success) {
       setGuestEditing(false);
     }
-  };
+  }, [localGuestCount, commitGuestCount]);
   const { height: vkHeight, isOpen: vkOpen, close: closeVk } = useVirtualKeyboard();
   const noteInputRef = useRef<HTMLTextAreaElement | null>(null);
   const loadedNoteRef = useRef('');
@@ -211,7 +211,7 @@ export function CartPanel({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [guestEditing, localGuestCount, guestSaving]);
+  }, [guestEditing, localGuestCount, guestSaving, handleGuestSave]);
 
   const ORDER_TYPE_OPTIONS = [
     { value: 'dine_in' as const, label: t('dine_in'), icon: Utensils, color: 'emerald' },
@@ -385,7 +385,8 @@ export function CartPanel({
   const hasLossSelection = selectedForLoss.size > 0;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 px-6 relative" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
+    <>
+      <div className="flex flex-col flex-1 min-h-0 px-6 relative" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
       {/* Header */}
       <div className={`flex items-center justify-between flex-shrink-0 pt-6 ${isReservationMode ? 'pb-3 border-b border-[var(--theme-border)]' : 'pb-4'}`}>
         <div className="flex items-center gap-2">
@@ -426,55 +427,77 @@ export function CartPanel({
                 {posMode === 'dine_in' && (
                   <>
                     <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
-                    <div className="flex-shrink-0 overflow-hidden" style={{ width: 200 }}>
-                      <motion.button
+                    <div className="flex-shrink-0 overflow-hidden" style={{ width: 200, height: 44 }}>
+                      <div
                         ref={guestEditRef}
-                        onClick={(e) => { e.stopPropagation(); setGuestEditing(true); }}
-                        className="flex items-center gap-1.5 group"
+                        onClick={(e) => { e.stopPropagation(); if (!guestEditing) setGuestEditing(true); }}
+                        onKeyDown={(e) => { if (!guestEditing && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setGuestEditing(true); } }}
+                        role="button"
+                        tabIndex={0}
+                        className="flex items-center gap-1.5 group cursor-pointer relative w-full h-full"
                       >
-                        <Users size={14} className="text-[var(--theme-text-secondary)] group-hover:text-[var(--theme-text)]" />
-                        <motion.div layout className="flex items-center gap-1">
-                          {!guestEditing ? (
-                            <div className="flex items-center gap-1">
-                              <span className="text-sm font-black tabular-nums text-[var(--theme-text)] group-hover:text-emerald-400 transition-colors">{cart.guest_count}</span>
-                              <span className="text-xs text-[var(--theme-text-secondary)] group-hover:text-emerald-400 transition-colors">{t('guests')}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const next = Math.max(1, localGuestCount - 1);
-                                  setLocalGuestCount(next);
-                                }}
-                                disabled={localGuestCount <= 1 || guestSaving}
-                                className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-30 disabled:pointer-events-none"
+                        <Users size={14} className="text-[var(--theme-text-secondary)] group-hover:text-[var(--theme-text)] flex-shrink-0" />
+                        <div className="flex items-center relative w-full h-full overflow-hidden">
+                          <AnimatePresence mode="wait" initial={false}>
+                            {!guestEditing ? (
+                              <motion.div
+                                key="guest-display"
+                                className="flex items-center gap-1 absolute inset-0"
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                               >
-                                −
-                              </button>
-                              <span className="text-base font-black tabular-nums text-[var(--theme-text)] min-w-[28px] text-center">{localGuestCount}</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const next = localGuestCount + 1;
-                                  setLocalGuestCount(next);
-                                }}
-                                disabled={guestSaving}
-                                className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90"
+                                <span className="text-sm font-black tabular-nums text-[var(--theme-text)] group-hover:text-emerald-400 transition-colors">{cart.guest_count}</span>
+                                <span className="text-xs text-[var(--theme-text-secondary)] group-hover:text-emerald-400 transition-colors">{t('guests')}</span>
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="guest-edit"
+                                className="flex items-center gap-1.5 absolute inset-0"
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                               >
-                                +
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleGuestSave(); }}
-                                disabled={guestSaving}
-                                className="w-11 h-11 rounded-xl flex items-center justify-center text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-sm font-black leading-none transition-all active:scale-90 disabled:opacity-50"
-                              >
-                                {guestSaving ? '…' : '✓'}
-                              </button>
-                            </div>
-                          )}
-                        </motion.div>
-                      </motion.button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const next = Math.max(1, localGuestCount - 1);
+                                    setLocalGuestCount(next);
+                                  }}
+                                  disabled={localGuestCount <= 1 || guestSaving}
+                                  className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-30 disabled:pointer-events-none"
+                                >
+                                  −
+                                </button>
+                                <span className="text-base font-black tabular-nums text-[var(--theme-text)] min-w-[28px] text-center">{localGuestCount}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const next = localGuestCount + 1;
+                                    setLocalGuestCount(next);
+                                  }}
+                                  disabled={guestSaving}
+                                  className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90"
+                                >
+                                  +
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleGuestSave(); }}
+                                  disabled={guestSaving}
+                                  className="w-11 h-11 rounded-xl flex items-center justify-center text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-sm font-black leading-none transition-all active:scale-90 disabled:opacity-50"
+                                >
+                                  {guestSaving ? '…' : '✓'}
+                                </button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
@@ -912,5 +935,7 @@ export function CartPanel({
       )}
 
     </div>
+
+    </>
   );
 }

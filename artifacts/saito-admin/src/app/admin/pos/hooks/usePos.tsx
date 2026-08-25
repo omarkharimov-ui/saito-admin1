@@ -173,7 +173,8 @@ export function usePos() {
                   station: item.station || 'kitchen',
                   course: item.course || 'mains',
                   priority: item.priority || 'normal',
-                  hold_until: null,
+                  hold_until: item.hold_until || null,
+                  is_hold: !!item.hold_until,
                   order_id: o.id,
                 }))
               );
@@ -366,6 +367,8 @@ export function usePos() {
               modifiers: typeof item.modifiers === 'string' ? JSON.parse(item.modifiers || '[]') : (item.modifiers || []),
               special_notes: item.special_notes || '',
               hold_until: item.hold_until || null,
+              is_hold: !!item.hold_until,
+              course: item.course || 'mains',
               is_combo: !!item.is_combo_parent,
               combo_id: item.combo_group_id || null,
               sentQuantity: item.quantity,
@@ -1229,6 +1232,9 @@ export function usePos() {
         variant_id: item.variant_id || null,
         is_combo: !!item.is_combo_parent,
         combo_id: item.combo_group_id || null,
+        course: item.course || 'mains',
+        hold_until: item.hold_until || null,
+        is_hold: !!item.hold_until,
         sentQuantity: item.quantity,
       })),
       notes: order.special_notes || order.customer_note || '',

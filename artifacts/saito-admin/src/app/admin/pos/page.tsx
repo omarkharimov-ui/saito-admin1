@@ -1290,15 +1290,6 @@ export default function POSPage() {
        {/* MODE SWITCHER — always visible */}
        <div className="flex items-center gap-4 px-6 pt-2 pb-2">
            <h1 className="text-2xl font-black tracking-tighter">POS</h1>
-           <button
-             onClick={() => {
-               window.dispatchEvent(new CustomEvent('pos-toggle-sidebar'));
-             }}
-             className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-             title={t('menu')}
-           >
-             <PanelLeftClose size={16} />
-           </button>
            <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
            {[
              { mode: 'dine_in' as const, icon: Utensils, label: t('dine_in'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#10b981' },
@@ -1328,13 +1319,15 @@ export default function POSPage() {
              </button>
            ))}
            </div>
-          {pos.floors.length > 1 && posMode === 'dine_in' && (
+           {pos.floors.length > 1 && posMode === 'dine_in' ? (
             <LiquidDropdown
               options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}
               activeId={activeFloor?.name}
               onChange={setSelectedFloor}
             />
-          )}
+          ) : pos.floors.length > 1 ? (
+            <div className="w-[120px]" />
+          ) : null}
           <div className="flex-1" />
           <button
             onClick={() => setOrderHistoryOpen(true)}
@@ -2221,21 +2214,23 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
           >
             <motion.div
               {...slideUp}
-              className="bg-white rounded-3xl shadow-elevated max-h-[90vh] overflow-auto max-w-sm w-full"
+              className="bg-white rounded-3xl shadow-elevated max-h-[90vh] overflow-auto max-w-xs w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Receipt title — top of popup */}
-              <div className="px-4 pt-5 pb-3 text-center border-b border-dashed border-zinc-200">
-                <h2 className="text-lg font-black text-zinc-900 tracking-tight uppercase">
-                  {receiptView.receiptTitle || 'SİFARİŞ ÇEKİ'}
+              {/* Success checkmark header */}
+              <div className="px-4 pt-5 pb-3 text-center">
+                <div className="mx-auto mb-2 w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <h2 className="text-sm font-black text-emerald-600 tracking-tight uppercase">
+                  {t('order_paid')} ✓
                 </h2>
-                <p className="mt-0.5 text-[10px] text-zinc-400">
-                  {receiptView.paymentDate} · {receiptView.paymentTime}
-                </p>
               </div>
 
               {/* Inline receipt items */}
-              <div className="px-3 py-3">
+              <div className="px-3 pb-3">
                 <ReceiptPreview
                   title={receiptView.receiptTitle || 'SİFARİŞ ÇEKİ'}
                   tableNumber={receiptView.tableNumber}
@@ -2249,16 +2244,6 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                   date={receiptView.paymentDate}
                   time={receiptView.paymentTime}
                 />
-              </div>
-
-              {/* Payment info row */}
-              <div className="px-3 pb-2">
-                <div className="flex items-center justify-between text-[10px] text-zinc-400">
-                  <span>{t('table')} {receiptView.tableNumber}</span>
-                  <span className="font-semibold text-zinc-600">
-                    {receiptView.paymentMethod === 'cash' ? t('cash') : receiptView.paymentMethod === 'card' ? t('card') : receiptView.paymentMethod}
-                  </span>
-                </div>
               </div>
 
               {/* Cash tendered + change */}

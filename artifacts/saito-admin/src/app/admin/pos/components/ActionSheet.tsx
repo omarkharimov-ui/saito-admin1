@@ -228,7 +228,7 @@ export function ActionSheet({
                   <div className={`w-10 h-1.5 rounded-full ${lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
                 </div>
               )}
-              <AnimatePresence mode="wait" initial={false}>
+              <AnimatePresence mode="popLayout" initial={false}>
                 {currentView === 'actions' && (
                   <motion.div key="ui-actions" {...morphView} transition={fastExit}>
                     <div className="text-center mb-6">

@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2 } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
 import { apiFetch } from '@/lib/api-fetch';
 import type { PosCart, PosCartItem, LossItem } from '../types/shared';
-import { SendOrderButton, type SendOrderButtonStatus } from './SendOrderButton';
+import type { SendOrderButtonStatus } from './SendOrderButton';
 import { NumberRoll } from './NumberRoll';
 import { RollingNumber } from './RollingNumber';
 import { PinGuard } from './PinGuard';
@@ -427,20 +427,12 @@ export function CartPanel({
             <div className="h-10 w-10 rounded-xl bg-[var(--theme-surface-muted)] animate-pulse" />
             <div className="h-3 w-24 rounded-md bg-[var(--theme-surface-muted)] animate-pulse" />
           </div>
-          <div className="flex-shrink-0 pb-2">
-            <div className="h-[72px] w-full rounded-4xl bg-[var(--theme-surface-muted)] animate-pulse" />
-          </div>
         </div>
       );
     }
     const emptyTitle = mergedChildNumbers && mergedChildNumbers.length > 0
       ? `${t('group_label')} ${cart.table_number ?? '-'}`
       : posMode === 'takeaway' ? t('takeaway') : posMode === 'delivery' ? t('delivery') : `${t('table_label')} ${cart.table_number ?? '-'}`;
-    const emptyAction = canSeat
-      ? { label: t('seat_table'), icon: <Armchair size={18} />, className: 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110', onClick: handleSeatTable }
-      : (isDineInContext && hasExistingOrder && onOpenActions)
-        ? { label: t('actions'), icon: <MoreHorizontal size={18} />, className: `${lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100'}`, onClick: onOpenActions }
-        : null;
     return (
       <div className="flex flex-col h-full px-6 relative">
         <div className="flex items-start gap-2 flex-shrink-0 pb-4 pt-6">
@@ -475,36 +467,11 @@ export function CartPanel({
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-[var(--theme-text-muted)]">
           <ShoppingBag size={56} className="mb-4 opacity-15" />
-          <motion.p
-            key={`np-${emptyAction?.label || 'none'}`}
-            initial={{ opacity: 0, y: 2 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-            className="text-sm font-black uppercase tracking-widest mb-1"
-          >
+          <p className="text-sm font-black uppercase tracking-widest mb-1">
             {t('no_products')}
-          </motion.p>
+          </p>
           <p className="text-xs mb-6 opacity-60">{t('add_items_hint')}</p>
         </div>
-        {emptyAction && (
-          <div className="w-full flex-shrink-0 pb-2">
-            <AnimatePresence mode="wait">
-              <motion.button
-                key={emptyAction.label}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                onClick={emptyAction.onClick}
-                disabled={seatBusy}
-                className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${seatBusy ? 'cursor-wait opacity-80' : 'cursor-pointer'} ${emptyAction.className}`}
-              >
-                {seatBusy ? <Loader2 size={20} className="animate-spin" /> : emptyAction.icon}
-                {emptyAction.label}
-              </motion.button>
-            </AnimatePresence>
-          </div>
-        )}
       </div>
     );
   }
@@ -1020,24 +987,50 @@ export function CartPanel({
             </div>
           )}
          {/* Footer actions removed from here */}
-         <div className="w-full flex-shrink-0">
-           {(() => {
-             const showActions = isDineInContext && hasExistingOrder && !hasDraft && orderButtonStatus === 'idle';
-             return (
-               <SendOrderButton
-                 disabled={(lossMode && selectedForLoss.size === 0) || confirming}
-                 status={lossMode ? 'idle' : orderButtonStatus}
-                 variant={lossMode ? 'loss' : 'send'}
-                 action={showActions ? 'actions' : 'send'}
-                 label={lossMode ? t('loss_confirm') : (isReservationMode ? 'PRE-ORDER SİFARİŞİ YADDA SAXLA' : (showActions ? t('actions') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))))}
-                 onClick={showActions && onOpenActions ? onOpenActions : (lossMode ? confirmLoss : onPlaceOrder)}
-                 isDirty={isDirty}
-                 className="w-full"
-               />
-             );
-           })()}
-        </div>
       </div>
+
+      {/* ═══ Unified morph action button — always same position ═══ */}
+      {(() => {
+        if (isEmpty && !canSeat) return null;
+        const showActions = isDineInContext && hasExistingOrder && !hasDraft && orderButtonStatus === 'idle';
+        const btnAction = canSeat ? 'seat' : showActions ? 'actions' : 'send';
+        const btnKey = `${btnAction}-${lossMode ? 'loss' : ''}-${cart.table_number}`;
+        return (
+          <div className="w-full flex-shrink-0 px-6 pb-5 pt-2">
+            <AnimatePresence mode="wait">
+              <motion.button
+                key={btnKey}
+                layoutId="cart-primary-btn"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                disabled={(lossMode && selectedForLoss.size === 0) || confirming || seatBusy}
+                onClick={canSeat ? handleSeatTable : lossMode ? confirmLoss : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
+                className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+                  ${(lossMode && selectedForLoss.size === 0) || confirming || seatBusy ? 'cursor-wait opacity-80' : 'cursor-pointer'}
+                  ${canSeat
+                    ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
+                    : lossMode
+                      ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/20'
+                      : showActions
+                        ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100')
+                        : isDirty
+                          ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
+                          : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-white/40')
+                  }`}
+              >
+                {seatBusy ? <Loader2 size={20} className="animate-spin" /> :
+                 canSeat ? <Armchair size={18} /> :
+                 lossMode ? <CheckCircle size={18} /> :
+                 showActions ? <MoreHorizontal size={18} /> :
+                 <Send size={16} />}
+                {lossMode ? t('loss_confirm') : canSeat ? t('seat_table') : showActions ? t('actions') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))}
+              </motion.button>
+            </AnimatePresence>
+          </div>
+        );
+      })()}
 
       {/* PIN Guard for loss mode */}
       <PinGuard

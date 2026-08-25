@@ -797,7 +797,7 @@ export const ru: TranslationMap = {
   seat_table: 'Занять стол',
   guest_seated: 'Гость размещён',
   seat_failed: 'Не удалось занять стол',
-  seated_no_order: 'Сидят · без заказа',
+  seated_no_order: 'Новая посадка',
   all_archive: 'Весь архив',
   today_filter: 'Сегодня',
   general_filter: 'Общее',

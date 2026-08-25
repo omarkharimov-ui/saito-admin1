@@ -772,7 +772,7 @@ export const az = {
   seat_table: 'Masanı Tut',
   guest_seated: 'Müştəri oturdu',
   seat_failed: 'Masa tutula bilmədi',
-  seated_no_order: 'Oturub · sifariş yoxdur',
+  seated_no_order: 'Yeni oturuş',
   all_archive: 'Bütün arxiv',
   today_filter: 'Bu gün',
   general_filter: 'Ümumi',

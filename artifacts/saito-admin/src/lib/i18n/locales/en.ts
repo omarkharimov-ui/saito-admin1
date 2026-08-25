@@ -776,7 +776,7 @@ export const en: TranslationMap = {
   seat_table: 'Seat Table',
   guest_seated: 'Guest seated',
   seat_failed: 'Could not seat table',
-  seated_no_order: 'Seated · no order',
+  seated_no_order: 'New seat',
   all_archive: 'All archive',
   today_filter: 'Today',
   general_filter: 'General',

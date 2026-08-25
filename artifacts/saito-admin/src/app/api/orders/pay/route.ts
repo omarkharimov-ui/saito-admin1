@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, createAuthClient } from '@/lib/api-auth';
+import { requirePermission, createAuthClient } from '@/lib/api-auth';
 import { paymentRateLimit } from '@/lib/rate-limit';
 import { validateCsrfToken } from '@/lib/csrf';
 
@@ -12,7 +12,7 @@ function svc() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requirePermission('payments.create', ['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
 
     if (!validateCsrfToken(request, auth.authenticated)) {

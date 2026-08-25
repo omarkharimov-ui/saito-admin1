@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requireAuth, requirePermission } from '@/lib/api-auth';
 import { supabase } from '@/lib/supabase';
 
 function svc() {
@@ -9,7 +9,7 @@ function svc() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+  const auth = await requirePermission('payments.create', ['cashier', 'admin', 'superadmin']);
   if (!auth.authenticated) {
     return auth;
   }

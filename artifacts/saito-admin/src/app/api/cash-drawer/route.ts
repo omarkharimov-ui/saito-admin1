@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { requireAuth } from '@/lib/api-auth';
+import { requireAuth, requirePermission } from '@/lib/api-auth';
 
 const svc = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,18 +63,15 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-
   const s = svc();
   const body = await req.json();
   const { action, amount, description, session_id } = body;
-  const staffId = auth.user?.id || null;
 
   try {
     if (action === 'open') {
+      const auth = await requirePermission('cash.open', ['cashier', 'admin', 'superadmin']);
+      if (!auth.authenticated) return auth;
+      const staffId = auth.user?.id || null;
       const { data, error } = await s
         .from('cash_drawer_sessions')
         .insert({
@@ -99,6 +96,9 @@ export async function POST(req: Request) {
     }
 
     if (action === 'close') {
+      const auth = await requirePermission('cash.close', ['cashier', 'admin', 'superadmin']);
+      if (!auth.authenticated) return auth;
+      const staffId = auth.user?.id || null;
       const { data: sess } = await s
         .from('cash_drawer_sessions')
         .select('*')
@@ -144,6 +144,9 @@ export async function POST(req: Request) {
     }
 
     if (action === 'cash_in' || action === 'cash_out') {
+      const auth = await requirePermission(action === 'cash_in' ? 'cash.in' : 'cash.out', ['cashier', 'admin', 'superadmin']);
+      if (!auth.authenticated) return auth;
+      const staffId = auth.user?.id || null;
       const { error } = await s.from('cash_drawer_log').insert({
         session_id,
         type: action,

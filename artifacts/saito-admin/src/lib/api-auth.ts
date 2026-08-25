@@ -49,6 +49,24 @@ export async function requireAuth(requiredRoles?: string[]): Promise<any> {
   return auth;
 }
 
+export async function requirePermission(permission: string, allowedRoles: string[] = []): Promise<any> {
+  const auth = await validateAuth(allowedRoles);
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  // Superusers always allowed (legacy role-string bypass)
+  if (auth.role && ['admin', 'superadmin', 'owner'].includes(auth.role)) return auth;
+  const supabase = svc();
+  const { data, error } = await supabase.rpc('has_permission', {
+    p_staff_id: auth.user?.id,
+    p_permission: permission,
+  });
+  if (error || !data) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  return auth;
+}
+
 export async function createAuthClient() {
   return svc();
 }

@@ -40,6 +40,9 @@ interface PosReceipt {
   paymentMethod: string;
   cashAmount?: number;
   cardAmount?: number;
+  receiptTitle?: string;
+  paymentDate?: string;
+  paymentTime?: string;
 }
 
 export default function POSPage() {
@@ -713,6 +716,8 @@ export default function POSPage() {
         }
 
         toast.success(t('order_paid'), { id: 'action-toast' });
+        const receiptSettings = await getReceiptSettings().catch(() => null);
+        const paymentNow = new Date();
         setReceiptView({
           tableNumber: actionSheetTable?.table_number ?? '-',
           orderId: specificOrder.id,
@@ -729,6 +734,9 @@ export default function POSPage() {
           paymentMethod: method,
           cashAmount: method === 'cash' ? Number(specificOrder.total_amount) || 0 : 0,
           cardAmount: (method === 'card' || method === 'transfer') ? Number(specificOrder.total_amount) || 0 : 0,
+          receiptTitle: receiptSettings?.receiptTitle || 'SİFARİŞ ÇEKİ',
+          paymentDate: paymentNow.toLocaleDateString('az-AZ'),
+          paymentTime: paymentNow.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
         });
         setReceiptTendered(method === 'cash' ? tenderedAmount : undefined);
         setPaymentView(false);
@@ -814,6 +822,8 @@ export default function POSPage() {
         tip += Number(activeOrder.tip_amount) || 0;
         total += Number(activeOrder.total_amount) || 0;
       }
+      const receiptSettings2 = await getReceiptSettings().catch(() => null);
+      const paymentNow2 = new Date();
       setReceiptView({
         tableNumber: tableNum,
         orderId: activeOrders.map((o: any) => o.id).join(','),
@@ -826,6 +836,9 @@ export default function POSPage() {
         paymentMethod: method,
         cashAmount: method === 'cash' ? total : 0,
         cardAmount: method === 'card' ? total : 0,
+        receiptTitle: receiptSettings2?.receiptTitle || 'SİFARİŞ ÇEKİ',
+        paymentDate: paymentNow2.toLocaleDateString('az-AZ'),
+        paymentTime: paymentNow2.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
       });
       setReceiptTendered(method === 'cash' ? tenderedAmount : undefined);
 
@@ -2208,36 +2221,34 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
           >
             <motion.div
               {...slideUp}
-              className="bg-white rounded-3xl shadow-elevated max-h-[90vh] overflow-auto max-w-sm w-full"
+              className="bg-white rounded-3xl shadow-elevated max-h-[90vh] overflow-auto max-w-md w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Success header */}
-              <div className="relative px-6 pt-7 pb-4 text-center">
-                <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                  <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="text-base font-black text-zinc-900 tracking-tight">{t('order_paid')}</h3>
+              {/* Receipt title — top of popup, big and bold */}
+              <div className="px-6 pt-6 pb-4 text-center border-b border-dashed border-zinc-200">
+                <h2 className="text-xl font-black text-zinc-900 tracking-tight uppercase">
+                  {receiptView.receiptTitle || 'SİFARİŞ ÇEKİ'}
+                </h2>
+                <p className="mt-1 text-xs text-zinc-400">
+                  {receiptView.paymentDate} · {receiptView.paymentTime}
+                </p>
               </div>
 
-              {/* Inline receipt — no separate card, sits on the same panel */}
-              <div className="px-5 pb-4">
-                <div className="border-t border-b border-dashed border-zinc-200 py-4">
-                  <ReceiptPreview
-                    title="SİFARİŞ ÇEKİ"
-                    tableNumber={receiptView.tableNumber}
-                    items={receiptView.items}
-                    showServiceFee={false}
-                    serviceFeePct={0}
-                    currency="₼"
-                    discountAmount={receiptView.discount}
-                    campaignName={receiptView.discountName || undefined}
-                    transparent
-                  />
-                </div>
+              {/* Inline receipt items */}
+              <div className="px-5 py-4">
+                <ReceiptPreview
+                  title={receiptView.receiptTitle || 'SİFARİŞ ÇEKİ'}
+                  tableNumber={receiptView.tableNumber}
+                  items={receiptView.items}
+                  showServiceFee={false}
+                  serviceFeePct={0}
+                  currency="₼"
+                  discountAmount={receiptView.discount}
+                  campaignName={receiptView.discountName || undefined}
+                  transparent
+                  date={receiptView.paymentDate}
+                  time={receiptView.paymentTime}
+                />
               </div>
 
               {/* Payment info row */}

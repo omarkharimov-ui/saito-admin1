@@ -203,12 +203,14 @@
 
 /* ── Theme switch animation ── */
 @keyframes theme-pulse {
-  0%   { transform: scale(1);    filter: brightness(1);  }
-  35%  { transform: scale(1.003); filter: brightness(0.95); }
-  100% { transform: scale(1);    filter: brightness(1);  }
+  0%   { transform: scale(1);     filter: brightness(1) saturate(1);   }
+  20%  { transform: scale(1.003); filter: brightness(0.88) saturate(1.2); }
+  50%  { transform: scale(1.001); filter: brightness(0.95) saturate(1.05); }
+  100% { transform: scale(1);     filter: brightness(1) saturate(1);   }
 }
 .theme-switching {
   transition: background-color 0.3s cubic-bezier(0.4,0,0.2,1),
               color 0.3s cubic-bezier(0.4,0,0.2,1) !important;
+  will-change: transform, filter;
 }
 

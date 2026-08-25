@@ -1446,15 +1446,15 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                 if (label === t('merge')) { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
                                 if (label === t('transfer')) { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
                             }}
-                            className="relative px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
-                            style={{ color: active ? '#ffffff' : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)' }}
-                          >
-                             {active && (
-                               <AnimatePresence>
-                                 <motion.div
-                                   key={`action-pill-${label}`}
-                                    layoutId="action-mode-pill-clean"
-                                    className="absolute inset-0 rounded-full z-0 bg-zinc-900"
+      className="relative px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
+      style={{ color: active ? (lightMode ? '#ffffff' : '#000000') : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)' }}
+    >
+       {active && (
+         <AnimatePresence>
+           <motion.div
+             key={`action-pill-${label}`}
+              layoutId="action-mode-pill-clean"
+              className={`absolute inset-0 rounded-full z-0 ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
                                    transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
                                  />
                                </AnimatePresence>
@@ -1513,15 +1513,15 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                if (label === t('merge')) { setMergeMode(true); setTransferMode(false); setSelectedForMerge([]); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
                                if (label === t('transfer')) { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
                             }}
-                            className="relative px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
-                            style={{ color: active ? (lightMode ? '#ffffff' : '#ffffff') : lightMode ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)' }}
-                          >
-                             {active && (
-                               <AnimatePresence>
-                                 <motion.div
-                                   key={`action-pill-${label}`}
-                                    layoutId="action-mode-pill-light"
-                                    className="absolute inset-0 rounded-full z-0 bg-zinc-900"
+      className="relative px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
+      style={{ color: active ? (lightMode ? '#ffffff' : '#000000') : lightMode ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)' }}
+    >
+       {active && (
+         <AnimatePresence>
+           <motion.div
+             key={`action-pill-${label}`}
+              layoutId="action-mode-pill-light"
+              className={`absolute inset-0 rounded-full z-0 ${lightMode ? 'bg-zinc-900' : 'bg-white'}`}
                                    transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
                                  />
                                </AnimatePresence>

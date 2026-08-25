@@ -165,8 +165,8 @@ BEGIN
     discount_amount = p_discount_amount,
     discount_type = p_discount_type,
     payment_method = p_payment_method,
-    status = CASE WHEN v_total_paid >= (v_order.total_amount - COALESCE(p_discount_amount, 0)) THEN 'paid' ELSE v_order.status END,
-    paid_at = CASE WHEN v_total_paid >= (v_order.total_amount - COALESCE(p_discount_amount, 0)) THEN v_now ELSE v_order.paid_at END,
+    status = CASE WHEN v_total_paid >= v_order.total_amount THEN 'paid' ELSE v_order.status END,
+    paid_at = CASE WHEN v_total_paid >= v_order.total_amount THEN v_now ELSE v_order.paid_at END,
     version = COALESCE(v_order.version, 0) + 1,
     updated_by_terminal_id = p_performed_by_terminal_id,
     updated_at = v_now
@@ -201,7 +201,7 @@ BEGIN
   END IF;
 
   -- Table_floors sync (SSOT)
-  IF v_total_paid >= (v_order.total_amount - COALESCE(p_discount_amount, 0)) THEN
+  IF v_total_paid >= v_order.total_amount THEN
     IF v_order.table_number IS NOT NULL AND v_order.table_number > 0 THEN
       SELECT COUNT(*) INTO v_other_active_count FROM public.orders
         WHERE table_number = v_order.table_number
@@ -238,7 +238,7 @@ BEGIN
   );
 
   -- Notification
-  IF v_total_paid >= (v_order.total_amount - COALESCE(p_discount_amount, 0)) THEN
+  IF v_total_paid >= v_order.total_amount THEN
     INSERT INTO public.notifications (title, body, type, created_at)
     VALUES (
       'Ödəniş qəbul edildi',
@@ -257,7 +257,7 @@ BEGIN
     'paid_amount', v_total_paid,
     'cogs', v_cogs,
     'profit', v_profit,
-    'fully_paid', v_total_paid >= (v_order.total_amount - COALESCE(p_discount_amount, 0))
+    'fully_paid', v_total_paid >= v_order.total_amount
   );
 END;
 $function$;

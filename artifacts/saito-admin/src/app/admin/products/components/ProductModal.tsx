@@ -12,6 +12,7 @@ import { Product, Category } from '@/types';
 import type { ProductVariantForm, ProductModifierForm } from '../page';
 import { useModalFormDirty } from '@/hooks/useFormDirty';
 import { useAiFlags } from '@/hooks/useAiFlags';
+import { allergenUIByCode, ALLERGEN_FALLBACK_ICON } from '@/lib/allergens';
 import { SaveSuccessButton } from '@/components/premium/PremiumComponents';
 
 function VariantSelector({
@@ -205,6 +206,7 @@ interface ProductForm {
   description_ru: string;
   ingredients_en: string;
   ingredients_ru: string;
+  allergenIds: string[];
   variants: ProductVariantForm[];
   modifiers: ProductModifierForm[];
 }
@@ -295,6 +297,15 @@ export function ProductModal({
     if (!open) return;
     supabase.from('ingredients').select('id, name, unit').order('name').then(({ data }) => {
       setIngredients((data || []) as any[]);
+    });
+  }, [open]);
+
+  // Allergen referans siyahısı — SSOT: Supabase `allergens` cədvəli
+  const [allergenList, setAllergenList] = useState<Array<{ id: string; code: string; name: string; translations: any }>>([]);
+  useEffect(() => {
+    if (!open) return;
+    supabase.from('allergens').select('id, code, name, translations').eq('is_active', true).order('code').then(({ data }) => {
+      setAllergenList((data || []) as any[]);
     });
   }, [open]);
 
@@ -660,9 +671,31 @@ export function ProductModal({
                         </AnimatePresence>
                       </div>
                     </div>
+                    {/* Allergenlər — SSOT: allergens + product_allergens junction */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase tracking-widest text-white/40">Allergenlər</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {allergenList.map((a) => {
+                          const active = productForm.allergenIds.includes(a.id);
+                          const localName = (a.translations as any)?.[language]?.name || a.name;
+                          const AIcon = allergenUIByCode(a.code)?.icon ?? ALLERGEN_FALLBACK_ICON;
+                          return (
+                            <button key={a.id} type="button"
+                              onClick={() => onFormChange({ ...productForm, allergenIds: active ? productForm.allergenIds.filter(k => k !== a.id) : [...productForm.allergenIds, a.id] })}
+                              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none transition-all hover:-translate-y-0.5 ${active ? 'bg-amber-500/15 text-amber-400 border-amber-500/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12] hover:bg-amber-500/[0.06] hover:text-amber-300/70 hover:border-amber-500/25'}`}>
+                              <AIcon size={12} className={active ? 'text-amber-400' : 'text-white/25'} />
+                              {localName}
+                            </button>
+                          );
+                        })}
+                        {allergenList.length === 0 && (
+                          <span className="text-xs text-white/25">—</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                 </div>
+               </div>
 
               {/* Group 4: Product Type & Flags */}
               <div className="space-y-3 pb-1">
@@ -1065,15 +1098,34 @@ export function ProductModal({
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] uppercase tracking-widest text-white/40">{t('ingredients_label')} {t('ingredients_hint')}</label>
-                      <textarea value={productForm.ingredients}
-                        onChange={(e) => onFormChange({ ...productForm, ingredients: e.target.value })}
-                        placeholder={ghostMain?.ingredients ? '' : 'Somon, avokado, krem pendir...'}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder:text-white/15 focus:border-white/30 outline-none transition-all h-[38px] resize-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+                       <textarea value={productForm.ingredients}
+                         onChange={(e) => onFormChange({ ...productForm, ingredients: e.target.value })}
+                         placeholder={ghostMain?.ingredients ? '' : 'Somon, avokado, krem pendir...'}
+                         className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder:text-white/15 focus:border-white/30 outline-none transition-all h-[38px] resize-none"
+                       />
+                     </div>
+                     {/* Allergenlər — Mobile (SSOT: allergens junction) */}
+                     <div className="space-y-1.5">
+                       <label className="text-[10px] uppercase tracking-widest text-white/40">Allergenlər</label>
+                       <div className="flex flex-wrap gap-1.5">
+                         {allergenList.map((a) => {
+                           const active = productForm.allergenIds.includes(a.id);
+                           const localName = (a.translations as any)?.[language]?.name || a.name;
+                           const AIcon = allergenUIByCode(a.code)?.icon ?? ALLERGEN_FALLBACK_ICON;
+                           return (
+                             <button key={a.id} type="button"
+                               onClick={() => onFormChange({ ...productForm, allergenIds: active ? productForm.allergenIds.filter(k => k !== a.id) : [...productForm.allergenIds, a.id] })}
+                               className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold tracking-wider uppercase border cursor-pointer select-none transition-all active:scale-95 ${active ? 'bg-amber-500/15 text-amber-400 border-amber-500/40' : 'bg-white/[0.05] text-white/40 border-white/[0.12]'}`}>
+                               <AIcon size={12} className={active ? 'text-amber-400' : 'text-white/25'} />
+                               {localName}
+                             </button>
+                           );
+                         })}
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </div>
 
               {/* Product Type - Mobile */}
               <div>

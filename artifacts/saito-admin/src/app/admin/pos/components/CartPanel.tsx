@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -19,6 +19,7 @@ import { useVirtualKeyboard } from './VirtualKeyboard';
 
 interface CartPanelProps {
   cart: PosCart | null;
+  cartHydrating?: boolean;
   onUpdateQty: (index: number, delta: number) => void;
   onPlaceOrder: () => void;
   onClearDraft: () => void;
@@ -61,7 +62,11 @@ interface CartPanelProps {
   }) => void;
   onUpdateGlobalNote?: (note: string) => void;
   onOpenModifiers?: (productId: string) => void;
-  onRequestEditor?: (productId: string) => void;
+  onRequestEditor?: (productId: string, lineIndex?: number) => void;
+  tableStatus?: string | null;
+  tableGuests?: number | null;
+  onSeatTable?: () => void | Promise<void>;
+  onOpenActions?: () => void;
 }
 
 const STATIONS = [
@@ -78,6 +83,16 @@ const COURSES = [
   { value: 'drinks', labelKey: 'course_drinks' },
 ];
 
+const COURSE_LABEL: Record<string, string> = {
+  appetizers: 'Başlanğıc', mains: 'Əsas', desserts: 'Dessert', drinks: 'İçki',
+};
+const COURSE_STYLE: Record<string, string> = {
+  appetizers: 'bg-sky-500/10 text-sky-600 dark:text-sky-300/80 border-sky-500/20',
+  mains: 'bg-violet-500/10 text-violet-600 dark:text-violet-300/80 border-violet-500/20',
+  desserts: 'bg-pink-500/10 text-pink-600 dark:text-pink-300/80 border-pink-500/20',
+  drinks: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300/80 border-emerald-500/20',
+};
+
 const PRIORITIES = [
   { value: 'normal', labelKey: 'priority_normal', color: 'gray' },
   { value: 'high', labelKey: 'priority_high', color: 'orange' },
@@ -87,7 +102,7 @@ const PRIORITIES = [
 ];
 
 export function CartPanel({
-  cart, onUpdateQty, onPlaceOrder,
+  cart, cartHydrating = false, onUpdateQty, onPlaceOrder,
   onClearDraft, onBack, orderButtonStatus, onUpdateGuests, onUpdateCustomer, mergedChildNumbers, onRecordLoss,
   hasExistingOrder = false, isDirty = false,
   isReservationMode = false, reservation,
@@ -103,6 +118,10 @@ export function CartPanel({
   onUpdateGlobalNote,
   onOpenModifiers,
   onRequestEditor,
+  tableStatus,
+  tableGuests,
+  onSeatTable,
+  onOpenActions,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -121,6 +140,7 @@ export function CartPanel({
   const [lossReason, setLossReason] = useState('');
   const [numpadOpen, setNumpadOpen] = useState(false);
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
+  const [seatBusy, setSeatBusy] = useState(false);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
   const [guestEditing, setGuestEditing] = useState(false);
   const [localGuestCount, setLocalGuestCount] = useState(cart?.guest_count ?? 1);
@@ -189,9 +209,9 @@ export function CartPanel({
 
   useEffect(() => {
     if (!guestEditing) {
-      setLocalGuestCount(cart?.guest_count ?? 1);
+      setLocalGuestCount(cart?.guest_count ?? tableGuests ?? 1);
     }
-  }, [cart?.guest_count, guestEditing]);
+  }, [cart?.guest_count, tableGuests, guestEditing]);
 
   useEffect(() => {
     if (!guestEditing) return;
@@ -282,20 +302,209 @@ export function CartPanel({
   const isEmpty = cart.items.length === 0;
   const hasDraft = cart.items.some(i => (i.sentQuantity ?? 0) < i.quantity);
 
+  // Contextual primary-action states (dine-in only)
+  const isDineInContext = posMode === 'dine_in' && !isReservationMode;
+  const canSeat = isDineInContext && !!onSeatTable && ['empty', 'free', 'available'].includes(tableStatus || '');
+  const seatedNotOrdered = isDineInContext && tableStatus === 'occupied' && !hasExistingOrder;
+  const displayGuests = tableGuests ?? cart.guest_count ?? 1;
+
+  const handleSeatTable = async () => {
+    if (seatBusy || !onSeatTable) return;
+    setSeatBusy(true);
+    try {
+      await onSeatTable();
+    } finally {
+      setSeatBusy(false);
+    }
+  };
+
+  const headerMeta = (
+    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+      <div className="flex items-center gap-1.5">
+        <span className={`text-sm font-black tabular-nums leading-none ${
+          cart.items.length > 0 ? 'text-[var(--theme-text)]' : (lightMode ? 'text-zinc-300' : 'text-white/30')
+        }`}>
+          {cart.items.length}
+        </span>
+        <ShoppingBag size={14} className="text-[var(--theme-text-secondary)]" />
+        <span className="text-xs text-[var(--theme-text-secondary)]">{t('items')}</span>
+      </div>
+      {posMode === 'dine_in' && (
+        <>
+          <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
+          <div className="flex-shrink-0 overflow-hidden" style={{ width: 200, height: 44 }}>
+            <div
+              ref={guestEditRef}
+              onClick={(e) => { e.stopPropagation(); if (!guestEditing) setGuestEditing(true); }}
+              onKeyDown={(e) => { if (!guestEditing && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setGuestEditing(true); } }}
+              role="button"
+              tabIndex={0}
+              className="flex items-center gap-1.5 group cursor-pointer relative w-full h-full"
+            >
+              <Users size={14} className="text-[var(--theme-text-secondary)] group-hover:text-[var(--theme-text)] flex-shrink-0" />
+              <div className="flex items-center relative w-full h-full overflow-hidden">
+                <AnimatePresence mode="wait" initial={false}>
+                  {!guestEditing ? (
+                    <motion.div
+                      key="guest-display"
+                      className="flex items-center gap-1 absolute inset-0"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                    >
+                      <span className="text-sm font-black tabular-nums text-[var(--theme-text)] group-hover:text-emerald-400 transition-colors">{cart.guest_count ?? tableGuests ?? 1}</span>
+                      <span className="text-xs text-[var(--theme-text-secondary)] group-hover:text-emerald-400 transition-colors">{t('guests')}</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="guest-edit"
+                      className="flex items-center gap-1.5 absolute inset-0"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = Math.max(1, localGuestCount - 1);
+                          setLocalGuestCount(next);
+                        }}
+                        disabled={localGuestCount <= 1 || guestSaving}
+                        className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-30 disabled:pointer-events-none"
+                      >
+                        −
+                      </button>
+                      <span className="text-base font-black tabular-nums text-[var(--theme-text)] min-w-[28px] text-center">{localGuestCount}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = localGuestCount + 1;
+                          setLocalGuestCount(next);
+                        }}
+                        disabled={guestSaving}
+                        className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleGuestSave(); }}
+                        disabled={guestSaving}
+                        className="w-11 h-11 rounded-xl flex items-center justify-center text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-sm font-black leading-none transition-all active:scale-90 disabled:opacity-50"
+                      >
+                        {guestSaving ? '…' : '✓'}
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   if (isEmpty) {
+    if (cartHydrating) {
+      return (
+        <div className="flex flex-col h-full px-6 relative">
+          <div className="flex items-start gap-2 flex-shrink-0 pb-4 pt-6">
+            <button onClick={onBack}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
+              <ArrowLeft size={18} />
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="h-5 w-32 rounded-lg bg-[var(--theme-surface-muted)] animate-pulse mb-2" />
+              <div className="h-3 w-20 rounded-md bg-[var(--theme-surface-muted)] animate-pulse" />
+            </div>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[var(--theme-surface-muted)] animate-pulse" />
+            <div className="h-3 w-24 rounded-md bg-[var(--theme-surface-muted)] animate-pulse" />
+          </div>
+          <div className="flex-shrink-0 pb-2">
+            <div className="h-[72px] w-full rounded-4xl bg-[var(--theme-surface-muted)] animate-pulse" />
+          </div>
+        </div>
+      );
+    }
+    const emptyTitle = mergedChildNumbers && mergedChildNumbers.length > 0
+      ? `${t('group_label')} ${cart.table_number ?? '-'}`
+      : posMode === 'takeaway' ? t('takeaway') : posMode === 'delivery' ? t('delivery') : `${t('table_label')} ${cart.table_number ?? '-'}`;
+    const emptyAction = canSeat
+      ? { label: t('seat_table'), icon: <Armchair size={18} />, className: 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110', onClick: handleSeatTable }
+      : (isDineInContext && hasExistingOrder && onOpenActions)
+        ? { label: t('actions'), icon: <MoreHorizontal size={18} />, className: `${lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100'}`, onClick: onOpenActions }
+        : null;
     return (
       <div className="flex flex-col h-full px-6 relative">
-        <div className="flex items-center gap-2 flex-shrink-0 pb-4 pt-6">
+        <div className="flex items-start gap-2 flex-shrink-0 pb-4 pt-6">
           <button onClick={onBack}
             className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
             <ArrowLeft size={18} />
           </button>
-          <p className="text-lg font-bold text-[var(--theme-text)]">{t('cart_empty')}</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-lg font-bold text-[var(--theme-text)] leading-tight">
+              <span className="inline-flex items-center gap-2 flex-wrap">
+                {emptyTitle}
+                {seatedNotOrdered && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest bg-orange-500/10 border border-orange-500/30 text-orange-500">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                    {t('seated_no_order')}
+                  </span>
+                )}
+                {isReservationMode && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">PRE-ORDER</span>
+                )}
+              </span>
+            </p>
+            {isDineInContext ? (
+              headerMeta
+            ) : (
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-[var(--theme-text-secondary)]">
+                <Users size={12} />
+                <span>{displayGuests} {t('person')}</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-[var(--theme-text-muted)]">
           <ShoppingBag size={56} className="mb-4 opacity-15" />
+          <motion.p
+            key={`np-${emptyAction?.label || 'none'}`}
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+            className="text-sm font-black uppercase tracking-widest mb-1"
+          >
+            {t('no_products')}
+          </motion.p>
           <p className="text-xs mb-6 opacity-60">{t('add_items_hint')}</p>
         </div>
+        {emptyAction && (
+          <div className="w-full flex-shrink-0 pb-2">
+            <AnimatePresence mode="wait">
+              <motion.button
+                key={emptyAction.label}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                onClick={emptyAction.onClick}
+                disabled={seatBusy}
+                className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${seatBusy ? 'cursor-wait opacity-80' : 'cursor-pointer'} ${emptyAction.className}`}
+              >
+                {seatBusy ? <Loader2 size={20} className="animate-spin" /> : emptyAction.icon}
+                {emptyAction.label}
+              </motion.button>
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     );
   }
@@ -335,6 +544,28 @@ export function CartPanel({
       }
       return next;
     });
+  };
+
+  const cycleCourse = (idx: number) => {
+    const item: any = cart?.items[idx];
+    if (!item || item.sentQuantity) return;
+    const values = COURSES.map(c => c.value);
+    const cur = values.includes(item.course) ? item.course : 'mains';
+    const next = values[(values.indexOf(cur) + 1) % values.length];
+    onUpdateItem?.(idx, { course: next } as any);
+  };
+
+  const toggleHold = (item: any, idx: number) => {
+    if (item.sentQuantity) return;
+    const next = !item.is_hold;
+    onUpdateItem?.(idx, { is_hold: next } as any);
+    if (item.id) {
+      fetch('/api/orders/item-hold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: item.id, is_hold: next }),
+      }).catch(() => {});
+    }
   };
 
   const updateLossQty = (idx: number, delta: number) => {
@@ -386,7 +617,11 @@ export function CartPanel({
 
   return (
     <>
-      <div className="flex flex-col flex-1 min-h-0 px-6 relative" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 3 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+        className="flex flex-col flex-1 min-h-0 px-6 relative" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0 }}>
       {/* Header */}
       <div className={`flex items-center justify-between flex-shrink-0 pt-6 ${isReservationMode ? 'pb-3 border-b border-[var(--theme-border)]' : 'pb-4'}`}>
         <div className="flex items-center gap-2">
@@ -402,6 +637,12 @@ export function CartPanel({
                 {isReservationMode && (
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">PRE-ORDER</span>
                 )}
+                {seatedNotOrdered && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest bg-orange-500/10 border border-orange-500/30 text-orange-500">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                    {t('seated_no_order')}
+                  </span>
+                )}
               </span>
               {mergedChildNumbers && mergedChildNumbers.length > 0 && (
                 <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold tracking-wider border ${lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-600' : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-300'}`}>
@@ -414,94 +655,7 @@ export function CartPanel({
                 <span className="text-xs font-medium text-[var(--theme-text-secondary)]">Rezervasiya üçün öncədən sifariş</span>
               </div>
             )}
-              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-sm font-black tabular-nums leading-none ${
-                    cart.items.length > 0 ? 'text-[var(--theme-text)]' : (lightMode ? 'text-zinc-300' : 'text-white/30')
-                  }`}>
-                    {cart.items.length}
-                  </span>
-                  <ShoppingBag size={14} className="text-[var(--theme-text-secondary)]" />
-                  <span className="text-xs text-[var(--theme-text-secondary)]">{t('items')}</span>
-                </div>
-                {posMode === 'dine_in' && (
-                  <>
-                    <span className={`text-xs ${lightMode ? 'text-gray-300' : 'text-white/20'}`}>·</span>
-                    <div className="flex-shrink-0 overflow-hidden" style={{ width: 200, height: 44 }}>
-                      <div
-                        ref={guestEditRef}
-                        onClick={(e) => { e.stopPropagation(); if (!guestEditing) setGuestEditing(true); }}
-                        onKeyDown={(e) => { if (!guestEditing && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setGuestEditing(true); } }}
-                        role="button"
-                        tabIndex={0}
-                        className="flex items-center gap-1.5 group cursor-pointer relative w-full h-full"
-                      >
-                        <Users size={14} className="text-[var(--theme-text-secondary)] group-hover:text-[var(--theme-text)] flex-shrink-0" />
-                        <div className="flex items-center relative w-full h-full overflow-hidden">
-                          <AnimatePresence mode="wait" initial={false}>
-                            {!guestEditing ? (
-                              <motion.div
-                                key="guest-display"
-                                className="flex items-center gap-1 absolute inset-0"
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -6 }}
-                                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                              >
-                                <span className="text-sm font-black tabular-nums text-[var(--theme-text)] group-hover:text-emerald-400 transition-colors">{cart.guest_count}</span>
-                                <span className="text-xs text-[var(--theme-text-secondary)] group-hover:text-emerald-400 transition-colors">{t('guests')}</span>
-                              </motion.div>
-                            ) : (
-                              <motion.div
-                                key="guest-edit"
-                                className="flex items-center gap-1.5 absolute inset-0"
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -6 }}
-                                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const next = Math.max(1, localGuestCount - 1);
-                                    setLocalGuestCount(next);
-                                  }}
-                                  disabled={localGuestCount <= 1 || guestSaving}
-                                  className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90 disabled:opacity-30 disabled:pointer-events-none"
-                                >
-                                  −
-                                </button>
-                                <span className="text-base font-black tabular-nums text-[var(--theme-text)] min-w-[28px] text-center">{localGuestCount}</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const next = localGuestCount + 1;
-                                    setLocalGuestCount(next);
-                                  }}
-                                  disabled={guestSaving}
-                                  className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] text-xl font-bold leading-none transition-all active:scale-90"
-                                >
-                                  +
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); handleGuestSave(); }}
-                                  disabled={guestSaving}
-                                  className="w-11 h-11 rounded-xl flex items-center justify-center text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-sm font-black leading-none transition-all active:scale-90 disabled:opacity-50"
-                                >
-                                  {guestSaving ? '…' : '✓'}
-                                </button>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              {headerMeta}
             {(posMode === 'takeaway' || posMode === 'delivery') && cart.customer_name ? (
               <div className="flex items-center gap-2 mt-1.5">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${lightMode ? 'bg-blue-100 text-blue-600' : 'bg-blue-500/20 text-blue-400'}`}>
@@ -663,10 +817,10 @@ export function CartPanel({
               <motion.div
                 key={lineKey}
                 layout
-                initial={{ opacity: 0, y: 16, scale: 0.97 }}
-                animate={{ opacity: confirming && isChecked ? 0 : 1, scale: confirming && isChecked ? 0.95 : 1 }}
-                exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.14, ease: 'easeIn' } }}
-                transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.9 }}
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: confirming && isChecked ? 0 : 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
+                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                 data-cart-item
                 className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`} px-3.5 py-3`}
               >
@@ -681,9 +835,20 @@ export function CartPanel({
                     {item.modifiers?.length ? (
                       <p className="text-xs truncate text-[var(--theme-text-secondary)]">{(item.modifiers ?? []).map(m => m.name).join(', ')}</p>
                     ) : null}
-                    {item.hold_until ? (
-                      <span className="inline-flex items-center gap-0.5 text-xs font-bold text-orange-500 mt-0.5"><Pause size={9} />{t('waiting')}</span>
-                    ) : null}
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                      {!item.sentQuantity && (
+                        <button
+                          onClick={() => cycleCourse(originalIdx)}
+                          className={`px-1.5 py-0.5 rounded-md border text-[10px] font-semibold tracking-normal transition-all active:scale-95 ${COURSE_STYLE[(item as any).course || 'mains'] || COURSE_STYLE.mains}`}
+                          title="Xidmət ardıcıllığı (dəyişmək üçün toxun)"
+                        >
+                          {COURSE_LABEL[(item as any).course || 'mains'] || (item as any).course || 'Əsas'}
+                        </button>
+                      )}
+                      {(item.hold_until || (item as any).is_hold) && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-[10px] font-semibold tracking-normal text-orange-600 dark:text-orange-300/80"><Pause size={9} />Saxlanılıb</span>
+                      )}
+                    </div>
                   </div>
                    <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                      {(item.unit_price * item.quantity).toFixed(2)} ₼
@@ -698,7 +863,18 @@ export function CartPanel({
                          className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95"
                        >+</motion.button>
                      </div>
-                    <button onClick={() => onRequestEditor?.(item.product_id)} className={`p-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
+                    {!item.sentQuantity && (
+                      <button
+                        onClick={() => toggleHold(item, originalIdx)}
+                        className={`p-2 rounded-xl border transition-all active:scale-95 ${(item as any).is_hold
+                          ? 'bg-orange-500/10 border-orange-500/25 text-orange-600 dark:text-orange-300/80 hover:bg-orange-500/20'
+                          : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`}
+                        title={(item as any).is_hold ? 'Bərpa et' : 'Saxla (mətbəxə göndərmə)'}
+                      >
+                        {(item as any).is_hold ? <Play size={14} /> : <Pause size={14} />}
+                      </button>
+                    )}
+                    <button onClick={() => onRequestEditor?.(item.product_id, originalIdx)} className={`p-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
                       <Hash size={14} />
                     </button>
                   </div>
@@ -845,15 +1021,21 @@ export function CartPanel({
           )}
          {/* Footer actions removed from here */}
          <div className="w-full flex-shrink-0">
-           <SendOrderButton
-            disabled={isEmpty || (lossMode && selectedForLoss.size === 0) || confirming}
-            status={lossMode ? 'idle' : orderButtonStatus}
-            variant={lossMode ? 'loss' : 'send'}
-             label={lossMode ? t('loss_confirm') : (isReservationMode ? 'PRE-ORDER SİFARİŞİ YADDA SAXLA' : (hasExistingOrder ? t('resend') : t('send_to_kitchen')))}
-            onClick={lossMode ? confirmLoss : onPlaceOrder}
-            isDirty={isDirty}
-            className="w-full"
-          />
+           {(() => {
+             const showActions = isDineInContext && hasExistingOrder && !hasDraft && orderButtonStatus === 'idle';
+             return (
+               <SendOrderButton
+                 disabled={(lossMode && selectedForLoss.size === 0) || confirming}
+                 status={lossMode ? 'idle' : orderButtonStatus}
+                 variant={lossMode ? 'loss' : 'send'}
+                 action={showActions ? 'actions' : 'send'}
+                 label={lossMode ? t('loss_confirm') : (isReservationMode ? 'PRE-ORDER SİFARİŞİ YADDA SAXLA' : (showActions ? t('actions') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))))}
+                 onClick={showActions && onOpenActions ? onOpenActions : (lossMode ? confirmLoss : onPlaceOrder)}
+                 isDirty={isDirty}
+                 className="w-full"
+               />
+             );
+           })()}
         </div>
       </div>
 
@@ -934,7 +1116,7 @@ export function CartPanel({
         document.body
       )}
 
-    </div>
+    </motion.div>
 
     </>
   );

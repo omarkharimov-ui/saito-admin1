@@ -269,7 +269,8 @@ export function useOrders() {
   const handleClearTable = useCallback(async (tableNum: number) => {
     try {
       // RPC — FOR UPDATE, reverses stock, cancels orders, releases table
-      const { error } = await supabase.rpc('cancel_table_orders', { p_table_number: tableNum });
+      // All named args: DB has 2 overloads of this RPC; p_table_number alone is ambiguous (PGRST203)
+      const { error } = await supabase.rpc('cancel_table_orders', { p_table_number: tableNum, p_reason: 'cleared_from_orders', p_performed_by: null });
       if (error) throw error;
 
       // Optimistic remove from UI

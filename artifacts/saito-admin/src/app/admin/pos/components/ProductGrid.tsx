@@ -8,12 +8,22 @@ import { useTheme } from '@/lib/theme/ThemeContext';
 import { LiquidCategoryNavbar } from './LiquidCategoryNavbar';
 import type { PosProduct } from '../types/shared';
 import { playHapticSound } from '@/lib/haptic';
+import { appleBackdrop } from '@/lib/modal-transitions';
+import { parseAllergens, resolveAllergenEntry, ALLERGEN_FALLBACK_ICON } from '@/lib/allergens';
 
 export type Product = PosProduct;
 
+export interface EditorPreset {
+  variantId?: string | null;
+  note?: string;
+  modifiers?: Record<string, number>;
+  quantity?: number;
+  identity?: string;
+}
+
 export interface ProductGridRef {
-  openEditor: (productId: string) => void;
-  toggleEditor: (productId: string) => void;
+  openEditor: (productId: string, preset?: EditorPreset) => void;
+  toggleEditor: (productId: string, preset?: EditorPreset) => void;
 }
 
 interface ProductGridProps {
@@ -24,10 +34,10 @@ interface ProductGridProps {
   onAddCombo?: (combo: any) => void;
   cartCounts: Record<string, number>;
   outOfStock?: Set<string>;
+  variantsByProduct?: Record<string, any[]>;
 }
 
 const COMBO_TAB = '__combos__';
-const TOTAL_COLUMNS = 4;
 
 const FILTER_TABS = [
   { id: 'all' as const, labelKey: 'all_products', icon: Search },
@@ -36,8 +46,29 @@ const FILTER_TABS = [
   { id: 'favorites' as const, labelKey: 'favorites', icon: Heart },
 ];
 
+type GridItem = PosProduct & { _isCombo?: boolean; _raw?: any; variants?: any[]; modifiers?: any[] };
+
+function AllergenBadges({ item }: { item: GridItem | undefined; lightMode?: boolean }) {
+  const list = item ? parseAllergens(item.allergens) : [];
+  if (list.length === 0) return null;
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {list.slice(0, 6).map((a: any, i) => {
+        const def = resolveAllergenEntry(a);
+        const Icon = def?.icon ?? ALLERGEN_FALLBACK_ICON;
+        const label = typeof a === 'object' ? (a.name || def?.label || a.code) : String(a);
+        return (
+          <span key={i} title={label} className="leading-none cursor-default select-none opacity-70">
+            <Icon size={13} strokeWidth={2.2} />
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function ProductGrid({
-  products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock
+  products, combos, categories, onAddProduct, onAddCombo, cartCounts, outOfStock, variantsByProduct
 }, ref) {
   const { language, t } = useLanguage();
   const { lightMode } = useTheme();
@@ -57,20 +88,35 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const expandedIdRef = useRef<string | null>(null);
+  const presetRef = useRef<EditorPreset | null>(null);
+  // Aktiv sessiyanın redaktə identikliyi — handleModalAdd üçün (preset
+  // one-shot consumed olduqdan sonra da əlçatan olmalıdır).
+  const editIdentityRef = useRef<string | null>(null);
 
   useEffect(() => {
     expandedIdRef.current = expandedId;
   }, [expandedId]);
 
   useEffect(() => {
-    setSelectedVariant(undefined);
-    setNoteForProduct('');
-    setQty(1);
-    setSelectedModifiers({});
+    if (!expandedId) {
+      presetRef.current = null;
+      editIdentityRef.current = null;
+      return;
+    }
+    // One-shot: preset yalnız bir dəfə tətbiq olunur, sonra təmizlənir ki,
+    // növbəti kart toxunuşunda köhnə preset təsadüfən tətbiq olunmasın.
+    const preset = presetRef.current;
+    presetRef.current = null;
+    editIdentityRef.current = preset?.identity ?? null;
+    setSelectedVariant(preset?.variantId ?? undefined);
+    setNoteForProduct(preset?.note ?? '');
+    setQty(preset?.quantity && preset.quantity > 0 ? preset.quantity : 1);
+    setSelectedModifiers(preset?.modifiers ? { ...preset.modifiers } : {});
   }, [expandedId]);
 
   useImperativeHandle(ref, () => ({
-    openEditor: (productId: string) => {
+    openEditor: (productId: string, preset?: EditorPreset) => {
+      presetRef.current = preset ?? null;
       const el = cardRefs.current[productId];
       if (!el) return;
       try {
@@ -80,11 +126,12 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
       }
       setExpandedId(productId);
     },
-    toggleEditor: (productId: string) => {
+    toggleEditor: (productId: string, preset?: EditorPreset) => {
       if (expandedIdRef.current === productId) {
         setExpandedId(null);
         return;
       }
+      presetRef.current = preset ?? null;
       const el = cardRefs.current[productId];
       if (!el) return;
       try {
@@ -101,10 +148,8 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
     return [comboCat, ...categories];
   }, [categories]);
 
-  type GridItem = PosProduct & { _isCombo?: boolean; _raw?: any; variants?: any[]; modifiers?: any[] };
-
   const filtered = useMemo(() => {
-    const items: GridItem[] = products.map(p => ({ ...p, _isCombo: false }));
+    const items: GridItem[] = products.map(p => ({ ...p, _isCombo: false, variants: variantsByProduct?.[p.id] || [] }));
 
     if (combos) {
       for (const c of combos) {
@@ -182,11 +227,57 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
 
   const expandedItem = filtered.find(item => item.id === expandedId);
 
-  const getColumnAnchor = (index: number) => {
-    const colIndex = index % TOTAL_COLUMNS;
-    const isRightHalf = colIndex >= 2;
-    if (isRightHalf) return { side: 'right' as const, origin: 'top right' as const };
-    return { side: 'left' as const, origin: 'top left' as const };
+  // Variantlı məhsulda heç nə seçilməyibsə default variantı seç.
+  useEffect(() => {
+    if (!expandedItem) return;
+    const def = (expandedItem.variants || []).find((v: any) => v.is_default) || (expandedItem.variants || [])[0];
+    if (def) setSelectedVariant(prev => prev ?? def.id);
+  }, [expandedItem]);
+
+  // Escape closes the product modal
+  useEffect(() => {
+    if (!expandedId) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [expandedId]);
+
+  // Modal header price — variant + seçilmiş modifikatorlar daxil
+  const selectedVariantObj = useMemo(
+    () => (expandedItem?.variants ?? []).find((v: any) => v.id === selectedVariant),
+    [expandedItem, selectedVariant]
+  );
+  const modifiersTotal = useMemo(() => Object.entries(selectedModifiers).reduce((sum, [id, q]) => {
+    const m = (expandedItem?.modifiers ?? []).find((x: any) => x.id === id);
+    return sum + Number(m?.price || 0) * (q || 0);
+  }, 0), [expandedItem, selectedModifiers]);
+  const variantUnitPrice = selectedVariantObj
+    ? Number(selectedVariantObj.discount_price != null && selectedVariantObj.discount_price !== '' ? selectedVariantObj.discount_price : (selectedVariantObj.price ?? 0))
+    : null;
+  const baseUnitPrice = Number(expandedItem?.effective_price?.effective_price ?? expandedItem?.price ?? 0);
+  const modalUnitPrice = (variantUnitPrice ?? baseUnitPrice) + modifiersTotal;
+  const modalName = (language === 'az' ? expandedItem?.name_az : language === 'en' ? expandedItem?.name_en : expandedItem?.name_ru) || expandedItem?.name || '';
+
+  const handleModalAdd = () => {
+    if (!expandedItem) return;
+    const identity = editIdentityRef.current;
+    editIdentityRef.current = null;
+    if (expandedItem._isCombo && onAddCombo) {
+      onAddCombo(expandedItem._raw);
+    } else {
+      const selectedMods = Object.entries(selectedModifiers)
+        .filter(([, q]) => q > 0)
+        .map(([id, q]) => {
+          const mod = (expandedItem.modifiers || []).find((x: any) => x.id === id);
+          return { id, name: mod?.name || '', price: Number(mod?.price || 0), quantity: q };
+        });
+      onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods, __editOf: identity ? { identity } : undefined } as any);
+    }
+    setNoteForProduct('');
+    setSelectedVariant(undefined);
+    setSelectedModifiers({});
+    setQty(1);
+    handleClose();
   };
 
   const cardBg = lightMode
@@ -260,13 +351,12 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
           </div>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 relative overflow-visible">
-          {filtered.map((item, index) => {
+          {filtered.map((item) => {
             const name = (language === 'az' ? item.name_az : language === 'en' ? item.name_en : item.name_ru) || item.name;
             const count = cartCounts[item.id] || 0;
             const isCombo = item._isCombo;
             const isOutOfStock = outOfStock?.has(item.id);
             const isExpanded = expandedId === item.id;
-            const anchor = getColumnAnchor(index);
             const layoutId = `product-card-${item.id}`;
 
             return (
@@ -275,7 +365,18 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                 ref={el => { cardRefs.current[item.id] = el; }}
                 className="relative col-span-1 row-span-1 overflow-visible"
               >
-                {/* 1. Compact Card (always present, serves as morph target) */}
+                {/* 1. Compact Card — expand zamanı DOM-dan ÇIXARILIR (yalnız bir
+                    layoutId elementi qalır: modal). Beləcə framer "crossfade restore"
+                    glitchi mümkün dehil — arxada geri qayıtacaq kart yoxdur. */}
+                {isExpanded ? (
+                  <div aria-hidden className="relative flex flex-col rounded-4xl opacity-0 pointer-events-none select-none">
+                    <div className="aspect-square w-full" />
+                    <div className="pt-4 px-1 pb-3 space-y-2">
+                      <div className="h-4 rounded-xl bg-black/5 dark:bg-white/5" />
+                      <div className="h-4 w-1/2 rounded-xl bg-black/5 dark:bg-white/5" />
+                    </div>
+                  </div>
+                ) : (
                    <motion.div
                    layoutId={layoutId}
                    transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
@@ -284,7 +385,6 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                      isOutOfStock ? 'opacity-50 grayscale border-rose-500/30' : ''
                    }`}
                    onClick={() => { if (!isOutOfStock) { handleCardClick(item); } }}
-                   style={{ zIndex: isExpanded ? 1 : 0 }}
                  >
                   {/* Cart count badge - always visible, bounces smoothly without disappearing */}
                    {count > 0 && (
@@ -342,6 +442,7 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                         </span>
                       )}
                       <p className={`text-sm font-bold truncate leading-tight ${cardText}`}>{name}</p>
+                      <AllergenBadges item={item} />
                       <div className="flex items-center justify-between">
                         <div className="flex items-baseline gap-2">
                           {item.effective_price && item.effective_price.effective_price < item.effective_price.base_price ? (
@@ -362,133 +463,136 @@ export const ProductGrid = forwardRef<ProductGridRef, ProductGridProps>(function
                          </div>
                       </div>
                     </div>
+                      </motion.div>
                     </motion.div>
-                  </motion.div>
-
-                  {/* 2. Expanded Floating Popover (sibling of compact card, same layoutId) */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      layoutId={layoutId}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                      className={`absolute top-0 z-50 w-[440px] rounded-4xl border shadow-elevated overflow-hidden ${
-                        anchor.side === 'right' ? 'right-0' : 'left-0'
-                      } ${expandedBg}`}
-                      style={{
-                        transformOrigin: anchor.origin,
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="p-5 overflow-y-auto max-h-[calc(100vh-2rem)]">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/10 shrink-0">
-                              {expandedItem?.image_url && !failedImages.has(expandedItem.image_url) ? (
-                                <img src={retryingImages.has(expandedItem.image_url) ? `${expandedItem.image_url}?t=${Date.now()}` : expandedItem.image_url} alt={name} className="w-full h-full object-cover" loading="lazy" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-2xl font-black opacity-20 uppercase text-white">{(name || '?').slice(0, 2)}</div>
-                              )}
-                            </div>
-                            <div>
-                              <p className={`text-xl font-black ${expandedText}`}>{name}</p>
-                              <p className={`text-lg font-black ${expandedSecondary}`}>₼ {(expandedItem?.effective_price?.effective_price ?? expandedItem?.price)?.toFixed(2)}</p>
-                            </div>
-                          </div>
-                          <button onClick={(e) => { e.stopPropagation(); handleClose(); }} className="p-2 rounded-xl border border-white/10 text-white hover:bg-white/10 transition-colors">
-                            <X size={20} />
-                          </button>
-                        </div>
-
-                        <div className="mt-4 space-y-4">
-                          <div>
-                            <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Miqdar:</span>
-                            <div className="flex items-center gap-3 mt-2">
-                              <div className={`flex items-center gap-1 rounded-xl border overflow-hidden ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
-                                <button onClick={(e) => { e.stopPropagation(); setQty(Math.max(1, qty - 1)); }} className={`px-4 py-2 text-sm font-black transition-colors ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>−</button>
-                                <span className={`px-4 py-2 text-sm font-black tabular-nums min-w-[2.5rem] text-center ${lightMode ? 'text-zinc-900' : 'text-white'}`}>{qty}</span>
-                                <button onClick={(e) => { e.stopPropagation(); setQty(qty + 1); }} className={`px-4 py-2 text-sm font-black transition-colors ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>+</button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {(expandedItem?.variants?.length ?? 0) > 0 && (
-                            <div>
-                              <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('option' as any)}</span>
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {(expandedItem?.variants ?? []).map((v: any) => (
-                                  <button key={v.id} onClick={(e) => { e.stopPropagation(); setSelectedVariant(v.id); }} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
-                                    {v.name || v.title || `#${v.id.slice(0, 6)}`} {v.price ? `(+₼${Number(v.price).toFixed(2)})` : ''}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {(expandedItem?.modifiers?.length ?? 0) > 0 && (
-                            <div>
-                              <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Modifikatorlar:</span>
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {(expandedItem?.modifiers ?? []).map((m: any) => {
-                                  const mQty = selectedModifiers[m.id] || 0;
-                                  return (
-                                    <div key={m.id || m.name} className={`flex items-center gap-1 pl-3 pr-1 py-1 rounded-xl text-xs font-bold transition-all border ${mQty > 0 ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
-                                      <span className="whitespace-nowrap">{m.name} {m.price ? `+₼${Number(m.price).toFixed(2)}` : ''}</span>
-                                      {mQty > 0 && (
-                                        <>
-                                          <button onClick={(e) => { e.stopPropagation(); setSelectedModifiers(p => ({ ...p, [m.id]: Math.max(0, (p[m.id] || 0) - 1) })); }} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/20">−</button>
-                                          <span className="min-w-[1rem] text-center tabular-nums">{mQty}</span>
-                                        </>
-                                      )}
-                                      <button onClick={(e) => { e.stopPropagation(); setSelectedModifiers(p => ({ ...p, [m.id]: (p[m.id] || 0) + 1 })); }} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/20">+</button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          <div>
-                            <input type="text" value={noteForProduct} onChange={(e) => { e.stopPropagation(); setNoteForProduct(e.target.value); }} placeholder={t('add_note')} className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-zinc-400/50`} onClick={(e) => e.stopPropagation()} />
-                          </div>
-
-                          <button onClick={(e) => {
-                            e.stopPropagation();
-                            if (expandedItem) {
-                              const selectedMods = Object.entries(selectedModifiers)
-                                .filter(([, q]) => q > 0)
-                                .map(([id, q]) => {
-                                  const mod = (expandedItem.modifiers || []).find((x: any) => x.id === id);
-                                  return { id, name: mod?.name || '', price: Number(mod?.price || 0), quantity: q };
-                                });
-                              if (expandedItem._isCombo && onAddCombo) {
-                                onAddCombo(expandedItem._raw);
-                              } else {
-                                onAddProduct({ ...expandedItem, special_notes: noteForProduct || undefined, variant_id: selectedVariant || undefined, __expanded: true, __qty: qty, __modifiers: selectedMods } as any);
-                              }
-                            }
-                            setNoteForProduct('');
-                            setSelectedVariant(undefined);
-                            setSelectedModifiers({});
-                            setQty(1);
-                            handleClose();
-                          }} className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-black uppercase tracking-wider hover:opacity-90 transition-all active:scale-95 shadow-lg`}
-                          style={{ backgroundColor: '#10b981' }}
-                          >
-                            <Plus size={18} /> {t('add')}
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
+                )}
+               </div>
+             );
+           })}
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* 2. MƏHSUL MODALI (720px) — yalnız məhsulun öz seçimləri:       */}
+      {/*    başlıq+qiymət+allergenlər, miqdar, modifikatorlar, qeyd, Add */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {expandedItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={appleBackdrop}
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4"
+            onClick={handleClose}
+          >
+            <motion.div
+              key="product-modal-card"
+              layoutId={`product-card-${expandedItem.id}`}
+              transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              onClick={(e) => e.stopPropagation()}
+              className={`w-full max-w-[820px] rounded-4xl border shadow-elevated overflow-hidden ${expandedBg}`}
+            >
+              {/* Header: görsəl · ad · qiymət · allergenlər */}
+              <div className={`flex items-start justify-between gap-4 p-5 pb-4 border-b ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className={`w-[72px] h-[72px] rounded-3xl overflow-hidden shrink-0 ${lightMode ? 'bg-zinc-100' : 'bg-white/10'}`}>
+                    {expandedItem.image_url && !failedImages.has(expandedItem.image_url) ? (
+                      <img src={retryingImages.has(expandedItem.image_url) ? `${expandedItem.image_url}?t=${Date.now()}` : expandedItem.image_url} alt={modalName} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center text-2xl font-black opacity-20 uppercase ${expandedText}`}>{(modalName || '?').slice(0, 2)}</div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xl font-black truncate leading-tight ${expandedText}`}>{modalName}</p>
+                    <p className={`text-lg font-black mt-0.5 ${expandedSecondary}`}>₼ {modalUnitPrice.toFixed(2)}</p>
+                    <div className="mt-1.5">
+                      <AllergenBadges item={expandedItem} lightMode={lightMode} />
+                    </div>
+                  </div>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); handleClose(); }} className={`p-2 rounded-xl border transition-colors shrink-0 ${lightMode ? 'border-zinc-200 text-zinc-500 hover:bg-zinc-100' : 'border-white/10 text-white hover:bg-white/10'}`}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body: miqdar · variantlar · modifikatorlar · qeyd */}
+              <div className="p-5 space-y-5 max-h-[55vh] overflow-y-auto">
+                {/* Miqdar */}
+                <div>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Miqdar:</span>
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className={`flex items-center rounded-2xl border overflow-hidden ${lightMode ? 'border-zinc-200' : 'border-white/10'}`}>
+                      <button onClick={() => setQty(Math.max(1, qty - 1))} className={`px-6 py-3 text-base font-black transition-colors active:scale-95 ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>−</button>
+                      <span className={`px-5 py-3 text-base font-black tabular-nums min-w-[3.5rem] text-center ${expandedText}`}>{qty}</span>
+                      <button onClick={() => setQty(qty + 1)} className={`px-6 py-3 text-base font-black transition-colors active:scale-95 ${lightMode ? 'text-zinc-500 hover:bg-zinc-100' : 'text-white hover:bg-white/10'}`}>+</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Variantlar */}
+                {(expandedItem.variants?.length ?? 0) > 0 && (
+                  <div>
+                    <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('option' as any)}</span>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {(expandedItem.variants ?? []).map((v: any) => (
+                        <button key={v.id} onClick={() => setSelectedVariant(v.id)} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border active:scale-95 ${selectedVariant === v.id ? 'bg-blue-500 text-white border-blue-500' : lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:bg-white/10'}`}>
+                          {v.name || v.title || `#${v.id.slice(0, 6)}`} {v.price ? `(+₼${Number(v.price).toFixed(2)})` : ''}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Modifikatorlar */}
+                {(expandedItem.modifiers?.length ?? 0) > 0 && (
+                  <div>
+                    <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Modifikatorlar:</span>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {(expandedItem.modifiers ?? []).map((m: any) => {
+                        const mQty = selectedModifiers[m.id] || 0;
+                        return (
+                          <div key={m.id || m.name} className={`flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl text-sm font-semibold transition-all border ${mQty > 0 ? (lightMode ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-blue-500/10 border-blue-500/40 text-blue-200') : lightMode ? 'border-zinc-200 text-zinc-600' : 'border-white/10 text-white/80'}`}>
+                            <span
+                              onClick={() => setSelectedModifiers(p => ({ ...p, [m.id]: (p[m.id] || 0) + 1 }))}
+                              className="whitespace-nowrap cursor-pointer select-none active:scale-95"
+                            >
+                              {m.name} {m.price ? <span className={mQty > 0 ? 'opacity-70' : 'opacity-50'}>+₼{Number(m.price).toFixed(2)}</span> : ''}
+                            </span>
+                            {mQty > 0 && (
+                              <>
+                                <button onClick={() => setSelectedModifiers(p => ({ ...p, [m.id]: Math.max(0, (p[m.id] || 0) - 1) }))} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95">−</button>
+                                <span className="min-w-[1.1rem] text-center tabular-nums text-xs font-bold">{mQty}</span>
+                              </>
+                            )}
+                            <button onClick={() => setSelectedModifiers(p => ({ ...p, [m.id]: (p[m.id] || 0) + 1 }))} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-95">+</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Qeyd */}
+                <div>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>Qeyd:</span>
+                  <input type="text" value={noteForProduct} onChange={(e) => setNoteForProduct(e.target.value)} placeholder={t('add_note')} className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-colors ${expandedInputBg} focus:border-zinc-400/50`} />
+                </div>
+              </div>
+
+              {/* Footer: ƏLAVƏ ET */}
+              <div className="p-5 pt-0">
+                <button onClick={handleModalAdd} className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-white text-sm font-black uppercase tracking-wider hover:opacity-90 transition-all active:scale-[0.98] shadow-lg"
+                style={{ backgroundColor: '#10b981' }}
+                >
+                  <Plus size={18} /> {t('add')}{qty > 1 ? ` · ${qty}` : ''}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });

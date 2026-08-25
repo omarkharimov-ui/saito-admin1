@@ -140,6 +140,10 @@ export interface PosProduct {
   name_az?: string | null;
   name_en?: string | null;
   name_ru?: string | null;
+  // products.allergens — Json (array | comma-string | object); UI parses defensively
+  allergens?: any;
+  // /api/pos/products embeds modifier rows per product
+  modifiers?: PosModifier[];
   effective_price?: {
     base_price: number;
     effective_price: number;

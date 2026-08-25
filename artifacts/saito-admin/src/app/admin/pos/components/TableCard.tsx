@@ -242,6 +242,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
 
   const currentStatus = statusConfig[table.status as keyof typeof statusConfig] || statusConfig.empty;
   const StatusIcon = currentStatus.icon;
+  const seatedNoOrder = table.status === 'occupied' && !table.current_order_id;
 
   const displayAmount = table.total_amount && table.total_amount > 0 ? table.total_amount : null;
   const displayGuests = table.guest_count && table.guest_count > 0 ? table.guest_count : null;
@@ -432,9 +433,24 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
                    animate={{ opacity: 1, y: 0 }}
                    exit={{ opacity: 0, y: -4 }}
                    transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-                   className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${currentStatus.bg}`}>
-                   {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={currentStatus.iconColor} />}
-                 {showOccupiedFlash ? t('occupied' as any) : currentStatus.label}
+                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-black uppercase tracking-widest ${
+                      seatedNoOrder
+                        ? (lightMode ? 'bg-orange-100 border-orange-400 text-orange-700' : 'bg-orange-500/25 border-orange-400/60 text-orange-300')
+                        : currentStatus.bg
+                    }`}>
+                    {StatusIcon && <StatusIcon size={10} strokeWidth={2.5} className={seatedNoOrder ? (lightMode ? 'text-orange-700' : 'text-orange-400') : currentStatus.iconColor} />}
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.span
+                        key={showOccupiedFlash ? 'occupied-flash' : (seatedNoOrder ? 'seated-no-order' : currentStatus.label)}
+                        initial={{ opacity: 0, y: 6, filter: 'blur(3px)' }}
+                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        exit={{ opacity: 0, y: -6, filter: 'blur(3px)' }}
+                        transition={{ duration: 0.16, ease: [0.4, 0, 0.2, 1] }}
+                        className="whitespace-nowrap"
+                      >
+                        {showOccupiedFlash ? t('occupied' as any) : (seatedNoOrder ? t('seated_no_order' as any) : currentStatus.label)}
+                      </motion.span>
+                    </AnimatePresence>
                    {table.status === 'dirty' && (
                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                        <path d="M12 3v15" />

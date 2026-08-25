@@ -23,7 +23,9 @@ export async function POST(req: NextRequest) {
     const rpcRes = await fetch(`${s.url}/rest/v1/rpc/cancel_table_orders`, {
       method: 'POST',
       headers: s.headers,
-      body: JSON.stringify({ p_table_number: table_number }),
+      // Named args for ALL params of the 3-arg overload — PostgREST cannot
+      // resolve between the 2-arg and 3-arg overloads with p_table_number only (PGRST203).
+      body: JSON.stringify({ p_table_number: table_number, p_reason: 'dismissed_from_pos', p_performed_by: auth.user.id }),
     });
 
     if (!rpcRes.ok) {

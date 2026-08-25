@@ -31,6 +31,7 @@ type ProductForm = {
   is_ready_product: boolean; direct_ingredient_id: string;
   name_en: string; name_ru: string; description_en: string; description_ru: string;
   ingredients_en: string; ingredients_ru: string;
+  allergenIds: string[];
   variants: ProductVariantForm[];
   modifiers: ProductModifierForm[];
 };
@@ -44,6 +45,7 @@ const emptyProductForm = (defaultCatId = ''): ProductForm => ({
   is_ready_product: false, direct_ingredient_id: '',
   name_en: '', name_ru: '', description_en: '', description_ru: '',
   ingredients_en: '', ingredients_ru: '',
+  allergenIds: [],
   variants: [],
   modifiers: [],
 });
@@ -383,9 +385,10 @@ const ProductsPage = () => {
       setIsModalOpen(true);
       return;
     }
-    const [{ data: variantRows }, { data: modifierRows }] = await Promise.all([
+    const [{ data: variantRows }, { data: modifierRows }, { data: allergenLinkRows }] = await Promise.all([
       supabase.from('product_variants').select('*').eq('product_id', product.id).order('is_default', { ascending: false }),
       supabase.from('product_modifiers').select('*').eq('product_id', product.id).order('created_at', { ascending: true }),
+      supabase.from('product_allergens').select('allergen_id').eq('product_id', product.id),
     ]);
     setProductForm({
       name: localName, category_id: product.category_id, price: product.price.toString(),
@@ -397,6 +400,7 @@ const ProductsPage = () => {
       name_en: (product as any).name_en || '', name_ru: (product as any).name_ru || '',
       description_en: (product as any).description_en || '', description_ru: (product as any).description_ru || '',
       ingredients_en: (product as any).ingredients_en || '', ingredients_ru: (product as any).ingredients_ru || '',
+      allergenIds: (allergenLinkRows || []).map((r: any) => r.allergen_id).filter(Boolean),
       variants: (variantRows || []).map(v => ({ id: v.id, name: v.name, price: v.price.toString(), is_default: v.is_default, variant_type: 'olcu' as const, translations: (v as any).translations || null })),
       modifiers: (modifierRows || []).map(m => ({ id: m.id, name: m.name, price: m.price.toString(), is_available: m.is_available, translations: (m as any).translations || null })),
     });
@@ -438,6 +442,20 @@ const ProductsPage = () => {
       toast.error((error as any)?.message || t('error_sql_update'), { id: 'action-toast' });
     }
     else if (savedProduct) {
+        // ─── Allergen sync (SSOT: product_allergens junction) ───
+        try {
+          const wanted = Array.from(new Set(productForm.allergenIds.filter(Boolean)));
+          const { data: existingLinks } = await supabase
+            .from('product_allergens').select('id, allergen_id').eq('product_id', savedProduct.id);
+          const existingIds = new Set((existingLinks || []).map((l: any) => l.allergen_id));
+          const toAdd = wanted.filter(id => !existingIds.has(id));
+          const toRemove = (existingLinks || []).filter((l: any) => !wanted.includes(l.allergen_id)).map((l: any) => l.id);
+          if (toRemove.length) await supabase.from('product_allergens').delete().in('id', toRemove);
+          if (toAdd.length) await supabase.from('product_allergens').insert(toAdd.map(allergen_id => ({ product_id: savedProduct.id, allergen_id })));
+        } catch (allergenErr) {
+          console.error('[Products Save] allergen sync failed:', allergenErr);
+        }
+
         // ─── Variant CRUD (olcu only) ───
         const validVariants = productForm.variants.filter(v => v.name.trim() && v.price.trim() && !isNaN(parseFloat(v.price)));
         const translationMap = new Map<string, Record<string, { name: string }>>();

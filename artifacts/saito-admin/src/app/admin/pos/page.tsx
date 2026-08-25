@@ -7,13 +7,11 @@ import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap } from '@/li
 import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { usePos } from './hooks/usePos';
-import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
+import { usePos, cartLineKey } from './hooks/usePos';import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
 import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid, type ProductGridRef } from './components/ProductGrid';
 import { CartPanel } from './components/CartPanel';
-import { ModifierSheet } from './components/ModifierSheet';
 import { playHapticSound } from '@/lib/haptic';
 import ReservationActionSheet from './components/ReservationActionSheet';
 import TakeawayOrders from './components/TakeawayOrders';
@@ -350,8 +348,6 @@ export default function POSPage() {
     window.location.href = '/login?redirect=/admin/pos';
   };
 
-  const [modalProduct, setModalProduct] = useState<{ product: PosProduct; variants: any[] } | null>(null);
-
    // Reservation → pre-order handoff: the reservations page navigates here with
    // ?resId=&tableIds=&guestName= and also writes a localStorage context. When
    // present we enter reservation mode: auto-select the target table, link the
@@ -482,23 +478,23 @@ export default function POSPage() {
   const handleProductTap = (product: PosProduct) => {
     const p = product as any;
     if (p.__expanded) {
-      const qty = Math.max(1, Number(p.__qty) || 1);
-      const mods = p.__modifiers || [];
-      for (let i = 0; i < qty; i++) {
-        pos.addToCart(product, {
-          variantId: p.variant_id ?? null,
-          notes: p.special_notes || undefined,
-          modifiers: mods,
-        });
-      }
+      // Tək çağırış — quantity opts ilə. Dövr ilə çağırmaq olmaz: cartRef
+      // yalnız re-render-dan sonra sync olur, loop stale cart oxuyur.
+      pos.addToCart(product, {
+        variantId: p.variant_id ?? null,
+        notes: p.special_notes || undefined,
+        modifiers: p.__modifiers || [],
+        quantity: Math.max(1, Number(p.__qty) || 1),
+        editOf: p.__editOf || undefined,
+      });
       return;
     }
+    // Kart toxunuşu = BİRBAŞA səbətə. Variantlı məhsulda default variant
+    // seçilir; konfiqurasiya (variant dəyişmə, modifikator, qeyd) səbətdəki
+    // sətirin details düyməsindən redaktə olunur.
     const variants = pos.variantsByProduct[product.id] || [];
-    if (variants.length > 0) {
-      setModalProduct({ product, variants });
-    } else {
-      pos.addToCart(product);
-    }
+    const def = variants.find((v: any) => v.is_default) || variants[0];
+    pos.addToCart(product, { variantId: def?.id ?? null });
   };
 
   const handleOpenPayment = () => setPaymentView(true);
@@ -1925,14 +1921,15 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                    {/* ═══════════════════════════════════════════════ */}
                     <div className="flex-1 flex flex-row overflow-hidden min-h-0">
                      <div
-                         className="flex-1 p-6 overflow-y-auto min-h-0 overscroll-contain"
-                       >
-                          <ProductGrid
-                          ref={gridRef}
-                          products={pos.products}
-                          categories={pos.categories}
-                          combos={pos.combos}
-                          onAddProduct={(p) => handleProductTap(p)}
+                          className="flex-1 p-6 overflow-y-auto min-h-0 overscroll-contain"
+                        >
+                           <ProductGrid
+                           ref={gridRef}
+                           products={pos.products}
+                           categories={pos.categories}
+                           combos={pos.combos}
+                           variantsByProduct={pos.variantsByProduct}
+                           onAddProduct={(p) => handleProductTap(p)}
                           onAddCombo={(c) => pos.addComboToCart(c)}
                           cartCounts={(pos.cart?.items ?? []).reduce((acc: Record<string, number>, item: any) => {
                             const id = item.product_id;
@@ -2038,6 +2035,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                        )}
                        <CartPanel
                           cart={pos.cart}
+                          cartHydrating={pos.cartHydrating}
                           onPlaceOrder={() => {
                             if (pos.reservationMode) {
                               pos.savePreOrder();
@@ -2091,8 +2089,23 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                            newItems[idx] = { ...newItems[idx], ...patch };
                            pos.setCart({ ...pos.cart, items: newItems });
                          }}
-                         onUpdateOrderType={(type) => pos.updateOrderType(type)}
-                         posMode={posMode}
+                          onUpdateOrderType={(type) => pos.updateOrderType(type)}
+                          posMode={posMode}
+                          tableStatus={pos.selectedTable?.status ?? null}
+                          tableGuests={pos.cart?.guest_count ?? pos.selectedTable?.guest_count ?? null}
+                          onSeatTable={async () => {
+                            const tbl = pos.selectedTable;
+                            if (!tbl) return;
+                            const guests = pos.cart?.guest_count || tbl.guest_count || 1;
+                            await pos.seatTable(tbl.table_number, guests);
+                            if (pos.cart && !pos.cart.guest_count) pos.setCart({ ...pos.cart, guest_count: guests });
+                          }}
+                          onOpenActions={() => {
+                            if (!pos.selectedTable) return;
+                            playHapticSound('on');
+                            setActionSheetTable(pos.selectedTable);
+                            setActionSheetOpen(true);
+                          }}
                          isDirty={(pos.cart?.items ?? []).some(i => (i.sentQuantity ?? 0) === 0 && i.quantity > 0)}
                          onUpdateDeliveryFields={(fields) => {
                            if (!pos.cart) return;
@@ -2104,11 +2117,35 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                          }}
                            onOpenModifiers={(productId) => {
                              const product = pos.products.find((p: any) => p.id === productId);
-                             if (product) setModalProduct({ product, variants: pos.variantsByProduct[productId] || [] });
+                             if (product) gridRef.current?.openEditor(productId);
                            }}
-                           onRequestEditor={(productId) => {
-                             gridRef.current?.toggleEditor(productId);
-                           }}
+                            onRequestEditor={(productId, lineIndex) => {
+                              const items = (pos.cart?.items || []) as any[];
+                              // Dəqiq sətir: CartPanel öz indeksini göndərir —
+                              // eyni məhsuldan çox sətir olanda həmişə birincini yığmamaq üçün.
+                              const byIndex = typeof lineIndex === 'number' ? items[lineIndex] : undefined;
+                              const match = byIndex && byIndex.product_id === productId && !byIndex.__isCombo && !(byIndex.sentQuantity ?? 0)
+                                ? byIndex
+                                : items.find((it: any) =>
+                                    it.product_id === productId &&
+                                    !(it.sentQuantity ?? 0) && !it.__isCombo
+                                  );
+                              if (!match) {
+                                gridRef.current?.toggleEditor(productId);
+                                return;
+                              }
+                              const preset = {
+                                variantId: match.variant_id ?? null,
+                                note: match.special_notes || '',
+                                modifiers: (match.modifiers || []).reduce((acc: Record<string, number>, m: any) => {
+                                  acc[m.id] = (acc[m.id] || 0) + (m.quantity || 1);
+                                  return acc;
+                                }, {} as Record<string, number>),
+                                quantity: match.quantity || 1,
+                                identity: cartLineKey(match.variant_id, match.special_notes, match.modifiers),
+                              };
+                              gridRef.current?.toggleEditor(productId, preset);
+                            }}
                          />
                      </div>
                    </div>
@@ -2226,20 +2263,6 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
           </motion.div>
         )}
       </AnimatePresence>
-
-      <ModifierSheet
-        open={!!modalProduct}
-        productName={modalProduct?.product.name || ''}
-        productPrice={modalProduct?.product.price || 0}
-        variants={modalProduct?.variants || []}
-        onClose={() => setModalProduct(null)}
-        onConfirm={(_modifiers, notes, variantId) => {
-          if (modalProduct) {
-            pos.addToCart(modalProduct.product, { variantId: variantId || null, notes, modifiers: _modifiers });
-          }
-          setModalProduct(null);
-        }}
-      />
 
       <AnimatePresence>
         {receiptView && (

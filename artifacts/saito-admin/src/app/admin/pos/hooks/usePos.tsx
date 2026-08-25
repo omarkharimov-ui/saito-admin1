@@ -8,6 +8,22 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 import type { PosProduct, PosTable, PosCart, PosCartItem, PosModifierSelection } from '../types/shared';
 
+// Sətir identikliyi — editOf əvəzetməsi üçün stabil açar. Həm səbət sətri,
+// həm modal preset eyni funksiya ilə normalizə olunur (JSON sıra həssaslığına düşmür).
+export function cartLineKey(
+  variantId: string | null | undefined,
+  notes: string | null | undefined,
+  mods: Array<{ id: string; quantity?: number }> | undefined
+): string {
+  const modKey = (mods || [])
+    .filter(m => (m.quantity ?? 1) > 0)
+    .slice()
+    .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+    .map(m => `${m.id}x${m.quantity ?? 1}`)
+    .join('|');
+  return `${variantId ?? ''}::${(notes || '').trim()}::${modKey}`;
+}
+
 export function usePos() {
   const { t } = useLanguage();
   const [floors, setFloors] = useState<any[]>([]);
@@ -23,6 +39,7 @@ export function usePos() {
   const [activeView, setActiveView] = useState<'floor' | 'order' | 'billing'>('floor');
   const [posMode, setPosMode] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in');
   const [cart, setCart] = useState<PosCart | null>(null);
+  const [cartHydrating, setCartHydrating] = useState(false);
   const [tableOrderCache, setTableOrderCache] = useState<Record<number, any>>({});
   const [reservationMode, setReservationMode] = useState(false);
   const [reservationId, setReservationId] = useState<string | null>(null);
@@ -292,6 +309,8 @@ export function usePos() {
         notes: cached?.orders?.[0]?.notes || '',
         order_type: 'dine_in'
       });
+      // Mark hydrating when cache is empty (items will flash empty before fetch completes)
+      if (cachedItems.length === 0) setCartHydrating(true);
     }
 
     try {
@@ -400,8 +419,10 @@ export function usePos() {
           // No active server order for this table — clear cart (drafts belong to previous table)
         }
       }
+      setCartHydrating(false);
     } catch (e) {
       console.error('Failed to load existing order items:', e);
+      setCartHydrating(false);
       // On failure, restore drafts only when re-entering the same table; leaving
       // a table discards them (same auto-delete rule as above).
       if (draftItems.length > 0 && !switchingToDifferentTable && reqId === selectTableReqId.current) {
@@ -482,6 +503,37 @@ export function usePos() {
       merged_groups: (f.merged_groups || []).filter((g: any) => !set.has(g.parent?.table_number)),
     })));
   }, []);
+
+  const markTableSeatedLocal = useCallback((nums: number[], guestCount: number) => {
+    const set = new Set(nums);
+    setFloors(prev => prev.map((f: any) => ({
+      ...f,
+      tables: (f.tables || []).map((t: any) =>
+        set.has(t.table_number)
+          ? { ...t, status: 'occupied', guest_count: guestCount, last_activity_at: new Date().toISOString() }
+          : t
+      ),
+    })));
+  }, []);
+
+  const seatTable = async (num: number, guestCount: number) => {
+    return withOperationLock(`seat_${num}`, async () => {
+      const res = await apiFetch('/api/tables/seat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table_number: num, guest_count: guestCount }),
+      });
+      if (res.ok) {
+        markTableSeatedLocal([num], guestCount);
+        setSelectedTable((prev: any) => (prev && prev.table_number === num ? { ...prev, status: 'occupied', guest_count: guestCount } : prev));
+        toast.success(t('guest_seated'));
+        setLastUndo({ action: 'seat', data: { table_number: num }, message: t('guest_seated') });
+      } else {
+        const err = await res.json().catch(() => ({ error: 'Seat failed' }));
+        toast.error(err.error || t('seat_failed'));
+      }
+    });
+  };
 
   const dismissTable = async (num: number) => {
     return withOperationLock(`dismiss_${num}`, async () => {
@@ -590,8 +642,9 @@ export function usePos() {
 
   const addToCart = (
     p: PosProduct,
-    opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[] }
+    opts?: { variantId?: string | null; notes?: string; modifiers?: PosModifierSelection[]; quantity?: number; editOf?: { identity?: string } }
   ) => {
+    const addQty = Math.max(1, Number(opts?.quantity) || 1);
     const base = cartRef.current ?? {
       table_number: selectedTable?.table_number || null,
       guest_count: selectedTable?.guest_count || 1,
@@ -606,10 +659,44 @@ export function usePos() {
     const variantId = opts?.variantId ?? null;
     const basePrice = variant ? Number(variant.discount_price != null && variant.discount_price !== '' ? variant.discount_price : variant.price) : (p.price ?? 0);
     const effective = (p as any).effective_price;
-    const unitPrice = typeof effective === 'number' ? effective : effective?.effective_price ?? basePrice;
+    // Variant seçilibsə variant qiyməti əsasdır (kampaniya endirimi məbləğ kimi düşülür);
+    // variantsızdırsa kampaniyalı effektiv qiymət tətbiq olunur.
+    const effNum = typeof effective === 'number' ? effective : effective?.effective_price;
+    const campaignDiscountAmt = typeof effective === 'object' && effective ? Number(effective.discount_amount) || 0 : 0;
+    const productUnit = variant
+      ? (campaignDiscountAmt > 0 ? Math.max(0, basePrice - campaignDiscountAmt) : basePrice)
+      : (effNum ?? basePrice);
+    // Modifikator qiymətləri unit_price-a da, original_unit_price-a da əlavə olunur ki,
+    // (original − unit) əsaslı endirim hesablamaları pozulmasın.
+    const modifiersTotal = (opts?.modifiers || []).reduce((s, m) => s + Number(m.price || 0) * (m.quantity || 1), 0);
+    const unitPrice = Math.round((productUnit + modifiersTotal) * 100) / 100;
+    const originalWithMods = Math.round((basePrice + modifiersTotal) * 100) / 100;
     const campaignId = typeof effective === 'object' && effective?.campaign_id ? effective.campaign_id : null;
     const campaignDiscount = typeof effective === 'object' && effective?.discount_amount ? effective.discount_amount : 0;
     const campaignDiscountType = typeof effective === 'object' && effective?.discount_type ? effective.discount_type : null;
+    // EditOf: modal mövcud sətri redaktə edirdisə — köhnə konfiqurasiyalı
+    // sətri tapıb əvəz edirik (merge yox). Yalnız göndərilməmiş sətirlər.
+    if (opts?.editOf?.identity) {
+      const target = items.find(
+        i => String(i.product_id) === String(p.id)
+          && !(i.sentQuantity ?? 0)
+          && cartLineKey(i.variant_id, i.special_notes, i.modifiers as any) === opts.editOf!.identity
+      );
+      if (target) {
+        const replaced = {
+          ...target,
+          unit_price: unitPrice,
+          original_unit_price: originalWithMods,
+          quantity: addQty,
+          total_price: Math.round(unitPrice * addQty * 100) / 100,
+          modifiers: opts?.modifiers ?? [],
+          variant_id: variantId,
+          special_notes: opts?.notes ?? '',
+        };
+        setCart({ ...base, items: items.map(i => (i === target ? replaced : i)) });
+        return;
+      }
+    }
     const existing = items.find(
       i => String(i.product_id) === String(p.id)
         && (i.variant_id ?? null) === variantId
@@ -617,7 +704,7 @@ export function usePos() {
         && (i.special_notes || '') === (opts?.notes || '')
     );
     if (existing) {
-      existing.quantity += 1;
+      existing.quantity += addQty;
       existing.total_price = existing.unit_price * existing.quantity;
       setCart({ ...base, items });
       return;
@@ -626,9 +713,9 @@ export function usePos() {
       product_id: p.id,
       product_name: p.name,
       unit_price: unitPrice,
-      original_unit_price: basePrice,
-      quantity: 1,
-      total_price: unitPrice,
+      original_unit_price: originalWithMods,
+      quantity: addQty,
+      total_price: Math.round(unitPrice * addQty * 100) / 100,
       modifiers: opts?.modifiers ?? [],
       variant_id: variantId,
       special_notes: opts?.notes ?? '',
@@ -787,7 +874,7 @@ export function usePos() {
           item: i,
           delta: Math.max(0, (i.quantity || 0) - (i.sentQuantity || 0)),
         }))
-        .filter(x => x.delta > 0)
+        .filter(x => x.delta > 0 && !(x.item as any).is_hold)
         .map(x => ({
           product_id: x.item.product_id,
           product_name: x.item.product_name,
@@ -796,6 +883,7 @@ export function usePos() {
           modifiers: x.item.modifiers || [],
           special_notes: x.item.special_notes || '',
           variant_id: x.item.variant_id || null,
+          course: (x.item as any).course || 'mains',
           is_combo: x.item.is_combo || false,
           combo_id: x.item.combo_id || null,
           original_unit_price: x.item.original_unit_price || null,
@@ -1434,8 +1522,8 @@ export function usePos() {
   };
 
     return {
-      floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, activeView, lastUndo, posMode,
-      fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo,
+      floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
+      fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo, seatTable,
       setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
       reservationMode, reservationId, reservationPreOrderItems, reservationInfo,

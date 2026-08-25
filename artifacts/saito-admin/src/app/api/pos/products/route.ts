@@ -8,7 +8,7 @@ export async function GET() {
 
     const supabase = await createAuthClient();
 
-    const [productsRes, categoriesRes, ingredientsRes, recipesRes, variantsRes, combosRes, campaignsRes, productModifiersRes] = await Promise.all([
+    const [productsRes, categoriesRes, ingredientsRes, recipesRes, variantsRes, combosRes, campaignsRes, productModifiersRes, allergenLinksRes] = await Promise.all([
       supabase.from('products').select('*, category:category_id(name,name_az,name_en,name_ru)').order('created_at', { ascending: false }),
       supabase.from('categories').select('*').order('name', { ascending: true }),
       supabase.from('ingredients').select('id, name, current_stock, unit'),
@@ -17,6 +17,8 @@ export async function GET() {
       supabase.from('combos').select('*, items:combo_items(*, product:products(*))').eq('is_active', true),
       supabase.from('campaigns').select('*, rules:campaign_rules(*), targets:campaign_targets(*)').eq('is_active', true).eq('deleted_at', null),
       supabase.from('product_modifiers').select('*').eq('is_available', true).order('created_at', { ascending: true }),
+      // Allergenlərin SSOT mənbəyi: allergens + product_allergens junction
+      supabase.from('product_allergens').select('product_id, allergen:allergens(code, name, translations)'),
     ]);
 
     const now = new Date().toISOString();
@@ -40,10 +42,21 @@ export async function GET() {
       });
     }
 
+    const allergensByProduct: Record<string, Array<{ code: string; name: string }>> = {};
+    for (const link of (allergenLinksRes.data || []) as any[]) {
+      if (!link.product_id) continue;
+      const a = link.allergen;
+      const entry = a?.code || a?.name ? { code: String(a.code || ''), name: String(a.name || '') } : null;
+      if (!entry) continue;
+      const arr = (allergensByProduct[link.product_id] ||= []);
+      if (!arr.some(x => x.code === entry.code)) arr.push(entry);
+    }
+
     const products = (productsRes.data || [])
       .map((p: any) => ({
         ...p,
         modifiers: modifiersByProduct[p.id] || [],
+        allergens: allergensByProduct[p.id] || [],
         effective_price: computeEffectivePrice(p, campaigns, now),
       }));
 

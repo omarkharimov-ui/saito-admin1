@@ -8,10 +8,10 @@ export const appleBackdrop = {
 
 /** Outer modal: slide from bottom / exit down */
 export const slideUp = {
-  initial: { opacity: 0, y: 60 },
+  initial: { opacity: 0, y: 48 },
   animate: { opacity: 1, y: 0 },
-  exit:    { opacity: 0, y: 60 },
-  transition: { duration: 0.32, ease: [0.4, 0, 0.2, 1] as Easing },
+  exit:    { opacity: 0, y: 48 },
+  transition: { duration: 0.26, ease: [0.4, 0, 0.2, 1] as Easing },
 };
 
 /** Inner view morph — smooth scale + radius */
@@ -19,7 +19,7 @@ export const morphView = {
   initial: { opacity: 0, scale: 0.96, borderRadius: 32 },
   animate: { opacity: 1, scale: 1, borderRadius: 24 },
   exit:    { opacity: 0, scale: 0.98, borderRadius: 32 },
-  transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] as Easing },
+  transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as Easing },
 };
 
 /** Fast exit for back/close */

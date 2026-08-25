@@ -177,6 +177,7 @@ export async function POST(request: Request) {
               total_price: (i.unit_price || 0) * (i.quantity || 1),
               modifiers: i.modifiers || [],
               special_notes: i.special_notes || '',
+              course: i.course || 'mains',
               kitchen_status: 'pending',
             }))
           ),
@@ -401,6 +402,7 @@ export async function POST(request: Request) {
           modifiers: i.modifiers || [],
           special_notes: i.special_notes || '',
           variant_id: i.variant_id || null,
+          course: i.course || 'mains',
           is_combo_parent: !!i.is_combo,
           combo_group_id: i.combo_id || null,
           created_at: new Date().toISOString(),

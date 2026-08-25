@@ -181,6 +181,25 @@ export async function POST(request: NextRequest) {
           return { action: 'dismiss_undo', success: true, result };
         }
 
+        case 'seat': {
+          const { table_number } = data;
+          if (!table_number) throw new Error('table_number required');
+          const patchRes = await fetch(`${svc().url}/rest/v1/table_floors?table_number=eq.${table_number}`, {
+            method: 'PATCH',
+            headers: svc().headers,
+            body: JSON.stringify({
+              status: 'empty',
+              guest_count: null,
+              last_activity_at: null,
+            }),
+          });
+          if (!patchRes.ok) {
+            const errText = await patchRes.text();
+            throw new Error(errText || 'Seat undo failed');
+          }
+          return { action: 'seat', success: true, table_number };
+        }
+
         default:
           throw new Error(`Unknown action: ${action}`);
       }

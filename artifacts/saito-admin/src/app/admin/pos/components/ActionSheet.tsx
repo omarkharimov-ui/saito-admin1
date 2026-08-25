@@ -198,14 +198,16 @@ export function ActionSheet({
           style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
         >
            {/* Backdrop */}
-           {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'split-by-items' || currentView === 'confirm-action') && (
-           <motion.div
-              {...morphView} exit={{ opacity: 0 }}
-              transition={fastExit}
-              className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/20"
-              onClick={onClose}
-            />
-           )}
+            {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'split-by-items' || currentView === 'confirm-action') && (
+            <motion.div
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               transition={{ duration: 0.14, ease: 'easeOut' }}
+               className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/20"
+               onClick={onClose}
+             />
+            )}
 
             {/* THE STABLE MORPHING KAPSUL */}
             <motion.div
@@ -226,7 +228,7 @@ export function ActionSheet({
                   <div className={`w-10 h-1.5 rounded-full ${lightMode ? 'bg-zinc-300' : 'bg-white/20'}`} />
                 </div>
               )}
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence mode="wait" initial={false}>
                 {currentView === 'actions' && (
                   <motion.div key="ui-actions" {...morphView} transition={fastExit}>
                     <div className="text-center mb-6">

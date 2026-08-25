@@ -128,6 +128,10 @@ function isAllItemsReady(order: Order): boolean {
   return order.items.length > 0 && order.items.every(it => it.preparedQuantity >= it.orderedQuantity);
 }
 
+const KDS_COURSE_LABEL: Record<string, string> = {
+  appetizers: 'Başlanğıc', mains: 'Əsas', desserts: 'Dessert', drinks: 'İçki', main: 'Əsas',
+};
+
 function isDelayed(order: Order, threshold = 15): boolean {
   if (!order.kitchen_accepted_at) return false;
   return elapsedMinutes(order.kitchen_accepted_at) >= threshold && !isAllItemsReady(order);
@@ -157,7 +161,7 @@ function mapRawOrder(o: any, lang = 'az'): Order {
       kitchen_status: (i.kitchen_status as 'pending' | 'ready') || 'pending',
       orderedQuantity,
       preparedQuantity,
-      is_on_hold: false,
+      is_on_hold: !!i.is_hold,
       course: i.course || 'main',
       image_url: i.image_url || prod?.image_url,
       created_at: i.created_at,
@@ -465,7 +469,7 @@ const CardWithCollapse = memo(function CardWithCollapse({
                 return (
                   <div key={course} className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{course}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{KDS_COURSE_LABEL[course] || course}</span>
                       <span className="text-[10px] font-black text-white/50">{Math.round(pct)}%</span>
                     </div>
                      <div className="h-1 bg-white/5 rounded-full overflow-hidden">

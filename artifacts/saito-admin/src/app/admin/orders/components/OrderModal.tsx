@@ -19,6 +19,10 @@ import { CustomerSelect } from './CustomerSelect';
 import { BillSplitModal } from '@/app/admin/pos/components/BillSplitModal';
 import { getStatusConfig, timeAgo } from '../utils';
 
+const COURSE_LABELS: Record<string, string> = {
+  appetizers: 'Başlanğıc', mains: 'Əsas', desserts: 'Dessert', drinks: 'İçki', main: 'Əsas',
+};
+
 interface OrderModalProps {
   order: Order;
   onClose: () => void;
@@ -365,7 +369,8 @@ export const OrderModal = ({
     });
     setTimeout(async () => {
       // Deferred: cancel items + release table via cancel_table_orders RPC
-      await supabase.rpc('cancel_table_orders', { p_table_number: order.table_number });
+      // All named args: DB has 2 overloads of this RPC; p_table_number alone is ambiguous (PGRST203)
+      await supabase.rpc('cancel_table_orders', { p_table_number: order.table_number, p_reason: reasonLabel, p_performed_by: null });
     }, 30000);
     toast.success(t('order_cancelled_reason').replace('{reason}', reasonLabel), { id: 'action-toast' });
     closeAndRefresh();
@@ -932,8 +937,8 @@ export const OrderModal = ({
                       {(item.served_quantity ?? 0) > 0 && (
                         <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">{item.served_quantity}/{item.quantity}</span>
                       )}
-                      {item.course && item.course !== 'main' && (
-                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>
+                      {item.course && item.course !== 'main' && item.course !== 'mains' && (
+                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{COURSE_LABELS[item.course] || item.course}</span>
                       )}
                     </div>
                     {cancelStep === 'select' ? (
@@ -1202,8 +1207,8 @@ export const OrderModal = ({
                       {(item.served_quantity ?? 0) > 0 && (
                         <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">{item.served_quantity}/{item.quantity}</span>
                       )}
-                      {item.course && item.course !== 'main' && (
-                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{item.course}</span>
+                      {item.course && item.course !== 'main' && item.course !== 'mains' && (
+                        <span className="text-[8px] font-semibold px-1 py-0.5 rounded-full flex-shrink-0 bg-white/[0.06] text-white/30 border border-white/[0.08]">{COURSE_LABELS[item.course] || item.course}</span>
                       )}
                     </div>
                     {order.status !== 'paid' ? (

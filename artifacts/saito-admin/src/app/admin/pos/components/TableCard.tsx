@@ -331,7 +331,7 @@ export function TableCard({ table, onTap, onAction, isSelected, selectionMode, i
               {/* Amount as hero element */}
               {displayAmount && (
                 <div className="mb-2">
-                  <p className="text-[32px] font-black tracking-tight text-white">
+                  <p className={`text-[32px] font-black tracking-tight ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                     ₼{displayAmount.toFixed(2)}
                   </p>
                 </div>

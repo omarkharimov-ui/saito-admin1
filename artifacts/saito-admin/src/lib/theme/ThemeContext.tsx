@@ -55,6 +55,15 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       html.classList.toggle('dark', !lightMode);
       html.classList.toggle('light', lightMode);
       html.style.colorScheme = lightMode ? 'light' : 'dark';
+
+      html.style.transition = 'background-color 0.35s ease, color 0.35s ease';
+      html.style.opacity = '0.88';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          html.style.opacity = '1';
+          setTimeout(() => { html.style.transition = ''; }, 400);
+        });
+      });
     } catch {
       // ignore
     }

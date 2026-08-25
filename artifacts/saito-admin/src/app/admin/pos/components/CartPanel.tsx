@@ -409,72 +409,9 @@ export function CartPanel({
     </div>
   );
 
-  if (isEmpty) {
-    if (cartHydrating) {
-      return (
-        <div className="flex flex-col h-full px-6 relative">
-          <div className="flex items-start gap-2 flex-shrink-0 pb-4 pt-6">
-            <button onClick={onBack}
-              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
-              <ArrowLeft size={18} />
-            </button>
-            <div className="flex-1 min-w-0">
-              <div className="h-5 w-32 rounded-lg bg-[var(--theme-surface-muted)] animate-pulse mb-2" />
-              <div className="h-3 w-20 rounded-md bg-[var(--theme-surface-muted)] animate-pulse" />
-            </div>
-          </div>
-          <div className="flex-1 flex flex-col items-center justify-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[var(--theme-surface-muted)] animate-pulse" />
-            <div className="h-3 w-24 rounded-md bg-[var(--theme-surface-muted)] animate-pulse" />
-          </div>
-        </div>
-      );
-    }
-    const emptyTitle = mergedChildNumbers && mergedChildNumbers.length > 0
-      ? `${t('group_label')} ${cart.table_number ?? '-'}`
-      : posMode === 'takeaway' ? t('takeaway') : posMode === 'delivery' ? t('delivery') : `${t('table_label')} ${cart.table_number ?? '-'}`;
-    return (
-      <div className="flex flex-col h-full px-6 relative">
-        <div className="flex items-start gap-2 flex-shrink-0 pb-4 pt-6">
-          <button onClick={onBack}
-            className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)]">
-            <ArrowLeft size={18} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-lg font-bold text-[var(--theme-text)] leading-tight">
-              <span className="inline-flex items-center gap-2 flex-wrap">
-                {emptyTitle}
-                {seatedNotOrdered && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest bg-orange-500/10 border border-orange-500/30 text-orange-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-                    {t('seated_no_order')}
-                  </span>
-                )}
-                {isReservationMode && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-black uppercase tracking-widest bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] text-[var(--theme-text-secondary)]">PRE-ORDER</span>
-                )}
-              </span>
-            </p>
-            {isDineInContext ? (
-              headerMeta
-            ) : (
-              <div className="flex items-center gap-1.5 mt-1 text-xs text-[var(--theme-text-secondary)]">
-                <Users size={12} />
-                <span>{displayGuests} {t('person')}</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center text-[var(--theme-text-muted)]">
-          <ShoppingBag size={56} className="mb-4 opacity-15" />
-          <p className="text-sm font-black uppercase tracking-widest mb-1">
-            {t('no_products')}
-          </p>
-          <p className="text-xs mb-6 opacity-60">{t('add_items_hint')}</p>
-        </div>
-      </div>
-    );
-  }
+  const emptyTitle = mergedChildNumbers && mergedChildNumbers.length > 0
+    ? `${t('group_label')} ${cart.table_number ?? '-'}`
+    : posMode === 'takeaway' ? t('takeaway') : posMode === 'delivery' ? t('delivery') : `${t('table_label')} ${cart.table_number ?? '-'}`;
 
   let total = originalTotal;
   let campaignDiscount = 0;
@@ -688,6 +625,17 @@ export function CartPanel({
         </div>
       </div>
 
+      {/* ═══ Empty state body ═══ */}
+      {isEmpty && (
+        <div className="flex-1 flex flex-col items-center justify-center text-[var(--theme-text-muted)]">
+          <ShoppingBag size={56} className="mb-4 opacity-15" />
+          <p className="text-sm font-black uppercase tracking-widest mb-1">{t('no_products')}</p>
+          <p className="text-xs mb-6 opacity-60">{t('add_items_hint')}</p>
+        </div>
+      )}
+
+      {/* ═══ Non-empty state body ═══ */}
+      {!isEmpty && (<>
       {/* Compact customer info summary — takeaway/delivery (name shown in header, only show phone/address here) */}
       {(posMode === 'takeaway' || posMode === 'delivery') && (cart.customer_phone || cart.delivery_street) && (
         <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 mb-2 rounded-xl text-xs font-semibold ${lightMode ? 'bg-zinc-50 border border-zinc-100 text-zinc-500' : 'bg-white/5 border border-white/5 text-white/40'}`}>
@@ -988,6 +936,7 @@ export function CartPanel({
           )}
          {/* Footer actions removed from here */}
       </div>
+      </>)}
 
       {/* ═══ Unified morph action button — always same position ═══ */}
       {(() => {
@@ -995,37 +944,36 @@ export function CartPanel({
         const showActions = isDineInContext && hasExistingOrder && !hasDraft && orderButtonStatus === 'idle';
         const btnAction = canSeat ? 'seat' : showActions ? 'actions' : 'send';
         const btnKey = `${btnAction}-${lossMode ? 'loss' : ''}-${cart.table_number}`;
+        const btnLabel = lossMode ? t('loss_confirm') : canSeat ? t('seat_table') : showActions ? t('actions') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
+        const btnDisabled = (lossMode && selectedForLoss.size === 0) || confirming || seatBusy;
+        const btnBg = canSeat
+          ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
+          : lossMode
+            ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/20'
+            : showActions
+              ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100')
+              : isDirty
+                ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
+                : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-white/40');
         return (
           <div className="w-full flex-shrink-0 px-6 pb-5 pt-2">
             <AnimatePresence mode="wait">
               <motion.button
                 key={btnKey}
-                layoutId="cart-primary-btn"
-                initial={{ opacity: 0, y: 4 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-                disabled={(lossMode && selectedForLoss.size === 0) || confirming || seatBusy}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+                disabled={btnDisabled}
                 onClick={canSeat ? handleSeatTable : lossMode ? confirmLoss : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
-                className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-                  ${(lossMode && selectedForLoss.size === 0) || confirming || seatBusy ? 'cursor-wait opacity-80' : 'cursor-pointer'}
-                  ${canSeat
-                    ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
-                    : lossMode
-                      ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/20'
-                      : showActions
-                        ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100')
-                        : isDirty
-                          ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
-                          : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-white/40')
-                  }`}
+                className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 ${btnDisabled ? 'cursor-wait opacity-80' : 'cursor-pointer'} ${btnBg}`}
               >
                 {seatBusy ? <Loader2 size={20} className="animate-spin" /> :
                  canSeat ? <Armchair size={18} /> :
                  lossMode ? <CheckCircle size={18} /> :
                  showActions ? <MoreHorizontal size={18} /> :
                  <Send size={16} />}
-                {lossMode ? t('loss_confirm') : canSeat ? t('seat_table') : showActions ? t('actions') : (hasExistingOrder ? t('resend') : t('send_to_kitchen'))}
+                {btnLabel}
               </motion.button>
             </AnimatePresence>
           </div>
@@ -1071,7 +1019,7 @@ export function CartPanel({
           {isNoteOpen && (
             <motion.div
               key="note-bar"
-              className="fixed z-[10000] left-0 right-0 p-4 bg-[#25252D]/90 border-t border-white/10 shadow-elevated flex flex-col gap-3 max-w-2xl mx-auto rounded-t-2xl backdrop-blur-2xl"
+              className={`fixed z-[10000] left-0 right-0 p-4 border-t shadow-elevated flex flex-col gap-3 max-w-2xl mx-auto rounded-t-2xl backdrop-blur-2xl ${lightMode ? 'bg-white/90 border-zinc-200' : 'bg-[#25252D]/90 border-white/10'}`}
               style={{ bottom: vkHeight }}
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -1085,13 +1033,13 @@ export function CartPanel({
                 onChange={e => { setGlobalNote(e.target.value); onUpdateGlobalNote?.(e.target.value); }}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); closeNoteEditor(); } }}
                 placeholder={t('note_placeholder') || 'Qeyd yaz...'}
-                className="w-full h-24 text-lg bg-[#18181C] text-white p-3 rounded-xl border border-white/10 focus:outline-none focus:border-amber-500 resize-none"
+                className={`w-full h-24 text-lg p-3 rounded-xl border focus:outline-none resize-none ${lightMode ? 'bg-zinc-50 text-gray-900 border-zinc-200 focus:border-amber-500 placeholder:text-zinc-400' : 'bg-[#18181C] text-white border-white/10 focus:border-amber-500'}`}
               />
               <div className="flex items-center justify-end gap-2">
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={discardNote}
-                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${lightMode ? 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
                 >
                   GİZLƏ / LƏĞV ET
                 </button>

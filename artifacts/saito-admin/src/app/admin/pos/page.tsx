@@ -1472,7 +1472,7 @@ export default function POSPage() {
                     <div className="flex items-center gap-2">
                      <button
                        onClick={() => router.push('/admin/reservations')}
-                       className="flex items-center gap-2 px-3 py-2 rounded-full border border-white/10 text-white/80 hover:text-white hover:bg-white/10 text-xs font-black uppercase tracking-wider transition-all"
+                       className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all ${lightMode ? 'border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100' : 'border-white/10 text-white/80 hover:text-white hover:bg-white/10'}`}
                        title={t('reservations')}
                      >
                        <Calendar size={16} />
@@ -1480,7 +1480,7 @@ export default function POSPage() {
                      </button>
                      <button
 onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
-                       className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-wider hover:bg-amber-500/30 transition-all active:scale-[0.95]"
+                       className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' : 'bg-amber-500/20 border-amber-500/30 text-amber-300 hover:bg-amber-500/30'}`}
                      >
                        <span>+</span>
                         <span className="hidden sm:inline">{t('walk_in')}</span>
@@ -1500,7 +1500,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                 if (label === t('transfer')) { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
                             }}
                             className="relative px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
-                            style={{ color: active ? '#ffffff' : 'rgba(255,255,255,0.6)' }}
+                            style={{ color: active ? (lightMode ? '#18181b' : '#ffffff') : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)' }}
                           >
                              {active && (
                                <AnimatePresence>

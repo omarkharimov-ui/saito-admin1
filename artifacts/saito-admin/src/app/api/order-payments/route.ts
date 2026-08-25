@@ -16,38 +16,50 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { order_id, method, amount, currency, transaction_id, split_group_id, is_partial, is_refund, reference_order_id, created_by } = body;
+    const { order_id, method, amount, currency, transaction_id, split_group_id, is_partial, is_refund, created_by } = body;
 
     if (!order_id || !method || !amount) {
       return NextResponse.json({ error: 'order_id, method, amount are required' }, { status: 400 });
     }
 
-    const s = svc();
-    const res = await fetch(`${s.url}/rest/v1/order_payments`, {
-      method: 'POST',
-      headers: { ...s.headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify({
-        order_id,
+    // Route through the atomic RPC (SSOT). Never insert order_payments directly —
+    // that bypasses order-state sync, stock deduction, table/audit reconciliation.
+    const amt = Number(amount) || 0;
+    const { data, error } = await supabase.rpc('complete_payment_atomic', {
+      p_order_id: order_id,
+      p_payments: [{
         method,
-        amount,
+        amount: amt,
         currency: currency || 'AZN',
         transaction_id: transaction_id || null,
         split_group_id: split_group_id || null,
         is_partial: !!is_partial,
         is_refund: !!is_refund,
-        reference_order_id: reference_order_id || null,
-        created_by: created_by || null,
-        created_at: new Date().toISOString(),
-      }),
+      }],
+      p_payment_method: method,
+      p_cash_amount: method === 'cash' || method === 'nağd' ? amt : 0,
+      p_card_amount: method === 'cash' || method === 'nağd' ? 0 : amt,
+      p_tip_amount: 0,
+      p_discount_amount: 0,
+      p_discount_type: null,
+      p_performed_by: created_by || null,
+      p_performed_by_terminal_id: null,
+      p_cash_drawer_session_id: split_group_id || null,
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      return NextResponse.json({ error: `Payment insert failed: ${errText}` }, { status: 400 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const created = await res.json();
-    return NextResponse.json({ success: true, payment: Array.isArray(created) ? created[0] : created });
+    const { data: created } = await supabase
+      .from('order_payments')
+      .select('*')
+      .eq('order_id', order_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return NextResponse.json({ success: true, payment: created || data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

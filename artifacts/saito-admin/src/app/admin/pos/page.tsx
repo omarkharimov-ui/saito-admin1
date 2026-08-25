@@ -1468,7 +1468,7 @@ export default function POSPage() {
                   className="h-full flex flex-col p-6"
                 >
                 {cleanMode && (
-                  <div className="flex items-center justify-between gap-3 mb-6">
+                  <div className="flex items-center justify-end gap-3 mb-6">
                     <div className="flex items-center gap-2">
                      <button
                        onClick={() => router.push('/admin/reservations')}
@@ -1506,8 +1506,8 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                <AnimatePresence>
                                  <motion.div
                                    key={`action-pill-${label}`}
-                                   layoutId="action-mode-pill-clean"
-                                   className="absolute inset-0 rounded-full z-0 bg-blue-500"
+                                    layoutId="action-mode-pill-clean"
+                                    className="absolute inset-0 rounded-full z-0 bg-zinc-900"
                                    transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
                                  />
                                </AnimatePresence>
@@ -1525,7 +1525,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                          }
                          setCleanMode(!cleanMode);
                        }}
-                       className={`p-2.5 rounded-full border transition-all ${cleanMode ? 'bg-gold text-black border-gold' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                       className={`p-2.5 rounded-full border transition-all ${cleanMode ? 'bg-gold text-black border-gold' : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
                        title={t('fullscreen')}
                      >
                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1573,8 +1573,8 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                <AnimatePresence>
                                  <motion.div
                                    key={`action-pill-${label}`}
-                                   layoutId="action-mode-pill-light"
-                                   className="absolute inset-0 rounded-full z-0 bg-blue-500"
+                                    layoutId="action-mode-pill-light"
+                                    className="absolute inset-0 rounded-full z-0 bg-zinc-900"
                                    transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
                                  />
                                </AnimatePresence>
@@ -2274,40 +2274,55 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
           >
             <motion.div
               {...slideUp}
-              className="bg-white/85 backdrop-blur-2xl rounded-3xl p-6 shadow-elevated max-h-[90vh] overflow-auto max-w-sm w-full"
+              className="bg-white rounded-3xl shadow-elevated max-h-[90vh] overflow-auto max-w-sm w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              <ReceiptPreview
-                title="SİFARİŞ ÇEKİ"
-                tableNumber={receiptView.tableNumber}
-                items={receiptView.items}
-                showServiceFee={false}
-                serviceFeePct={0}
-                currency="₼"
-                discountAmount={receiptView.discount}
-                campaignName={receiptView.discountName || undefined}
-              />
-              <div className="mt-4 text-center text-xs text-zinc-500">
-                {receiptView.paymentMethod === 'cash' ? t('cash') : receiptView.paymentMethod === 'card' ? t('card') : receiptView.paymentMethod}
-                {' · '}
-                {receiptView.total.toFixed(2)} ₼
+              {/* Success header */}
+              <div className="relative px-6 pt-8 pb-6 text-center">
+                <div className="mx-auto mb-3 w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className="text-lg font-black text-zinc-900 tracking-tight">{t('order_paid')}</h3>
+                <p className="mt-1 text-xs text-zinc-400">
+                  {t('table')} {receiptView.tableNumber} · {receiptView.paymentMethod === 'cash' ? t('cash') : receiptView.paymentMethod === 'card' ? t('card') : receiptView.paymentMethod}
+                </p>
               </div>
 
-              {/* Verilən pul və qalıq — yalnız nağd ödənişdə */}
+              {/* Receipt preview */}
+              <div className="px-4 pb-4">
+                <div className="border border-zinc-100 rounded-2xl overflow-hidden bg-zinc-50/50">
+                  <ReceiptPreview
+                    title="SİFARİŞ ÇEKİ"
+                    tableNumber={receiptView.tableNumber}
+                    items={receiptView.items}
+                    showServiceFee={false}
+                    serviceFeePct={0}
+                    currency="₼"
+                    discountAmount={receiptView.discount}
+                    campaignName={receiptView.discountName || undefined}
+                  />
+                </div>
+              </div>
+
+              {/* Cash tendered + change */}
               {receiptTendered != null && receiptTendered > 0 && receiptView.paymentMethod === 'cash' && (
-                <div className="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-emerald-600">{t('given')}:</span>
-                    <span className="tabular-nums">{receiptTendered.toFixed(2)} ₼</span>
+                <div className="mx-4 mb-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-emerald-600 font-semibold">{t('given')}</span>
+                    <span className="font-bold tabular-nums text-zinc-900">{receiptTendered.toFixed(2)} ₼</span>
                   </div>
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-emerald-600">Hesab:</span>
-                    <span className="tabular-nums">{receiptView.total.toFixed(2)} ₼</span>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-emerald-600 font-semibold">{t('bill_total')}</span>
+                    <span className="font-bold tabular-nums text-zinc-900">{receiptView.total.toFixed(2)} ₼</span>
                   </div>
-                  <div className="h-px bg-emerald-200 my-1" />
-                  <div className="flex justify-between text-sm font-black">
-                    <span className="text-emerald-600">{t('change')}:</span>
-                    <span className="text-emerald-600 tabular-nums">
+                  <div className="h-px bg-emerald-200/60" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-emerald-700 font-black text-sm">{t('change')}</span>
+                    <span className="text-emerald-700 font-black text-lg tabular-nums">
                       {receiptTendered >= receiptView.total
                         ? `${(receiptTendered - receiptView.total).toFixed(2)} ₼`
                         : `-${(receiptView.total - receiptTendered).toFixed(2)} ₼`}
@@ -2316,12 +2331,15 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                 </div>
               )}
 
-              <button
-                onClick={() => { setReceiptView(null); setReceiptTendered(undefined); }}
-                className="mt-4 w-full py-3 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-zinc-700 transition-all active:scale-95"
-              >
-                {t('close')}
-              </button>
+              {/* Close button */}
+              <div className="px-4 pb-6">
+                <button
+                  onClick={() => { setReceiptView(null); setReceiptTendered(undefined); }}
+                  className="w-full py-3.5 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98]"
+                >
+                  {t('close')}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

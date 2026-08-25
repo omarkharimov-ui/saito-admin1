@@ -56,14 +56,16 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       html.classList.toggle('light', lightMode);
       html.style.colorScheme = lightMode ? 'light' : 'dark';
 
-      html.style.transition = 'background-color 0.35s ease, color 0.35s ease';
-      html.style.opacity = '0.88';
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          html.style.opacity = '1';
-          setTimeout(() => { html.style.transition = ''; }, 400);
-        });
-      });
+      // Beautiful theme switch animation
+      html.classList.add('theme-switching');
+      html.style.transition = 'background-color 0.4s cubic-bezier(0.4,0,0.2,1), color 0.4s cubic-bezier(0.4,0,0.2,1)';
+      // Subtle scale + brightness pulse
+      html.style.animation = 'theme-pulse 0.45s cubic-bezier(0.4,0,0.2,1)';
+      setTimeout(() => {
+        html.classList.remove('theme-switching');
+        html.style.transition = '';
+        html.style.animation = '';
+      }, 500);
     } catch {
       // ignore
     }

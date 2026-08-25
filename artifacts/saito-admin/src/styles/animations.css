@@ -201,3 +201,17 @@
   100% { stroke-dashoffset: -300; }
 }
 
+/* ── Theme switch animation ── */
+@keyframes theme-pulse {
+  0%   { transform: scale(1);    filter: brightness(1);  }
+  35%  { transform: scale(1.004); filter: brightness(0.92); }
+  100% { transform: scale(1);    filter: brightness(1);  }
+}
+.theme-switching,
+.theme-switching * {
+  transition: background-color 0.4s cubic-bezier(0.4,0,0.2,1),
+              color 0.4s cubic-bezier(0.4,0,0.2,1),
+              border-color 0.4s cubic-bezier(0.4,0,0.2,1),
+              box-shadow 0.4s cubic-bezier(0.4,0,0.2,1) !important;
+}
+

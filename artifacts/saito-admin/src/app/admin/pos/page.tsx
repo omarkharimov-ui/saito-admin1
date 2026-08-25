@@ -2221,21 +2221,21 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
           >
             <motion.div
               {...slideUp}
-              className="bg-white rounded-3xl shadow-elevated max-h-[90vh] overflow-auto max-w-md w-full"
+              className="bg-white rounded-3xl shadow-elevated max-h-[90vh] overflow-auto max-w-sm w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Receipt title — top of popup, big and bold */}
-              <div className="px-6 pt-6 pb-4 text-center border-b border-dashed border-zinc-200">
-                <h2 className="text-xl font-black text-zinc-900 tracking-tight uppercase">
+              {/* Receipt title — top of popup */}
+              <div className="px-4 pt-5 pb-3 text-center border-b border-dashed border-zinc-200">
+                <h2 className="text-lg font-black text-zinc-900 tracking-tight uppercase">
                   {receiptView.receiptTitle || 'SİFARİŞ ÇEKİ'}
                 </h2>
-                <p className="mt-1 text-xs text-zinc-400">
+                <p className="mt-0.5 text-[10px] text-zinc-400">
                   {receiptView.paymentDate} · {receiptView.paymentTime}
                 </p>
               </div>
 
               {/* Inline receipt items */}
-              <div className="px-5 py-4">
+              <div className="px-3 py-3">
                 <ReceiptPreview
                   title={receiptView.receiptTitle || 'SİFARİŞ ÇEKİ'}
                   tableNumber={receiptView.tableNumber}
@@ -2252,8 +2252,8 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
               </div>
 
               {/* Payment info row */}
-              <div className="px-5 pb-3">
-                <div className="flex items-center justify-between text-xs text-zinc-400">
+              <div className="px-3 pb-2">
+                <div className="flex items-center justify-between text-[10px] text-zinc-400">
                   <span>{t('table')} {receiptView.tableNumber}</span>
                   <span className="font-semibold text-zinc-600">
                     {receiptView.paymentMethod === 'cash' ? t('cash') : receiptView.paymentMethod === 'card' ? t('card') : receiptView.paymentMethod}
@@ -2263,7 +2263,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
 
               {/* Cash tendered + change */}
               {receiptTendered != null && receiptTendered > 0 && receiptView.paymentMethod === 'cash' && (
-                <div className="mx-5 mb-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 space-y-2">
+                <div className="mx-3 mb-3 p-3 rounded-xl bg-emerald-50 border border-emerald-100 space-y-1.5">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-emerald-600 font-semibold">{t('given')}</span>
                     <span className="font-bold tabular-nums text-zinc-900">{receiptTendered.toFixed(2)} ₼</span>
@@ -2285,10 +2285,10 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
               )}
 
               {/* Close button */}
-              <div className="px-5 pb-6">
+              <div className="px-3 pb-4">
                 <button
                   onClick={() => { setReceiptView(null); setReceiptTendered(undefined); }}
-                  className="w-full py-3.5 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98]"
+                  className="w-full py-3 rounded-xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98]"
                 >
                   {t('close')}
                 </button>

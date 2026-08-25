@@ -829,40 +829,7 @@ export default function POSPage() {
       });
       setReceiptTendered(method === 'cash' ? tenderedAmount : undefined);
 
-      const settings = await getReceiptSettings();
-      if (settings.autoPrintReceipt) {
-        for (const activeOrder of activeOrders) {
-          const items = (activeOrder.order_items || []).map((item: any) => ({
-            name: item.product_name || item.products?.name_az || item.products?.name_en || 'Məhsul',
-            quantity: item.quantity || 1,
-            price: Number(item.total_price || item.price || 0),
-          }));
-          await printReceipt({
-            restaurantName: settings.restaurantName,
-            address: settings.address,
-            receiptTitle: settings.receiptTitle,
-            currency: settings.receiptCurrency,
-            serviceFeePct: settings.serviceFeePct,
-            showServiceFee: settings.showServiceFee,
-            footerText: settings.footerText,
-            tableNumber: activeOrder.table_number,
-            orderId: activeOrder.id,
-            items,
-            subtotal: Number(activeOrder.total_amount) || 0,
-            discount: Number(activeOrder.discount_amount) || 0,
-            discountName: activeOrder.campaigns?.name,
-            tip: 0,
-            total: Number(activeOrder.total_amount) || 0,
-            paymentMethod: method,
-            cashAmount: method === 'cash' ? Number(activeOrder.total_amount) || 0 : 0,
-            cardAmount: method === 'card' ? Number(activeOrder.total_amount) || 0 : 0,
-            date: new Date().toISOString(),
-            time: new Date().toISOString(),
-            paperWidth: settings.paperWidth,
-            copies: settings.copies,
-          });
-        }
-      }
+      // Auto-print disabled — receipt only prints via "Print Bill" action
     } catch (e: any) {
       toast.error(e.message || t('payment_error'));
     }
@@ -981,40 +948,7 @@ export default function POSPage() {
       setActionSheetOpen(false);
       pos.fetchData();
 
-      const settings = await getReceiptSettings();
-      if (settings.autoPrintReceipt) {
-        for (const activeOrder of activeOrders) {
-          const items = (activeOrder.order_items || []).map((item: any) => ({
-            name: item.product_name || item.products?.name_az || item.products?.name_en || 'Məhsul',
-            quantity: item.quantity || 1,
-            price: Number(item.total_price || item.price || 0),
-          }));
-          await printReceipt({
-            restaurantName: settings.restaurantName,
-            address: settings.address,
-            receiptTitle: settings.receiptTitle,
-            currency: settings.receiptCurrency,
-            serviceFeePct: settings.serviceFeePct,
-            showServiceFee: settings.showServiceFee,
-            footerText: settings.footerText,
-            tableNumber: activeOrder.table_number,
-            orderId: activeOrder.id,
-            items,
-            subtotal: Number(activeOrder.total_amount) || 0,
-            discount: Number(activeOrder.discount_amount) || 0,
-            discountName: activeOrder.campaigns?.name,
-            tip: 0,
-            total: Number(activeOrder.total_amount) || 0,
-            paymentMethod: 'split',
-            cashAmount: Math.round(cash * ((Number(activeOrder.total_amount) || 0) / (grandTotal || 1)) * 100) / 100,
-            cardAmount: Math.round(card * ((Number(activeOrder.total_amount) || 0) / (grandTotal || 1)) * 100) / 100,
-            date: new Date().toISOString(),
-            time: new Date().toISOString(),
-            paperWidth: settings.paperWidth,
-            copies: settings.copies,
-          });
-        }
-      }
+      // Auto-print disabled — receipt only prints via "Print Bill" action
     } catch (e: any) {
       toast.error(e.message || t('payment_error'));
     }
@@ -1500,7 +1434,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                                 if (label === t('transfer')) { setMergeMode(false); setTransferMode(true); setTransferSource(null); setTransferTarget(null); setTransferConfirm(false); setActionSheetOpen(false); setActionSheetTable(null); setPaymentView(false); setUnmergeMode(false); setSelectedForUnmerge([]); }
                             }}
                             className="relative px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
-                            style={{ color: active ? (lightMode ? '#18181b' : '#ffffff') : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)' }}
+                            style={{ color: active ? '#ffffff' : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)' }}
                           >
                              {active && (
                                <AnimatePresence>
@@ -2278,23 +2212,20 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Success header */}
-              <div className="relative px-6 pt-8 pb-6 text-center">
-                <div className="mx-auto mb-3 w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <div className="relative px-6 pt-7 pb-4 text-center">
+                <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </div>
                 </div>
-                <h3 className="text-lg font-black text-zinc-900 tracking-tight">{t('order_paid')}</h3>
-                <p className="mt-1 text-xs text-zinc-400">
-                  {t('table')} {receiptView.tableNumber} · {receiptView.paymentMethod === 'cash' ? t('cash') : receiptView.paymentMethod === 'card' ? t('card') : receiptView.paymentMethod}
-                </p>
+                <h3 className="text-base font-black text-zinc-900 tracking-tight">{t('order_paid')}</h3>
               </div>
 
-              {/* Receipt preview */}
-              <div className="px-4 pb-4">
-                <div className="border border-zinc-100 rounded-2xl overflow-hidden bg-zinc-50/50">
+              {/* Inline receipt — no separate card, sits on the same panel */}
+              <div className="px-5 pb-4">
+                <div className="border-t border-b border-dashed border-zinc-200 py-4">
                   <ReceiptPreview
                     title="SİFARİŞ ÇEKİ"
                     tableNumber={receiptView.tableNumber}
@@ -2304,13 +2235,24 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                     currency="₼"
                     discountAmount={receiptView.discount}
                     campaignName={receiptView.discountName || undefined}
+                    transparent
                   />
+                </div>
+              </div>
+
+              {/* Payment info row */}
+              <div className="px-5 pb-3">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>{t('table')} {receiptView.tableNumber}</span>
+                  <span className="font-semibold text-zinc-600">
+                    {receiptView.paymentMethod === 'cash' ? t('cash') : receiptView.paymentMethod === 'card' ? t('card') : receiptView.paymentMethod}
+                  </span>
                 </div>
               </div>
 
               {/* Cash tendered + change */}
               {receiptTendered != null && receiptTendered > 0 && receiptView.paymentMethod === 'cash' && (
-                <div className="mx-4 mb-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 space-y-2">
+                <div className="mx-5 mb-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 space-y-2">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-emerald-600 font-semibold">{t('given')}</span>
                     <span className="font-bold tabular-nums text-zinc-900">{receiptTendered.toFixed(2)} ₼</span>
@@ -2332,7 +2274,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
               )}
 
               {/* Close button */}
-              <div className="px-4 pb-6">
+              <div className="px-5 pb-6">
                 <button
                   onClick={() => { setReceiptView(null); setReceiptTendered(undefined); }}
                   className="w-full py-3.5 rounded-2xl bg-zinc-900 text-white text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-[0.98]"

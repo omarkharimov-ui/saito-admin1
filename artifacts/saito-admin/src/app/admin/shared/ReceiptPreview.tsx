@@ -22,6 +22,7 @@ interface ReceiptPreviewProps {
   width?: number;
   discountAmount?: number;
   campaignName?: string;
+  transparent?: boolean;
 }
 
 export default function ReceiptPreview({
@@ -37,6 +38,7 @@ export default function ReceiptPreview({
   width = 260,
   discountAmount = 0,
   campaignName,
+  transparent = false,
 }: ReceiptPreviewProps) {
   const subtotal = items.reduce((sum, i) => sum + i.total_price, 0);
   const serviceFee = showServiceFee ? subtotal * (serviceFeePct / 100) : 0;
@@ -47,12 +49,12 @@ export default function ReceiptPreview({
 
   return (
     <div
-      className="bg-white text-black mx-auto"
+      className={`${transparent ? '' : 'bg-white'} text-black mx-auto`}
       style={{
         width,
         fontFamily: "'Courier New', Courier, monospace",
         fontSize: 11,
-        padding: '16px 12px',
+        padding: transparent ? '0' : '16px 12px',
         lineHeight: 1.5,
       }}
     >

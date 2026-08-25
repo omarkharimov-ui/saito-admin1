@@ -6,17 +6,16 @@
 html {
   scroll-behavior: smooth;
   font-size: 16px;
-  background: #0D0D0D !important;
-  background-color: #0D0D0D !important;
+}
+html[data-theme="dark"] {
+  background-color: #0D0D0D;
 }
 html[data-theme="light"] {
-  background: #F7F7F8 !important;
-  background-color: #F7F7F8 !important;
+  background-color: #F7F7F8;
 }
 
 body {
-  background: #0D0D0D !important;
-  background-color: #0D0D0D !important;
+  background-color: var(--theme-bg, #0D0D0D);
   color: var(--foreground);
   font-family: var(--font-sans);
   font-weight: 450;

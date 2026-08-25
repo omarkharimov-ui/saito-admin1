@@ -58,14 +58,14 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Beautiful theme switch animation
       html.classList.add('theme-switching');
-      html.style.transition = 'background-color 0.4s cubic-bezier(0.4,0,0.2,1), color 0.4s cubic-bezier(0.4,0,0.2,1)';
+      html.style.transition = 'background-color 0.25s cubic-bezier(0.4,0,0.2,1), color 0.25s cubic-bezier(0.4,0,0.2,1)';
       // Subtle scale + brightness pulse
-      html.style.animation = 'theme-pulse 0.45s cubic-bezier(0.4,0,0.2,1)';
+      html.style.animation = 'theme-pulse 0.3s cubic-bezier(0.4,0,0.2,1)';
       setTimeout(() => {
         html.classList.remove('theme-switching');
         html.style.transition = '';
         html.style.animation = '';
-      }, 500);
+      }, 350);
     } catch {
       // ignore
     }

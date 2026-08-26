@@ -713,7 +713,7 @@ export function ActionSheet({
                      {/* Items mode */}
                      {splitMode === 'items' && (
                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
-                         {(table as any)?.order_items?.map((item: any, idx: number) => (
+                         {activeOrderItems.map((item: any, idx: number) => (
                            <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
                              <div className="flex-1 min-w-0">
                                <p className={`text-sm font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>
@@ -769,16 +769,15 @@ export function ActionSheet({
 
                      {/* Items mode totals */}
                      {splitMode === 'items' && (() => {
-                       const items = (table as any)?.order_items || [];
-                       const allAssigned = items.length > 0 && items.every((_: any, idx: number) => splitItems[idx]);
+                       const allAssigned = activeOrderItems.length > 0 && activeOrderItems.every((_: any, idx: number) => splitItems[idx]);
                        if (!allAssigned) return null;
-                       const cashTotal = items.reduce((sum: number, _: any, idx: number) => {
+                       const cashTotal = activeOrderItems.reduce((sum: number, _: any, idx: number) => {
                          if (splitItems[idx] !== 'cash') return sum;
-                         return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
+                         return sum + (Number(activeOrderItems[idx].total_price || activeOrderItems[idx].unit_price * activeOrderItems[idx].quantity) || 0);
                        }, 0);
-                       const cardTotal = items.reduce((sum: number, _: any, idx: number) => {
+                       const cardTotal = activeOrderItems.reduce((sum: number, _: any, idx: number) => {
                          if (splitItems[idx] !== 'card') return sum;
-                         return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
+                         return sum + (Number(activeOrderItems[idx].total_price || activeOrderItems[idx].unit_price * activeOrderItems[idx].quantity) || 0);
                        }, 0);
                        return (
                          <div className={`flex gap-2 p-3 rounded-xl ${lightMode ? 'bg-zinc-50 border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
@@ -805,23 +804,22 @@ export function ActionSheet({
                          onClick={() => {
                            if (splitMode === 'amount') {
                              onSplitConfirm?.(localSplit);
-                           } else {
-                             const items = (table as any)?.order_items || [];
-                             const cashTotal = items.reduce((sum: number, _: any, idx: number) => {
-                               if (splitItems[idx] !== 'cash') return sum;
-                               return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
-                             }, 0);
-                             const cardTotal = items.reduce((sum: number, _: any, idx: number) => {
-                               if (splitItems[idx] !== 'card') return sum;
-                               return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
-                             }, 0);
+                            } else {
+                              const cashTotal = activeOrderItems.reduce((sum: number, _: any, idx: number) => {
+                                if (splitItems[idx] !== 'cash') return sum;
+                                return sum + (Number(activeOrderItems[idx].total_price || activeOrderItems[idx].unit_price * activeOrderItems[idx].quantity) || 0);
+                              }, 0);
+                              const cardTotal = activeOrderItems.reduce((sum: number, _: any, idx: number) => {
+                                if (splitItems[idx] !== 'card') return sum;
+                                return sum + (Number(activeOrderItems[idx].total_price || activeOrderItems[idx].unit_price * activeOrderItems[idx].quantity) || 0);
+                              }, 0);
                              onSplitConfirm?.({ cash: cashTotal.toFixed(2), card: cardTotal.toFixed(2), items: splitItems });
                            }
                            setLocalSplit(null); setSplitMode('amount'); setSplitItems({});
                          }}
                          disabled={splitMode === 'amount'
                            ? (() => { const t2 = table?.total_amount || 0; const c = parseFloat(localSplit.cash) || 0; const d = parseFloat(localSplit.card) || 0; return Math.abs(c + d - t2) > 0.01 || (c + d) <= 0; })()
-                           : (() => { const items = (table as any)?.order_items || []; return items.length === 0 || !items.every((_: any, idx: number) => splitItems[idx]); })()}
+                            : (() => { return activeOrderItems.length === 0 || !activeOrderItems.every((_: any, idx: number) => splitItems[idx]); })()}
                          className="flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-gold text-black active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-gold/20">
                          {t('confirm')}
                        </button>

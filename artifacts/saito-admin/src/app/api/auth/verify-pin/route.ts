@@ -31,13 +31,7 @@ export async function POST(req: NextRequest) {
 
     const adminUser = (adminUsers || []).find((u: any) => u.pin_hash && verifyPin(pin, u.pin_hash));
     if (adminUser) {
-      await supabase.from('audit_logs').insert({
-        staff_id: adminUser.id,
-        staff_name: adminUser.role,
-        action: actionType,
-        target_type: 'pos',
-        details: { method: 'admin_users' },
-      });
+      try { await supabase.rpc('log_audit', { p_action: actionType, p_entity_type: 'staff', p_entity_id: adminUser.id, p_actor_id: adminUser.id, p_actor_name: adminUser.role, p_old_data: null, p_new_data: { method: 'admin_users', target_type: 'pos' }, p_metadata: { pin_verified: true, method: 'admin_users' } }); } catch { /* non-critical */ }
       return NextResponse.json({ valid: true, role: adminUser.role, staffId: adminUser.id });
     }
 
@@ -51,13 +45,7 @@ export async function POST(req: NextRequest) {
 
     const staffUser = (staffUsers || []).find((u: any) => u.pin_hash && verifyPin(pin, u.pin_hash));
     if (staffUser) {
-      await supabase.from('audit_logs').insert({
-        staff_id: staffUser.id,
-        staff_name: staffUser.name,
-        action: actionType,
-        target_type: 'pos',
-        details: { method: 'staff' },
-      });
+      try { await supabase.rpc('log_audit', { p_action: actionType, p_entity_type: 'staff', p_entity_id: staffUser.id, p_actor_id: staffUser.id, p_actor_name: staffUser.name, p_old_data: null, p_new_data: { method: 'staff', target_type: 'pos' }, p_metadata: { pin_verified: true, method: 'staff' } }); } catch { /* non-critical */ }
       return NextResponse.json({
         valid: true,
         role: staffUser.role.toLowerCase(),

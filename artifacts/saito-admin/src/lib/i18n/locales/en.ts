@@ -1640,6 +1640,11 @@ export const en: TranslationMap = {
 
   cash_drawer_open: 'Cash drawer opened',
   cash_drawer_closed: 'Cash drawer closed',
+  manager_approval_required: 'Manager approval required',
+  manager_pin: 'Manager PIN',
+  manager_approved: 'Manager approved',
+  pin_required: 'PIN required',
+  pin_invalid: 'Invalid PIN',
   cash_in_recorded: 'Cash in recorded',
   expense_recorded: 'Expense recorded',
   cash_in: 'Cash In',

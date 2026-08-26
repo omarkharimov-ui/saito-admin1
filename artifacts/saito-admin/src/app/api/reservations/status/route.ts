@@ -185,33 +185,21 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(updatePayload),
     });
 
-    // 7. Audit log
-    const auditTable = 'audit_logs';
-    const auditBody = {
-      table_name: 'reservations',
-      record_id: reservationId,
-      action: `status_change:${current.status}→${status}`,
-      old_data: { status: current.status },
-      new_data: { status, notes },
-      performed_by: auth.user?.id || null,
-      created_at: new Date().toISOString(),
-    };
-    const auditRes = await fetch(`${s.url}/rest/v1/${auditTable}`, {
+    // 7. Audit log via canonical log_audit() RPC
+    await fetch(`${s.url}/rest/v1/rpc/log_audit`, {
       method: 'POST',
       headers: s.headers,
-      body: JSON.stringify(auditBody),
-    });
-    if (!auditRes.ok) {
-      const auditText = await auditRes.text();
-      // Try with singular name if plural fails
-      if (auditRes.status === 404) {
-        await fetch(`${s.url}/rest/v1/audit_log`, {
-          method: 'POST',
-          headers: s.headers,
-          body: JSON.stringify(auditBody),
-        });
-      }
-    }
+      body: JSON.stringify({
+        p_action: 'status_change',
+        p_entity_type: 'reservation',
+        p_entity_id: reservationId,
+        p_actor_id: auth.user?.id || null,
+        p_actor_name: null,
+        p_old_data: { status: current.status },
+        p_new_data: { status, notes },
+        p_metadata: { from: current.status, to: status },
+      }),
+    }).catch(() => {});
 
     // 8. If cancelled/no_show/expired with pre-order, cancel kitchen schedule
     if ((status === 'cancelled' || status === 'no_show' || status === 'expired') && current.kitchen_scheduled_at) {

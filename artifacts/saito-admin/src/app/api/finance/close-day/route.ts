@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     const tipsTotal = paidOrders.reduce((s: number, o: any) => s + (Number(o.tip_amount) || 0), 0);
 
-    const discountsRes = await fetch(`${url}/rest/v1/audit_logs?select=metadata&type=eq.discount&created_at=gte.${todayStart}&created_at=lt.${tomorrowStart}`, { headers: h });
+    const discountsRes = await fetch(`${url}/rest/v1/audit_logs_canonical?select=metadata&action=eq.discount&created_at=gte.${todayStart}&created_at=lt.${tomorrowStart}`, { headers: h });
     const discountLogs = await discountsRes.json();
     const discountsTotal = Array.isArray(discountLogs) 
       ? discountLogs.reduce((s: number, d: any) => s + (Number(d.metadata?.discount_amount) || 0), 0)
@@ -237,15 +237,21 @@ export async function POST(request: NextRequest) {
       created_at: closedAt,
     };
 
-    const auditlogRes = await fetch(`${url}/rest/v1/audit_logs`, {
+    // Audit via canonical log_audit() RPC
+    await fetch(`${url}/rest/v1/rpc/log_audit`, {
       method: 'POST',
       headers: h,
-      body: JSON.stringify(auditLog),
-    });
-
-    if (!auditlogRes.ok) {
-      console.error('[close-day] Failed to insert audit_log');
-    }
+      body: JSON.stringify({
+        p_action: 'close_day',
+        p_entity_type: 'daily_report',
+        p_entity_id: reportDate,
+        p_actor_id: auth.user?.id || null,
+        p_actor_name: null,
+        p_old_data: null,
+        p_new_data: null,
+        p_metadata: auditLog,
+      }),
+    }).catch(() => {});
 
     const zReport = {
       report_date: reportDate,

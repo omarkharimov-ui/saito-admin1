@@ -8,16 +8,17 @@ function svc() {
 }
 
 async function logAudit(tableName: string, recordId: string, action: string, oldData: any, newData: any, userId?: string) {
-  await fetch(`${svc().url}/rest/v1/audit_log`, {
+  await fetch(`${svc().url}/rest/v1/rpc/log_audit`, {
     method: 'POST',
     headers: svc().headers,
     body: JSON.stringify({
-      table_name: tableName,
-      record_id: recordId,
-      action,
-      old_data: oldData || null,
-      new_data: newData || null,
-      performed_by: userId || null,
+      p_action: action,
+      p_entity_type: tableName,
+      p_entity_id: recordId,
+      p_actor_id: userId || null,
+      p_actor_name: null,
+      p_old_data: oldData || null,
+      p_new_data: newData || null,
     }),
   }).catch(() => {}); // Non-critical — don't fail the request if audit fails
 }

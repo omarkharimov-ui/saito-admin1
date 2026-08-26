@@ -1638,6 +1638,11 @@ export const az = {
 
   cash_drawer_open: 'Kassa açıldı',
   cash_drawer_closed: 'Kassa bağlandı',
+  manager_approval_required: 'İdarəçi təsdiqi tələb olunur',
+  manager_pin: 'İdarəçi PIN',
+  manager_approved: 'İdarəçi təsdiqlədi',
+  pin_required: 'PIN tələb olunur',
+  pin_invalid: 'PIN yanlışdır',
   cash_in_recorded: 'Daxilolma qeydə alındı',
   expense_recorded: 'Xərc qeydə alındı',
   cash_in: 'Daxilolma',

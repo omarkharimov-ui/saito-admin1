@@ -53,6 +53,8 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
   const [cashDesc, setCashDesc] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [view, setView] = useState<'main' | 'cash-in' | 'cash-out' | 'close'>('main');
+  const [managerPin, setManagerPin] = useState('');
+  const [managerError, setManagerError] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -134,31 +136,68 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
     setSubmitting(false);
   };
 
-  const handleCloseDrawer = async () => {
+  const handleCloseDrawer = async (managerId?: string) => {
     if (!session) return;
     setSubmitting(true);
+    setManagerError('');
     try {
       const res = await apiFetch('/api/cash-drawer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'close', session_id: session.id, amount: Number(cashAmount) || 0, description: cashDesc || null }),
+        body: JSON.stringify({
+          action: 'close',
+          session_id: session.id,
+          amount: Number(cashAmount) || 0,
+          description: cashDesc || null,
+          manager_id: managerId || null,
+        }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.difference !== 0) {
-          toast.error(`${t('difference_short')}: ${data.difference > 0 ? '+' : ''}${data.difference.toFixed(2)}₼`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (data.requires_approval) {
+          toast.success(`${t('cash_drawer_closed')} (${t('manager_approved')})`);
+        } else if (data.difference !== 0) {
+          toast.error(`${t('difference_short')}: ${data.difference > 0 ? '+' : ''}${Number(data.difference).toFixed(2)}₼`);
         } else {
           toast.success(t('cash_drawer_closed'));
         }
         setCashAmount('');
         setCashDesc('');
+        setManagerPin('');
         setView('main');
         await fetchData();
+      } else if (data.requires_approval) {
+        // Manager approval needed — show PIN input
+        setManagerError(data.error || t('manager_approval_required'));
       } else {
-        const err = await res.json();
-        toast.error(err.error || t('error'));
+        toast.error(data.error || t('error'));
       }
     } catch (e: any) { toast.error(e.message); }
+    setSubmitting(false);
+  };
+
+  const handleManagerVerifyAndClose = async () => {
+    if (!managerPin || managerPin.length < 4) {
+      setManagerError(t('pin_required'));
+      return;
+    }
+    setSubmitting(true);
+    setManagerError('');
+    try {
+      const verifyRes = await apiFetch('/api/auth/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: managerPin, action: 'cash_close' }),
+      });
+      const verifyData = await verifyRes.json();
+      if (verifyRes.ok && verifyData.valid) {
+        await handleCloseDrawer(verifyData.staffId);
+      } else {
+        setManagerError(verifyData.error || t('pin_invalid'));
+      }
+    } catch (e: any) {
+      setManagerError(e.message || t('error'));
+    }
     setSubmitting(false);
   };
 
@@ -380,7 +419,7 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                     {cashAmount && Number(cashAmount) !== currentBalance && (
                       <div className={`p-3 rounded-xl ${Number(cashAmount) > currentBalance ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
                         <p className={`text-xs font-bold ${Number(cashAmount) > currentBalance ? 'text-green-500' : 'text-red-500'}`}>
-                          t('difference') {Number(cashAmount) > currentBalance ? '+' : ''}{(Number(cashAmount) - currentBalance).toFixed(2)}₼
+                          {t('difference')}: {Number(cashAmount) > currentBalance ? '+' : ''}{(Number(cashAmount) - currentBalance).toFixed(2)}₼
                         </p>
                       </div>
                     )}
@@ -390,13 +429,34 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
                       placeholder="Qeyd (ixtiyari)"
                        className={`w-full rounded-xl px-4 py-3 text-sm outline-none border transition-all ${lightMode ? 'bg-white border-black/10 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`}
                     />
+
+                    {/* Manager approval PIN — shown when variance != 0 */}
+                    {cashAmount && Number(cashAmount) !== currentBalance && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-amber-500">{t('manager_approval_required')}</p>
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={managerPin}
+                          onChange={e => { setManagerPin(e.target.value); setManagerError(''); }}
+                          placeholder={t('manager_pin')}
+                          className={`w-full rounded-xl px-4 py-3 text-sm font-bold outline-none border transition-all ${lightMode ? 'bg-amber-50 border-amber-200 text-black focus:border-amber-400' : 'bg-amber-500/10 border-amber-500/20 text-white focus:border-amber-400/50'}`}
+                        />
+                        {managerError && <p className="text-xs text-red-500 font-bold">{managerError}</p>}
+                      </div>
+                    )}
+
                     <div className="flex gap-2">
-                      <button onClick={() => setView('main')} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
+                      <button onClick={() => { setView('main'); setManagerPin(''); setManagerError(''); }} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest ${lightMode ? 'bg-zinc-200 text-zinc-700' : 'bg-white/10 text-zinc-300'}`}>
                         {t('back')}
                       </button>
                       <button
                         onClick={() => {
-                          if (window.confirm(t('confirm_end_shift'))) {
+                          const hasVariance = cashAmount && Number(cashAmount) !== currentBalance;
+                          if (hasVariance) {
+                            handleManagerVerifyAndClose();
+                          } else if (window.confirm(t('confirm_end_shift'))) {
                             handleCloseDrawer();
                           }
                         }}

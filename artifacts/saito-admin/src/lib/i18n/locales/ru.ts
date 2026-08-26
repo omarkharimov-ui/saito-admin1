@@ -1641,6 +1641,11 @@ export const ru: TranslationMap = {
 
   cash_drawer_open: 'Касса открыта',
   cash_drawer_closed: 'Касса закрыта',
+  manager_approval_required: 'Требуется одобрение менеджера',
+  manager_pin: 'PIN менеджера',
+  manager_approved: 'Менеджер одобрил',
+  pin_required: 'Требуется PIN',
+  pin_invalid: 'Неверный PIN',
   cash_in_recorded: 'Приход записан',
   expense_recorded: 'Расход записан',
   cash_in: 'Приход',

@@ -152,21 +152,26 @@ export async function POST(request: NextRequest) {
       created_by: auth.user.id,
     };
 
-    const auditRes = await fetch(`${s.url}/rest/v1/audit_logs`, {
+    // Audit via canonical log_audit() RPC
+    await fetch(`${s.url}/rest/v1/rpc/log_audit`, {
       method: 'POST',
-      headers: { ...s.headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify(auditLog),
-    });
-
-    if (!auditRes.ok) {
-      console.error('[discount] Audit log creation failed');
-    }
-    const discountRecord = await auditRes.json();
+      headers: s.headers,
+      body: JSON.stringify({
+        p_action: 'discount',
+        p_entity_type: 'order',
+        p_entity_id: order_id,
+        p_actor_id: auth.user.id,
+        p_actor_name: null,
+        p_old_data: { total_amount: oldAmount },
+        p_new_data: { total_amount: newTotalAmount, discount_type, discount_value },
+        p_metadata: auditLog,
+      }),
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
       order_total: newTotalAmount,
-      discount: discountRecord?.[0] || auditLog,
+      discount: auditLog,
     });
   } catch (error: any) {
     console.error('[API /orders/discount] Error:', error);

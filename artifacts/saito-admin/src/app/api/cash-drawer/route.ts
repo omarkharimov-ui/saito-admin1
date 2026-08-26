@@ -99,48 +99,23 @@ export async function POST(req: Request) {
       const auth = await requirePermission('cash.close', ['cashier', 'admin', 'superadmin']);
       if (!auth.authenticated) return auth;
       const staffId = auth.user?.id || null;
-      const { data: sess } = await s
-        .from('cash_drawer_sessions')
-        .select('*')
-        .eq('id', session_id)
-        .single();
-      if (!sess) throw new Error('Session not found');
+      const managerId = body.manager_id || null;
 
-      const { data: logData } = await s
-        .from('cash_drawer_log')
-        .select('*')
-        .eq('session_id', session_id);
-
-      const expectedBalance = (logData || []).reduce((sum: number, entry: any) => {
-        if (entry.type === 'cash_in' || entry.type === 'payment') return sum + Number(entry.amount);
-        if (entry.type === 'cash_out') return sum - Number(entry.amount);
-        return sum;
-      }, Number(sess.opening_balance));
-
-      const diff = (amount || 0) - expectedBalance;
-
-      const { error } = await s
-        .from('cash_drawer_sessions')
-        .update({
-          status: 'closed',
-          closed_at: new Date().toISOString(),
-          closing_balance: amount || 0,
-          expected_balance: expectedBalance,
-          difference: diff,
-          closed_by: staffId,
-        })
-        .eq('id', session_id);
-      if (error) throw error;
-
-      await s.from('cash_drawer_log').insert({
-        session_id,
-        type: 'close',
-        amount: amount || 0,
-        description: description || `Kassa bağlandı. Fərq: ${diff.toFixed(2)}₼`,
-        created_by: staffId,
+      // Delegate to close_cash_register_v2 RPC (server-side expected balance, atomic close, audit)
+      const { data: rpcResult, error: rpcErr } = await s.rpc('close_cash_register_v2', {
+        p_session_id: session_id,
+        p_actual_cash: Number(amount) || 0,
+        p_notes: description || null,
+        p_manager_id: managerId,
+        p_performed_by: staffId,
       });
 
-      return NextResponse.json({ expectedBalance, difference: diff });
+      if (rpcErr) throw rpcErr;
+      if (!rpcResult?.success) {
+        return NextResponse.json(rpcResult, { status: rpcResult?.requires_approval ? 403 : 400 });
+      }
+
+      return NextResponse.json(rpcResult);
     }
 
     if (action === 'cash_in' || action === 'cash_out') {

@@ -1321,6 +1321,7 @@ export const ru: TranslationMap = {
   card: 'Карта',
   given: 'Получено',
   change: 'Сдача',
+  change_short: 'Не хватает',
   takeaway_short: 'Вынос',
   delivery_short: 'Доставка',
   final_total: 'Итого',

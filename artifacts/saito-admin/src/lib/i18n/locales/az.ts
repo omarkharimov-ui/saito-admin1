@@ -1318,6 +1318,7 @@ export const az = {
   card: 'Kart',
   given: 'Verilən',
   change: 'Qalıq',
+  change_short: 'Çatışmır',
   takeaway_short: 'Gel-Al',
   delivery_short: 'Çatdırılma',
 

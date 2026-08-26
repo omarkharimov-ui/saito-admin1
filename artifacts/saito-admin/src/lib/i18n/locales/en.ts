@@ -1319,6 +1319,7 @@ export const en: TranslationMap = {
   card: 'Card',
   given: 'Given',
   change: 'Change',
+  change_short: 'Short',
   takeaway_short: 'Takeaway',
   delivery_short: 'Delivery',
 

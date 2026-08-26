@@ -107,7 +107,6 @@ export function ActionSheet({
   const [cashTenderedView, setCashTenderedView] = useState(false);
   const [cashTenderedAmount, setCashTenderedAmount] = useState('');
   const [cardConfirmView, setCardConfirmView] = useState(false);
-  const [splitByItemsView, setSplitByItemsView] = useState(false);
   const [splitItems, setSplitItems] = useState<Record<number, 'cash' | 'card'>>({});
   const [confirmAction, setConfirmAction] = useState<'cancel_table' | 'dismiss_group' | null>(null);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
@@ -120,6 +119,7 @@ export function ActionSheet({
   const [giftCardModalOpen, setGiftCardModalOpen] = useState(false);
   const [roomChargeModalOpen, setRoomChargeModalOpen] = useState(false);
   const [corporateModalOpen, setCorporateModalOpen] = useState(false);
+  const [splitMode, setSplitMode] = useState<'amount' | 'items'>('amount');
   const customerSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadCustomers = async (q: string) => {
@@ -156,8 +156,8 @@ export function ActionSheet({
       setCardConfirmView(false);
       setLocalSplit(null);
       setShowCustomerSearch(false);
-      setSplitByItemsView(false);
       setSplitItems({});
+      setSplitMode('amount');
       setConfirmAction(null);
     }
   }, [open]);
@@ -212,7 +212,7 @@ export function ActionSheet({
   const mergedChildren = unmergeMode && table ? (mergedGroupChildren ?? []) : [];
   const showSplitForm = !!localSplit;
   const showCustomerForm = showCustomerSearch;
-  const currentView = confirmAction ? 'confirm-action' : splitByItemsView ? 'split-by-items' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : (transferMode || transferConfirm) ? 'transfer' : unmergeMode ? 'split' : courierPickerOpen ? 'courier-select' : statusPickerOpen ? 'status-select' : open ? 'actions' : 'none';
+  const currentView = confirmAction ? 'confirm-action' : cashTenderedView ? 'cash-tendered' : cardConfirmView ? 'card-confirm' : showSplitForm ? 'split-payment' : showCustomerForm ? 'customer' : paymentView ? 'payment' : mergeMode ? 'merge' : (transferMode || transferConfirm) ? 'transfer' : unmergeMode ? 'split' : courierPickerOpen ? 'courier-select' : statusPickerOpen ? 'status-select' : open ? 'actions' : 'none';
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
@@ -226,7 +226,7 @@ export function ActionSheet({
           style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
         >
            {/* Backdrop */}
-            {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'split-by-items' || currentView === 'confirm-action') && (
+            {(currentView === 'actions' || currentView === 'split' || currentView === 'payment' || currentView === 'split-payment' || currentView === 'confirm-action') && (
             <motion.div
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
@@ -623,7 +623,7 @@ export function ActionSheet({
                     disabled={!cashTenderedAmount || Number(cashTenderedAmount) <= 0 || Number(cashTenderedAmount) < (table?.total_amount || 0) * 0.99}
                     className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-white active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                   >
-                    t('complete_payment')
+                    {t('complete_payment')}
                   </button>
                 </motion.div>
               )}
@@ -642,196 +642,192 @@ export function ActionSheet({
                     onClick={() => { onPaymentMethodSelect?.('card'); setCardConfirmView(false); }}
                     className="w-full py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-blue-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-blue-500/20"
                   >
-                    t('confirm_payment')
+                    {t('confirm_payment')}
                   </button>
                 </motion.div>
               )}
 
                  {currentView === 'split-payment' && localSplit && (
                    <motion.div key="ui-split-payment" {...morphView} className="flex flex-col gap-3" transition={fastExit}>
-                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">{t('split_payment')}</p>
-                     <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
-                     <div className="space-y-3">
-                       <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
-                         <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                           <Wallet size={18} className="text-emerald-400" />
-                         </div>
-                         <div className="flex-1 min-w-0">
-                           <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">{t('cash')}</p>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={localSplit.cash}
-                              onChange={e => {
-                                const cashVal = e.target.value;
-                                const total = table?.total_amount || 0;
-                                const numCash = parseFloat(cashVal) || 0;
-                                const cardVal = Math.max(0, total - numCash).toFixed(2);
-                                setLocalSplit({ cash: cashVal, card: cardVal });
-                              }}
-                              className={`w-full rounded-xl px-3 py-2 text-lg font-black outline-none border transition-all bg-transparent tabular-nums ${lightMode ? 'text-black border-black/10 focus:border-zinc-400' : 'text-white border-white/10 focus:border-zinc-400/50'}`}
-                              placeholder="0.00"
-                            />
-                         </div>
-                       </div>
-                       <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
-                         <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                           <CreditCard size={18} className="text-blue-400" />
-                         </div>
-                         <div className="flex-1 min-w-0">
-                           <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/60 mb-1">Kart</p>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={localSplit.card}
-                              onChange={e => {
-                                const cardVal = e.target.value;
-                                const total = table?.total_amount || 0;
-                                const numCard = parseFloat(cardVal) || 0;
-                                const cashVal = Math.max(0, total - numCard).toFixed(2);
-                                setLocalSplit({ cash: cashVal, card: cardVal });
-                              }}
-                              className={`w-full rounded-xl px-3 py-2 text-lg font-black outline-none border transition-all bg-transparent tabular-nums ${lightMode ? 'text-black border-black/10 focus:border-zinc-400' : 'text-white border-white/10 focus:border-zinc-400/50'}`}
-                              placeholder="0.00"
-                            />
-                         </div>
+                     <div className="flex items-center justify-between mb-1">
+                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold">{t('split_payment')}</p>
+                       <div className="flex rounded-xl overflow-hidden border transition-all ${lightMode ? 'border-zinc-200' : 'border-white/10'}">
+                         <button onClick={() => setSplitMode('amount')}
+                           className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider transition-all ${splitMode === 'amount' ? 'bg-gold text-black' : lightMode ? 'bg-zinc-50 text-zinc-400' : 'bg-white/5 text-white/30'}`}>
+                           {t('amount')}
+                         </button>
+                         <button onClick={() => { setSplitMode('items'); setSplitItems({}); }}
+                           className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider transition-all ${splitMode === 'items' ? 'bg-gold text-black' : lightMode ? 'bg-zinc-50 text-zinc-400' : 'bg-white/5 text-white/30'}`}>
+                           {t('split_by_item')}
+                         </button>
                        </div>
                      </div>
-                     {(() => {
+                     <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
+
+                     {/* Amount mode */}
+                     {splitMode === 'amount' && (
+                       <div className="space-y-3">
+                         <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
+                           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                             <Wallet size={18} className="text-emerald-400" />
+                           </div>
+                           <div className="flex-1 min-w-0">
+                             <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mb-1">{t('cash')}</p>
+                              <input
+                                type="number" step="0.01" min="0"
+                                value={localSplit.cash}
+                                onChange={e => {
+                                  const cashVal = e.target.value;
+                                  const total = table?.total_amount || 0;
+                                  const numCash = parseFloat(cashVal) || 0;
+                                  setLocalSplit({ cash: cashVal, card: Math.max(0, total - numCash).toFixed(2) });
+                                }}
+                                className={`w-full rounded-xl px-3 py-2 text-lg font-black outline-none border transition-all bg-transparent tabular-nums ${lightMode ? 'text-black border-black/10 focus:border-zinc-400' : 'text-white border-white/10 focus:border-zinc-400/50'}`}
+                                placeholder="0.00"
+                              />
+                           </div>
+                         </div>
+                         <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
+                           <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                             <CreditCard size={18} className="text-blue-400" />
+                           </div>
+                           <div className="flex-1 min-w-0">
+                             <p className="text-[9px] font-black uppercase tracking-widest text-blue-500/60 mb-1">{t('card') || 'Kart'}</p>
+                              <input
+                                type="number" step="0.01" min="0"
+                                value={localSplit.card}
+                                onChange={e => {
+                                  const cardVal = e.target.value;
+                                  const total = table?.total_amount || 0;
+                                  const numCard = parseFloat(cardVal) || 0;
+                                  setLocalSplit({ cash: Math.max(0, total - numCard).toFixed(2), card: cardVal });
+                                }}
+                                className={`w-full rounded-xl px-3 py-2 text-lg font-black outline-none border transition-all bg-transparent tabular-nums ${lightMode ? 'text-black border-black/10 focus:border-zinc-400' : 'text-white border-white/10 focus:border-zinc-400/50'}`}
+                                placeholder="0.00"
+                              />
+                           </div>
+                         </div>
+                       </div>
+                     )}
+
+                     {/* Items mode */}
+                     {splitMode === 'items' && (
+                       <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                         {(table as any)?.order_items?.map((item: any, idx: number) => (
+                           <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
+                             <div className="flex-1 min-w-0">
+                               <p className={`text-sm font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>
+                                 {item.quantity}x {item.product_name || item.products?.name_az || item.products?.name_en || t('product')}
+                               </p>
+                               <p className={`text-[10px] font-bold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
+                                 ₼{(Number(item.total_price || item.unit_price * item.quantity) || 0).toFixed(2)}
+                               </p>
+                             </div>
+                             <div className="flex gap-1.5 ml-3">
+                               <button onClick={() => setSplitItems(prev => ({ ...prev, [idx]: 'cash' }))}
+                                 className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border ${
+                                   splitItems[idx] === 'cash'
+                                     ? 'bg-emerald-500 text-white border-emerald-500'
+                                     : lightMode ? 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-emerald-50' : 'bg-white/5 text-zinc-400 border-white/10 hover:bg-emerald-500/10'
+                                 }`}>
+                                 {t('cash')}
+                               </button>
+                               <button onClick={() => setSplitItems(prev => ({ ...prev, [idx]: 'card' }))}
+                                 className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border ${
+                                   splitItems[idx] === 'card'
+                                     ? 'bg-blue-500 text-white border-blue-500'
+                                     : lightMode ? 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-blue-50' : 'bg-white/5 text-zinc-400 border-white/10 hover:bg-blue-500/10'
+                                 }`}>
+                                 {t('card') || 'Kart'}
+                               </button>
+                             </div>
+                           </div>
+                         )) || (
+                           <p className={`text-center text-xs py-4 ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                             {t('no_item_info')}
+                           </p>
+                         )}
+                       </div>
+                     )}
+
+                     {/* Remaining indicator (amount mode) */}
+                     {splitMode === 'amount' && (() => {
                        const total = table?.total_amount || 0;
                        const cash = parseFloat(localSplit.cash) || 0;
                        const card = parseFloat(localSplit.card) || 0;
                        const remaining = total - cash - card;
                        if (Math.abs(remaining) < 0.01) return null;
                        return (
-                          <motion.div key="ui-split-remaining" {...morphView} className={`p-3 rounded-xl text-center ${remaining > 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
+                         <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                           className={`p-3 rounded-xl text-center ${remaining > 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
                            <p className={`text-xs font-bold ${remaining > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                             {remaining > 0 ? `t('change'): ₼${remaining.toFixed(2)}` : `t('change_short') + ': ₼'${Math.abs(remaining).toFixed(2)}`}
+                             {remaining > 0 ? `${t('change')}: ₼${remaining.toFixed(2)}` : `${t('change_short')}: ₼${Math.abs(remaining).toFixed(2)}`}
                            </p>
                          </motion.div>
                        );
                      })()}
-                     <div className="flex gap-3 mt-2">
-                        <button onClick={() => { setLocalSplit(null); setCashTenderedView(false); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
-                       <button
-                         onClick={() => { onSplitConfirm?.(localSplit); setLocalSplit(null); }}
-                         disabled={(() => {
-                           const total = table?.total_amount || 0;
-                           const cash = parseFloat(localSplit.cash) || 0;
-                           const card = parseFloat(localSplit.card) || 0;
-                           return Math.abs(cash + card - total) > 0.01 || (cash + card) <= 0;
-                         })()}
-                         className="flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-gold text-black active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-gold/20"
-                       >
-                         t('confirm')
-                       </button>
-                      </div>
-                  </motion.div>
-                )}
 
-              {currentView === 'split-by-items' && (
-                <motion.div key="ui-split-by-items" {...morphView} className="flex flex-col gap-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gold mb-1">{t('split_by_item')}</p>
-                  <p className="text-2xl font-black tracking-tighter mb-2 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
-                  <div className="space-y-2 max-h-[280px] overflow-y-auto">
-                    {(table as any)?.order_items?.map((item: any, idx: number) => (
-                      <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-bold truncate ${lightMode ? 'text-black' : 'text-white'}`}>
-                            {item.quantity}x {item.product_name || item.products?.name_az || item.products?.name_en || t('product')}
-                          </p>
-                          <p className={`text-[10px] font-bold tabular-nums ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                            ₼{(Number(item.total_price || item.unit_price * item.quantity) || 0).toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="flex gap-1.5 ml-3">
-                          <button
-                            onClick={() => setSplitItems(prev => ({ ...prev, [idx]: 'cash' }))}
-                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border ${
-                              splitItems[idx] === 'cash'
-                                ? 'bg-emerald-500 text-white border-emerald-500'
-                                : lightMode ? 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-emerald-50' : 'bg-white/5 text-zinc-400 border-white/10 hover:bg-emerald-500/10'
-                            }`}
-                          >
-                            t('cash')
-                          </button>
-                          <button
-                            onClick={() => setSplitItems(prev => ({ ...prev, [idx]: 'card' }))}
-                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border ${
-                              splitItems[idx] === 'card'
-                                ? 'bg-blue-500 text-white border-blue-500'
-                                : lightMode ? 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-blue-50' : 'bg-white/5 text-zinc-400 border-white/10 hover:bg-blue-500/10'
-                            }`}
-                          >
-                            Kart
-                          </button>
-                        </div>
-                      </div>
-                    )) || (
-                      <p className={`text-center text-xs py-4 ${lightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                        t('no_item_info')
-                      </p>
-                    )}
-                  </div>
-                  {(() => {
-                    const items = (table as any)?.order_items || [];
-                    const allAssigned = items.length > 0 && items.every((_: any, idx: number) => splitItems[idx]);
-                    const cashTotal = items.reduce((sum: number, _: any, idx: number) => {
-                      if (splitItems[idx] !== 'cash') return sum;
-                      return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
-                    }, 0);
-                    const cardTotal = items.reduce((sum: number, _: any, idx: number) => {
-                      if (splitItems[idx] !== 'card') return sum;
-                      return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
-                    }, 0);
-                    return (
-                      <>
-                        {allAssigned && (
-                          <div className={`flex gap-2 p-3 rounded-xl ${lightMode ? 'bg-zinc-50 border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
-                            <div className="flex-1 text-center">
-                              <p className={`text-[9px] font-black uppercase ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('cash')}</p>
-                              <p className="text-sm font-black tabular-nums text-emerald-400">₼{cashTotal.toFixed(2)}</p>
-                            </div>
-                            <div className="w-px bg-white/10" />
-                            <div className="flex-1 text-center">
-                              <p className={`text-[9px] font-black uppercase ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>Kart</p>
-                              <p className="text-sm font-black tabular-nums text-blue-400">₼{cardTotal.toFixed(2)}</p>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                  <div className="flex gap-3 mt-2">
-                     <button onClick={() => { setSplitByItemsView(false); setSplitItems({}); }} className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
-                    <button
-                      onClick={() => {
-                        const items = (table as any)?.order_items || [];
-                        const cashTotal = items.reduce((sum: number, _: any, idx: number) => {
-                          if (splitItems[idx] !== 'cash') return sum;
-                          return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
-                        }, 0);
-                        const cardTotal = items.reduce((sum: number, _: any, idx: number) => {
-                          if (splitItems[idx] !== 'card') return sum;
-                          return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
-                        }, 0);
-                         onSplitConfirm?.({ cash: cashTotal.toFixed(2), card: cardTotal.toFixed(2), items: splitItems });
-                        setSplitByItemsView(false);
-                        setSplitItems({});
-                      }}
-                      disabled={(() => {
-                        const items = (table as any)?.order_items || [];
-                        return items.length === 0 || !items.every((_: any, idx: number) => splitItems[idx]);
-                      })()}
-                      className="flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-gold text-black active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-gold/20"
-                    >
-                      t('confirm')
-                    </button>
-                  </div>
-                </motion.div>
-              )}
+                     {/* Items mode totals */}
+                     {splitMode === 'items' && (() => {
+                       const items = (table as any)?.order_items || [];
+                       const allAssigned = items.length > 0 && items.every((_: any, idx: number) => splitItems[idx]);
+                       if (!allAssigned) return null;
+                       const cashTotal = items.reduce((sum: number, _: any, idx: number) => {
+                         if (splitItems[idx] !== 'cash') return sum;
+                         return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
+                       }, 0);
+                       const cardTotal = items.reduce((sum: number, _: any, idx: number) => {
+                         if (splitItems[idx] !== 'card') return sum;
+                         return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
+                       }, 0);
+                       return (
+                         <div className={`flex gap-2 p-3 rounded-xl ${lightMode ? 'bg-zinc-50 border border-zinc-100' : 'bg-white/5 border border-white/5'}`}>
+                           <div className="flex-1 text-center">
+                             <p className={`text-[9px] font-black uppercase ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('cash')}</p>
+                             <p className="text-sm font-black tabular-nums text-emerald-400">₼{cashTotal.toFixed(2)}</p>
+                           </div>
+                           <div className="w-px bg-white/10" />
+                           <div className="flex-1 text-center">
+                             <p className={`text-[9px] font-black uppercase ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>{t('card') || 'Kart'}</p>
+                             <p className="text-sm font-black tabular-nums text-blue-400">₼{cardTotal.toFixed(2)}</p>
+                           </div>
+                         </div>
+                       );
+                     })()}
+
+                     {/* Actions */}
+                     <div className="flex gap-3 mt-2">
+                       <button onClick={() => { setLocalSplit(null); setSplitMode('amount'); setSplitItems({}); }}
+                         className="flex-1 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">
+                         {t('back')}
+                       </button>
+                       <button
+                         onClick={() => {
+                           if (splitMode === 'amount') {
+                             onSplitConfirm?.(localSplit);
+                           } else {
+                             const items = (table as any)?.order_items || [];
+                             const cashTotal = items.reduce((sum: number, _: any, idx: number) => {
+                               if (splitItems[idx] !== 'cash') return sum;
+                               return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
+                             }, 0);
+                             const cardTotal = items.reduce((sum: number, _: any, idx: number) => {
+                               if (splitItems[idx] !== 'card') return sum;
+                               return sum + (Number(items[idx].total_price || items[idx].unit_price * items[idx].quantity) || 0);
+                             }, 0);
+                             onSplitConfirm?.({ cash: cashTotal.toFixed(2), card: cardTotal.toFixed(2), items: splitItems });
+                           }
+                           setLocalSplit(null); setSplitMode('amount'); setSplitItems({});
+                         }}
+                         disabled={splitMode === 'amount'
+                           ? (() => { const t2 = table?.total_amount || 0; const c = parseFloat(localSplit.cash) || 0; const d = parseFloat(localSplit.card) || 0; return Math.abs(c + d - t2) > 0.01 || (c + d) <= 0; })()
+                           : (() => { const items = (table as any)?.order_items || []; return items.length === 0 || !items.every((_: any, idx: number) => splitItems[idx]); })()}
+                         className="flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-gold text-black active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-gold/20">
+                         {t('confirm')}
+                       </button>
+                     </div>
+                   </motion.div>
+                 )}
 
                 {currentView === 'customer' && (
                   <motion.div key="ui-customer" {...morphView} className="flex flex-col gap-3">
@@ -974,7 +970,7 @@ export function ActionSheet({
                         }
                       }}
                        className={`flex-[2] py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-rose-500 text-white active:scale-[0.98] transition-all shadow-lg shadow-rose-500/20`}>
-                       t('confirm')
+                       {t('confirm')}
                      </button>
                    </div>
                  </motion.div>

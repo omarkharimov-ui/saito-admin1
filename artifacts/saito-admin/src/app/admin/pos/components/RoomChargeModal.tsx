@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, X, User } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { appleCard, fastExit } from '@/lib/modal-transitions';
@@ -19,6 +20,7 @@ interface RoomChargeModalProps {
 export function RoomChargeModal({ open, onClose, amount, onSuccess }: RoomChargeModalProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
+  const keyboardHeight = useKeyboardHeight();
   const [roomNumber, setRoomNumber] = useState('');
   const [guestName, setGuestName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,8 @@ export function RoomChargeModal({ open, onClose, amount, onSuccess }: RoomCharge
     <AnimatePresence>
       {open && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit}
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60" onClick={onClose}>
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/25 backdrop-blur-[2px]" onClick={onClose}
+          style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}>
           <motion.div {...appleCard} transition={fastExit} onClick={e => e.stopPropagation()}
             className={`w-80 rounded-3xl p-7 shadow-elevated border backdrop-blur-2xl ${lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'}`}>
             <div className="flex items-center justify-between mb-5">

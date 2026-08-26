@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Ban, Minus, Plus, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { appleCard, fastExit } from '@/lib/modal-transitions';
@@ -29,6 +30,7 @@ interface VoidItemsModalProps {
 export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: VoidItemsModalProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
+  const keyboardHeight = useKeyboardHeight();
   const [selected, setSelected] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
 
@@ -105,8 +107,9 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={fastExit}
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60"
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/25 backdrop-blur-[2px]"
           onClick={onClose}
+          style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}
         >
           <motion.div
             {...appleCard}

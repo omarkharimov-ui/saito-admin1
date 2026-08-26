@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RotateCcw, Wallet, CreditCard, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { apiFetch } from '@/lib/api-fetch';
 import { toast } from '@/lib/toast';
 import { appleCard, fastExit } from '@/lib/modal-transitions';
@@ -21,6 +22,7 @@ interface RefundModalProps {
 export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod = 'cash', onSuccess }: RefundModalProps) {
   const { lightMode } = useTheme();
   const { t } = useLanguage();
+  const keyboardHeight = useKeyboardHeight();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [method, setMethod] = useState<'cash' | 'card'>(paymentMethod === 'card' ? 'card' : 'cash');
@@ -77,8 +79,9 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={fastExit}
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60"
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/25 backdrop-blur-[2px]"
           onClick={onClose}
+          style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}
         >
           <motion.div
             {...appleCard}

@@ -87,9 +87,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Audit log
+    try {
+      await fetch(`${s.url}/rest/v1/rpc/log_audit`, {
+        method: 'POST',
+        headers: s.headers,
+        body: JSON.stringify({
+          p_action: 'stock_loss',
+          p_entity_type: 'inventory',
+          p_entity_id: null,
+          p_actor_id: auth.user?.id || null,
+          p_actor_name: auth.user?.email || 'pos',
+          p_old_data: null,
+          p_new_data: { items, reason },
+          p_metadata: { entries: results.length, source: 'pos_loss' },
+        }),
+      });
+    } catch { /* non-critical */ }
+
     return NextResponse.json({ success: true, entries: results.length });
   } catch (error: any) {
     console.error('[API /stock/loss] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+// POST is exported above — no extra handler needed

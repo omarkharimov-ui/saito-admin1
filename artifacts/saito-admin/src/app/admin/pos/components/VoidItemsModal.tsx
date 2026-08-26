@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ban, Minus, Plus, Trash2 } from 'lucide-react';
+import { Ban, Minus, Plus, X } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { apiFetch } from '@/lib/api-fetch';
@@ -121,7 +121,7 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
                 <p className="text-sm font-black">{t('void_items') || 'Elementləri ləğv et'}</p>
               </div>
               <button onClick={onClose} className={`p-1.5 rounded-xl transition-all ${lightMode ? 'hover:bg-zinc-100' : 'hover:bg-white/10'}`}>
-                <Ban size={16} className="rotate-45" />
+                <X size={16} />
               </button>
             </div>
 

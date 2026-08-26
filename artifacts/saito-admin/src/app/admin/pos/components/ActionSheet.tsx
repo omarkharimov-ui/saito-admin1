@@ -19,7 +19,7 @@ import { VoidItemsModal } from './VoidItemsModal';
 import { RefundModal } from './RefundModal';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
-type PaymentMethod = 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher';
+type PaymentMethod = 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge';
 
 
 interface ActionSheetProps {
@@ -166,18 +166,27 @@ export function ActionSheet({
   const isDeliveryOnly = posMode === 'delivery';
 
   const posRoleNorm = posRole?.toLowerCase() || '';
+  const isCashierOrAbove = isAtLeast(posRoleNorm, 'cashier');
   const isManagerOrAbove = isAtLeast(posRoleNorm, 'cashier');
   const waiterPinRequired = requiresPin(posRoleNorm);
+
+  // Resolve order data from table_floors → orders relationship
+  const activeOrder = (table as any)?.orders?.[0] ?? null;
+  const activeOrderId = activeOrder?.id ?? (table as any)?.current_order_id ?? (table as any)?.order_ids?.[0] ?? '';
+  const activeOrderItems: any[] = activeOrder?.order_items ?? [];
+  const activePaidAt = activeOrder?.paid_at ?? null;
+  const activePaidAmount = activeOrder?.total_amount ?? 0;
+  const activePaymentMethod = activeOrder?.payment_method ?? null;
 
   const actions = [
     { id: 'customer', icon: User, label: customerName ? `${customerName}` : t('select_customer') || t('customer'), visible: true },
     { id: 'print_bill', icon: Printer, label: t('print_bill'), visible: isOccupied && (table?.total_amount ?? 0) > 0 },
     { id: 'bill_request', icon: Receipt, label: t('call_bill'), visible: !isTakeawayOrDelivery && isOccupied && (table?.total_amount ?? 0) > 0 && !table?.bill_requested },
-    { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isManagerOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
-    { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) },
+    { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isCashierOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
+    { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: isCashierOrAbove && !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) },
     { id: 'clear', icon: BrushCleaning, label: t('clear'), visible: table?.status === 'empty' || table?.status === 'dirty' },
-    { id: 'void_items', icon: Ban, label: t('void_items') || 'Ləğv et', visible: isManagerOrAbove && isOccupied && (table?.total_amount ?? 0) > 0 && !(table as any)?.paid_at },
-    { id: 'refund', icon: RotateCcw, label: t('refund') || 'Geri ödəniş', visible: isManagerOrAbove && !!(table as any)?.paid_at },
+    { id: 'void_items', icon: Ban, label: t('void_items') || 'Ləğv et', visible: isCashierOrAbove && isOccupied && (table?.total_amount ?? 0) > 0 && !activePaidAt },
+    { id: 'refund', icon: RotateCcw, label: t('refund') || 'Geri ödəniş', visible: isCashierOrAbove && !!activePaidAt },
     ...(posMode === 'delivery' ? [
       { id: 'delivery_status', icon: Car, label: t('delivery_status'), visible: true },
       { id: 'assign_courier', icon: UserCheck, label: t('assign_courier' as any) || 'Assign Courier', visible: true },
@@ -274,8 +283,8 @@ export function ActionSheet({
                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'}`}>
                            Masa {table?.table_number} (Əsas)
                          </span>
-                         {mergedGroupChildren?.map(child => (
-                           <span key={child.table_number} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'}`}>
+                          {mergedGroupChildren?.map(child => (
+                            <span key={`mg-${child.table_number ?? child.id}`} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${lightMode ? 'bg-zinc-100 text-zinc-500' : 'bg-white/5 text-zinc-400'}`}>
                              Masa {child.table_number}
                            </span>
                          ))}
@@ -511,6 +520,27 @@ export function ActionSheet({
                            <div className="flex flex-col items-start">
                              <span className="text-sm font-black tracking-wide">{t('per_item')}</span>
                              <span className="text-[10px] font-medium opacity-60">{t('split_by_item')}</span>
+                           </div>
+                         </button>
+                        <button onClick={() => onPaymentMethodSelect?.('gift_card')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 active:scale-[0.98] transition-all hover:bg-rose-500/20">
+                           <Gift size={20} strokeWidth={2.5} />
+                           <div className="flex flex-col items-start">
+                             <span className="text-sm font-black tracking-wide">{t('gift_card') || 'Hədiyyə kartı'}</span>
+                             <span className="text-[10px] font-medium opacity-60">{t('gift_card_payment') || 'Kart kodu daxil edin'}</span>
+                           </div>
+                         </button>
+                        <button onClick={() => onPaymentMethodSelect?.('room_charge')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 active:scale-[0.98] transition-all hover:bg-indigo-500/20">
+                           <Building2 size={20} strokeWidth={2.5} />
+                           <div className="flex flex-col items-start">
+                             <span className="text-sm font-black tracking-wide">{t('room_charge') || 'Otaq hesabı'}</span>
+                             <span className="text-[10px] font-medium opacity-60">{t('room_charge_desc') || 'Hotel otağına yaz'}</span>
+                           </div>
+                         </button>
+                        <button onClick={() => onPaymentMethodSelect?.('corporate')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 active:scale-[0.98] transition-all hover:bg-cyan-500/20">
+                           <Building2 size={20} strokeWidth={2.5} />
+                           <div className="flex flex-col items-start">
+                             <span className="text-sm font-black tracking-wide">{t('corporate') || 'Korporativ'}</span>
+                             <span className="text-[10px] font-medium opacity-60">{t('corporate_desc') || 'Şirkət hesabı'}</span>
                            </div>
                          </button>
                     </>
@@ -889,7 +919,7 @@ export function ActionSheet({
                         <div className="grid grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1">
                           {mergedChildren.map((child, i) => (
                             <motion.button
-                              key={child.table_number}
+                              key={`unmerge-${child.table_number ?? child.id ?? i}`}
                               onClick={() => onToggleUnmerge?.(child.table_number)}
                               initial={{ opacity: 0, x: 20 }}
                               animate={{ opacity: 1, x: 0 }}
@@ -1105,8 +1135,8 @@ export function ActionSheet({
       <VoidItemsModal
         open={voidModalOpen}
         onClose={() => setVoidModalOpen(false)}
-        orderId={(table as any)?.order_id || (table as any)?.id || ''}
-        items={(table as any)?.order_items || []}
+        orderId={activeOrderId}
+        items={activeOrderItems}
         onSuccess={() => { onRefresh?.(); }}
       />
 
@@ -1114,9 +1144,9 @@ export function ActionSheet({
       <RefundModal
         open={refundModalOpen}
         onClose={() => setRefundModalOpen(false)}
-        orderId={(table as any)?.order_id || (table as any)?.id || ''}
-        paidAmount={(table as any)?.paid_amount || (table as any)?.total_amount || 0}
-        paymentMethod={(table as any)?.payment_method}
+        orderId={activeOrderId}
+        paidAmount={activePaidAmount}
+        paymentMethod={activePaymentMethod}
         onSuccess={() => { onRefresh?.(); }}
       />
     </AnimatePresence>

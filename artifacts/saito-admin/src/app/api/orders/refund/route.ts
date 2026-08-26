@@ -22,17 +22,18 @@ export async function POST(request: NextRequest) {
   }
 
   let sessionId: string | null = null;
-  if ((method || 'cash') === 'cash' || (method || 'cash') === 'nağd') {
-    try {
-      const s = svc();
-      const { data: openSession } = await fetch(
-        `${s.url}/rest/v1/cash_drawer_sessions?select=id&status=eq.open&order=opened_at.desc&limit=1`,
-        { headers: s.headers }
-      ).then((r) => r.json()).then((rows: any) => rows?.[0] || null).catch(() => null);
-      if (openSession?.id) sessionId = openSession.id;
-    } catch (e) {
-      console.error('[refund] cash session lookup failed (non-fatal):', e);
+  try {
+    const s = svc();
+    const sessionRes = await fetch(
+      `${s.url}/rest/v1/cash_drawer_sessions?select=id&status=eq.open&order=opened_at.desc&limit=1`,
+      { headers: s.headers }
+    );
+    if (sessionRes.ok) {
+      const rows = await sessionRes.json();
+      if (rows?.[0]?.id) sessionId = rows[0].id;
     }
+  } catch (e) {
+    console.error('[refund] cash session lookup failed (non-fatal):', e);
   }
 
   const { data, error } = await supabase.rpc('complete_payment_atomic_v2', {
@@ -52,6 +53,10 @@ export async function POST(request: NextRequest) {
   if (error) {
     console.error('[refund] RPC failed:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (data && !data.success) {
+    return NextResponse.json(data, { status: 400 });
   }
 
   return NextResponse.json(data);

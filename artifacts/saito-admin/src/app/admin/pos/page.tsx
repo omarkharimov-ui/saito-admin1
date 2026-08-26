@@ -1771,13 +1771,13 @@ export default function POSPage() {
                     transition={fastExit}
                   >
                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {visibleTables?.map((table: any) => {
+                  {visibleTables?.map((table: any, _tableIdx: number) => {
                     const groupInfo = tableGroupInfo[table.table_number];
                     const isGroup = groupInfo && groupInfo.children.length > 0;
                     
                     return (
                       <div
-                        key={table.table_number}
+                        key={`tbl-${table.table_number ?? table.id ?? _tableIdx}`}
                         className="col-span-1"
                       >
                       <TableCard 

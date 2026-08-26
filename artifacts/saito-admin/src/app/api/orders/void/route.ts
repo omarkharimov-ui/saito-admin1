@@ -4,12 +4,15 @@ import { validateCsrfToken } from '@/lib/csrf';
 
 /**
  * POST /api/orders/void
- * Void items — cashier mistake, item never left kitchen.
- * Uses void_payment_atomic_v2 RPC for atomic operation.
+ * Void items — state-aware:
+ *   DRAFT items → delete (no stock impact)
+ *   SENT/PREPARING items → void (no stock — not consumed yet)
+ *   READY/SERVED items → BLOCKED (must use waste/loss workflow)
  *
  * Body: {
  *   order_id: string,
- *   items: [{ order_item_id: string, quantity: number }]
+ *   items: [{ order_item_id: string, quantity: number }],
+ *   reason?: string
  * }
  */
 export async function POST(req: NextRequest) {
@@ -21,20 +24,19 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createAuthClient();
-    const { order_id, items } = await req.json();
+    const { order_id, items, reason } = await req.json();
     if (!order_id || !items?.length) {
       return NextResponse.json({ error: 'order_id and items required' }, { status: 400 });
     }
 
-    const { data: rpcResult, error: rpcErr } = await supabase.rpc('void_payment_atomic_v2', {
+    const { data: rpcResult, error: rpcErr } = await supabase.rpc('void_items_state_aware', {
       p_order_id: order_id,
       p_items: items.map((i: any) => ({
         order_item_id: i.order_item_id,
         quantity: i.quantity,
       })),
       p_performed_by: auth.user?.id || null,
-      p_performed_by_terminal_id: null,
-      p_audit_context: 'pos_void',
+      p_reason: reason || null,
     });
 
     if (rpcErr) throw rpcErr;

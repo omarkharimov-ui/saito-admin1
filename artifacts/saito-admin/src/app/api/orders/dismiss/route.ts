@@ -8,6 +8,14 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
+/**
+ * POST /api/orders/dismiss
+ * Dismiss table — state-aware:
+ *   DRAFT items → delete
+ *   SENT/PREPARING items → cancel (no stock)
+ *   READY/SERVED items → waste (stock already consumed, recorded as waste)
+ *   Paid orders → skipped (require refund workflow)
+ */
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
@@ -20,20 +28,25 @@ export async function POST(req: NextRequest) {
 
     const s = svc();
 
-    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/cancel_table_orders`, {
+    const rpcRes = await fetch(`${s.url}/rest/v1/rpc/dismiss_table_state_aware`, {
       method: 'POST',
       headers: s.headers,
-      // Named args for ALL params of the 3-arg overload — PostgREST cannot
-      // resolve between the 2-arg and 3-arg overloads with p_table_number only (PGRST203).
-      body: JSON.stringify({ p_table_number: table_number, p_reason: 'dismissed_from_pos', p_performed_by: auth.user.id }),
+      body: JSON.stringify({
+        p_table_number: table_number,
+        p_performed_by: auth.user.id,
+        p_reason: 'dismissed_from_pos',
+      }),
     });
 
     if (!rpcRes.ok) {
       const errText = await rpcRes.text();
-      console.error('[Dismiss Fatal]', errText);
+      console.error('[Dismiss]', errText);
       return NextResponse.json({ error: errText }, { status: 500 });
     }
 
+    const result = await rpcRes.json();
+
+    // Cancel any linked reservations
     const tablesRes = await fetch(`${s.url}/rest/v1/table_floors?select=id,reservation_id,status&table_number=eq.${table_number}`, { headers: s.headers });
     const tables = await tablesRes.json();
     const reservationIds = Array.from(new Set((tables || []).filter((t: any) => t.reservation_id && t.status === 'reserved').map((t: any) => t.reservation_id)));
@@ -46,8 +59,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const data = await rpcRes.json();
-    return NextResponse.json({ success: true, result: data, cancelledReservations: reservationIds.length });
+    return NextResponse.json({ success: true, result, cancelledReservations: reservationIds.length });
   } catch (error: any) {
     console.error('[API /orders/dismiss] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -32,18 +32,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Already paid → no stock deduction needed (already done at payment)
-    if (order.status === 'paid') {
-      // Still reflect the ready state in the kitchen board.
-      await fetch(`${s.url}/rest/v1/orders?id=eq.${order_id}`, {
-        method: 'PATCH',
-        headers: s.headers,
-        body: JSON.stringify({ kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() }),
-      });
-      return NextResponse.json({ success: true, skipped: true, reason: 'already_paid' });
-    }
-
     // Deduct stock now that kitchen has prepared the items
+    // deductStockForOrder has idempotency check — safe to call even if already done
     let stockDeduction = { deducted: 0, ingredientIds: [] as string[] };
     try {
       stockDeduction = await deductStockForOrder(order_id);

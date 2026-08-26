@@ -1518,6 +1518,9 @@ export const en: TranslationMap = {
   // Missing keys
   no_table_selected: 'No table selected',
   add_items_hint: 'Add products',
+  hint_return_item: 'This item is ready — open menu and select "Return"',
+  hint_void_item: 'This item has been sent — open menu and select "Void"',
+  hint_minus_blocked: 'This item has been sent — cannot reduce directly',
   cancelled_amount: 'Cancelled amount',
   resend: 'Resend',
   sent_to_kitchen: 'Sent to kitchen',

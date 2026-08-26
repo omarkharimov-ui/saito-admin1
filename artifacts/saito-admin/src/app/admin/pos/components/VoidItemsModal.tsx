@@ -130,12 +130,12 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
 
             {/* Items list */}
             <div className="flex-1 overflow-y-auto space-y-2 mb-4 min-h-0">
-              {items.map(item => {
+              {items.map((item, idx) => {
                 const qty = selected[item.id] || 0;
                 const isSelected = qty > 0;
                 return (
                   <motion.div
-                    key={item.id}
+                    key={`${item.id}-${idx}`}
                     layout
                     className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
                       isSelected

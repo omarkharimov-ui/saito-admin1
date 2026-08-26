@@ -269,6 +269,13 @@ export function CartPanel({
     }
   }, [vkOpen, isNoteOpen]);
 
+  useEffect(() => {
+    if (voidModalOpen || returnModalOpen || numpadOpen) {
+      closeVk();
+      noteInputRef.current?.blur();
+    }
+  }, [voidModalOpen, returnModalOpen, numpadOpen, closeVk]);
+
   if (!cart) {
     const msg = posMode !== 'dine_in' ? t('no_orders') || (posMode === 'takeaway' ? 'No orders' : 'No orders') : t('no_table_selected');
     return (
@@ -283,6 +290,14 @@ export function CartPanel({
   const originalTotal = cart.items.reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
   const isEmpty = cart.items.length === 0;
   const hasDraft = cart.items.some(i => (i.sentQuantity ?? 0) < i.quantity);
+
+  const voidableItems = useMemo(() => {
+    return cart.items.filter(item => {
+      const ks = (item as any).kitchen_status || 'pending';
+      return (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
+    });
+  }, [cart.items]);
+  const hasVoidableItems = voidableItems.length > 0;
 
   // Contextual primary-action states (dine-in only)
   const isDineInContext = posMode === 'dine_in' && !isReservationMode;
@@ -581,28 +596,19 @@ export function CartPanel({
         </div>
       )}
 
-      {/* Cart Quick Actions Row — single morphing surface: Təmizlə (clear) left, İtki (write off) right */}
+      {/* Cart Quick Actions Row — Təmizlə (clear) + Ləğv et (void) morphing */}
       {!isEmpty && (
         <div className={`pt-3 pb-4 mb-2 border-t ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>
-          <div className="relative flex items-stretch">
-              <motion.div
+          <div className="flex gap-2">
+            <motion.div
               initial={false}
-              style={{
-                flex: 'none',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                transformOrigin: 'left center',
-              }}
               animate={{
-                width: hasDraft ? '50%' : '0%',
-                clipPath: hasDraft ? 'inset(0% 0% 0% 0%)' : 'inset(0% 100% 0% 0%)',
-                marginRight: hasDraft ? 8 : 0,
+                flex: hasDraft ? '1 1 0%' : '0 0 0%',
+                opacity: hasDraft ? 1 : 0,
+                scale: hasDraft ? 1 : 0.9,
               }}
-              transition={{
-                width: { type: 'tween', duration: 0.55, ease: [0.22, 1.2, 0.36, 1] },
-                clipPath: { type: 'tween', duration: 0.55, ease: [0.22, 1.2, 0.36, 1] },
-                marginRight: { type: 'tween', duration: 0.55, ease: [0.22, 1.2, 0.36, 1] },
-              }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+              style={{ overflow: 'hidden', minWidth: 0 }}
             >
               <button
                 onClick={onClearDraft}
@@ -616,6 +622,42 @@ export function CartPanel({
                 }`}
               >
                 {t('clear')}
+              </button>
+            </motion.div>
+            <motion.div
+              initial={false}
+              animate={{
+                flex: hasVoidableItems ? '1 1 0%' : '0 0 0%',
+                opacity: hasVoidableItems ? 1 : 0,
+                scale: hasVoidableItems ? 1 : 0.9,
+              }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+              style={{ overflow: 'hidden', minWidth: 0 }}
+            >
+              <button
+                onClick={() => {
+                  const activeOrder = (cart as any).order_id;
+                  if (!activeOrder) return;
+                  setVoidModalItems(voidableItems.map(i => ({
+                    id: i.id,
+                    product_name: i.product_name,
+                    quantity: i.sentQuantity || i.quantity,
+                    unit_price: i.unit_price,
+                    total_price: i.total_price,
+                  })));
+                  setVoidModalOpen(true);
+                }}
+                title={t('void_items') || 'Ləğv et'}
+                tabIndex={hasVoidableItems ? 0 : -1}
+                style={{ pointerEvents: hasVoidableItems ? 'auto' : 'none', width: '100%' }}
+                className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border ${
+                  lightMode
+                    ? 'bg-rose-50 border-rose-200 text-rose-500 hover:text-rose-700 hover:bg-rose-100'
+                    : 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20'
+                }`}
+              >
+                <Ban size={12} className="mr-1.5" />
+                {t('void_items') || 'Ləğv et'}
               </button>
             </motion.div>
           </div>
@@ -679,7 +721,20 @@ export function CartPanel({
                     <div className="flex items-center gap-2">
                       <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
                         <button
-                          onClick={() => onUpdateQty?.(originalIdx, -1)}
+                          onClick={() => {
+                            const ks = (item as any).kitchen_status;
+                            if (ks || (item.sentQuantity ?? 0) > 0) {
+                              if (['ready', 'completed', 'served'].includes(ks)) {
+                                toast(t('hint_return_item') || 'Bu artıq hazırdır — menyunu açın və "Geri qaytar" seçin', { id: 'hint-minus', duration: 3500 });
+                              } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
+                                toast(t('hint_void_item') || 'Bu artıq göndərilib — menyunu açın və "Ləğv et" seçin', { id: 'hint-minus', duration: 3500 });
+                              } else {
+                                toast(t('hint_minus_blocked') || 'Bu element artıq göndərilib — birbaşa azaltmaq olmaz', { id: 'hint-minus', duration: 3500 });
+                              }
+                              return;
+                            }
+                            onUpdateQty?.(originalIdx, -1);
+                          }}
                           disabled={!!(item as any).kitchen_status || (item.sentQuantity ?? 0) > 0}
                           className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
                         >−</button>

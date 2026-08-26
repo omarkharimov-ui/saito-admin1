@@ -1516,6 +1516,9 @@ export const az = {
   // Missing keys
   no_table_selected: 'Masa seçilməyib',
   add_items_hint: 'Məhsul əlavə edin',
+  hint_return_item: 'Bu artıq hazırdır — menyunu açın və "Geri qaytar" seçin',
+  hint_void_item: 'Bu artıq göndərilib — menyunu açın və "Ləğv et" seçin',
+  hint_minus_blocked: 'Bu element artıq göndərilib — birbaşa azaltmaq olmaz',
   cancelled_amount: 'Ləğv edilən məbləğ',
   resend: 'Yenidən Göndər',
   sent_to_kitchen: 'Mətbəxə göndərildi',

@@ -1519,6 +1519,9 @@ export const ru: TranslationMap = {
   // Missing keys
   no_table_selected: 'Стол не выбран',
   add_items_hint: 'Добавьте товары',
+  hint_return_item: 'Это уже готово — откройте меню и выберите "Вернуть"',
+  hint_void_item: 'Это уже отправлено — откройте меню и выберите "Отменить"',
+  hint_minus_blocked: 'Это уже отправлено — нельзя уменьшить напрямую',
   cancelled_amount: 'Сумма отмены',
   resend: 'Отправить снова',
   sent_to_kitchen: 'Отправлено на кухню',

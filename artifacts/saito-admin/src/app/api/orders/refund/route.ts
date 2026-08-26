@@ -21,6 +21,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'order_id and amount are required' }, { status: 400 });
   }
 
+  // PAID check — can only refund paid orders
+  const { data: order, error: orderErr } = await supabase
+    .from('orders')
+    .select('id, status, paid_amount, refund_amount')
+    .eq('id', order_id)
+    .single();
+
+  if (orderErr || !order) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+  }
+  if (order.status !== 'paid') {
+    return NextResponse.json({ error: 'Can only refund paid orders. Current status: ' + order.status }, { status: 400 });
+  }
+
+  // Refund amount check — cannot refund more than paid
+  const totalRefunded = Number(order.refund_amount) || 0;
+  const paidAmount = Number(order.paid_amount) || 0;
+  if (totalRefunded + Number(amount) > paidAmount) {
+    return NextResponse.json({
+      error: `Refund amount (${amount}) exceeds remaining refundable amount (${paidAmount - totalRefunded})`,
+    }, { status: 400 });
+  }
+
   let sessionId: string | null = null;
   try {
     const s = svc();

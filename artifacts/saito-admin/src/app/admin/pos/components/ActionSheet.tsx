@@ -245,9 +245,9 @@ export function ActionSheet({
                className={`relative z-10 pointer-events-auto overflow-hidden shadow-elevated border backdrop-blur-2xl transition-[border-radius,padding] duration-300 ease-out ${
                  lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/80 border-white/10'
                 } ${
-                 currentView === 'merge' || currentView === 'split-payment' || currentView === 'transfer'
-                   ? 'rounded-full px-6 py-3 w-[92%] max-w-md mx-auto' 
-                   : 'rounded-7xl p-8 w-[92%] max-w-md mx-auto'
+                 currentView === 'merge' || currentView === 'transfer'
+                    ? 'rounded-full px-6 py-3 w-[92%] max-w-md mx-auto' 
+                    : 'rounded-7xl p-8 w-[92%] max-w-md mx-auto'
                }`}
             >
               {/* Apple Maps style drag indicator */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
@@ -210,6 +210,7 @@ export function ActionSheet({
   const groupName = table?.parent_table_number || table?.table_number;
 
   return (
+    <>
     <AnimatePresence>
       {currentView !== 'none' && (
         <motion.div
@@ -1123,6 +1124,7 @@ export function ActionSheet({
            </motion.div>
          </motion.div>
        )}
+      </AnimatePresence>
       {/* PIN Guard for waiter-protected actions */}
       <PinGuard
         open={pinGuardOpen}
@@ -1149,6 +1151,6 @@ export function ActionSheet({
         paymentMethod={activePaymentMethod}
         onSuccess={() => { onRefresh?.(); }}
       />
-    </AnimatePresence>
+    </>
   );
 }

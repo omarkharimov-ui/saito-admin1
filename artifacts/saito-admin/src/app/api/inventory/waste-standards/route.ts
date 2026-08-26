@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { groqChat } from '@/lib/groq';
-import { validateAuth } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -14,10 +14,8 @@ function svc() {
 // GET /api/inventory/waste-standards — all
 // GET /api/inventory/waste-standards?q=avokado — AI lookup with cache
 export async function GET(req: Request) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  if (!auth.authenticated) return auth;
 
   try {
     const supabase = svc();
@@ -95,10 +93,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin']);
+  if (!auth.authenticated) return auth;
 
   try {
     const supabase = svc();
@@ -128,10 +124,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin']);
+  if (!auth.authenticated) return auth;
 
   try {
     const supabase = svc();
@@ -165,10 +159,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin']);
+  if (!auth.authenticated) return auth;
 
   try {
     const supabase = svc();

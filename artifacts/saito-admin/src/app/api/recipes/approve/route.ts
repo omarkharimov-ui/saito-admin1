@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { validateAuth } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -11,10 +11,8 @@ function svc() {
 }
 
 export async function POST(request: Request) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  if (!auth.authenticated) return auth;
 
   try {
     const { productId, ingredientIds } = await request.json();
@@ -50,10 +48,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  if (!auth.authenticated) return auth;
 
   try {
     const { productId } = await request.json();

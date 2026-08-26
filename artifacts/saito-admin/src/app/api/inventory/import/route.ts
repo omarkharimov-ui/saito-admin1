@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { InventoryImportPayload } from '@/types/recipes';
 import { normalizeToStorage } from '@/types/inventory';
-import { validateAuth } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 
 const UNIT_MAP: Record<string, string> = {
   g: 'gram', gram: 'gram', grams: 'gram',
@@ -21,10 +21,8 @@ function svc() {
 }
 
 export async function POST(request: Request) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin']);
+  if (!auth.authenticated) return auth;
 
   try {
     const payload = (await request.json()) as InventoryImportPayload;

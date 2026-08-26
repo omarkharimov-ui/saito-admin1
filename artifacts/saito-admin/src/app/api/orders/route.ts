@@ -150,6 +150,15 @@ export async function POST(request: Request) {
       }
 
       if (action === 'delete') {
+        // Guard: cannot cancel already-paid or already-cancelled orders
+        const { data: checkOrder } = await svc()
+          .from('orders')
+          .select('status')
+          .eq('id', id)
+          .single();
+        if (checkOrder && ['paid', 'cancelled', 'refunded'].includes(checkOrder.status)) {
+          throw new Error(`Cannot cancel order in '${checkOrder.status}' status`);
+        }
         const res = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}`, {
           method: 'PATCH',
           headers: svc().headers,
@@ -299,7 +308,7 @@ export async function POST(request: Request) {
             delivery_fee: delivery_fee || 0,
             estimated_delivery_time: estimated_delivery_time || null,
             scheduled_date: scheduled_date || null,
-            payment_method: payment_method || null,
+            payment_method: null,
             is_rush: is_rush || false,
             assigned_to: assigned_to || null,
             order_type: order_type || order_source || 'dine_in',
@@ -328,14 +337,14 @@ export async function POST(request: Request) {
         }
       } else {
         // Create new order
-        console.log('[API /orders POST] creating order', { table_number, status: status || 'confirmed', total_amount: discountedTotal });
+        console.log('[API /orders POST] creating order', { table_number, total_amount: discountedTotal });
       const insertRes = await fetch(`${svc().url}/rest/v1/orders`, {
           method: 'POST',
           headers: { ...svc().headers, 'Prefer': 'return=representation' },
           body: JSON.stringify({
             table_number,
             total_amount: discountedTotal,
-            status: status || 'confirmed',
+            status: 'confirmed',
             guest_count: guest_count || 1,
             customer_note: customer_note || null,
             order_type: order_type || 'dine_in',
@@ -364,7 +373,7 @@ export async function POST(request: Request) {
             delivery_fee: delivery_fee || 0,
             estimated_delivery_time: estimated_delivery_time || null,
             scheduled_date: scheduled_date || null,
-            payment_method: payment_method || null,
+            payment_method: null,
             is_rush: is_rush || false,
             assigned_to: assigned_to || null,
             updated_by_terminal_id: terminal_id || null,

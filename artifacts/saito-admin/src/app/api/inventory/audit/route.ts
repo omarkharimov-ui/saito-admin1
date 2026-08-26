@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { validateAuth } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -13,10 +13,8 @@ function svc() {
 // POST /api/inventory/audit — perform stock audit
 // body: { ingredientId: string, actualQty: number }
 export async function POST(req: NextRequest) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  if (!auth.authenticated) return auth;
 
   try {
     const supabase = svc();

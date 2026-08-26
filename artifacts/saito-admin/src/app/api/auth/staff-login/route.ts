@@ -3,6 +3,10 @@ import { createAuthClient } from '@/lib/api-auth';
 import { verifyPin } from '@/lib/crypto';
 import crypto from 'crypto';
 
+function getClientIp(req: NextRequest): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { pin } = await req.json();
@@ -10,9 +14,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '4 rəqəmli PIN daxil edin' }, { status: 400 });
     }
 
-    // Use the service-role client: RLS blocks the anon key from reading staff.pin_hash,
-    // which made every PIN return "Yanlış PIN".
+    const ip = getClientIp(req);
+    const identifier = `staff-login:${ip}`;
     const supabase = await createAuthClient();
+
+    // Rate limit check
+    const { data: rlCheck } = await supabase.rpc('check_login_rate_limit', {
+      p_identifier: identifier,
+      p_ip: ip,
+      p_max_attempts: 5,
+      p_window_seconds: 900,
+    });
+
+    if (rlCheck && !rlCheck.allowed) {
+      await supabase.rpc('record_login_attempt', {
+        p_identifier: identifier,
+        p_ip: ip,
+        p_success: false,
+      });
+      return NextResponse.json({ error: rlCheck.error }, { status: 429 });
+    }
+
     const { data: staff, error } = await supabase
       .from('staff')
       .select('id, name, full_name, role, pin_hash, is_active')
@@ -26,8 +48,20 @@ export async function POST(req: NextRequest) {
     const matched = staff.find((s: any) => verifyPin(pin, s.pin_hash));
 
     if (!matched) {
+      await supabase.rpc('record_login_attempt', {
+        p_identifier: identifier,
+        p_ip: ip,
+        p_success: false,
+      });
       return NextResponse.json({ error: 'Yanlış PIN' }, { status: 401 });
     }
+
+    // Record success
+    await supabase.rpc('record_login_attempt', {
+      p_identifier: identifier,
+      p_ip: ip,
+      p_success: true,
+    });
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();

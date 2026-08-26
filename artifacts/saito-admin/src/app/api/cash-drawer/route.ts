@@ -124,15 +124,21 @@ export async function POST(req: Request) {
       const auth = await requirePermission(action === 'cash_in' ? 'cash.in' : 'cash.out', ['cashier', 'admin', 'superadmin']);
       if (!auth.authenticated) return auth;
       const staffId = auth.user?.id || null;
-      const { error } = await s.from('cash_drawer_log').insert({
-        session_id,
-        type: action,
-        amount: Math.abs(Number(amount)),
-        description: description || (action === 'cash_in' ? 'Kassa daxilolma' : 'Kassa xərc'),
-        created_by: staffId,
+
+      const rpcName = action === 'cash_in' ? 'cash_in_atomic' : 'cash_out_atomic';
+      const { data: rpcResult, error: rpcErr } = await s.rpc(rpcName, {
+        p_session_id: session_id,
+        p_amount: Math.abs(Number(amount)),
+        p_description: description || (action === 'cash_in' ? 'Kassa daxilolma' : 'Kassa xərc'),
+        p_performed_by: staffId,
       });
-      if (error) throw error;
-      return NextResponse.json({ ok: true });
+
+      if (rpcErr) throw rpcErr;
+      if (!rpcResult?.success) {
+        return NextResponse.json(rpcResult, { status: 400 });
+      }
+
+      return NextResponse.json(rpcResult);
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

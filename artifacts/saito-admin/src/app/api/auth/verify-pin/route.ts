@@ -12,6 +12,10 @@ function svc() {
 
 const VALID_ACTIONS = ['void_item', 'loss', 'dismiss', 'reprint', 'merge', 'transfer', 'admin'];
 
+function getClientIp(req: NextRequest): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { pin, action } = await req.json();
@@ -20,7 +24,25 @@ export async function POST(req: NextRequest) {
     }
 
     const actionType = VALID_ACTIONS.includes(action) ? action : 'admin';
+    const ip = getClientIp(req);
     const supabase = svc();
+
+    // Rate limit check
+    const { data: rlCheck } = await supabase.rpc('check_login_rate_limit', {
+      p_identifier: `verify-pin:${ip}`,
+      p_ip: ip,
+      p_max_attempts: 5,
+      p_window_seconds: 900,
+    });
+
+    if (rlCheck && !rlCheck.allowed) {
+      await supabase.rpc('record_login_attempt', {
+        p_identifier: `verify-pin:${ip}`,
+        p_ip: ip,
+        p_success: false,
+      });
+      return NextResponse.json({ valid: false, error: rlCheck.error }, { status: 429 });
+    }
 
     // Check admin_users table
     const { data: adminUsers } = await supabase
@@ -31,11 +53,16 @@ export async function POST(req: NextRequest) {
 
     const adminUser = (adminUsers || []).find((u: any) => u.pin_hash && verifyPin(pin, u.pin_hash));
     if (adminUser) {
+      await supabase.rpc('record_login_attempt', {
+        p_identifier: `verify-pin:${ip}`,
+        p_ip: ip,
+        p_success: true,
+      });
       try { await supabase.rpc('log_audit', { p_action: actionType, p_entity_type: 'staff', p_entity_id: adminUser.id, p_actor_id: adminUser.id, p_actor_name: adminUser.role, p_old_data: null, p_new_data: { method: 'admin_users', target_type: 'pos' }, p_metadata: { pin_verified: true, method: 'admin_users' } }); } catch { /* non-critical */ }
       return NextResponse.json({ valid: true, role: adminUser.role, staffId: adminUser.id });
     }
 
-    // Check staff table (any active staff with PIN — authorization checked via has_permission later)
+    // Check staff table
     const { data: staffUsers } = await supabase
       .from('staff')
       .select('id, name, role, pin_hash')
@@ -45,6 +72,11 @@ export async function POST(req: NextRequest) {
 
     const staffUser = (staffUsers || []).find((u: any) => u.pin_hash && verifyPin(pin, u.pin_hash));
     if (staffUser) {
+      await supabase.rpc('record_login_attempt', {
+        p_identifier: `verify-pin:${ip}`,
+        p_ip: ip,
+        p_success: true,
+      });
       try { await supabase.rpc('log_audit', { p_action: actionType, p_entity_type: 'staff', p_entity_id: staffUser.id, p_actor_id: staffUser.id, p_actor_name: staffUser.name, p_old_data: null, p_new_data: { method: 'staff', target_type: 'pos' }, p_metadata: { pin_verified: true, method: 'staff' } }); } catch { /* non-critical */ }
       const { data: normalizedRole } = await supabase.rpc('normalize_role', { p_role: staffUser.role });
       return NextResponse.json({
@@ -54,6 +86,13 @@ export async function POST(req: NextRequest) {
         name: staffUser.name,
       });
     }
+
+    // Record failed attempt
+    await supabase.rpc('record_login_attempt', {
+      p_identifier: `verify-pin:${ip}`,
+      p_ip: ip,
+      p_success: false,
+    });
 
     return NextResponse.json({ valid: false, error: 'PIN yanlışdır' }, { status: 401 });
   } catch (e: any) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { validateAuth } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 
 function svc() {
   return createClient(
@@ -11,10 +11,8 @@ function svc() {
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin']);
+  if (!auth.authenticated) return auth;
 
   try {
     const { id } = await params;
@@ -84,10 +82,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin']);
+  if (!auth.authenticated) return auth;
 
   try {
     const { id } = await params;

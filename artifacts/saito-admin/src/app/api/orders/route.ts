@@ -151,11 +151,9 @@ export async function POST(request: Request) {
 
       if (action === 'delete') {
         // Guard: cannot cancel already-paid or already-cancelled orders
-        const { data: checkOrder } = await svc()
-          .from('orders')
-          .select('status')
-          .eq('id', id)
-          .single();
+        const checkRes = await fetch(`${svc().url}/rest/v1/orders?id=eq.${id}&select=status`, { headers: svc().headers });
+        const checkData = checkRes.ok ? await checkRes.json() : [];
+        const checkOrder = Array.isArray(checkData) ? checkData[0] : null;
         if (checkOrder && ['paid', 'cancelled', 'refunded'].includes(checkOrder.status)) {
           throw new Error(`Cannot cancel order in '${checkOrder.status}' status`);
         }

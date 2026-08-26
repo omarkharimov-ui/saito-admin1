@@ -33,16 +33,6 @@ export async function POST(request: NextRequest) {
     }
 
     const vOldStock = Number(ingredient.current_stock) || 0;
-    const vNewStock = Math.max(0, vOldStock - quantity);
-
-    const { error: updateError } = await supabase
-      .from('ingredients')
-      .update({ current_stock: vNewStock, updated_at: new Date().toISOString() })
-      .eq('id', ingredient_id);
-
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
-    }
 
     const { error: logError } = await supabase.from('inventory_logs').insert({
       ingredient_id,
@@ -59,11 +49,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: logError.message }, { status: 500 });
     }
 
+    const { data: updatedIngredient } = await supabase
+      .from('ingredients')
+      .select('current_stock')
+      .eq('id', ingredient_id)
+      .single();
+
     return NextResponse.json({
       success: true,
       ingredient_id,
       previous_stock: vOldStock,
-      new_stock: vNewStock,
+      new_stock: updatedIngredient?.current_stock ?? 0,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

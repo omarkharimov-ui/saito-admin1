@@ -13,20 +13,20 @@ export async function POST(req: Request) {
     }
 
     const supabase = await createAuthClient();
-    const { error } = await supabase
-      .from('order_items')
-      .update({
-        is_hold: !!is_hold,
-        hold_until: is_hold ? new Date().toISOString() : null,
-      })
-      .eq('id', item_id);
+    const staffId = auth.authenticated?.id || null;
+
+    const { data, error } = await supabase.rpc('toggle_item_hold', {
+      p_item_id: item_id,
+      p_is_hold: !!is_hold,
+      p_performed_by: staffId,
+    });
 
     if (error) {
-      console.error('[API /orders/item-hold] update failed:', error);
+      console.error('[API /orders/item-hold] toggle_item_hold failed:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, item_id, is_hold: !!is_hold });
+    return NextResponse.json(data);
   } catch (err: any) {
     console.error('[API /orders/item-hold] error:', err);
     return NextResponse.json({ error: err?.message || 'Internal error' }, { status: 500 });

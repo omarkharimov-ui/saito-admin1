@@ -1010,11 +1010,17 @@ export default function KitchenPage() {
     if (newStatus === 'completed') {
       const order = orders.find(o => o.id === id);
       if (order) pushUndo(`MASA ${order.table_number} — tamamlandı`, order);
-      await supabase
-        .from('order_items')
-        .update({ kitchen_status: 'completed' })
-        .eq('order_id', id)
-        .neq('kitchen_status', 'completed');
+      const session = localStorage.getItem('saito_staff_session');
+      const staffId = session ? JSON.parse(session).id : null;
+      const { error } = await supabase.rpc('mark_order_completed', {
+        p_order_id: id,
+        p_performed_by: staffId,
+      });
+      if (error) {
+        console.error('[updateOrderStatus] mark_order_completed failed:', error);
+        toast.error('Status yenilənərkən xəta baş verdi', { duration: 2500 });
+        return;
+      }
     } else if (newStatus === 'preparing') {
       const { error } = await supabase.rpc('prepare_order_items', { p_order_id: id });
       if (error) {
@@ -1087,8 +1093,16 @@ export default function KitchenPage() {
     try {
       const session = localStorage.getItem('saito_staff_session');
       const staffId = session ? JSON.parse(session).id : null;
-      await supabase.from('orders').update({ assigned_to: staffId }).eq('id', order.id);
-    } catch {}
+      if (staffId) {
+        await supabase.rpc('assign_order_staff', {
+          p_order_id: order.id,
+          p_staff_id: staffId,
+          p_performed_by: staffId,
+        });
+      }
+    } catch (e) {
+      console.error('[acceptOrder] assign_order_staff failed:', e);
+    }
     const { error } = await supabase.rpc('prepare_order_items', { p_order_id: order.id });
     if (error) {
       console.error('[acceptOrder] error:', error);

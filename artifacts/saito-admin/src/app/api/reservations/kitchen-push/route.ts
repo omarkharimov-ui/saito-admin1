@@ -43,11 +43,11 @@ export async function POST(req: NextRequest) {
 
       if (existingOrders?.length) {
         const order = existingOrders[0];
-        await supabase.from('orders').update({ kitchen_status: 'pending', kitchen_accepted_at: now }).eq('id', order.id);
-        await supabase.from('order_items').update({ kitchen_status: 'pending' }).eq('order_id', order.id).eq('kitchen_status', 'reserved');
+        await supabase.rpc('push_reservation_to_kitchen', {
+          p_order_id: order.id,
+          p_schedule_id: s.id,
+        });
       }
-
-      await supabase.from('kitchen_schedule').update({ status: 'started' }).eq('id', s.id);
       pushed++;
     }
 

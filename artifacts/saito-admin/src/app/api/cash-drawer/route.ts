@@ -74,25 +74,14 @@ export async function POST(req: Request) {
       const auth = await requirePermission('cash.open', ['cashier', 'admin', 'superadmin']);
       if (!auth.authenticated) return auth;
       const staffId = auth.user?.id || null;
-      const { data, error } = await s
-        .from('cash_drawer_sessions')
-        .insert({
-          opening_balance: amount || 0,
-          status: 'open',
-          notes: description || null,
-          opened_by: staffId,
-        })
-        .select()
-        .single();
-      if (error) throw error;
 
-      await s.from('cash_drawer_log').insert({
-        session_id: data.id,
-        type: 'open',
-        amount: amount || 0,
-        description: description || 'Kassa açıldı',
-        created_by: staffId,
+      const { data, error: rpcError } = await s.rpc('open_cash_register', {
+        p_opening_balance: amount || 0,
+        p_notes: description || null,
+        p_opened_by: staffId,
       });
+
+      if (rpcError) throw rpcError;
 
       return NextResponse.json(data);
     }

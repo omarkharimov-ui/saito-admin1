@@ -60,7 +60,7 @@ export function RoomChargeModal({ open, onClose, amount, onSuccess }: RoomCharge
     <AnimatePresence>
       {open && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit}
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/25 backdrop-blur-[2px]" onClick={onClose}
+          className={`fixed inset-0 z-[140] flex items-center justify-center bg-black/25 ${keyboardHeight > 0 ? '' : 'backdrop-blur-[2px]'}`} onClick={onClose}
           style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}>
           <motion.div {...appleCard} transition={fastExit} onClick={e => e.stopPropagation()}
             className={`w-80 rounded-3xl p-7 shadow-elevated border backdrop-blur-2xl ${lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'}`}>

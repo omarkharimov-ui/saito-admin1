@@ -82,7 +82,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={fastExit}
-            className="fixed inset-0 z-[140] flex items-center justify-center bg-black/25 backdrop-blur-[2px]"
+            className={`fixed inset-0 z-[140] flex items-center justify-center bg-black/25 ${keyboardHeight > 0 ? '' : 'backdrop-blur-[2px]'}`}
             style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}
             onClick={onClose}
           >

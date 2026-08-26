@@ -1060,7 +1060,7 @@ export function CartPanel({
           {isNoteOpen && (
             <motion.div
               key="note-backdrop"
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
+              className="fixed inset-0 bg-black/20 z-[9998]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}

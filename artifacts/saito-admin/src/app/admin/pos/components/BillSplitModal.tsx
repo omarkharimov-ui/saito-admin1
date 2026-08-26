@@ -150,7 +150,7 @@ export function BillSplitModal({ open, orderId, items, onClose, onSuccess }: Bil
              animate={{ opacity: 1, y: 0 }}
              exit={{ opacity: 0, y: '100%' }} transition={fastExit} className="fixed inset-0 z-[150] bg-black/60" onClick={onClose} />
           <motion.div {...appleCard} transition={fastExit} className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
-            <div className={`border ${lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'} rounded-6xl w-full max-w-xl max-h-[85vh] overflow-hidden shadow-elevated backdrop-blur-2xl flex flex-col pointer-events-auto`}>
+            <div className={`border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'} rounded-6xl w-full max-w-xl max-h-[85vh] overflow-hidden shadow-elevated flex flex-col pointer-events-auto`}>
               {/* Header */}
               <div className={`p-8 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'} flex items-center justify-between`}>
                 <div>

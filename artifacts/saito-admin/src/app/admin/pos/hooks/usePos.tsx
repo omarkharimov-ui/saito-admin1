@@ -553,8 +553,8 @@ export function usePos() {
           }
         }
         markTableEmptyLocal([num, ...childNums]);
-        toast.success(t('table_cleared'));
-        setLastUndo({ action: 'dismiss', data: { table_number: num, child_tables: childNums }, message: t('table_cleared') });
+        toast.success(t('table_cleared').replace('{table}', String(num)));
+        setLastUndo({ action: 'dismiss', data: { table_number: num, child_tables: childNums }, message: t('table_cleared').replace('{table}', String(num)) });
       } else {
         const err = await res.json().catch(() => ({ error: 'Dismiss failed' }));
         toast.error(err.error || t('table_clear_failed'));
@@ -571,8 +571,8 @@ export function usePos() {
       });
       if (res.ok) {
         markTableEmptyLocal([num]);
-        toast.success(t('table_cleared'));
-        setLastUndo({ action: 'clear', data: { table_number: num, terminal_id: terminalId }, message: t('table_cleared') });
+        toast.success(t('table_cleared').replace('{table}', String(num)));
+        setLastUndo({ action: 'clear', data: { table_number: num, terminal_id: terminalId }, message: t('table_cleared').replace('{table}', String(num)) });
       } else {
         const err = await res.json().catch(() => ({ error: 'Clear failed' }));
         toast.error(err.error || t('table_clean_failed'));

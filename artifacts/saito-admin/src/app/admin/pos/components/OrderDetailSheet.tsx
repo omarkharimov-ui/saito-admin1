@@ -210,17 +210,17 @@ export function OrderDetailSheet({ order, open, onClose, onPayment, onStatusChan
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={fastExit}
-            className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30 backdrop-blur-sm"
+            className="fixed inset-0 z-0 pointer-events-auto bg-black/10 dark:bg-black/30"
             onClick={onClose}
            />
 
            <motion.div
              {...slideUp}
-             className={`relative z-10 pointer-events-auto w-full mx-auto max-h-[92vh] flex flex-col overflow-hidden rounded-t-3xl shadow-overlay border transition-all duration-300 backdrop-blur-2xl ${
-               isWide ? 'max-w-6xl' : 'max-w-lg'
-             } ${
-               lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
-             }`}
+              className={`relative z-10 pointer-events-auto w-full mx-auto max-h-[92vh] flex flex-col overflow-hidden rounded-t-3xl shadow-overlay border transition-all duration-300 ${
+                isWide ? 'max-w-6xl' : 'max-w-lg'
+              } ${
+                lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
+              }`}
            >
             {/* Tab Bar */}
             <div className={`flex items-center gap-1 px-5 pt-4 pb-2 border-b ${lightMode ? 'border-zinc-100' : 'border-white/5'}`}>

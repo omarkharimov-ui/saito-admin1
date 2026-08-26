@@ -41,14 +41,14 @@ export function PaymentSuccessModal({
              animate={{ opacity: 1, y: 0 }}
              exit={{ opacity: 0, y: '100%' }}
             transition={fastExit}
-            className="fixed inset-0 z-[125] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[125] flex items-center justify-center bg-black/25 p-4"
             onClick={onClose}
           >
           <motion.div
             {...appleCard}
             transition={fastExit}
-            className={`relative w-full max-w-sm rounded-5xl shadow-elevated overflow-hidden backdrop-blur-2xl ${
-              lightMode ? 'bg-white/85' : 'bg-zinc-900/85'
+            className={`relative w-full max-w-sm rounded-5xl shadow-elevated overflow-hidden ${
+              lightMode ? 'bg-white' : 'bg-zinc-900'
             }`}
             onClick={(e) => e.stopPropagation()}
           >

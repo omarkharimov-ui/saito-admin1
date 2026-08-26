@@ -79,7 +79,7 @@ export function RefundModal({ open, onClose, orderId, paidAmount, paymentMethod 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={fastExit}
-          className={`fixed inset-0 z-[140] flex items-center justify-center bg-black/25 ${keyboardHeight > 0 ? '' : 'backdrop-blur-[2px]'}`}
+          className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/25"
           onClick={onClose}
           style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}
         >

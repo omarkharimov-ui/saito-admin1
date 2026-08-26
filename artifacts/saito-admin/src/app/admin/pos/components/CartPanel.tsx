@@ -1070,7 +1070,7 @@ export function CartPanel({
           {isNoteOpen && (
             <motion.div
               key="note-bar"
-              className={`fixed z-[10000] left-0 right-0 p-4 border-t shadow-elevated flex flex-col gap-3 max-w-2xl mx-auto rounded-t-2xl backdrop-blur-2xl ${lightMode ? 'bg-white/90 border-zinc-200' : 'bg-[#25252D]/90 border-white/10'}`}
+              className={`fixed z-[10000] left-0 right-0 p-4 border-t shadow-elevated flex flex-col gap-3 max-w-2xl mx-auto rounded-t-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-[#25252D] border-white/10'}`}
               style={{ bottom: vkHeight }}
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}

@@ -2217,7 +2217,7 @@ export default function POSPage() {
 
       <AnimatePresence>
         {lastUndo && (
-          <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} transition={fastExit} className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-6 px-8 py-4 rounded-5xl bg-zinc-900/90 text-white shadow-elevated border border-white/10 backdrop-blur-2xl">
+          <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} transition={fastExit}             className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-6 px-8 py-4 rounded-5xl bg-zinc-900 text-white shadow-elevated border border-white/10">
             <span className="text-sm font-bold">{lastUndo.message}</span>
             <button onClick={handleUndo} className="px-6 py-2.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95">{t('undo')}</button>
           </motion.div>
@@ -2351,14 +2351,14 @@ export default function POSPage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={appleBackdrop}
-            className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/25 p-4"
             style={{ paddingBottom: 'var(--vk-height, 0px)' }}
             onClick={() => setWalkInOpen(false)}
           >
              <motion.div
                {...slideUp}
                onClick={e => e.stopPropagation()}
-               className={`w-full max-w-sm rounded-3xl p-7 shadow-elevated border backdrop-blur-2xl ${lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'}`}
+                className={`w-full max-w-sm rounded-3xl p-7 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
              >
               <p className={`text-xl font-black tracking-tight mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>{t('walk_in')}</p>
               <p className={`text-xs font-black uppercase tracking-widest mb-5 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('new_guest')}</p>

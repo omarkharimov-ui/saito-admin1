@@ -242,9 +242,9 @@ export function ActionSheet({
                key="pos-hybrid-kapsul"
                layout
                transition={{ layout: { duration: 0.3, ease: 'easeInOut' } }}
-               className={`relative z-10 pointer-events-auto overflow-hidden shadow-elevated border backdrop-blur-2xl transition-[border-radius,padding] duration-300 ease-out ${
-                 lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/80 border-white/10'
-                } ${
+                className={`relative z-10 pointer-events-auto overflow-hidden shadow-elevated border transition-[border-radius,padding] duration-300 ease-out ${
+                  lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
+                 } ${
                  currentView === 'merge' || currentView === 'transfer'
                     ? 'rounded-full px-6 py-3 w-[92%] max-w-md mx-auto' 
                     : 'rounded-7xl p-8 w-[92%] max-w-md mx-auto'

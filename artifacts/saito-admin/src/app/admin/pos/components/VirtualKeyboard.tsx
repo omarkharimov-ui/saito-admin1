@@ -232,7 +232,7 @@ export function VirtualKeyboardProvider({ children }: { children: ReactNode }) {
   };
 
   const keyboard = activeEl && (
-    <div ref={keyboardRef} className="fixed bottom-0 left-0 right-0 z-[9999] bg-[#1E1E24]/95 border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-elevated backdrop-blur-2xl">
+    <div ref={keyboardRef} className="fixed bottom-0 left-0 right-0 z-[9999] bg-[#1E1E24] border-t border-white/10 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] shadow-elevated">
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white/30">
           <Keyboard size={12} />

@@ -4,12 +4,6 @@ import { useToaster } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
-const variants = {
-  init: { opacity: 0, y: -12, scale: 0.92 },
-  show: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -8, scale: 0.92 },
-};
-
 export default function SimpleToaster() {
   const { toasts, handlers } = useToaster();
   const { startPause, endPause } = handlers;
@@ -24,34 +18,41 @@ export default function SimpleToaster() {
       onMouseEnter={startPause}
       onMouseLeave={endPause}
     >
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-2.5">
         <AnimatePresence mode="popLayout">
           {toShow.map((t) => (
             <motion.div
               key={t.id}
               layout
-              variants={variants}
-              initial="init"
-              animate="show"
-              exit="exit"
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="pointer-events-auto select-none rounded-[14px] px-3.5 py-2.5 font-semibold text-[13px] max-w-[min(360px,calc(100vw-24px))] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border"
+              initial={{ opacity: 0, y: -40, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+              className="pointer-events-auto select-none rounded-2xl px-4 py-3 font-semibold text-[13px] max-w-[min(380px,calc(100vw-24px))] shadow-[0_4px_24px_rgba(0,0,0,0.15)]"
               style={{
-                background: t.type === 'error' ? 'var(--theme-panel)' : 'var(--theme-panel-strong)',
-                color: t.type === 'error' ? '#dc2626' : 'var(--theme-accent)',
-                borderColor: t.type === 'error' ? 'rgba(248,113,113,0.25)' : 'var(--theme-accent-border)',
+                background: lightMode ? '#ffffff' : '#1C1C1E',
+                color: t.type === 'error' ? '#FF453A' : lightMode ? '#1C1C1E' : '#F5F5F7',
+                border: `0.5px solid ${lightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`,
+                WebkitBackdropFilter: 'blur(20px)',
+                backdropFilter: 'blur(20px)',
               }}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 {t.type === 'success' && (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </div>
                 )}
                 {t.type === 'error' && (
-                  <span style={{ color: '#f87171', fontSize: 14 }}>×</span>
+                  <div className="w-5 h-5 rounded-full bg-red-500/15 flex items-center justify-center flex-shrink-0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF453A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </div>
                 )}
-                <span>
+                <span className="leading-tight">
                   {typeof t.message === 'function'
                     ? (t.message as (t: any) => React.ReactNode)(t)
                     : t.message as React.ReactNode}

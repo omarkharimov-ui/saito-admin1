@@ -233,14 +233,14 @@ export function CashDrawerPanel({ open, onClose }: CashDrawerPanelProps) {
       <div className="fixed inset-0 z-[130] flex items-end justify-center pointer-events-none" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}>
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fastExit}
-          className="fixed inset-0 z-0 pointer-events-auto bg-black/20 backdrop-blur-sm"
+          className="fixed inset-0 z-0 pointer-events-auto bg-black/20"
           onClick={onClose}
         />
         <motion.div
           {...slideUp}
           className={`relative z-10 pointer-events-auto w-full max-w-md rounded-t-6xl shadow-overlay border ${
             lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-2xl`}
+          } overflow-hidden max-h-[85vh] flex flex-col`}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 pb-4">

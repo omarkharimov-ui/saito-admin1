@@ -60,12 +60,12 @@ export default function ReservedTableModal({
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={fastExit}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/20 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"
           onClick={onClose}
         >
         <motion.div
           {...slideUp}
-          className="pointer-events-auto w-full max-w-md bg-white/85 text-black rounded-6xl shadow-elevated border border-white/20 p-5 backdrop-blur-2xl"
+          className="pointer-events-auto w-full max-w-md bg-white text-black rounded-6xl shadow-elevated border border-white/20 p-5"
           onClick={e => e.stopPropagation()}
         >
             <div className="flex items-center justify-between mb-4">

@@ -91,7 +91,7 @@ export function TableActionSheet({ open, onClose, title, subtitle, badge, guestC
       className="fixed bottom-0 left-0 right-0 z-[120] flex items-center justify-center p-4 pointer-events-none"
       style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
     >
-      <div className="pointer-events-auto w-full max-w-md overflow-hidden shadow-overlay border rounded-6xl p-7 bg-zinc-900/80 border-white/10 backdrop-blur-2xl">
+      <div className="pointer-events-auto w-full max-w-md overflow-hidden shadow-overlay border rounded-6xl p-7 bg-zinc-900 border-white/10">
         <div className="text-center mb-6">
           <p className="text-2xl font-black tracking-tighter mb-1 leading-none text-white">{title}</p>
           {badge && <div className="mt-2">{badge}</div>}

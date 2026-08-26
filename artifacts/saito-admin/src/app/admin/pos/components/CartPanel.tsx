@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -12,8 +12,8 @@ import type { PosCart, PosCartItem, LossItem } from '../types/shared';
 import type { SendOrderButtonStatus } from './SendOrderButton';
 import { NumberRoll } from './NumberRoll';
 import { RollingNumber } from './RollingNumber';
-import { PinGuard } from './PinGuard';
-import { LossItemModal } from './LossItemModal';
+import { VoidItemsModal } from './VoidItemsModal';
+import { ReturnItemModal } from './ReturnItemModal';
 import { Numpad } from './Numpad';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useVirtualKeyboard } from './VirtualKeyboard';
@@ -128,24 +128,18 @@ export function CartPanel({
   const { lightMode } = useTheme();
   const keyboardHeight = useKeyboardHeight();
   const customInputRef = useRef<HTMLInputElement>(null);
-  const [lossMode, setLossMode] = useState(false);
-  const [selectedForLoss, setSelectedForLoss] = useState<Map<number, number>>(new Map());
-  const [showCustomReason, setShowCustomReason] = useState(false);
-  const [customReasonText, setCustomReasonText] = useState('');
-  const lossExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [globalNote, setGlobalNote] = useState('');
-  const [confirming, setConfirming] = useState(false);
   const [customerEditing, setCustomerEditing] = useState(false);
   const [customerInput, setCustomerInput] = useState('');
-  const [pinGuardOpen, setPinGuardOpen] = useState(false);
-  const [lossReason, setLossReason] = useState('');
   const [numpadOpen, setNumpadOpen] = useState(false);
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
   const [seatBusy, setSeatBusy] = useState(false);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
   const [contextMenuIdx, setContextMenuIdx] = useState<number | null>(null);
-  const [lossModalOpen, setLossModalOpen] = useState(false);
-  const [lossModalItem, setLossModalItem] = useState<{ idx: number; name: string; qty: number; price: number; productId: string } | null>(null);
+  const [voidModalOpen, setVoidModalOpen] = useState(false);
+  const [voidModalItems, setVoidModalItems] = useState<any[]>([]);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [returnModalItem, setReturnModalItem] = useState<any>(null);
   const [guestEditing, setGuestEditing] = useState(false);
   const [localGuestCount, setLocalGuestCount] = useState(cart?.guest_count ?? 1);
   const guestEditRef = useRef<HTMLDivElement>(null);
@@ -187,17 +181,6 @@ export function CartPanel({
   const loadedNoteRef = useRef('');
 
   const [vatRate, setVatRate] = useState(0.18);
-
-  const exitLossMode = useCallback(() => {
-    setSelectedForLoss(new Map());
-    setShowCustomReason(false);
-    setCustomReasonText('');
-    if (lossExitTimerRef.current) clearTimeout(lossExitTimerRef.current);
-    lossExitTimerRef.current = setTimeout(() => {
-      setLossMode(false);
-      lossExitTimerRef.current = null;
-    }, 250);
-  }, []);
 
   const filteredItems = useMemo(() => {
     return cart?.items ?? [];
@@ -250,18 +233,6 @@ export function CartPanel({
     { value: 'delivery' as const, label: t('delivery'), icon: Car, color: 'blue' },
   ];
   const activeOrderType = cart?.order_type || 'dine_in';
-
-  const lossReasons = [
-    { key: 'customer_disliked' as string, label: t('loss_reason_not_liked' as any) },
-    { key: 'kitchen_error' as string, label: t('loss_reason_kitchen_error' as any) },
-    { key: 'wrong_entry' as string, label: t('loss_reason_wrong_entry' as any) },
-  ];
-
-  useEffect(() => {
-    if (showCustomReason && customInputRef.current) {
-      customInputRef.current.focus();
-    }
-  }, [showCustomReason]);
 
   /* ─── Global note: portal + floating bar above the virtual keyboard ─── */
   const openNoteEditor = () => {
@@ -457,22 +428,6 @@ export function CartPanel({
   const vatAmount = total / (1 + vatRate) * vatRate;
   const grandTotal = total;
 
-  const lossTotal = Array.from(selectedForLoss.entries()).reduce((sum, [idx, qty]) => {
-    return sum + (cart.items[idx].original_unit_price ?? cart.items[idx].unit_price) * qty;
-  }, 0);
-
-  const toggleLossSelection = (idx: number) => {
-    setSelectedForLoss(prev => {
-      const next = new Map(prev);
-      if (next.has(idx)) {
-        next.delete(idx);
-      } else {
-        next.set(idx, cart!.items[idx].quantity);
-      }
-      return next;
-    });
-  };
-
   const cycleCourse = (idx: number) => {
     const item: any = cart?.items[idx];
     if (!item || item.sentQuantity) return;
@@ -494,48 +449,6 @@ export function CartPanel({
       }).catch(() => {});
     }
   };
-
-  const updateLossQty = (idx: number, delta: number) => {
-    setSelectedForLoss(prev => {
-      const current = prev.get(idx);
-      if (!current) return prev;
-      const next = new Map(prev);
-      const newQty = current + delta;
-      if (newQty <= 0) {
-        next.delete(idx);
-      } else {
-        next.set(idx, Math.min(newQty, cart!.items[idx].quantity));
-      }
-      return next;
-    });
-  };
-
-  const confirmLoss = async () => {
-    if (selectedForLoss.size === 0) return;
-    setConfirming(true);
-    try {
-      const sortedEntries = Array.from(selectedForLoss.entries()).sort(([a], [b]) => b - a);
-      for (const [idx, qty] of sortedEntries) {
-        onUpdateQty(idx, -qty);
-      }
-      const names = Array.from(selectedForLoss.entries()).map(([idx, qty]) => {
-        const item = cart.items[idx];
-        return `${qty} ${t('qty_abbrev')} ${item.product_name}`;
-      }).join(', ');
-      toast.success(`${names} — ${t('status_cancelled')}`);
-      if (lossExitTimerRef.current) clearTimeout(lossExitTimerRef.current);
-      setLossMode(false);
-      setSelectedForLoss(new Map());
-      setShowCustomReason(false);
-      setCustomReasonText('');
-    } catch (e: any) {
-      toast.error(e?.message || t('cancel_failed'), { id: 'action-toast' });
-    } finally {
-      setConfirming(false);
-    }
-  };
-
-  const hasLossSelection = selectedForLoss.size > 0;
 
   return (
     <>
@@ -705,22 +618,6 @@ export function CartPanel({
                 {t('clear')}
               </button>
             </motion.div>
-
-            <motion.button
-              initial={false}
-              onClick={lossMode ? exitLossMode : () => setPinGuardOpen(true)}
-              animate={{ scale: hasDraft ? [1, 0.985, 1] : 1 }}
-              transition={{
-                scale: { type: 'tween', duration: 0.55, times: [0, 0.12, 1], ease: [0.4, 0, 0.2, 1] },
-              }}
-              className={`flex-1 min-w-0 flex items-center justify-center py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border ${
-                lossMode 
-                  ? (lightMode ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-500 border-amber-500 text-white')
-                  : (lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900' : 'bg-white/5 border-white/10 text-white/40 hover:text-white')
-              }`}
-            >
-              <span className="whitespace-nowrap">{lossMode ? t('loss_mode_cancel') : t('void_items') || 'Ləğv et'}</span>
-            </motion.button>
           </div>
         </div>
       )}
@@ -742,8 +639,6 @@ export function CartPanel({
           <AnimatePresence initial={false}>
           {filteredItems.map((item, idx) => {
             const originalIdx = cart.items.indexOf(item);
-            const isChecked = selectedForLoss.has(originalIdx);
-            const lossQty = selectedForLoss.get(originalIdx) ?? 0;
             const lineKey = item.id ?? `${item.product_id}|${item.variant_id ?? ''}|${(item.modifiers ?? []).map(m => `${m.id}:${m.name}`).join(',')}|${item.special_notes ?? ''}`;
 
             return (
@@ -751,18 +646,13 @@ export function CartPanel({
                 key={lineKey}
                 layout
                 initial={{ opacity: 0, y: 3 }}
-                animate={{ opacity: confirming && isChecked ? 0 : 1 }}
+                animate={{ opacity: 1 }}
                 exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                 data-cart-item
-                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] ${isChecked ? (lightMode ? 'border-amber-300/40' : 'border-amber-500/20') : `border-[var(--theme-border)]`} px-3.5 py-3`}
+                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3`}
               >
                 <div className="flex items-center gap-2.5">
-                  {lossMode && (
-                    <button onClick={() => toggleLossSelection(originalIdx)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-95 ${isChecked ? (lightMode ? 'bg-amber-500 border-amber-500' : 'bg-amber-500 border-amber-500') : (lightMode ? 'border-gray-400' : 'border-white/30')}`}>
-                      {isChecked && <CheckCircle size={14} className="text-white" />}
-                    </button>
-                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
                     {item.modifiers?.length ? (
@@ -810,28 +700,60 @@ export function CartPanel({
                     <button onClick={() => onRequestEditor?.(item.product_id, originalIdx)} className={`p-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
                       <Hash size={14} />
                     </button>
-                    {!lossMode && (
-                      <div className="relative">
-                        <button onClick={(e) => { e.stopPropagation(); setContextMenuIdx(contextMenuIdx === originalIdx ? null : originalIdx); }}
-                          className={`p-2 rounded-xl border transition-all ${contextMenuIdx === originalIdx ? (lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-700' : 'bg-white/10 border-white/15 text-white') : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`}>
-                          <MoreHorizontal size={14} />
-                        </button>
-                        {contextMenuIdx === originalIdx && (
-                          <div onClick={(e) => e.stopPropagation()}
-                            className={`absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-xl border shadow-xl overflow-hidden ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-800 border-zinc-700'}`}>
-                            <button onClick={() => {
-                              setLossModalItem({ idx: originalIdx, name: item.product_name || '', qty: item.quantity, price: item.unit_price, productId: item.product_id });
-                              setLossModalOpen(true);
-                              setContextMenuIdx(null);
-                            }}
-                              className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-bold transition-colors ${lightMode ? 'text-red-600 hover:bg-red-50' : 'text-red-400 hover:bg-red-500/10'}`}>
-                              <Ban size={14} />
-                              {t('loss_mode') || 'İtki yaz'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {(() => {
+                      const ks = (item as any).kitchen_status || 'pending';
+                      const isVoidable = item.sentQuantity && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
+                      const isReturnable = ['ready', 'completed', 'served'].includes(ks);
+                      if (!isVoidable && !isReturnable) return null;
+                      return (
+                        <div className="relative">
+                          <button onClick={(e) => { e.stopPropagation(); setContextMenuIdx(contextMenuIdx === originalIdx ? null : originalIdx); }}
+                            className={`p-2 rounded-xl border transition-all ${contextMenuIdx === originalIdx ? (lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-700' : 'bg-white/10 border-white/15 text-white') : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`}>
+                            <MoreHorizontal size={14} />
+                          </button>
+                          {contextMenuIdx === originalIdx && (
+                            <div onClick={(e) => e.stopPropagation()}
+                              className={`absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-xl border shadow-xl overflow-hidden ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-800 border-zinc-700'}`}>
+                              {isVoidable && (
+                                <button onClick={() => {
+                                  const activeOrder = (cart as any).order_id;
+                                  if (!activeOrder) { setContextMenuIdx(null); return; }
+                                  setVoidModalItems([{
+                                    id: item.id,
+                                    product_name: item.product_name,
+                                    quantity: item.quantity,
+                                    unit_price: item.unit_price,
+                                  }]);
+                                  setVoidModalOpen(true);
+                                  setContextMenuIdx(null);
+                                }}
+                                  className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-bold transition-colors ${lightMode ? 'text-rose-600 hover:bg-rose-50' : 'text-rose-400 hover:bg-rose-500/10'}`}>
+                                  <Ban size={14} />
+                                  {t('void_items') || 'Ləğv et'}
+                                </button>
+                              )}
+                              {isReturnable && (
+                                <button onClick={() => {
+                                  setReturnModalItem({
+                                    order_item_id: item.id,
+                                    product_name: item.product_name,
+                                    quantity: item.quantity,
+                                    unit_price: item.unit_price,
+                                    kitchen_status: ks,
+                                  });
+                                  setReturnModalOpen(true);
+                                  setContextMenuIdx(null);
+                                }}
+                                  className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-bold transition-colors ${lightMode ? 'text-blue-600 hover:bg-blue-50' : 'text-blue-400 hover:bg-blue-500/10'}`}>
+                                  <RotateCcw size={14} />
+                                  {t('return_item') || 'Geri qaytar'}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </motion.div>
@@ -843,26 +765,13 @@ export function CartPanel({
 
       {/* Footer */}
       <div className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]">
-        {/* Total / Loss Total */}
-        <AnimatePresence mode="wait">
-          {hasLossSelection ? (
-             <motion.div
-               key="loss-total"
-               initial={{ opacity: 0, y: -4 }}
-               animate={{ opacity: 1, y: 0 }}
-               transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
-               className="flex items-center justify-between px-1"
-            >
-               <span className="text-xs uppercase tracking-widest font-semibold text-amber-500">{t('cancelled_amount')}</span>
-              <span className="text-xl font-black tracking-tight tabular-nums text-amber-500">{lossTotal.toFixed(2)} ₼</span>
-            </motion.div>
-           ) : (
-              <motion.div
-                key="std-total"
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="px-1 space-y-1"
-             >
+        {/* Total */}
+        <motion.div
+          key="std-total"
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="px-1 space-y-1"
+        >
                 {/* Subtotal */}
                 <div className="flex items-center justify-between">
                     <span className="text-xs uppercase tracking-widest font-medium text-[var(--theme-text-secondary)]">{t('subtotal_label')}</span>
@@ -886,70 +795,6 @@ export function CartPanel({
                     <RollingNumber value={grandTotal} prefix="" suffix=" ₼" decimals={2} className="text-[32px] font-black tracking-tight tabular-nums text-[var(--theme-accent)]" duration={0.3} />
                   </div>
              </motion.div>
-           )}
-        </AnimatePresence>
-
-        {/* Loss reason bar */}
-        {lossMode && hasLossSelection && (
-          <div className="px-1 space-y-2">
-            <p className="text-xs uppercase tracking-widest font-semibold text-[var(--theme-text-secondary)]">{t('loss_reason_title')}</p>
-            <AnimatePresence mode="wait">
-            {showCustomReason ? (
-             <motion.div
-                 key="custom"
-                 initial={{ opacity: 0, scale: 0.95, y: -6 }}
-                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                 transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
-                 className="flex items-center gap-2"
-               >
-                <input
-                  ref={customInputRef}
-                  type="text"
-                  maxLength={200}
-                  value={customReasonText}
-                  onChange={e => setCustomReasonText(e.target.value)}
-                  placeholder={t('loss_reason_custom_placeholder')}
-                   className={`flex-1 px-4 py-3 rounded-xl text-sm border outline-none transition-all ${
-                     lightMode ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-zinc-400' : 'bg-zinc-800 border-zinc-700 text-white placeholder:text-white/30 focus:border-zinc-400/50'
-                   }`}
-                />
-                <button onClick={() => { setShowCustomReason(false); setCustomReasonText(''); }}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
-                    lightMode ? 'bg-gray-100 text-gray-500 hover:bg-gray-200' : 'bg-zinc-800 text-white/40 hover:text-white'
-                  }`}>
-                  <X size={16} />
-                </button>
-              </motion.div>
-            ) : (
-                <motion.div
-                  key="preset"
-                  initial={{ opacity: 0, scale: 0.95, y: -6 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
-                  className="space-y-1.5"
-               >
-                <div className="flex gap-1.5">
-                  {lossReasons.map(r => (
-                    <button key={r.key}
-                      onClick={() => setLossReason(r.key)}
-                      className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
-                        lossReason === r.key
-                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-500'
-                          : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'
-                      }`}>
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => setShowCustomReason(true)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-medium border border-dashed border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:border-[var(--theme-text-muted)] transition-all">
-                  + {t('other')}
-                </button>
-              </motion.div>
-            )}
-            </AnimatePresence>
-          </div>
-        )}
 
         {/* Active campaign badge */}
         {campaignDiscount > 0 && (
@@ -961,7 +806,7 @@ export function CartPanel({
           </div>
         )}
           {/* Global note — static trigger; the editor floats via portal above the keyboard */}
-          {!isEmpty && !lossMode && posMode === 'dine_in' && (
+          {!isEmpty && posMode === 'dine_in' && (
             <div className="px-1">
               <button
                 onClick={openNoteEditor}
@@ -983,28 +828,24 @@ export function CartPanel({
         if (!isDineInContext && isEmpty) return null;
         const showActions = isDineInContext && hasExistingOrder && !hasDraft && orderButtonStatus === 'idle';
         const hasCartItems = cart.items.length > 0;
-        const btnAction = lossMode ? 'loss' : hasCartItems ? 'send' : canSeat ? 'seat' : showActions ? 'actions' : 'send';
-        const btnLabel = lossMode
-          ? t('loss_confirm')
-          : hasCartItems
-            ? (hasExistingOrder ? t('resend') : t('send_to_kitchen'))
-            : canSeat
-              ? t('seat_table')
-              : showActions
-                ? t('actions')
-                : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
-        const btnDisabled = (lossMode && selectedForLoss.size === 0) || confirming || seatBusy;
+        const btnAction = hasCartItems ? 'send' : canSeat ? 'seat' : showActions ? 'actions' : 'send';
+        const btnLabel = hasCartItems
+          ? (hasExistingOrder ? t('resend') : t('send_to_kitchen'))
+          : canSeat
+            ? t('seat_table')
+            : showActions
+              ? t('actions')
+              : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
+        const btnDisabled = seatBusy;
         const btnBg = hasCartItems
           ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
           : canSeat
             ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
-            : lossMode
-              ? 'bg-amber-500 text-white shadow-lg shadow-amber-900/20'
-              : showActions
-                ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100')
-                : isDirty
-                  ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
-                  : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-white/40');
+            : showActions
+              ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100')
+              : isDirty
+                ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
+                : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-white/40');
         return (
           <div className="w-full flex-shrink-0 px-6 pb-5 pt-2">
             <motion.button
@@ -1014,13 +855,12 @@ export function CartPanel({
               animate={{ opacity: 1, scale: 1 }}
               transition={{ layout: { duration: 0.3, ease: [0.32, 0.72, 0, 1] } }}
               disabled={btnDisabled}
-              onClick={(hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : lossMode ? confirmLoss : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
+              onClick={(hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
               className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-colors duration-300 ${btnDisabled ? 'cursor-wait opacity-80' : 'cursor-pointer'} ${btnBg}`}
             >
               {seatBusy ? <Loader2 size={20} className="animate-spin" /> :
                (hasCartItems && canSeat) ? <Send size={16} /> :
                canSeat ? <Armchair size={18} /> :
-               lossMode ? <CheckCircle size={18} /> :
                showActions ? <MoreHorizontal size={18} /> :
                <Send size={16} />}
               <motion.span key={btnAction} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
@@ -1030,14 +870,6 @@ export function CartPanel({
           </div>
         );
       })()}
-
-      {/* PIN Guard for loss mode */}
-      <PinGuard
-        open={pinGuardOpen}
-        onClose={() => setPinGuardOpen(false)}
-        onVerified={() => { setLossMode(true); setLossReason('wrong_entry'); }}
-        action="loss"
-      />
 
       {/* Numpad for quantity change */}
       <Numpad
@@ -1110,20 +942,23 @@ export function CartPanel({
 
     </motion.div>
 
-    {/* Loss Modal for item-level İtki yaz */}
-    {lossModalItem && (
-      <LossItemModal
-        open={lossModalOpen}
-        onClose={() => { setLossModalOpen(false); setLossModalItem(null); }}
-        item={lossModalItem}
-        onRecordLoss={onRecordLoss!}
-        onRemoved={(qty) => {
-          onUpdateQty(lossModalItem.idx, -qty);
-          setLossModalOpen(false);
-          setLossModalItem(null);
-        }}
-      />
-    )}
+    {/* Void Items Modal */}
+    <VoidItemsModal
+      open={voidModalOpen}
+      onClose={() => { setVoidModalOpen(false); setVoidModalItems([]); }}
+      orderId={(cart as any).order_id || ''}
+      items={voidModalItems}
+      onSuccess={() => { setVoidModalOpen(false); setVoidModalItems([]); }}
+    />
+
+    {/* Return Item Modal */}
+    <ReturnItemModal
+      open={returnModalOpen}
+      onClose={() => { setReturnModalOpen(false); setReturnModalItem(null); }}
+      orderId={(cart as any).order_id || ''}
+      item={returnModalItem}
+      onSuccess={() => { setReturnModalOpen(false); setReturnModalItem(null); }}
+    />
 
     </>
   );

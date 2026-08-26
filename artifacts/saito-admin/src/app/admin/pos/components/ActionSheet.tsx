@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Search, Phone, Smartphone, Building2, Gift, Car, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck,
-  RotateCcw
+  ChevronRight, Hash, Printer, Pencil, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck,
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -15,8 +14,6 @@ import type { PosTable } from '../types/shared';
 import { fastExit, slideUp, morphView } from '@/lib/modal-transitions';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
 import { PinGuard } from './PinGuard';
-import { VoidItemsModal } from './VoidItemsModal';
-import { RefundModal } from './RefundModal';
 import { GiftCardModal } from './GiftCardModal';
 import { RoomChargeModal } from './RoomChargeModal';
 import { CorporateModal } from './CorporateModal';
@@ -111,8 +108,6 @@ export function ActionSheet({
   const [confirmAction, setConfirmAction] = useState<'cancel_table' | 'dismiss_group' | null>(null);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ fn: () => void; action: string } | null>(null);
-  const [voidModalOpen, setVoidModalOpen] = useState(false);
-  const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [tipAmount, setTipAmount] = useState('');
   const [tipExpanded, setTipExpanded] = useState(false);
   const [showMorePayments, setShowMorePayments] = useState(false);
@@ -191,8 +186,6 @@ export function ActionSheet({
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isCashierOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
     { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: isCashierOrAbove && !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) },
     { id: 'clear', icon: BrushCleaning, label: t('clear'), visible: table?.status === 'empty' || table?.status === 'dirty' },
-    { id: 'void_items', icon: Ban, label: t('void_items') || 'Ləğv et', visible: isCashierOrAbove && isOccupied && (table?.total_amount ?? 0) > 0 && !activePaidAt },
-    { id: 'refund', icon: RotateCcw, label: t('refund') || 'Geri ödəniş', visible: isCashierOrAbove && !!activePaidAt },
     ...(posMode === 'delivery' ? [
       { id: 'delivery_status', icon: Car, label: t('delivery_status'), visible: true },
       { id: 'assign_courier', icon: UserCheck, label: t('assign_courier' as any) || 'Assign Courier', visible: true },
@@ -423,11 +416,11 @@ export function ActionSheet({
                        </div>
 
                        {/* Secondary actions section */}
-                        {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served', 'void_items', 'refund'].includes(a.id)) && (
+                        {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served'].includes(a.id)) && (
                           <div>
                             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
                             <div className="grid grid-cols-3 gap-3">
-                              {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier', 'void_items', 'refund'].includes(a.id)).map((action) => (
+                              {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier'].includes(a.id)).map((action) => (
                                <button key={action.id} onClick={() => {
                                   const fn = {
                                     add_order: onAddOrder,
@@ -440,18 +433,14 @@ export function ActionSheet({
                                     print_bill: onPrintBill,
                                     clear: onClearTable,
                                     mark_served: onMarkServed,
-                                    void_items: () => setVoidModalOpen(true),
-                                    refund: () => setRefundModalOpen(true),
                                   }[action.id as string];
                                  if (fn) fn();
                                }}
                                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
                                    action.id === 'bill_request'
                                      ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                     : action.id === 'cancel_table' || action.id === 'void_items'
-                                     ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                                     : action.id === 'refund'
-                                     ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                      : action.id === 'cancel_table'
+                                      ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                                      : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
                                  } active:scale-95`}>
                                  <action.icon size={24} strokeWidth={2.5} />
@@ -1119,25 +1108,6 @@ export function ActionSheet({
         onClose={() => { setPinGuardOpen(false); setPendingAction(null); }}
         onVerified={() => { pendingAction?.fn(); }}
         action={pendingAction?.action || 'admin'}
-      />
-
-      {/* Void Items Modal */}
-      <VoidItemsModal
-        open={voidModalOpen}
-        onClose={() => setVoidModalOpen(false)}
-        orderId={activeOrderId}
-        items={activeOrderItems}
-        onSuccess={() => { onRefresh?.(); }}
-      />
-
-      {/* Refund Modal */}
-      <RefundModal
-        open={refundModalOpen}
-        onClose={() => setRefundModalOpen(false)}
-        orderId={activeOrderId}
-        paidAmount={activePaidAmount}
-        paymentMethod={activePaymentMethod}
-        onSuccess={() => { onRefresh?.(); }}
       />
 
       {/* Gift Card Modal */}

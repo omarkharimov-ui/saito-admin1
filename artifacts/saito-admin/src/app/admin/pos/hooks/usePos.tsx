@@ -420,6 +420,13 @@ export function usePos() {
           });
         } else {
           // No active server order for this table — clear cart (drafts belong to previous table)
+          setCart(prev => {
+            if (!prev) return null;
+            // Keep only sent (server-synced) items, drop all drafts
+            const kept = prev.items.filter(i => (i.sentQuantity ?? 0) > 0);
+            if (kept.length === prev.items.length) return prev; // nothing to clear
+            return { ...prev, items: kept.map(i => ({ ...i, quantity: i.sentQuantity ?? i.quantity })) };
+          });
         }
       }
       setCartHydrating(false);

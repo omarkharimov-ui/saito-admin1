@@ -1,58 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
-import { deductStockForOrder } from '@/lib/stockAutomation';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
 
-function svc() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!url || !key) throw new Error('Missing Supabase configuration. Restart the dev server after creating .env.local');
-  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
-}
-
+/**
+ * POST /api/orders/mark-ready
+ * Atomic: state check + transition + stock consume + audit
+ * If stock fails, item stays PREPARING (no half-state)
+ */
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
     if (!auth.authenticated) return auth;
 
-    const { order_id } = await request.json();
+    if (!validateCsrfToken(request, auth.authenticated)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
+    const supabase = await createAuthClient();
+    const { order_id, item_ids } = await request.json();
     if (!order_id) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
     }
 
-    const s = svc();
-
-    // Fetch current order state
-    const orderRes = await fetch(`${s.url}/rest/v1/orders?id=eq.${order_id}&select=*`, { headers: s.headers });
-    if (!orderRes.ok) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-    const orders = await orderRes.json();
-    const order = orders?.[0];
-    if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    // Deduct stock now that kitchen has prepared the items
-    // deductStockForOrder has idempotency check — safe to call even if already done
-    let stockDeduction = { deducted: 0, ingredientIds: [] as string[] };
-    try {
-      stockDeduction = await deductStockForOrder(order_id);
-    } catch (stockErr) {
-      console.error('[mark-ready] Stock deduction failed (non-fatal):', stockErr);
-    }
-
-    // Mark the order ready so it leaves the active KDS tab (the 10s poll reads
-    // kitchen_status from the DB; without this the optimistic UI update is
-    // overwritten and the order appears stuck).
-    await fetch(`${s.url}/rest/v1/orders?id=eq.${order_id}`, {
-      method: 'PATCH',
-      headers: s.headers,
-      body: JSON.stringify({ kitchen_status: 'ready', kitchen_ready_at: new Date().toISOString() }),
+    const { data: rpcResult, error: rpcErr } = await supabase.rpc('mark_item_ready_atomic', {
+      p_order_id: order_id,
+      p_item_ids: item_ids || null,
+      p_performed_by: auth.user?.id || null,
     });
 
-    return NextResponse.json({ success: true, stockDeduction });
+    if (rpcErr) throw rpcErr;
+    if (!rpcResult?.success) {
+      return NextResponse.json(rpcResult, { status: 400 });
+    }
+
+    return NextResponse.json(rpcResult);
   } catch (error: any) {
-    console.error('[API /orders/mark-ready] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

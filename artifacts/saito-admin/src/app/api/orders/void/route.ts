@@ -4,10 +4,10 @@ import { validateCsrfToken } from '@/lib/csrf';
 
 /**
  * POST /api/orders/void
- * Void items — state-aware:
- *   DRAFT items → delete (no stock impact)
- *   SENT/PREPARING items → void (no stock — not consumed yet)
- *   READY/SERVED items → BLOCKED (must use waste/loss workflow)
+ * Void items — state-aware (soft-delete, audit preserved):
+ *   DRAFT items → soft-void (kitchen_status='voided')
+ *   SENT/PREPARING items → soft-void (no stock — not consumed yet)
+ *   READY/SERVED items → BLOCKED (must use waste workflow)
  *
  * Body: {
  *   order_id: string,

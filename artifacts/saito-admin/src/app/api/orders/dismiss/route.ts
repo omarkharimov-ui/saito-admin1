@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
+import { paymentRateLimit } from '@/lib/rate-limit';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -11,15 +13,21 @@ function svc() {
 /**
  * POST /api/orders/dismiss
  * Dismiss table — state-aware:
- *   DRAFT items → delete
- *   SENT/PREPARING items → cancel (no stock)
- *   READY/SERVED items → waste (stock already consumed, recorded as waste)
+ *   DRAFT/SENT/PREPARING → soft-void
+ *   READY/SERVED → waste (stock already consumed)
  *   Paid orders → skipped (require refund workflow)
  */
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
+
+    if (!validateCsrfToken(req, auth.authenticated)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
+    const rateLimitResult = paymentRateLimit(req);
+    if (rateLimitResult) return rateLimitResult;
 
     const { table_number } = await req.json();
     if (!table_number) {

@@ -31,7 +31,9 @@ export function ReturnItemModal({ open, onClose, orderId, item, onSuccess }: Ret
   const keyboardHeight = useKeyboardHeight();
   const [pinVerified, setPinVerified] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [qty, setQty] = useState(item.quantity);
+  const [qty, setQty] = useState(item?.quantity ?? 1);
+
+  if (!item) return null;
 
   const handleReturn = async () => {
     setLoading(true);

@@ -263,14 +263,14 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={fastExit}
-          className="fixed inset-0 z-[125] flex items-end justify-center bg-black/20"
+          className="fixed inset-0 z-[125] flex items-end justify-center bg-black/20 backdrop-blur-sm"
           onClick={onClose}
         >
         <motion.div
           {...slideUp}
           className={`relative w-full max-w-lg rounded-t-6xl shadow-overlay border ${
             lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'
-          } overflow-hidden max-h-[85vh] flex flex-col`}
+          } overflow-hidden max-h-[85vh] flex flex-col backdrop-blur-lg`}
           onClick={e => e.stopPropagation()}
         >
         {/* Header */}
@@ -443,7 +443,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={fastExit}
-            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/25 p-4"
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/25 backdrop-blur-sm p-4"
             onClick={() => { setPendingRefundOrder(null); setRefundAmount(''); setRefundReason(''); }}
           >
             <motion.div
@@ -505,7 +505,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={fastExit}
-            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/25 p-4"
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/25 backdrop-blur-sm p-4"
             onClick={() => setSelectedOrder(null)}
           >
             <motion.div

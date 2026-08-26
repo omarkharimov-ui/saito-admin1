@@ -2351,14 +2351,14 @@ export default function POSPage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={appleBackdrop}
-            className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/25 p-4"
+            className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/25 backdrop-blur-sm p-4"
             style={{ paddingBottom: 'var(--vk-height, 0px)' }}
             onClick={() => setWalkInOpen(false)}
           >
              <motion.div
                {...slideUp}
                onClick={e => e.stopPropagation()}
-                className={`w-full max-w-sm rounded-3xl p-7 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+                className={`w-full max-w-sm rounded-3xl p-7 shadow-elevated border backdrop-blur-lg ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
              >
               <p className={`text-xl font-black tracking-tight mb-1 ${lightMode ? 'text-black' : 'text-white'}`}>{t('walk_in')}</p>
               <p className={`text-xs font-black uppercase tracking-widest mb-5 ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>{t('new_guest')}</p>

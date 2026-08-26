@@ -70,7 +70,7 @@ export function Numpad({ open, value, min = 1, max = 99, onClose, onConfirm }: N
             {...appleCard}
             transition={fastExit}
             onClick={e => e.stopPropagation()}
-            className={`w-72 rounded-3xl p-5 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
+            className={`w-72 rounded-3xl p-5 shadow-elevated border backdrop-blur-lg ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
           >
             {/* Display */}
             <div className={`text-center mb-4 py-4 rounded-2xl border ${lightMode ? 'bg-zinc-50 border-zinc-100' : 'bg-white/5 border-white/10'}`}>

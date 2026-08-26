@@ -242,7 +242,7 @@ export function ActionSheet({
                key="pos-hybrid-kapsul"
                layout
                transition={{ layout: { duration: 0.3, ease: 'easeInOut' } }}
-                className={`relative z-10 pointer-events-auto overflow-hidden shadow-elevated border transition-[border-radius,padding] duration-300 ease-out ${
+                className={`relative z-10 pointer-events-auto overflow-hidden shadow-elevated border backdrop-blur-lg transition-[border-radius,padding] duration-300 ease-out ${
                   lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'
                  } ${
                  currentView === 'merge' || currentView === 'transfer'

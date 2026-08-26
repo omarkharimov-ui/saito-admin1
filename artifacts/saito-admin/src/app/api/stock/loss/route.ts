@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
+import { paymentRateLimit } from '@/lib/rate-limit';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -12,6 +14,13 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
+
+    if (!validateCsrfToken(request, auth.authenticated)) {
+      return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+    }
+
+    const rateLimitResult = paymentRateLimit(request);
+    if (rateLimitResult) return rateLimitResult;
 
     const { items, reason } = await request.json();
     if (!items?.length || !reason) {

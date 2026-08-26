@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
+import { validateCsrfToken } from '@/lib/csrf';
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(['admin', 'superadmin', 'manager']);
   if (!auth.authenticated) return auth;
+
+  if (!validateCsrfToken(req, auth.authenticated)) {
+    return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+  }
 
   try {
     const supabase = await createAuthClient();

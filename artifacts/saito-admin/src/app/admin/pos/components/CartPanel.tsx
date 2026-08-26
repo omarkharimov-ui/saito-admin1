@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, CheckCircle, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -13,6 +13,7 @@ import type { SendOrderButtonStatus } from './SendOrderButton';
 import { NumberRoll } from './NumberRoll';
 import { RollingNumber } from './RollingNumber';
 import { PinGuard } from './PinGuard';
+import { LossItemModal } from './LossItemModal';
 import { Numpad } from './Numpad';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useVirtualKeyboard } from './VirtualKeyboard';
@@ -142,6 +143,9 @@ export function CartPanel({
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
   const [seatBusy, setSeatBusy] = useState(false);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const [contextMenuIdx, setContextMenuIdx] = useState<number | null>(null);
+  const [lossModalOpen, setLossModalOpen] = useState(false);
+  const [lossModalItem, setLossModalItem] = useState<{ idx: number; name: string; qty: number; price: number; productId: string } | null>(null);
   const [guestEditing, setGuestEditing] = useState(false);
   const [localGuestCount, setLocalGuestCount] = useState(cart?.guest_count ?? 1);
   const guestEditRef = useRef<HTMLDivElement>(null);
@@ -206,6 +210,13 @@ export function CartPanel({
   useEffect(() => {
     setGlobalNote(cart?.notes || '');
   }, [cart?.notes]);
+
+  useEffect(() => {
+    if (contextMenuIdx === null) return;
+    const close = () => setContextMenuIdx(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [contextMenuIdx]);
 
   useEffect(() => {
     if (!guestEditing) {
@@ -500,22 +511,17 @@ export function CartPanel({
   };
 
   const confirmLoss = async () => {
-    if (!onRecordLoss || selectedForLoss.size === 0) return;
+    if (selectedForLoss.size === 0) return;
     setConfirming(true);
-    const reason = showCustomReason && customReasonText.trim() ? customReasonText.trim() : lossReason;
-    const items: LossItem[] = Array.from(selectedForLoss.entries()).map(([idx, qty]) => ({
-      product_id: cart.items[idx].product_id,
-      product_name: cart.items[idx].product_name || '',
-      quantity: qty,
-      unit_price: cart.items[idx].unit_price,
-    }));
     try {
-      await onRecordLoss(items, reason);
       const sortedEntries = Array.from(selectedForLoss.entries()).sort(([a], [b]) => b - a);
       for (const [idx, qty] of sortedEntries) {
         onUpdateQty(idx, -qty);
       }
-      const names = items.map(i => `${i.quantity} ${t('qty_abbrev')} ${i.product_name}`).join(', ');
+      const names = Array.from(selectedForLoss.entries()).map(([idx, qty]) => {
+        const item = cart.items[idx];
+        return `${qty} ${t('qty_abbrev')} ${item.product_name}`;
+      }).join(', ');
       toast.success(`${names} — ${t('status_cancelled')}`);
       if (lossExitTimerRef.current) clearTimeout(lossExitTimerRef.current);
       setLossMode(false);
@@ -692,8 +698,8 @@ export function CartPanel({
                 style={{ pointerEvents: hasDraft ? 'auto' : 'none', width: '100%' }}
                 className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border ${
                   lightMode 
-                    ? 'bg-white border-zinc-200 text-red-600 hover:bg-red-50 hover:border-red-200' 
-                    : 'bg-white/5 border-white/10 text-red-400 hover:bg-red-500/10 hover:border-red-500/20'
+                    ? 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50' 
+                    : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
                 }`}
               >
                 {t('clear')}
@@ -709,11 +715,11 @@ export function CartPanel({
               }}
               className={`flex-1 min-w-0 flex items-center justify-center py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border ${
                 lossMode 
-                  ? (lightMode ? 'bg-red-600 border-red-600 text-white' : 'bg-red-500 border-red-500 text-white')
+                  ? (lightMode ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-500 border-amber-500 text-white')
                   : (lightMode ? 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900' : 'bg-white/5 border-white/10 text-white/40 hover:text-white')
               }`}
             >
-              <span className="whitespace-nowrap">{lossMode ? t('loss_mode_cancel') : t('loss_mode')}</span>
+              <span className="whitespace-nowrap">{lossMode ? t('loss_mode_cancel') : t('void_items') || 'Ləğv et'}</span>
             </motion.button>
           </div>
         </div>
@@ -749,11 +755,11 @@ export function CartPanel({
                 exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                 data-cart-item
-                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] ${isChecked ? (lightMode ? 'border-red-300/40' : 'border-red-500/20') : `border-[var(--theme-border)]`} px-3.5 py-3`}
+                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] ${isChecked ? (lightMode ? 'border-amber-300/40' : 'border-amber-500/20') : `border-[var(--theme-border)]`} px-3.5 py-3`}
               >
                 <div className="flex items-center gap-2.5">
                   {lossMode && (
-                    <button onClick={() => toggleLossSelection(originalIdx)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-95 ${isChecked ? (lightMode ? 'bg-red-600 border-red-600' : 'bg-red-500 border-red-500') : (lightMode ? 'border-gray-400' : 'border-white/30')}`}>
+                    <button onClick={() => toggleLossSelection(originalIdx)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-95 ${isChecked ? (lightMode ? 'bg-amber-500 border-amber-500' : 'bg-amber-500 border-amber-500') : (lightMode ? 'border-gray-400' : 'border-white/30')}`}>
                       {isChecked && <CheckCircle size={14} className="text-white" />}
                     </button>
                   )}
@@ -804,6 +810,28 @@ export function CartPanel({
                     <button onClick={() => onRequestEditor?.(item.product_id, originalIdx)} className={`p-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
                       <Hash size={14} />
                     </button>
+                    {!lossMode && (
+                      <div className="relative">
+                        <button onClick={(e) => { e.stopPropagation(); setContextMenuIdx(contextMenuIdx === originalIdx ? null : originalIdx); }}
+                          className={`p-2 rounded-xl border transition-all ${contextMenuIdx === originalIdx ? (lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-700' : 'bg-white/10 border-white/15 text-white') : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`}>
+                          <MoreHorizontal size={14} />
+                        </button>
+                        {contextMenuIdx === originalIdx && (
+                          <div onClick={(e) => e.stopPropagation()}
+                            className={`absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-xl border shadow-xl overflow-hidden ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-800 border-zinc-700'}`}>
+                            <button onClick={() => {
+                              setLossModalItem({ idx: originalIdx, name: item.product_name || '', qty: item.quantity, price: item.unit_price, productId: item.product_id });
+                              setLossModalOpen(true);
+                              setContextMenuIdx(null);
+                            }}
+                              className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-bold transition-colors ${lightMode ? 'text-red-600 hover:bg-red-50' : 'text-red-400 hover:bg-red-500/10'}`}>
+                              <Ban size={14} />
+                              {t('loss_mode') || 'İtki yaz'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -825,8 +853,8 @@ export function CartPanel({
                transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
                className="flex items-center justify-between px-1"
             >
-              <span className="text-xs uppercase tracking-widest font-semibold text-red-400">{t('cancelled_amount')}</span>
-              <span className="text-xl font-black tracking-tight tabular-nums text-red-400">{lossTotal.toFixed(2)} ₼</span>
+               <span className="text-xs uppercase tracking-widest font-semibold text-amber-500">{t('cancelled_amount')}</span>
+              <span className="text-xl font-black tracking-tight tabular-nums text-amber-500">{lossTotal.toFixed(2)} ₼</span>
             </motion.div>
            ) : (
               <motion.div
@@ -906,7 +934,7 @@ export function CartPanel({
                       onClick={() => setLossReason(r.key)}
                       className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
                         lossReason === r.key
-                          ? 'bg-red-500/15 border-red-500/40 text-red-400'
+                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-500'
                           : 'bg-[var(--theme-surface-soft)] border-[var(--theme-border)] text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)]'
                       }`}>
                       {r.label}
@@ -971,7 +999,7 @@ export function CartPanel({
           : canSeat
             ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
             : lossMode
-              ? 'bg-rose-600 text-white shadow-lg shadow-rose-900/20'
+              ? 'bg-amber-500 text-white shadow-lg shadow-amber-900/20'
               : showActions
                 ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100')
                 : isDirty
@@ -1081,6 +1109,21 @@ export function CartPanel({
       )}
 
     </motion.div>
+
+    {/* Loss Modal for item-level İtki yaz */}
+    {lossModalItem && (
+      <LossItemModal
+        open={lossModalOpen}
+        onClose={() => { setLossModalOpen(false); setLossModalItem(null); }}
+        item={lossModalItem}
+        onRecordLoss={onRecordLoss!}
+        onRemoved={(qty) => {
+          onUpdateQty(lossModalItem.idx, -qty);
+          setLossModalOpen(false);
+          setLossModalItem(null);
+        }}
+      />
+    )}
 
     </>
   );

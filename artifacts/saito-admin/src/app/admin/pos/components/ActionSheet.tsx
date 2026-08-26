@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, Split, CreditCard, Trash2, Wallet, Receipt, XCircle, Check,
   User, Search, Phone, Smartphone, Building2, Gift, Car, ArrowLeftRight,
-  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck
+  ChevronRight, Hash, Printer, Pencil, Ban, PhoneCall, CheckCircle, ShoppingBag, BrushCleaning, UserCheck,
+  RotateCcw
 } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -14,6 +15,8 @@ import type { PosTable } from '../types/shared';
 import { fastExit, slideUp, morphView } from '@/lib/modal-transitions';
 import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
 import { PinGuard } from './PinGuard';
+import { VoidItemsModal } from './VoidItemsModal';
+import { RefundModal } from './RefundModal';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 type PaymentMethod = 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher';
@@ -74,6 +77,7 @@ interface ActionSheetProps {
   onOpenCourierPicker?: () => void;
   onAssignCourier?: (courierId: string, courierName: string) => void;
   onCloseCourierPicker?: () => void;
+  onRefresh?: () => void;
 }
 
 export function ActionSheet({ 
@@ -85,7 +89,8 @@ export function ActionSheet({
   paymentView, transferConfirm, transferSource, transferTarget,   onConfirmTransfer, onCancelTransfer, onCheckout,
   posMode = 'dine_in',
   statusPickerTransitions, onSelectTransition, statusPickerLoading, onCloseStatusPicker, statusPickerOpen,
-  courierPickerOpen, couriers, couriersLoading, onOpenCourierPicker, onAssignCourier, onCloseCourierPicker
+  courierPickerOpen, couriers, couriersLoading, onOpenCourierPicker, onAssignCourier, onCloseCourierPicker,
+  onRefresh
 }: ActionSheetProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -104,6 +109,11 @@ export function ActionSheet({
   const [confirmAction, setConfirmAction] = useState<'cancel_table' | 'dismiss_group' | null>(null);
   const [pinGuardOpen, setPinGuardOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ fn: () => void; action: string } | null>(null);
+  const [voidModalOpen, setVoidModalOpen] = useState(false);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [tipAmount, setTipAmount] = useState('');
+  const [giftCardCode, setGiftCardCode] = useState('');
+  const [giftCardView, setGiftCardView] = useState(false);
   const customerSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadCustomers = async (q: string) => {
@@ -166,6 +176,8 @@ export function ActionSheet({
     { id: 'close_bill', icon: CreditCard, label: t('close_bill'), visible: isManagerOrAbove && (isOccupied && (table?.total_amount ?? 0) > 0 || isTakeawayOrDelivery) },
     { id: 'cancel_table', icon: Trash2, label: isTakeawayOrDelivery ? t('cancel') : t('dismiss_table'), visible: !table?.merged_into_table && (isOccupied || table?.status === 'reserved' || isTakeawayOrDelivery) },
     { id: 'clear', icon: BrushCleaning, label: t('clear'), visible: table?.status === 'empty' || table?.status === 'dirty' },
+    { id: 'void_items', icon: Ban, label: t('void_items') || 'Ləğv et', visible: isManagerOrAbove && isOccupied && (table?.total_amount ?? 0) > 0 && !(table as any)?.paid_at },
+    { id: 'refund', icon: RotateCcw, label: t('refund') || 'Geri ödəniş', visible: isManagerOrAbove && !!(table as any)?.paid_at },
     ...(posMode === 'delivery' ? [
       { id: 'delivery_status', icon: Car, label: t('delivery_status'), visible: true },
       { id: 'assign_courier', icon: UserCheck, label: t('assign_courier' as any) || 'Assign Courier', visible: true },
@@ -395,31 +407,35 @@ export function ActionSheet({
                        </div>
 
                        {/* Secondary actions section */}
-                       {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served'].includes(a.id)) && (
-                         <div>
-                           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
-                           <div className="grid grid-cols-3 gap-3">
-                             {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier'].includes(a.id)).map((action) => (
+                        {visibleActions.some(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'assign_courier', 'mark_served', 'void_items', 'refund'].includes(a.id)) && (
+                          <div>
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--theme-text-muted)] mb-2 px-1">{t('more')}</p>
+                            <div className="grid grid-cols-3 gap-3">
+                              {visibleActions.filter(a => ['print_bill', 'cancel_table', 'delivery_status', 'takeaway_status', 'mark_served', 'assign_courier', 'void_items', 'refund'].includes(a.id)).map((action) => (
                                <button key={action.id} onClick={() => {
-                                 const fn = {
-                                   add_order: onAddOrder,
-                                   close_bill: onOpenPayment,
-                                   cancel_table: () => setConfirmAction('cancel_table'),
-                                   delivery_status: onDeliveryStatus,
-                                   takeaway_status: onTakeawayStatus,
-                                   assign_courier: onOpenCourierPicker,
-                                   bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
-                                   print_bill: onPrintBill,
-                                   clear: onClearTable,
-                                   mark_served: onMarkServed,
-                                 }[action.id as string];
+                                  const fn = {
+                                    add_order: onAddOrder,
+                                    close_bill: onOpenPayment,
+                                    cancel_table: () => setConfirmAction('cancel_table'),
+                                    delivery_status: onDeliveryStatus,
+                                    takeaway_status: onTakeawayStatus,
+                                    assign_courier: onOpenCourierPicker,
+                                    bill_request: () => table?.table_number && onBillRequest?.(table.table_number),
+                                    print_bill: onPrintBill,
+                                    clear: onClearTable,
+                                    mark_served: onMarkServed,
+                                    void_items: () => setVoidModalOpen(true),
+                                    refund: () => setRefundModalOpen(true),
+                                  }[action.id as string];
                                  if (fn) fn();
                                }}
                                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-[1.5rem] border transition-all ${
                                    action.id === 'bill_request'
                                      ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                     : action.id === 'cancel_table'
+                                     : action.id === 'cancel_table' || action.id === 'void_items'
                                      ? lightMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                     : action.id === 'refund'
+                                     ? lightMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                                      : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-white/5 border-white/5 text-zinc-300'
                                  } active:scale-95`}>
                                  <action.icon size={24} strokeWidth={2.5} />
@@ -499,6 +515,47 @@ export function ActionSheet({
                          </button>
                     </>
                   )}
+
+                  {/* Tip input */}
+                  <div className={`mt-3 p-3 rounded-2xl border ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
+                    <div className="flex items-center gap-3">
+                      <Wallet size={18} className="text-amber-400 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-500/60 mb-1">{t('tip') || 'Propina'}</p>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>₼</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={tipAmount}
+                              onChange={e => setTipAmount(e.target.value)}
+                              placeholder="0"
+                              className={`w-full rounded-xl pl-7 pr-3 py-2.5 text-sm font-black outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
+                            />
+                          </div>
+                          {[5, 10, 15].map(pct => {
+                            const val = Math.round((table?.total_amount || 0) * pct / 100 * 100) / 100;
+                            return (
+                              <button
+                                key={pct}
+                                onClick={() => setTipAmount(val.toString())}
+                                className={`px-3 py-2 rounded-xl text-[9px] font-black border transition-all ${
+                                  Math.abs((parseFloat(tipAmount) || 0) - val) < 0.01
+                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                                    : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-amber-50' : 'bg-white/5 border-white/10 text-white/40 hover:bg-amber-500/10'
+                                } active:scale-95`}
+                              >
+                                {pct}%
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                        <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
                  </motion.div>
                )}
@@ -1042,6 +1099,25 @@ export function ActionSheet({
         onClose={() => { setPinGuardOpen(false); setPendingAction(null); }}
         onVerified={() => { pendingAction?.fn(); }}
         action={pendingAction?.action || 'admin'}
+      />
+
+      {/* Void Items Modal */}
+      <VoidItemsModal
+        open={voidModalOpen}
+        onClose={() => setVoidModalOpen(false)}
+        orderId={(table as any)?.order_id || (table as any)?.id || ''}
+        items={(table as any)?.order_items || []}
+        onSuccess={() => { onRefresh?.(); }}
+      />
+
+      {/* Refund Modal */}
+      <RefundModal
+        open={refundModalOpen}
+        onClose={() => setRefundModalOpen(false)}
+        orderId={(table as any)?.order_id || (table as any)?.id || ''}
+        paidAmount={(table as any)?.paid_amount || (table as any)?.total_amount || 0}
+        paymentMethod={(table as any)?.payment_method}
+        onSuccess={() => { onRefresh?.(); }}
       />
     </AnimatePresence>
   );

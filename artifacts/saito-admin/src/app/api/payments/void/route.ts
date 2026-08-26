@@ -15,10 +15,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'payment_id is required' }, { status: 400 });
   }
 
-  const { data, error } = await supabase.rpc('void_payment_atomic', {
+  const { data, error } = await supabase.rpc('update_payment_status', {
     p_payment_id: payment_id,
-    p_reason: reason || null,
-    p_performed_by: auth.user?.id || null,
+    p_new_status: 'voided',
+    p_provider_response: { reason: reason || 'Manual void' },
   });
 
   if (error) {

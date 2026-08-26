@@ -35,12 +35,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const { data, error } = await supabase.rpc('refund_payment_atomic', {
+  const { data, error } = await supabase.rpc('complete_payment_atomic_v2', {
     p_order_id: order_id,
-    p_amount: Number(amount),
-    p_method: method || 'cash',
-    p_reason: reason || null,
+    p_payments: JSON.stringify([{
+      amount: Number(amount),
+      method: method || 'cash',
+      is_refund: true,
+      reason_text: reason || 'Müştəri şikayəti',
+    }]),
+    p_payment_method: method || 'cash',
     p_performed_by: auth.user?.id || null,
+    p_performed_by_terminal_id: null,
     p_cash_drawer_session_id: sessionId,
   });
 

@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateAuth } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 import { supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  if (!auth.authenticated) return auth;
   try {
     const { searchParams } = new URL(req.url);
     const staffId = searchParams.get('staff_id');
@@ -30,10 +28,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  if (!auth.authenticated) return auth;
   try {
     const body = await req.json();
     const { staff_id, category, amount, note, expense_date } = body;

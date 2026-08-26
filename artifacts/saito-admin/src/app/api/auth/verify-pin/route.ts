@@ -35,20 +35,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ valid: true, role: adminUser.role, staffId: adminUser.id });
     }
 
-    // Check staff table (Superadmin/Menecer roles)
+    // Check staff table (any active staff with PIN — authorization checked via has_permission later)
     const { data: staffUsers } = await supabase
       .from('staff')
       .select('id, name, role, pin_hash')
       .eq('is_active', true)
-      .in('role', ['Superadmin', 'Menecer'])
+      .not('pin_hash', 'is', null)
       .limit(100);
 
     const staffUser = (staffUsers || []).find((u: any) => u.pin_hash && verifyPin(pin, u.pin_hash));
     if (staffUser) {
       try { await supabase.rpc('log_audit', { p_action: actionType, p_entity_type: 'staff', p_entity_id: staffUser.id, p_actor_id: staffUser.id, p_actor_name: staffUser.name, p_old_data: null, p_new_data: { method: 'staff', target_type: 'pos' }, p_metadata: { pin_verified: true, method: 'staff' } }); } catch { /* non-critical */ }
+      const { data: normalizedRole } = await supabase.rpc('normalize_role', { p_role: staffUser.role });
       return NextResponse.json({
         valid: true,
-        role: staffUser.role.toLowerCase(),
+        role: normalizedRole || staffUser.role.toLowerCase(),
         staffId: staffUser.id,
         name: staffUser.name,
       });

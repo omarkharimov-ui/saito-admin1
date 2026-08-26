@@ -13,6 +13,8 @@ function svc() {
 }
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth(['admin', 'superadmin']);
+  if (!auth.authenticated) return auth;
   try {
     const { id } = await params;
     const supabase = svc();
@@ -75,6 +77,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAuth(['superadmin']);
+  if (!auth.authenticated) return auth;
   try {
     const { id } = await params;
     const supabase = svc();

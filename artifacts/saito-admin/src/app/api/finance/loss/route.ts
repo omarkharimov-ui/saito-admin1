@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateAuth, createAuthClient } from '@/lib/api-auth';
+import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
-  const auth = await validateAuth();
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  if (!auth.authenticated) return auth;
 
   try {
     const supabase = await createAuthClient();

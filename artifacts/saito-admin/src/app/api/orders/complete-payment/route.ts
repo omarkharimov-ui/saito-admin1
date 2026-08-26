@@ -7,6 +7,7 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
+/** @deprecated Use POST /api/orders/pay instead. Kept for backward compatibility. */
 export async function POST(request: Request) {
   const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
   if (!auth.authenticated) {
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { order_id, payments, payment_method, cash_amount, card_amount, tip_amount, discount_amount, discount_type, performed_by, terminal_id } = body;
+    const { order_id, payments, payment_method, cash_amount, card_amount, tip_amount, discount_amount, discount_type, performed_by, terminal_id, cash_drawer_session_id } = body;
 
     if (!order_id || !payments || !Array.isArray(payments) || payments.length === 0) {
       return NextResponse.json({ error: 'order_id and payments array are required' }, { status: 400 });
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
         p_discount_type: discount_type || null,
         p_performed_by: performed_by || null,
         p_performed_by_terminal_id: terminal_id || null,
+        p_cash_drawer_session_id: cash_drawer_session_id || null,
       }),
     });
 

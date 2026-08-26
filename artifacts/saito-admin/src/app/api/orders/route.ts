@@ -112,13 +112,19 @@ export async function POST(request: Request) {
         // Conditional PATCH with version filter — if another request updated it
         // between our read and this PATCH, 0 rows will be affected
         const currentVersion = existingOrder.version || 0;
+        // Whitelist allowed fields — payment/status fields must go through complete_payment_atomic
+        const ALLOWED_UPDATE_FIELDS = ['table_number', 'guest_count', 'notes', 'order_type', 'order_source', 'course', 'is_hold', 'hold_until', 'reservation_id'];
+        const safeData: Record<string, any> = {};
+        for (const key of ALLOWED_UPDATE_FIELDS) {
+          if (data && key in data) safeData[key] = data[key];
+        }
         const patchRes = await fetch(
           `${svc().url}/rest/v1/orders?id=eq.${id}&version=eq.${currentVersion}`,
           {
             method: 'PATCH',
             headers: { ...svc().headers, 'Prefer': 'return=representation' },
             body: JSON.stringify({ 
-              ...data, 
+              ...safeData, 
               version: currentVersion + 1 
             }),
           }

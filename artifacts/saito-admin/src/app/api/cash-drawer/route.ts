@@ -8,6 +8,8 @@ const svc = () => createClient(
 );
 
 export async function GET() {
+  const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+  if (!auth.authenticated) return auth;
   const s = svc();
   try {
     const { data: session, error: sessErr } = await s

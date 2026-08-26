@@ -90,7 +90,7 @@ export function PinGuard({ open, onClose, onVerified, title, action = 'admin' }:
             {...appleCard}
             transition={fastExit}
             onClick={e => e.stopPropagation()}
-            className={`w-80 rounded-3xl p-7 shadow-elevated border backdrop-blur-2xl ${lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'}`}
+            className={`w-80 rounded-3xl p-7 shadow-elevated border ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
           >
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">

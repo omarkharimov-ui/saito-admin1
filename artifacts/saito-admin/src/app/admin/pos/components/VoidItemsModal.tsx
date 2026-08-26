@@ -115,7 +115,7 @@ export function VoidItemsModal({ open, onClose, orderId, items, onSuccess }: Voi
             {...appleCard}
             transition={fastExit}
             onClick={e => e.stopPropagation()}
-            className={`w-[92%] max-w-sm max-h-[80vh] rounded-3xl p-6 shadow-elevated border backdrop-blur-2xl flex flex-col ${lightMode ? 'bg-white/85 border-zinc-200' : 'bg-zinc-900/85 border-white/10'}`}
+            className={`w-[92%] max-w-sm max-h-[80vh] rounded-3xl p-6 shadow-elevated border flex flex-col ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-900 border-white/10'}`}
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">

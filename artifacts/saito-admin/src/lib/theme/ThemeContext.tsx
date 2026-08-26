@@ -56,15 +56,13 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       html.classList.toggle('light', lightMode);
       html.style.colorScheme = lightMode ? 'light' : 'dark';
 
-      // Premium theme switch animation
+      // Premium Apple-style theme switch animation
       html.classList.add('theme-switching');
-      html.style.transition = 'background-color 0.3s cubic-bezier(0.4,0,0.2,1), color 0.3s cubic-bezier(0.4,0,0.2,1)';
-      html.style.animation = 'theme-pulse 0.4s cubic-bezier(0.22,1,0.36,1)';
+      html.style.animation = 'theme-pulse 0.55s cubic-bezier(0.22, 1, 0.36, 1)';
       setTimeout(() => {
         html.classList.remove('theme-switching');
-        html.style.transition = '';
         html.style.animation = '';
-      }, 450);
+      }, 600);
     } catch {
       // ignore
     }

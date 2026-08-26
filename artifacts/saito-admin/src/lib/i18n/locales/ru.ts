@@ -515,6 +515,12 @@ export const ru: TranslationMap = {
   receipt_footer_label: 'Подпись чека',
   receipt_footer_hint: 'Сообщение для покупателя в нижней части чека',
   receipt_footer_placeholder: 'Спасибо!',
+  receipt_staff_name_label: 'Имя Официанта',
+  receipt_staff_name_hint: 'Имя сотрудника, указанное в чеке',
+  receipt_staff_name_placeholder: 'Али Гасанов',
+  receipt_payment_method_label: 'Способ Оплаты',
+  receipt_payment_method_hint: 'Тип оплаты, указанный в чеке',
+  receipt_payment_method_placeholder: 'Наличные / Карта / Терминал',
   receipt_saved: 'Настройки чека сохранены',
 
   // Analytics Tab

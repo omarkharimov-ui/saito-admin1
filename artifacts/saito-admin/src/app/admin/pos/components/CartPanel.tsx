@@ -950,14 +950,12 @@ export function CartPanel({
       </div>
       </>)}
 
-      {/* ═══ Unified morph action button — always same position ═══ */}
+      {/* ═══ Unified morph action button — stable morph, no blink ═══ */}
       {(() => {
-        if (isEmpty && !canSeat) return null;
+        if (!isDineInContext && isEmpty) return null;
         const showActions = isDineInContext && hasExistingOrder && !hasDraft && orderButtonStatus === 'idle';
-        // When cart has items on an empty table, show SEND TO KITCHEN (auto-seats on send)
-        const hasCartItems = !isEmpty && cart.items.length > 0;
+        const hasCartItems = cart.items.length > 0;
         const btnAction = lossMode ? 'loss' : hasCartItems ? 'send' : canSeat ? 'seat' : showActions ? 'actions' : 'send';
-        const btnKey = `${btnAction}-${cart.table_number}`;
         const btnLabel = lossMode
           ? t('loss_confirm')
           : hasCartItems
@@ -968,8 +966,8 @@ export function CartPanel({
                 ? t('actions')
                 : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
         const btnDisabled = (lossMode && selectedForLoss.size === 0) || confirming || seatBusy;
-        const btnBg = (hasCartItems && canSeat)
-          ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
+        const btnBg = hasCartItems
+          ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
           : canSeat
             ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
             : lossMode
@@ -981,27 +979,26 @@ export function CartPanel({
                   : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-white/40');
         return (
           <div className="w-full flex-shrink-0 px-6 pb-5 pt-2">
-            <AnimatePresence mode="popLayout">
-              <motion.button
-                key={btnKey}
-                layout
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                disabled={btnDisabled}
-                onClick={(hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : lossMode ? confirmLoss : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
-                className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 ${btnDisabled ? 'cursor-wait opacity-80' : 'cursor-pointer'} ${btnBg}`}
-              >
-                {seatBusy ? <Loader2 size={20} className="animate-spin" /> :
-                 (hasCartItems && canSeat) ? <Send size={16} /> :
-                 canSeat ? <Armchair size={18} /> :
-                 lossMode ? <CheckCircle size={18} /> :
-                 showActions ? <MoreHorizontal size={18} /> :
-                 <Send size={16} />}
+            <motion.button
+              key={`morph-${cart.table_number}`}
+              layout
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ layout: { duration: 0.3, ease: [0.32, 0.72, 0, 1] } }}
+              disabled={btnDisabled}
+              onClick={(hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : lossMode ? confirmLoss : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
+              className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-colors duration-300 ${btnDisabled ? 'cursor-wait opacity-80' : 'cursor-pointer'} ${btnBg}`}
+            >
+              {seatBusy ? <Loader2 size={20} className="animate-spin" /> :
+               (hasCartItems && canSeat) ? <Send size={16} /> :
+               canSeat ? <Armchair size={18} /> :
+               lossMode ? <CheckCircle size={18} /> :
+               showActions ? <MoreHorizontal size={18} /> :
+               <Send size={16} />}
+              <motion.span key={btnAction} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                 {btnLabel}
-              </motion.button>
-            </AnimatePresence>
+              </motion.span>
+            </motion.button>
           </div>
         );
       })()}

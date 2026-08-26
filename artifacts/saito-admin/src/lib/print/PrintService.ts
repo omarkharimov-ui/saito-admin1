@@ -54,6 +54,8 @@ export async function getReceiptSettings(): Promise<{
   serviceFeePct: number;
   showServiceFee: boolean;
   footerText: string;
+  staffName: string;
+  paymentMethod: string;
   paperWidth: string;
   copies: number;
   autoPrintReceipt: boolean;
@@ -61,7 +63,7 @@ export async function getReceiptSettings(): Promise<{
 }> {
   const { data } = await supabase
     .from('settings')
-    .select('restaurant_name, address, receipt_title, receipt_currency, receipt_service_fee_pct, receipt_show_service_fee, receipt_footer_text, printer_paper_width, print_copies, auto_print_receipt, auto_print_kitchen')
+    .select('restaurant_name, address, receipt_title, receipt_currency, receipt_service_fee_pct, receipt_show_service_fee, receipt_footer_text, receipt_staff_name, receipt_payment_method, printer_paper_width, print_copies, auto_print_receipt, auto_print_kitchen')
     .single();
 
   return {
@@ -72,6 +74,8 @@ export async function getReceiptSettings(): Promise<{
     serviceFeePct: Number(data?.receipt_service_fee_pct) || 10,
     showServiceFee: data?.receipt_show_service_fee ?? true,
     footerText: data?.receipt_footer_text || '',
+    staffName: data?.receipt_staff_name || '',
+    paymentMethod: data?.receipt_payment_method || '',
     paperWidth: data?.printer_paper_width || '80mm',
     copies: Number(data?.print_copies) || 1,
     autoPrintReceipt: data?.auto_print_receipt ?? true,

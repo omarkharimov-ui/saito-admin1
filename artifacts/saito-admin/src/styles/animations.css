@@ -201,16 +201,22 @@
   100% { stroke-dashoffset: -300; }
 }
 
-/* ── Theme switch animation ── */
+/* ── Theme switch animation — Apple-style premium ── */
 @keyframes theme-pulse {
-  0%   { transform: scale(1);     filter: brightness(1) saturate(1);   }
-  20%  { transform: scale(1.003); filter: brightness(0.88) saturate(1.2); }
-  50%  { transform: scale(1.001); filter: brightness(0.95) saturate(1.05); }
-  100% { transform: scale(1);     filter: brightness(1) saturate(1);   }
+  0%   { transform: scale(1);       filter: brightness(1)    saturate(1);   }
+  15%  { transform: scale(1.0015);  filter: brightness(0.82) saturate(1.15); }
+  40%  { transform: scale(1.0008);  filter: brightness(0.92) saturate(1.08); }
+  70%  { transform: scale(1.0002);  filter: brightness(0.98) saturate(1.02); }
+  100% { transform: scale(1);       filter: brightness(1)    saturate(1);   }
 }
 .theme-switching {
-  transition: background-color 0.3s cubic-bezier(0.4,0,0.2,1),
-              color 0.3s cubic-bezier(0.4,0,0.2,1) !important;
   will-change: transform, filter;
+}
+/* Smooth crossfade for child elements during theme switch */
+.theme-switching *:not(html) {
+  transition: background-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.45s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 

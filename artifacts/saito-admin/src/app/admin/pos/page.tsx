@@ -43,6 +43,8 @@ interface PosReceipt {
   receiptTitle?: string;
   paymentDate?: string;
   paymentTime?: string;
+  staffName?: string;
+  paymentMethodName?: string;
 }
 
 export default function POSPage() {
@@ -737,6 +739,8 @@ export default function POSPage() {
           receiptTitle: receiptSettings?.receiptTitle || 'SİFARİŞ ÇEKİ',
           paymentDate: paymentNow.toLocaleDateString('az-AZ'),
           paymentTime: paymentNow.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
+          staffName: receiptSettings?.staffName || '',
+          paymentMethodName: receiptSettings?.paymentMethod || '',
         });
         setReceiptTendered(method === 'cash' ? tenderedAmount : undefined);
         setPaymentView(false);
@@ -839,6 +843,8 @@ export default function POSPage() {
         receiptTitle: receiptSettings2?.receiptTitle || 'SİFARİŞ ÇEKİ',
         paymentDate: paymentNow2.toLocaleDateString('az-AZ'),
         paymentTime: paymentNow2.toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' }),
+        staffName: receiptSettings2?.staffName || '',
+        paymentMethodName: receiptSettings2?.paymentMethod || '',
       });
       setReceiptTendered(method === 'cash' ? tenderedAmount : undefined);
 
@@ -1407,8 +1413,16 @@ export default function POSPage() {
                   transition={fastExit}
                   className="h-full flex flex-col p-6"
                 >
-                {cleanMode && (
-                  <div className="flex items-center justify-end gap-3 mb-6">
+                <AnimatePresence mode="wait" initial={false}>
+                {cleanMode ? (
+                  <motion.div
+                    key="clean-toolbar"
+                    initial={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
+                    transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+                    className="flex items-center justify-end gap-3 mb-6"
+                  >
                     <div className="flex items-center gap-2">
                      <button
                        onClick={() => router.push('/admin/reservations')}
@@ -1419,7 +1433,7 @@ export default function POSPage() {
                        <span className="hidden sm:inline">{t('reservations')}</span>
                      </button>
                      <button
-onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
+                       onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                        className={`flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] ${lightMode ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' : 'bg-amber-500/20 border-amber-500/30 text-amber-300 hover:bg-amber-500/30'}`}
                      >
                        <span>+</span>
@@ -1473,10 +1487,15 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                        </svg>
                      </button>
                     </div>
-                  </div>
-                )}
-                {!cleanMode && (
-                <div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="normal-toolbar"
+                    initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                    transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+                  >
                     <div className="flex items-center justify-end gap-3 mb-6">
                      <button
                        onClick={() => router.push('/admin/reservations')}
@@ -1487,7 +1506,7 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                        <span className="hidden sm:inline">{t('reservations')}</span>
                      </button>
                      <button
-onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
+                       onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                         className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-wider hover:bg-amber-500/20 transition-all active:scale-[0.95]"
                      >
                        <span>+</span>
@@ -1540,8 +1559,9 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
                        </svg>
                      </button>
                   </div>
-                 </div>
-               )}
+                  </motion.div>
+                )}
+                </AnimatePresence>
 
                   {reservationArrival && (
                    <ReservationActionSheet
@@ -2219,14 +2239,36 @@ onClick={() => { playHapticSound('select'); setWalkInOpen(true); }}
             >
               {/* Success checkmark header */}
               <div className="px-4 pt-5 pb-3 text-center">
-                <div className="mx-auto mb-2 w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.15 }}
+                  className="mx-auto mb-2 w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center"
+                >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
+                    <motion.polyline
+                      points="20 6 9 17 4 12"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4, delay: 0.4, ease: 'easeOut' }}
+                    />
                   </svg>
-                </div>
+                </motion.div>
                 <h2 className="text-sm font-black text-emerald-600 tracking-tight uppercase">
                   {t('order_paid')} ✓
                 </h2>
+                {(receiptView.staffName || receiptView.paymentMethodName) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 }}
+                    className="flex items-center justify-center gap-3 mt-2 text-[11px] text-zinc-500"
+                  >
+                    {receiptView.staffName && <span>{receiptView.staffName}</span>}
+                    {receiptView.staffName && receiptView.paymentMethodName && <span>·</span>}
+                    {receiptView.paymentMethodName && <span>{receiptView.paymentMethodName}</span>}
+                  </motion.div>
+                )}
               </div>
 
               {/* Inline receipt items */}

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFormDirtyCompare } from '@/hooks/useFormDirty';
 import { supabase } from '@/lib/supabase';
-import { Save, Loader2, Receipt, Percent, DollarSign, AlignLeft, Eye } from 'lucide-react';
+import { Save, Loader2, Receipt, Percent, DollarSign, AlignLeft, Eye, User, CreditCard } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { inputCls, labelCls, saveButtonCls } from './_shared';
@@ -16,6 +16,8 @@ interface ReceiptCfg {
   receipt_service_fee_pct: number;
   receipt_show_service_fee: boolean;
   receipt_footer_text: string;
+  receipt_staff_name: string;
+  receipt_payment_method: string;
 }
 
 const DEFAULTS: ReceiptCfg = {
@@ -24,6 +26,8 @@ const DEFAULTS: ReceiptCfg = {
   receipt_service_fee_pct: 10,
   receipt_show_service_fee: true,
   receipt_footer_text: 'Zəhmət olmasa gözləyin, tezliklə sizinlə olacağıq.',
+  receipt_staff_name: '',
+  receipt_payment_method: '',
 };
 
 const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null }) => {
@@ -45,6 +49,8 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
         receipt_service_fee_pct: data.receipt_service_fee_pct ?? DEFAULTS.receipt_service_fee_pct,
         receipt_show_service_fee: data.receipt_show_service_fee ?? DEFAULTS.receipt_show_service_fee,
         receipt_footer_text: data.receipt_footer_text ?? DEFAULTS.receipt_footer_text,
+        receipt_staff_name: data.receipt_staff_name ?? DEFAULTS.receipt_staff_name,
+        receipt_payment_method: data.receipt_payment_method ?? DEFAULTS.receipt_payment_method,
       });
     };
 
@@ -53,7 +59,7 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
       setLoading(false);
       return;
     }
-    supabase.from('settings').select('receipt_title, receipt_currency, receipt_service_fee_pct, receipt_show_service_fee, receipt_footer_text').single().then(({ data }) => {
+    supabase.from('settings').select('receipt_title, receipt_currency, receipt_service_fee_pct, receipt_show_service_fee, receipt_footer_text, receipt_staff_name, receipt_payment_method').single().then(({ data }) => {
       if (data) merge(data);
       setLoading(false);
     });
@@ -156,6 +162,32 @@ const ReceiptTab = ({ initialData }: { initialData?: Record<string, any> | null 
             onChange={e => setCfg({ ...cfg, receipt_footer_text: e.target.value })}
           />
           <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('receipt_footer_hint')}</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Ofisiant adı */}
+          <div>
+            <label className={labelCls}><User size={11} /> {t('receipt_staff_name_label')}</label>
+            <input
+              className={inputCls}
+              value={cfg.receipt_staff_name}
+              placeholder={t('receipt_staff_name_placeholder')}
+              onChange={e => setCfg({ ...cfg, receipt_staff_name: e.target.value })}
+            />
+            <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('receipt_staff_name_hint')}</p>
+          </div>
+
+          {/* Ödəniş növü */}
+          <div>
+            <label className={labelCls}><CreditCard size={11} /> {t('receipt_payment_method_label')}</label>
+            <input
+              className={inputCls}
+              value={cfg.receipt_payment_method}
+              placeholder={t('receipt_payment_method_placeholder')}
+              onChange={e => setCfg({ ...cfg, receipt_payment_method: e.target.value })}
+            />
+            <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5">{t('receipt_payment_method_hint')}</p>
+          </div>
         </div>
 
       </div>

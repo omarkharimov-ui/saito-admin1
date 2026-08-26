@@ -17,6 +17,9 @@ import { isAtLeast, requiresPin } from '@/lib/pos-permissions';
 import { PinGuard } from './PinGuard';
 import { VoidItemsModal } from './VoidItemsModal';
 import { RefundModal } from './RefundModal';
+import { GiftCardModal } from './GiftCardModal';
+import { RoomChargeModal } from './RoomChargeModal';
+import { CorporateModal } from './CorporateModal';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 type PaymentMethod = 'cash' | 'card' | 'qr' | 'transfer' | 'corporate' | 'gift_card' | 'voucher' | 'room_charge';
@@ -112,8 +115,11 @@ export function ActionSheet({
   const [voidModalOpen, setVoidModalOpen] = useState(false);
   const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [tipAmount, setTipAmount] = useState('');
-  const [giftCardCode, setGiftCardCode] = useState('');
-  const [giftCardView, setGiftCardView] = useState(false);
+  const [tipExpanded, setTipExpanded] = useState(false);
+  const [showMorePayments, setShowMorePayments] = useState(false);
+  const [giftCardModalOpen, setGiftCardModalOpen] = useState(false);
+  const [roomChargeModalOpen, setRoomChargeModalOpen] = useState(false);
+  const [corporateModalOpen, setCorporateModalOpen] = useState(false);
   const customerSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadCustomers = async (q: string) => {
@@ -461,135 +467,123 @@ export function ActionSheet({
                  </motion.div>
                )}
 
-              {currentView === 'payment' && (
+              {currentView === 'payment' && !showMorePayments && (
                 <motion.div key="ui-payment" {...morphView} className="flex flex-col gap-2" transition={fastExit}>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('payment_method_label')}</p>
-                   <p className="text-2xl font-black tracking-tighter mb-3 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
+                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('payment_method_label')}</p>
+                    <p className="text-2xl font-black tracking-tighter mb-3 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
 
                   {isDeliveryOnly ? (
                     <>
-                      {/* Terminal — kartla ödəniş */}
-                      <button onClick={() => setCardConfirmView(true)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
+                      <button onClick={() => setCardConfirmView(true)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
                         <CreditCard size={20} strokeWidth={2.5} />
-                        <div className="flex flex-col items-start">
-                          <span className="text-sm font-black tracking-wide">Terminal</span>
-                          <span className="text-[10px] font-medium opacity-60">{t('card_payment_terminal')}</span>
-                        </div>
+                        <span className="text-sm font-black tracking-wide">{t('card') || 'Kart'}</span>
                       </button>
-                      {/* Kart-to-Kart — köçürmə */}
-                      <button onClick={() => onPaymentMethodSelect?.('transfer')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 active:scale-[0.98] transition-all hover:bg-purple-500/20">
+                      <button onClick={() => onPaymentMethodSelect?.('transfer')} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 active:scale-[0.98] transition-all hover:bg-purple-500/20">
                         <ArrowLeftRight size={20} strokeWidth={2.5} />
-                        <div className="flex flex-col items-start">
-                          <span className="text-sm font-black tracking-wide">Kart-to-Kart</span>
-                          <span className="text-[10px] font-medium opacity-60">{t('bank_transfer')}</span>
-                        </div>
+                        <span className="text-sm font-black tracking-wide">Kart-to-Kart</span>
                       </button>
-                      {/* t('cash') — çatdırma zamanı yerində ödəniş */}
-                      <button onClick={() => onPaymentMethodSelect?.('cash', table?.total_amount || 0)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all hover:bg-emerald-500/20">
+                      <button onClick={() => onPaymentMethodSelect?.('cash', table?.total_amount || 0)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all hover:bg-emerald-500/20">
                         <Wallet size={20} strokeWidth={2.5} />
-                        <div className="flex flex-col items-start">
-                          <span className="text-sm font-black tracking-wide">{t('cash')}</span>
-                          <span className="text-[10px] font-medium opacity-60">{t('pay_on_delivery')}</span>
-                        </div>
+                        <span className="text-sm font-black tracking-wide">{t('cash')}</span>
                       </button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => { setCashTenderedView(true); setCashTenderedAmount(''); }} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all hover:bg-emerald-500/20">
+                      {/* Primary: Nağd */}
+                      <button onClick={() => { setCashTenderedView(true); setCashTenderedAmount(''); }} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 active:scale-[0.98] transition-all hover:bg-emerald-500/20">
                         <Wallet size={20} strokeWidth={2.5} />
-                        <div className="flex flex-col items-start">
-                          <span className="text-sm font-black tracking-wide">{t('cash')}</span>
-                          <span className="text-[10px] font-medium opacity-60">{t('enter_tendered')}</span>
-                        </div>
+                        <span className="text-sm font-black tracking-wide">{t('cash')}</span>
                       </button>
-                       <button onClick={() => setCardConfirmView(true)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
-                          <CreditCard size={20} strokeWidth={2.5} />
-                          <div className="flex flex-col items-start">
-                            <span className="text-sm font-black tracking-wide">Kart</span>
-                            <span className="text-[10px] font-medium opacity-60">{t('terminal_payment')}</span>
-                          </div>
-                        </button>
-                        <button onClick={() => setLocalSplit({ cash: '', card: (table?.total_amount || 0).toFixed(2) })} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-gold/10 border border-gold/20 text-gold active:scale-[0.98] transition-all hover:bg-gold/20">
-                           <Receipt size={20} strokeWidth={2.5} />
-                           <div className="flex flex-col items-start">
-                             <span className="text-sm font-black tracking-wide">{t('split_short')}</span>
-                             <span className="text-[10px] font-medium opacity-60">{t('cash_card_mix')}</span>
-                           </div>
-                         </button>
-                        <button onClick={() => setSplitByItemsView(true)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 active:scale-[0.98] transition-all hover:bg-purple-500/20">
-                           <Hash size={20} strokeWidth={2.5} />
-                           <div className="flex flex-col items-start">
-                             <span className="text-sm font-black tracking-wide">{t('per_item')}</span>
-                             <span className="text-[10px] font-medium opacity-60">{t('split_by_item')}</span>
-                           </div>
-                         </button>
-                        <button onClick={() => onPaymentMethodSelect?.('gift_card')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 active:scale-[0.98] transition-all hover:bg-rose-500/20">
-                           <Gift size={20} strokeWidth={2.5} />
-                           <div className="flex flex-col items-start">
-                             <span className="text-sm font-black tracking-wide">{t('gift_card') || 'Hədiyyə kartı'}</span>
-                             <span className="text-[10px] font-medium opacity-60">{t('gift_card_payment') || 'Kart kodu daxil edin'}</span>
-                           </div>
-                         </button>
-                        <button onClick={() => onPaymentMethodSelect?.('room_charge')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 active:scale-[0.98] transition-all hover:bg-indigo-500/20">
-                           <Building2 size={20} strokeWidth={2.5} />
-                           <div className="flex flex-col items-start">
-                             <span className="text-sm font-black tracking-wide">{t('room_charge') || 'Otaq hesabı'}</span>
-                             <span className="text-[10px] font-medium opacity-60">{t('room_charge_desc') || 'Hotel otağına yaz'}</span>
-                           </div>
-                         </button>
-                        <button onClick={() => onPaymentMethodSelect?.('corporate')} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 active:scale-[0.98] transition-all hover:bg-cyan-500/20">
-                           <Building2 size={20} strokeWidth={2.5} />
-                           <div className="flex flex-col items-start">
-                             <span className="text-sm font-black tracking-wide">{t('corporate') || 'Korporativ'}</span>
-                             <span className="text-[10px] font-medium opacity-60">{t('corporate_desc') || 'Şirkət hesabı'}</span>
-                           </div>
-                         </button>
+                      {/* Primary: Kart */}
+                      <button onClick={() => setCardConfirmView(true)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 active:scale-[0.98] transition-all hover:bg-blue-500/20">
+                        <CreditCard size={20} strokeWidth={2.5} />
+                        <span className="text-sm font-black tracking-wide">{t('card') || 'Kart'}</span>
+                      </button>
+                      {/* Primary: Böl */}
+                      <button onClick={() => setLocalSplit({ cash: '', card: (table?.total_amount || 0).toFixed(2) })} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-gold/10 border border-gold/20 text-gold active:scale-[0.98] transition-all hover:bg-gold/20">
+                        <Receipt size={20} strokeWidth={2.5} />
+                        <span className="text-sm font-black tracking-wide">{t('split_short')}</span>
+                      </button>
+                      {/* Daha çox */}
+                      <button onClick={() => setShowMorePayments(true)} className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl border transition-all active:scale-[0.98] hover:opacity-80" style={{ borderColor: lightMode ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)', background: lightMode ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)', color: lightMode ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)' }}>
+                        <span className="text-sm font-black tracking-wide">{t('more') || 'Daha çox'}</span>
+                        <ChevronRight size={16} strokeWidth={3} />
+                      </button>
                     </>
                   )}
 
-                  {/* Tip input */}
-                  <div className={`mt-3 p-3 rounded-2xl border ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
-                    <div className="flex items-center gap-3">
-                      <Wallet size={18} className="text-amber-400 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-500/60 mb-1">{t('tip') || 'Propina'}</p>
-                        <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>₼</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={tipAmount}
-                              onChange={e => setTipAmount(e.target.value)}
-                              placeholder="0"
-                              className={`w-full rounded-xl pl-7 pr-3 py-2.5 text-sm font-black outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`}
-                            />
+                  {/* Tip — inline, collapsed by default */}
+                  {!isDeliveryOnly && (
+                    <div className="mt-2">
+                      {!tipExpanded ? (
+                        <button onClick={() => setTipExpanded(true)} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all" style={{ color: lightMode ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.25)' }}>
+                          {t('tip') || 'Çaypulu'} <span className="text-amber-400">+₼{tipAmount || '0'}</span>
+                        </button>
+                      ) : (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-2.5 rounded-xl border ${lightMode ? 'bg-white border-black/5' : 'bg-white/5 border-white/10'}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex-shrink-0">{t('tip') || 'Çaypulu'}</span>
+                            <div className="relative flex-1">
+                              <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-black ${lightMode ? 'text-zinc-400' : 'text-white/30'}`}>₼</span>
+                              <input type="number" step="0.01" min="0" value={tipAmount} onChange={e => setTipAmount(e.target.value)} placeholder="0"
+                                className={`w-full rounded-lg pl-5 pr-2 py-1.5 text-xs font-black outline-none border transition-all ${lightMode ? 'bg-zinc-50 border-zinc-200 text-black focus:border-amber-400' : 'bg-white/5 border-white/10 text-white focus:border-amber-400/50'}`} />
+                            </div>
+                            {[5, 10, 15].map(pct => {
+                              const val = Math.round((table?.total_amount || 0) * pct / 100 * 100) / 100;
+                              return (
+                                <button key={pct} onClick={() => setTipAmount(val.toString())}
+                                  className={`px-2 py-1.5 rounded-lg text-[8px] font-black border transition-all ${
+                                    Math.abs((parseFloat(tipAmount) || 0) - val) < 0.01 ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                                    : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-400' : 'bg-white/5 border-white/10 text-white/30'
+                                  } active:scale-95`}>
+                                  {pct}%
+                                </button>
+                              );
+                            })}
                           </div>
-                          {[5, 10, 15].map(pct => {
-                            const val = Math.round((table?.total_amount || 0) * pct / 100 * 100) / 100;
-                            return (
-                              <button
-                                key={pct}
-                                onClick={() => setTipAmount(val.toString())}
-                                className={`px-3 py-2 rounded-xl text-[9px] font-black border transition-all ${
-                                  Math.abs((parseFloat(tipAmount) || 0) - val) < 0.01
-                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
-                                    : lightMode ? 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-amber-50' : 'bg-white/5 border-white/10 text-white/40 hover:bg-amber-500/10'
-                                } active:scale-95`}
-                              >
-                                {pct}%
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                        </motion.div>
+                      )}
                     </div>
-                  </div>
+                  )}
 
                        <button onClick={onBackFromPayment} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
                  </motion.div>
                )}
+
+              {/* DAHA ÇOX — secondary payment methods */}
+              {currentView === 'payment' && showMorePayments && (
+                <motion.div key="ui-more-payments" {...morphView} className="flex flex-col gap-2" transition={fastExit}>
+                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-1">{t('more') || 'Daha çox'}</p>
+                    <p className="text-2xl font-black tracking-tighter mb-3 text-[var(--theme-accent)]">₼{(table?.total_amount || 0).toFixed(2)}</p>
+
+                  {/* Gift Card */}
+                  <button onClick={() => { setGiftCardModalOpen(true); setShowMorePayments(false); }} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 active:scale-[0.98] transition-all hover:bg-rose-500/20">
+                    <Gift size={20} strokeWidth={2.5} />
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-black tracking-wide">{t('gift_card') || 'Hədiyyə kartı'}</span>
+                      <span className="text-[10px] font-medium opacity-60">{t('gift_card_payment') || 'Kart balansından ödə'}</span>
+                    </div>
+                  </button>
+                  {/* Room Charge */}
+                  <button onClick={() => { setRoomChargeModalOpen(true); setShowMorePayments(false); }} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 active:scale-[0.98] transition-all hover:bg-indigo-500/20">
+                    <Building2 size={20} strokeWidth={2.5} />
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-black tracking-wide">{t('room_charge') || 'Otaq hesabı'}</span>
+                      <span className="text-[10px] font-medium opacity-60">{t('room_charge_desc') || 'Qonağın otağına yaz'}</span>
+                    </div>
+                  </button>
+                  {/* Corporate */}
+                  <button onClick={() => { setCorporateModalOpen(true); setShowMorePayments(false); }} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 active:scale-[0.98] transition-all hover:bg-cyan-500/20">
+                    <Building2 size={20} strokeWidth={2.5} />
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-black tracking-wide">{t('corporate') || 'Korporativ'}</span>
+                      <span className="text-[10px] font-medium opacity-60">{t('corporate_desc') || 'Şirkət hesabına yaz'}</span>
+                    </div>
+                  </button>
+
+                  <button onClick={() => setShowMorePayments(false)} className="w-full mt-3 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 transition-all text-white/90">{t('back')}</button>
+                </motion.div>
+              )}
 
               {currentView === 'cash-tendered' && (
                  <motion.div key="ui-cash-tendered" {...morphView} className="flex flex-col gap-3" transition={fastExit}>
@@ -1150,6 +1144,30 @@ export function ActionSheet({
         paidAmount={activePaidAmount}
         paymentMethod={activePaymentMethod}
         onSuccess={() => { onRefresh?.(); }}
+      />
+
+      {/* Gift Card Modal */}
+      <GiftCardModal
+        open={giftCardModalOpen}
+        onClose={() => setGiftCardModalOpen(false)}
+        amount={(table?.total_amount || 0) + (parseFloat(tipAmount) || 0)}
+        onSuccess={() => { onPaymentMethodSelect?.('gift_card'); }}
+      />
+
+      {/* Room Charge Modal */}
+      <RoomChargeModal
+        open={roomChargeModalOpen}
+        onClose={() => setRoomChargeModalOpen(false)}
+        amount={(table?.total_amount || 0) + (parseFloat(tipAmount) || 0)}
+        onSuccess={() => { onPaymentMethodSelect?.('room_charge'); }}
+      />
+
+      {/* Corporate Modal */}
+      <CorporateModal
+        open={corporateModalOpen}
+        onClose={() => setCorporateModalOpen(false)}
+        amount={(table?.total_amount || 0) + (parseFloat(tipAmount) || 0)}
+        onSuccess={() => { onPaymentMethodSelect?.('corporate'); }}
       />
     </>
   );

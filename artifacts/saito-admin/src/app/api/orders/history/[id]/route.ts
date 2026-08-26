@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const order = orders[0];
 
     const paymentsRes = await fetch(
-      `${s.url}/rest/v1/order_payments?order_id=eq.${id}&order=created_at.asc`,
+      `${s.url}/rest/v1/payments?order_id=eq.${id}&order=created_at.asc`,
       { headers: s.headers }
     );
     const payments = paymentsRes.ok ? await paymentsRes.json() : [];

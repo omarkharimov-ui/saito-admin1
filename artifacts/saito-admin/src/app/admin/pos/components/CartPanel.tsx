@@ -678,7 +678,11 @@ export function CartPanel({
                    </span>
                     <div className="flex items-center gap-2">
                       <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
-                        <button onClick={() => onUpdateQty?.(originalIdx, -1)} className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95">−</button>
+                        <button
+                          onClick={() => onUpdateQty?.(originalIdx, -1)}
+                          disabled={!!(item as any).kitchen_status || (item.sentQuantity ?? 0) > 0}
+                          className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+                        >−</button>
                         <span className="w-12 h-11 flex items-center justify-center text-sm font-black tabular-nums">{item.quantity}</span>
                        <motion.button
                          whileTap={{ scale: 0.95, transition: { type: 'spring', stiffness: 400, damping: 35, mass: 0.4 } }}
@@ -721,7 +725,7 @@ export function CartPanel({
                                   setVoidModalItems([{
                                     id: item.id,
                                     product_name: item.product_name,
-                                    quantity: item.quantity,
+                                    quantity: item.sentQuantity || item.quantity,
                                     unit_price: item.unit_price,
                                   }]);
                                   setVoidModalOpen(true);

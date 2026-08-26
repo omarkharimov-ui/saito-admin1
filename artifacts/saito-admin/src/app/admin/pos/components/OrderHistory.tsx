@@ -699,7 +699,7 @@ export function OrderHistory({ open, onClose, posRole }: OrderHistoryProps) {
                     </button>
                     <button
                       onClick={() => guardAction(() => openRefundModal(detailOrder), 'refund')}
-                      disabled={(Number(detailOrder.refund_amount) || 0) >= (Number(detailOrder.paid_amount) || 0)}
+                      disabled={detailOrder.status !== 'paid' || (Number(detailOrder.refund_amount) || 0) >= (Number(detailOrder.paid_amount) || 0)}
                       className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center gap-2 hover:bg-amber-500/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <RefreshCw size={14} /> {t('refund') || 'Geri ödəniş'}
@@ -822,24 +822,44 @@ function RefundView({
           const item = order.order_items?.find(i => i.id === itemId);
           if (!item) continue;
           const itemAmount = Number(item.unit_price) * sel.qty;
-          const res = await apiFetch('/api/orders/refund', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              order_id: order.id,
-              order_item_id: itemId,
-              quantity: sel.qty,
-              amount: itemAmount,
-              method: order.payment_method || 'cash',
-              item_fate: sel.fate === 'none' ? 'waste' : sel.fate,
-              reason: reason || 'customer_return',
-            }),
-          });
-          if (!res.ok) {
-            const err = await res.json();
-            toast.error(err.error || 'Refund uğursuz oldu');
-            allOk = false;
-            break;
+
+          if (sel.fate === 'none') {
+            const res = await apiFetch('/api/orders/refund', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                order_id: order.id,
+                amount: itemAmount,
+                method: order.payment_method || 'cash',
+                reason: reason || 'customer_return',
+              }),
+            });
+            if (!res.ok) {
+              const err = await res.json();
+              toast.error(err.error || 'Refund uğursuz oldu');
+              allOk = false;
+              break;
+            }
+          } else {
+            const res = await apiFetch('/api/orders/refund', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                order_id: order.id,
+                order_item_id: itemId,
+                quantity: sel.qty,
+                amount: itemAmount,
+                method: order.payment_method || 'cash',
+                item_fate: sel.fate,
+                reason: reason || 'customer_return',
+              }),
+            });
+            if (!res.ok) {
+              const err = await res.json();
+              toast.error(err.error || 'Refund uğursuz oldu');
+              allOk = false;
+              break;
+            }
           }
         }
         if (allOk) {

@@ -1767,6 +1767,7 @@ export const ru: TranslationMap = {
   error_retry: 'Ошибка. Повторить',
   void_items: 'Списание',
   void: 'Списание',
+  confirm_void: 'Списать',
   void_success: 'Товары списаны',
   void_error: 'Не удалось списать',
   refund_error: 'Не удалось вернуть',

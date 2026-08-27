@@ -12,7 +12,6 @@ import type { PosCart, PosCartItem, LossItem } from '../types/shared';
 import type { SendOrderButtonStatus } from './SendOrderButton';
 import { NumberRoll } from './NumberRoll';
 import { RollingNumber } from './RollingNumber';
-import { VoidItemsModal } from './VoidItemsModal';
 import { ReturnItemModal } from './ReturnItemModal';
 import { Numpad } from './Numpad';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
@@ -136,8 +135,9 @@ export function CartPanel({
   const [seatBusy, setSeatBusy] = useState(false);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
   const [contextMenuIdx, setContextMenuIdx] = useState<number | null>(null);
-  const [voidModalOpen, setVoidModalOpen] = useState(false);
-  const [voidModalItems, setVoidModalItems] = useState<any[]>([]);
+  const [voidMode, setVoidMode] = useState(false);
+  const [voidSelection, setVoidSelection] = useState<Record<string, number>>({});
+  const [voidLoading, setVoidLoading] = useState(false);
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [returnModalItem, setReturnModalItem] = useState<any>(null);
   const [guestEditing, setGuestEditing] = useState(false);
@@ -270,11 +270,12 @@ export function CartPanel({
   }, [vkOpen, isNoteOpen]);
 
   useEffect(() => {
-    if (voidModalOpen || returnModalOpen || numpadOpen) {
+    if (returnModalOpen || numpadOpen) {
       closeVk();
       noteInputRef.current?.blur();
     }
-  }, [voidModalOpen, returnModalOpen, numpadOpen, closeVk]);
+    if (returnModalOpen || numpadOpen) setVoidMode(false);
+  }, [returnModalOpen, numpadOpen, closeVk]);
 
   if (!cart) {
     const msg = posMode !== 'dine_in' ? t('no_orders') || (posMode === 'takeaway' ? 'No orders' : 'No orders') : t('no_table_selected');
@@ -298,6 +299,66 @@ export function CartPanel({
     });
   }, [cart.items]);
   const hasVoidableItems = voidableItems.length > 0;
+
+  const voidSelectedCount = Object.keys(voidSelection).length;
+  const voidSelectedTotal = Object.entries(voidSelection).reduce((sum, [id, qty]) => {
+    const item = cart.items.find(i => i.id === id);
+    return sum + (item ? item.unit_price * qty : 0);
+  }, 0);
+
+  const toggleVoidItem = (id: string, maxQty: number) => {
+    setVoidSelection(prev => {
+      const current = prev[id] || 0;
+      if (current >= maxQty) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: current + 1 };
+    });
+  };
+
+  const setVoidQty = (id: string, qty: number, maxQty: number) => {
+    const clamped = Math.max(0, Math.min(qty, maxQty));
+    setVoidSelection(prev => {
+      if (clamped === 0) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: clamped };
+    });
+  };
+
+  const handleVoidConfirm = async () => {
+    if (voidSelectedCount === 0) return;
+    const activeOrder = (cart as any).order_id;
+    if (!activeOrder) return;
+    setVoidLoading(true);
+    try {
+      const payload = Object.entries(voidSelection).map(([id, qty]) => ({
+        order_item_id: id,
+        quantity: qty,
+      }));
+      const res = await apiFetch('/api/orders/void', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: activeOrder, items: payload }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(t('void_success') || 'Ləğv edildi');
+        setVoidMode(false);
+        setVoidSelection({});
+      } else {
+        toast.error(data.error || t('void_error') || 'Ləğv edilmədi');
+      }
+    } catch {
+      toast.error(t('network_error') || 'Şəbəkə xətası');
+    } finally {
+      setVoidLoading(false);
+    }
+  };
 
   // Contextual primary-action states (dine-in only)
   const isDineInContext = posMode === 'dine_in' && !isReservationMode;
@@ -636,28 +697,28 @@ export function CartPanel({
             >
               <button
                 onClick={() => {
-                  const activeOrder = (cart as any).order_id;
-                  if (!activeOrder) return;
-                  setVoidModalItems(voidableItems.map(i => ({
-                    id: i.id,
-                    product_name: i.product_name,
-                    quantity: i.sentQuantity || i.quantity,
-                    unit_price: i.unit_price,
-                    total_price: i.total_price,
-                  })));
-                  setVoidModalOpen(true);
+                  if (voidMode) {
+                    setVoidMode(false);
+                    setVoidSelection({});
+                  } else {
+                    setVoidMode(true);
+                  }
                 }}
                 title={t('void_items') || 'Ləğv et'}
                 tabIndex={hasVoidableItems ? 0 : -1}
                 style={{ pointerEvents: hasVoidableItems ? 'auto' : 'none', width: '100%' }}
-                className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border ${
-                  lightMode
-                    ? 'bg-rose-50 border-rose-200 text-rose-500 hover:text-rose-700 hover:bg-rose-100'
-                    : 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20'
+                className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border transition-all ${
+                  voidMode
+                    ? lightMode
+                      ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20'
+                      : 'bg-rose-500/20 text-rose-400 border-rose-500/40 shadow-lg shadow-rose-500/10'
+                    : lightMode
+                      ? 'bg-rose-50 border-rose-200 text-rose-500 hover:text-rose-700 hover:bg-rose-100'
+                      : 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20'
                 }`}
               >
-                <Ban size={12} className="mr-1.5" />
-                {t('void_items') || 'Ləğv et'}
+                {voidMode ? <X size={12} className="mr-1.5" /> : <Ban size={12} className="mr-1.5" />}
+                {voidMode ? (t('cancel') || 'Ləğv et') : (t('void_items') || 'Ləğv et')}
               </button>
             </motion.div>
           </div>
@@ -682,6 +743,9 @@ export function CartPanel({
           {filteredItems.map((item, idx) => {
             const originalIdx = cart.items.indexOf(item);
             const lineKey = item.id ?? `${item.product_id}|${item.variant_id ?? ''}|${(item.modifiers ?? []).map(m => `${m.id}:${m.name}`).join(',')}|${item.special_notes ?? ''}`;
+            const ks = (item as any).kitchen_status || 'pending';
+            const isVoidableItem = voidMode && (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
+            const maxVoidQty = item.sentQuantity || item.quantity;
 
             return (
               <motion.div
@@ -718,6 +782,33 @@ export function CartPanel({
                    <span className={`text-sm font-black tabular-nums min-w-[4rem] text-right ${lightMode ? 'text-gray-900' : 'text-white'}`}>
                      {(item.unit_price * item.quantity).toFixed(2)} ₼
                    </span>
+                    {voidMode && isVoidableItem ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center rounded-xl border border-rose-500/30 overflow-hidden">
+                          <button
+                            onClick={() => setVoidQty(item.id!, (voidSelection[item.id!] || 0) - 1, maxVoidQty)}
+                            className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-rose-500/10 transition-colors active:scale-95"
+                            disabled={!(voidSelection[item.id!] ?? 0)}
+                          >−</button>
+                          <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-rose-400">{voidSelection[item.id!] || '—'}</span>
+                          <button
+                            onClick={() => toggleVoidItem(item.id!, maxVoidQty)}
+                            className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-rose-500/10 transition-colors active:scale-95"
+                            disabled={(voidSelection[item.id!] || 0) >= maxVoidQty}
+                          >+</button>
+                        </div>
+                        <button
+                          onClick={() => toggleVoidItem(item.id!, maxVoidQty)}
+                          className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-all active:scale-95 ${
+                            (voidSelection[item.id!] || 0) > 0
+                              ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20'
+                              : lightMode ? 'bg-white border-zinc-200 text-zinc-300' : 'bg-white/5 border-white/10 text-white/20'
+                          }`}
+                        >
+                          {(voidSelection[item.id!] || 0) > 0 ? <span className="text-xs font-black">{voidSelection[item.id!]}</span> : <Ban size={14} />}
+                        </button>
+                      </div>
+                    ) : (
                     <div className="flex items-center gap-2">
                       <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
                         <button
@@ -761,9 +852,8 @@ export function CartPanel({
                     </button>
                     {(() => {
                       const ks = (item as any).kitchen_status || 'pending';
-                      const isVoidable = item.sentQuantity && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
                       const isReturnable = ['ready', 'completed', 'served'].includes(ks);
-                      if (!isVoidable && !isReturnable) return null;
+                      if (!isReturnable) return null;
                       return (
                         <div className="relative">
                           <button onClick={(e) => { e.stopPropagation(); setContextMenuIdx(contextMenuIdx === originalIdx ? null : originalIdx); }}
@@ -773,47 +863,28 @@ export function CartPanel({
                           {contextMenuIdx === originalIdx && (
                             <div onClick={(e) => e.stopPropagation()}
                               className={`absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-xl border shadow-xl overflow-hidden ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-800 border-zinc-700'}`}>
-                              {isVoidable && (
-                                <button onClick={() => {
-                                  const activeOrder = (cart as any).order_id;
-                                  if (!activeOrder) { setContextMenuIdx(null); return; }
-                                  setVoidModalItems([{
-                                    id: item.id,
-                                    product_name: item.product_name,
-                                    quantity: item.sentQuantity || item.quantity,
-                                    unit_price: item.unit_price,
-                                  }]);
-                                  setVoidModalOpen(true);
-                                  setContextMenuIdx(null);
-                                }}
-                                  className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-bold transition-colors ${lightMode ? 'text-rose-600 hover:bg-rose-50' : 'text-rose-400 hover:bg-rose-500/10'}`}>
-                                  <Ban size={14} />
-                                  {t('void_items') || 'Ləğv et'}
-                                </button>
-                              )}
-                              {isReturnable && (
-                                <button onClick={() => {
-                                  setReturnModalItem({
-                                    order_item_id: item.id,
-                                    product_name: item.product_name,
-                                    quantity: item.quantity,
-                                    unit_price: item.unit_price,
-                                    kitchen_status: ks,
-                                  });
-                                  setReturnModalOpen(true);
-                                  setContextMenuIdx(null);
-                                }}
-                                  className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-bold transition-colors ${lightMode ? 'text-blue-600 hover:bg-blue-50' : 'text-blue-400 hover:bg-blue-500/10'}`}>
-                                  <RotateCcw size={14} />
-                                  {t('return_item') || 'Geri qaytar'}
-                                </button>
-                              )}
+                              <button onClick={() => {
+                                setReturnModalItem({
+                                  order_item_id: item.id,
+                                  product_name: item.product_name,
+                                  quantity: item.quantity,
+                                  unit_price: item.unit_price,
+                                  kitchen_status: ks,
+                                });
+                                setReturnModalOpen(true);
+                                setContextMenuIdx(null);
+                              }}
+                                className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-bold transition-colors ${lightMode ? 'text-blue-600 hover:bg-blue-50' : 'text-blue-400 hover:bg-blue-500/10'}`}>
+                                <RotateCcw size={14} />
+                                {t('return_item') || 'Geri qaytar'}
+                              </button>
                             </div>
                           )}
                         </div>
                       );
                     })()}
-                  </div>
+                    </div>
+                    )}
                 </div>
               </motion.div>
             );
@@ -821,6 +892,50 @@ export function CartPanel({
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Void mode confirmation bar */}
+      <AnimatePresence>
+        {voidMode && (
+          <motion.div
+            key="void-bar"
+            initial={{ opacity: 0, y: 20, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: 20, height: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+            className="flex-shrink-0 overflow-hidden"
+          >
+            <div className={`px-4 py-3 rounded-2xl border mb-3 ${lightMode ? 'bg-rose-50 border-rose-200' : 'bg-rose-500/10 border-rose-500/20'}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Ban size={14} className="text-rose-500" />
+                  <span className={`text-xs font-black uppercase tracking-widest ${lightMode ? 'text-rose-600' : 'text-rose-400'}`}>
+                    {t('void_items') || 'Ləğv et'} — {voidSelectedCount} {t('items_selected') || 'seçildi'}
+                  </span>
+                </div>
+                {voidSelectedTotal > 0 && (
+                  <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-rose-600' : 'text-rose-300'}`}>
+                    -₼{voidSelectedTotal.toFixed(2)}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={handleVoidConfirm}
+                disabled={voidSelectedCount === 0 || voidLoading}
+                className="w-full py-3 rounded-xl bg-rose-500 text-white text-xs font-black uppercase tracking-widest hover:bg-rose-600 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-rose-500/20"
+              >
+                {voidLoading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {t('processing') || 'Gözləyin'}
+                  </span>
+                ) : (
+                  `${t('confirm_void') || 'Ləğv et'}${voidSelectedCount > 0 ? ` (${voidSelectedCount})` : ''}`
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Footer */}
       <div className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]">
@@ -1000,15 +1115,6 @@ export function CartPanel({
       )}
 
     </motion.div>
-
-    {/* Void Items Modal */}
-    <VoidItemsModal
-      open={voidModalOpen}
-      onClose={() => { setVoidModalOpen(false); setVoidModalItems([]); }}
-      orderId={(cart as any).order_id || ''}
-      items={voidModalItems}
-      onSuccess={() => { setVoidModalOpen(false); setVoidModalItems([]); }}
-    />
 
     {/* Return Item Modal */}
     <ReturnItemModal

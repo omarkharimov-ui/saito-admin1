@@ -1764,6 +1764,7 @@ export const az = {
   error_retry: 'Xəta. Yenidən cəhd et',
   void_items: 'Ləğv et',
   void: 'Ləğv',
+  confirm_void: 'Ləğv et',
   void_success: 'Məhsullar ləğv edildi',
   void_error: 'Ləğv etmək mümkün olmadı',
   refund_error: 'Geri ödəniş mümkün olmadı',

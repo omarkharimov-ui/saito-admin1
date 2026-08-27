@@ -1766,6 +1766,7 @@ export const en: TranslationMap = {
   error_retry: 'Error. Retry',
   void_items: 'Void Items',
   void: 'Void',
+  confirm_void: 'Void',
   void_success: 'Items voided successfully',
   void_error: 'Failed to void items',
   refund_error: 'Failed to process refund',

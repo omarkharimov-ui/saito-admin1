@@ -764,9 +764,9 @@ export function CartPanel({
                   if (voidMode && !isVoidableItem) {
                     const readyStates = ['ready', 'completed', 'served'];
                     if (readyStates.includes(ks)) {
-                      toast(t('hint_void_not_ready') || 'Hazır məhsul ləğv edilməz — "Geri qaytar" istifadə edin', { id: `hint-void-${item.id}`, icon: '📦', duration: 3500 });
+                      toast(t('hint_void_not_ready') || 'Servis olunub — ləğv etmək olmaz, "Geri qaytar" istifadə edin', { id: 'pos-hint', duration: 3500 });
                     } else if ((item.sentQuantity ?? 0) > 0) {
-                      toast(t('hint_void_not_sent') || 'Bu element göndərilməyib — ləğv etmək üçün yuxarıdakı "Ləğv et" düyməsini istifadə edin', { id: `hint-void-${item.id}`, icon: '💡', duration: 3500 });
+                      toast(t('hint_void_not_sent') || 'Mətbəxə göndərilməyib — "Ləğv et" ilə ləğv edin', { id: 'pos-hint', duration: 3500 });
                     }
                   }
                 }}
@@ -830,11 +830,11 @@ export function CartPanel({
                             const ks = (item as any).kitchen_status;
                             if (ks || (item.sentQuantity ?? 0) > 0) {
                               if (['ready', 'completed', 'served'].includes(ks)) {
-                                toast(t('hint_return_item') || 'Hazır məhsul — "Geri qaytar" istifadə edin', { id: 'hint-minus', icon: '📦', duration: 4000 });
+                                toast(t('hint_return_item') || 'Servis edilib — "Geri qaytar" istifadə edin', { id: 'pos-hint', duration: 3500 });
                               } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
-                                toast(t('hint_void_item') || 'Göndərilib — "Ləğv et" düyməsini istifadə edin', { id: 'hint-minus', icon: '🚫', duration: 4000 });
+                                toast(t('hint_void_item') || 'Mətbəxə göndərilib — "Ləğv et" istifadə edin', { id: 'pos-hint', duration: 3500 });
                               } else {
-                                toast(t('hint_minus_blocked') || 'Bu elementi birbaşa azaltmaq olmaz — yuxarıdakı "Ləğv et" və ya "Geri qaytar" istifadə edin', { id: 'hint-minus', icon: '💡', duration: 4000 });
+                                toast(t('hint_minus_blocked') || 'Bu məhsulu azaltmaq olmaz — "Ləğv et" və ya "Geri qaytar" istifadə edin', { id: 'pos-hint', duration: 3500 });
                               }
                               return;
                             }

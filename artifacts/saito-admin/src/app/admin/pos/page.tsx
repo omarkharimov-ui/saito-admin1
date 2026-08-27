@@ -2067,6 +2067,9 @@ export default function POSPage() {
                             setActionSheetOpen(true);
                           }}
                          isDirty={(pos.cart?.items ?? []).some(i => (i.sentQuantity ?? 0) === 0 && i.quantity > 0)}
+                         onVoidSuccess={() => {
+                           if (pos.selectedTable) pos.selectTable(pos.selectedTable, { force: true });
+                         }}
                          onUpdateDeliveryFields={(fields) => {
                            if (!pos.cart) return;
                            pos.setCart({ ...pos.cart, ...fields });

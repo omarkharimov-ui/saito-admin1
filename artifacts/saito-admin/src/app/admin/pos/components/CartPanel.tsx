@@ -67,6 +67,7 @@ interface CartPanelProps {
   tableGuests?: number | null;
   onSeatTable?: () => void | Promise<void>;
   onOpenActions?: () => void;
+  onVoidSuccess?: () => void | Promise<void>;
 }
 
 const STATIONS = [
@@ -122,6 +123,7 @@ export function CartPanel({
   tableGuests,
   onSeatTable,
   onOpenActions,
+  onVoidSuccess,
 }: CartPanelProps) {
   const { t } = useLanguage();
   const { lightMode } = useTheme();
@@ -134,7 +136,6 @@ export function CartPanel({
   const [numpadIndex, setNumpadIndex] = useState<number | null>(null);
   const [seatBusy, setSeatBusy] = useState(false);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
-  const [contextMenuIdx, setContextMenuIdx] = useState<number | null>(null);
   const [voidMode, setVoidMode] = useState(false);
   const [voidSelection, setVoidSelection] = useState<Record<string, number>>({});
   const [voidLoading, setVoidLoading] = useState(false);
@@ -193,13 +194,6 @@ export function CartPanel({
   useEffect(() => {
     setGlobalNote(cart?.notes || '');
   }, [cart?.notes]);
-
-  useEffect(() => {
-    if (contextMenuIdx === null) return;
-    const close = () => setContextMenuIdx(null);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, [contextMenuIdx]);
 
   useEffect(() => {
     if (!guestEditing) {
@@ -302,7 +296,7 @@ export function CartPanel({
 
   const voidSelectedCount = Object.keys(voidSelection).length;
   const voidSelectedTotal = Object.entries(voidSelection).reduce((sum, [id, qty]) => {
-    const item = cart.items.find(i => i.id === id);
+    const item = cart.items.find(i => (i.id || `idx-${cart.items.indexOf(i)}`) === id);
     return sum + (item ? item.unit_price * qty : 0);
   }, 0);
 
@@ -336,7 +330,13 @@ export function CartPanel({
     if (!activeOrder) return;
     setVoidLoading(true);
     try {
-      const payload = Object.entries(voidSelection).map(([id, qty]) => ({
+      const selections = Object.entries(voidSelection).filter(([id]) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+      if (selections.length === 0) {
+        toast.error(t('void_error') || 'Ləğv edilmədi');
+        setVoidLoading(false);
+        return;
+      }
+      const payload = selections.map(([id, qty]) => ({
         order_item_id: id,
         quantity: qty,
       }));
@@ -347,15 +347,18 @@ export function CartPanel({
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        const itemNames = Object.entries(voidSelection).map(([id, qty]) => {
+        const itemNames = selections.map(([id, qty]) => {
           const item = cart.items.find(i => i.id === id);
           return item ? `${qty}x ${item.product_name}` : '';
         }).filter(Boolean).join(', ');
         toast.success(`${itemNames || t('void_success') || 'Ləğv edildi'} — ${voidSelectedTotal.toFixed(2)} ₼ ${t('voided') || 'ləğv edildi'}`);
         setVoidMode(false);
         setVoidSelection({});
+        await onVoidSuccess?.();
       } else {
-        toast.error(data.error || t('void_error') || 'Ləğv edilmədi');
+        toast.error(data.error || t('void_error') || 'Ləğv edilmədi', { id: 'pos-hint', duration: 4000 });
+        await onVoidSuccess?.();
+        setVoidSelection({});
       }
     } catch {
       toast.error(t('network_error') || 'Şəbəkə xətası');
@@ -770,7 +773,7 @@ export function CartPanel({
                     }
                   }
                 }}
-                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50' : ''}`}
+                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50' : ''} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? 'border-rose-500/60 ring-1 ring-rose-500/30' : ''}`}
               >
                 <div className="flex items-center gap-2.5">
                   <div className="flex-1 min-w-0">
@@ -800,27 +803,17 @@ export function CartPanel({
                       <div className="flex items-center gap-2">
                         <div className="flex items-center rounded-xl border border-rose-500/30 overflow-hidden">
                           <button
-                            onClick={() => setVoidQty(item.id!, (voidSelection[item.id!] || 0) - 1, maxVoidQty)}
+                            onClick={() => setVoidQty(item.id || `idx-${originalIdx}`, (voidSelection[item.id || `idx-${originalIdx}`] || 0) - 1, maxVoidQty)}
                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-rose-500/10 transition-colors active:scale-95"
-                            disabled={!(voidSelection[item.id!] ?? 0)}
+                            disabled={!(voidSelection[item.id || `idx-${originalIdx}`] ?? 0)}
                           >−</button>
-                          <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-rose-400">{voidSelection[item.id!] || '—'}</span>
+                          <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-rose-400">{voidSelection[item.id || `idx-${originalIdx}`] || '—'}</span>
                           <button
-                            onClick={() => toggleVoidItem(item.id!, maxVoidQty)}
+                            onClick={() => toggleVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty)}
                             className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-rose-500/10 transition-colors active:scale-95"
-                            disabled={(voidSelection[item.id!] || 0) >= maxVoidQty}
+                            disabled={(voidSelection[item.id || `idx-${originalIdx}`] || 0) >= maxVoidQty}
                           >+</button>
                         </div>
-                        <button
-                          onClick={() => toggleVoidItem(item.id!, maxVoidQty)}
-                          className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-all active:scale-95 ${
-                            (voidSelection[item.id!] || 0) > 0
-                              ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20'
-                              : lightMode ? 'bg-white border-zinc-200 text-zinc-300' : 'bg-white/5 border-white/10 text-white/20'
-                          }`}
-                        >
-                          {(voidSelection[item.id!] || 0) > 0 ? <span className="text-xs font-black">{voidSelection[item.id!]}</span> : <Ban size={14} />}
-                        </button>
                       </div>
                     ) : (
                     <div className="flex items-center gap-2">
@@ -869,32 +862,26 @@ export function CartPanel({
                       const isReturnable = ['ready', 'completed', 'served'].includes(ks);
                       if (!isReturnable) return null;
                       return (
-                        <div className="relative">
-                          <button onClick={(e) => { e.stopPropagation(); setContextMenuIdx(contextMenuIdx === originalIdx ? null : originalIdx); }}
-                            className={`p-2 rounded-xl border transition-all ${contextMenuIdx === originalIdx ? (lightMode ? 'bg-zinc-200 border-zinc-300 text-zinc-700' : 'bg-white/10 border-white/15 text-white') : lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`}>
-                            <MoreHorizontal size={14} />
-                          </button>
-                          {contextMenuIdx === originalIdx && (
-                            <div onClick={(e) => e.stopPropagation()}
-                              className={`absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-xl border shadow-xl overflow-hidden ${lightMode ? 'bg-white border-zinc-200' : 'bg-zinc-800 border-zinc-700'}`}>
-                              <button onClick={() => {
-                                setReturnModalItem({
-                                  order_item_id: item.id,
-                                  product_name: item.product_name,
-                                  quantity: item.quantity,
-                                  unit_price: item.unit_price,
-                                  kitchen_status: ks,
-                                });
-                                setReturnModalOpen(true);
-                                setContextMenuIdx(null);
-                              }}
-                                className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-bold transition-colors ${lightMode ? 'text-blue-600 hover:bg-blue-50' : 'text-blue-400 hover:bg-blue-500/10'}`}>
-                                <RotateCcw size={14} />
-                                {t('return_item') || 'Geri qaytar'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReturnModalItem({
+                              order_item_id: item.id,
+                              product_name: item.product_name,
+                              quantity: item.quantity,
+                              unit_price: item.unit_price,
+                              kitchen_status: ks,
+                            });
+                            setReturnModalOpen(true);
+                          }}
+                          title={t('return_item') || 'Geri qaytar'}
+                          className={`flex items-center gap-1 px-2.5 h-11 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
+                            lightMode ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' : 'bg-blue-500/10 border-blue-500/20 text-blue-400 hover:bg-blue-500/20'
+                          }`}
+                        >
+                          <RotateCcw size={14} />
+                          <span className="hidden min-[360px]:inline">{t('return_item') || 'Geri qaytar'}</span>
+                        </button>
                       );
                     })()}
                     </div>
@@ -918,10 +905,12 @@ export function CartPanel({
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="flex-shrink-0 pt-4 pb-6 border-t border-[var(--theme-border)] px-1"
           >
-            <div className={`rounded-2xl px-4 py-3.5 border ${lightMode ? 'bg-rose-50 border-rose-200' : 'bg-rose-500/10 border-rose-500/20'}`}>
+            <div className={`rounded-2xl px-4 py-3.5 border ${lightMode ? 'bg-white border-rose-200' : 'bg-[var(--theme-surface-muted)] border-rose-500/25'}`}>
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <Ban size={16} className="text-rose-500 flex-shrink-0" />
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${lightMode ? 'bg-rose-100 text-rose-600' : 'bg-rose-500/15 text-rose-400'}`}>
+                    <Ban size={13} className="flex-shrink-0" />
+                  </div>
                   <span className={`text-xs font-black uppercase tracking-widest ${lightMode ? 'text-rose-600' : 'text-rose-400'}`}>
                     {t('void_mode_title') || 'Ləğv rejimi'}
                   </span>
@@ -1051,39 +1040,40 @@ export function CartPanel({
         return (
           <div className="w-full flex-shrink-0 px-6 pb-5 pt-2">
             <motion.button
-              key={`morph-${cart.table_number}`}
+              key={`morph-${cart.table_number}-${voidMode ? 'void' : 'send'}`}
               layout
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ layout: { duration: 0.3, ease: [0.32, 0.72, 0, 1] } }}
+              initial={{ opacity: 0, scale: 0.94, y: 6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ layout: { duration: 0.3, ease: [0.32, 0.72, 0, 1] }, opacity: { duration: 0.22, ease: 'easeOut' }, scale: { type: 'spring', stiffness: 500, damping: 34 }, y: { type: 'spring', stiffness: 500, damping: 34 } }}
               disabled={btnDisabled}
               onClick={voidMode
                 ? handleVoidConfirm
                 : (hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
               className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-colors duration-300 ${btnDisabled ? (voidMode ? 'cursor-not-allowed opacity-70' : 'cursor-wait opacity-80') : 'cursor-pointer'} ${btnBg}`}
             >
-              {voidMode ? (
-                voidLoading ? <Loader2 size={20} className="animate-spin" /> :
-                voidSelectedCount > 0 ? <Check size={18} /> : <Ban size={16} />
-              ) : seatBusy ? <Loader2 size={20} className="animate-spin" /> :
-               (hasCartItems && canSeat) ? <Send size={16} /> :
-               canSeat ? <Armchair size={18} /> :
-               showActions ? <MoreHorizontal size={18} /> :
-               <Send size={16} />}
-              <motion.span key={btnAction} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-                {btnLabel}
-              </motion.span>
-              {voidMode && voidSelectedCount > 0 && (
+              <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span
-                  key={`void-amt-${cart.table_number}`}
-                  initial={{ opacity: 0, x: 6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="text-white/90 text-sm font-black tabular-nums"
+                  key={voidMode ? 'void-content' : 'send-content'}
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.7, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 600, damping: 36 }}
+                  className="flex items-center justify-center gap-3 min-w-0"
                 >
-                  -₼{voidSelectedTotal.toFixed(2)}
+                  {voidMode ? (
+                    voidLoading ? <Loader2 size={20} className="animate-spin" /> :
+                    voidSelectedCount > 0 ? <Check size={18} /> : <Ban size={16} />
+                  ) : seatBusy ? <Loader2 size={20} className="animate-spin" /> :
+                   (hasCartItems && canSeat) ? <Send size={16} /> :
+                   canSeat ? <Armchair size={18} /> :
+                   showActions ? <MoreHorizontal size={18} /> :
+                   <Send size={16} />}
+                  <span className="whitespace-nowrap overflow-hidden text-ellipsis">{btnLabel}</span>
+                  {voidMode && voidSelectedCount > 0 && (
+                    <span className="text-white/90 text-sm font-black tabular-nums">-₼{voidSelectedTotal.toFixed(2)}</span>
+                  )}
                 </motion.span>
-              )}
+              </AnimatePresence>
             </motion.button>
           </div>
         );

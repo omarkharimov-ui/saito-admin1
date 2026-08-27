@@ -265,12 +265,12 @@ export function usePos() {
     }
   }, [posMode, cart]);
 
-  const selectTable = async (table: PosTable, opts?: { allowReserved?: boolean }) => {
+  const selectTable = async (table: PosTable, opts?: { allowReserved?: boolean; force?: boolean }) => {
     const sameTable =
       selectedTable?.table_number === table.table_number &&
       cart?.table_number === table.table_number;
 
-    if (sameTable && activeView === 'order') return;
+    if (sameTable && activeView === 'order' && !opts?.force) return;
 
     if (table.status === 'reserved' && !opts?.allowReserved) {
       toast.error(t('table_reserved_activate'), { id: 'action-toast' });
@@ -359,6 +359,7 @@ export function usePos() {
           for (const item of orderItems.filter((i: any) => groupIds.has(i.order_id))) {
             const key = `${item.product_id}__${item.variant_id ?? ''}`;
             const mapped = {
+              id: item.id,
               product_id: item.product_id,
               product_name: item.product_name,
               unit_price: item.unit_price,
@@ -372,6 +373,7 @@ export function usePos() {
               is_combo: !!item.is_combo_parent,
               combo_id: item.combo_group_id || null,
               sentQuantity: item.quantity,
+              kitchen_status: item.kitchen_status || 'pending',
             };
             const existing = serverSeen.get(key);
             if (existing) {
@@ -1229,6 +1231,7 @@ export function usePos() {
       table_number: null,
       guest_count: order.guest_count || 1,
       items: orderItems.map((item: any) => ({
+        id: item.id,
         product_id: item.product_id,
         product_name: item.product_name || item.products?.name_az || item.products?.name_en || t('product'),
         unit_price: item.unit_price,
@@ -1243,6 +1246,7 @@ export function usePos() {
         hold_until: item.hold_until || null,
         is_hold: !!item.hold_until,
         sentQuantity: item.quantity,
+        kitchen_status: item.kitchen_status || 'pending',
       })),
       notes: order.special_notes || order.customer_note || '',
       order_type: order.order_type || order.order_source || 'takeaway',

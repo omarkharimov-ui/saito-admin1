@@ -1524,7 +1524,7 @@ export const en: TranslationMap = {
   hint_void_not_ready: 'Already served — cannot void, use "Return"',
   hint_void_not_sent: 'Not sent yet — use "Void" to cancel',
   void_mode_title: 'Void mode',
-  void_mode_explanation: 'You can void items that were already sent to the kitchen. Tap "+" on an item to select it and adjust the quantity. Voided items are removed from the bill.',
+  void_mode_explanation: 'Tap "+" on the items you want to void',
   void_select_hint: 'Tap the "+" on items to add them — increase or decrease the quantity',
   void_select_prompt: 'Select items to void',
   void_total_label: 'Amount to void',

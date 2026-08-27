@@ -1522,7 +1522,7 @@ export const az = {
   hint_void_not_ready: 'Servis olunub — ləğv etmək olmaz, "Geri qaytar" istifadə edin',
   hint_void_not_sent: 'Mətbəxə göndərilməyib — "Ləğv et" ilə ləğv edin',
   void_mode_title: 'Ləğv rejimi',
-  void_mode_explanation: 'Mətbəxə göndərilmiş məhsulları ləğv edə bilərsiniz. Məhsulun yanındakı "+" ilə seçin və miqdarı tənzimləyin. Ləğv edilən məhsullar hesabdan çıxarılır.',
+  void_mode_explanation: 'Ləğv etmək istədiyiniz məhsulu "+" ilə seçin',
   void_select_hint: 'Qarşısında "+" olan məhsulları seçin — miqdarı artırıb azalda bilərsiniz',
   void_select_prompt: 'Ləğv edəcəyiniz məhsulları seçin',
   void_total_label: 'Ləğv olunacaq cəm',

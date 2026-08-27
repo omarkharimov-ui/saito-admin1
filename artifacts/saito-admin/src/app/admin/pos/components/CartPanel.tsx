@@ -905,35 +905,25 @@ export function CartPanel({
             transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
             className="flex-shrink-0 pt-4 pb-6 border-t border-[var(--theme-border)] px-1"
           >
-            <div className={`rounded-2xl border px-4 py-4 ${lightMode ? 'bg-[var(--theme-surface)] border-zinc-200 shadow-sm' : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)]'}`}>
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>
-                    <Ban size={14} className="flex-shrink-0" />
-                  </div>
-                  <span className={`text-sm font-black tracking-wide whitespace-nowrap ${lightMode ? 'text-zinc-800' : 'text-white/90'}`}>
+            <div className={`rounded-2xl border px-4 py-3.5 ${lightMode ? 'bg-[var(--theme-surface)] border-zinc-200 shadow-sm' : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)]'}`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>
+                  <Ban size={14} className="flex-shrink-0" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-black tracking-wide leading-none mb-1 ${lightMode ? 'text-zinc-800' : 'text-white/90'}`}>
                     {t('void_mode_title') || 'Ləğv rejimi'}
-                  </span>
+                  </p>
+                  <p className={`text-xs font-medium leading-tight truncate ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
+                    {t('void_mode_explanation') || 'Ləğv etmək istədiyiniz məhsulu "+" ilə seçin'}
+                  </p>
                 </div>
                 {voidSelectedCount > 0 && (
-                  <span className={`flex-shrink-0 text-sm font-black tabular-nums ${lightMode ? 'text-zinc-800' : 'text-white/90'}`}>
-                    {voidSelectedCount} {t('items_selected') || 'seçildi'}
+                  <span className={`flex-shrink-0 rounded-full px-3 py-1.5 text-sm font-black tabular-nums ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>
+                    {voidSelectedCount}
                   </span>
                 )}
               </div>
-              <p className={`text-xs leading-relaxed font-medium ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
-                {t('void_mode_explanation') || 'Mətbəxə göndərilmiş məhsulları ləğv edə bilərsiniz. Məhsulun yanındakı "+" ilə seçin və miqdarı tənzimləyin.'}
-              </p>
-              {voidSelectedTotal > 0 && (
-                <div className="mt-3 flex items-center justify-between">
-                  <span className={`text-[11px] uppercase tracking-widest font-bold ${lightMode ? 'text-zinc-400' : 'text-white/40'}`}>
-                    {t('void_total_label') || 'Ləğv olunacaq cəm'}
-                  </span>
-                  <span className={`text-xl font-black tracking-tight tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}>
-                    <RollingNumber value={voidSelectedTotal} prefix="−" suffix=" ₼" decimals={2} duration={0.3} />
-                  </span>
-                </div>
-              )}
             </div>
           </motion.div>
         ) : (
@@ -1013,7 +1003,7 @@ export function CartPanel({
         const btnAction = voidMode ? 'void' : (hasCartItems ? 'send' : canSeat ? 'seat' : showActions ? 'actions' : 'send');
         const btnLabel = voidMode
           ? voidSelectedCount > 0
-            ? `${t('confirm_void') || 'Ləğv et'} (${voidSelectedCount})`
+            ? (t('confirm_void') || 'Ləğv et')
             : (t('void_select_prompt') || 'Ləğv edəcəyiniz məhsulları seçin')
           : hasCartItems
             ? (hasExistingOrder ? t('resend') : t('send_to_kitchen'))
@@ -1037,40 +1027,42 @@ export function CartPanel({
         return (
           <div className="w-full flex-shrink-0 px-6 pb-5 pt-2">
             <motion.button
-              key={`morph-${cart.table_number}-${voidMode ? 'void' : 'send'}`}
               layout
-              initial={{ opacity: 0, scale: 0.94, y: 6 }}
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ layout: { duration: 0.3, ease: [0.32, 0.72, 0, 1] }, opacity: { duration: 0.22, ease: 'easeOut' }, scale: { type: 'spring', stiffness: 500, damping: 34 }, y: { type: 'spring', stiffness: 500, damping: 34 } }}
+              whileHover={{ scale: btnDisabled ? 1 : 1.015 }}
+              whileTap={{ scale: btnDisabled ? 1 : 0.99 }}
+              transition={{ layout: { duration: 0.35, ease: [0.32, 0.72, 0, 1] }, opacity: { duration: 0.25, ease: 'easeOut' }, scale: { type: 'spring', stiffness: 420, damping: 30 }, y: { type: 'spring', stiffness: 420, damping: 30 } }}
               disabled={btnDisabled}
               onClick={voidMode
                 ? handleVoidConfirm
                 : (hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
-              className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-colors duration-300 ${btnDisabled ? (voidMode ? 'cursor-not-allowed opacity-70' : 'cursor-wait opacity-80') : 'cursor-pointer'} ${btnBg}`}
+              className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-all duration-300 ease-out ${btnDisabled ? (voidMode ? 'cursor-not-allowed opacity-70' : 'cursor-wait opacity-80') : 'cursor-pointer'} ${btnBg}`}
             >
-              <AnimatePresence mode="popLayout" initial={false}>
-                <motion.span
-                  key={voidMode ? 'void-content' : 'send-content'}
-                  initial={{ scale: 0.7, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.7, opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 600, damping: 36 }}
-                  className="flex items-center justify-center gap-3 min-w-0"
-                >
-                  {voidMode ? (
-                    voidLoading ? <Loader2 size={20} className="animate-spin" /> :
-                    voidSelectedCount > 0 ? <Check size={18} /> : <Ban size={16} />
-                  ) : seatBusy ? <Loader2 size={20} className="animate-spin" /> :
-                   (hasCartItems && canSeat) ? <Send size={16} /> :
-                   canSeat ? <Armchair size={18} /> :
-                   showActions ? <MoreHorizontal size={18} /> :
-                   <Send size={16} />}
-                  <span className="whitespace-nowrap overflow-hidden text-ellipsis">{btnLabel}</span>
-                  {voidMode && voidSelectedCount > 0 && (
-                    <span className="text-white/90 text-sm font-black tabular-nums">-₼{voidSelectedTotal.toFixed(2)}</span>
-                  )}
-                </motion.span>
-              </AnimatePresence>
+              {(() => {
+                const icon = voidMode
+                  ? (voidLoading ? <Loader2 size={20} className="animate-spin" /> : voidSelectedCount > 0 ? <Check size={18} /> : <Ban size={16} />)
+                  : (seatBusy ? <Loader2 size={20} className="animate-spin" /> : hasCartItems && canSeat ? <Send size={16} /> : canSeat ? <Armchair size={18} /> : showActions ? <MoreHorizontal size={18} /> : <Send size={16} />);
+                const counter = voidMode && voidSelectedCount > 0
+                  ? <span key="void-count" className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full px-2 text-xs font-black tabular-nums bg-black/15 text-current">{voidSelectedCount}</span>
+                  : null;
+                return (
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.span
+                      key={`cta-${btnAction}`}
+                      initial={{ opacity: 0, y: 14, scale: 0.92 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -14, scale: 0.92 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                      className="flex items-center justify-center gap-2.5 min-w-0"
+                    >
+                      {icon}
+                      <span className="whitespace-nowrap overflow-hidden text-ellipsis max-w-[280px]">{btnLabel}</span>
+                      {counter}
+                    </motion.span>
+                  </AnimatePresence>
+                );
+              })()}
             </motion.button>
           </div>
         );

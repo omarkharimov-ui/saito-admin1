@@ -899,44 +899,38 @@ export function CartPanel({
         {voidMode ? (
           <motion.div
             key="void-footer"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="flex-shrink-0 pt-4 pb-6 border-t border-[var(--theme-border)] px-1"
           >
-            <div className={`rounded-2xl px-4 py-3.5 border ${lightMode ? 'bg-[var(--theme-surface)] border-zinc-200' : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)]'}`}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${lightMode ? 'bg-zinc-100 text-zinc-600' : 'bg-white/5 text-white/50'}`}>
-                    <Ban size={13} className="flex-shrink-0" />
-                  </div>
-                  <span className={`text-xs font-black uppercase tracking-widest ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>
-                    {t('void_mode_title') || 'Ləğv rejimi'}
-                  </span>
-                </div>
-                {voidSelectedCount > 0 && (
-                  <span className={`text-xs font-bold ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
+            <div className={`flex items-center gap-3 rounded-full pl-2 pr-4 py-2 border ${lightMode ? 'bg-[var(--theme-surface)] border-zinc-200 shadow-sm' : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)]'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>
+                <Ban size={13} className="flex-shrink-0" />
+              </div>
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <span className={`text-xs font-black uppercase tracking-widest whitespace-nowrap ${lightMode ? 'text-zinc-700' : 'text-white/80'}`}>
+                  {t('void_mode_title') || 'Ləğv rejimi'}
+                </span>
+                <span className={`text-[11px] font-medium truncate ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
+                  {t('void_select_hint') || 'Məhsulları seçərək "+" ilə miqdarı seçin'}
+                </span>
+              </div>
+              {voidSelectedCount > 0 ? (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`text-[11px] font-bold whitespace-nowrap ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
                     {voidSelectedCount} {t('items_selected') || 'seçildi'}
                   </span>
-                )}
-              </div>
-              <span className={`text-[11px] font-medium mt-0.5 ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
-                {t('void_select_hint') || 'Məhsulları seçərək "+" ilə miqdarı seçin'}
-              </span>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--theme-border)]">
-                <span className={`text-xs uppercase tracking-widest font-bold ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>
-                  {t('void_total_label') || 'Ləğv ediləcək cəm'}
+                  <span className={`h-7 min-w-[6rem] rounded-full px-3 flex items-center justify-end tabular-nums text-sm font-black ${lightMode ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>
+                    <RollingNumber value={voidSelectedTotal} prefix="−" suffix=" ₼" decimals={2} duration={0.3} />
+                  </span>
+                </div>
+              ) : (
+                <span className={`h-7 rounded-full px-3 flex items-center text-[11px] font-semibold whitespace-nowrap flex-shrink-0 ${lightMode ? 'bg-zinc-100 text-zinc-400' : 'bg-white/5 text-white/30'}`}>
+                  {t('void_select_prompt') || 'Ləğv edəcəyiniz məhsulları seçin'}
                 </span>
-                <RollingNumber
-                  value={voidSelectedTotal}
-                  prefix="−"
-                  suffix=" ₼"
-                  decimals={2}
-                  className={`text-[28px] font-black tracking-tight tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}
-                  duration={0.3}
-                />
-              </div>
+              )}
             </div>
           </motion.div>
         ) : (

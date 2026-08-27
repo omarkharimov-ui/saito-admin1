@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2 } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -907,52 +907,58 @@ export function CartPanel({
         </div>
       </div>
 
-      {/* Void mode confirmation bar */}
-      <AnimatePresence>
-        {voidMode && (
+      {/* Footer */}
+      <AnimatePresence initial={false}>
+        {voidMode ? (
           <motion.div
-            key="void-bar"
-            initial={{ opacity: 0, y: 20, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: 20, height: 0 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
-            className="flex-shrink-0 overflow-hidden"
+            key="void-footer"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            className="flex-shrink-0 pt-4 pb-6 border-t border-[var(--theme-border)] px-1"
           >
-            <div className={`px-4 py-3 rounded-2xl border mb-3 ${lightMode ? 'bg-rose-50 border-rose-200' : 'bg-rose-500/10 border-rose-500/20'}`}>
-              <div className="flex items-center justify-between mb-3">
+            <div className={`rounded-2xl px-4 py-3.5 border ${lightMode ? 'bg-rose-50 border-rose-200' : 'bg-rose-500/10 border-rose-500/20'}`}>
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <Ban size={14} className="text-rose-500" />
+                  <Ban size={16} className="text-rose-500 flex-shrink-0" />
                   <span className={`text-xs font-black uppercase tracking-widest ${lightMode ? 'text-rose-600' : 'text-rose-400'}`}>
-                    {t('void_items') || 'Ləğv et'} — {voidSelectedCount} {t('items_selected') || 'seçildi'}
+                    {t('void_mode_title') || 'Ləğv rejimi'}
                   </span>
                 </div>
-                {voidSelectedTotal > 0 && (
-                  <span className={`text-sm font-black tabular-nums ${lightMode ? 'text-rose-600' : 'text-rose-300'}`}>
-                    -₼{voidSelectedTotal.toFixed(2)}
+                {voidSelectedCount > 0 && (
+                  <span className={`text-xs font-bold ${lightMode ? 'text-rose-600' : 'text-rose-300'}`}>
+                    {voidSelectedCount} {t('items_selected') || 'seçildi'}
                   </span>
                 )}
               </div>
-              <button
-                onClick={handleVoidConfirm}
-                disabled={voidSelectedCount === 0 || voidLoading}
-                className="w-full py-3 rounded-xl bg-rose-500 text-white text-xs font-black uppercase tracking-widest hover:bg-rose-600 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-rose-500/20"
-              >
-                {voidLoading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {t('processing') || 'Gözləyin'}
-                  </span>
-                ) : (
-                  `${t('confirm_void') || 'Ləğv et'}${voidSelectedCount > 0 ? ` (${voidSelectedCount})` : ''}`
-                )}
-              </button>
+              <span className={`text-[11px] font-medium mt-0.5 ${lightMode ? 'text-rose-500/80' : 'text-rose-400/70'}`}>
+                {t('void_select_hint') || 'Məhsulları seçərək "+" ilə miqdarı seçin'}
+              </span>
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-rose-500/15">
+                <span className={`text-xs uppercase tracking-widest font-bold ${lightMode ? 'text-rose-600' : 'text-rose-400'}`}>
+                  {t('void_total_label') || 'Ləğv ediləcək cəm'}
+                </span>
+                <RollingNumber
+                  value={voidSelectedTotal}
+                  prefix="−"
+                  suffix=" ₼"
+                  decimals={2}
+                  className={`text-[28px] font-black tracking-tight tabular-nums ${lightMode ? 'text-rose-600' : 'text-rose-300'}`}
+                  duration={0.3}
+                />
+              </div>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Footer */}
-      <div className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]">
+        ) : (
+          <motion.div
+            key="std-footer"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]"
+          >
         {/* Total */}
         <motion.div
           key="std-total"
@@ -1008,7 +1014,9 @@ export function CartPanel({
             </div>
           )}
          {/* Footer actions removed from here */}
-      </div>
+      </motion.div>
+        )}
+      </AnimatePresence>
       </>)}
 
       {/* ═══ Unified morph action button — stable morph, no blink ═══ */}
@@ -1016,24 +1024,30 @@ export function CartPanel({
         if (!isDineInContext && isEmpty) return null;
         const showActions = isDineInContext && hasExistingOrder && !hasDraft && orderButtonStatus === 'idle';
         const hasCartItems = cart.items.length > 0;
-        const btnAction = hasCartItems ? 'send' : canSeat ? 'seat' : showActions ? 'actions' : 'send';
-        const btnLabel = hasCartItems
-          ? (hasExistingOrder ? t('resend') : t('send_to_kitchen'))
-          : canSeat
-            ? t('seat_table')
-            : showActions
-              ? t('actions')
-              : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
-        const btnDisabled = seatBusy;
-        const btnBg = hasCartItems
-          ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
-          : canSeat
-            ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
-            : showActions
-              ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100')
-              : isDirty
-                ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
-                : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-white/40');
+        const btnAction = voidMode ? 'void' : (hasCartItems ? 'send' : canSeat ? 'seat' : showActions ? 'actions' : 'send');
+        const btnLabel = voidMode
+          ? voidSelectedCount > 0
+            ? `${t('confirm_void') || 'Ləğv et'} (${voidSelectedCount})`
+            : (t('void_select_prompt') || 'Ləğv edəcəyiniz məhsulları seçin')
+          : hasCartItems
+            ? (hasExistingOrder ? t('resend') : t('send_to_kitchen'))
+            : canSeat
+              ? t('seat_table')
+              : showActions
+                ? t('actions')
+                : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
+        const btnDisabled = voidMode ? (voidSelectedCount === 0 || voidLoading) : seatBusy;
+        const btnBg = voidMode
+          ? 'bg-rose-500 text-white shadow-xl shadow-rose-500/25 hover:bg-rose-600'
+          : hasCartItems
+            ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
+            : canSeat
+              ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/25 hover:brightness-110'
+              : showActions
+                ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/10 hover:bg-zinc-100')
+                : isDirty
+                  ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
+                  : (lightMode ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-white/40');
         return (
           <div className="w-full flex-shrink-0 px-6 pb-5 pt-2">
             <motion.button
@@ -1043,10 +1057,15 @@ export function CartPanel({
               animate={{ opacity: 1, scale: 1 }}
               transition={{ layout: { duration: 0.3, ease: [0.32, 0.72, 0, 1] } }}
               disabled={btnDisabled}
-              onClick={(hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
-              className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-colors duration-300 ${btnDisabled ? 'cursor-wait opacity-80' : 'cursor-pointer'} ${btnBg}`}
+              onClick={voidMode
+                ? handleVoidConfirm
+                : (hasCartItems && canSeat) ? handleSeatAndSend : canSeat ? handleSeatTable : (showActions && onOpenActions ? onOpenActions : onPlaceOrder)}
+              className={`h-[72px] w-full rounded-4xl font-black uppercase tracking-[0.2em] text-[13px] flex items-center justify-center gap-3 transition-colors duration-300 ${btnDisabled ? (voidMode ? 'cursor-not-allowed opacity-70' : 'cursor-wait opacity-80') : 'cursor-pointer'} ${btnBg}`}
             >
-              {seatBusy ? <Loader2 size={20} className="animate-spin" /> :
+              {voidMode ? (
+                voidLoading ? <Loader2 size={20} className="animate-spin" /> :
+                voidSelectedCount > 0 ? <Check size={18} /> : <Ban size={16} />
+              ) : seatBusy ? <Loader2 size={20} className="animate-spin" /> :
                (hasCartItems && canSeat) ? <Send size={16} /> :
                canSeat ? <Armchair size={18} /> :
                showActions ? <MoreHorizontal size={18} /> :
@@ -1054,6 +1073,17 @@ export function CartPanel({
               <motion.span key={btnAction} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                 {btnLabel}
               </motion.span>
+              {voidMode && voidSelectedCount > 0 && (
+                <motion.span
+                  key={`void-amt-${cart.table_number}`}
+                  initial={{ opacity: 0, x: 6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-white/90 text-sm font-black tabular-nums"
+                >
+                  -₼{voidSelectedTotal.toFixed(2)}
+                </motion.span>
+              )}
             </motion.button>
           </div>
         );

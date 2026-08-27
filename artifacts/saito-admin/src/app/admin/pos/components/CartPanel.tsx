@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, Hash, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, Info, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -752,7 +752,7 @@ export function CartPanel({
             return (
               <motion.div
                 key={lineKey}
-                layout
+                layout={!voidMode}
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
@@ -768,8 +768,26 @@ export function CartPanel({
                     }
                   }
                 }}
-                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50' : ''} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? lightMode ? 'bg-blue-50/50 border-blue-400/70 shadow-[0_0_0_3px_rgba(59,130,246,0.15)]' : 'bg-blue-500/10 border-blue-400/50 shadow-[0_0_0_3px_rgba(59,130,246,0.25)] ring-1 ring-blue-400/20' : ''}`}
+                className={`relative mb-2 overflow-hidden rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50 border-[var(--theme-border)]' : 'border-[var(--theme-border)]'} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? lightMode ? 'bg-blue-50/50 border-transparent' : 'bg-blue-500/10 border-transparent' : ''}`}
               >
+                {voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? (
+                  <>
+                    <motion.span
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                      style={{ transformOrigin: 'center' }}
+                      className={`pointer-events-none absolute top-0 left-0 right-0 h-[2px] rounded-[2px] ${lightMode ? 'bg-gradient-to-r from-blue-400/0 via-blue-500/80 to-blue-400/0' : 'bg-gradient-to-r from-blue-400/0 via-blue-400/90 to-blue-400/0'}`}
+                    />
+                    <motion.span
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.04 }}
+                      style={{ transformOrigin: 'center' }}
+                      className={`pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] rounded-[2px] ${lightMode ? 'bg-gradient-to-r from-blue-400/0 via-blue-500/80 to-blue-400/0' : 'bg-gradient-to-r from-blue-400/0 via-blue-400/90 to-blue-400/0'}`}
+                    />
+                  </>
+                ) : null}
                 <div className="flex items-center gap-2.5">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate text-[var(--theme-text)]">{item.product_name}</p>
@@ -851,7 +869,7 @@ export function CartPanel({
                       </button>
                     )}
                     <button onClick={() => onRequestEditor?.(item.product_id, originalIdx)} className={`p-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
-                      <Hash size={14} />
+                      <Info size={14} />
                     </button>
                     {(() => {
                       const ks = (item as any).kitchen_status || 'pending';
@@ -895,10 +913,10 @@ export function CartPanel({
         {voidMode ? (
           <motion.div
             key="void-footer"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             className="flex-shrink-0 pt-4 pb-6 border-t border-[var(--theme-border)] px-1"
           >
             <div className={`rounded-2xl border px-4 py-3.5 ${lightMode ? 'bg-[var(--theme-surface)] border-zinc-200 shadow-sm' : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)]'}`}>

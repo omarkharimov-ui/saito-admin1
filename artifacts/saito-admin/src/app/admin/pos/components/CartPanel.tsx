@@ -840,8 +840,8 @@ export function CartPanel({
                             }
                             onUpdateQty?.(originalIdx, -1);
                           }}
-                          disabled={!!(item as any).kitchen_status || (item.sentQuantity ?? 0) > 0}
-                          className="w-11 h-11 flex items-center justify-center text-lg font-black hover:bg-white/10 transition-colors active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+                          aria-disabled={!!(item as any).kitchen_status || (item.sentQuantity ?? 0) > 0}
+                          className={`w-11 h-11 flex items-center justify-center text-lg font-black transition-colors active:scale-95 ${(item as any).kitchen_status || (item.sentQuantity ?? 0) > 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10'}`}
                         >−</button>
                         <span className="w-12 h-11 flex items-center justify-center text-sm font-black tabular-nums">{item.quantity}</span>
                        <motion.button

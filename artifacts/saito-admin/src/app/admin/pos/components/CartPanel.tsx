@@ -347,7 +347,11 @@ export function CartPanel({
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.success(t('void_success') || 'Ləğv edildi');
+        const itemNames = Object.entries(voidSelection).map(([id, qty]) => {
+          const item = cart.items.find(i => i.id === id);
+          return item ? `${qty}x ${item.product_name}` : '';
+        }).filter(Boolean).join(', ');
+        toast.success(`${itemNames || t('void_success') || 'Ləğv edildi'} — ${voidSelectedTotal.toFixed(2)} ₼ ${t('voided') || 'ləğv edildi'}`);
         setVoidMode(false);
         setVoidSelection({});
       } else {
@@ -756,7 +760,17 @@ export function CartPanel({
                 exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
                 transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
                 data-cart-item
-                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3`}
+                onClick={() => {
+                  if (voidMode && !isVoidableItem) {
+                    const readyStates = ['ready', 'completed', 'served'];
+                    if (readyStates.includes(ks)) {
+                      toast(t('hint_void_not_ready') || 'Hazır məhsul ləğv edilməz — "Geri qaytar" istifadə edin', { id: `hint-void-${item.id}`, icon: '📦', duration: 3500 });
+                    } else if ((item.sentQuantity ?? 0) > 0) {
+                      toast(t('hint_void_not_sent') || 'Bu element göndərilməyib — ləğv etmək üçün yuxarıdakı "Ləğv et" düyməsini istifadə edin', { id: `hint-void-${item.id}`, icon: '💡', duration: 3500 });
+                    }
+                  }
+                }}
+                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50' : ''}`}
               >
                 <div className="flex items-center gap-2.5">
                   <div className="flex-1 min-w-0">
@@ -816,11 +830,11 @@ export function CartPanel({
                             const ks = (item as any).kitchen_status;
                             if (ks || (item.sentQuantity ?? 0) > 0) {
                               if (['ready', 'completed', 'served'].includes(ks)) {
-                                toast(t('hint_return_item') || 'Bu artıq hazırdır — menyunu açın və "Geri qaytar" seçin', { id: 'hint-minus', duration: 3500 });
+                                toast(t('hint_return_item') || 'Hazır məhsul — "Geri qaytar" istifadə edin', { id: 'hint-minus', icon: '📦', duration: 4000 });
                               } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
-                                toast(t('hint_void_item') || 'Bu artıq göndərilib — menyunu açın və "Ləğv et" seçin', { id: 'hint-minus', duration: 3500 });
+                                toast(t('hint_void_item') || 'Göndərilib — "Ləğv et" düyməsini istifadə edin', { id: 'hint-minus', icon: '🚫', duration: 4000 });
                               } else {
-                                toast(t('hint_minus_blocked') || 'Bu element artıq göndərilib — birbaşa azaltmaq olmaz', { id: 'hint-minus', duration: 3500 });
+                                toast(t('hint_minus_blocked') || 'Bu elementi birbaşa azaltmaq olmaz — yuxarıdakı "Ləğv et" və ya "Geri qaytar" istifadə edin', { id: 'hint-minus', icon: '💡', duration: 4000 });
                               }
                               return;
                             }

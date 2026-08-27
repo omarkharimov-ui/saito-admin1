@@ -225,6 +225,37 @@ export function usePos() {
     };
   }, [fetchData, terminalId]);
 
+  const prevSelectedTableStatusRef = useRef<string | null>(null);
+
+  const resetCart = useCallback(() => {
+    setCart(null);
+    setTableOrderCache(prev => {
+      const next = { ...prev };
+      if (selectedTable) delete next[selectedTable.table_number];
+      return next;
+    });
+  }, [selectedTable]);
+
+  useEffect(() => {
+    if (!selectedTable) return;
+    const tableNumber = selectedTable.table_number;
+    const currentTable = floors
+      .flatMap((f: any) => f.tables || [])
+      .find((t: any) => t.table_number === tableNumber);
+    const currentStatus = currentTable?.status || null;
+    const prevStatus = prevSelectedTableStatusRef.current;
+
+    if (prevStatus && currentStatus && prevStatus !== currentStatus) {
+      if (['empty', 'free'].includes(currentStatus)) {
+        resetCart();
+        setSelectedTable(null);
+        setActiveView('floor');
+      }
+    }
+
+    prevSelectedTableStatusRef.current = currentStatus;
+  }, [floors, selectedTable, selectedTable?.table_number, resetCart]);
+
   useEffect(() => {
     if (posMode !== 'takeaway' && posMode !== 'delivery') return;
     if (!cart) return;
@@ -1542,7 +1573,7 @@ export function usePos() {
     return {
       floors, products, categories, combos, variantsByProduct, loading, placingOrder, selectedTable, cart, cartHydrating, activeView, lastUndo, posMode,
       fetchData, selectTable, mergeTables, transferTable, dismissTable, clearTable, performUndo, seatTable,
-      setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, updateGuestCount,
+      setActiveView, setCart, setSelectedTable, addToCart, addComboToCart, updateCartItemQty, placeOrder, clearCart, resetCart, updateGuestCount,
       updateCartCustomer, updateOrderType, switchMode, getAutoCampaign, setPosMode, initializeTakeawayCart, createOrderShell, loadOrderIntoCart,
       reservationMode, reservationId, reservationPreOrderItems, reservationInfo,
       enterReservationMode, exitReservationMode, guestArrived, savePreOrder, terminalId,

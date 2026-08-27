@@ -1,76 +1,51 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const svc = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, validateAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
   try {
-    const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
-    const token = cookieStore.get('saito_token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'No session' }, { status: 401 });
+    const auth = await validateAuth();
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const s = svc();
-    const { data: session } = await s
-      .from('sessions')
-      .select('user_id')
-      .eq('token', token)
-      .maybeSingle();
-
-    if (!session) {
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-    }
-
+    const s = await (await import('@/lib/api-auth')).createAuthClient();
     const body = await request.json();
-    const { action } = body; // 'in' | 'out'
+    const { action } = body;
 
     if (!action || !['in', 'out'].includes(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    const now = new Date().toISOString();
+    const staffId = auth.user?.id;
+
+    if (!staffId) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
 
     if (action === 'in') {
-      // Clock in: create new shift
-      const { error } = await s.from('shifts').insert({
-        staff_id: session.user_id,
-        opened_at: now,
+      const { data, error: rpcError } = await s.rpc('clock_in_atomic', {
+        p_staff_id: staffId,
+        p_notes: null,
+        p_performed_by: staffId,
       });
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      if (rpcError) {
+        return NextResponse.json({ error: rpcError.message }, { status: 500 });
       }
 
-      return NextResponse.json({ success: true, action: 'clocked_in' });
+      return NextResponse.json(data);
     } else {
-      // Clock out: find open shift and close it
-      const { data: openShift } = await s
-        .from('shifts')
-        .select('id')
-        .eq('staff_id', session.user_id)
-        .is('closed_at', null)
-        .maybeSingle();
+      const { data, error: rpcError } = await s.rpc('clock_out_atomic', {
+        p_staff_id: staffId,
+        p_notes: null,
+        p_performed_by: staffId,
+      });
 
-      if (!openShift) {
-        return NextResponse.json({ error: 'No open shift found' }, { status: 404 });
+      if (rpcError) {
+        return NextResponse.json({ error: rpcError.message }, { status: 500 });
       }
 
-      const { error } = await s
-        .from('shifts')
-        .update({ closed_at: now })
-        .eq('id', openShift.id);
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, action: 'clocked_out' });
+      return NextResponse.json(data);
     }
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

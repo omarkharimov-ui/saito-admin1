@@ -10,8 +10,6 @@ export async function GET() {
   try {
     const s = svc();
 
-    // Read saito_token from cookie via the request headers in the middleware context
-    // Since this is a GET handler, we use cookies() from next/headers
     const { cookies } = await import('next/headers');
     const cookieStore = await cookies();
     const token = cookieStore.get('saito_token')?.value;
@@ -20,7 +18,6 @@ export async function GET() {
       return NextResponse.json({ error: 'No session' }, { status: 401 });
     }
 
-    // Look up session
     const { data: session, error: sessErr } = await s
       .from('sessions')
       .select('user_id, role, expires_at')
@@ -36,7 +33,6 @@ export async function GET() {
       return NextResponse.json({ error: 'Session expired' }, { status: 401 });
     }
 
-    // Get staff info from staff table (POS users are staff)
     const { data: staff } = await s
       .from('staff')
       .select('id, name, role, shift')
@@ -44,7 +40,6 @@ export async function GET() {
       .maybeSingle();
 
     if (staff) {
-      // Normalize role to match what POS expects (English lowercase)
       const roleMap: Record<string, string> = {
         'cashier': 'cashier',
         'Ofisiant': 'waiter',
@@ -57,22 +52,6 @@ export async function GET() {
         role: normalizedRole,
         rawRole: staff.role,
         shift: staff.shift,
-      });
-    }
-
-    // Fallback: try admin_users table
-    const { data: adminUser } = await s
-      .from('admin_users')
-      .select('id, role')
-      .eq('id', session.user_id)
-      .maybeSingle();
-
-    if (adminUser) {
-      return NextResponse.json({
-        staffId: adminUser.id,
-        name: 'Admin',
-        role: 'Superadmin',
-        shift: null,
       });
     }
 

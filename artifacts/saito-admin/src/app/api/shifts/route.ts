@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requirePermission } from '@/lib/api-auth';
+
+type Shift = {
+  id: string;
+  staff_id: string;
+  report_date: string;
+  opened_at: string;
+  closed_at?: string | null;
+  starting_cash: number;
+  expected_cash: number;
+  actual_cash?: number | null;
+  difference?: number | null;
+  notes?: string | null;
+  created_at: string;
+};
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -10,20 +24,40 @@ function svc() {
 
 export async function GET(request: Request) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requirePermission('cash.view', ['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth as any;
 
     const { searchParams } = new URL(request.url);
     const staffId = searchParams.get('staff_id');
     const active = searchParams.get('active');
+    const period = searchParams.get('period') || '';
 
     const s = svc();
     let query = `${s.url}/rest/v1/shifts?select=*&order=opened_at.desc`;
     if (staffId) query += `&staff_id=eq.${staffId}`;
     if (active === 'true') query += '&closed_at=is.null';
+    if (active === 'false') query += '&closed_at=not.is.null';
 
     const res = await fetch(query, { headers: s.headers });
-    const data = await res.json();
+    let data = await res.json();
+
+    if (period && period !== 'all' && Array.isArray(data)) {
+      const now = new Date();
+      const start = new Date();
+      if (period === 'today') {
+        start.setHours(0, 0, 0, 0);
+      } else if (period === 'week') {
+        const day = now.getDay() || 7;
+        start.setDate(now.getDate() - day + 1);
+        start.setHours(0, 0, 0, 0);
+      } else if (period === 'month') {
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+      }
+      const startIso = start.toISOString();
+      data = data.filter((s: Shift) => s.opened_at >= startIso);
+    }
+
     return NextResponse.json(Array.isArray(data) ? data : []);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -32,7 +66,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requirePermission('cash.open', ['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
 
     const { staff_id, expected_cash, notes } = await request.json();
@@ -72,6 +106,16 @@ export async function POST(request: NextRequest) {
       }),
     });
 
+    await fetch(`${s.url}/rest/v1/operation_logs`, {
+      method: 'POST',
+      headers: s.headers,
+      body: JSON.stringify({
+        action: 'open_shift',
+        new_values: { shift_id: shift.id, staff_id, expected_cash },
+        performed_by: auth.user?.id,
+      }),
+    });
+
     return NextResponse.json({ success: true, data: shift });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -80,7 +124,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requirePermission('cash.close', ['cashier', 'admin', 'superadmin']);
     if (!auth.authenticated) return auth;
 
     const { id, closed_at, actual_cash, manager_approved, manager_id, notes } = await request.json();
@@ -116,7 +160,20 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: data?.error || 'Failed to update shift' }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, data: Array.isArray(data) ? data[0] : data });
+    const updated = Array.isArray(data) ? data[0] : data;
+
+    await fetch(`${s.url}/rest/v1/operation_logs`, {
+      method: 'POST',
+      headers: s.headers,
+      body: JSON.stringify({
+        action: 'close_shift',
+        old_values: { id, closed_at: null },
+        new_values: { id, closed_at: updated.closed_at, actual_cash: updated.actual_cash, difference: updated.difference },
+        performed_by: auth.user?.id,
+      }),
+    });
+
+    return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

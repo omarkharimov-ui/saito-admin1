@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 import { createClient } from '@supabase/supabase-js';
 
 const svc = () => createClient(
@@ -8,9 +9,11 @@ const svc = () => createClient(
 
 export async function GET() {
   try {
+    const auth = await requireAuth(['admin', 'superadmin']);
+    if (!auth.authenticated) return auth;
+
     const s = svc();
 
-    // Get active shifts (opened but not closed)
     const { data: activeShifts, error: shiftError } = await s
       .from('shifts')
       .select('staff_id, opened_at')
@@ -21,7 +24,6 @@ export async function GET() {
       return NextResponse.json({ error: shiftError.message }, { status: 500 });
     }
 
-    // Get staff details for active shifts
     const staffIds = (activeShifts || []).map((s: any) => s.staff_id);
     let staffList: any[] = [];
 

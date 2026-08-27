@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const supabase = svc();
 
     const { data: users } = await supabase
-      .from('admin_users')
+      .from('staff')
       .select('id, role, pin_hash')
       .eq('is_active', true)
       .limit(1000);

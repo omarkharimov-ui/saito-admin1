@@ -1,30 +1,34 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import { createAuthClient } from '@/lib/api-auth';
 
-function getAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!supabaseUrl || !serviceRoleKey) return null;
-  return createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
-}
-
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
+    const cookieStore = await import('next/headers').then(m => m.cookies());
     const token = cookieStore.get('saito_token')?.value;
 
     if (token) {
-      const adminClient = getAdminClient();
-      if (adminClient) {
-        await adminClient.from('sessions').delete().eq('token', token);
-      }
+      const supabase = await createAuthClient();
+      await supabase.from('sessions').delete().eq('token', token);
     }
 
-    const response = NextResponse.json({ success: true });
-    response.cookies.set('saito_token', '', { httpOnly: true, path: '/', maxAge: 0 });
-    return response;
-  } catch {
-    return NextResponse.json({ success: true });
+    const res = NextResponse.json({ success: true });
+    res.cookies.set('saito_token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: new Date(0),
+      path: '/',
+    });
+    res.cookies.set('saito_csrf', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      expires: new Date(0),
+      path: '/',
+    });
+
+    return res;
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

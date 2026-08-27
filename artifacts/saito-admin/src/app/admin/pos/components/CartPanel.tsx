@@ -192,10 +192,6 @@ export function CartPanel({
   }, [cart?.notes]);
 
   useEffect(() => {
-    setGlobalNote(cart?.notes || '');
-  }, [cart?.notes]);
-
-  useEffect(() => {
     if (!guestEditing) {
       setLocalGuestCount(cart?.guest_count ?? tableGuests ?? 1);
     }
@@ -271,6 +267,15 @@ export function CartPanel({
     if (returnModalOpen || numpadOpen) setVoidMode(false);
   }, [returnModalOpen, numpadOpen, closeVk]);
 
+  const voidableItems = useMemo(() => {
+    if (!cart) return [];
+    return cart.items.filter(item => {
+      const ks = (item as any).kitchen_status || 'pending';
+      return (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
+    });
+  }, [cart]);
+  const hasVoidableItems = voidableItems.length > 0;
+
   if (!cart) {
     const msg = posMode !== 'dine_in' ? t('no_orders') || (posMode === 'takeaway' ? 'No orders' : 'No orders') : t('no_table_selected');
     return (
@@ -285,14 +290,6 @@ export function CartPanel({
   const originalTotal = cart.items.reduce((s, i) => s + (i.original_unit_price ?? i.unit_price) * i.quantity, 0);
   const isEmpty = cart.items.length === 0;
   const hasDraft = cart.items.some(i => (i.sentQuantity ?? 0) < i.quantity);
-
-  const voidableItems = useMemo(() => {
-    return cart.items.filter(item => {
-      const ks = (item as any).kitchen_status || 'pending';
-      return (item.sentQuantity ?? 0) > 0 && ['pending', 'accepted', 'sent', 'preparing'].includes(ks);
-    });
-  }, [cart.items]);
-  const hasVoidableItems = voidableItems.length > 0;
 
   const voidSelectedCount = Object.keys(voidSelection).length;
   const voidSelectedTotal = Object.entries(voidSelection).reduce((sum, [id, qty]) => {
@@ -773,18 +770,20 @@ export function CartPanel({
                 {voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? (
                   <>
                     <motion.span
+                      key="void-top"
                       initial={{ scaleX: 0 }}
                       animate={{ scaleX: 1 }}
                       transition={{ duration: 0.9, ease: 'easeInOut' }}
                       style={{ transformOrigin: 'left' }}
-                      className={`pointer-events-none absolute top-0 left-0 right-0 h-px ${lightMode ? 'bg-gradient-to-r from-blue-500/0 via-blue-500/90 to-blue-500/25' : 'bg-gradient-to-r from-blue-400/0 via-blue-400/90 to-blue-400/25'}`}
+                      className={`pointer-events-none absolute top-0 left-0 right-0 h-[2px] ${lightMode ? 'bg-gradient-to-r from-blue-500/90 via-blue-500 to-blue-500/90' : 'bg-gradient-to-r from-blue-400/90 via-blue-400 to-blue-400/90'}`}
                     />
                     <motion.span
+                      key="void-bottom"
                       initial={{ scaleX: 0 }}
                       animate={{ scaleX: 1 }}
                       transition={{ duration: 0.9, ease: 'easeInOut', delay: 0.06 }}
                       style={{ transformOrigin: 'right' }}
-                      className={`pointer-events-none absolute bottom-0 left-0 right-0 h-px ${lightMode ? 'bg-gradient-to-r from-blue-500/25 via-blue-500/90 to-blue-500/0' : 'bg-gradient-to-r from-blue-400/25 via-blue-400/90 to-blue-400/0'}`}
+                      className={`pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] ${lightMode ? 'bg-gradient-to-r from-blue-500/90 via-blue-500 to-blue-500/90' : 'bg-gradient-to-r from-blue-400/90 via-blue-400 to-blue-400/90'}`}
                     />
                   </>
                 ) : null}

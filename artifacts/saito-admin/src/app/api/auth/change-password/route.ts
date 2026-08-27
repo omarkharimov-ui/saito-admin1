@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { createClient } from '@supabase/supabase-js';
+import { hashPin } from '@/lib/crypto';
 
 function svc() {
   return createClient(
@@ -11,7 +12,7 @@ function svc() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(['superadmin']);
+  const auth = await requirePermission('staff.manage', ['superadmin']);
   if (!auth.authenticated) return auth;
 
   try {
@@ -28,9 +29,9 @@ export async function POST(req: NextRequest) {
     const supabase = svc();
 
     const { data: existing } = await supabase
-      .from('admin_users')
+      .from('staff')
       .select('id')
-      .eq('pin', newPin)
+      .eq('pin_hash', hashPin(newPin))
       .neq('id', userId)
       .maybeSingle();
 
@@ -39,8 +40,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { error } = await supabase
-      .from('admin_users')
-      .update({ pin: newPin })
+      .from('staff')
+      .update({ pin_hash: hashPin(newPin) })
       .eq('id', userId);
 
     if (error) throw error;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, validateAuth } from '@/lib/api-auth';
+import { requireAuth, requirePermission, sanitizeStaffArray } from '@/lib/api-auth';
 import { createClient } from '@supabase/supabase-js';
+import { hashPin } from '@/lib/crypto';
 
 function svc() {
   return createClient(
@@ -10,25 +11,21 @@ function svc() {
   );
 }
 
-function generatePin(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
-}
-
 export async function GET() {
-  const auth = await requireAuth(['superadmin']);
+  const auth = await requirePermission('staff.manage', ['superadmin']);
   if (!auth.authenticated) return auth;
 
   const supabase = svc();
   const { data } = await supabase
-    .from('admin_users')
-    .select('id, role, is_active, created_at')
+    .from('staff')
+    .select('id, name, role, role_id, is_active, created_at')
     .order('created_at', { ascending: false });
 
-  return NextResponse.json(data || []);
+  return NextResponse.json(sanitizeStaffArray(data || []));
 }
 
 export async function DELETE(req: NextRequest) {
-  const auth = await requireAuth(['superadmin']);
+  const auth = await requirePermission('staff.manage', ['superadmin']);
   if (!auth.authenticated) return auth;
 
   const { searchParams } = new URL(req.url);
@@ -41,14 +38,18 @@ export async function DELETE(req: NextRequest) {
 
   await supabase.from('sessions').delete().eq('user_id', id);
 
-  const { error } = await supabase.from('admin_users').delete().eq('id', id);
+  const { error } = await supabase
+    .from('staff')
+    .update({ is_active: false })
+    .eq('id', id);
+
   if (error) throw error;
 
   return NextResponse.json({ success: true });
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await requireAuth(['superadmin']);
+  const auth = await requirePermission('staff.manage', ['superadmin']);
   if (!auth.authenticated) return auth;
 
   const supabase = svc();
@@ -58,20 +59,20 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'User ID required' }, { status: 400 });
   }
 
+  const updates: Record<string, any> = {};
+
   if (newPin) {
     if (!/^\d{4}$/.test(newPin)) {
       return NextResponse.json({ error: 'PIN must be 4 digits' }, { status: 400 });
     }
-    const { data: existing } = await supabase.from('admin_users').select('id').eq('pin', newPin).maybeSingle();
+    const { data: existing } = await supabase.from('staff').select('id, pin_hash').eq('pin_hash', hashPin(newPin)).maybeSingle();
     if (existing && existing.id !== id) {
       return NextResponse.json({ error: 'PIN already in use' }, { status: 400 });
     }
+    updates.pin_hash = hashPin(newPin);
   }
 
-  const updates: Record<string, any> = {};
-  if (newPin) updates.pin = newPin;
-
-  const { error } = await supabase.from('admin_users').update(updates).eq('id', id);
+  const { error } = await supabase.from('staff').update(updates).eq('id', id);
   if (error) throw error;
 
   return NextResponse.json({ success: true });

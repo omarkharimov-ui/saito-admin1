@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
     const ip = getClientIp(req);
     const supabase = svc();
 
-    // Rate limit check
     const { data: rlCheck } = await supabase.rpc('check_login_rate_limit', {
       p_identifier: `verify-pin:${ip}`,
       p_ip: ip,
@@ -44,25 +43,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ valid: false, error: rlCheck.error }, { status: 429 });
     }
 
-    // Check admin_users table
-    const { data: adminUsers } = await supabase
-      .from('admin_users')
-      .select('id, role, pin_hash')
-      .eq('is_active', true)
-      .limit(1000);
-
-    const adminUser = (adminUsers || []).find((u: any) => u.pin_hash && verifyPin(pin, u.pin_hash));
-    if (adminUser) {
-      await supabase.rpc('record_login_attempt', {
-        p_identifier: `verify-pin:${ip}`,
-        p_ip: ip,
-        p_success: true,
-      });
-      try { await supabase.rpc('log_audit', { p_action: actionType, p_entity_type: 'staff', p_entity_id: adminUser.id, p_actor_id: adminUser.id, p_actor_name: adminUser.role, p_old_data: null, p_new_data: { method: 'admin_users', target_type: 'pos' }, p_metadata: { pin_verified: true, method: 'admin_users' } }); } catch { /* non-critical */ }
-      return NextResponse.json({ valid: true, role: adminUser.role, staffId: adminUser.id });
-    }
-
-    // Check staff table
     const { data: staffUsers } = await supabase
       .from('staff')
       .select('id, name, role, pin_hash')
@@ -87,7 +67,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Record failed attempt
     await supabase.rpc('record_login_attempt', {
       p_identifier: `verify-pin:${ip}`,
       p_ip: ip,

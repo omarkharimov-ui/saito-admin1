@@ -481,6 +481,19 @@ export const en: TranslationMap = {
   staff_saved: 'Changes saved',
   staff_added: 'Staff added',
   staff_deleted: 'Staff deleted',
+  staff_directory: 'Staff Directory',
+  staff_count_simple: 'staff',
+  roles_title: 'Roles & Permissions',
+  roles_create: 'New Role',
+  roles_save: 'Save',
+  roles_permissions_saved: 'Permissions updated',
+  roles_created: 'Role created',
+  roles_error_save: 'Could not save',
+  roles_error_create: 'Could not create role',
+  roles_select_hint: 'Select a role from the left panel or create a new one',
+  roles_permission_count: '{n} permissions',
+  roles_category_all: 'Select all',
+  roles_category_none: 'Clear all',
 
   // QR Tab
   qr_table_label: 'Table count:',
@@ -1718,6 +1731,10 @@ export const en: TranslationMap = {
   network_error: 'Network error',
   server_error: 'Server error',
   wrong_pin: 'Incorrect PIN',
+  pos_subtitle: 'Enter your PIN code',
+  pos_login_welcome: 'Welcome',
+  pos_login_welcome_desc: 'Kitchen is ready. Sign in with your PIN to accept orders and serve guests.',
+  pos_login_keyboard_hint: 'You can also type using the physical keyboard',
 
   hide: 'Hide',
 

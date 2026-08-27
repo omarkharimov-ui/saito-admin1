@@ -10,7 +10,7 @@ function LoginContent() {
 
   useEffect(() => {
     const target = redirect && redirect.startsWith('/') ? redirect : '/staff/login';
-    const destination = `/staff/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`;
+    const destination = `/staff/login${target !== '/staff/login' ? `?returnTo=${encodeURIComponent(target)}` : ''}`;
     router.replace(destination);
   }, [router, redirect]);
 

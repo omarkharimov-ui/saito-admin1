@@ -7,7 +7,8 @@ import { fastExit, slideUp, appleBackdrop, appleCard, appleViewSwap } from '@/li
 import { Sun, Moon, X, Calendar, Utensils, UserCheck, Bike, Wallet, History, Clock, PanelLeftClose, PanelLeftOpen, Users } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { usePos, cartLineKey } from './hooks/usePos';import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
+import { usePos, cartLineKey } from './hooks/usePos';
+import { useOrderStateMachine } from '@/hooks/useOrderStateMachine';
 import { TableCard } from './components/TableCard';
 import { ActionSheet } from './components/ActionSheet';
 import { ProductGrid, type ProductGridRef } from './components/ProductGrid';
@@ -259,11 +260,11 @@ export default function POSPage() {
           setPosRole(data.role);
           localStorage.setItem('pos_session', JSON.stringify(data));
         } else {
-          // No valid session — redirect to staff login
-          window.location.href = '/login?redirect=/admin/pos';
+          // No valid session — redirect to canonical staff login
+          window.location.href = '/staff/login?returnTo=/admin/pos';
         }
       } catch {
-        window.location.href = '/login?redirect=/admin/pos';
+        window.location.href = '/staff/login?returnTo=/admin/pos';
       }
     })();
   }, []);
@@ -325,12 +326,15 @@ export default function POSPage() {
   };
 
   useEffect(() => {
-    const onUnauthorized = () => {
+    const onUnauthorized = async () => {
       if (posSession) {
         setPosSession(null);
         setPosRole(null);
         localStorage.removeItem('pos_session');
-        window.location.href = '/login?redirect=/admin/pos';
+        try {
+          await fetch('/api/auth/logout', { method: 'POST' });
+        } catch {}
+        window.location.href = '/staff/login?returnTo=/admin/pos';
       }
     };
     window.addEventListener('pos:unauthorized', onUnauthorized);
@@ -343,14 +347,14 @@ export default function POSPage() {
     fetchDeliveryOrders();
   }, [fetchTakeawayOrders, fetchDeliveryOrders]);
 
-  const handlePosLogout = () => {
+  const handlePosLogout = async () => {
     setPosSession(null);
     setPosRole(null);
     localStorage.removeItem('pos_session');
-    document.cookie = 'saito_token=; path=/; max-age=0; SameSite=Lax';
-    document.cookie = 'saito_token=; path=/admin; max-age=0; SameSite=Lax';
-    document.cookie = 'saito_token=; path=/; max-age=0';
-    window.location.href = '/login?redirect=/admin/pos';
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    window.location.href = '/staff/login?returnTo=/admin/pos';
   };
 
    // Reservation → pre-order handoff: the reservations page navigates here with
@@ -746,6 +750,9 @@ export default function POSPage() {
         setPaymentView(false);
         setActionSheetOpen(false);
         pos.fetchData();
+        if (pos.selectedTable && tableNumbers.includes(pos.selectedTable.table_number)) {
+          pos.resetCart();
+        }
         if (posMode === 'takeaway') fetchTakeawayOrders();
         if (posMode === 'delivery') fetchDeliveryOrders();
         return;
@@ -804,6 +811,9 @@ export default function POSPage() {
       setPaymentView(false);
       setActionSheetOpen(false);
       pos.fetchData();
+      if (pos.selectedTable && tableNumbers.includes(pos.selectedTable.table_number)) {
+        pos.resetCart();
+      }
 
       // Build an on-screen receipt so the operator actually SEES what was paid
       // (previously the POS only printed silently, or did nothing).
@@ -978,7 +988,10 @@ export default function POSPage() {
     toast.loading(t('clearing_group'), { id: 'action-toast' });
     await pos.dismissTable(actionSheetTable.table_number);
     setActionSheetOpen(false);
-    toast.success(t('group_cleared'), { id: 'action-toast' });
+    if (pos.selectedTable && pos.selectedTable.table_number === actionSheetTable.table_number) {
+      pos.resetCart();
+    }
+    toast.success(t('group_cleared').replace('{table}', String(actionSheetTable.table_number)));
   };
 
   const activeFloor = selectedFloor 
@@ -1089,12 +1102,10 @@ export default function POSPage() {
         setTransferMode(false);
         setTransferSource(null);
         setTransferTarget(null);
-        // Refresh the floor so the moved table reflects new state, then make
-        // sure the open cart (if any) follows the table. If the user had the
-        // SOURCE table open, reopen the TARGET so the cart is rebuilt from the
-        // transferred order instead of appearing lost on an now-empty table.
+        if (pos.selectedTable && pos.selectedTable.table_number === transferSource) {
+          pos.resetCart();
+        }
         await pos.fetchData();
-        // Re-fetch floors after state update to avoid stale closure
         const freshFloorsRes = await apiFetch('/api/pos/tables');
         const freshFloors = freshFloorsRes.ok ? (await freshFloorsRes.json()).floors || [] : pos.floors;
         const allTables = freshFloors.flatMap((f: any) => f.tables || []);
@@ -1229,6 +1240,16 @@ export default function POSPage() {
         setSelectedForUnmerge([]);
         setActionSheetOpen(false);
         pos.fetchData();
+        if (pos.selectedTable) {
+          const affectedTables = [actionSheetTable.table_number, ...selectedForUnmerge];
+          if (affectedTables.includes(pos.selectedTable.table_number)) {
+            const freshFloorsRes = await apiFetch('/api/pos/tables');
+            const freshFloors = freshFloorsRes.ok ? (await freshFloorsRes.json()).floors || [] : pos.floors;
+            const allTables = freshFloors.flatMap((f: any) => f.tables || []);
+            const updatedTable = allTables.find((t: any) => t.table_number === pos.selectedTable?.table_number);
+            if (updatedTable) pos.selectTable(updatedTable);
+          }
+        }
         if (result.undo) {
           setLastUndo({
             action: 'unmerge',
@@ -2170,17 +2191,35 @@ export default function POSPage() {
          }}
          onConfirmUnmerge={handleUnmerge}
          onCancelMode={() => { setMergeMode(false); setTransferMode(false); setUnmergeMode(false); setSelectedForMerge([]); setSelectedForUnmerge([]); setTransferSource(null); setTransferTarget(null); }}
-            onConfirmMerge={async () => { 
-             const undoResult = await pos.mergeTables(selectedForMerge); 
-             if (undoResult) setLastUndo({ ...undoResult, timestamp: Date.now() });
-             setTimeout(() => setLastUndo(null), 5000);
-             setMergeMode(false); 
-             setSelectedForMerge([]); 
-             setActionSheetOpen(false);
-           }}
+             onConfirmMerge={async () => { 
+              const parentTableNumber = selectedForMerge[0];
+              const childTableNumbers = selectedForMerge.slice(1);
+              const undoResult = await pos.mergeTables(selectedForMerge); 
+              if (undoResult) setLastUndo({ ...undoResult, timestamp: Date.now() });
+              setTimeout(() => setLastUndo(null), 5000);
+              if (pos.selectedTable && childTableNumbers.includes(pos.selectedTable.table_number)) {
+                pos.resetCart();
+                const freshFloorsRes = await apiFetch('/api/pos/tables');
+                const freshFloors = freshFloorsRes.ok ? (await freshFloorsRes.json()).floors || [] : pos.floors;
+                const allTables = freshFloors.flatMap((f: any) => f.tables || []);
+                const parentTable = allTables.find((t: any) => t.table_number === parentTableNumber);
+                if (parentTable) pos.selectTable(parentTable);
+              }
+              setMergeMode(false); 
+              setSelectedForMerge([]); 
+              setActionSheetOpen(false);
+            }}
           onBillRequest={handleBillRequest}
           onPrintBill={handlePrintBill}
-          onClearTable={() => { if (actionSheetTable) { pos.clearTable(actionSheetTable.table_number); setActionSheetOpen(false); } }}
+           onClearTable={() => { 
+             if (actionSheetTable) { 
+               pos.clearTable(actionSheetTable.table_number); 
+               if (pos.selectedTable && pos.selectedTable.table_number === actionSheetTable.table_number) {
+                 pos.resetCart();
+               }
+               setActionSheetOpen(false); 
+             } 
+           }}
           posRole={posRole}
             groupNumber={actionSheetTable ? tableGroupInfo[actionSheetTable.table_number]?.groupNum : undefined}
              customerId={pos.cart?.customer_id}

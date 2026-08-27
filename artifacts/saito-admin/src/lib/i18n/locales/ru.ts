@@ -481,6 +481,19 @@ export const ru: TranslationMap = {
   staff_saved: 'Изменения сохранены',
   staff_added: 'Сотрудник добавлен',
   staff_deleted: 'Сотрудник удалён',
+  staff_directory: 'Справочник сотрудников',
+  staff_count_simple: 'сотрудников',
+  roles_title: 'Роли и права',
+  roles_create: 'Новая роль',
+  roles_save: 'Сохранить',
+  roles_permissions_saved: 'Права обновлены',
+  roles_created: 'Роль создана',
+  roles_error_save: 'Не удалось сохранить',
+  roles_error_create: 'Не удалось создать роль',
+  roles_select_hint: 'Выберите роль слева или создайте новую',
+  roles_permission_count: '{n} прав',
+  roles_category_all: 'Выбрать все',
+  roles_category_none: 'Снять все',
 
   // QR Tab
   qr_table_label: 'Количество столов:',
@@ -1719,6 +1732,10 @@ export const ru: TranslationMap = {
   network_error: 'Ошибка сети',
   server_error: 'Ошибка сервера',
   wrong_pin: 'Неверный PIN',
+  pos_subtitle: 'Введите PIN-код',
+  pos_login_welcome: 'Добро пожаловать',
+  pos_login_welcome_desc: 'Кухня готова. Войдите с PIN-кодом, чтобы принимать заказы и обслуживать гостей.',
+  pos_login_keyboard_hint: 'Также можно вводить с физической клавиатуры',
 
   hide: 'Скрыть',
 

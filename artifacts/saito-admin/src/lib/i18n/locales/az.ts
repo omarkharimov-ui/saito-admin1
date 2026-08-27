@@ -478,6 +478,19 @@ export const az = {
   staff_saved: 'Dəyişikliklər yadda saxlandı',
   staff_added: 'İşçi əlavə edildi',
   staff_deleted: 'İşçi silindi',
+  staff_directory: 'İşçi Dəstləri',
+  staff_count_simple: 'işçi',
+  roles_title: 'Rollar və İcazələr',
+  roles_create: 'Yeni Rol',
+  roles_save: 'Yadda Saxla',
+  roles_permissions_saved: 'İcazələr yeniləndi',
+  roles_created: 'Rol yaradıldı',
+  roles_error_save: 'Yadda saxlanıla bilmədi',
+  roles_error_create: 'Rol yaradıla bilmədi',
+  roles_select_hint: 'Sol paneldən rol seçin və ya yeni rol yaradın',
+  roles_permission_count: '{n} icazə',
+  roles_category_all: 'Hamısını seç',
+  roles_category_none: 'Hamısını sil',
 
   // QR Tab
   qr_table_label: 'Masa sayı:',
@@ -1716,6 +1729,10 @@ export const az = {
   network_error: 'Şəbəkə xətası',
   server_error: 'Server xətası',
   wrong_pin: 'PIN yanlışdır',
+  pos_subtitle: 'PIN kodunuzu daxil edin',
+  pos_login_welcome: 'Xoş gəlmisiniz',
+  pos_login_welcome_desc: 'Mətbəx hazır. Sifarişləri qəbul etmək və xidmət etmək üçün PIN ilə daxil olun.',
+  pos_login_keyboard_hint: 'Fiziki klaviatura ilə də daxil edə bilərsiniz',
 
   hide: 'Gizlə',
 

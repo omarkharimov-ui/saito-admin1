@@ -9,8 +9,7 @@ import GoldSelect from '@/components/GoldSelect';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { hashPin } from '@/lib/crypto';
 
-type StaffMember = { id: string; name: string; role: string; shift: string; phone: string; pin?: string };
-const ROLES = ['Ofisiant', 'Baş Ofisiant', 'Menecer', 'Barmen', 'Aşpaz', 'Kassa'];
+type StaffMember = { id: string; name: string; role: string; role_id?: string; shift: string; phone: string; pin?: string };
 const EXPENSE_CATEGORIES = [
   { value: 'salary', label: 'Maaş' },
   { value: 'bonus', label: 'Bonus' },
@@ -18,7 +17,7 @@ const EXPENSE_CATEGORIES = [
   { value: 'advance', label: 'Avans' },
   { value: 'other', label: 'Digər' },
 ];
-const emptyForm = () => ({ name: '', role: ROLES[0], shift: '', phone: '', pin: '' });
+const emptyForm = () => ({ name: '', role_id: '', role: '', shift: '', phone: '', pin: '' });
 
 const STAFF_CACHE_KEY = 'saito_staff_cache';
 
@@ -37,6 +36,7 @@ const StaffTab = () => {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [expenseForm, setExpenseForm] = useState({ staff_id: '', category: 'salary', amount: '', note: '', expense_date: new Date().toISOString().split('T')[0] });
+  const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     supabase.from('staff').select('*').order('name').then(({ data }) => {
@@ -45,6 +45,9 @@ const StaffTab = () => {
         setStaffList(data as any[]);
         try { localStorage.setItem(STAFF_CACHE_KEY, JSON.stringify(data)); } catch {}
       }
+    });
+    supabase.from('roles').select('id,name').order('name').then(({ data }) => {
+      if (data) setRoles(data as { id: string; name: string }[]);
     });
     loadExpenses();
   }, []);
@@ -65,7 +68,7 @@ const StaffTab = () => {
   const openEdit = (s: StaffMember) => {
     setModalMode('staff');
     setEditingStaff(s);
-    setForm({ name: s.name, role: s.role, shift: s.shift, phone: s.phone || '', pin: (s as any).pin || '' });
+    setForm({ name: s.name, role: s.role, role_id: (s as any).role_id || '', shift: s.shift, phone: s.phone || '', pin: (s as any).pin || '' });
     setModalOpen(true);
   };
 
@@ -89,14 +92,26 @@ const StaffTab = () => {
     setSaving(true);
     try {
       if (editingStaff) {
-        const updateData: any = { name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() };
+        const updateData: any = { 
+          name: form.name.trim(), 
+          role: form.role || roles.find(r => r.id === form.role_id)?.name || '',
+          role_id: form.role_id || null, 
+          shift: form.shift.trim(), 
+          phone: form.phone.trim() 
+        };
         if (form.pin && form.pin.length === 4) updateData.pin_hash = hashPin(form.pin);
         const { error } = await supabase.from('staff').update(updateData).eq('id', editingStaff.id);
         if (error) throw error;
-        setStaff(prev => prev.map(s => s.id === editingStaff.id ? { ...s, ...form } : s));
+        setStaff(prev => prev.map(s => s.id === editingStaff.id ? { ...s, ...form, role_id: form.role_id, role: updateData.role } : s));
         toast.success(t('staff_saved'), { id: 'action-toast', duration: 3000 });
       } else {
-        const insertData: any = { name: form.name.trim(), role: form.role, shift: form.shift.trim(), phone: form.phone.trim() };
+        const insertData: any = { 
+          name: form.name.trim(), 
+          role: form.role || roles.find(r => r.id === form.role_id)?.name || '',
+          role_id: form.role_id || null, 
+          shift: form.shift.trim(), 
+          phone: form.phone.trim() 
+        };
         if (form.pin && form.pin.length === 4) insertData.pin_hash = hashPin(form.pin);
         const { data, error } = await supabase.from('staff').insert([insertData]).select().single();
         if (error) throw error;
@@ -421,9 +436,12 @@ const StaffTab = () => {
                         <Briefcase size={10} className="text-gold/70" /> {t('staff_position')}
                       </label>
                       <GoldSelect
-                        value={form.role}
-                        options={ROLES.map(r => ({ value: r, label: r }))}
-                        onChange={(val) => setForm({ ...form, role: val })}
+                        value={form.role_id || ''}
+                        options={[{ value: '', label: 'Rol seçin' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
+                        onChange={(val) => {
+                          const selectedRole = roles.find(r => r.id === val);
+                          setForm({ ...form, role_id: val, role: selectedRole?.name || '' });
+                        }}
                       />
                     </div>
                     <div className="space-y-1.5">

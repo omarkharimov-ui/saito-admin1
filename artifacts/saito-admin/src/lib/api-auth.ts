@@ -49,12 +49,21 @@ export async function requireAuth(requiredRoles?: string[]): Promise<any> {
   return auth;
 }
 
+export function sanitizeStaff(staff: any): any {
+  if (!staff || typeof staff !== 'object') return staff;
+  const { pin_hash, ...rest } = staff;
+  return rest;
+}
+
+export function sanitizeStaffArray(staffList: any[]): any[] {
+  return staffList.map(s => sanitizeStaff(s));
+}
+
 export async function requirePermission(permission: string, allowedRoles: string[] = []): Promise<any> {
   const auth = await validateAuth(allowedRoles);
   if (!auth.authenticated) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  // Superusers always allowed (legacy role-string bypass)
   if (auth.role && ['admin', 'superadmin', 'owner'].includes(auth.role)) return auth;
   const supabase = svc();
   const { data, error } = await supabase.rpc('has_permission', {

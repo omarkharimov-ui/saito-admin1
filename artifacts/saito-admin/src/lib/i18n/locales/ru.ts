@@ -1525,7 +1525,7 @@ export const ru: TranslationMap = {
   hint_void_not_ready: 'Подано — нельзя отменить, используйте "Вернуть"',
   hint_void_not_sent: 'Ещё не отправлено — используйте "Отменить"',
   void_mode_title: 'Режим отмены',
-  void_select_hint: 'Выберите товары и используйте "+" для количества',
+  void_select_hint: 'Нажмите "+" на позиции, чтобы добавить её — количество можно увеличить или уменьшить',
   void_select_prompt: 'Выберите товары для отмены',
   void_total_label: 'Сумма к отмене',
   cancelled_amount: 'Сумма отмены',

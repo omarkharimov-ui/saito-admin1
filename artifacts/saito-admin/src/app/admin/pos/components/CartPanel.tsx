@@ -717,11 +717,11 @@ export function CartPanel({
                 className={`flex items-center justify-center w-full h-full py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.15em] border transition-all ${
                   voidMode
                     ? lightMode
-                      ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20'
-                      : 'bg-rose-500/20 text-rose-400 border-rose-500/40 shadow-lg shadow-rose-500/10'
+                      ? 'bg-zinc-900 text-white border-zinc-900 shadow-lg shadow-black/10'
+                      : 'bg-white text-black border-white shadow-lg shadow-white/10'
                     : lightMode
-                      ? 'bg-rose-50 border-rose-200 text-rose-500 hover:text-rose-700 hover:bg-rose-100'
-                      : 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20'
+                      ? 'bg-[var(--theme-surface)] border-zinc-200 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100'
+                      : 'bg-white/5 border-[var(--theme-border)] text-white/40 hover:text-white/70 hover:bg-white/10'
                 }`}
               >
                 {voidMode ? <X size={12} className="mr-1.5" /> : <Ban size={12} className="mr-1.5" />}
@@ -773,7 +773,7 @@ export function CartPanel({
                     }
                   }
                 }}
-                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50' : ''} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? 'border-rose-500/60 ring-1 ring-rose-500/30' : ''}`}
+                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50' : ''} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? lightMode ? 'bg-zinc-50 border-zinc-300' : 'bg-white/5 border-white/25' : ''}`}
               >
                 <div className="flex items-center gap-2.5">
                   <div className="flex-1 min-w-0">
@@ -801,16 +801,16 @@ export function CartPanel({
                    </span>
                     {voidMode && isVoidableItem ? (
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center rounded-xl border border-rose-500/30 overflow-hidden">
+                        <div className="flex items-center rounded-xl border border-[var(--theme-border)] overflow-hidden">
                           <button
                             onClick={() => setVoidQty(item.id || `idx-${originalIdx}`, (voidSelection[item.id || `idx-${originalIdx}`] || 0) - 1, maxVoidQty)}
-                            className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-rose-500/10 transition-colors active:scale-95"
+                            className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] transition-colors active:scale-95"
                             disabled={!(voidSelection[item.id || `idx-${originalIdx}`] ?? 0)}
                           >−</button>
-                          <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-rose-400">{voidSelection[item.id || `idx-${originalIdx}`] || '—'}</span>
+                          <span className="w-10 h-10 flex items-center justify-center text-sm font-black tabular-nums text-[var(--theme-text)]">{voidSelection[item.id || `idx-${originalIdx}`] || '—'}</span>
                           <button
                             onClick={() => toggleVoidItem(item.id || `idx-${originalIdx}`, maxVoidQty)}
-                            className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-rose-500/10 transition-colors active:scale-95"
+                            className="w-10 h-10 flex items-center justify-center text-lg font-black hover:bg-[var(--theme-surface-soft)] transition-colors active:scale-95"
                             disabled={(voidSelection[item.id || `idx-${originalIdx}`] || 0) >= maxVoidQty}
                           >+</button>
                         </div>
@@ -905,27 +905,27 @@ export function CartPanel({
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="flex-shrink-0 pt-4 pb-6 border-t border-[var(--theme-border)] px-1"
           >
-            <div className={`rounded-2xl px-4 py-3.5 border ${lightMode ? 'bg-white border-rose-200' : 'bg-[var(--theme-surface-muted)] border-rose-500/25'}`}>
+            <div className={`rounded-2xl px-4 py-3.5 border ${lightMode ? 'bg-[var(--theme-surface)] border-zinc-200' : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)]'}`}>
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${lightMode ? 'bg-rose-100 text-rose-600' : 'bg-rose-500/15 text-rose-400'}`}>
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${lightMode ? 'bg-zinc-100 text-zinc-600' : 'bg-white/5 text-white/50'}`}>
                     <Ban size={13} className="flex-shrink-0" />
                   </div>
-                  <span className={`text-xs font-black uppercase tracking-widest ${lightMode ? 'text-rose-600' : 'text-rose-400'}`}>
+                  <span className={`text-xs font-black uppercase tracking-widest ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>
                     {t('void_mode_title') || 'Ləğv rejimi'}
                   </span>
                 </div>
                 {voidSelectedCount > 0 && (
-                  <span className={`text-xs font-bold ${lightMode ? 'text-rose-600' : 'text-rose-300'}`}>
+                  <span className={`text-xs font-bold ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>
                     {voidSelectedCount} {t('items_selected') || 'seçildi'}
                   </span>
                 )}
               </div>
-              <span className={`text-[11px] font-medium mt-0.5 ${lightMode ? 'text-rose-500/80' : 'text-rose-400/70'}`}>
+              <span className={`text-[11px] font-medium mt-0.5 ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>
                 {t('void_select_hint') || 'Məhsulları seçərək "+" ilə miqdarı seçin'}
               </span>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-rose-500/15">
-                <span className={`text-xs uppercase tracking-widest font-bold ${lightMode ? 'text-rose-600' : 'text-rose-400'}`}>
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--theme-border)]">
+                <span className={`text-xs uppercase tracking-widest font-bold ${lightMode ? 'text-zinc-700' : 'text-white/70'}`}>
                   {t('void_total_label') || 'Ləğv ediləcək cəm'}
                 </span>
                 <RollingNumber
@@ -933,7 +933,7 @@ export function CartPanel({
                   prefix="−"
                   suffix=" ₼"
                   decimals={2}
-                  className={`text-[28px] font-black tracking-tight tabular-nums ${lightMode ? 'text-rose-600' : 'text-rose-300'}`}
+                  className={`text-[28px] font-black tracking-tight tabular-nums ${lightMode ? 'text-zinc-900' : 'text-white'}`}
                   duration={0.3}
                 />
               </div>
@@ -1027,7 +1027,7 @@ export function CartPanel({
                 : (hasExistingOrder ? t('resend') : t('send_to_kitchen'));
         const btnDisabled = voidMode ? (voidSelectedCount === 0 || voidLoading) : seatBusy;
         const btnBg = voidMode
-          ? 'bg-rose-500 text-white shadow-xl shadow-rose-500/25 hover:bg-rose-600'
+          ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10 hover:bg-zinc-800' : 'bg-white text-black shadow-xl shadow-white/5')
           : hasCartItems
             ? (lightMode ? 'bg-zinc-900 text-white shadow-xl shadow-black/10' : 'bg-white text-black shadow-xl shadow-white/5')
             : canSeat

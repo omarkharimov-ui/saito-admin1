@@ -384,15 +384,10 @@ export function CartPanel({
   };
 
   const handleSeatAndSend = async () => {
-    if (seatBusy || !onSeatTable) return;
-    setSeatBusy(true);
-    try {
-      await onSeatTable();
-      // After seating, place the order
-      onPlaceOrder();
-    } finally {
-      setSeatBusy(false);
-    }
+    // Table is empty + products in cart: placeOrder already marks the table
+    // as occupied on the server (POST /api/orders sets status 'occupied'),
+    // so do not run a separate seat — otherwise both actions fire at once.
+    onPlaceOrder();
   };
 
   const headerMeta = (
@@ -773,7 +768,7 @@ export function CartPanel({
                     }
                   }
                 }}
-                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50' : ''} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? lightMode ? 'bg-zinc-50 border-zinc-300' : 'bg-white/5 border-white/25' : ''}`}
+                className={`mb-2 rounded-2xl border bg-[var(--theme-surface-muted)] shadow-[0_1px_3px_rgba(255,255,255,0.04)] border-[var(--theme-border)] px-3.5 py-3 ${voidMode && !isVoidableItem ? 'opacity-50' : ''} ${voidMode && isVoidableItem && (voidSelection[item.id || `idx-${originalIdx}`] || 0) > 0 ? lightMode ? 'bg-blue-50/50 border-blue-400/70 shadow-[0_0_0_3px_rgba(59,130,246,0.15)]' : 'bg-blue-500/10 border-blue-400/50 shadow-[0_0_0_3px_rgba(59,130,246,0.25)] ring-1 ring-blue-400/20' : ''}`}
               >
                 <div className="flex items-center gap-2.5">
                   <div className="flex-1 min-w-0">
@@ -821,7 +816,8 @@ export function CartPanel({
                         <button
                           onClick={() => {
                             const ks = (item as any).kitchen_status;
-                            if (ks || (item.sentQuantity ?? 0) > 0) {
+                            const draftQty = (item.quantity ?? 0) - (item.sentQuantity ?? 0);
+                            if (ks && draftQty <= 0) {
                               if (['ready', 'completed', 'served'].includes(ks)) {
                                 toast(t('hint_return_item') || 'Servis edilib — "Geri qaytar" istifadə edin', { id: 'pos-hint', duration: 3500 });
                               } else if (['sent', 'preparing', 'pending', 'accepted', 'cooking'].includes(ks)) {
@@ -833,8 +829,8 @@ export function CartPanel({
                             }
                             onUpdateQty?.(originalIdx, -1);
                           }}
-                          aria-disabled={!!(item as any).kitchen_status || (item.sentQuantity ?? 0) > 0}
-                          className={`w-11 h-11 flex items-center justify-center text-lg font-black transition-colors active:scale-95 ${(item as any).kitchen_status || (item.sentQuantity ?? 0) > 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10'}`}
+                          aria-disabled={!!(item as any).kitchen_status && ((item.quantity ?? 0) - (item.sentQuantity ?? 0)) <= 0}
+                          className={`w-11 h-11 flex items-center justify-center text-lg font-black transition-colors active:scale-95 ${(item as any).kitchen_status && ((item.quantity ?? 0) - (item.sentQuantity ?? 0)) <= 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10'}`}
                         >−</button>
                         <span className="w-12 h-11 flex items-center justify-center text-sm font-black tabular-nums">{item.quantity}</span>
                        <motion.button
@@ -895,14 +891,14 @@ export function CartPanel({
       </div>
 
       {/* Footer */}
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="wait">
         {voidMode ? (
           <motion.div
             key="void-footer"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="flex-shrink-0 pt-4 pb-6 border-t border-[var(--theme-border)] px-1"
           >
             <div className={`rounded-2xl border px-4 py-3.5 ${lightMode ? 'bg-[var(--theme-surface)] border-zinc-200 shadow-sm' : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)]'}`}>
@@ -929,9 +925,9 @@ export function CartPanel({
         ) : (
           <motion.div
             key="std-footer"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.12, ease: 'easeIn' } }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="flex-shrink-0 pt-4 pb-6 border-t space-y-3 border-[var(--theme-border)]"
           >
@@ -1028,11 +1024,10 @@ export function CartPanel({
           <div className="w-full flex-shrink-0 px-6 pb-5 pt-2">
             <motion.button
               layout
-              initial={{ opacity: 0, scale: 0.96, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
+              initial={false}
               whileHover={{ scale: btnDisabled ? 1 : 1.015 }}
               whileTap={{ scale: btnDisabled ? 1 : 0.99 }}
-              transition={{ layout: { duration: 0.35, ease: [0.32, 0.72, 0, 1] }, opacity: { duration: 0.25, ease: 'easeOut' }, scale: { type: 'spring', stiffness: 420, damping: 30 }, y: { type: 'spring', stiffness: 420, damping: 30 } }}
+              transition={{ layout: { duration: 0.35, ease: [0.32, 0.72, 0, 1] } }}
               disabled={btnDisabled}
               onClick={voidMode
                 ? handleVoidConfirm

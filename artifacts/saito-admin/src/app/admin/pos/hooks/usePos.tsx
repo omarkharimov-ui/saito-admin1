@@ -819,7 +819,8 @@ export function usePos() {
       if (!prev) return null;
       const items = prev.items.map(i => ({ ...i }));
       if (!items[idx]) return prev;
-      items[idx].quantity += delta;
+      const sent = items[idx].sentQuantity ?? 0;
+      items[idx].quantity = Math.max(items[idx].quantity + delta, sent);
       if (items[idx].quantity <= 0) items.splice(idx, 1);
       else items[idx].total_price = items[idx].unit_price * items[idx].quantity;
       return { ...prev, items };

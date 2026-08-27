@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, Info, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check } from 'lucide-react';
+import { Minus, ShoppingBag, ArrowLeft, Users, GitMerge, X, User, Receipt, Utensils, Package, Car, Pause, Play, SlidersHorizontal, Clock, Flame, Star, MapPin, Edit2, Tag, Armchair, MoreHorizontal, Loader2, Send, Ban, RotateCcw, Trash2, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
 import { toast } from '@/lib/toast';
@@ -775,16 +775,16 @@ export function CartPanel({
                     <motion.span
                       initial={{ scaleX: 0 }}
                       animate={{ scaleX: 1 }}
-                      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                      style={{ transformOrigin: 'center' }}
-                      className={`pointer-events-none absolute top-0 left-0 right-0 h-[2px] rounded-[2px] ${lightMode ? 'bg-gradient-to-r from-blue-400/0 via-blue-500/80 to-blue-400/0' : 'bg-gradient-to-r from-blue-400/0 via-blue-400/90 to-blue-400/0'}`}
+                      transition={{ duration: 0.9, ease: 'easeInOut' }}
+                      style={{ transformOrigin: 'left' }}
+                      className={`pointer-events-none absolute top-0 left-0 right-0 h-px ${lightMode ? 'bg-gradient-to-r from-blue-500/0 via-blue-500/90 to-blue-500/25' : 'bg-gradient-to-r from-blue-400/0 via-blue-400/90 to-blue-400/25'}`}
                     />
                     <motion.span
                       initial={{ scaleX: 0 }}
                       animate={{ scaleX: 1 }}
-                      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.04 }}
-                      style={{ transformOrigin: 'center' }}
-                      className={`pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] rounded-[2px] ${lightMode ? 'bg-gradient-to-r from-blue-400/0 via-blue-500/80 to-blue-400/0' : 'bg-gradient-to-r from-blue-400/0 via-blue-400/90 to-blue-400/0'}`}
+                      transition={{ duration: 0.9, ease: 'easeInOut', delay: 0.06 }}
+                      style={{ transformOrigin: 'right' }}
+                      className={`pointer-events-none absolute bottom-0 left-0 right-0 h-px ${lightMode ? 'bg-gradient-to-r from-blue-500/25 via-blue-500/90 to-blue-500/0' : 'bg-gradient-to-r from-blue-400/25 via-blue-400/90 to-blue-400/0'}`}
                     />
                   </>
                 ) : null}
@@ -869,7 +869,7 @@ export function CartPanel({
                       </button>
                     )}
                     <button onClick={() => onRequestEditor?.(item.product_id, originalIdx)} className={`p-2 rounded-xl border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'}`} title={t('details')}>
-                      <Info size={14} />
+                      <SlidersHorizontal size={14} />
                     </button>
                     {(() => {
                       const ks = (item as any).kitchen_status || 'pending';

@@ -332,7 +332,7 @@ export default function StaffPage() {
                       >
                         <Link
                            href={`/admin/staff/${member.id}`}
-                           className={`block relative px-5 py-3.5 rounded-[28px] border transition-all duration-200 overflow-hidden active:scale-[0.97] shadow-card hover:border-[var(--theme-border-strong)] ${
+                           className={`block relative px-5 py-3.5 rounded-[28px] border border-transparent transition-all duration-200 overflow-hidden active:scale-[0.97] shadow-card hover:border-[var(--theme-border-strong)] ${
                              member.is_active ? 'bg-[var(--theme-surface-soft)]' : 'bg-[var(--theme-surface)]'
                            } ${
                              isOnShift ? 'border-l-2 border-l-emerald-400/60' : 'border-l-2 border-l-transparent'

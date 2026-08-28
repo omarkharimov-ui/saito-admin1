@@ -7,29 +7,26 @@ import { AnimatedTabs } from '../components/ui/MotionControls';
 import { supabase } from '@/lib/supabase';
 import GeneralTab from './tabs/GeneralTab';
 import QRTab from './tabs/QRTab';
-import StaffTab from './tabs/StaffTab';
 import HoursTab from './tabs/HoursTab';
 import AnalyticsTab from './tabs/AnalyticsTab';
 import KitchenTab from './tabs/KitchenTab';
-import UsersTab from './tabs/UsersTab';
 import ReceiptTab from './tabs/ReceiptTab';
 import PrinterTab from './tabs/PrinterTab';
 import FloorsTab from './tabs/FloorsTab';
 
-type Tab = 'general' | 'staff' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'users' | 'floors' | 'hours';
+
+type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'floors' | 'hours';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
 const TAB_DEFS: TabDef[] = [
   { key: 'general',   labelKey: 'tab_general',   icon: <Store size={20} />,       desc: 'Restoran məlumatları' },
-  { key: 'staff',     labelKey: 'tab_staff',     icon: <Users size={20} />,       desc: 'İşçilər və icazələr' },
   { key: 'hours',     labelKey: 'tab_hours' as any, icon: <Clock size={20} />,     desc: 'İş saatları' },
   { key: 'qr',        labelKey: 'tab_qr',        icon: <QrCode size={20} />,      desc: 'QR kod və masa linki' },
   { key: 'analytics', labelKey: 'tab_analytics', icon: <BrainCircuit size={20} />,desc: 'Statistika parametrləri' },
   { key: 'kitchen',   labelKey: 'tab_kitchen',   icon: <Timer size={20} />,       desc: 'Mətbəx ayarları' },
   { key: 'receipt',   labelKey: 'tab_receipt',   icon: <Receipt size={20} />,     desc: 'Çek və çıxarış' },
   { key: 'printer',   labelKey: 'tab_printer',   icon: <Printer size={20} />,     desc: 'Printer ayarları' },
-  { key: 'users',     labelKey: 'tab_users',     icon: <ShieldCheck size={20} />, desc: 'Admin hesabları', superadminOnly: true },
   { key: 'floors',    labelKey: 'tab_floors',    icon: <MapPin size={20} />,      desc: 'Zallar, mərtəbələr, masa planı' },
 ];
 
@@ -43,14 +40,12 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
   return (
     <>
       {tab === 'general'   && <GeneralTab initialData={settingsData} />}
-      {tab === 'staff'     && <StaffTab />}
       {tab === 'hours'     && <HoursTab />}
       {tab === 'qr'        && <QRTab initialData={settingsData} />}
       {tab === 'analytics' && <AnalyticsTab initialData={settingsData} />}
       {tab === 'kitchen'   && <KitchenTab initialData={settingsData} />}
       {tab === 'receipt'   && <ReceiptTab initialData={settingsData} />}
       {tab === 'printer'   && <PrinterTab initialData={settingsData} />}
-      {tab === 'users'     && isSuperadmin && <UsersTab />}
       {tab === 'floors'    && <FloorsTab />}
     </>
   );

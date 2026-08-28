@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -217,6 +217,12 @@ export default function StaffDetailPage() {
     return `₼${Number(val).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const monthlySalary = useMemo(() => {
+    if (!staff?.hourly_rate) return null;
+    const hoursPerMonth = 160;
+    return staff.hourly_rate * hoursPerMonth;
+  }, [staff?.hourly_rate]);
+
   const formatDate = (iso: string) => {
     return new Date(iso).toLocaleDateString('az-AZ', { day: 'numeric', month: 'short', year: 'numeric' });
   };
@@ -302,8 +308,13 @@ export default function StaffDetailPage() {
             </div>
             <p className="text-[10px] text-[var(--theme-text-muted)] mt-1.5 uppercase tracking-widest">
               {staff.email || staff.phone || 'No contact info'}
-              {staff.hourly_rate != null && ` · ${formatCurrency(staff.hourly_rate)}/s`}
+              {staff.hourly_rate != null && ` · ${formatCurrency(staff.hourly_rate)}/saat`}
             </p>
+            {monthlySalary != null && (
+              <p className="text-[10px] text-gold/80 mt-1 uppercase tracking-widest font-bold">
+                Təxmini ayliq: {formatCurrency(monthlySalary)}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">

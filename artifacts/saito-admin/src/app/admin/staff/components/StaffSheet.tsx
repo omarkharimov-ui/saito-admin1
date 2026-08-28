@@ -4,6 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, UserPlus, Shield, Phone, Mail, Clock, KeyRound, DollarSign } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { formatCurrency } from '@/lib/staff-utils';
 
 interface StaffSheetProps {
   open: boolean;
@@ -144,19 +145,24 @@ export function StaffSheet({
                 />
               </div>
 
-               <div className="space-y-1.5">
-                 <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-bold">
-                   <DollarSign size={10} className="text-gold/60" /> Hourly Rate (₼)
-                 </label>
-                 <input
-                   type="number"
-                   step="0.01"
-                   value={form.hourly_rate ?? ''}
-                   onChange={(e) => onFormChange({ ...form, hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined })}
-                   placeholder="0.00"
-                   className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-2xl transition-all"
-                 />
-               </div>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-bold">
+                    <DollarSign size={10} className="text-gold/60" /> Hourly Rate (₼)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.hourly_rate ?? ''}
+                    onChange={(e) => onFormChange({ ...form, hourly_rate: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="0.00"
+                    className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-2xl transition-all"
+                  />
+                  {form.hourly_rate != null && (
+                    <p className="text-[10px] text-gold/70 font-bold">
+                      ~{formatCurrency(form.hourly_rate * 160)}/ay
+                    </p>
+                  )}
+                </div>
 
                {!editingStaff && (
                 <div className="space-y-1.5">

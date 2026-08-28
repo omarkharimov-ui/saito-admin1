@@ -367,100 +367,77 @@ export default function RolesPage() {
                 </div>
               </div>
 
-              {/* Permission Categories */}
-              <div className="p-6 space-y-4">
-                {Object.entries(groupedPermissions).map(([category, categoryPerms]) => {
-                  const allSelected = categoryPerms.every(p => selectedRole.permissions.includes(p.key));
-                  const someSelected = categoryPerms.some(p => selectedRole.permissions.includes(p.key));
-                  const isExpanded = expandedCategories.has(category);
+               {/* Permission Categories */}
+               <div className="p-6 space-y-4">
+                 {Object.entries(groupedPermissions).map(([category, categoryPerms]) => {
+                   const allSelected = categoryPerms.every(p => selectedRole.permissions.includes(p.key));
+                   const someSelected = categoryPerms.some(p => selectedRole.permissions.includes(p.key));
 
-                  return (
-                     <div key={category} className="border border-[var(--theme-border)] rounded-2xl overflow-hidden">
-                       <button
-                         onClick={() => toggleCategory(category)}
-                         className="w-full flex items-center justify-between p-4 hover:bg-[var(--theme-surface-soft)] transition-colors"
-                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-black text-[var(--theme-text)] uppercase tracking-wider">
-                            {CATEGORY_LABELS[category] || category}
-                          </span>
-                           <span className="text-[10px] text-[var(--theme-text-muted)]">
-                             {categoryPerms.length}
-                           </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {!selectedRole.is_system && (
-                             <span className={`text-[10px] uppercase tracking-wider font-bold ${allSelected ? 'text-emerald-400' : someSelected ? 'text-amber-400' : 'text-[var(--theme-text-muted)]'}`}>
-                              {allSelected ? 'All selected' : someSelected ? 'Partial' : 'None'}
+                   return (
+                      <div key={category} className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-[24px] overflow-hidden">
+                        <div className="px-5 py-3.5 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-black text-[var(--theme-text)] uppercase tracking-[0.2em]">
+                              {CATEGORY_LABELS[category] || category}
                             </span>
-                          )}
-                             <motion.div
-                               animate={{ rotate: isExpanded ? 180 : 0 }}
-                               transition={{ duration: 0.2 }}
-                             >
-                               <ChevronDown size={16} className="text-[var(--theme-text-muted)]" />
-                             </motion.div>
+                            <span className="text-[10px] text-[var(--theme-text-muted)] font-bold tabular-nums">
+                              {categoryPerms.length}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {!selectedRole.is_system && (
+                               <span className={`text-[10px] uppercase tracking-wider font-bold ${allSelected ? 'text-emerald-400' : someSelected ? 'text-amber-400' : 'text-[var(--theme-text-muted)]'}`}>
+                                 {allSelected ? 'All on' : someSelected ? 'Partial' : 'Off'}
+                               </span>
+                            )}
+                            {!selectedRole.is_system && (
+                              <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => handleCategoryToggle(categoryPerms, !allSelected)}
+                                className="text-[10px] font-bold text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"
+                              >
+                                {allSelected ? 'Clear' : 'Select all'}
+                              </motion.button>
+                            )}
+                          </div>
                         </div>
-                      </button>
 
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-4 pb-4 space-y-1.5">
-                              {!selectedRole.is_system && (
-                                 <button
-                                   onClick={() => handleCategoryToggle(categoryPerms, !allSelected)}
-                                   className={`text-[10px] uppercase tracking-wider font-bold transition-colors mb-2 ${
-                                     allSelected ? 'text-emerald-400' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
-                                   }`}
-                                 >
-                                  {allSelected ? 'Deselect all' : 'Select all'}
-                                </button>
-                              )}
-                              {categoryPerms.map((perm) => {
-                                const isSelected = selectedRole.permissions.includes(perm.key);
-                                return (
-                                  <motion.button
-                                    key={perm.id}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => handlePermissionToggle(perm.key)}
-                                    disabled={selectedRole.is_system}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
-                                      isSelected
-                                        ? 'bg-[var(--theme-surface-soft)] border-[var(--theme-border-strong)]'
-                                        : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'
-                                    } ${selectedRole.is_system ? 'opacity-70 cursor-not-allowed' : 'hover:border-[var(--theme-border-strong)]'}`}
-                                  >
-                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                                      isSelected
-                                        ? 'bg-white border-[var(--theme-border-strong)] shadow-lg'
-                                        : 'border-[var(--theme-border)]'
-                                    }`}>
-                                      {isSelected && <Check size={10} className="text-black" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-bold text-[var(--theme-text)] truncate">{perm.key}</p>
-                                      {perm.description && (
-                                        <p className="text-[10px] text-[var(--theme-text-muted)] truncate">{perm.description}</p>
-                                      )}
-                                    </div>
-                                  </motion.button>
-                                );
-                              })}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  );
-                })}
-              </div>
+                        <div className="px-4 pb-4 space-y-1.5">
+                          {categoryPerms.map((perm) => {
+                            const isSelected = selectedRole.permissions.includes(perm.key);
+                            return (
+                              <motion.button
+                                key={perm.id}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => handlePermissionToggle(perm.key)}
+                                disabled={selectedRole.is_system}
+                                className={`w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition-all ${
+                                  isSelected
+                                    ? 'bg-[var(--theme-surface-soft)] border-[var(--theme-border-strong)]'
+                                    : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'
+                                } ${selectedRole.is_system ? 'opacity-70 cursor-not-allowed' : 'hover:border-[var(--theme-border-strong)]'}`}
+                              >
+                                <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
+                                  isSelected
+                                    ? 'bg-white border-[var(--theme-border-strong)] shadow-md'
+                                    : 'border-[var(--theme-border)]'
+                                }`}>
+                                  {isSelected && <Check size={12} className="text-black" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-[var(--theme-text)] truncate">{perm.key}</p>
+                                  {perm.description && (
+                                    <p className="text-[10px] text-[var(--theme-text-muted)] truncate">{perm.description}</p>
+                                  )}
+                                </div>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
             </motion.div>
           )}
         </div>

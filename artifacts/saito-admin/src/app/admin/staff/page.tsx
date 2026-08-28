@@ -49,6 +49,7 @@ export default function StaffPage() {
   const [pinLoading, setPinLoading] = useState(false);
   const [shifts, setShifts] = useState<any[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(true);
+  const [now, setNow] = useState(Date.now());
   const [closeShiftData, setCloseShiftData] = useState<any>(null);
   const [closeActualCash, setCloseActualCash] = useState('');
   const [closeNotes, setCloseNotes] = useState('');
@@ -96,6 +97,11 @@ export default function StaffPage() {
     fetchShifts();
   }, [fetchStaff, fetchRoles, fetchShifts]);
 
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
   const sortedStaff = useMemo(() => {
     const sorted = [...staff];
     switch (sortBy) {
@@ -122,7 +128,7 @@ export default function StaffPage() {
   }, [roles]);
 
   const formatDuration = (openedAt: string) => {
-    const diff = Date.now() - new Date(openedAt).getTime();
+    const diff = now - new Date(openedAt).getTime();
     const mins = Math.floor(diff / 60000);
     const hours = Math.floor(mins / 60);
     if (hours > 0) return `${hours}s ${mins % 60}dc`;
@@ -326,24 +332,24 @@ export default function StaffPage() {
                       >
                         <Link
                            href={`/admin/staff/${member.id}`}
-                           className={`block relative px-5 py-4 rounded-[32px] border transition-all duration-200 overflow-hidden active:scale-[0.97] shadow-card hover:border-[var(--theme-border-strong)] ${
+                           className={`block relative px-5 py-3.5 rounded-[28px] border transition-all duration-200 overflow-hidden active:scale-[0.97] shadow-card hover:border-[var(--theme-border-strong)] ${
                              member.is_active ? 'bg-[var(--theme-surface-soft)]' : 'bg-[var(--theme-surface)]'
                            } ${
-                             isOnShift ? 'border-[var(--theme-border-strong)]' : 'border-[var(--theme-border)]'
+                             isOnShift ? 'border-l-2 border-l-emerald-400/60' : 'border-l-2 border-l-transparent'
                            }`}
                         >
                           <div className="flex items-center gap-4">
                              {/* Avatar + Name */}
                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <motion.div
-                                   whileHover={{ scale: 1.05 }}
-                                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${roleColor.bg}`}
-                                >
-                                  {(() => {
-                                    const RoleIcon = getRoleIcon(getRoleName(member.role_id));
-                                    return <RoleIcon size={16} className={roleColor.text} />;
-                                  })()}
-                                </motion.div>
+                              <motion.div
+                                 whileHover={{ scale: 1.05 }}
+                                 className={`w-9 h-9 rounded-full flex items-center justify-center border transition-colors ${roleColor.bg} ${roleColor.border}`}
+                              >
+                                {(() => {
+                                  const RoleIcon = getRoleIcon(getRoleName(member.role_id));
+                                  return <RoleIcon size={16} className={roleColor.text} />;
+                                })()}
+                              </motion.div>
                                <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                   <p className="text-sm font-bold text-[var(--theme-text)] truncate group-hover:text-white transition-colors">{member.name}</p>
@@ -372,37 +378,35 @@ export default function StaffPage() {
                               </motion.span>
                             </div>
 
-                            {/* Actions - Hover to reveal */}
-                            <motion.div
-                              initial={{ opacity: 0, x: 10 }}
-                              whileHover={{ opacity: 1, x: 0 }}
-                              className="flex items-center gap-1"
-                            >
-                              <motion.button
-                                 whileTap={{ scale: 0.9 }}
-                                 onClick={(e) => { e.preventDefault(); openEditSheet(member); }}
-                                 className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all"
-                               >
-                                 <Edit3 size={14} />
-                               </motion.button>
+                             {/* Quick Actions */}
+                             <motion.div
+                               className="flex items-center gap-0.5"
+                             >
                                <motion.button
-                                 whileTap={{ scale: 0.9 }}
-                                 onClick={(e) => { e.preventDefault(); setResettingId(member.id); setShowPinDialog(true); }}
-                                 className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-gold hover:bg-gold/10 transition-all"
-                               >
-                                 <KeyRound size={14} />
-                               </motion.button>
-                               {member.is_active && (
-                                 <motion.button
-                                   whileTap={{ scale: 0.9 }}
-                                   onClick={(e) => { e.preventDefault(); setDeactivatingId(member.id); setShowDeactivateConfirm(true); }}
-                                   className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                                 >
-                                   <Trash2 size={14} />
-                                 </motion.button>
-                               )}
-                               <ChevronRight size={14} className="text-[var(--theme-text-muted)]" />
-                            </motion.div>
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={(e) => { e.preventDefault(); openEditSheet(member); }}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all"
+                                >
+                                  <Edit3 size={13} />
+                                </motion.button>
+                                <motion.button
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={(e) => { e.preventDefault(); setResettingId(member.id); setShowPinDialog(true); }}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-gold hover:bg-gold/10 transition-all"
+                                >
+                                  <KeyRound size={13} />
+                                </motion.button>
+                                {member.is_active && (
+                                  <motion.button
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={(e) => { e.preventDefault(); setDeactivatingId(member.id); setShowDeactivateConfirm(true); }}
+                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                                  >
+                                    <Trash2 size={13} />
+                                  </motion.button>
+                                )}
+                                <ChevronRight size={14} className="text-[var(--theme-text-muted)]" />
+                             </motion.div>
                           </div>
                         </Link>
                       </motion.div>
@@ -442,40 +446,48 @@ export default function StaffPage() {
                   </div>
                 </div>
                 <div className="grid gap-2">
-                   {activeShifts.map((shift: any, i: number) => (
-                     <motion.div
-                       key={shift.id}
-                       initial={{ opacity: 0, x: -10 }}
-                       animate={{ opacity: 1, x: 0 }}
-                       transition={{ delay: i * 0.05 }}
-                       className="flex items-center justify-between p-4 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
-                     >
-                       <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-full bg-[var(--theme-surface-soft)] flex items-center justify-center text-[var(--theme-text)] text-xs font-black">
-                          {shift.staff?.name?.charAt(0).toUpperCase() || '?'}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-[var(--theme-text)]">{shift.staff?.name || 'Unknown'}</p>
-                          <p className="text-[10px] text-[var(--theme-text-muted)]">
-                            Started {new Date(shift.opened_at).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })} · {formatDuration(shift.opened_at)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right hidden sm:block">
-                          <p className="text-xs text-[var(--theme-text-secondary)] tabular-nums">{formatCurrency(shift.expected_cash)}</p>
-                          <p className="text-[10px] text-[var(--theme-text-muted)]">expected</p>
-                        </div>
-                        <button
-                          onClick={() => handleOpenCloseSheet(shift)}
-                          className="px-4 py-2 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-white/90 transition-all shadow-lg active:scale-95"
-                        >
-                          Manage
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                   {activeShifts.map((shift: any, i: number) => {
+                     const shiftRoleColor = getRoleColor(getRoleName(shift.staff?.role_id));
+                     const isOpen = !shift.closed_at;
+                     return (
+                       <motion.div
+                         key={shift.id}
+                         initial={{ opacity: 0, x: -10 }}
+                         animate={{ opacity: 1, x: 0 }}
+                         transition={{ delay: i * 0.05 }}
+                         className="flex items-center justify-between p-4 rounded-[28px] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
+                       >
+                         <div className="flex items-center gap-3">
+                           <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${shiftRoleColor.bg} ${shiftRoleColor.border}`}>
+                             {(() => {
+                               const RoleIcon = getRoleIcon(getRoleName(shift.staff?.role_id));
+                               return <RoleIcon size={14} className={shiftRoleColor.text} />;
+                             })()}
+                           </div>
+                           <div>
+                             <p className="text-sm font-bold text-[var(--theme-text)]">{shift.staff?.name || 'Unknown'}</p>
+                             <p className="text-[10px] text-[var(--theme-text-muted)]">
+                               Started {new Date(shift.opened_at).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
+                               {isOpen && ` · ${formatDuration(shift.opened_at)}`}
+                             </p>
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-4">
+                           <div className="text-right hidden sm:block">
+                             <p className="text-xs text-[var(--theme-text-secondary)] tabular-nums">{formatCurrency(shift.expected_cash)}</p>
+                             <p className="text-[10px] text-[var(--theme-text-muted)]">expected</p>
+                           </div>
+                           <button
+                             onClick={() => handleOpenCloseSheet(shift)}
+                             className="px-4 py-2 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-white/90 transition-all shadow-lg active:scale-95"
+                           >
+                             Manage
+                           </button>
+                         </div>
+                       </motion.div>
+                     );
+                   })}
+                 </div>
               </motion.div>
             )}
 

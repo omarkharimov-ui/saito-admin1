@@ -17,12 +17,11 @@ const TABS = [
 ];
 
 const HOLD_THRESHOLD = 120;
-const TRAVEL_SPRING = { stiffness: 360, damping: 30, mass: 0.42 };
-const SETTLE_SPRING = { stiffness: 520, damping: 18, mass: 0.34 };
+const TRAVEL_SPRING = { stiffness: 420, damping: 28, mass: 0.38 };
+const SETTLE_SPRING = { stiffness: 480, damping: 24, mass: 0.36 };
 
 export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShiftCount }: StaffWorkspaceSwitcherProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
   const [previewTab, setPreviewTab] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,14 +33,13 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     hasMoved: false,
     activeTab: view,
   });
+  const animationRef = useRef<ReturnType<typeof animate> | null>(null);
 
   const pillX = useMotionValue(0);
   const pillWidth = useMotionValue(0);
   const pillScaleX = useMotionValue(1);
   const pillScaleY = useMotionValue(1);
   const pillY = useMotionValue(0);
-
-  const isFloating = isDragging || isAnimating;
 
   const measureTab = useCallback((tabId: string) => {
     const tab = tabRefs.current[tabId];
@@ -72,30 +70,17 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     return () => window.removeEventListener('resize', handleResize);
   }, [view, syncPillToView]);
 
-  useEffect(() => {
-    if (!isFloating) {
-      animate(pillScaleX, 1, { type: 'spring', stiffness: 520, damping: 18, mass: 0.34 });
-      animate(pillScaleY, 1, { type: 'spring', stiffness: 520, damping: 18, mass: 0.34 });
-      animate(pillY, 0, { type: 'spring', stiffness: 520, damping: 18, mass: 0.34 });
-      return;
+  const cancelAnimations = useCallback(() => {
+    if (animationRef.current) {
+      animationRef.current.stop?.();
+      animationRef.current = null;
     }
-
-    animate(pillScaleX, 0.93, { duration: 0.08, ease: 'easeIn' })
-      .then(() => animate(pillScaleX, 1.1, { duration: 0.22, ease: 'easeOut' }))
-      .then(() => animate(pillScaleX, 1.08, { type: 'spring', stiffness: 520, damping: 18, mass: 0.34 }));
-
-    animate(pillScaleY, 0.88, { duration: 0.08, ease: 'easeIn' })
-      .then(() => animate(pillScaleY, 1.38, { duration: 0.22, ease: 'easeOut' }))
-      .then(() => animate(pillScaleY, 1.32, { type: 'spring', stiffness: 520, damping: 18, mass: 0.34 }));
-
-    animate(pillY, 0, { duration: 0.08, ease: 'easeIn' })
-      .then(() => animate(pillY, -6, { duration: 0.22, ease: 'easeOut' }))
-      .then(() => animate(pillY, -5, { type: 'spring', stiffness: 520, damping: 18, mass: 0.34 }));
-  }, [isFloating, pillScaleX, pillScaleY, pillY]);
+  }, []);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isDragging) return;
     e.preventDefault();
+    cancelAnimations();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
     dragState.current = {
@@ -155,13 +140,13 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
       const target = measureTab(targetId);
 
       if (target) {
-        animate(pillX, target.left, {
+        animationRef.current = animate(pillX, target.left, {
           type: 'spring',
           stiffness: TRAVEL_SPRING.stiffness,
           damping: TRAVEL_SPRING.damping,
           mass: TRAVEL_SPRING.mass,
         });
-        animate(pillWidth, target.width, {
+        animationRef.current = animate(pillWidth, target.width, {
           type: 'spring',
           stiffness: TRAVEL_SPRING.stiffness,
           damping: TRAVEL_SPRING.damping,
@@ -170,6 +155,7 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
             setIsDragging(false);
             setPreviewTab(null);
             dragState.current.hasMoved = false;
+            animationRef.current = null;
             if (targetId !== view) {
               onChange(targetId);
             }
@@ -193,31 +179,61 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     const target = measureTab(tabId);
     if (!target) return;
 
-    setIsAnimating(true);
+    cancelAnimations();
 
-    animate(pillScaleX, 1.08, { duration: 0.12, ease: 'easeOut' });
-    animate(pillScaleY, 0.9, { duration: 0.12, ease: 'easeOut' });
+    const direction = TABS.findIndex(t => t.id === tabId) > TABS.findIndex(t => t.id === view) ? 1 : -1;
 
-    animate(pillX, target.left, {
+    animationRef.current = animate(pillScaleX, 1.035, {
+      type: 'spring',
+      stiffness: 480,
+      damping: 24,
+      mass: 0.36,
+    });
+    animationRef.current = animate(pillScaleY, 0.98, {
+      type: 'spring',
+      stiffness: 480,
+      damping: 24,
+      mass: 0.36,
+    });
+
+    animationRef.current = animate(pillX, target.left, {
       type: 'spring',
       stiffness: TRAVEL_SPRING.stiffness,
       damping: TRAVEL_SPRING.damping,
       mass: TRAVEL_SPRING.mass,
     });
-    animate(pillWidth, target.width, {
+    animationRef.current = animate(pillWidth, target.width, {
       type: 'spring',
       stiffness: TRAVEL_SPRING.stiffness,
       damping: TRAVEL_SPRING.damping,
       mass: TRAVEL_SPRING.mass,
       onComplete: () => {
-        animate(pillScaleX, 1, { type: 'spring', stiffness: SETTLE_SPRING.stiffness, damping: SETTLE_SPRING.damping, mass: SETTLE_SPRING.mass });
-        animate(pillScaleY, 1, { type: 'spring', stiffness: SETTLE_SPRING.stiffness, damping: SETTLE_SPRING.damping, mass: SETTLE_SPRING.mass });
-        animate(pillY, 0, { type: 'spring', stiffness: SETTLE_SPRING.stiffness, damping: SETTLE_SPRING.damping, mass: SETTLE_SPRING.mass });
-        setIsAnimating(false);
+        animationRef.current = animate(pillScaleX, 1, {
+          type: 'spring',
+          stiffness: SETTLE_SPRING.stiffness,
+          damping: SETTLE_SPRING.damping,
+          mass: SETTLE_SPRING.mass,
+        });
+        animationRef.current = animate(pillScaleY, 1, {
+          type: 'spring',
+          stiffness: SETTLE_SPRING.stiffness,
+          damping: SETTLE_SPRING.damping,
+          mass: SETTLE_SPRING.mass,
+        });
+        animationRef.current = animate(pillY, 0, {
+          type: 'spring',
+          stiffness: SETTLE_SPRING.stiffness,
+          damping: SETTLE_SPRING.damping,
+          mass: SETTLE_SPRING.mass,
+        });
         onChange(tabId);
       },
     });
   };
+
+  useEffect(() => {
+    return () => cancelAnimations();
+  }, [cancelAnimations]);
 
   return (
     <div className="flex items-center gap-4 mb-6">
@@ -277,10 +293,10 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
             scaleX: pillScaleX,
             scaleY: pillScaleY,
             y: pillY,
-            backgroundColor: isFloating ? 'rgba(255,255,255,0.12)' : '#ffffff',
-            backdropFilter: isFloating ? 'blur(14px)' : 'none',
-            border: isFloating ? '1px solid rgba(255,255,255,0.22)' : '1px solid transparent',
-            boxShadow: isFloating ? '0 8px 28px rgba(0,0,0,0.20)' : '0 1px 3px rgba(0,0,0,0.08)',
+            backgroundColor: isDragging ? 'rgba(255,255,255,0.12)' : '#ffffff',
+            backdropFilter: isDragging ? 'blur(14px)' : 'none',
+            border: isDragging ? '1px solid rgba(255,255,255,0.22)' : '1px solid transparent',
+            boxShadow: isDragging ? '0 8px 28px rgba(0,0,0,0.20)' : '0 1px 3px rgba(0,0,0,0.08)',
           }}
           transition={{
             type: 'spring',

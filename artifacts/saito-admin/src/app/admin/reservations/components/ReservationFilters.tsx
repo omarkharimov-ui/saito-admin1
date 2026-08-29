@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { Search, Trash2, XCircle } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useTheme } from '@/lib/theme/ThemeContext';
+import { DragTabSwitcher } from '@/components/ui/DragTabSwitcher';
 
 interface Props {
   timeFilter: 'today' | 'future' | 'archive';
@@ -35,10 +35,9 @@ const ReservationFilters = ({
   const { t } = useLanguage();
   const { lightMode } = useTheme();
 
-  const timeTabs = ['today', 'future', 'archive'] as const;
   const statusTabs = ['all', 'pending', 'confirmed', 'cancelled', 'expired'] as const;
 
-  const timeLabel = (tab: typeof timeTabs[number]) =>
+  const timeLabel = (tab: 'today' | 'future' | 'archive') =>
     tab === 'today' ? t('tab_today') : tab === 'future' ? t('tab_future') : t('tab_archive');
   const statusLabel = (s: typeof statusTabs[number]) =>
     s === 'all' ? t('all') : s === 'pending' ? t('filter_pending') : s === 'confirmed' ? t('filter_confirmed') : s === 'cancelled' ? t('filter_cancelled') : 'Vaxtı keçib';
@@ -49,33 +48,15 @@ const ReservationFilters = ({
         <div className="flex flex-wrap items-center gap-4">
           
           {/* Time Filter */}
-          <div className={`flex rounded-2xl p-1.5 border transition-all ${lightMode ? 'bg-zinc-100 border-zinc-200/50' : 'bg-white/5 border-white/10'}`}>
-            {timeTabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => onTimeFilter(tab)}
-                className={`relative px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
-                  timeFilter === tab 
-                    ? (lightMode ? 'text-white' : 'text-white') 
-                    : (lightMode ? 'text-zinc-500 hover:text-zinc-900' : 'text-white/40 hover:text-white/70')
-                }`}
-              >
-                {timeFilter === tab && (
-                  <motion.span
-                    layoutId="timeIndicator"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    className={`absolute inset-0 rounded-xl shadow-lg ${lightMode ? 'bg-zinc-900' : 'bg-white/10 border border-white/20'}`}
-                  />
-                )}
-                <span className="relative z-10">{timeLabel(tab)}</span>
-                {tab === 'today' && todayPendingCount > 0 && (
-                  <span className="relative z-10 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[9px] font-black shadow-sm">
-                    {todayPendingCount}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          <DragTabSwitcher
+            items={[
+              { id: 'today', label: timeLabel('today'), badge: todayPendingCount },
+              { id: 'future', label: timeLabel('future'), badge: futurePendingCount },
+              { id: 'archive', label: timeLabel('archive') },
+            ]}
+            value={timeFilter}
+            onChange={(v) => onTimeFilter(v as 'today' | 'future' | 'archive')}
+          />
 
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">

@@ -23,13 +23,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '4 rəqəmli PIN daxil edin' }, { status: 400 });
     }
 
-    const supabase = await createAuthClient();
-
-    const { data: staff, error } = await supabase
-      .from('staff')
-      .select('id, name, full_name, role, pin_hash, is_active, shift')
-      .eq('is_active', true)
-      .limit(100);
+    let staff: any = null;
+    let error: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 400));
+      const client = await createAuthClient();
+      const res = await client
+        .from('staff')
+        .select('id, name, full_name, role, pin_hash, is_active, shift')
+        .eq('is_active', true)
+        .limit(100);
+      staff = res.data;
+      error = res.error;
+      if (!error) break;
+    }
 
     if (error || !staff) {
       return NextResponse.json({ error: 'Xəta' }, { status: 500 });
@@ -46,7 +53,7 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
     const role = canonicalRole(matched.role);
 
-    await supabase.from('sessions').insert({
+    await (await createAuthClient()).from('sessions').insert({
       token,
       user_id: matched.id,
       role,

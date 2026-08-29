@@ -2,26 +2,30 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Users, Clock } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useTheme } from '@/lib/theme/ThemeContext';
 
-interface StaffWorkspaceSwitcherProps {
-  view: 'staff' | 'shifts';
-  onChange: (view: 'staff' | 'shifts') => void;
-  staffCount: number;
-  activeShiftCount: number;
+export interface DragTabItem {
+  id: string;
+  label: string;
+  icon?: LucideIcon;
+  dotColor?: string;
+  badge?: number;
 }
 
-const TABS = [
-  { id: 'staff' as const, label: 'STAFF', icon: Users, color: '#10b981' },
-  { id: 'shifts' as const, label: 'SHIFTS', icon: Clock, color: '#3b82f6' },
-];
+interface DragTabSwitcherProps {
+  items: DragTabItem[];
+  value: string;
+  onChange: (id: string) => void;
+  containerClassName?: string;
+}
 
 const HOLD_THRESHOLD = 120;
 const TRAVEL_SPRING = { stiffness: 420, damping: 28, mass: 0.38 };
 const SETTLE_SPRING = { stiffness: 480, damping: 24, mass: 0.36 };
 
-export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShiftCount }: StaffWorkspaceSwitcherProps) {
+export function DragTabSwitcher({ items, value, onChange, containerClassName }: DragTabSwitcherProps) {
+  const { lightMode } = useTheme();
   const [isDragging, setIsDragging] = useState(false);
   const [previewTab, setPreviewTab] = useState<string | null>(null);
 
@@ -32,7 +36,7 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     startX: 0,
     pillStartX: 0,
     hasMoved: false,
-    activeTab: view,
+    activeTab: value,
   });
   const animationRef = useRef<ReturnType<typeof animate> | null>(null);
 
@@ -41,6 +45,8 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
   const pillScaleX = useMotionValue(1);
   const pillScaleY = useMotionValue(1);
   const pillY = useMotionValue(0);
+
+  const contentX = useTransform(pillX, v => -v);
 
   const measureTab = useCallback((tabId: string) => {
     const tab = tabRefs.current[tabId];
@@ -62,14 +68,14 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
   }, [measureTab, pillX, pillWidth]);
 
   useEffect(() => {
-    syncPillToView(view);
-  }, [view, syncPillToView]);
+    syncPillToView(value);
+  }, [value, syncPillToView]);
 
   useEffect(() => {
-    const handleResize = () => syncPillToView(view);
+    const handleResize = () => syncPillToView(value);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [view, syncPillToView]);
+  }, [value, syncPillToView]);
 
   const cancelAnimations = useCallback(() => {
     if (animationRef.current) {
@@ -77,6 +83,10 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
       animationRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    return () => cancelAnimations();
+  }, [cancelAnimations]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isDragging) return;
@@ -88,7 +98,7 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
       startX: e.clientX,
       pillStartX: pillX.get() || 0,
       hasMoved: false,
-      activeTab: view,
+      activeTab: value,
     };
 
     holdTimerRef.current = setTimeout(() => {
@@ -115,15 +125,15 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     let closestTab: string | null = null;
     let closestDistance = Infinity;
 
-    TABS.forEach(tab => {
-      const tabEl = tabRefs.current[tab.id];
+    items.forEach(item => {
+      const tabEl = tabRefs.current[item.id];
       if (!tabEl) return;
       const tabRect = tabEl.getBoundingClientRect();
       const tabCenter = tabRect.left - containerRect.left + tabRect.width / 2;
       const distance = Math.abs(pillCenter - tabCenter);
       if (distance < closestDistance) {
         closestDistance = distance;
-        closestTab = tab.id;
+        closestTab = item.id;
       }
     });
 
@@ -137,7 +147,7 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     }
 
     if (isDragging && dragState.current.hasMoved) {
-      const targetId = (previewTab || dragState.current.activeTab) as 'staff' | 'shifts';
+      const targetId = previewTab || dragState.current.activeTab;
       const target = measureTab(targetId);
 
       if (target) {
@@ -157,7 +167,7 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
             setPreviewTab(null);
             dragState.current.hasMoved = false;
             animationRef.current = null;
-            if (targetId !== view) {
+            if (targetId !== value) {
               onChange(targetId);
             }
           },
@@ -170,19 +180,19 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     }
   };
 
-  const handleTabClick = (tabId: 'staff' | 'shifts') => {
+  const handleTabClick = (tabId: string) => {
     if (dragState.current.hasMoved) {
       dragState.current.hasMoved = false;
       return;
     }
-    if (tabId === view) return;
+    if (tabId === value) return;
 
     const target = measureTab(tabId);
     if (!target) return;
 
     cancelAnimations();
 
-    const direction = TABS.findIndex(t => t.id === tabId) > TABS.findIndex(t => t.id === view) ? 1 : -1;
+    const direction = items.findIndex(t => t.id === tabId) > items.findIndex(t => t.id === value) ? 1 : -1;
 
     animationRef.current = animate(pillScaleX, 1.035, {
       type: 'spring',
@@ -232,132 +242,131 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     });
   };
 
-  useEffect(() => {
-    return () => cancelAnimations();
-  }, [cancelAnimations]);
-
-  const { lightMode } = useTheme();
-
-  const negPillX = useTransform(pillX, v => -v);
-
   return (
-    <div className="flex items-center gap-4 mb-6">
-      <div
-        ref={containerRef}
-        className="relative flex items-center gap-1 rounded-full p-1 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] select-none"
-        style={{ touchAction: 'none', overflow: 'visible' }}
-      >
-        {TABS.map(({ id, label, icon: Icon }) => {
-          const isActive = view === id;
-          return (
-            <button
-              key={id}
-              ref={el => { tabRefs.current[id] = el; }}
-              onClick={() => handleTabClick(id)}
-              onPointerDown={isActive ? handlePointerDown : undefined}
-              onPointerMove={isActive ? handlePointerMove : undefined}
-              onPointerUp={isActive ? handlePointerUp : undefined}
-              onLostPointerCapture={() => {
-                if (holdTimerRef.current) {
-                  clearTimeout(holdTimerRef.current);
-                  holdTimerRef.current = undefined;
-                }
-                if (isDragging) {
-                  setIsDragging(false);
-                  setPreviewTab(null);
-                  syncPillToView(view);
-                }
-                dragState.current.hasMoved = false;
-              }}
-              className={`relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider z-10 ${
-                lightMode ? 'text-zinc-600' : 'text-zinc-400'
-              }`}
-              style={{
-                cursor: isActive ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
-                transform: previewTab === id && isDragging ? 'scale(1.025)' : undefined,
-                transition: previewTab === id && isDragging ? 'transform 150ms ease-out' : undefined,
-              }}
-            >
-              <div className="relative z-10 w-2 h-2 rounded-full" style={{ backgroundColor: lightMode ? '#a1a1aa' : '#71717a' }} />
-              <Icon size={14} className="relative z-10" style={{ color: lightMode ? '#52525b' : '#a1a1aa' }} />
-              <span className="relative z-10">{label}</span>
-            </button>
-          );
-        })}
-
-        <motion.div
-          className="absolute rounded-full z-0 pointer-events-none"
-          style={{
-            left: pillX,
-            width: pillWidth,
-            top: '50%',
-            translateY: '-50%',
-            height: 'calc(100% - 8px)',
-            scaleX: pillScaleX,
-            scaleY: pillScaleY,
-            y: pillY,
-            backgroundColor: lightMode ? '#171717' : '#ffffff',
-            backdropFilter: 'none',
-            WebkitBackdropFilter: 'none',
-            border: lightMode ? '1px solid #171717' : '1px solid rgba(255,255,255,0.9)',
-            boxShadow: isDragging
-              ? lightMode
-                ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 8px 28px rgba(0,0,0,0.28)'
-                : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 8px 28px rgba(0,0,0,0.22)'
-              : lightMode
-                ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.18)'
-                : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(0,0,0,0.08)',
-          }}
-          transition={{
-            type: 'spring',
-            stiffness: SETTLE_SPRING.stiffness,
-            damping: SETTLE_SPRING.damping,
-            mass: SETTLE_SPRING.mass,
-          }}
-        />
-
-        <motion.div
-          className="absolute rounded-full z-20 pointer-events-none"
-          style={{
-            left: pillX,
-            width: pillWidth,
-            top: '50%',
-            translateY: '-50%',
-            height: 'calc(100% - 8px)',
-            overflow: 'hidden',
-          }}
-        >
-          <motion.div
-            className="flex items-center gap-1 p-1"
+    <div
+      ref={containerRef}
+      className={`relative flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100 border border-zinc-200/60' : 'bg-white/5 border border-white/10'} select-none ${containerClassName ?? ''}`}
+      style={{ touchAction: 'none', overflow: 'visible' }}
+    >
+      {items.map(({ id, label, icon: Icon, dotColor, badge }) => {
+        const isActive = value === id;
+        return (
+          <button
+            key={id}
+            ref={el => { tabRefs.current[id] = el; }}
+            onClick={() => handleTabClick(id)}
+            onPointerDown={isActive ? handlePointerDown : undefined}
+            onPointerMove={isActive ? handlePointerMove : undefined}
+            onPointerUp={isActive ? handlePointerUp : undefined}
+            onLostPointerCapture={() => {
+              if (holdTimerRef.current) {
+                clearTimeout(holdTimerRef.current);
+                holdTimerRef.current = undefined;
+              }
+              if (isDragging) {
+                setIsDragging(false);
+                setPreviewTab(null);
+                syncPillToView(value);
+              }
+              dragState.current.hasMoved = false;
+            }}
+            className={`relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider z-10 ${
+              lightMode ? 'text-zinc-600' : 'text-zinc-400'
+            }`}
             style={{
-              x: negPillX,
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              height: '100%',
-              alignItems: 'center',
-              whiteSpace: 'nowrap',
+              cursor: isActive ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+              transform: previewTab === id && isDragging ? 'scale(1.025)' : undefined,
+              transition: previewTab === id && isDragging ? 'transform 150ms ease-out' : undefined,
             }}
           >
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <div
-                key={id}
-                className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider"
-                style={{ color: lightMode ? '#ffffff' : '#000000' }}
-              >
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: lightMode ? '#34d399' : '#10b981' }} />
-                <Icon size={14} style={{ color: lightMode ? '#ffffff' : '#000000' }} />
-                <span>{label}</span>
-              </div>
-            ))}
-          </motion.div>
-        </motion.div>
-      </div>
+            {dotColor !== undefined && (
+              <div className="relative z-10 w-2 h-2 rounded-full" style={{ backgroundColor: dotColor || (lightMode ? '#a1a1aa' : '#71717a') }} />
+            )}
+            {Icon && <Icon size={14} className="relative z-10" style={{ color: lightMode ? '#52525b' : '#a1a1aa' }} />}
+            <span className="relative z-10">{label}</span>
+            {badge != null && badge > 0 && (
+              <span className="relative z-10 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[9px] font-black shadow-sm">
+                {badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
 
-      <div className="ml-auto flex items-center gap-5 text-[10px] font-black uppercase tracking-widest">
-        <span className="text-[var(--theme-text-muted)]">{staffCount} staff</span>
-        <span className="text-emerald-400/70">{activeShiftCount} on shift</span>
-      </div>
+      <motion.div
+        className="absolute rounded-full z-0 pointer-events-none"
+        style={{
+          left: pillX,
+          width: pillWidth,
+          top: '50%',
+          translateY: '-50%',
+          height: 'calc(100% - 8px)',
+          scaleX: pillScaleX,
+          scaleY: pillScaleY,
+          y: pillY,
+          backgroundColor: lightMode ? '#171717' : '#ffffff',
+          backdropFilter: 'none',
+          WebkitBackdropFilter: 'none',
+          border: lightMode ? '1px solid #171717' : '1px solid rgba(255,255,255,0.9)',
+          boxShadow: isDragging
+            ? lightMode
+              ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 8px 28px rgba(0,0,0,0.28)'
+              : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 8px 28px rgba(0,0,0,0.22)'
+            : lightMode
+              ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.18)'
+              : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(0,0,0,0.08)',
+        }}
+        transition={{
+          type: 'spring',
+          stiffness: SETTLE_SPRING.stiffness,
+          damping: SETTLE_SPRING.damping,
+          mass: SETTLE_SPRING.mass,
+        }}
+      />
+
+      <motion.div
+        className="absolute rounded-full z-20 pointer-events-none"
+        style={{
+          left: pillX,
+          width: pillWidth,
+          top: '50%',
+          translateY: '-50%',
+          height: 'calc(100% - 8px)',
+          overflow: 'hidden',
+        }}
+      >
+        <motion.div
+          className="flex items-center gap-1 p-1"
+          style={{
+            x: contentX,
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            height: '100%',
+            alignItems: 'center',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {items.map(({ id, label, icon: Icon, dotColor, badge }) => (
+            <div
+              key={id}
+              className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider"
+              style={{ color: lightMode ? '#ffffff' : '#000000' }}
+            >
+              {dotColor !== undefined && (
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: dotColor || (lightMode ? '#34d399' : '#10b981') }} />
+              )}
+              {Icon && <Icon size={14} style={{ color: lightMode ? '#ffffff' : '#000000' }} />}
+              <span>{label}</span>
+              {badge != null && badge > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[9px] font-black shadow-sm">
+                  {badge}
+                </span>
+              )}
+            </div>
+          ))}
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

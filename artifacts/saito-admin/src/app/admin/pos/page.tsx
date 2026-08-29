@@ -22,6 +22,7 @@ import { VirtualKeyboardProvider } from './components/VirtualKeyboard';
 import { OrderHistory } from './components/OrderHistory';
 import { FloorSkeleton, ProductGridSkeleton, CartSkeleton } from './components/PosSkeletons';
 import { LiquidDropdown } from '@/components/ui/LiquidDropdown';
+import { DragTabSwitcher } from '@/components/ui/DragTabSwitcher';
 import { toast } from '@/lib/toast';
 import { printReceipt, getReceiptSettings, printReservation } from '@/lib/print/PrintService';
 import { apiFetch } from '@/lib/api-fetch';
@@ -1315,37 +1316,20 @@ export default function POSPage() {
         )}
 
        {/* MODE SWITCHER — always visible */}
-       <div className="flex items-center gap-4 px-6 pt-2 pb-2">
-           <h1 className="text-2xl font-black tracking-tighter">POS</h1>
-           <div className={`flex items-center gap-1 rounded-full p-1 ${lightMode ? 'bg-zinc-100' : 'bg-white/5'}`}>
-           {[
-             { mode: 'dine_in' as const, icon: Utensils, label: t('dine_in'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#10b981' },
-             { mode: 'takeaway' as const, icon: UserCheck, label: t('takeaway'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
-             { mode: 'delivery' as const, icon: Bike, label: t('delivery'), activeBg: lightMode ? '#171717' : '#ffffff', activeText: lightMode ? '#ffffff' : '#000000', innerColor: '#3b82f6' },
-           ].map(({ mode, icon: Icon, label, activeBg, activeText, innerColor }) => (
-              <button
-                key={mode}
-                  onClick={() => {
-                     pos.switchMode(mode);
-                     pos.setActiveView('floor');
-                  }}
-               className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-[0.95] duration-200 z-10"
-               style={{ color: posMode === mode ? activeText : lightMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}
-             >
-               {posMode === mode && (
-                 <motion.div
-                   layoutId="pos-mode-pill"
-                   className="absolute inset-0 rounded-full z-0 shadow-lg"
-                   style={{ backgroundColor: activeBg }}
-                   transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.4 }}
-                 />
-               )}
-               <div className="relative z-10 w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: innerColor }} />
-               <Icon size={14} className="relative z-10" style={posMode === mode ? { color: activeText } : undefined} />
-               <span className="relative z-10">{label}</span>
-             </button>
-           ))}
-           </div>
+           <div className="flex items-center gap-4 px-6 pt-2 pb-2">
+            <h1 className="text-2xl font-black tracking-tighter">POS</h1>
+            <DragTabSwitcher
+              items={[
+                { id: 'dine_in', label: t('dine_in'), icon: Utensils, dotColor: '#10b981' },
+                { id: 'takeaway', label: t('takeaway'), icon: UserCheck, dotColor: '#3b82f6' },
+                { id: 'delivery', label: t('delivery'), icon: Bike, dotColor: '#3b82f6' },
+              ]}
+              value={posMode}
+              onChange={(mode) => {
+                pos.switchMode(mode as 'dine_in' | 'takeaway' | 'delivery');
+                pos.setActiveView('floor');
+              }}
+            />
            {pos.floors.length > 1 && posMode === 'dine_in' ? (
             <LiquidDropdown
               options={pos.floors.map((f: any) => ({ id: f.name, label: f.name }))}

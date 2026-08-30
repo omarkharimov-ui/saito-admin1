@@ -10,7 +10,7 @@ function svc() {
 
 export async function GET() {
   try {
-    const auth = await requirePermission('staff.manage', ['admin', 'superadmin']);
+    const auth = await requirePermission('staff.manage');
     if (!auth.authenticated) return auth as any;
 
     const s = svc();
@@ -52,7 +52,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requirePermission('staff.manage', ['admin', 'superadmin']);
+    const auth = await requirePermission('staff.manage');
     if (!auth.authenticated) return auth as any;
 
     const body = await request.json();

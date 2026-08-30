@@ -14,7 +14,7 @@ function svc() {
 // table_floors row so the floor/KDS reflect it immediately.
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     if (!validateCsrfToken(request, auth.authenticated)) {

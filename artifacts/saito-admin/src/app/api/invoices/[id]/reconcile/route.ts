@@ -26,7 +26,7 @@ async function aiMatchProduct(productName: string, origin: string): Promise<any>
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requirePermission('invoices.reconcile', ['admin', 'superadmin']);
+  const auth = await requirePermission('invoices.reconcile');
   if (!auth.authenticated) return auth;
 
   try {

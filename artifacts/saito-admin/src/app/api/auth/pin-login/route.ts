@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const { data: users } = await supabase
       .from('staff')
-      .select('id, role, pin_hash')
+      .select('id, role, pin_hash, role_id, roles(name)')
       .eq('is_active', true)
       .limit(1000);
 
@@ -35,11 +35,12 @@ export async function POST(req: NextRequest) {
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const role = (user as any).roles?.[0]?.name || user.role || 'cashier';
 
     await supabase.from('sessions').insert({
       token,
       user_id: user.id,
-      role: user.role,
+      role,
       expires_at: expiresAt,
     });
 
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
       maxAge: 86400,
     });
 
-    return NextResponse.json({ success: true, role: user.role });
+    return NextResponse.json({ success: true, role });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

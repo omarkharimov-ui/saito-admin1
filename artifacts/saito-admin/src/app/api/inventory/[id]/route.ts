@@ -11,7 +11,7 @@ function svc() {
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(['admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {
@@ -82,7 +82,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth(['admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
-import { getRoleColor, getRoleIcon } from '@/lib/staff-utils';
+import { getRoleColor, getRoleIcon, getRoleName } from '@/lib/staff-utils';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { PinInputDialog } from '../components/PinInputDialog';
 
@@ -270,7 +270,8 @@ export default function StaffDetailPage() {
     );
   }
 
-  const roleColor = getRoleColor(staff.role);
+  const roleName = getRoleName(staff.role_id, roles);
+  const roleColor = getRoleColor(roleName);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -290,7 +291,7 @@ export default function StaffDetailPage() {
         <div className="flex items-start gap-5">
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center border ${roleColor.bg} ${roleColor.border}`}>
             {(() => {
-              const RoleIcon = getRoleIcon(staff.role);
+              const RoleIcon = getRoleIcon(roleName);
               return <RoleIcon size={28} className={roleColor.text} />;
             })()}
           </div>
@@ -299,7 +300,7 @@ export default function StaffDetailPage() {
               <h1 className="text-2xl font-black text-[var(--theme-text)] tracking-tight">{staff.name}</h1>
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${roleColor.bg} ${roleColor.text} ${roleColor.border}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${roleColor.dot}`} />
-                {staff.role}
+                {roleName}
               </span>
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${staff.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${staff.is_active ? 'bg-emerald-400' : 'bg-rose-400'}`} />

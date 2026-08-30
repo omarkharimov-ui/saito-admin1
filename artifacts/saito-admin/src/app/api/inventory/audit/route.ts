@@ -13,7 +13,7 @@ function svc() {
 // POST /api/inventory/audit — perform stock audit
 // body: { ingredientId: string, actualQty: number }
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {

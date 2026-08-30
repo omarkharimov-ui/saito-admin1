@@ -10,7 +10,7 @@ function svc() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const { product_id, product_name } = await request.json();

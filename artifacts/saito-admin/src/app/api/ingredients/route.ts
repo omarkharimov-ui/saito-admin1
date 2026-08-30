@@ -11,7 +11,7 @@ function svc() {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
   try {
     const body = await request.json();
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
   try {
     const supabase = svc();

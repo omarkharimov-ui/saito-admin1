@@ -12,7 +12,7 @@ function svc() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requirePermission('payments.create', ['cashier', 'admin', 'superadmin']);
+    const auth = await requirePermission('payments.create');
     if (!auth.authenticated) return auth;
 
     if (!validateCsrfToken(request, auth.authenticated)) {

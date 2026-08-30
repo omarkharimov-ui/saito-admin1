@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/api-auth';
 import { supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
   try {
     const { searchParams } = new URL(req.url);
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
   try {
     const body = await req.json();

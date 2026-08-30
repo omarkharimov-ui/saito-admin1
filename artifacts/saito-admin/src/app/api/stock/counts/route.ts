@@ -3,7 +3,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function GET() {
   try {
-    const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
     const supabase = await createAuthClient();
 
@@ -21,7 +21,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
     const supabase = await createAuthClient();
 

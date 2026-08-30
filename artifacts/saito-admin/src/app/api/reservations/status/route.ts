@@ -36,7 +36,7 @@ const TABLE_STATUS_MAP: Record<string, string | null> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const { id, reservation_id, status, notes } = await request.json();

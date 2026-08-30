@@ -14,7 +14,7 @@ const ALLOWED_FIELDS = [
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin', 'cashier']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const url = new URL(req.url);
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const body = await req.json();
@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const url = new URL(req.url);
@@ -224,7 +224,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const url = new URL(req.url);

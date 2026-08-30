@@ -11,7 +11,7 @@ function svc() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {

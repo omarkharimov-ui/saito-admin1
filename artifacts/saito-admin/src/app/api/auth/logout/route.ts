@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
     if (token) {
       const supabase = await createAuthClient();
-      await supabase.from('sessions').delete().eq('token', token);
+      await supabase.from('sessions').update({ revoked_at: new Date().toISOString() }).eq('token', token);
     }
 
     const res = NextResponse.json({ success: true });

@@ -14,7 +14,7 @@ function svc() {
 }
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requirePermission('invoices.apply', ['admin', 'superadmin', 'manager']);
+  const auth = await requirePermission('invoices.apply');
   if (!auth.authenticated) return auth;
 
   try {

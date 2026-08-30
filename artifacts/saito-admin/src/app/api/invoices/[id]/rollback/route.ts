@@ -14,7 +14,7 @@ function svc() {
 }
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requirePermission('invoices.rollback', ['admin', 'superadmin']);
+  const auth = await requirePermission('invoices.rollback');
   if (!auth.authenticated) return auth;
 
   try {

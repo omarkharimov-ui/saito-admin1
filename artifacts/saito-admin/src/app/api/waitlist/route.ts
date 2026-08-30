@@ -11,7 +11,7 @@ function svc() {
 
 export async function GET(request: Request) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth as any;
 
     const s = svc();
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth as any;
 
     const { name, phone, guests, status } = await request.json();
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth as any;
 
     const { id, status, seated_at } = await request.json();
@@ -90,7 +90,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth as any;
 
     const { searchParams } = new URL(request.url);

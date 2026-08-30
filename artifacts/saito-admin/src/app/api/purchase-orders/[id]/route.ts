@@ -37,7 +37,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const { id } = await params;

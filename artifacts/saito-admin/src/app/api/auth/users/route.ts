@@ -12,7 +12,7 @@ function svc() {
 }
 
 export async function GET() {
-  const auth = await requirePermission('staff.manage', ['superadmin']);
+  const auth = await requirePermission('staff.manage');
   if (!auth.authenticated) return auth;
 
   const supabase = svc();
@@ -25,7 +25,7 @@ export async function GET() {
 }
 
 export async function DELETE(req: NextRequest) {
-  const auth = await requirePermission('staff.manage', ['superadmin']);
+  const auth = await requirePermission('staff.manage');
   if (!auth.authenticated) return auth;
 
   const { searchParams } = new URL(req.url);
@@ -49,7 +49,7 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await requirePermission('staff.manage', ['superadmin']);
+  const auth = await requirePermission('staff.manage');
   if (!auth.authenticated) return auth;
 
   const supabase = svc();

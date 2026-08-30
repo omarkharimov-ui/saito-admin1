@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const { order_id } = await request.json();

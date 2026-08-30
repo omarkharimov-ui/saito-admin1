@@ -4,7 +4,7 @@ import { hashPin } from '@/lib/crypto';
 import { requireAuth } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(['superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
   try {
     const { data: staff, error } = await supabase

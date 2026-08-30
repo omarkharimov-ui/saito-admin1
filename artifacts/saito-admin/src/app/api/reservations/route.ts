@@ -25,7 +25,7 @@ async function logAudit(tableName: string, recordId: string, action: string, old
 
 export async function GET() {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const [reservationsRes, ordersRes] = await Promise.all([
@@ -59,7 +59,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const body = await request.json();

@@ -10,7 +10,7 @@ function svc() {
 
 export async function GET(request: Request) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth as any;
 
     const { searchParams } = new URL(request.url);
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const { recipe_header_id, ingredients_json, created_by, is_active } = await request.json();

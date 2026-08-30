@@ -11,7 +11,7 @@ function svc() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const shiftCheck = await requireActiveShift();

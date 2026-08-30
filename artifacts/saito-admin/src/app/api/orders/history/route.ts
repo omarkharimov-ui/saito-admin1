@@ -9,7 +9,7 @@ function svc() {
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const url = new URL(request.url);

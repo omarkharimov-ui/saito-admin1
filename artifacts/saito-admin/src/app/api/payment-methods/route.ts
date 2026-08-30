@@ -18,7 +18,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(['superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {

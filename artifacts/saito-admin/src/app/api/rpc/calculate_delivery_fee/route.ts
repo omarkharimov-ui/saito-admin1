@@ -3,7 +3,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const body = await request.json();

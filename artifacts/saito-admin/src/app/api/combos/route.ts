@@ -3,7 +3,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function GET() {
   try {
-    const auth = await requireAuth(['admin', 'superadmin', 'cashier', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const supabase = await createAuthClient();
@@ -32,7 +32,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const body = await req.json();
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const body = await req.json();
@@ -100,7 +100,7 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const id = req.nextUrl.searchParams.get('id');

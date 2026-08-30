@@ -14,7 +14,7 @@ function svc() {
 // GET /api/inventory/waste-standards — all
 // GET /api/inventory/waste-standards?q=avokado — AI lookup with cache
 export async function GET(req: Request) {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {
@@ -93,7 +93,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {
@@ -159,7 +159,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {

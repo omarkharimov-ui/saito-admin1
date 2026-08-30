@@ -11,7 +11,7 @@ function svc() {
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requirePermission('staff.view', ['admin', 'superadmin']);
+    const auth = await requirePermission('staff.view');
     if (!auth.authenticated) return auth as any;
 
     const { searchParams } = new URL(request.url);
@@ -21,10 +21,21 @@ export async function GET(request: NextRequest) {
 
     const s = svc();
 
-    let query = `${s.url}/rest/v1/staff?select=*&order=name.asc`;
+    let query = `${s.url}/rest/v1/staff?select=*,roles(name)&order=name.asc`;
 
     const filters: string[] = [];
-    if (roleFilter) filters.push(`role=eq.${roleFilter}`);
+    if (roleFilter) {
+      if (roleFilter.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        filters.push(`role_id=eq.${roleFilter}`);
+      } else {
+        const roleRes = await fetch(`${s.url}/rest/v1/roles?name=ilike.${encodeURIComponent(roleFilter)}&select=id`, { headers: s.headers });
+        const roleData = await roleRes.json();
+        const matchedRole = Array.isArray(roleData) && roleData.length > 0 ? roleData[0] : null;
+        if (matchedRole?.id) {
+          filters.push(`role_id=eq.${matchedRole.id}`);
+        }
+      }
+    }
     if (statusFilter === 'active') filters.push('is_active=eq.true');
     if (statusFilter === 'inactive') filters.push('is_active=eq.false');
 
@@ -45,7 +56,7 @@ export async function GET(request: NextRequest) {
       const q = search.toLowerCase();
       filtered = filtered.filter((s: any) =>
         (s.name || '').toLowerCase().includes(q) ||
-        (s.role || '').toLowerCase().includes(q) ||
+        (s.roles?.name || '').toLowerCase().includes(q) ||
         (s.phone || '').includes(q)
       );
     }
@@ -105,7 +116,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requirePermission('staff.manage', ['admin', 'superadmin']);
+    const auth = await requirePermission('staff.manage');
     if (!auth.authenticated) return auth as any;
 
     const body = await request.json();
@@ -144,7 +155,6 @@ export async function POST(request: NextRequest) {
 
     const insertData: any = {
       name: name.trim(),
-      role: role?.trim() || '',
       role_id: finalRoleId || null,
       shift: shift?.trim() || null,
       phone: phone?.trim() || null,

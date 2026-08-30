@@ -8,7 +8,7 @@ const svc = () => createClient(
 );
 
 export async function GET() {
-  const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
   const s = svc();
   try {
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
   try {
     if (action === 'open') {
-      const auth = await requirePermission('cash.open', ['cashier', 'admin', 'superadmin']);
+      const auth = await requirePermission('cash.open');
       if (!auth.authenticated) return auth;
       const staffId = auth.user?.id || null;
 
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     }
 
     if (action === 'close') {
-      const auth = await requirePermission('cash.close', ['cashier', 'admin', 'superadmin']);
+      const auth = await requirePermission('cash.close');
       if (!auth.authenticated) return auth;
       const staffId = auth.user?.id || null;
       const managerId = body.manager_id || null;
@@ -110,7 +110,7 @@ export async function POST(req: Request) {
     }
 
     if (action === 'cash_in' || action === 'cash_out') {
-      const auth = await requirePermission(action === 'cash_in' ? 'cash.in' : 'cash.out', ['cashier', 'admin', 'superadmin']);
+      const auth = await requirePermission(action === 'cash_in' ? 'cash.in' : 'cash.out');
       if (!auth.authenticated) return auth;
       const staffId = auth.user?.id || null;
 

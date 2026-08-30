@@ -1,32 +1,13 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import { requirePermission, createAuthClient } from '@/lib/api-auth';
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { password } = await request.json();
-    if (!password) {
-      return NextResponse.json({ error: 'Password required' }, { status: 400 });
-    }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    const { data: settings } = await supabase
-      .from('settings')
-      .select('kitchen_password')
-      .limit(1)
-      .maybeSingle();
-
-    if (!settings?.kitchen_password || settings.kitchen_password !== password) {
-      return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
-    }
+    const auth = await requirePermission('kitchen.auth');
+    if (!auth.authenticated) return auth;
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    console.error('[KitchenAuth] Error:', e);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

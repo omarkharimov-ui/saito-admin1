@@ -8,7 +8,7 @@ function svc() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) {
     return auth;
   }

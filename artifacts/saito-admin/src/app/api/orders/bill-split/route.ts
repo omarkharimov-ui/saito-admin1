@@ -5,7 +5,7 @@ import { validateCsrfToken } from '@/lib/csrf';
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
     
     if (!validateCsrfToken(request, auth.authenticated)) {

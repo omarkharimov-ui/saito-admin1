@@ -12,7 +12,7 @@ function svc() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requirePermission('staff.manage', ['superadmin']);
+  const auth = await requirePermission('staff.manage');
   if (!auth.authenticated) return auth;
 
   try {

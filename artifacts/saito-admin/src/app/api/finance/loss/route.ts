@@ -3,7 +3,7 @@ import { requireAuth, createAuthClient } from '@/lib/api-auth';
 import { validateCsrfToken } from '@/lib/csrf';
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   if (!validateCsrfToken(req, auth.authenticated)) {

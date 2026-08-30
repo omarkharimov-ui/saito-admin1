@@ -15,7 +15,7 @@ import { validateCsrfToken } from '@/lib/csrf';
  */
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
     if (!validateCsrfToken(req, auth.authenticated)) {
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });

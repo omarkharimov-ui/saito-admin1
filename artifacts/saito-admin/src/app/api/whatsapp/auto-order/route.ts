@@ -10,7 +10,7 @@ function svc() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const { supplierId, supplierName, whatsappNumber, autoOrderTemplate } = await request.json();

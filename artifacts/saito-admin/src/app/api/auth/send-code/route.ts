@@ -16,7 +16,7 @@ function generatePin(): string {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(['superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   const supabase = svc();
@@ -44,12 +44,11 @@ export async function POST(req: NextRequest) {
       .from('staff')
       .insert({
         name: role.charAt(0).toUpperCase() + role.slice(1),
-        role: role,
         role_id: roleId,
         pin_hash: pinHash,
         is_active: true,
       })
-      .select('id, name, role')
+      .select('id, name, role_id, roles(name)')
       .single();
 
     if (insertError || !staff) {
@@ -64,7 +63,7 @@ export async function POST(req: NextRequest) {
         p_actor_id: auth.user?.id,
         p_actor_name: 'superadmin',
         p_old_data: null,
-        p_new_data: { name: staff.name, role: staff.role },
+        p_new_data: { name: staff.name, role_id: staff.role_id, role: (staff as any).roles?.[0]?.name },
         p_metadata: { method: 'send-code' }
       });
     } catch { /* non-critical */ }
@@ -72,7 +71,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       staffId: staff.id, 
-      role: staff.role
+      role: (staff as any).roles?.[0]?.name || role
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Failed to create user' }, { status: 500 });

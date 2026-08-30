@@ -26,9 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unknown op_type' }, { status: 400 });
   }
 
-  const auth = await requirePermission(permission, [
-    'cashier', 'admin', 'superadmin', 'manager', 'waiter', 'kitchen', 'bartender', 'host',
-  ]);
+  const auth = await requirePermission(permission);
   if (!auth.authenticated) return auth;
   if (!validateCsrfToken(request, auth.authenticated)) {
     return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       const client = await createAuthClient();
       const res = await client
         .from('staff')
-        .select('id, name, full_name, role, pin_hash, is_active, shift')
+        .select('id, name, full_name, role, pin_hash, is_active, shift, role_id, roles(name)')
         .eq('is_active', true)
         .limit(100);
       staff = res.data;
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
-    const role = canonicalRole(matched.role);
+    const role = (matched as any).roles?.[0]?.name || 'cashier';
 
     await (await createAuthClient()).from('sessions').insert({
       token,

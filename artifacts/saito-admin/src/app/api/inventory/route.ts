@@ -19,7 +19,7 @@ function svc() {
 // GET /api/inventory — full dashboard data + low stock alerts
 export async function GET() {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth as unknown as NextResponse;
 
     const supabase = svc();
@@ -65,7 +65,7 @@ export async function GET() {
 // POST /api/inventory — create new ingredient
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth as unknown as NextResponse;
 
     const supabase = svc();
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
 // DELETE /api/inventory?id=xxx
 export async function DELETE(req: NextRequest) {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const supabase = svc();

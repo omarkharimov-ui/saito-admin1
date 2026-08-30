@@ -21,7 +21,7 @@ async function callRpc(rpcName: string, params: Record<string, any>) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const shiftCheck = await requireActiveShift();

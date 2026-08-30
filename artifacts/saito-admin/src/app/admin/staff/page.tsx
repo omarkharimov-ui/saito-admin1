@@ -107,11 +107,11 @@ export default function StaffPage() {
     switch (sortBy) {
       case 'name_asc': sorted.sort((a, b) => a.name.localeCompare(b.name)); break;
       case 'name_desc': sorted.sort((a, b) => b.name.localeCompare(a.name)); break;
-      case 'role_asc': sorted.sort((a, b) => (a.role || '').localeCompare(b.role || '')); break;
+      case 'role_asc': sorted.sort((a, b) => (getRoleName(a.role_id) || '').localeCompare(getRoleName(b.role_id) || '')); break;
       case 'created_desc': sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
     }
     return sorted;
-  }, [staff, sortBy]);
+  }, [staff, sortBy, roles]);
 
   const stats = useMemo(() => {
     const total = staff.length;

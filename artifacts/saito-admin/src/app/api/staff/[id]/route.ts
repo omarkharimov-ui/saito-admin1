@@ -29,7 +29,7 @@ function dateRange(period: string) {
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requirePermission('staff.view', ['admin', 'superadmin']);
+    const auth = await requirePermission('staff.view');
     if (!auth.authenticated) return auth as any;
 
     const { id: staffId } = await params;
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const s = svc();
 
-    const staffRes = await fetch(`${s.url}/rest/v1/staff?id=eq.${staffId}&select=*`, { headers: s.headers });
+    const staffRes = await fetch(`${s.url}/rest/v1/staff?id=eq.${staffId}&select=*,roles(name)`, { headers: s.headers });
     const staffList = await staffRes.json();
     const staff = Array.isArray(staffList) ? sanitizeStaff(staffList[0]) : null;
     console.log('DEBUG staff:', staff ? staff.name : 'NULL');
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requirePermission('staff.manage', ['admin', 'superadmin']);
+    const auth = await requirePermission('staff.manage');
     if (!auth.authenticated) return auth as any;
 
     const { id: staffId } = await params;

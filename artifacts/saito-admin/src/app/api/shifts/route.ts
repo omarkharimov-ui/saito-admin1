@@ -24,7 +24,7 @@ function svc() {
 
 export async function GET(request: Request) {
   try {
-    const auth = await requirePermission('cash.view', ['cashier', 'admin', 'superadmin']);
+    const auth = await requirePermission('cash.view');
     if (!auth.authenticated) return auth as any;
 
     const { searchParams } = new URL(request.url);
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requirePermission('cash.open', ['cashier', 'admin', 'superadmin']);
+    const auth = await requirePermission('cash.open');
     if (!auth.authenticated) return auth;
 
     const { staff_id, expected_cash, notes } = await request.json();
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await requirePermission('cash.close', ['cashier', 'admin', 'superadmin']);
+    const auth = await requirePermission('cash.close');
     if (!auth.authenticated) return auth;
 
     const { id, closed_at, actual_cash, manager_approved, manager_id, notes } = await request.json();

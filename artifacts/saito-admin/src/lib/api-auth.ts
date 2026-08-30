@@ -10,7 +10,7 @@ function svc() {
   );
 }
 
-export async function validateAuth(requiredRoles?: string[]) {
+export async function validateAuth() {
   const cookieStore = await cookies();
   const token = cookieStore.get('saito_token')?.value;
 
@@ -30,8 +30,15 @@ export async function validateAuth(requiredRoles?: string[]) {
     return { authenticated: false, error: 'Session expired', status: 401 };
   }
 
-  if (requiredRoles && !requiredRoles.includes(session.role)) {
-    return { authenticated: false, error: 'Forbidden', status: 403, role: session.role };
+  const { data: staff } = await supabase
+    .from('staff')
+    .select('is_active')
+    .eq('id', session.user_id)
+    .maybeSingle();
+
+  if (!staff?.is_active) {
+    await supabase.from('sessions').delete().eq('token', token);
+    return { authenticated: false, error: 'Account disabled', status: 401 };
   }
 
   return {
@@ -41,8 +48,8 @@ export async function validateAuth(requiredRoles?: string[]) {
   };
 }
 
-export async function requireAuth(requiredRoles?: string[]): Promise<any> {
-  const auth = await validateAuth(requiredRoles);
+export async function requireAuth(): Promise<any> {
+  const auth = await validateAuth();
   if (!auth.authenticated) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -59,15 +66,14 @@ export function sanitizeStaffArray(staffList: any[]): any[] {
   return staffList.map(s => sanitizeStaff(s));
 }
 
-export async function requirePermission(permission: string, allowedRoles: string[] = []): Promise<any> {
-  const auth = await validateAuth(allowedRoles);
+export async function requirePermission(permission: string): Promise<any> {
+  const auth = await validateAuth();
   if (!auth.authenticated) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  if (auth.role && ['admin', 'superadmin', 'owner'].includes(auth.role)) return auth;
   const supabase = svc();
   const { data, error } = await supabase.rpc('has_permission', {
-    p_staff_id: auth.user?.id,
+    p_staff_id: auth.user!.id,
     p_permission: permission,
   });
   if (error || !data) {

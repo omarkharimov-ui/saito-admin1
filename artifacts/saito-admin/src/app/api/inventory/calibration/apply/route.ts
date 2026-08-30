@@ -18,7 +18,7 @@ interface ApplyCalibrationPayload {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {

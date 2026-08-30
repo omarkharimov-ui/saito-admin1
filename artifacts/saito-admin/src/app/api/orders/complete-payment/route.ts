@@ -9,7 +9,7 @@ function svc() {
 
 /** @deprecated Use POST /api/orders/pay instead. Kept for backward compatibility. */
 export async function POST(request: Request) {
-  const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) {
     return auth;
   }

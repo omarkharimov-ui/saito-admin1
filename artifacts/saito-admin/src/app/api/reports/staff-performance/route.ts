@@ -10,7 +10,7 @@ function svc() {
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requirePermission('reports.view', ['admin', 'superadmin']);
+    const auth = await requirePermission('reports.view');
     if (!auth.authenticated) return auth as any;
 
     const { searchParams } = new URL(request.url);

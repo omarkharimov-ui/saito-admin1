@@ -9,7 +9,7 @@ const svc = () => createClient(
 
 export async function GET() {
   try {
-    const auth = await requireAuth(['admin', 'superadmin']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const s = svc();

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createAuthClient } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager', 'cashier']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {

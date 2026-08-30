@@ -9,7 +9,7 @@ function svc() {
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAuth(['cashier', 'admin', 'superadmin', 'kitchen']);
+    const auth = await requireAuth();
     if (!auth.authenticated) return auth;
 
     const { searchParams } = new URL(request.url);
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
 // Find-or-create a customer by phone. Returns the existing or newly created row.
 export async function POST(request: Request) {
-  const auth = await requireAuth(['cashier', 'admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {

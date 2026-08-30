@@ -12,7 +12,7 @@ function svc() {
 }
 
 export async function GET() {
-  const auth = await requireAuth(['admin', 'superadmin', 'manager']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {
@@ -29,7 +29,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(['admin', 'superadmin']);
+  const auth = await requireAuth();
   if (!auth.authenticated) return auth;
 
   try {

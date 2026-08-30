@@ -21,7 +21,7 @@ function svc() {
  *    → complete_payment_atomic_v2 RPC
  */
 export async function POST(request: NextRequest) {
-  const auth = await requirePermission('payments.refund', ['cashier', 'admin', 'superadmin', 'manager']);
+  const auth = await requirePermission('payments.refund');
   if (!auth.authenticated) return auth;
   if (!validateCsrfToken(request, auth.authenticated)) {
     return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateAuth } from '@/lib/api-auth';
+import { requirePermission } from '@/lib/api-auth';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -8,9 +8,9 @@ function svc() {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await validateAuth(['admin', 'superadmin']);
+  const auth = await requirePermission('cash.close');
   if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+    return auth;
   }
 
   try {

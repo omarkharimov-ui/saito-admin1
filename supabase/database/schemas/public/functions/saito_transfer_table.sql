@@ -1,4 +1,4 @@
-CREATE FUNCTION public.saito_transfer_table (
+CREATE OR REPLACE FUNCTION public.saito_transfer_table (
   p_from_table   integer,
   p_to_table     integer,
   p_performed_by uuid    DEFAULT NULL::uuid
@@ -14,6 +14,7 @@ DECLARE
   v_now timestamptz := now();
   v_result jsonb;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   -- Check source has active orders
   SELECT id, table_number, total_amount, guest_count INTO v_order
   FROM orders
@@ -88,8 +89,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.saito_transfer_table(integer, integer, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.saito_transfer_table(integer, integer, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.saito_transfer_table(integer, integer, uuid) TO service_role;

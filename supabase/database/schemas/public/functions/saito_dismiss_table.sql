@@ -1,4 +1,4 @@
-CREATE FUNCTION public.saito_dismiss_table (
+CREATE OR REPLACE FUNCTION public.saito_dismiss_table (
   p_table_number integer,
   p_performed_by uuid    DEFAULT NULL::uuid
 )
@@ -11,6 +11,7 @@ DECLARE
   v_order_ids UUID[];
   v_count INTEGER := 0;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   PERFORM 1 FROM table_floors WHERE table_number = p_table_number FOR UPDATE;
 
   SELECT array_agg(id)
@@ -53,8 +54,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.saito_dismiss_table(integer, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.saito_dismiss_table(integer, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.saito_dismiss_table(integer, uuid) TO service_role;

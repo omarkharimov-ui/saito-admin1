@@ -1,4 +1,4 @@
-CREATE FUNCTION public.mark_sold_out_atomic (
+CREATE OR REPLACE FUNCTION public.mark_sold_out_atomic (
   p_product_id               uuid,
   p_product_name             text DEFAULT NULL::text,
   p_performed_by             uuid DEFAULT NULL::uuid,
@@ -14,6 +14,7 @@ DECLARE
   v_current_stock NUMERIC := 0;
   v_ingredients_updated INT := 0;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_product FROM public.products WHERE id = p_product_id FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Product not found');
@@ -79,8 +80,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.mark_sold_out_atomic(uuid, text, uuid, text) TO anon;
 
-GRANT ALL ON FUNCTION public.mark_sold_out_atomic(uuid, text, uuid, text) TO authenticated;
 
-GRANT ALL ON FUNCTION public.mark_sold_out_atomic(uuid, text, uuid, text) TO service_role;

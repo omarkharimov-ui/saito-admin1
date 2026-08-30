@@ -1,4 +1,4 @@
-CREATE FUNCTION public.close_day_atomic (
+CREATE OR REPLACE FUNCTION public.close_day_atomic (
   p_report_date  date,
   p_daily_report jsonb,
   p_shift        jsonb,
@@ -10,10 +10,11 @@ CREATE FUNCTION public.close_day_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_report_id UUID;
   v_shift_id UUID;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   INSERT INTO public.daily_reports (
     report_date, total_revenue, total_orders, aov, cash_total, card_total,
     tips_total, discounts_total, voids_count, voids_amount, tax_collected,
@@ -98,8 +99,5 @@ EXCEPTION
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.close_day_atomic(date, jsonb, jsonb, jsonb, jsonb, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.close_day_atomic(date, jsonb, jsonb, jsonb, jsonb, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.close_day_atomic(date, jsonb, jsonb, jsonb, jsonb, uuid) TO service_role;

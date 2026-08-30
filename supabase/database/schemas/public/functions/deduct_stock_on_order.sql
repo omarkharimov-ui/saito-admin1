@@ -1,4 +1,4 @@
-CREATE FUNCTION public.deduct_stock_on_order (
+CREATE OR REPLACE FUNCTION public.deduct_stock_on_order (
   p_order_id uuid
 )
   RETURNS jsonb

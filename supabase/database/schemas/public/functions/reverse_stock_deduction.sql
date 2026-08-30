@@ -1,4 +1,4 @@
-CREATE FUNCTION public.reverse_stock_deduction (
+CREATE OR REPLACE FUNCTION public.reverse_stock_deduction (
   p_order_id uuid
 )
   RETURNS jsonb

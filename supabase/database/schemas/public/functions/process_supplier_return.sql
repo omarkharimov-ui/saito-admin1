@@ -1,4 +1,4 @@
-CREATE FUNCTION public.process_supplier_return (
+CREATE OR REPLACE FUNCTION public.process_supplier_return (
   p_return_id    uuid,
   p_performed_by uuid DEFAULT NULL::uuid
 )
@@ -10,6 +10,7 @@ DECLARE
   v_item RECORD;
   v_total NUMERIC(12,2) := 0;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_return FROM supplier_returns WHERE id = p_return_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'RETURN_NOT_FOUND' USING ERRCODE = 'P0001'; END IF;
   IF v_return.status != 'draft' THEN RAISE EXCEPTION 'RETURN_ALREADY_PROCESSED' USING ERRCODE = 'P0001'; END IF;
@@ -44,8 +45,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.process_supplier_return(uuid, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.process_supplier_return(uuid, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.process_supplier_return(uuid, uuid) TO service_role;

@@ -1,4 +1,4 @@
-CREATE FUNCTION public.rollback_inventory_atomic (
+CREATE OR REPLACE FUNCTION public.rollback_inventory_atomic (
   p_order_id     uuid,
   p_performed_by uuid DEFAULT NULL::uuid
 )
@@ -10,6 +10,7 @@ DECLARE
   v_tx RECORD;
   v_rolled_back INT := 0;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   FOR v_tx IN 
     SELECT * FROM public.inventory_transactions 
     WHERE reference_id = p_order_id AND reference_type = 'order' AND transaction_type = 'order_consumption'
@@ -37,8 +38,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.rollback_inventory_atomic(uuid, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.rollback_inventory_atomic(uuid, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.rollback_inventory_atomic(uuid, uuid) TO service_role;

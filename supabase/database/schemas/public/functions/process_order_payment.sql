@@ -1,4 +1,4 @@
-CREATE FUNCTION public.process_order_payment (
+CREATE OR REPLACE FUNCTION public.process_order_payment (
   p_order_id        uuid,
   p_payment_method  text    DEFAULT 'card'::text,
   p_paid_amount     numeric DEFAULT NULL::numeric,
@@ -14,7 +14,7 @@ CREATE FUNCTION public.process_order_payment (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_order RECORD;
   v_new_paid numeric;
   v_total_paid numeric;
@@ -26,6 +26,7 @@ DECLARE
   v_ingredient RECORD;
   v_already_deducted boolean := false;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_order FROM orders WHERE id = p_order_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Order % not found', p_order_id;
@@ -79,8 +80,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.process_order_payment(uuid, text, numeric, numeric, uuid, numeric, text, uuid, numeric, numeric) TO anon;
 
-GRANT ALL ON FUNCTION public.process_order_payment(uuid, text, numeric, numeric, uuid, numeric, text, uuid, numeric, numeric) TO authenticated;
 
-GRANT ALL ON FUNCTION public.process_order_payment(uuid, text, numeric, numeric, uuid, numeric, text, uuid, numeric, numeric) TO service_role;

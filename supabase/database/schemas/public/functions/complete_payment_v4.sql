@@ -1,10 +1,11 @@
-CREATE FUNCTION public.complete_payment_v4 (
+CREATE OR REPLACE FUNCTION public.complete_payment_v4 (
   p_order_id        uuid,
   p_payment_method  text,
   p_total_amount    numeric,
   p_tax_amount      numeric,
   p_service_amount  numeric,
-  p_discount_amount numeric
+  p_discount_amount numeric,
+  p_performed_by    uuid DEFAULT NULL::uuid
 )
   RETURNS jsonb
   LANGUAGE plpgsql
@@ -14,6 +15,7 @@ DECLARE
   v_table_id INTEGER;
   v_group_id UUID;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   -- Lock order
   SELECT table_number, group_id INTO v_table_id, v_group_id FROM orders WHERE id = p_order_id FOR UPDATE;
 

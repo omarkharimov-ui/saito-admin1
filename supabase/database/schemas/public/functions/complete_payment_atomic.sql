@@ -1,4 +1,4 @@
-CREATE FUNCTION public.complete_payment_atomic (
+CREATE OR REPLACE FUNCTION public.complete_payment_atomic (
   p_order_id                 uuid,
   p_payments                 jsonb,
   p_payment_method           text    DEFAULT 'cash'::text,
@@ -14,13 +14,14 @@ CREATE FUNCTION public.complete_payment_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_order RECORD;
   v_payment JSONB;
   v_total_paid NUMERIC := 0;
   v_table RECORD;
   v_other_active_count INT;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Order not found');
@@ -111,8 +112,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.complete_payment_atomic(uuid, jsonb, text, numeric, numeric, numeric, numeric, text, uuid, text) TO anon;
 
-GRANT ALL ON FUNCTION public.complete_payment_atomic(uuid, jsonb, text, numeric, numeric, numeric, numeric, text, uuid, text) TO authenticated;
 
-GRANT ALL ON FUNCTION public.complete_payment_atomic(uuid, jsonb, text, numeric, numeric, numeric, numeric, text, uuid, text) TO service_role;

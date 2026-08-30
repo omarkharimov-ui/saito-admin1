@@ -1,4 +1,4 @@
-CREATE FUNCTION public.accept_kitchen_ticket_atomic (
+CREATE OR REPLACE FUNCTION public.accept_kitchen_ticket_atomic (
   p_order_id                 uuid,
   p_performed_by             uuid DEFAULT NULL::uuid,
   p_performed_by_terminal_id text DEFAULT NULL::text
@@ -10,6 +10,7 @@ CREATE FUNCTION public.accept_kitchen_ticket_atomic (
 DECLARE
   v_order RECORD;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Order not found');
@@ -46,7 +47,7 @@ BEGIN
 END;
 $function$;
 
-CREATE FUNCTION public.accept_kitchen_ticket_atomic (
+CREATE OR REPLACE FUNCTION public.accept_kitchen_ticket_atomic (
   p_order_id     uuid,
   p_performed_by uuid DEFAULT NULL::uuid
 )
@@ -57,6 +58,7 @@ CREATE FUNCTION public.accept_kitchen_ticket_atomic (
 DECLARE
   v_order RECORD;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Order not found');
@@ -91,14 +93,8 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.accept_kitchen_ticket_atomic(uuid, uuid, text) TO anon;
 
-GRANT ALL ON FUNCTION public.accept_kitchen_ticket_atomic(uuid, uuid, text) TO authenticated;
 
-GRANT ALL ON FUNCTION public.accept_kitchen_ticket_atomic(uuid, uuid, text) TO service_role;
 
-GRANT ALL ON FUNCTION public.accept_kitchen_ticket_atomic(uuid, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.accept_kitchen_ticket_atomic(uuid, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.accept_kitchen_ticket_atomic(uuid, uuid) TO service_role;

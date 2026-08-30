@@ -1,4 +1,4 @@
-CREATE FUNCTION public.deduct_stock_for_order (
+CREATE OR REPLACE FUNCTION public.deduct_stock_for_order (
   p_order_id uuid
 )
   RETURNS jsonb
@@ -6,12 +6,10 @@ CREATE FUNCTION public.deduct_stock_for_order (
   SECURITY DEFINER
   AS $function$
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   RETURN public.deduct_stock_on_order(p_order_id);
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.deduct_stock_for_order(uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.deduct_stock_for_order(uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.deduct_stock_for_order(uuid) TO service_role;

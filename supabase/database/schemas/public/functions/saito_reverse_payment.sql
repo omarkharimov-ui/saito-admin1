@@ -1,15 +1,16 @@
-CREATE FUNCTION public.saito_reverse_payment (
+CREATE OR REPLACE FUNCTION public.saito_reverse_payment (
   p_order_id     uuid,
   p_performed_by uuid DEFAULT NULL::uuid
 )
   RETURNS jsonb
   LANGUAGE plpgsql
   AS $function$
-DECLARE
+  DECLARE
   v_order RECORD;
   v_total_deductions NUMERIC;
   v_inventory_count INTEGER;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_order FROM orders WHERE id = p_order_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'ORDER_NOT_FOUND' USING ERRCODE = 'P0001';
@@ -84,8 +85,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.saito_reverse_payment(uuid, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.saito_reverse_payment(uuid, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.saito_reverse_payment(uuid, uuid) TO service_role;

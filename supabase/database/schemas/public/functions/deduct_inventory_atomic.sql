@@ -1,4 +1,4 @@
-CREATE FUNCTION public.deduct_inventory_atomic (
+CREATE OR REPLACE FUNCTION public.deduct_inventory_atomic (
   p_order_id     uuid,
   p_performed_by uuid DEFAULT NULL::uuid
 )
@@ -6,11 +6,12 @@ CREATE FUNCTION public.deduct_inventory_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_item RECORD;
   v_recipe RECORD;
   v_deducted INT := 0;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   FOR v_item IN 
     SELECT oi.id, oi.product_id, oi.quantity, p.is_ready_product, p.direct_ingredient_id
     FROM public.order_items oi
@@ -59,8 +60,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.deduct_inventory_atomic(uuid, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.deduct_inventory_atomic(uuid, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.deduct_inventory_atomic(uuid, uuid) TO service_role;

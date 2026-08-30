@@ -1,4 +1,4 @@
-CREATE FUNCTION public.merge_tables_atomic (
+CREATE OR REPLACE FUNCTION public.merge_tables_atomic (
   p_parent_table_number      integer,
   p_child_table_numbers      integer[],
   p_performed_by             uuid      DEFAULT NULL::uuid,
@@ -8,12 +8,13 @@ CREATE FUNCTION public.merge_tables_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_parent RECORD;
   v_child RECORD;
   v_parent_order_id UUID;
   v_merged_group_id TEXT;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   IF p_parent_table_number = ANY(p_child_table_numbers) THEN
     RETURN jsonb_build_object('success', false, 'error', 'Parent cannot be in child list');
   END IF;
@@ -97,7 +98,7 @@ BEGIN
 END;
 $function$;
 
-CREATE FUNCTION public.merge_tables_atomic (
+CREATE OR REPLACE FUNCTION public.merge_tables_atomic (
   p_parent_table_number integer,
   p_child_table_numbers integer[],
   p_performed_by        uuid      DEFAULT NULL::uuid
@@ -106,7 +107,7 @@ CREATE FUNCTION public.merge_tables_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_parent RECORD;
   v_child RECORD;
   v_parent_order_id UUID;
@@ -114,6 +115,7 @@ DECLARE
   v_merged_group_id TEXT;
   v_new_order_created BOOLEAN := false;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   IF p_parent_table_number = ANY(p_child_table_numbers) THEN
     RETURN jsonb_build_object('success', false, 'error', 'Parent cannot be in child list');
   END IF;
@@ -217,14 +219,8 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.merge_tables_atomic(integer, integer[], uuid, text) TO anon;
 
-GRANT ALL ON FUNCTION public.merge_tables_atomic(integer, integer[], uuid, text) TO authenticated;
 
-GRANT ALL ON FUNCTION public.merge_tables_atomic(integer, integer[], uuid, text) TO service_role;
 
-GRANT ALL ON FUNCTION public.merge_tables_atomic(integer, integer[], uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.merge_tables_atomic(integer, integer[], uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.merge_tables_atomic(integer, integer[], uuid) TO service_role;

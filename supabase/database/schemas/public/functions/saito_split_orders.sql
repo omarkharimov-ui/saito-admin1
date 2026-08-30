@@ -1,4 +1,4 @@
-CREATE FUNCTION public.saito_split_orders (
+CREATE OR REPLACE FUNCTION public.saito_split_orders (
   p_table_numbers integer[],
   p_performed_by  uuid      DEFAULT NULL::uuid
 )
@@ -16,6 +16,7 @@ DECLARE
   v_subtract_total numeric := 0;
   v_subtract_guests int := 0;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   IF array_length(p_table_numbers, 1) < 2 THEN
     RAISE EXCEPTION 'Need at least 2 tables to split';
   END IF;
@@ -70,8 +71,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.saito_split_orders(integer[], uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.saito_split_orders(integer[], uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.saito_split_orders(integer[], uuid) TO service_role;

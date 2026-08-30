@@ -1,4 +1,4 @@
-CREATE FUNCTION public.saito_undo_table_operation (
+CREATE OR REPLACE FUNCTION public.saito_undo_table_operation (
   p_action       text,
   p_data         jsonb,
   p_performed_by uuid  DEFAULT NULL::uuid
@@ -11,6 +11,7 @@ DECLARE
   v_now timestamptz := now();
   v_result jsonb;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   CASE p_action
     WHEN 'merge' THEN
       UPDATE orders
@@ -65,8 +66,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.saito_undo_table_operation(text, jsonb, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.saito_undo_table_operation(text, jsonb, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.saito_undo_table_operation(text, jsonb, uuid) TO service_role;

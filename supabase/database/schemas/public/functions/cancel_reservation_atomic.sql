@@ -1,4 +1,4 @@
-CREATE FUNCTION public.cancel_reservation_atomic (
+CREATE OR REPLACE FUNCTION public.cancel_reservation_atomic (
   p_reservation_id uuid,
   p_reason         text DEFAULT NULL::text,
   p_performed_by   uuid DEFAULT NULL::uuid
@@ -7,10 +7,11 @@ CREATE FUNCTION public.cancel_reservation_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_reservation RECORD;
   v_table RECORD;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_reservation FROM public.reservations WHERE id = p_reservation_id FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Reservation not found');
@@ -58,8 +59,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.cancel_reservation_atomic(uuid, text, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.cancel_reservation_atomic(uuid, text, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.cancel_reservation_atomic(uuid, text, uuid) TO service_role;

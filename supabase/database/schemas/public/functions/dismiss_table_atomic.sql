@@ -1,4 +1,4 @@
-CREATE FUNCTION public.dismiss_table_atomic (
+CREATE OR REPLACE FUNCTION public.dismiss_table_atomic (
   p_table_number integer,
   p_reason       text    DEFAULT 'dismissed'::text,
   p_final_status text    DEFAULT 'empty'::text,
@@ -9,10 +9,11 @@ CREATE FUNCTION public.dismiss_table_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_table RECORD;
   v_order RECORD;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_table FROM public.table_floors WHERE table_number = p_table_number FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Table not found');
@@ -67,8 +68,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.dismiss_table_atomic(integer, text, text, uuid, text) TO anon;
 
-GRANT ALL ON FUNCTION public.dismiss_table_atomic(integer, text, text, uuid, text) TO authenticated;
 
-GRANT ALL ON FUNCTION public.dismiss_table_atomic(integer, text, text, uuid, text) TO service_role;

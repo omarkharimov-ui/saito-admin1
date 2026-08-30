@@ -1,4 +1,4 @@
-CREATE FUNCTION public.void_order_item_atomic (
+CREATE OR REPLACE FUNCTION public.void_order_item_atomic (
   p_order_item_id            uuid,
   p_reason                   text DEFAULT 'void'::text,
   p_performed_by             uuid DEFAULT NULL::uuid,
@@ -8,12 +8,13 @@ CREATE FUNCTION public.void_order_item_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_item RECORD;
   v_order RECORD;
   v_tx RECORD;
   v_new_total NUMERIC := 0;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_item FROM public.order_items WHERE id = p_order_item_id FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Order item not found');
@@ -69,8 +70,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.void_order_item_atomic(uuid, text, uuid, text) TO anon;
 
-GRANT ALL ON FUNCTION public.void_order_item_atomic(uuid, text, uuid, text) TO authenticated;
 
-GRANT ALL ON FUNCTION public.void_order_item_atomic(uuid, text, uuid, text) TO service_role;

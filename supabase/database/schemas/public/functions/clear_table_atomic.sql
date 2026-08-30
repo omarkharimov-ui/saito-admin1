@@ -1,4 +1,4 @@
-CREATE FUNCTION public.clear_table_atomic (
+CREATE OR REPLACE FUNCTION public.clear_table_atomic (
   p_table_number integer,
   p_performed_by uuid    DEFAULT NULL::uuid,
   p_terminal_id  text    DEFAULT NULL::text
@@ -7,9 +7,10 @@ CREATE FUNCTION public.clear_table_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_table RECORD;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_table FROM public.table_floors WHERE table_number = p_table_number FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Table not found');
@@ -55,8 +56,5 @@ EXCEPTION
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.clear_table_atomic(integer, uuid, text) TO anon;
 
-GRANT ALL ON FUNCTION public.clear_table_atomic(integer, uuid, text) TO authenticated;
 
-GRANT ALL ON FUNCTION public.clear_table_atomic(integer, uuid, text) TO service_role;

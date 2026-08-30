@@ -1,4 +1,4 @@
-CREATE FUNCTION public.saito_transfer_tables (
+CREATE OR REPLACE FUNCTION public.saito_transfer_tables (
   p_from_table   integer,
   p_to_table     integer,
   p_performed_by uuid    DEFAULT NULL::uuid
@@ -13,6 +13,7 @@ DECLARE
   v_total_amount NUMERIC := 0;
   v_total_guests INTEGER := 0;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   PERFORM 1 FROM table_floors WHERE table_number = p_from_table FOR UPDATE;
   PERFORM 1 FROM table_floors WHERE table_number = p_to_table FOR UPDATE;
 
@@ -69,8 +70,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.saito_transfer_tables(integer, integer, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.saito_transfer_tables(integer, integer, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.saito_transfer_tables(integer, integer, uuid) TO service_role;

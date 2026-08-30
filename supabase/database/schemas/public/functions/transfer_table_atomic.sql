@@ -1,4 +1,4 @@
-CREATE FUNCTION public.transfer_table_atomic (
+CREATE OR REPLACE FUNCTION public.transfer_table_atomic (
   p_from_table               integer,
   p_to_table                 integer,
   p_performed_by             uuid    DEFAULT NULL::uuid,
@@ -8,13 +8,14 @@ CREATE FUNCTION public.transfer_table_atomic (
   LANGUAGE plpgsql
   SECURITY DEFINER
   AS $function$
-DECLARE
+  DECLARE
   v_from RECORD;
   v_to RECORD;
   v_order RECORD;
   v_total_guests INT := 0;
   v_total_amount NUMERIC := 0;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   IF p_from_table = p_to_table THEN
     RETURN jsonb_build_object('success', false, 'error', 'Source and target are the same');
   END IF;
@@ -103,8 +104,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.transfer_table_atomic(integer, integer, uuid, text) TO anon;
 
-GRANT ALL ON FUNCTION public.transfer_table_atomic(integer, integer, uuid, text) TO authenticated;
 
-GRANT ALL ON FUNCTION public.transfer_table_atomic(integer, integer, uuid, text) TO service_role;

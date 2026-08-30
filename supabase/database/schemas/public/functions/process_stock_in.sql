@@ -1,4 +1,4 @@
-CREATE FUNCTION public.process_stock_in (
+CREATE OR REPLACE FUNCTION public.process_stock_in (
   p_ingredient_id  uuid,
   p_quantity       numeric,
   p_unit_cost      numeric DEFAULT NULL::numeric,
@@ -15,6 +15,7 @@ DECLARE
   v_old_avg_cost NUMERIC;
   v_ingredient RECORD;
 BEGIN
+  PERFORM public.validate_actor(p_performed_by);
   SELECT * INTO v_ingredient FROM ingredients WHERE id = p_ingredient_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'INGREDIENT_NOT_FOUND' USING ERRCODE = 'P0001'; END IF;
 
@@ -41,8 +42,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.process_stock_in(uuid, numeric, numeric, text, text, uuid, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.process_stock_in(uuid, numeric, numeric, text, text, uuid, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.process_stock_in(uuid, numeric, numeric, text, text, uuid, uuid) TO service_role;

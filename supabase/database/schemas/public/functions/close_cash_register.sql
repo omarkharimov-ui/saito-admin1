@@ -1,4 +1,4 @@
-CREATE FUNCTION public.close_cash_register (
+CREATE OR REPLACE FUNCTION public.close_cash_register (
   p_shift_id    uuid,
   p_actual_cash numeric,
   p_notes       text    DEFAULT NULL::text,
@@ -9,11 +9,14 @@ CREATE FUNCTION public.close_cash_register (
   SECURITY DEFINER
   SET search_path TO 'public'
   AS $function$
-DECLARE
+  DECLARE
   v_shift RECORD;
   v_expected NUMERIC;
   v_difference NUMERIC;
 BEGIN
+  IF p_manager_id IS NOT NULL THEN
+    PERFORM public.validate_actor(p_manager_id);
+  END IF;
   SELECT * INTO v_shift FROM shifts WHERE id = p_shift_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'SHIFT_NOT_FOUND' USING ERRCODE = 'P0001';
@@ -54,8 +57,5 @@ BEGIN
 END;
 $function$;
 
-GRANT ALL ON FUNCTION public.close_cash_register(uuid, numeric, text, uuid) TO anon;
 
-GRANT ALL ON FUNCTION public.close_cash_register(uuid, numeric, text, uuid) TO authenticated;
 
-GRANT ALL ON FUNCTION public.close_cash_register(uuid, numeric, text, uuid) TO service_role;

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       const client = await createAuthClient();
       const res = await client
         .from('staff')
-        .select('id, name, full_name, role, pin_hash, is_active, shift, role_id, roles(name)')
+        .select('id, name, full_name, role, pin_hash, is_active, shift, role_id')
         .eq('is_active', true)
         .limit(100);
       staff = res.data;
@@ -42,6 +42,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Xəta' }, { status: 500 });
     }
 
+    // Fetch roles separately to avoid relationship issues
+    const roleIds = [...new Set(staff.map((s: any) => s.role_id).filter(Boolean))];
+    const rolesMap: Record<string, string> = {};
+    if (roleIds.length > 0) {
+      const rolesRes = await (await createAuthClient())
+        .from('roles')
+        .select('id, name')
+        .in('id', roleIds);
+      if (rolesRes.data) {
+        for (const role of rolesRes.data) {
+          rolesMap[role.id] = role.name;
+        }
+      }
+    }
+
     const trimmedPin = pin.trim();
     const matched = staff.find((s: any) => verifyPin(trimmedPin, s.pin_hash));
 
@@ -51,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
-    const role = (matched as any).roles?.[0]?.name || 'cashier';
+    const role = rolesMap[matched.role_id] || 'cashier';
 
     await (await createAuthClient()).from('sessions').insert({
       token,

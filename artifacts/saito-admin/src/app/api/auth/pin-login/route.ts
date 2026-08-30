@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const { data: users } = await supabase
       .from('staff')
-      .select('id, role, pin_hash, role_id, roles(name)')
+      .select('id, role, pin_hash, role_id')
       .eq('is_active', true)
       .limit(1000);
 
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    const role = (user as any).roles?.[0]?.name || user.role || 'cashier';
+    const role = user.role || 'cashier';
 
     await supabase.from('sessions').insert({
       token,

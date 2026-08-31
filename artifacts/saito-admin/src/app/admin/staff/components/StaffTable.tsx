@@ -218,12 +218,12 @@ function StaffRow({ member, index, onClick }: StaffRowProps) {
   );
 }
 
-function RiskBadge({ level, flags }: { level: string; flags: number }) {
+function RiskBadge({ level, flags }: { level?: string; flags?: string[] }) {
   if (level === 'HIGH') {
-    return <span className="text-xs text-rose-400 font-medium">HIGH · {flags}</span>;
+    return <span className="text-xs text-rose-400 font-medium">HIGH · {flags?.length || 0}</span>;
   }
   if (level === 'MEDIUM') {
-    return <span className="text-xs text-amber-400 font-medium">MED · {flags}</span>;
+    return <span className="text-xs text-amber-400 font-medium">MED · {flags?.length || 0}</span>;
   }
   return <span className="text-xs text-zinc-500">Normal</span>;
 }

@@ -93,7 +93,7 @@ export default function ShiftsPage() {
         <KpiCard label="Active Shifts" value={kpis?.active_shifts ?? 0} icon={Play} accent="emerald" />
         <KpiCard label="Total Hours" value={`${Math.round((kpis?.total_hours_today ?? 0) / 60 * 10) / 10}h`} icon={Clock} />
         <KpiCard label="Total Orders" value={kpis?.total_orders ?? 0} icon={Users} />
-        <KpiCard label="Cash Variance" value={`₼${kpis?.total_variance ?? 0}`} icon={AlertTriangle" accent={kpis?.total_variance && Math.abs(kpis.total_variance) > 20 ? 'amber' : undefined} />
+        <KpiCard label="Cash Variance" value={`₼${kpis?.total_variance ?? 0}`} icon={AlertTriangle} accent={kpis?.total_variance && Math.abs(kpis.total_variance) > 20 ? 'amber' : undefined} />
       </div>
 
       {/* Filters */}

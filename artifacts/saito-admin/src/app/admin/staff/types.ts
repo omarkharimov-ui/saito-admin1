@@ -13,6 +13,13 @@ export type StaffMember = {
   shift_id?: string | null;
   shift_opened_at?: string | null;
   shift_status: 'active' | 'off';
+  active_shift?: {
+    id: string;
+    opened_at: string;
+    starting_cash: number;
+    duration_minutes: number;
+  } | null;
+  expected_cash?: number;
   // Common metrics
   total_orders: number;
   total_revenue: number;
@@ -23,18 +30,27 @@ export type StaffMember = {
   total_discounts: number;
   drawer_variance: number;
   avg_ticket_value: number;
+  avg_order_value?: number;
   // Kitchen-specific
   active_tickets: number;
   completed_tickets: number;
   avg_prep_time: string | null;
   late_tickets: number;
+  items_prepared?: number;
+  re_fired?: number;
+  cancelled_tickets?: number;
   // Waiter-specific
   active_tables: number;
   tables_served: number;
   guests_served: number;
   total_tips: number;
+  // Manager-specific
+  approvals_count?: number;
+  exceptions_count?: number;
   // Risk
   risk_score: number;
+  risk_level?: string;
+  risk_flags?: string[];
   last_activity: string | null;
   // Permissions
   can_apply_discount?: boolean;

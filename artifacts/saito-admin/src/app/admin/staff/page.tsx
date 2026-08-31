@@ -6,8 +6,11 @@ import {
   Search, Plus, Users, Clock, ShoppingBag, DollarSign,
   AlertTriangle, ChevronRight, MoreHorizontal, Edit, Timer,
   LogOut, RotateCcw, Utensils, GlassWater, Component, Shield,
-  UserCheck, Activity, CreditCard, TrendingUp, Eye, ChefHat
+  UserCheck, Activity, CreditCard, TrendingUp, Eye, ChefHat,
+  CheckCircle, XCircle, LogIn, Coffee
 } from 'lucide-react';
+
+import { TimeClockPanel } from './components/TimeClockPanel';
 
 // Role icon mapping - Apple-style vector icons
 function getRoleIcon(roleName: string): React.ComponentType<any> {
@@ -635,14 +638,32 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   const roleColor = getRoleColor(staff.role_name);
   const RoleIcon = getRoleIcon(staff.role_name);
   const isOnShift = staff.shift_status === 'active';
-  const [activeTab, setActiveTab] = useState<'overview' | 'performance' | 'shifts' | 'activity' | 'security' | 'permissions'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'timeclock' | 'performance' | 'shifts' | 'schedule' | 'attendance' | 'labor' | 'payroll' | 'approvals' | 'activity' | 'security' | 'permissions'>('overview');
   const [shifts, setShifts] = useState<any[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(false);
+  const [schedule, setSchedule] = useState<any[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [laborData, setLaborData] = useState<any>(null);
+  const [laborLoading, setLaborLoading] = useState(false);
+  const [payrollEntries, setPayrollEntries] = useState<any[]>([]);
+  const [payrollLoading, setPayrollLoading] = useState(false);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [approvalsLoading, setApprovalsLoading] = useState(false);
+  const [activity, setActivity] = useState<any[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
+    { key: 'timeclock', label: 'Time Clock' },
     { key: 'performance', label: 'Performance' },
     { key: 'shifts', label: 'Shifts' },
+    { key: 'schedule', label: 'Schedule' },
+    { key: 'attendance', label: 'Attendance' },
+    { key: 'labor', label: 'Labor' },
+    { key: 'payroll', label: 'Payroll' },
+    { key: 'approvals', label: 'Approvals' },
     { key: 'activity', label: 'Activity' },
     { key: 'security', label: 'Security' },
     { key: 'permissions', label: 'Permissions' },
@@ -651,13 +672,33 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   useEffect(() => {
     if (activeTab === 'shifts' && shifts.length === 0) {
       setShiftsLoading(true);
-      fetch(`/api/staff/${staff.id}/shifts`)
-        .then(res => res.ok ? res.json() : [])
-        .then(data => setShifts(data || []))
-        .catch(() => setShifts([]))
-        .finally(() => setShiftsLoading(false));
+      fetch(`/api/staff/${staff.id}/shifts`).then(res => res.ok ? res.json() : []).then(data => setShifts(data || [])).catch(() => setShifts([])).finally(() => setShiftsLoading(false));
     }
-  }, [activeTab, staff.id, shifts.length]);
+    if (activeTab === 'schedule' && schedule.length === 0) {
+      setScheduleLoading(true);
+      fetch(`/api/staff/${staff.id}/schedule`).then(res => res.ok ? res.json() : []).then(data => setSchedule(data || [])).catch(() => setSchedule([])).finally(() => setScheduleLoading(false));
+    }
+    if (activeTab === 'attendance' && attendance.length === 0) {
+      setAttendanceLoading(true);
+      fetch(`/api/staff/${staff.id}/attendance`).then(res => res.ok ? res.json() : []).then(data => setAttendance(data || [])).catch(() => setAttendance([])).finally(() => setAttendanceLoading(false));
+    }
+    if (activeTab === 'labor' && !laborData) {
+      setLaborLoading(true);
+      fetch(`/api/staff/${staff.id}/labor`).then(res => res.ok ? res.json() : null).then(data => setLaborData(data)).catch(() => setLaborData(null)).finally(() => setLaborLoading(false));
+    }
+    if (activeTab === 'payroll' && payrollEntries.length === 0) {
+      setPayrollLoading(true);
+      fetch(`/api/staff/${staff.id}/payroll`).then(res => res.ok ? res.json() : []).then(data => setPayrollEntries(data || [])).catch(() => setPayrollEntries([])).finally(() => setPayrollLoading(false));
+    }
+    if (activeTab === 'approvals' && approvals.length === 0) {
+      setApprovalsLoading(true);
+      fetch(`/api/staff/${staff.id}/approvals`).then(res => res.ok ? res.json() : []).then(data => setApprovals(data || [])).catch(() => setApprovals([])).finally(() => setApprovalsLoading(false));
+    }
+    if (activeTab === 'activity' && activity.length === 0) {
+      setActivityLoading(true);
+      fetch(`/api/staff/${staff.id}/activity`).then(res => res.ok ? res.json() : []).then(data => setActivity(data || [])).catch(() => setActivity([])).finally(() => setActivityLoading(false));
+    }
+  }, [activeTab, staff.id]);
 
   return (
     <motion.div
@@ -802,7 +843,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
                     <StatCard label="Avg Transaction" value={formatCurrency(staff.avg_ticket_value)} icon={TrendingUp} />
                     <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
                     <StatCard label="Refunds" value={formatCurrency(staff.total_refunds ?? 0)} icon={AlertTriangle} accent="rose" />
-                    <StatCard label="Cash Variance" value={`₼${staff.drawer_variance ?? 0}`} icon={AlertTriangle" accent={staff.drawer_variance && Math.abs(staff.drawer_variance) > 5 ? 'amber' : 'emerald'} />
+                    <StatCard label="Cash Variance" value={`₼${staff.drawer_variance ?? 0}`} icon={AlertTriangle} accent={staff.drawer_variance && Math.abs(staff.drawer_variance) > 5 ? 'amber' : 'emerald'} />
                   </div>
                 </div>
               )}
@@ -851,20 +892,9 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               </div>
             </div>
           )}
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                      <span className="text-[var(--theme-text-muted)] text-xs">Email:</span>
-                      <span className="text-xs text-[var(--theme-text)]">{staff.email}</span>
-                    </div>
-                  )}
-                  {staff.phone && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                      <span className="text-[var(--theme-text-muted)] text-xs">Phone:</span>
-                      <span className="text-xs text-[var(--theme-text)]">{staff.phone}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+
+          {activeTab === 'timeclock' && (
+            <TimeClockPanel staffId={staff.id} staffName={staff.full_name || staff.name} />
           )}
 
           {activeTab === 'performance' && (
@@ -889,56 +919,23 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
                 <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
                   <Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
                   <p className="text-sm text-[var(--theme-text-secondary)]">No shifts found</p>
-                  <p className="text-xs text-[var(--theme-text-muted)] mt-1">This staff member has no shift history</p>
                 </div>
               ) : (
                 <>
                   <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Shift History</h3>
                   <div className="space-y-2">
-                    {shifts.map((shift: any, idx: number) => (
-                      <div key={shift.id} className="p-4 rounded-xl border transition-all hover:border-white/20"
-                        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    {shifts.map((shift: any) => (
+                      <div key={shift.id} className="p-4 rounded-xl border" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                         <div className="flex items-center gap-4">
                           <div className="min-w-[120px]">
-                            <p className="text-xs font-medium text-[var(--theme-text)]">
-                              {new Date(shift.opened_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </p>
-                            <p className="text-[10px] text-[var(--theme-text-muted)]">
-                              {new Date(shift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              {shift.closed_at && ` - ${new Date(shift.closed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                            </p>
+                            <p className="text-xs font-medium text-[var(--theme-text)]">{new Date(shift.opened_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                            <p className="text-[10px] text-[var(--theme-text-muted)]">{new Date(shift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{shift.closed_at && ` - ${new Date(shift.closed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}</p>
                           </div>
-                          <div className="min-w-[80px]">
-                            <p className="text-xs text-[var(--theme-text)]">{shift.duration_minutes ? `${Math.round(shift.duration_minutes)}m` : 'Active'}</p>
-                            <p className="text-[10px] text-[var(--theme-text-muted)]">duration</p>
-                          </div>
-                          <div className="min-w-[80px]">
-                            <p className="text-xs text-[var(--theme-text)]">{shift.orders_count || 0}</p>
-                            <p className="text-[10px] text-[var(--theme-text-muted)]">orders</p>
-                          </div>
-                          <div className="min-w-[80px]">
-                            <p className="text-xs text-[var(--theme-text)]">₼{shift.expected_cash || 0}</p>
-                            <p className="text-[10px] text-[var(--theme-text-muted)]">expected</p>
-                          </div>
-                          <div className="min-w-[80px]">
-                            {shift.difference !== null && shift.difference !== undefined ? (
-                              <p className={`text-xs font-medium ${Math.abs(shift.difference) > 5 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                {shift.difference > 0 ? '+' : ''}₼{shift.difference}
-                              </p>
-                            ) : (
-                              <p className="text-xs text-[var(--theme-text-muted)]">—</p>
-                            )}
-                            <p className="text-[10px] text-[var(--theme-text-muted)]">variance</p>
-                          </div>
-                          <div className="ml-auto">
-                            <span className={`px-2 py-1 rounded-lg text-[10px] font-medium ${
-                              shift.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
-                              shift.status === 'force_closed' ? 'bg-rose-500/10 text-rose-400' :
-                              'bg-zinc-500/10 text-zinc-400'
-                            }`}>
-                              {shift.status === 'active' ? 'ACTIVE' : shift.status === 'force_closed' ? 'FORCE CLOSED' : 'CLOSED'}
-                            </span>
-                          </div>
+                          <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{shift.duration_minutes ? `${Math.round(shift.duration_minutes)}m` : 'Active'}</p><p className="text-[10px] text-[var(--theme-text-muted)]">duration</p></div>
+                          <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{shift.orders_count || 0}</p><p className="text-[10px] text-[var(--theme-text-muted)]">orders</p></div>
+                          <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">₼{shift.expected_cash || 0}</p><p className="text-[10px] text-[var(--theme-text-muted)]">expected</p></div>
+                          <div className="min-w-[80px]">{shift.difference !== null ? <p className={`text-xs font-medium ${Math.abs(shift.difference) > 5 ? 'text-amber-400' : 'text-emerald-400'}`}>{shift.difference > 0 ? '+' : ''}₼{shift.difference}</p> : <p className="text-xs text-[var(--theme-text-muted)]">—</p>}<p className="text-[10px] text-[var(--theme-text-muted)]">variance</p></div>
+                          <div className="ml-auto"><span className={`px-2 py-1 rounded-lg text-[10px] font-medium ${shift.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : shift.status === 'force_closed' ? 'bg-rose-500/10 text-rose-400' : 'bg-zinc-500/10 text-zinc-400'}`}>{shift.status === 'active' ? 'ACTIVE' : shift.status === 'force_closed' ? 'FORCE CLOSED' : 'CLOSED'}</span></div>
                         </div>
                       </div>
                     ))}
@@ -948,23 +945,168 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             </div>
           )}
 
+          {activeTab === 'schedule' && (
+            <div className="space-y-4">
+              {scheduleLoading ? (
+                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
+              ) : schedule.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No schedule found</p></div>
+              ) : (
+                <>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Upcoming Schedule</h3>
+                  <div className="space-y-2">
+                    {schedule.map((s: any) => (
+                      <div key={s.id} className="p-4 rounded-xl border flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="min-w-[100px]"><p className="text-xs font-medium text-[var(--theme-text)]">{new Date(s.schedule_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p></div>
+                        <div className="min-w-[100px]"><p className="text-xs text-[var(--theme-text)]">{s.planned_start} - {s.planned_end}</p></div>
+                        {s.notes && <p className="text-xs text-[var(--theme-text-muted)]">{s.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'attendance' && (
+            <div className="space-y-4">
+              {attendanceLoading ? (
+                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
+              ) : attendance.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No attendance records</p></div>
+              ) : (
+                <>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Attendance History</h3>
+                  <div className="space-y-2">
+                    {attendance.map((a: any, idx: number) => (
+                      <div key={idx} className="p-4 rounded-xl border flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="min-w-[100px]"><p className="text-xs font-medium text-[var(--theme-text)]">{new Date(a.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p></div>
+                        <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{a.scheduled_start} - {a.scheduled_end}</p><p className="text-[10px] text-[var(--theme-text-muted)]">scheduled</p></div>
+                        <div className="min-w-[80px]"><p className="text-xs text-[var(--theme-text)]">{a.actual_start || '—'} - {a.actual_end || '—'}</p><p className="text-[10px] text-[var(--theme-text-muted)]">actual</p></div>
+                        <div className="min-w-[60px]">{a.late_minutes > 0 && <p className="text-xs text-amber-400">+{a.late_minutes}m</p>}</div>
+                        <div className="ml-auto"><span className={`px-2 py-1 rounded-lg text-[10px] font-medium ${a.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' : a.status === 'late' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{a.status?.toUpperCase()}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'labor' && (
+            <div className="space-y-4">
+              {laborLoading ? (
+                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
+              ) : !laborData ? (
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No labor data</p></div>
+              ) : (
+                <>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Labor Summary</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatCard label="Total Hours" value={`${laborData.total_hours?.toFixed(1) || 0}h`} icon={Clock} />
+                    <StatCard label="Labor Cost" value={`₼${laborData.total_labor_cost?.toFixed(2) || 0}`} icon={DollarSign} />
+                    <StatCard label="Labor %" value={`${laborData.labor_percentage?.toFixed(1) || 0}%`} icon={TrendingUp} accent={laborData.labor_percentage > 30 ? 'amber' : undefined} />
+                  </div>
+                  {laborData.role_breakdown && laborData.role_breakdown.length > 0 && (
+                    <div>
+                      <h4 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mt-4 mb-2">By Role</h4>
+                      <div className="space-y-2">
+                        {laborData.role_breakdown.map((role: any, idx: number) => (
+                          <div key={idx} className="p-3 rounded-xl border flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div className="min-w-[80px]"><p className="text-xs font-medium text-[var(--theme-text)]">{role.role}</p></div>
+                            <div className="flex-1"><div className="h-2 rounded-full bg-white/5 overflow-hidden"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(role.percentage, 100)}%` }} /></div></div>
+                            <div className="min-w-[60px] text-right"><p className="text-xs text-[var(--theme-text)]">₼{role.cost?.toFixed(0)}</p></div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'payroll' && (
+            <div className="space-y-4">
+              {payrollLoading ? (
+                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
+              ) : payrollEntries.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><DollarSign size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No payroll records</p></div>
+              ) : (
+                <>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Payroll History</h3>
+                  <div className="space-y-2">
+                    {payrollEntries.map((entry: any) => (
+                      <div key={entry.id} className="p-4 rounded-xl border" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="flex items-center gap-4">
+                          <div className="min-w-[100px]"><p className="text-xs font-medium text-[var(--theme-text)]">{new Date(entry.period_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(entry.period_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p></div>
+                          <div className="min-w-[60px]"><p className="text-xs text-[var(--theme-text)]">{entry.regular_hours?.toFixed(1)}h</p></div>
+                          <div className="min-w-[60px]"><p className="text-xs text-[var(--theme-text)]">{entry.overtime_hours?.toFixed(1)}h</p><p className="text-[10px] text-[var(--theme-text-muted)]">OT</p></div>
+                          <div className="min-w-[60px]"><p className="text-xs text-[var(--theme-text)]">₼{entry.tips?.toFixed(0)}</p><p className="text-[10px] text-[var(--theme-text-muted)]">tips</p></div>
+                          <div className="ml-auto"><p className="text-sm font-bold text-[var(--theme-text)]">₼{entry.gross_pay?.toFixed(2)}</p></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'approvals' && (
+            <div className="space-y-4">
+              {approvalsLoading ? (
+                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
+              ) : approvals.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><CheckCircle size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No approval requests</p></div>
+              ) : (
+                <>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Approval Requests</h3>
+                  <div className="space-y-2">
+                    {approvals.map((approval: any) => (
+                      <div key={approval.id} className="p-4 rounded-xl border flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${approval.request_type === 'void' ? 'bg-rose-500/10 text-rose-400' : approval.request_type === 'refund' ? 'bg-amber-500/10 text-amber-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                          {approval.request_type === 'void' ? <XCircle size={14} /> : <DollarSign size={14} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-[var(--theme-text)]">{approval.request_type?.replace('_', ' ')}</p>
+                          <p className="text-[10px] text-[var(--theme-text-muted)] truncate">{approval.reason}</p>
+                        </div>
+                        {approval.amount && <p className="text-xs text-[var(--theme-text)]">₼{approval.amount}</p>}
+                        <span className={`px-2 py-1 rounded-lg text-[10px] font-medium ${approval.status === 'pending' ? 'bg-amber-500/10 text-amber-400' : approval.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>{approval.status?.toUpperCase()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {activeTab === 'activity' && (
-            <div className="space-y-6">
-              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
-                <ShoppingBag size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-                <p className="text-sm text-[var(--theme-text-secondary)]">Activity log coming soon</p>
-                <p className="text-xs text-[var(--theme-text-muted)] mt-1">Orders, payments, and system events</p>
-              </div>
+            <div className="space-y-3">
+              {activityLoading ? (
+                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
+              ) : activity.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><Activity size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No activity</p></div>
+              ) : (
+                activity.map((item: any) => (
+                  <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl border" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${item.event_type?.includes('void') || item.event_type?.includes('refund') ? 'bg-rose-500/10 text-rose-400' : item.event_type?.includes('override') ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                      {item.event_type?.includes('void') || item.event_type?.includes('refund') ? <AlertTriangle size={14} /> : item.event_type?.includes('override') ? <Edit size={14} /> : <ShoppingBag size={14} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-[var(--theme-text)]">{item.description}</p>
+                      <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">{new Date(item.created_at).toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
           {activeTab === 'security' && (
             <div className="space-y-6">
-              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
-                <Shield size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-                <p className="text-sm text-[var(--theme-text-secondary)]">Security events coming soon</p>
-                <p className="text-xs text-[var(--theme-text-muted)] mt-1">Login history, failed attempts, and alerts</p>
-              </div>
+              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><Shield size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">Security events coming soon</p></div>
             </div>
           )}
 
@@ -1001,13 +1143,15 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
 }
 
 function StatCard({ label, value, icon: Icon, accent }: {
-  label: string; value: any; icon: any; accent?: 'amber' | 'rose';
+  label: string; value: any; icon: any; accent?: 'amber' | 'rose' | 'emerald';
 }) {
   const accentStyle = accent === 'amber'
     ? { background: 'rgba(245, 158, 11, 0.05)', borderColor: 'rgba(245, 158, 11, 0.15)' }
     : accent === 'rose'
       ? { background: 'rgba(244, 63, 94, 0.05)', borderColor: 'rgba(244, 63, 94, 0.15)' }
-      : { background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)' };
+      : accent === 'emerald'
+        ? { background: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.15)' }
+        : { background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)' };
 
   return (
     <div className="p-3 rounded-xl border" style={accentStyle}>

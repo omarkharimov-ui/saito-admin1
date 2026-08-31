@@ -652,7 +652,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0.8 }}
       transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.9 }}
-      className="fixed right-[260px] top-0 bottom-0 z-[101] w-[calc(100vw-260px)] bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col"
+      className="fixed right-0 top-0 bottom-0 z-[101] w-[calc(100vw-260px)] bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col"
     >
         {/* Header with gradient */}
         <div

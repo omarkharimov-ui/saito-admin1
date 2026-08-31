@@ -636,6 +636,8 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   const RoleIcon = getRoleIcon(staff.role_name);
   const isOnShift = staff.shift_status === 'active';
   const [activeTab, setActiveTab] = useState<'overview' | 'performance' | 'shifts' | 'activity' | 'security' | 'permissions'>('overview');
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [shiftsLoading, setShiftsLoading] = useState(false);
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
@@ -645,6 +647,17 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
     { key: 'security', label: 'Security' },
     { key: 'permissions', label: 'Permissions' },
   ] as const;
+
+  useEffect(() => {
+    if (activeTab === 'shifts' && shifts.length === 0) {
+      setShiftsLoading(true);
+      fetch(`/api/staff/${staff.id}/shifts`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setShifts(data || []))
+        .catch(() => setShifts([]))
+        .finally(() => setShiftsLoading(false));
+    }
+  }, [activeTab, staff.id, shifts.length]);
 
   return (
     <motion.div
@@ -817,12 +830,73 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           )}
 
           {activeTab === 'shifts' && (
-            <div className="space-y-6">
-              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
-                <Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
-                <p className="text-sm text-[var(--theme-text-secondary)]">Shift history coming soon</p>
-                <p className="text-xs text-[var(--theme-text-muted)] mt-1">Past shifts, hours worked, and attendance</p>
-              </div>
+            <div className="space-y-4">
+              {shiftsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />
+                  ))}
+                </div>
+              ) : shifts.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
+                  <Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
+                  <p className="text-sm text-[var(--theme-text-secondary)]">No shifts found</p>
+                  <p className="text-xs text-[var(--theme-text-muted)] mt-1">This staff member has no shift history</p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Shift History</h3>
+                  <div className="space-y-2">
+                    {shifts.map((shift: any, idx: number) => (
+                      <div key={shift.id} className="p-4 rounded-xl border transition-all hover:border-white/20"
+                        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="flex items-center gap-4">
+                          <div className="min-w-[120px]">
+                            <p className="text-xs font-medium text-[var(--theme-text)]">
+                              {new Date(shift.opened_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </p>
+                            <p className="text-[10px] text-[var(--theme-text-muted)]">
+                              {new Date(shift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {shift.closed_at && ` - ${new Date(shift.closed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                            </p>
+                          </div>
+                          <div className="min-w-[80px]">
+                            <p className="text-xs text-[var(--theme-text)]">{shift.duration_minutes ? `${Math.round(shift.duration_minutes)}m` : 'Active'}</p>
+                            <p className="text-[10px] text-[var(--theme-text-muted)]">duration</p>
+                          </div>
+                          <div className="min-w-[80px]">
+                            <p className="text-xs text-[var(--theme-text)]">{shift.orders_count || 0}</p>
+                            <p className="text-[10px] text-[var(--theme-text-muted)]">orders</p>
+                          </div>
+                          <div className="min-w-[80px]">
+                            <p className="text-xs text-[var(--theme-text)]">₼{shift.expected_cash || 0}</p>
+                            <p className="text-[10px] text-[var(--theme-text-muted)]">expected</p>
+                          </div>
+                          <div className="min-w-[80px]">
+                            {shift.difference !== null && shift.difference !== undefined ? (
+                              <p className={`text-xs font-medium ${Math.abs(shift.difference) > 5 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                {shift.difference > 0 ? '+' : ''}₼{shift.difference}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-[var(--theme-text-muted)]">—</p>
+                            )}
+                            <p className="text-[10px] text-[var(--theme-text-muted)]">variance</p>
+                          </div>
+                          <div className="ml-auto">
+                            <span className={`px-2 py-1 rounded-lg text-[10px] font-medium ${
+                              shift.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
+                              shift.status === 'force_closed' ? 'bg-rose-500/10 text-rose-400' :
+                              'bg-zinc-500/10 text-zinc-400'
+                            }`}>
+                              {shift.status === 'active' ? 'ACTIVE' : shift.status === 'force_closed' ? 'FORCE CLOSED' : 'CLOSED'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 

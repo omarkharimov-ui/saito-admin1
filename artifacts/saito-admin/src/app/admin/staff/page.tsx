@@ -5,8 +5,52 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, Users, Clock, ShoppingBag, DollarSign,
   AlertTriangle, ChevronRight, MoreHorizontal, Edit, Timer,
-  Coffee, ChefHat, Wine, UserCheck, Shield
+  Coffee, ChefHat, Wine, UserCheck, Shield, LogOut, RotateCcw,
+  Utensils, GlassWater, Component
 } from 'lucide-react';
+
+// Role icon mapping - Apple-style vector icons
+function getRoleIcon(roleName: string): React.ComponentType<any> {
+  const icons: Record<string, React.ComponentType<any>> = {
+    waiter: Utensils,
+    bartender: GlassWater,
+    kitchen: ChefHat,
+    cashier: Component,
+    manager: Shield,
+    host: UserCheck,
+  };
+  return icons[roleName?.toLowerCase()] || UserCheck;
+}
+
+// Format duration from interval string
+function formatDurationShort(intervalStr: string | null | undefined): string {
+  if (!intervalStr) return '—';
+  // Parse PostgreSQL interval like "00:08:30" or "8 minutes 30 seconds"
+  const match = intervalStr.match(/(\d+):(\d+):(\d+)/);
+  if (match) {
+    const hours = parseInt(match[1]);
+    const mins = parseInt(match[2]);
+    const secs = parseInt(match[3]);
+    if (hours > 0) return `${hours}h ${mins}m`;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+  }
+  // Try seconds format
+  const secondsMatch = intervalStr.match(/(\d+)\s*(seconds?|secs?)/);
+  if (secondsMatch) {
+    const secs = parseInt(secondsMatch[1]);
+    if (secs >= 60) return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+    return `${secs}s`;
+  }
+  return intervalStr;
+}
+
+// Short currency format
+function formatCurrencyShort(value: number | null | undefined): string {
+  if (value == null || isNaN(value)) return '₼0';
+  if (value >= 1000) return `₼${(value / 1000).toFixed(1)}k`;
+  return `₼${value.toFixed(0)}`;
+}
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 import { useFirstLoad } from '@/hooks/useFirstLoad';
@@ -39,7 +83,7 @@ export default function StaffPage() {
   const fetchDirectory = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/staff/directory');
+      const res = await fetch('/api/staff/directory-v2');
       if (res.ok) {
         const data = await res.json();
         setKpis(data.kpis);
@@ -53,6 +97,44 @@ export default function StaffPage() {
   }, []);
 
   useEffect(() => { fetchDirectory(); }, [fetchDirectory]);
+
+  const handleForceClockOut = async (member: StaffMember) => {
+    if (!confirm(`Force clock out ${member.full_name || member.name}?`)) return;
+    try {
+      const res = await fetch('/api/staff/force-clock-out', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_id: member.id, reason: 'Forced by admin' }),
+      });
+      if (res.ok) {
+        toast.success('Staff clocked out');
+        fetchDirectory();
+      } else {
+        toast.error('Failed');
+      }
+    } catch {
+      toast.error('Error');
+    }
+  };
+
+  const handleResetPin = async (member: StaffMember) => {
+    if (!confirm(`Reset PIN for ${member.full_name || member.name}?`)) return;
+    try {
+      const res = await fetch('/api/staff/reset-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_id: member.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(`New PIN: ${data.new_pin}`);
+      } else {
+        toast.error('Failed');
+      }
+    } catch {
+      toast.error('Error');
+    }
+  };
 
   const filteredStaff = useMemo(() => {
     let result = staff;
@@ -156,6 +238,8 @@ export default function StaffPage() {
                 member={member}
                 index={idx}
                 onClick={() => setSelectedStaff(member)}
+                onForceClockOut={handleForceClockOut}
+                onResetPin={handleResetPin}
               />
             ))}
           </AnimatePresence>
@@ -205,13 +289,41 @@ function FilterPill({ children, active, onClick, count, accent }: {
   );
 }
 
-function StaffCard({ member, index, onClick }: { member: StaffMember; index: number; onClick: () => void }) {
+function StaffCard({ member, index, onClick, onForceClockOut, onResetPin }: {
+  member: StaffMember;
+  index: number;
+  onClick: () => void;
+  onForceClockOut: (member: StaffMember) => void;
+  onResetPin: (member: StaffMember) => void;
+}) {
   const isOnShift = member.shift_status === 'active';
   const roleColor = getRoleColor(member.role_name);
   const initials = (member.full_name || member.name).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const RoleIcon = getRoleIcon(member.role_name);
 
   // Calculate shift progress
-  const shiftProgress = calculateShiftProgress(member.shift_start, member.shift_end);
+  const shiftProgress = calculateShiftProgress(member.shift);
+
+  // Live timer
+  const [liveDuration, setLiveDuration] = useState('');
+
+  useEffect(() => {
+    if (!isOnShift || !member.shift_opened_at) return;
+
+    const updateTimer = () => {
+      const start = new Date(member.shift_opened_at!);
+      const now = new Date();
+      const diff = now.getTime() - start.getTime();
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setLiveDuration(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [isOnShift, member.shift_opened_at]);
 
   return (
     <motion.div
@@ -237,19 +349,19 @@ function StaffCard({ member, index, onClick }: { member: StaffMember; index: num
       }}
     >
       <div className="flex items-center gap-5">
-        {/* 1. Employee Identity */}
-        <div className="flex items-center gap-3 min-w-[200px]">
+        {/* 1. Employee Identity with Role Icon */}
+        <div className="flex items-center gap-3 min-w-[220px]">
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-lg"
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg"
             style={{
               background: `linear-gradient(135deg, ${roleColor.gradientFrom}, ${roleColor.gradientTo})`,
               boxShadow: `0 4px 12px ${roleColor.gradientFrom}40`,
             }}
           >
-            {initials}
+            <RoleIcon size={20} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-[var(--theme-text)] truncate max-w-[140px]">
+            <p className="text-sm font-semibold text-[var(--theme-text)] truncate max-w-[160px]">
               {member.full_name || member.name}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -258,23 +370,28 @@ function StaffCard({ member, index, onClick }: { member: StaffMember; index: num
           </div>
         </div>
 
-        {/* 2. Status & Live Indicator */}
-        <div className="min-w-[120px]">
+        {/* 2. Status & Live Timer */}
+        <div className="min-w-[140px]">
           {isOnShift ? (
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-              </span>
-              <span
-                className="px-2.5 py-1 rounded-lg text-[10px] font-semibold"
-                style={{
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  color: '#10b981',
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
-                }}
-              >
-                ON SHIFT
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </span>
+                <span
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold"
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    color: '#10b981',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                  }}
+                >
+                  ON SHIFT
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 tabular-nums ml-4">
+                {liveDuration}
               </span>
             </div>
           ) : member.is_active ? (
@@ -289,7 +406,7 @@ function StaffCard({ member, index, onClick }: { member: StaffMember; index: num
         </div>
 
         {/* 3. Shift Time / Progress */}
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-[180px]">
           {member.shift ? (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 text-xs text-[var(--theme-text-muted)]">
@@ -316,36 +433,67 @@ function StaffCard({ member, index, onClick }: { member: StaffMember; index: num
           )}
         </div>
 
-        {/* 4. Metrics Chips */}
+        {/* 4. Role-Specific Metrics Chips */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <MetricChip icon={ShoppingBag} value={member.total_orders} label="orders" />
-          {member.role_name?.toLowerCase() === 'kitchen' && member.prep_time_avg && (
-            <MetricChip icon={Timer} value={member.prep_time_avg} label="" />
+          {member.role_name?.toLowerCase() === 'kitchen' && (
+            <>
+              <MetricChip icon={ShoppingBag} value={member.active_tickets ?? 0} label="active" accent="amber" />
+              <MetricChip icon={ChefHat} value={member.completed_tickets ?? 0} label="done" />
+              {member.avg_prep_time && (
+                <MetricChip icon={Timer} value={formatDurationShort(member.avg_prep_time)} label="" />
+              )}
+              {(member.late_tickets ?? 0) > 0 && (
+                <MetricChip icon={AlertTriangle} value={member.late_tickets} label="late" accent="rose" />
+              )}
+            </>
           )}
           {member.role_name?.toLowerCase() === 'waiter' && (
-            <MetricChip icon={Users} value={member.tables_served} label="tables" />
+            <>
+              <MetricChip icon={Users} value={member.active_tables ?? 0} label="tables" accent="emerald" />
+              <MetricChip icon={UserCheck} value={member.guests_served ?? 0} label="guests" />
+              <MetricChip icon={DollarSign} value={formatCurrencyShort(member.total_tips ?? 0)} label="tips" />
+              {(member.total_voids ?? 0) > 0 && (
+                <MetricChip icon={AlertTriangle} value={member.total_voids} label="voids" accent="amber" />
+              )}
+            </>
           )}
-          {member.voids_count > 0 && (
-            <MetricChip icon={AlertTriangle} value={member.voids_count} label="voids" accent="amber" />
+          {(member.role_name?.toLowerCase() === 'cashier' || member.role_name?.toLowerCase() === 'bartender') && (
+            <>
+              <MetricChip icon={DollarSign} value={formatCurrencyShort(member.cash_sales ?? 0)} label="cash" />
+              <MetricChip icon={ShoppingBag} value={formatCurrencyShort(member.card_sales ?? 0)} label="card" />
+              {(member.total_voids ?? 0) > 0 && (
+                <MetricChip icon={AlertTriangle} value={member.total_voids} label="voids" accent="amber" />
+              )}
+              {(member.drawer_variance ?? 0) !== 0 && (
+                <MetricChip icon={AlertTriangle} value={formatCurrencyShort(Math.abs(member.drawer_variance ?? 0))} label="var" accent="rose" />
+              )}
+            </>
           )}
-          {member.refunds_count > 0 && (
-            <MetricChip icon={AlertTriangle} value={member.refunds_count} label="refunds" accent="rose" />
+          {!['kitchen', 'waiter', 'cashier', 'bartender'].includes(member.role_name?.toLowerCase() ?? '') && (
+            <>
+              <MetricChip icon={ShoppingBag} value={member.total_orders} label="orders" />
+              <MetricChip icon={DollarSign} value={formatCurrencyShort(member.total_revenue)} label="revenue" />
+            </>
           )}
         </div>
 
         {/* 5. Actions */}
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          {isOnShift && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onForceClockOut(member); }}
+              title="Force Clock Out"
+              className="p-2 rounded-lg text-[var(--theme-text-muted)] hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+            >
+              <LogOut size={14} />
+            </button>
+          )}
           <button
-            onClick={(e) => { e.stopPropagation(); }}
+            onClick={(e) => { e.stopPropagation(); onResetPin(member); }}
+            title="Reset PIN"
             className="p-2 rounded-lg text-[var(--theme-text-muted)] hover:bg-white/5 hover:text-[var(--theme-text)] transition-colors"
           >
-            <Edit size={14} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); }}
-            className="p-2 rounded-lg text-[var(--theme-text-muted)] hover:bg-white/5 hover:text-[var(--theme-text)] transition-colors"
-          >
-            <MoreHorizontal size={14} />
+            <RotateCcw size={14} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onClick(); }}
@@ -363,13 +511,15 @@ function MetricChip({ icon: Icon, value, label, accent }: {
   icon: any;
   value: any;
   label: string;
-  accent?: 'amber' | 'rose';
+  accent?: 'amber' | 'rose' | 'emerald';
 }) {
   const accentStyle = accent === 'amber'
     ? { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }
     : accent === 'rose'
       ? { background: 'rgba(244, 63, 94, 0.1)', color: '#f43f5e', border: '1px solid rgba(244, 63, 94, 0.2)' }
-      : { background: 'rgba(255,255,255,0.03)', color: 'var(--theme-text-muted)', border: '1px solid rgba(255,255,255,0.06)' };
+      : accent === 'emerald'
+        ? { background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }
+        : { background: 'rgba(255,255,255,0.03)', color: 'var(--theme-text-muted)', border: '1px solid rgba(255,255,255,0.06)' };
 
   return (
     <div
@@ -568,8 +718,8 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             <div className="grid grid-cols-4 gap-3">
               <StatCard label="Orders" value={staff.total_orders} icon={ShoppingBag} />
               <StatCard label="Revenue" value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
-              <StatCard label="Cash" value={formatCurrency(staff.cash_handled)} icon={DollarSign} />
-              <StatCard label="Card" value={formatCurrency(staff.card_handled)} icon={DollarSign} />
+              <StatCard label="Cash" value={formatCurrency(staff.cash_sales ?? 0)} icon={DollarSign} />
+              <StatCard label="Card" value={formatCurrency(staff.card_sales ?? 0)} icon={DollarSign} />
             </div>
           </div>
 
@@ -578,9 +728,9 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             <div>
               <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Service</h3>
               <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Tables" value={staff.tables_served} icon={Users} />
-                <StatCard label="Guests" value={staff.guests_served} icon={UserCheck} />
-                <StatCard label="Avg Check" value={formatCurrency(staff.avg_order_value)} icon={DollarSign} />
+                <StatCard label="Tables" value={staff.active_tables ?? 0} icon={Users} />
+                <StatCard label="Guests" value={staff.guests_served ?? 0} icon={UserCheck} />
+                <StatCard label="Tips" value={formatCurrency(staff.total_tips ?? 0)} icon={DollarSign} />
               </div>
             </div>
           )}
@@ -589,21 +739,21 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
             <div>
               <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Kitchen</h3>
               <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Prep Time" value={staff.prep_time_avg || '—'} icon={Timer} />
-                <StatCard label="Items" value={staff.items_prepared || 0} icon={ChefHat} />
-                <StatCard label="Late" value={staff.late_tickets || 0} icon={AlertTriangle} />
+                <StatCard label="Active" value={staff.active_tickets ?? 0} icon={ShoppingBag} accent="amber" />
+                <StatCard label="Done" value={staff.completed_tickets ?? 0} icon={ChefHat} />
+                <StatCard label="Avg Prep" value={staff.avg_prep_time ? formatDurationShort(staff.avg_prep_time) : '—'} icon={Timer} />
               </div>
             </div>
           )}
 
           {/* Issues */}
-          {(staff.voids_count > 0 || staff.refunds_count > 0 || staff.discounts_given > 0) && (
+          {((staff.total_voids ?? 0) > 0 || (staff.total_refunds ?? 0) > 0 || (staff.total_discounts ?? 0) > 0) && (
             <div>
               <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Issues</h3>
               <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Voids" value={staff.voids_count} icon={AlertTriangle} accent="amber" />
-                <StatCard label="Refunds" value={staff.refunds_count} icon={AlertTriangle} accent="rose" />
-                <StatCard label="Discounts" value={formatCurrency(staff.discounts_given)} icon={DollarSign} />
+                <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
+                <StatCard label="Refunds" value={formatCurrency(staff.total_refunds ?? 0)} icon={AlertTriangle} accent="rose" />
+                <StatCard label="Discounts" value={formatCurrency(staff.total_discounts ?? 0)} icon={DollarSign} />
               </div>
             </div>
           )}
@@ -683,14 +833,20 @@ function getRoleColor(roleName: string): { text: string; gradientFrom: string; g
   return colors[roleName?.toLowerCase()] || { text: 'text-zinc-400', gradientFrom: '#52525b', gradientTo: '#71717a' };
 }
 
-function calculateShiftProgress(start: string | null | undefined, end: string | null | undefined): number | null {
-  if (!start || !end) return null;
+function calculateShiftProgress(shift: string | null | undefined): number | null {
+  if (!shift) return null;
 
   try {
-    const now = new Date();
-    const [startH, startM] = start.split(':').map(Number);
-    const [endH, endM] = end.split(':').map(Number);
+    // Parse shift string like "09:00 - 18:00" or "09:00-18:00"
+    const match = shift.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+    if (!match) return null;
 
+    const startH = parseInt(match[1]);
+    const startM = parseInt(match[2]);
+    const endH = parseInt(match[3]);
+    const endM = parseInt(match[4]);
+
+    const now = new Date();
     const startDate = new Date();
     startDate.setHours(startH, startM, 0, 0);
     const endDate = new Date();

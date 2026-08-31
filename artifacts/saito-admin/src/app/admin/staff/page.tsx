@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, Users, Clock, ShoppingBag, DollarSign,
   AlertTriangle, ChevronRight, MoreHorizontal, Edit, Timer,
-  Coffee, ChefHat, Wine, UserCheck, Shield, LogOut, RotateCcw,
-  Utensils, GlassWater, Component
+  LogOut, RotateCcw, Utensils, GlassWater, Component, Shield,
+  UserCheck, Activity, CreditCard, TrendingUp, Eye, ChefHat
 } from 'lucide-react';
 
 // Role icon mapping - Apple-style vector icons

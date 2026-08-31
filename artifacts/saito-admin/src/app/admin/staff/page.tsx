@@ -571,18 +571,11 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
   return (
     <>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md"
-        onClick={onClose}
-      />
-      <motion.div
         initial={{ x: '100%', opacity: 0.8 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: '100%', opacity: 0.8 }}
         transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.9 }}
-        className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-md bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-3xl"
+        className="fixed right-0 top-0 bottom-0 z-[101] w-[calc(100vw-260px)] bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-3xl"
       >
         <div className="p-6 border-b border-[var(--theme-border)]">
           <h2 className="text-base font-black text-[var(--theme-text)]">New Staff</h2>
@@ -654,21 +647,13 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   ] as const;
 
   return (
-    <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ x: '100%', opacity: 0.8 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: '100%', opacity: 0.8 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.9 }}
-        className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-5xl bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-3xl"
-      >
+    <motion.div
+      initial={{ x: '100%', opacity: 0.8 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: '100%', opacity: 0.8 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.9 }}
+      className="fixed right-[260px] top-0 bottom-0 z-[101] w-[calc(100vw-260px)] bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col"
+    >
         {/* Header with gradient */}
         <div
           className="p-6 flex-shrink-0"
@@ -890,7 +875,6 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           </button>
         </div>
       </motion.div>
-    </>
   );
 }
 

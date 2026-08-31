@@ -3,722 +3,521 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Users, Clock, Plus, X,
-  Shield, Mail, Trash2, Edit3, KeyRound, UserCheck, UserX, Timer, Filter, AlertTriangle
+  Search, Plus, Users, Clock, ShoppingBag, DollarSign,
+  AlertTriangle, ChevronRight, MoreHorizontal, Edit, Timer,
+  Coffee, ChefHat, Wine, UserCheck, Shield
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
 import { useFirstLoad } from '@/hooks/useFirstLoad';
-import { getRoleColor, getRoleIcon } from '@/lib/staff-utils';
-import { StaffWorkspaceSwitcher } from './components/StaffWorkspaceSwitcher';
-import { FilterDropdown } from './components/FilterDropdown';
-import { StaffSheet } from './components/StaffSheet';
-import { ConfirmDialog } from './components/ConfirmDialog';
-import { PinInputDialog } from './components/PinInputDialog';
-import { StaffEmptyState, ShiftsEmptyState, StaffSkeleton, ShiftSkeleton } from './components/StaffSkeletons';
-import { StaffDrawer } from './components/StaffDrawer';
+import type { StaffMember } from './types';
 
-type View = 'staff' | 'shifts';
-type StaffMember = {
-  id: string; name: string; role: string; role_id?: string;
-  shift: string | null; phone: string | null; email?: string | null;
-  is_active: boolean; created_at: string;
-  hourly_rate?: number;
-  activeShift?: { id: string; opened_at: string; staff_id: string; starting_cash?: number; expected_cash?: number; notes?: string | null } | null;
-  risk_score?: number;
-  risk_level?: 'low' | 'medium' | 'high' | 'critical';
-  anomaly_count?: number;
+type Kpis = {
+  total_staff: number;
+  active_staff: number;
+  on_shift: number;
+  off_shift: number;
+  today_orders: number;
+  today_revenue: number;
+  open_cash_drawers: number;
+  cash_variance: number;
+  risk_alerts: number;
 };
-type Anomaly = {
-  staff_id: string;
-  staff_name: string;
-  risk_score: number;
-  level: 'low' | 'medium' | 'high' | 'critical';
-  anomalies: Array<{
-    type: string;
-    label: string;
-    value: number;
-    baseline: number;
-    severity: 'info' | 'warning' | 'danger';
-    description: string;
-  }>;
-};
-type Role = { id: string; name: string; is_system: boolean };
 
 export default function StaffPage() {
   const { t } = useLanguage();
-  const [view, setView] = useState<View>('staff');
   const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [kpis, setKpis] = useState<Kpis | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [sortBy, setSortBy] = useState('name_asc');
-  const [showSheet, setShowSheet] = useState(false);
-  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', role_id: '', shift: '', is_active: true, pin: '', hourly_rate: undefined as number | undefined });
-  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
-  const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
-  const [showPinDialog, setShowPinDialog] = useState(false);
-  const [resettingId, setResettingId] = useState<string | null>(null);
-  const [pinLoading, setPinLoading] = useState(false);
-  const [shifts, setShifts] = useState<any[]>([]);
-  const [shiftsLoading, setShiftsLoading] = useState(true);
-  const [now, setNow] = useState(Date.now());
-  const [closeShiftData, setCloseShiftData] = useState<any>(null);
-  const [closeActualCash, setCloseActualCash] = useState('');
-  const [closeNotes, setCloseNotes] = useState('');
-  const [closingShift, setClosingShift] = useState(false);
-  const [showCloseSheet, setShowCloseSheet] = useState(false);
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
-  const [drawerStaff, setDrawerStaff] = useState<StaffMember | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [clockingIn, setClockingIn] = useState(false);
-  const [clockingOut, setClockingOut] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'on_shift' | 'off_shift'>('all');
+  const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
   const isFirstLoad = useFirstLoad(400, loading);
 
-  const fetchRoles = useCallback(async () => {
-    try {
-      const res = await fetch('/api/staff/roles');
-      if (res.ok) { const data = await res.json(); setRoles(data.roles || []); }
-    } catch { /* ignore */ }
-  }, []);
-
-  const fetchStaff = useCallback(async () => {
+  const fetchDirectory = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      if (roleFilter) params.set('role_id', roleFilter);
-      if (statusFilter) params.set('status', statusFilter);
-      const res = await fetch(`/api/staff?${params.toString()}`);
-      if (res.ok) { const data = await res.json(); setStaff(Array.isArray(data) ? data : []); }
-      else setStaff([]);
-    } catch { setStaff([]); }
-    finally { setLoading(false); }
-  }, [search, roleFilter, statusFilter]);
-
-  const fetchShifts = useCallback(async () => {
-    setShiftsLoading(true);
-    try {
-      const res = await fetch('/api/shifts?period=today');
+      const res = await fetch('/api/staff/directory');
       if (res.ok) {
         const data = await res.json();
-        setShifts(Array.isArray(data) ? data : []);
+        setKpis(data.kpis);
+        setStaff(data.staff || []);
       }
-    } catch { setShifts([]); }
-    finally { setShiftsLoading(false); }
-  }, []);
-
-  const fetchAnomalies = useCallback(async () => {
-    try {
-      const res = await fetch('/api/analytics/anomalies?period=week');
-      if (res.ok) {
-        const data = await res.json();
-        setAnomalies(data.anomalies || []);
-      }
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    fetchStaff();
-    fetchRoles();
-    fetchShifts();
-    fetchAnomalies();
-  }, [fetchStaff, fetchRoles, fetchShifts, fetchAnomalies]);
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, []);
-
-  const sortedStaff = useMemo(() => {
-    const sorted = [...staff];
-    switch (sortBy) {
-      case 'name_asc': sorted.sort((a, b) => a.name.localeCompare(b.name)); break;
-      case 'name_desc': sorted.sort((a, b) => b.name.localeCompare(a.name)); break;
-      case 'role_asc': sorted.sort((a, b) => (getRoleName(a.role_id) || '').localeCompare(getRoleName(b.role_id) || '')); break;
-      case 'created_desc': sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
+    } catch {
+      toast.error('Failed to load staff');
+    } finally {
+      setLoading(false);
     }
-    return sorted;
-  }, [staff, sortBy, roles]);
+  }, []);
 
-  const stats = useMemo(() => {
-    const total = staff.length;
-    const active = staff.filter(s => s.is_active).length;
-    const inactive = total - active;
-    const onShift = staff.filter(s => s.activeShift).length;
-    const offShift = active - onShift;
-    return { total, active, inactive, onShift, offShift };
-  }, [staff]);
-
-  const anomalyMap = useMemo(() => {
-    const map = new Map<string, Anomaly>();
-    for (const a of anomalies) {
-      map.set(a.staff_id, a);
-    }
-    return map;
-  }, [anomalies]);
-
-  const staffWithRisk = useMemo(() => {
-    return sortedStaff.map(member => {
-      const anomaly = anomalyMap.get(member.id);
-      return {
-        ...member,
-        risk_score: anomaly?.risk_score,
-        risk_level: anomaly?.level,
-        anomaly_count: anomaly?.anomalies.length,
-      };
-    });
-  }, [sortedStaff, anomalyMap]);
-
-  const getRoleName = useCallback((roleId?: string) => {
-    if (!roleId) return '—';
-    return roles.find(r => r.id === roleId)?.name || '—';
-  }, [roles]);
-
-  const formatDuration = (openedAt: string) => {
-    const diff = now - new Date(openedAt).getTime();
-    const mins = Math.floor(diff / 60000);
-    const hours = Math.floor(mins / 60);
-    if (hours > 0) return `${hours}s ${mins % 60}dc`;
-    return `${mins} dəq`;
-  };
-
-  const openAddSheet = () => {
-    setEditingStaff(null);
-    setForm({ name: '', email: '', phone: '', role_id: '', shift: '', is_active: true, pin: '', hourly_rate: undefined });
-    setShowSheet(true);
-  };
-
-  const openEditSheet = (member: StaffMember) => {
-    setEditingStaff(member);
-    setForm({ name: member.name, email: member.email || '', phone: member.phone || '', role_id: member.role_id || '', shift: member.shift || '', is_active: member.is_active, pin: '', hourly_rate: member.hourly_rate });
-    setShowSheet(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const url = editingStaff ? `/api/staff/${editingStaff.id}` : '/api/staff';
-      const method = editingStaff ? 'PATCH' : 'POST';
-      const body: any = { name: form.name.trim(), email: form.email.trim() || null, phone: form.phone.trim() || null, role_id: form.role_id || null, shift: form.shift.trim() || null, is_active: form.is_active, hourly_rate: form.hourly_rate ?? null };
-      if (form.pin && form.pin.length === 4) body.pin = form.pin;
-
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (res.ok) {
-        toast.success(editingStaff ? 'İşçi yeniləndi' : 'İşçi əlavə edildi');
-        setShowSheet(false);
-        fetchStaff();
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Xəta baş verdi');
-      }
-    } catch { toast.error('Xəta baş verdi'); }
-    finally { setSaving(false); }
-  };
-
-  const handleDeactivate = async () => {
-    if (!deactivatingId) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/staff/${deactivatingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: false }) });
-      if (res.ok) { toast.success('İşçi deaktiv edildi'); fetchStaff(); }
-      else toast.error('Deaktiv edilə bilmədi');
-    } catch { toast.error('Xəta baş verdi'); }
-    finally { setSaving(false); setShowDeactivateConfirm(false); setDeactivatingId(null); }
-  };
-
-  const handleResetPin = async (pin: string) => {
-    if (!resettingId) return;
-    setPinLoading(true);
-    try {
-      const res = await fetch(`/api/staff/${resettingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }) });
-      if (res.ok) { toast.success('PIN yeniləndi'); setShowPinDialog(false); setResettingId(null); }
-      else toast.error('PIN yenilənə bilmədi');
-    } catch { toast.error('Xəta baş verdi'); }
-    finally { setPinLoading(false); }
-  };
-
-  const handleClockIn = async () => {
-    setClockingIn(true);
-    try {
-      const res = await fetch('/api/pos/staff/clock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'in' }) });
-      if (res.ok) { toast.success('Smena başlatıldı'); fetchShifts(); fetchStaff(); }
-      else { const err = await res.json(); toast.error(err.error || 'Xəta baş verdi'); }
-    } catch { toast.error('Xəta baş verdi'); }
-    finally { setClockingIn(false); }
-  };
-
-  const handleClockOut = async () => {
-    setClockingOut(true);
-    try {
-      const res = await fetch('/api/pos/staff/clock', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'out' }),
-      });
-      if (res.ok) { toast.success('Smena bağlandı'); fetchShifts(); fetchStaff(); setIsDrawerOpen(false); }
-      else { const err = await res.json(); toast.error(err.error || 'Xəta baş verdi'); }
-    } catch { toast.error('Xəta baş verdi'); }
-    finally { setClockingOut(false); }
-  };
-
-  const handleOpenCloseSheet = (shift: any) => {
-    setCloseShiftData(shift);
-    setCloseActualCash('');
-    setCloseNotes('');
-    setShowCloseSheet(true);
-  };
-
-  const handleCloseShift = async () => {
-    if (!closeShiftData || !closeActualCash) return;
-    setClosingShift(true);
-    try {
-      const res = await fetch('/api/pos/staff/clock', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'out', actual_cash: parseFloat(closeActualCash), notes: closeNotes || null }),
-      });
-      if (res.ok) { toast.success('Smena bağlandı'); setShowCloseSheet(false); fetchShifts(); }
-      else { const err = await res.json(); toast.error(err.error || 'Xəta baş verdi'); }
-    } catch { toast.error('Xəta baş verdi'); }
-    finally { setClosingShift(false); }
-  };
+  useEffect(() => { fetchDirectory(); }, [fetchDirectory]);
 
   const filteredStaff = useMemo(() => {
-    let result = staffWithRisk;
-    if (statusFilter) {
-      result = result.filter(s => statusFilter === 'true' ? s.is_active : !s.is_active);
+    let result = staff;
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(m =>
+        m.name.toLowerCase().includes(s) ||
+        m.full_name?.toLowerCase().includes(s) ||
+        m.role_name.toLowerCase().includes(s)
+      );
     }
+    if (filter === 'on_shift') result = result.filter(m => m.shift_status === 'active');
+    if (filter === 'off_shift') result = result.filter(m => m.shift_status !== 'active');
     return result;
-  }, [staffWithRisk, statusFilter]);
+  }, [staff, search, filter]);
 
-  const activeShifts = useMemo(() => shifts.filter((s: any) => !s.closed_at), [shifts]);
-  const todayShifts = useMemo(() => {
-    const today = new Date().toDateString();
-    return shifts.filter((s: any) => new Date(s.opened_at).toDateString() === today);
-  }, [shifts]);
-
-  const formatCurrency = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return '—';
-    return `₼${Number(val).toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  const onShiftCount = staff.filter(s => s.shift_status === 'active').length;
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Compact Header */}
-      <div className="flex items-end justify-between mb-6">
+    <div className="h-full flex flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-[var(--theme-text)] tracking-tighter">TEAM</h1>
-          <p className="text-[10px] text-[var(--theme-text-muted)] mt-1 uppercase tracking-widest">
-            Staff operations
+          <h1 className="text-2xl font-black text-[var(--theme-text)] tracking-tight">TEAM</h1>
+          <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5 uppercase tracking-widest">
+            {kpis?.total_staff ?? 0} Staff · {onShiftCount} On Shift
           </p>
         </div>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={openAddSheet}
-          className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full text-xs font-black uppercase tracking-wider hover:bg-white/90 transition-all shadow-lg"
+        <button
+          onClick={() => setShowCreateSheet(true)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[var(--theme-text)] text-[var(--theme-surface)] rounded-2xl text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all shadow-xl active:scale-95"
         >
           <Plus size={14} />
-          Add
-        </motion.button>
+          Add Staff
+        </button>
       </div>
 
-      <StaffWorkspaceSwitcher view={view} onChange={setView} staffCount={stats.total} activeShiftCount={stats.onShift} />
-
-      {/* Compact Filter Bar */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1 max-w-xs">
-           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
+      {/* Control Header - Glass Effect */}
+      <div
+        className="flex items-center gap-4 p-4 rounded-2xl flex-shrink-0"
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          backdropFilter: 'blur(20px)',
+        }}
+      >
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
           <input
-             value={search}
-             onChange={(e) => setSearch(e.target.value)}
-             placeholder="Search staff..."
-             className="w-full bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] rounded-xl pl-9 pr-4 py-2 text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none focus:border-[var(--theme-border-strong)] transition-all"
-           />
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search staff..."
+            className="w-full rounded-xl pl-10 pr-4 py-2.5 text-xs text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
+          />
         </div>
-         <FilterDropdown
-           value={roleFilter}
-           onChange={setRoleFilter}
-           options={[{ value: '', label: 'All roles' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
-           className="flex-shrink-0"
-         />
-         <FilterDropdown
-           value={statusFilter}
-           onChange={setStatusFilter}
-           options={[
-             { value: '', label: 'All status' },
-             { value: 'true', label: 'Active' },
-             { value: 'false', label: 'Inactive' },
-           ]}
-           className="flex-shrink-0"
-         />
-        {(search || roleFilter || statusFilter) && (
-          <button
-            onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }}
-            className="flex items-center gap-1 px-3 py-2 text-xs text-rose-400 hover:text-rose-300 transition-colors"
-          >
-            <X size={12} /> Clear
-          </button>
+
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
+          <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>
+            All ({staff.length})
+          </FilterPill>
+          <FilterPill active={filter === 'on_shift'} onClick={() => setFilter('on_shift')} count={onShiftCount} accent="emerald">
+            On Shift
+          </FilterPill>
+          <FilterPill active={filter === 'off_shift'} onClick={() => setFilter('off_shift')}>
+            Off Shift
+          </FilterPill>
+        </div>
+      </div>
+
+      {/* Horizontal Staff Cards */}
+      <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
+        {isFirstLoad ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div
+                key={i}
+                className="h-24 rounded-2xl animate-pulse"
+                style={{ background: 'rgba(255,255,255,0.02)' }}
+              />
+            ))}
+          </div>
+        ) : filteredStaff.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <Users size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
+              <p className="text-sm font-medium text-[var(--theme-text-secondary)]">No staff found</p>
+              <p className="text-xs text-[var(--theme-text-muted)] mt-1">Try adjusting your search or filters</p>
+            </div>
+          </div>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            {filteredStaff.map((member, idx) => (
+              <StaffCard
+                key={member.id}
+                member={member}
+                index={idx}
+                onClick={() => setSelectedStaff(member)}
+              />
+            ))}
+          </AnimatePresence>
         )}
       </div>
 
-      <AnimatePresence mode="wait">
-        {view === 'staff' ? (
-          <motion.div
-            key="staff"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-          >
-            {/* Operational Staff Rows */}
-            {isFirstLoad ? (
-              <StaffSkeleton />
-            ) : filteredStaff.length === 0 ? (
-              <StaffEmptyState onCreate={openAddSheet} />
-            ) : (
-              <div className="space-y-1">
-                <AnimatePresence mode="popLayout">
-                  {filteredStaff.map((member, idx) => {
-                    const roleName = getRoleName(member.role_id);
-                    const roleColor = getRoleColor(roleName);
-                    const isOnShift = !!member.activeShift;
-
-                    return (
-                      <motion.div
-                        key={member.id}
-                        layout
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.2, delay: idx * 0.02, type: 'spring', stiffness: 400, damping: 30 }}
-                        className="group relative"
-                      >
-                        <button
-                          onClick={() => { setDrawerStaff(member); setIsDrawerOpen(true); }}
-                          className={`block relative w-full text-left px-5 py-3.5 rounded-[28px] border border-transparent transition-all duration-200 overflow-hidden active:scale-[0.97] shadow-card hover:border-[var(--theme-border-strong)] ${
-                            member.is_active ? 'bg-[var(--theme-surface-soft)]' : 'bg-[var(--theme-surface)]'
-                          } ${
-                            isOnShift ? 'border-l-2 border-l-emerald-400/60' : 'border-l-2 border-l-transparent'
-                          }`}
-                        >
-                          <div className="flex items-center gap-4">
-                             {/* Avatar + Name */}
-                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <motion.div
-                                 whileHover={{ scale: 1.05 }}
-                                 className={`w-9 h-9 rounded-full flex items-center justify-center border transition-colors ${roleColor.bg} ${roleColor.border}`}
-                              >
-                                {(() => {
-                                  const RoleIcon = getRoleIcon(getRoleName(member.role_id));
-                                  return <RoleIcon size={16} className={roleColor.text} />;
-                                })()}
-                              </motion.div>
-                               <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-bold text-[var(--theme-text)] truncate group-hover:text-white transition-colors">{member.name}</p>
-                                  {isOnShift && (
-                                    <motion.span
-                                      animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                                      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                                      className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"
-                                    />
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-[var(--theme-text-muted)] truncate">
-                                  {isOnShift ? `On shift · ${formatDuration(member.activeShift!.opened_at)}` : 'Off shift'}
-                                </p>
-                              </div>
-                            </div>
-
-                             {/* Role Badge */}
-                             <div className="hidden sm:block">
-                               <motion.span
-                                 whileHover={{ scale: 1.05 }}
-                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${roleColor.bg} ${roleColor.text} ${roleColor.border} ${roleColor.glow} transition-all duration-300`}
-                               >
-                                 <span className={`w-1.5 h-1.5 rounded-full ${roleColor.dot}`} />
-                                 {roleName}
-                               </motion.span>
-                             </div>
-
-                             {/* Risk Badge */}
-                             {member.anomaly_count && member.anomaly_count > 0 && (
-                               <motion.div
-                                 initial={{ scale: 0 }}
-                                 animate={{ scale: 1 }}
-                                 className={`hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black border ${
-                                   member.risk_level === 'critical' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                                   member.risk_level === 'high' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-                                   member.risk_level === 'medium' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                   'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                 }`}
-                               >
-                                 <AlertTriangle size={10} />
-                                 {member.anomaly_count}
-                               </motion.div>
-                             )}
-
-                             {/* Quick Actions */}
-                             <motion.div
-                               className="flex items-center gap-0.5"
-                             >
-                                <motion.button
-                                   whileTap={{ scale: 0.9 }}
-                                   onClick={(e) => { e.stopPropagation(); setDrawerStaff(member); setIsDrawerOpen(true); }}
-                                   className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all"
-                                 >
-                                   <Edit3 size={13} />
-                                 </motion.button>
-                                 <motion.button
-                                   whileTap={{ scale: 0.9 }}
-                                   onClick={(e) => { e.stopPropagation(); setResettingId(member.id); setShowPinDialog(true); }}
-                                   className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-gold hover:bg-gold/10 transition-all"
-                                 >
-                                   <KeyRound size={13} />
-                                 </motion.button>
-                                {member.is_active && (
-                                   <motion.button
-                                     whileTap={{ scale: 0.9 }}
-                                     onClick={(e) => { e.stopPropagation(); setDeactivatingId(member.id); setShowDeactivateConfirm(true); }}
-                                     className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                                   >
-                                     <Trash2 size={13} />
-                                   </motion.button>
-                                 )}
-                                <ChevronRight size={14} className="text-[var(--theme-text-muted)]" />
-                              </motion.div>
-                            </div>
-                          </button>
-                        </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="shifts"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="space-y-6"
-          >
-            {/* Active Shifts Banner */}
-            {activeShifts.length > 0 && (
-                <motion.div
-                 initial={{ opacity: 0, y: 12 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 className="bg-[var(--theme-success-soft)] border border-[var(--theme-border)] rounded-2xl p-5"
-               >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-[var(--theme-success-soft)] border border-[var(--theme-border)] flex items-center justify-center">
-                      <UserCheck size={16} className="text-emerald-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-black text-emerald-400 uppercase tracking-wider">Active Now</h3>
-                      <p className="text-[10px] text-emerald-400/60 uppercase tracking-widest mt-0.5">
-                        {activeShifts.length} staff on shift
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                   {activeShifts.map((shift: any, i: number) => {
-                     const shiftRoleColor = getRoleColor(getRoleName(shift.staff?.role_id));
-                     const isOpen = !shift.closed_at;
-                     return (
-                       <motion.div
-                         key={shift.id}
-                         initial={{ opacity: 0, x: -10 }}
-                         animate={{ opacity: 1, x: 0 }}
-                         transition={{ delay: i * 0.05 }}
-                         className="flex items-center justify-between p-4 rounded-[28px] bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]"
-                       >
-                         <div className="flex items-center gap-3">
-                           <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${shiftRoleColor.bg} ${shiftRoleColor.border}`}>
-                             {(() => {
-                               const RoleIcon = getRoleIcon(getRoleName(shift.staff?.role_id));
-                               return <RoleIcon size={14} className={shiftRoleColor.text} />;
-                             })()}
-                           </div>
-                           <div>
-                             <p className="text-sm font-bold text-[var(--theme-text)]">{shift.staff?.name || 'Unknown'}</p>
-                             <p className="text-[10px] text-[var(--theme-text-muted)]">
-                               Started {new Date(shift.opened_at).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                               {isOpen && ` · ${formatDuration(shift.opened_at)}`}
-                             </p>
-                           </div>
-                         </div>
-                         <div className="flex items-center gap-4">
-                           <div className="text-right hidden sm:block">
-                             <p className="text-xs text-[var(--theme-text-secondary)] tabular-nums">{formatCurrency(shift.expected_cash)}</p>
-                             <p className="text-[10px] text-[var(--theme-text-muted)]">expected</p>
-                           </div>
-                           <button
-                             onClick={() => handleOpenCloseSheet(shift)}
-                             className="px-4 py-2 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-white/90 transition-all shadow-lg active:scale-95"
-                           >
-                             Manage
-                           </button>
-                         </div>
-                       </motion.div>
-                     );
-                   })}
-                 </div>
-              </motion.div>
-            )}
-
-            {activeShifts.length === 0 && (
-              <div className="flex justify-end">
-                <button
-                  onClick={handleClockIn}
-                  className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/90 transition-all shadow-lg active:scale-95"
-                >
-                  <Plus size={14} />
-                  Open Shift
-                </button>
-              </div>
-            )}
-
-            {/* Shift History */}
-            <div>
-              <h3 className="text-xs uppercase tracking-widest text-[var(--theme-text-muted)] font-bold mb-4">Today</h3>
-              {shiftsLoading ? (
-                <ShiftSkeleton />
-              ) : todayShifts.length === 0 ? (
-                <ShiftsEmptyState />
-              ) : (
-                <div className="space-y-1">
-                  <AnimatePresence mode="popLayout">
-                    {todayShifts.map((shift: any, idx: number) => {
-                      const isOpen = !shift.closed_at;
-                      return (
-                         <motion.div
-                           key={shift.id}
-                           layout
-                           initial={{ opacity: 0, y: 8 }}
-                           animate={{ opacity: 1, y: 0 }}
-                           exit={{ opacity: 0, y: -8 }}
-                           transition={{ duration: 0.18, delay: idx * 0.03 }}
-                           className="flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:bg-[var(--theme-surface)] transition-colors"
-                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-2 h-2 rounded-full ${isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-[var(--theme-text-muted)]'}`} />
-                            <div>
-                              <p className="text-sm font-bold text-[var(--theme-text)]">{shift.staff?.name || 'Unknown'}</p>
-                              <p className="text-[10px] text-[var(--theme-text-muted)]">
-                                {new Date(shift.opened_at).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}
-                                {shift.closed_at && ` → ${new Date(shift.closed_at).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}`}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right hidden sm:block">
-                              <p className="text-xs text-[var(--theme-text-secondary)] tabular-nums">
-                                {isOpen ? formatDuration(shift.opened_at) : 'Closed'}
-                              </p>
-                              <p className="text-[10px] text-[var(--theme-text-muted)]">
-                                {shift.actual_cash !== null && shift.actual_cash !== undefined
-                                  ? `Variance: ${formatCurrency(shift.difference)}`
-                                  : formatCurrency(shift.expected_cash)}
-                              </p>
-                            </div>
-                             <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
-                               isOpen
-                                 ? 'bg-emerald-500/10 text-emerald-400 border-[var(--theme-border)]'
-                                 : 'bg-[var(--theme-surface-soft)] text-[var(--theme-text-muted)] border-[var(--theme-border)]'
-                             }`}>
-                              {isOpen ? 'Active' : 'Closed'}
-                            </span>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <ConfirmDialog open={showDeactivateConfirm} onClose={() => { setShowDeactivateConfirm(false); setDeactivatingId(null); }} onConfirm={handleDeactivate} title="Deactivate" description="Deactivate this staff member? Historical records will be preserved." confirmLabel="Deactivate" destructive loading={saving} />
-      <PinInputDialog open={showPinDialog} onClose={() => { setShowPinDialog(false); setResettingId(null); }} onConfirm={handleResetPin} title="Reset PIN" description="Enter new 4-digit PIN" loading={pinLoading} />
-
-      <StaffSheet open={showSheet} onClose={() => setShowSheet(false)} editingStaff={editingStaff} roles={roles} saving={saving} form={form} onFormChange={setForm} onSubmit={handleSubmit} />
-
-      <StaffDrawer
-        staff={drawerStaff}
-        open={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        onEdit={(staff) => { setEditingStaff(staff); setForm({ name: staff.name, email: staff.email || '', phone: staff.phone || '', role_id: staff.role_id || '', shift: staff.shift || '', is_active: staff.is_active, pin: '', hourly_rate: staff.hourly_rate }); setShowSheet(true); }}
-        onResetPin={(id) => { setResettingId(id); setShowPinDialog(true); }}
-        onDeactivate={(id) => { setDeactivatingId(id); setShowDeactivateConfirm(true); }}
-        onClockIn={handleClockIn}
-        onClockOut={handleClockOut}
-        clockingIn={clockingIn}
-        clockingOut={clockingOut}
-      />
-
+      {/* Add Staff Sheet */}
       <AnimatePresence>
-        {showCloseSheet && closeShiftData && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22, ease: 'easeOut' }} className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md" onClick={() => setShowCloseSheet(false)} />
-            <motion.div initial={{ x: '100%', opacity: 0.8 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '100%', opacity: 0.8 }} transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.9 }} className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-md bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-[3.5rem]">
-              <div className="p-6 border-b border-[var(--theme-border)]">
-                <h2 className="text-base font-black text-[var(--theme-text)]">Close Shift</h2>
-                <p className="text-[10px] text-[var(--theme-text-muted)] mt-1 uppercase tracking-widest">{closeShiftData.staff?.name || 'Unknown'} — Cash details</p>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div className="p-4 rounded-2xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[var(--theme-text-secondary)] uppercase tracking-wider font-bold">Expected cash</span>
-                    <span className="text-sm font-black text-[var(--theme-text)] tabular-nums">{formatCurrency(closeShiftData.expected_cash)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[var(--theme-text-secondary)] uppercase tracking-wider font-bold">Starting cash</span>
-                    <span className="text-sm font-bold text-[var(--theme-text-secondary)] tabular-nums">{formatCurrency(closeShiftData.starting_cash)}</span>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-bold">Actual cash *</label>
-                  <input type="number" step="0.01" value={closeActualCash} onChange={(e) => setCloseActualCash(e.target.value)} placeholder="0.00" className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-2xl transition-all tabular-nums" />
-                </div>
-                {closeActualCash && closeShiftData.expected_cash > 0 && (
-                  <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-2xl border ${parseFloat(closeActualCash) === closeShiftData.expected_cash ? 'bg-emerald-500/10 border-[var(--theme-border)]' : parseFloat(closeActualCash) > closeShiftData.expected_cash ? 'bg-blue-500/10 border-[var(--theme-border)]' : 'bg-amber-500/10 border-[var(--theme-border)]'}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-[var(--theme-text-secondary)] uppercase tracking-wider font-bold">Variance</span>
-                      <span className={`text-sm font-black tabular-nums ${parseFloat(closeActualCash) === closeShiftData.expected_cash ? 'text-emerald-400' : parseFloat(closeActualCash) > closeShiftData.expected_cash ? 'text-blue-400' : 'text-amber-400'}`}>
-                        {formatCurrency(parseFloat(closeActualCash) - closeShiftData.expected_cash)}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-[var(--theme-text-muted)] mt-1">{parseFloat(closeActualCash) === closeShiftData.expected_cash ? 'Balanced' : parseFloat(closeActualCash) > closeShiftData.expected_cash ? 'Over' : 'Short'}</p>
-                  </motion.div>
-                )}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-[var(--theme-text-secondary)] font-bold">Notes</label>
-                  <textarea value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)} rows={3} placeholder="Optional notes..." className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] focus:border-[var(--theme-border-strong)] px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none rounded-2xl transition-all resize-none" />
-                </div>
-              </div>
-              <div className="p-6 border-t border-[var(--theme-border)] flex items-center justify-end gap-3">
-                <button onClick={() => setShowCloseSheet(false)} className="px-5 py-2.5 text-xs font-bold text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-xl hover:bg-[var(--theme-surface-soft)]">Cancel</button>
-                <button onClick={handleCloseShift} disabled={closingShift || !closeActualCash} className="flex items-center gap-2 bg-white text-black px-6 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-lg hover:bg-white/90 active:scale-95">
-                  {closingShift ? <span className="w-3.5 h-3.5 border-2 border-black/20 border-t-black rounded-full animate-spin" /> : <Timer size={12} />}
-                  Close Shift
-                </button>
-              </div>
-            </motion.div>
-          </>
+        {showCreateSheet && (
+          <CreateStaffSheet onClose={() => setShowCreateSheet(false)} onSuccess={fetchDirectory} />
         )}
       </AnimatePresence>
     </div>
   );
+}
+
+function FilterPill({ children, active, onClick, count, accent }: {
+  children: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  count?: number;
+  accent?: 'emerald';
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+        active
+          ? 'bg-[var(--theme-text)] text-[var(--theme-surface)] shadow-md'
+          : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-white/5'
+      } ${accent && active ? '!bg-emerald-500 !text-white' : ''}`}
+    >
+      {children}
+      {count !== undefined && (
+        <span className={`ml-1.5 tabular-nums ${active ? 'opacity-80' : 'opacity-50'}`}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function StaffCard({ member, index, onClick }: { member: StaffMember; index: number; onClick: () => void }) {
+  const isOnShift = member.shift_status === 'active';
+  const roleColor = getRoleColor(member.role_name);
+  const initials = (member.full_name || member.name).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+
+  // Calculate shift progress
+  const shiftProgress = calculateShiftProgress(member.shift_start, member.shift_end);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.35, delay: index * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
+      onClick={onClick}
+      className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 hover:scale-[1.002]"
+      style={{
+        background: 'rgba(255,255,255,0.02)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(10px)',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+        e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+      }}
+    >
+      <div className="flex items-center gap-5">
+        {/* 1. Employee Identity */}
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-lg"
+            style={{
+              background: `linear-gradient(135deg, ${roleColor.gradientFrom}, ${roleColor.gradientTo})`,
+              boxShadow: `0 4px 12px ${roleColor.gradientFrom}40`,
+            }}
+          >
+            {initials}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[var(--theme-text)] truncate max-w-[140px]">
+              {member.full_name || member.name}
+            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={`text-[10px] font-medium ${roleColor.text}`}>{member.role_name}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Status & Live Indicator */}
+        <div className="min-w-[120px]">
+          {isOnShift ? (
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
+              <span
+                className="px-2.5 py-1 rounded-lg text-[10px] font-semibold"
+                style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                }}
+              >
+                ON SHIFT
+              </span>
+            </div>
+          ) : member.is_active ? (
+            <span className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+              OFF SHIFT
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+              INACTIVE
+            </span>
+          )}
+        </div>
+
+        {/* 3. Shift Time / Progress */}
+        <div className="flex-1 min-w-[200px]">
+          {member.shift ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-xs text-[var(--theme-text-muted)]">
+                <Clock size={12} />
+                <span>{member.shift}</span>
+              </div>
+              {isOnShift && shiftProgress !== null && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-white/5">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${shiftProgress}%` }}
+                      transition={{ duration: 1, delay: 0.3 + index * 0.05 }}
+                      className="h-full rounded-full"
+                      style={{ background: 'linear-gradient(90deg, #10b981, #34d399)' }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-medium text-emerald-400 tabular-nums">{shiftProgress}%</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-[var(--theme-text-muted)] opacity-50">No shift set</span>
+          )}
+        </div>
+
+        {/* 4. Metrics Chips */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <MetricChip icon={ShoppingBag} value={member.total_orders} label="orders" />
+          {member.role_name?.toLowerCase() === 'kitchen' && member.prep_time_avg && (
+            <MetricChip icon={Timer} value={member.prep_time_avg} label="" />
+          )}
+          {member.role_name?.toLowerCase() === 'waiter' && (
+            <MetricChip icon={Users} value={member.tables_served} label="tables" />
+          )}
+          {member.voids_count > 0 && (
+            <MetricChip icon={AlertTriangle} value={member.voids_count} label="voids" accent="amber" />
+          )}
+          {member.refunds_count > 0 && (
+            <MetricChip icon={AlertTriangle} value={member.refunds_count} label="refunds" accent="rose" />
+          )}
+        </div>
+
+        {/* 5. Actions */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); }}
+            className="p-2 rounded-lg text-[var(--theme-text-muted)] hover:bg-white/5 hover:text-[var(--theme-text)] transition-colors"
+          >
+            <Edit size={14} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); }}
+            className="p-2 rounded-lg text-[var(--theme-text-muted)] hover:bg-white/5 hover:text-[var(--theme-text)] transition-colors"
+          >
+            <MoreHorizontal size={14} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            className="p-2 rounded-lg text-[var(--theme-text-muted)] hover:bg-white/5 hover:text-[var(--theme-text)] transition-colors"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function MetricChip({ icon: Icon, value, label, accent }: {
+  icon: any;
+  value: any;
+  label: string;
+  accent?: 'amber' | 'rose';
+}) {
+  const accentStyle = accent === 'amber'
+    ? { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }
+    : accent === 'rose'
+      ? { background: 'rgba(244, 63, 94, 0.1)', color: '#f43f5e', border: '1px solid rgba(244, 63, 94, 0.2)' }
+      : { background: 'rgba(255,255,255,0.03)', color: 'var(--theme-text-muted)', border: '1px solid rgba(255,255,255,0.06)' };
+
+  return (
+    <div
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium"
+      style={accentStyle}
+    >
+      <Icon size={10} />
+      <span className="tabular-nums">{value}</span>
+      {label && <span className="opacity-60">{label}</span>}
+    </div>
+  );
+}
+
+function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', role_id: '', shift: '', pin: '', hourly_rate: '' });
+  const [creating, setCreating] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const res = await fetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim() || null,
+          phone: form.phone.trim() || null,
+          role_id: form.role_id || null,
+          shift: form.shift.trim() || null,
+          hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
+          pin: form.pin || null,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Staff created');
+        onClose();
+        onSuccess();
+      } else {
+        toast.error('Failed to create');
+      }
+    } catch {
+      toast.error('Error');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ x: '100%', opacity: 0.8 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: '100%', opacity: 0.8 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.9 }}
+        className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-md bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-3xl"
+      >
+        <div className="p-6 border-b border-[var(--theme-border)]">
+          <h2 className="text-base font-black text-[var(--theme-text)]">New Staff</h2>
+          <p className="text-[10px] text-[var(--theme-text-muted)] mt-1 uppercase tracking-widest">Create a new team member</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+          <FormInput label="Full Name *" value={form.name} onChange={v => setForm({ ...form, name: v })} required />
+          <FormInput label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
+          <FormInput label="Phone" value={form.phone} onChange={v => setForm({ ...form, phone: v })} />
+          <FormInput label="Shift" value={form.shift} onChange={v => setForm({ ...form, shift: v })} placeholder="e.g. 09:00 - 18:00" />
+          <FormInput label="Hourly Rate (AZN)" value={form.hourly_rate} onChange={v => setForm({ ...form, hourly_rate: v })} type="number" />
+          <FormInput label="PIN (4 digits)" value={form.pin} onChange={v => setForm({ ...form, pin: v.replace(/\D/g, '').slice(0, 4) })} type="password" placeholder="****" />
+        </form>
+
+        <div className="p-6 border-t border-[var(--theme-border)] flex items-center justify-end gap-3">
+          <button type="button" onClick={onClose} className="px-5 py-2.5 text-xs font-bold text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors rounded-xl">
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={creating || !form.name}
+            className="flex items-center gap-2 bg-[var(--theme-text)] text-[var(--theme-surface)] px-6 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-xl active:scale-95"
+          >
+            {creating ? <span className="w-3.5 h-3.5 border-2 border-[var(--theme-surface)]/20 border-t-[var(--theme-surface)] rounded-full animate-spin" /> : <Plus size={12} />}
+            Create
+          </button>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+function FormInput({ label, value, onChange, type = 'text', required, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean; placeholder?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">{label}</label>
+      <input
+        type={type}
+        required={required}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}
+      />
+    </div>
+  );
+}
+
+// Utilities
+function getRoleColor(roleName: string): { text: string; gradientFrom: string; gradientTo: string } {
+  const colors: Record<string, { text: string; gradientFrom: string; gradientTo: string }> = {
+    cashier: { text: 'text-blue-400', gradientFrom: '#3b82f6', gradientTo: '#60a5fa' },
+    waiter: { text: 'text-emerald-400', gradientFrom: '#10b981', gradientTo: '#34d399' },
+    bartender: { text: 'text-amber-400', gradientFrom: '#f59e0b', gradientTo: '#fbbf24' },
+    kitchen: { text: 'text-rose-400', gradientFrom: '#f43f5e', gradientTo: '#fb7185' },
+    manager: { text: 'text-purple-400', gradientFrom: '#8b5cf6', gradientTo: '#a78bfa' },
+    host: { text: 'text-cyan-400', gradientFrom: '#06b6d4', gradientTo: '#22d3ee' },
+  };
+  return colors[roleName?.toLowerCase()] || { text: 'text-zinc-400', gradientFrom: '#52525b', gradientTo: '#71717a' };
+}
+
+function calculateShiftProgress(start: string | null | undefined, end: string | null | undefined): number | null {
+  if (!start || !end) return null;
+
+  try {
+    const now = new Date();
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+
+    const startDate = new Date();
+    startDate.setHours(startH, startM, 0, 0);
+    const endDate = new Date();
+    endDate.setHours(endH, endM, 0, 0);
+
+    // Handle overnight shifts
+    if (endDate <= startDate) {
+      endDate.setDate(endDate.getDate() + 1);
+    }
+
+    const totalMs = endDate.getTime() - startDate.getTime();
+    const elapsedMs = now.getTime() - startDate.getTime();
+
+    const progress = Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100));
+    return Math.round(progress);
+  } catch {
+    return null;
+  }
 }

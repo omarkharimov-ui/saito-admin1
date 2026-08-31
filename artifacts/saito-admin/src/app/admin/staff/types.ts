@@ -1,0 +1,37 @@
+export type StaffMember = {
+  id: string;
+  name: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  is_active: boolean;
+  hourly_rate?: number | null;
+  shift: string | null;
+  role_id?: string;
+  role_name: string;
+  role_is_system?: boolean;
+  shift_id?: string | null;
+  shift_opened_at?: string | null;
+  shift_status: 'active' | 'off';
+  total_orders: number;
+  total_revenue: number;
+  cash_handled: number;
+  card_handled: number;
+  discounts_given: number;
+  voids_count: number;
+  refunds_count: number;
+  tables_served: number;
+  guests_served: number;
+  avg_order_value: number;
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH';
+  risk_flags: number;
+  last_activity: string | null;
+  // Extended fields for horizontal card layout
+  shift_start?: string | null;
+  shift_end?: string | null;
+  prep_time_avg?: string;
+  items_prepared?: number;
+  late_tickets?: number;
+  cancelled_tickets?: number;
+  current_queue?: number;
+};

@@ -1,353 +1,240 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, UserCheck, UserX, KeyRound, Edit3, Trash2,
-  Clock, AlertTriangle, Shield, Mail, Phone, Timer,
-  ChevronRight
+  X, Edit, Clock, ShieldCheck, AlertTriangle,
+  Mail, Phone, UserCheck, UserX, KeyRound, LogOut
 } from 'lucide-react';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { getRoleColor, getRoleIcon, getRoleName } from '@/lib/staff-utils';
-import { PinInputDialog } from './PinInputDialog';
-import { ConfirmDialog } from './ConfirmDialog';
 
-type StaffMember = {
-  id: string; name: string; role: string; role_id?: string;
-  shift: string | null; phone: string | null; email?: string | null;
-  is_active: boolean; created_at: string;
-  hourly_rate?: number;
-  activeShift?: { id: string; opened_at: string; staff_id: string; starting_cash?: number; expected_cash?: number; notes?: string | null } | null;
-  risk_score?: number;
-  risk_level?: 'low' | 'medium' | 'high' | 'critical';
-  anomaly_count?: number;
-};
+interface StaffMember {
+  id: string;
+  name: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  is_active: boolean;
+  role_name: string;
+  shift: string | null;
+  shift_status: 'active' | 'off';
+  total_orders: number;
+  total_revenue: number;
+  risk_level: string;
+  risk_flags: number;
+  active_shift?: any;
+}
 
 interface StaffDrawerProps {
   staff: StaffMember | null;
   open: boolean;
   onClose: () => void;
   onEdit: (staff: StaffMember) => void;
-  onResetPin: (id: string) => void;
-  onDeactivate: (id: string) => void;
   onClockIn: () => void;
   onClockOut: () => void;
-  clockingIn: boolean;
-  clockingOut: boolean;
 }
 
-export function StaffDrawer({
-  staff, open, onClose, onEdit, onResetPin, onDeactivate,
-  onClockIn, onClockOut, clockingIn, clockingOut
-}: StaffDrawerProps) {
-  const { t } = useLanguage();
-  const [showPinDialog, setShowPinDialog] = React.useState(false);
-  const [showDeactivateConfirm, setShowDeactivateConfirm] = React.useState(false);
-  const [resettingId, setResettingId] = React.useState<string | null>(null);
-  const [deactivatingId, setDeactivatingId] = React.useState<string | null>(null);
-  const [performance, setPerformance] = React.useState<any>(null);
-  const [loadingPerformance, setLoadingPerformance] = React.useState(false);
+const ROLE_COLORS: Record<string, { bg: string; text: string; gradient: string }> = {
+  cashier: { bg: 'bg-blue-500/10', text: 'text-blue-400', gradient: 'from-blue-600 to-blue-400' },
+  waiter: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', gradient: 'from-emerald-600 to-emerald-400' },
+  bartender: { bg: 'bg-amber-500/10', text: 'text-amber-400', gradient: 'from-amber-600 to-amber-400' },
+  kitchen: { bg: 'bg-rose-500/10', text: 'text-rose-400', gradient: 'from-rose-600 to-rose-400' },
+  manager: { bg: 'bg-purple-500/10', text: 'text-purple-400', gradient: 'from-purple-600 to-purple-400' },
+  host: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', gradient: 'from-cyan-600 to-cyan-400' },
+};
 
-  useEffect(() => {
-    if (!open) {
-      setShowPinDialog(false);
-      setShowDeactivateConfirm(false);
-      setResettingId(null);
-      setDeactivatingId(null);
-      setPerformance(null);
-    }
-  }, [open]);
+export function StaffDrawer({ staff, open, onClose, onEdit, onClockIn, onClockOut }: StaffDrawerProps) {
+  const [performance, setPerformance] = useState<any>(null);
 
   useEffect(() => {
     if (open && staff?.id) {
-      setLoadingPerformance(true);
       fetch(`/api/staff/${staff.id}/performance?period=week`)
         .then(res => res.json())
-        .then(data => {
-          setPerformance(data);
-          setLoadingPerformance(false);
-        })
-        .catch(() => setLoadingPerformance(false));
+        .then(data => setPerformance(data))
+        .catch(() => setPerformance(null));
     }
   }, [open, staff?.id]);
 
   if (!staff) return null;
 
-  const roleName = getRoleName(staff.role_id);
-  const roleColor = getRoleColor(roleName);
-  const isOnShift = !!staff.activeShift;
-  const RoleIcon = getRoleIcon(roleName);
-
-  const handleResetPin = () => {
-    setResettingId(staff.id);
-    setShowPinDialog(true);
+  const roleColor = ROLE_COLORS[staff.role_name?.toLowerCase()] || {
+    bg: 'bg-zinc-500/10',
+    text: 'text-zinc-400',
+    gradient: 'from-zinc-700 to-zinc-600',
   };
 
-  const handleDeactivate = () => {
-    setDeactivatingId(staff.id);
-    setShowDeactivateConfirm(true);
-  };
-
-  const confirmDeactivate = () => {
-    if (deactivatingId) {
-      onDeactivate(deactivatingId);
-      setShowDeactivateConfirm(false);
-      setDeactivatingId(null);
-    }
-  };
-
-  const formatDuration = (openedAt: string) => {
-    const diff = Date.now() - new Date(openedAt).getTime();
-    const mins = Math.floor(diff / 60000);
-    const hours = Math.floor(mins / 60);
-    if (hours > 0) return `${hours}s ${mins % 60}dc`;
-    return `${mins} dəq`;
-  };
+  const isOnShift = staff.shift_status === 'active';
+  const initials = (staff.full_name || staff.name).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-40"
-        >
+        <>
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[100]"
+            style={{
+              background: 'rgba(0,0,0,0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+            }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
           />
 
-          {/* Drawer Panel */}
+          {/* Sheet */}
           <motion.div
-            initial={{ x: '100%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="absolute right-0 top-0 h-full w-full max-w-md bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl overflow-hidden flex flex-col"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.8 }}
+            className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-lg flex flex-col"
+            style={{
+              background: 'rgba(15,15,18,0.98)',
+              borderLeft: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 0 80px rgba(0,0,0,0.9)',
+            }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-[var(--theme-border)]">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${roleColor.bg} ${roleColor.border}`}>
-                  <RoleIcon size={20} className={roleColor.text} />
+            <div className="p-6 border-b border-white/[0.06] flex-shrink-0">
+              <div className="flex items-center justify-between mb-5">
+                <button onClick={onClose} className="flex items-center gap-2 text-xs text-zinc-400 hover:text-white transition-colors">
+                  <X size={16} />
+                  Close
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onEdit(staff)}
+                    className="p-2 rounded-xl hover:bg-white/10 transition-colors text-zinc-400 hover:text-white"
+                  >
+                    <Edit size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-tr ${roleColor.gradient} border border-white/10 flex items-center justify-center text-xl font-bold text-white shadow-lg`}>
+                  {initials}
                 </div>
                 <div>
-                  <h2 className="text-sm font-black text-[var(--theme-text)]">{staff.name}</h2>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${roleColor.bg} ${roleColor.text} ${roleColor.border}`}>
-                      {roleName}
-                    </span>
-                    {staff.is_active ? (
-                      <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        Active
+                  <h2 className="text-xl font-bold text-white">{staff.full_name || staff.name}</h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className={`text-xs font-medium ${roleColor.text}`}>{staff.role_name?.toUpperCase()}</span>
+                    {isOnShift ? (
+                      <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50" />
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                        </span>
+                        On shift
                       </span>
+                    ) : staff.is_active ? (
+                      <span className="text-xs text-zinc-500">Off shift</span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[10px] text-rose-400 font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                        Inactive
-                      </span>
+                      <span className="text-xs text-rose-400">Inactive</span>
                     )}
                   </div>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all"
-              >
-                <X size={18} />
-              </button>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              {/* Risk Badge */}
-              {staff.anomaly_count && staff.anomaly_count > 0 && (
-                <div className={`p-4 rounded-2xl border ${
-                  staff.risk_level === 'critical' ? 'bg-rose-500/10 border-rose-500/20' :
-                  staff.risk_level === 'high' ? 'bg-orange-500/10 border-orange-500/20' :
-                  staff.risk_level === 'medium' ? 'bg-amber-500/10 border-amber-500/20' :
-                  'bg-blue-500/10 border-blue-500/20'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle size={16} className={
-                        staff.risk_level === 'critical' ? 'text-rose-400' :
-                        staff.risk_level === 'high' ? 'text-orange-400' :
-                        staff.risk_level === 'medium' ? 'text-amber-400' : 'text-blue-400'
-                      } />
-                      <span className="text-xs font-bold text-[var(--theme-text)]">Risk Score</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-lg font-black tabular-nums text-[var(--theme-text)]">{staff.risk_score}</span>
-                      <span className="text-[10px] text-[var(--theme-text-muted)]">/100</span>
-                    </div>
-                  </div>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <ActionButton
+                  icon={isOnShift ? LogOut : Clock}
+                  label={isOnShift ? 'Clock Out' : 'Clock In'}
+                  onClick={isOnShift ? onClockOut : onClockIn}
+                  primary
+                />
+                <ActionButton
+                  icon={KeyRound}
+                  label="Reset PIN"
+                  onClick={() => {}}
+                />
+              </div>
+
+              {/* Today Stats */}
+              <div>
+                <h3 className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase mb-3">Today</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <StatCard label="Orders" value={staff.total_orders} />
+                  <StatCard label="Revenue" value={formatCurrency(staff.total_revenue)} />
+                  <StatCard label="Voids" value={0} />
+                  <StatCard label="Discounts" value={0} />
                 </div>
-              )}
+              </div>
 
               {/* Contact Info */}
-              <div className="space-y-3">
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--theme-text-muted)]">Contact</h3>
+              <div>
+                <h3 className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase mb-3">Contact</h3>
                 <div className="space-y-2">
-                  {staff.phone && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                      <Phone size={14} className="text-[var(--theme-text-muted)]" />
-                      <span className="text-xs text-[var(--theme-text)]">{staff.phone}</span>
-                    </div>
-                  )}
                   {staff.email && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                      <Mail size={14} className="text-[var(--theme-text-muted)]" />
-                      <span className="text-xs text-[var(--theme-text)]">{staff.email}</span>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <Mail size={14} className="text-zinc-500" />
+                      <span className="text-sm text-zinc-300">{staff.email}</span>
+                    </div>
+                  )}
+                  {staff.phone && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <Phone size={14} className="text-zinc-500" />
+                      <span className="text-sm text-zinc-300">{staff.phone}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Shift Actions */}
-              <div className="space-y-3">
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--theme-text-muted)]">Shift</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {!isOnShift ? (
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={onClockIn}
-                      disabled={clockingIn}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 hover:bg-emerald-500/20 transition-all disabled:opacity-50"
-                    >
-                      <UserCheck size={16} />
-                      <span className="text-xs font-bold">{clockingIn ? '...' : 'Giriş'}</span>
-                    </motion.button>
-                  ) : (
-                    <div className="col-span-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-emerald-400">Aktiv smena</span>
-                        <span className="text-[10px] text-emerald-400/60 font-mono">
-                          {formatDuration(staff.activeShift!.opened_at)}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-emerald-400/60 space-y-1">
-                        <p>Başlanğıc: {new Date(staff.activeShift!.opened_at).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit' })}</p>
-                        {staff.activeShift!.starting_cash !== undefined && (
-                          <p>Nağd pul: ₼{Number(staff.activeShift!.starting_cash).toFixed(2)}</p>
-                        )}
-                      </div>
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={onClockOut}
-                        disabled={clockingOut}
-                        className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 hover:bg-rose-500/20 transition-all disabled:opacity-50"
-                      >
-                        <UserX size={16} />
-                        <span className="text-xs font-bold">{clockingOut ? '...' : 'Çıxış'}</span>
-                      </motion.button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Role-Specific Performance KPIs */}
-              {loadingPerformance ? (
-                <div className="space-y-3">
-                  <div className="h-4 w-24 bg-[var(--theme-surface-soft)] rounded animate-pulse" />
-                  <div className="grid grid-cols-3 gap-2">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="h-16 bg-[var(--theme-surface-soft)] rounded-xl animate-pulse" />
-                    ))}
+              {/* Risk Assessment */}
+              {staff.risk_level !== 'LOW' && (
+                <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle size={14} className="text-amber-400" />
+                    <span className="text-xs font-medium text-amber-400">Attention Required</span>
                   </div>
-                </div>
-              ) : performance?.kpis && (
-                <div className="space-y-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--theme-text-muted)]">
-                    {performance.role === 'kitchen' || performance.role === 'bartender' ? 'Kitchen Performance' :
-                     performance.role === 'waiter' || performance.role === 'host' ? 'Service Performance' :
-                     performance.role === 'cashier' ? 'Cashier Performance' :
-                     performance.role === 'manager' ? 'Manager Performance' :
-                     performance.role === 'admin' || performance.role === 'superadmin' ? 'Admin Activity' :
-                     'Performance'}
-                  </h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {Object.entries(performance.kpis).slice(0, 6).map(([key, value]: [string, any]) => (
-                      <div key={key} className="p-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)]">
-                        <p className="text-lg font-black tabular-nums text-[var(--theme-text)]">
-                          {typeof value === 'number' ? value.toLocaleString() : value}
-                        </p>
-                        <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5">
-                          {key.replace(/_/g, ' ')}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-xs text-zinc-400">
+                    {staff.risk_flags} flags detected. Review activity for details.
+                  </p>
                 </div>
               )}
-
-              {/* Quick Actions */}
-              <div className="space-y-3">
-                <h3 className="text-[10px] font-black uppercase tracking-wider text-[var(--theme-text-muted)]">Actions</h3>
-                <div className="space-y-2">
-                  <motion.button
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => { onEdit(staff); onClose(); }}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] transition-all"
-                  >
-                    <Edit3 size={16} className="text-[var(--theme-text-muted)]" />
-                    <span className="text-xs font-bold text-[var(--theme-text)]">Redaktə et</span>
-                    <ChevronRight size={14} className="ml-auto text-[var(--theme-text-muted)]" />
-                  </motion.button>
-
-                  <motion.button
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => { handleResetPin(); }}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] hover:border-[var(--theme-border-strong)] transition-all"
-                  >
-                    <KeyRound size={16} className="text-[var(--theme-text-muted)]" />
-                    <span className="text-xs font-bold text-[var(--theme-text)]">PIN sıfırla</span>
-                    <ChevronRight size={14} className="ml-auto text-[var(--theme-text-muted)]" />
-                  </motion.button>
-
-                  {staff.is_active && (
-                    <motion.button
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleDeactivate}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 hover:border-rose-500/20 transition-all"
-                    >
-                      <Trash2 size={16} className="text-rose-400" />
-                      <span className="text-xs font-bold text-rose-400">Deaktiv et</span>
-                    </motion.button>
-                  )}
-                </div>
-              </div>
             </div>
           </motion.div>
-
-          {/* Pin Input Dialog */}
-          <PinInputDialog
-            open={showPinDialog}
-            onClose={() => { setShowPinDialog(false); setResettingId(null); }}
-            onConfirm={(pin) => { if (resettingId) onResetPin(resettingId); }}
-            loading={false}
-            title="PIN sıfırla"
-            description="Yeni PIN daxil edin"
-          />
-
-          {/* Deactivate Confirm Dialog */}
-          <ConfirmDialog
-            open={showDeactivateConfirm}
-            onClose={() => { setShowDeactivateConfirm(false); setDeactivatingId(null); }}
-            onConfirm={confirmDeactivate}
-            title="İşçini deaktiv et"
-            description={`${staff.name} adlı işçini deaktiv etmək istədiyinizdən əminsiniz?`}
-            confirmText="Deaktiv et"
-            variant="danger"
-          />
-        </motion.div>
+        </>
       )}
     </AnimatePresence>
   );
+}
+
+function ActionButton({ icon: Icon, label, onClick, primary }: { icon: any; label: string; onClick: () => void; primary?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-medium transition-all active:scale-95 ${
+        primary
+          ? 'bg-white text-black hover:bg-zinc-200 shadow-xl shadow-white/10'
+          : 'bg-zinc-900/90 border border-white/10 text-white hover:bg-zinc-800'
+      }`}
+    >
+      <Icon size={16} />
+      {label}
+    </button>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+      <p className="text-lg font-bold text-white tabular-nums">{value}</p>
+      <p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-1">{label}</p>
+    </div>
+  );
+}
+
+function formatCurrency(value: number): string {
+  if (value >= 1000) {
+    return `₼${(value / 1000).toFixed(1)}k`;
+  }
+  return `₼${value.toFixed(0)}`;
 }

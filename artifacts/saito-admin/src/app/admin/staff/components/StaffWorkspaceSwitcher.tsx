@@ -13,34 +13,22 @@ interface StaffWorkspaceSwitcherProps {
 }
 
 const TABS = [
-  { id: 'staff' as const, label: 'STAFF', icon: Users, color: '#10b981' },
-  { id: 'shifts' as const, label: 'SHIFTS', icon: Clock, color: '#3b82f6' },
+  { id: 'staff' as const, label: 'Staff', icon: Users },
+  { id: 'shifts' as const, label: 'Shifts', icon: Clock },
 ];
 
-const HOLD_THRESHOLD = 120;
-const TRAVEL_SPRING = { stiffness: 420, damping: 28, mass: 0.38 };
-const SETTLE_SPRING = { stiffness: 480, damping: 24, mass: 0.36 };
+const SPRING = { stiffness: 400, damping: 28, mass: 0.8 };
+const SETTLE_SPRING = { stiffness: 480, damping: 24, mass: 0.6 };
 
 export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShiftCount }: StaffWorkspaceSwitcherProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [previewTab, setPreviewTab] = useState<string | null>(null);
-
+  const { lightMode } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const dragState = useRef({
-    startX: 0,
-    pillStartX: 0,
-    hasMoved: false,
-    activeTab: view,
-  });
-  const animationRef = useRef<ReturnType<typeof animate> | null>(null);
 
   const pillX = useMotionValue(0);
   const pillWidth = useMotionValue(0);
   const pillScaleX = useMotionValue(1);
-  const pillScaleY = useMotionValue(1);
-  const pillY = useMotionValue(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   const measureTab = useCallback((tabId: string) => {
     const tab = tabRefs.current[tabId];
@@ -48,10 +36,7 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     if (!tab || !container) return null;
     const containerRect = container.getBoundingClientRect();
     const tabRect = tab.getBoundingClientRect();
-    return {
-      left: tabRect.left - containerRect.left,
-      width: tabRect.width,
-    };
+    return { left: tabRect.left - containerRect.left, width: tabRect.width };
   }, []);
 
   const syncPillToView = useCallback((tabId: string) => {
@@ -61,191 +46,43 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
     pillWidth.set(measured.width);
   }, [measureTab, pillX, pillWidth]);
 
-  useEffect(() => {
-    syncPillToView(view);
-  }, [view, syncPillToView]);
-
+  useEffect(() => { syncPillToView(view); }, [view, syncPillToView]);
   useEffect(() => {
     const handleResize = () => syncPillToView(view);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [view, syncPillToView]);
 
-  const cancelAnimations = useCallback(() => {
-    if (animationRef.current) {
-      animationRef.current.stop?.();
-      animationRef.current = null;
-    }
-  }, []);
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (isDragging) return;
-    e.preventDefault();
-    cancelAnimations();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-
-    dragState.current = {
-      startX: e.clientX,
-      pillStartX: pillX.get() || 0,
-      hasMoved: false,
-      activeTab: view,
-    };
-
-    holdTimerRef.current = setTimeout(() => {
-      setIsDragging(true);
-    }, HOLD_THRESHOLD);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging) return;
-
-    dragState.current.hasMoved = true;
-
-    const container = containerRef.current;
-    if (!container) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const currentWidth = pillWidth.get() || 0;
-    const rawDeltaX = e.clientX - dragState.current.startX;
-    const newLeft = Math.max(0, Math.min(dragState.current.pillStartX + rawDeltaX, containerRect.width - currentWidth));
-
-    pillX.set(newLeft);
-
-    const pillCenter = newLeft + currentWidth / 2;
-    let closestTab: string | null = null;
-    let closestDistance = Infinity;
-
-    TABS.forEach(tab => {
-      const tabEl = tabRefs.current[tab.id];
-      if (!tabEl) return;
-      const tabRect = tabEl.getBoundingClientRect();
-      const tabCenter = tabRect.left - containerRect.left + tabRect.width / 2;
-      const distance = Math.abs(pillCenter - tabCenter);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestTab = tab.id;
-      }
-    });
-
-    setPreviewTab(closestTab && closestTab !== dragState.current.activeTab ? closestTab : null);
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = undefined;
-    }
-
-    if (isDragging && dragState.current.hasMoved) {
-      const targetId = (previewTab || dragState.current.activeTab) as 'staff' | 'shifts';
-      const target = measureTab(targetId);
-
-      if (target) {
-        animationRef.current = animate(pillX, target.left, {
-          type: 'spring',
-          stiffness: TRAVEL_SPRING.stiffness,
-          damping: TRAVEL_SPRING.damping,
-          mass: TRAVEL_SPRING.mass,
-        });
-        animationRef.current = animate(pillWidth, target.width, {
-          type: 'spring',
-          stiffness: TRAVEL_SPRING.stiffness,
-          damping: TRAVEL_SPRING.damping,
-          mass: TRAVEL_SPRING.mass,
-          onComplete: () => {
-            setIsDragging(false);
-            setPreviewTab(null);
-            dragState.current.hasMoved = false;
-            animationRef.current = null;
-            if (targetId !== view) {
-              onChange(targetId);
-            }
-          },
-        });
-      } else {
-        setIsDragging(false);
-        setPreviewTab(null);
-        dragState.current.hasMoved = false;
-      }
-    }
-  };
-
   const handleTabClick = (tabId: 'staff' | 'shifts') => {
-    if (dragState.current.hasMoved) {
-      dragState.current.hasMoved = false;
-      return;
-    }
     if (tabId === view) return;
-
     const target = measureTab(tabId);
     if (!target) return;
 
-    cancelAnimations();
-
-    const direction = TABS.findIndex(t => t.id === tabId) > TABS.findIndex(t => t.id === view) ? 1 : -1;
-
-    animationRef.current = animate(pillScaleX, 1.035, {
+    animate(pillScaleX, 1.05, { type: 'spring', ...SETTLE_SPRING });
+    animate(pillX, target.left, { type: 'spring', ...SPRING });
+    animate(pillWidth, target.width, {
       type: 'spring',
-      stiffness: 480,
-      damping: 24,
-      mass: 0.36,
-    });
-    animationRef.current = animate(pillScaleY, 0.98, {
-      type: 'spring',
-      stiffness: 480,
-      damping: 24,
-      mass: 0.36,
-    });
-
-    animationRef.current = animate(pillX, target.left, {
-      type: 'spring',
-      stiffness: TRAVEL_SPRING.stiffness,
-      damping: TRAVEL_SPRING.damping,
-      mass: TRAVEL_SPRING.mass,
-    });
-    animationRef.current = animate(pillWidth, target.width, {
-      type: 'spring',
-      stiffness: TRAVEL_SPRING.stiffness,
-      damping: TRAVEL_SPRING.damping,
-      mass: TRAVEL_SPRING.mass,
+      ...SPRING,
       onComplete: () => {
-        animationRef.current = animate(pillScaleX, 1, {
-          type: 'spring',
-          stiffness: SETTLE_SPRING.stiffness,
-          damping: SETTLE_SPRING.damping,
-          mass: SETTLE_SPRING.mass,
-        });
-        animationRef.current = animate(pillScaleY, 1, {
-          type: 'spring',
-          stiffness: SETTLE_SPRING.stiffness,
-          damping: SETTLE_SPRING.damping,
-          mass: SETTLE_SPRING.mass,
-        });
-        animationRef.current = animate(pillY, 0, {
-          type: 'spring',
-          stiffness: SETTLE_SPRING.stiffness,
-          damping: SETTLE_SPRING.damping,
-          mass: SETTLE_SPRING.mass,
-        });
+        animate(pillScaleX, 1, { type: 'spring', ...SETTLE_SPRING });
         onChange(tabId);
       },
     });
   };
 
-  useEffect(() => {
-    return () => cancelAnimations();
-  }, [cancelAnimations]);
-
-  const { lightMode } = useTheme();
-
   const negPillX = useTransform(pillX, v => -v);
 
   return (
-    <div className="flex items-center gap-4 mb-6">
+    <div className="flex items-center gap-6">
       <div
         ref={containerRef}
-        className="relative flex items-center gap-1 rounded-full p-1 bg-[var(--theme-surface-soft)] border border-[var(--theme-border)] select-none"
-        style={{ touchAction: 'none', overflow: 'visible' }}
+        className="relative flex items-center rounded-2xl p-1.5 select-none"
+        style={{
+          background: lightMode ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.03)',
+          border: `1px solid ${lightMode ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}`,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
       >
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = view === id;
@@ -254,99 +91,61 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
               key={id}
               ref={el => { tabRefs.current[id] = el; }}
               onClick={() => handleTabClick(id)}
-              onPointerDown={isActive ? handlePointerDown : undefined}
-              onPointerMove={isActive ? handlePointerMove : undefined}
-              onPointerUp={isActive ? handlePointerUp : undefined}
-              onLostPointerCapture={() => {
-                if (holdTimerRef.current) {
-                  clearTimeout(holdTimerRef.current);
-                  holdTimerRef.current = undefined;
-                }
-                if (isDragging) {
-                  setIsDragging(false);
-                  setPreviewTab(null);
-                  syncPillToView(view);
-                }
-                dragState.current.hasMoved = false;
-              }}
-              className={`relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider z-10 ${
-                lightMode ? 'text-zinc-600' : 'text-zinc-400'
+              className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-colors ${
+                isActive ? 'text-transparent' : lightMode ? 'text-zinc-500' : 'text-zinc-400'
               }`}
-              style={{
-                cursor: isActive ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
-                transform: previewTab === id && isDragging ? 'scale(1.025)' : undefined,
-                transition: previewTab === id && isDragging ? 'transform 150ms ease-out' : undefined,
-              }}
             >
-              <div className="relative z-10 w-2 h-2 rounded-full" style={{ backgroundColor: lightMode ? '#a1a1aa' : '#71717a' }} />
-              <Icon size={14} className="relative z-10" style={{ color: lightMode ? '#52525b' : '#a1a1aa' }} />
-              <span className="relative z-10">{label}</span>
+              <Icon size={14} className={isActive ? 'opacity-0' : ''} />
+              <span className={isActive ? 'opacity-0' : ''}>{label}</span>
             </button>
           );
         })}
 
+        {/* Glass Pill Background */}
         <motion.div
-          className="absolute rounded-full z-0 pointer-events-none"
+          className="absolute rounded-xl z-0 pointer-events-none"
           style={{
             left: pillX,
             width: pillWidth,
             top: '50%',
             translateY: '-50%',
-            height: 'calc(100% - 8px)',
+            height: 'calc(100% - 12px)',
             scaleX: pillScaleX,
-            scaleY: pillScaleY,
-            y: pillY,
-            backgroundColor: lightMode ? '#171717' : '#ffffff',
-            backdropFilter: 'none',
-            WebkitBackdropFilter: 'none',
-            border: lightMode ? '1px solid #171717' : '1px solid rgba(255,255,255,0.9)',
+            background: lightMode ? '#18181b' : '#ffffff',
+            border: `1px solid ${lightMode ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.85)'}`,
             boxShadow: isDragging
               ? lightMode
-                ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 8px 28px rgba(0,0,0,0.28)'
-                : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 8px 28px rgba(0,0,0,0.22)'
+                ? '0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)'
+                : '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.9)'
               : lightMode
-                ? 'inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.18)'
-                : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(0,0,0,0.08)',
+                ? '0 2px 8px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.1)'
+                : '0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9)',
           }}
-          transition={{
-            type: 'spring',
-            stiffness: SETTLE_SPRING.stiffness,
-            damping: SETTLE_SPRING.damping,
-            mass: SETTLE_SPRING.mass,
-          }}
+          transition={{ type: 'spring', ...SETTLE_SPRING }}
         />
 
+        {/* Clipped Text Layer */}
         <motion.div
-          className="absolute rounded-full z-20 pointer-events-none"
+          className="absolute rounded-xl z-10 pointer-events-none overflow-hidden"
           style={{
             left: pillX,
             width: pillWidth,
             top: '50%',
             translateY: '-50%',
-            height: 'calc(100% - 8px)',
-            overflow: 'hidden',
+            height: 'calc(100% - 12px)',
           }}
         >
           <motion.div
-            className="flex items-center gap-1 p-1"
-            style={{
-              x: negPillX,
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              height: '100%',
-              alignItems: 'center',
-              whiteSpace: 'nowrap',
-            }}
+            className="flex items-center gap-1 p-1.5 h-full"
+            style={{ x: negPillX, alignItems: 'center' }}
           >
             {TABS.map(({ id, label, icon: Icon }) => (
               <div
                 key={id}
-                className="relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wide whitespace-nowrap"
                 style={{ color: lightMode ? '#ffffff' : '#000000' }}
               >
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: lightMode ? '#34d399' : '#10b981' }} />
-                <Icon size={14} style={{ color: lightMode ? '#ffffff' : '#000000' }} />
+                <Icon size={14} />
                 <span>{label}</span>
               </div>
             ))}
@@ -354,9 +153,15 @@ export function StaffWorkspaceSwitcher({ view, onChange, staffCount, activeShift
         </motion.div>
       </div>
 
-      <div className="ml-auto flex items-center gap-5 text-[10px] font-black uppercase tracking-widest">
-        <span className="text-[var(--theme-text-muted)]">{staffCount} staff</span>
-        <span className="text-emerald-400/70">{activeShiftCount} on shift</span>
+      <div className="ml-auto flex items-center gap-6 text-[11px] font-medium tracking-wide">
+        <span className={lightMode ? 'text-zinc-500' : 'text-zinc-400'}>{staffCount} staff</span>
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span className="text-emerald-500">{activeShiftCount} on shift</span>
+        </div>
       </div>
     </div>
   );

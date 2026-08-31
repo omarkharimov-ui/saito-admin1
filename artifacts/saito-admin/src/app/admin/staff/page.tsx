@@ -741,52 +741,85 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* Today's Performance */}
-              <div>
-                <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Performance</h3>
-                <div className="grid grid-cols-4 gap-3">
-                  <StatCard label="Orders" value={staff.total_orders} icon={ShoppingBag} />
-                  <StatCard label="Revenue" value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
-                  <StatCard label="Cash" value={formatCurrency(staff.cash_sales ?? 0)} icon={DollarSign} />
-                  <StatCard label="Card" value={formatCurrency(staff.card_sales ?? 0)} icon={DollarSign} />
+              {/* Current Shift - if active */}
+              {staff.active_shift && (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Current Shift</h3>
+                  <div className="grid grid-cols-4 gap-3">
+                    <StatCard label="Started" value={new Date(staff.active_shift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} icon={Clock} />
+                    <StatCard label="Duration" value={`${Math.round(staff.active_shift.duration_minutes)}m`} icon={Timer} />
+                    <StatCard label="Starting Cash" value={`₼${staff.active_shift.starting_cash}`} icon={DollarSign} />
+                    <StatCard label="Expected Cash" value={`₼${staff.expected_cash ?? 0}`} icon={DollarSign} />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Role-specific stats */}
+              {/* Role-specific Today's Performance */}
               {staff.role_name?.toLowerCase() === 'waiter' && (
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Service</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    <StatCard label="Tables" value={staff.active_tables ?? 0} icon={Users} />
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Service</h3>
+                  <div className="grid grid-cols-4 gap-3">
+                    <StatCard label="Orders Taken" value={staff.total_orders} icon={ShoppingBag} />
+                    <StatCard label="Tables Served" value={staff.tables_served ?? 0} icon={Users} />
                     <StatCard label="Guests" value={staff.guests_served ?? 0} icon={UserCheck} />
-                    <StatCard label="Tips" value={formatCurrency(staff.total_tips ?? 0)} icon={DollarSign} />
+                    <StatCard label="Avg Check" value={formatCurrency(staff.avg_order_value)} icon={DollarSign} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 mt-3">
+                    <StatCard label="Tips" value={formatCurrency(staff.total_tips ?? 0)} icon={DollarSign} accent="emerald" />
+                    <StatCard label="Active Tables" value={staff.active_tables ?? 0} icon={Users} />
+                    <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
                   </div>
                 </div>
               )}
 
               {staff.role_name?.toLowerCase() === 'kitchen' && (
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Kitchen</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    <StatCard label="Active" value={staff.active_tickets ?? 0} icon={ShoppingBag} accent="amber" />
-                    <StatCard label="Done" value={staff.completed_tickets ?? 0} icon={ChefHat} />
-                    <StatCard label="Avg Prep" value={staff.avg_prep_time ? formatDurationShort(staff.avg_prep_time) : '—'} icon={Timer} />
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Kitchen</h3>
+                  <div className="grid grid-cols-4 gap-3">
+                    <StatCard label="Tickets Done" value={staff.completed_tickets ?? 0} icon={ChefHat} />
+                    <StatCard label="Active Tickets" value={staff.active_tickets ?? 0} icon={ShoppingBag} accent="amber" />
+                    <StatCard label="Avg Prep Time" value={staff.avg_prep_time ? formatDurationShort(staff.avg_prep_time) : '—'} icon={Timer} />
+                    <StatCard label="Items Made" value={staff.items_prepared ?? 0} icon={Component} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 mt-3">
+                    <StatCard label="Late Tickets" value={staff.late_tickets ?? 0} icon={AlertTriangle} accent="rose" />
+                    <StatCard label="Re-fired" value={staff.re_fired ?? 0} icon={AlertTriangle} accent="amber" />
+                    <StatCard label="Cancelled" value={staff.cancelled_tickets ?? 0} icon={XCircle} accent="rose" />
                   </div>
                 </div>
               )}
 
               {(staff.role_name?.toLowerCase() === 'cashier' || staff.role_name?.toLowerCase() === 'bartender') && (
                 <div>
-                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Cash & Voids</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    <StatCard label="Cash" value={formatCurrency(staff.cash_sales ?? 0)} icon={DollarSign} />
-                    <StatCard label="Card" value={formatCurrency(staff.card_sales ?? 0)} icon={ShoppingBag} />
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Sales</h3>
+                  <div className="grid grid-cols-4 gap-3">
+                    <StatCard label="Orders Closed" value={staff.total_orders} icon={ShoppingBag} />
+                    <StatCard label="Total Sales" value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
+                    <StatCard label="Cash Sales" value={formatCurrency(staff.cash_sales ?? 0)} icon={DollarSign} />
+                    <StatCard label="Card Sales" value={formatCurrency(staff.card_sales ?? 0)} icon={CreditCard} />
+                  </div>
+                  <div className="grid grid-cols-4 gap-3 mt-3">
+                    <StatCard label="Avg Transaction" value={formatCurrency(staff.avg_ticket_value)} icon={TrendingUp} />
                     <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
+                    <StatCard label="Refunds" value={formatCurrency(staff.total_refunds ?? 0)} icon={AlertTriangle} accent="rose" />
+                    <StatCard label="Cash Variance" value={`₼${staff.drawer_variance ?? 0}`} icon={AlertTriangle" accent={staff.drawer_variance && Math.abs(staff.drawer_variance) > 5 ? 'amber' : 'emerald'} />
                   </div>
                 </div>
               )}
 
-              {/* Issues */}
+              {staff.role_name?.toLowerCase() === 'manager' && (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Overview</h3>
+                  <div className="grid grid-cols-4 gap-3">
+                    <StatCard label="Team Orders" value={staff.total_orders} icon={ShoppingBag} />
+                    <StatCard label="Team Revenue" value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
+                    <StatCard label="Approvals Given" value={staff.approvals_count ?? 0} icon={CheckCircle} />
+                    <StatCard label="Exceptions" value={staff.exceptions_count ?? 0} icon={AlertTriangle} accent="amber" />
+                  </div>
+                </div>
+              )}
+
+              {/* Issues - shown for all if any */}
               {((staff.total_voids ?? 0) > 0 || (staff.total_refunds ?? 0) > 0 || (staff.total_discounts ?? 0) > 0) && (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Issues</h3>
@@ -803,6 +836,21 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
                 <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Contact</h3>
                 <div className="space-y-2">
                   {staff.email && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <span className="text-[var(--theme-text-muted)] text-xs">Email:</span>
+                      <span className="text-xs text-[var(--theme-text)]">{staff.email}</span>
+                    </div>
+                  )}
+                  {staff.phone && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <span className="text-[var(--theme-text-muted)] text-xs">Phone:</span>
+                      <span className="text-xs text-[var(--theme-text)]">{staff.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
                       <span className="text-[var(--theme-text-muted)] text-xs">Email:</span>
                       <span className="text-xs text-[var(--theme-text)]">{staff.email}</span>

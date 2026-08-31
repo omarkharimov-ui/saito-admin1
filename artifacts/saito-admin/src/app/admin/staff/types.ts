@@ -62,6 +62,7 @@ export type StaffDetail = {
     starting_cash: number;
     duration_min: number;
   } | null;
+  expected_cash?: number;
   today_stats: {
     orders: number;
     revenue: number;
@@ -70,6 +71,21 @@ export type StaffDetail = {
     voids: number;
     refunds: number;
     discounts: number;
+    avg_ticket?: number;
+    tips?: number;
+    tables_served?: number;
+    guests_served?: number;
+    active_tables?: number;
+    completed_tickets?: number;
+    active_tickets?: number;
+    avg_prep_time?: string;
+    late_tickets?: number;
+    items_prepared?: number;
+    re_fired?: number;
+    cancelled_tickets?: number;
+    drawer_variance?: number;
+    approvals_count?: number;
+    exceptions_count?: number;
   };
   lifetime_stats: {
     total_orders: number;
@@ -77,6 +93,7 @@ export type StaffDetail = {
     total_shifts: number;
   };
   risk_score: number;
+  shifts?: any[];
 };
 
 export type ActivityItem = {

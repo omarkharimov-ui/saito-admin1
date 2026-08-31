@@ -640,8 +640,18 @@ function FormInput({ label, value, onChange, type = 'text', required, placeholde
 
 function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () => void }) {
   const roleColor = getRoleColor(staff.role_name);
-  const initials = (staff.full_name || staff.name).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const RoleIcon = getRoleIcon(staff.role_name);
   const isOnShift = staff.shift_status === 'active';
+  const [activeTab, setActiveTab] = useState<'overview' | 'performance' | 'shifts' | 'activity' | 'security' | 'permissions'>('overview');
+
+  const tabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'performance', label: 'Performance' },
+    { key: 'shifts', label: 'Shifts' },
+    { key: 'activity', label: 'Activity' },
+    { key: 'security', label: 'Security' },
+    { key: 'permissions', label: 'Permissions' },
+  ] as const;
 
   return (
     <>
@@ -657,7 +667,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: '100%', opacity: 0.8 }}
         transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.9 }}
-        className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-lg bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-3xl"
+        className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-5xl bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-3xl"
       >
         {/* Header with gradient */}
         <div
@@ -670,13 +680,13 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-xl"
+                className="w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-xl"
                 style={{
                   background: `linear-gradient(135deg, ${roleColor.gradientFrom}, ${roleColor.gradientTo})`,
                   boxShadow: `0 8px 24px ${roleColor.gradientFrom}40`,
                 }}
               >
-                {initials}
+                <RoleIcon size={28} />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-[var(--theme-text)]">{staff.full_name || staff.name}</h2>
@@ -710,72 +720,160 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="px-6 border-b border-[var(--theme-border)] flex-shrink-0">
+          <div className="flex items-center gap-1">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-3 text-xs font-medium transition-all border-b-2 ${
+                  activeTab === tab.key
+                    ? 'border-[var(--theme-text)] text-[var(--theme-text)]'
+                    : 'border-transparent text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Today's Performance */}
-          <div>
-            <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Performance</h3>
-            <div className="grid grid-cols-4 gap-3">
-              <StatCard label="Orders" value={staff.total_orders} icon={ShoppingBag} />
-              <StatCard label="Revenue" value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
-              <StatCard label="Cash" value={formatCurrency(staff.cash_sales ?? 0)} icon={DollarSign} />
-              <StatCard label="Card" value={formatCurrency(staff.card_sales ?? 0)} icon={DollarSign} />
-            </div>
-          </div>
-
-          {/* Role-specific stats */}
-          {staff.role_name?.toLowerCase() === 'waiter' && (
-            <div>
-              <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Service</h3>
-              <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Tables" value={staff.active_tables ?? 0} icon={Users} />
-                <StatCard label="Guests" value={staff.guests_served ?? 0} icon={UserCheck} />
-                <StatCard label="Tips" value={formatCurrency(staff.total_tips ?? 0)} icon={DollarSign} />
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Today's Performance */}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Today&apos;s Performance</h3>
+                <div className="grid grid-cols-4 gap-3">
+                  <StatCard label="Orders" value={staff.total_orders} icon={ShoppingBag} />
+                  <StatCard label="Revenue" value={formatCurrency(staff.total_revenue)} icon={DollarSign} />
+                  <StatCard label="Cash" value={formatCurrency(staff.cash_sales ?? 0)} icon={DollarSign} />
+                  <StatCard label="Card" value={formatCurrency(staff.card_sales ?? 0)} icon={DollarSign} />
+                </div>
               </div>
-            </div>
-          )}
 
-          {staff.role_name?.toLowerCase() === 'kitchen' && (
-            <div>
-              <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Kitchen</h3>
-              <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Active" value={staff.active_tickets ?? 0} icon={ShoppingBag} accent="amber" />
-                <StatCard label="Done" value={staff.completed_tickets ?? 0} icon={ChefHat} />
-                <StatCard label="Avg Prep" value={staff.avg_prep_time ? formatDurationShort(staff.avg_prep_time) : '—'} icon={Timer} />
-              </div>
-            </div>
-          )}
-
-          {/* Issues */}
-          {((staff.total_voids ?? 0) > 0 || (staff.total_refunds ?? 0) > 0 || (staff.total_discounts ?? 0) > 0) && (
-            <div>
-              <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Issues</h3>
-              <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
-                <StatCard label="Refunds" value={formatCurrency(staff.total_refunds ?? 0)} icon={AlertTriangle} accent="rose" />
-                <StatCard label="Discounts" value={formatCurrency(staff.total_discounts ?? 0)} icon={DollarSign} />
-              </div>
-            </div>
-          )}
-
-          {/* Contact Info */}
-          <div>
-            <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Contact</h3>
-            <div className="space-y-2">
-              {staff.email && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                  <span className="text-[var(--theme-text-muted)] text-xs">Email:</span>
-                  <span className="text-xs text-[var(--theme-text)]">{staff.email}</span>
+              {/* Role-specific stats */}
+              {staff.role_name?.toLowerCase() === 'waiter' && (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Service</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatCard label="Tables" value={staff.active_tables ?? 0} icon={Users} />
+                    <StatCard label="Guests" value={staff.guests_served ?? 0} icon={UserCheck} />
+                    <StatCard label="Tips" value={formatCurrency(staff.total_tips ?? 0)} icon={DollarSign} />
+                  </div>
                 </div>
               )}
-              {staff.phone && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                  <span className="text-[var(--theme-text-muted)] text-xs">Phone:</span>
-                  <span className="text-xs text-[var(--theme-text)]">{staff.phone}</span>
+
+              {staff.role_name?.toLowerCase() === 'kitchen' && (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Kitchen</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatCard label="Active" value={staff.active_tickets ?? 0} icon={ShoppingBag} accent="amber" />
+                    <StatCard label="Done" value={staff.completed_tickets ?? 0} icon={ChefHat} />
+                    <StatCard label="Avg Prep" value={staff.avg_prep_time ? formatDurationShort(staff.avg_prep_time) : '—'} icon={Timer} />
+                  </div>
                 </div>
               )}
+
+              {(staff.role_name?.toLowerCase() === 'cashier' || staff.role_name?.toLowerCase() === 'bartender') && (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Cash & Voids</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatCard label="Cash" value={formatCurrency(staff.cash_sales ?? 0)} icon={DollarSign} />
+                    <StatCard label="Card" value={formatCurrency(staff.card_sales ?? 0)} icon={ShoppingBag} />
+                    <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
+                  </div>
+                </div>
+              )}
+
+              {/* Issues */}
+              {((staff.total_voids ?? 0) > 0 || (staff.total_refunds ?? 0) > 0 || (staff.total_discounts ?? 0) > 0) && (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Issues</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatCard label="Voids" value={staff.total_voids ?? 0} icon={AlertTriangle} accent="amber" />
+                    <StatCard label="Refunds" value={formatCurrency(staff.total_refunds ?? 0)} icon={AlertTriangle} accent="rose" />
+                    <StatCard label="Discounts" value={formatCurrency(staff.total_discounts ?? 0)} icon={DollarSign} />
+                  </div>
+                </div>
+              )}
+
+              {/* Contact Info */}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold mb-3">Contact</h3>
+                <div className="space-y-2">
+                  {staff.email && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <span className="text-[var(--theme-text-muted)] text-xs">Email:</span>
+                      <span className="text-xs text-[var(--theme-text)]">{staff.email}</span>
+                    </div>
+                  )}
+                  {staff.phone && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <span className="text-[var(--theme-text-muted)] text-xs">Phone:</span>
+                      <span className="text-xs text-[var(--theme-text)]">{staff.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {activeTab === 'performance' && (
+            <div className="space-y-6">
+              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
+                <Timer size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
+                <p className="text-sm text-[var(--theme-text-secondary)]">Performance analytics coming soon</p>
+                <p className="text-xs text-[var(--theme-text-muted)] mt-1">Historical trends, comparisons, and insights</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'shifts' && (
+            <div className="space-y-6">
+              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
+                <Clock size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
+                <p className="text-sm text-[var(--theme-text-secondary)]">Shift history coming soon</p>
+                <p className="text-xs text-[var(--theme-text-muted)] mt-1">Past shifts, hours worked, and attendance</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'activity' && (
+            <div className="space-y-6">
+              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
+                <ShoppingBag size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
+                <p className="text-sm text-[var(--theme-text-secondary)]">Activity log coming soon</p>
+                <p className="text-xs text-[var(--theme-text-muted)] mt-1">Orders, payments, and system events</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'security' && (
+            <div className="space-y-6">
+              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
+                <Shield size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
+                <p className="text-sm text-[var(--theme-text-secondary)]">Security events coming soon</p>
+                <p className="text-xs text-[var(--theme-text-muted)] mt-1">Login history, failed attempts, and alerts</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'permissions' && (
+            <div className="space-y-4">
+              <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Access Permissions</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <PermissionCard label="Apply Discount" allowed={staff.can_apply_discount ?? false} />
+                <PermissionCard label="Void Items" allowed={staff.can_void_items ?? false} />
+                <PermissionCard label="Open Drawer Without Sale" allowed={staff.can_open_drawer_without_sale ?? false} />
+                <PermissionCard label="Process Refund" allowed={staff.can_refund ?? false} />
+                <PermissionCard label="View Reports" allowed={staff.can_view_reports ?? false} />
+                <PermissionCard label="Manage Staff" allowed={staff.can_manage_staff ?? false} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -810,6 +908,25 @@ function StatCard({ label, value, icon: Icon, accent }: {
       <Icon size={12} className="text-[var(--theme-text-muted)] mb-1.5" />
       <p className="text-sm font-bold text-[var(--theme-text)] tabular-nums">{value}</p>
       <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-wider mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+function PermissionCard({ label, allowed }: { label: string; allowed: boolean }) {
+  return (
+    <div className={`flex items-center justify-between p-4 rounded-xl border ${
+      allowed
+        ? 'bg-emerald-500/5 border-emerald-500/20'
+        : 'bg-white/[0.02] border-white/[0.06]'
+    }`}>
+      <span className="text-xs text-[var(--theme-text)]">{label}</span>
+      <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg ${
+        allowed
+          ? 'bg-emerald-500/10 text-emerald-400'
+          : 'bg-zinc-500/10 text-zinc-400'
+      }`}>
+        {allowed ? 'ALLOWED' : 'DENIED'}
+      </span>
     </div>
   );
 }

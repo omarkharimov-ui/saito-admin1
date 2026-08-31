@@ -6,6 +6,8 @@ const PUBLIC_PATHS = [
   '/api/auth/verify-pin',
   '/api/auth/send-code',
   '/api/kitchen-auth',
+  '/staff/login',
+  '/login',
   '/_next',
   '/favicon.ico',
 ];
@@ -19,7 +21,7 @@ export async function middleware(request: NextRequest) {
 
   const token = request.cookies.get('saito_token')?.value;
   if (!token) {
-    const url = new URL('/api/auth/staff-login', request.url);
+    const url = new URL('/staff/login', request.url);
     return NextResponse.redirect(url);
   }
 
@@ -38,7 +40,7 @@ export async function middleware(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const url = new URL('/api/auth/staff-login', request.url);
+      const url = new URL('/staff/login', request.url);
       const res = NextResponse.redirect(url);
       res.cookies.set('saito_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', expires: new Date(0), path: '/' });
       return res;
@@ -48,13 +50,13 @@ export async function middleware(request: NextRequest) {
     const session = Array.isArray(sessions) ? sessions[0] : null;
 
     if (!session || new Date(session.expires_at).getTime() < Date.now()) {
-      const url = new URL('/api/auth/staff-login', request.url);
+      const url = new URL('/staff/login', request.url);
       const res = NextResponse.redirect(url);
       res.cookies.set('saito_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', expires: new Date(0), path: '/' });
       return res;
     }
   } catch {
-    const url = new URL('/api/auth/staff-login', request.url);
+    const url = new URL('/staff/login', request.url);
     return NextResponse.redirect(url);
   }
 

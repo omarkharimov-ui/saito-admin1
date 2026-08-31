@@ -16,7 +16,6 @@ interface DiscountRequest {
   discount_value: number;
   item_id?: string;
   reason?: string;
-  approved_by?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -25,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (!auth.authenticated) return auth;
 
     const body: DiscountRequest = await request.json();
-    const { order_id, discount_type, discount_value, item_id, reason, approved_by } = body;
+    const { order_id, discount_type, discount_value, item_id, reason } = body;
 
     if (!order_id || !discount_type || discount_value === undefined || discount_value === null) {
       return NextResponse.json({ error: 'order_id, discount_type, and discount_value are required' }, { status: 400 });
@@ -51,6 +50,18 @@ export async function POST(request: NextRequest) {
 
     const oldAmount = Number(order.total_amount) || 0;
 
+    const productIds = [...new Set(items.map((i: any) => i.product_id).filter(Boolean))];
+    let productPriceMap: Record<string, number> = {};
+    if (productIds.length > 0) {
+      const productsRes = await fetch(`${s.url}/rest/v1/products?id=in.(${productIds.join(',')})&select=id,price`, { headers: s.headers });
+      const products = await productsRes.json();
+      if (Array.isArray(products)) {
+        for (const p of products) {
+          productPriceMap[p.id] = Number(p.price) || 0;
+        }
+      }
+    }
+
     if (isItemLevel) {
       const item = items.find((i: any) => i.id === item_id);
       if (!item) {
@@ -63,7 +74,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Cannot apply discount to prepared item' }, { status: 400 });
       }
 
-      const itemTotal = (Number(item.unit_price) || 0) * orderedQty;
+      const catalogPrice = productPriceMap[item.product_id] || Number(item.unit_price) || 0;
+      const currentPrice = Number(item.unit_price) || 0;
+      const itemTotal = currentPrice * orderedQty;
 
       let newUnitPrice: number;
 
@@ -71,7 +84,7 @@ export async function POST(request: NextRequest) {
         if (discount_value < 0 || discount_value > 100) {
           return NextResponse.json({ error: 'Percent discount must be between 0 and 100' }, { status: 400 });
         }
-        newUnitPrice = Number(item.unit_price) * (1 - discount_value / 100);
+        newUnitPrice = currentPrice * (1 - discount_value / 100);
       } else {
         if (discount_value < 0) {
           return NextResponse.json({ error: 'Fixed discount cannot be negative' }, { status: 400 });
@@ -82,11 +95,32 @@ export async function POST(request: NextRequest) {
         newUnitPrice = (itemTotal - discount_value) / orderedQty;
       }
 
+      const variance = catalogPrice - newUnitPrice;
+
       await fetch(`${s.url}/rest/v1/order_items?id=eq.${item_id}`, {
         method: 'PATCH',
         headers: s.headers,
         body: JSON.stringify({ unit_price: newUnitPrice, total_price: newUnitPrice * orderedQty }),
       });
+
+      try {
+        await fetch(`${s.url}/rest/v1/price_overrides`, {
+          method: 'POST',
+          headers: { ...s.headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            order_item_id: item_id,
+            order_id,
+            staff_id: auth.user.id,
+            product_id: item.product_id,
+            catalog_price: catalogPrice,
+            override_price: newUnitPrice,
+            variance,
+            variance_percent: catalogPrice > 0 ? Math.round((variance / catalogPrice) * 10000) / 100 : 0,
+            reason: reason || 'Discount applied',
+            created_at: new Date().toISOString(),
+          }),
+        });
+      } catch { /* non-critical */ }
     }
 
     const isOrderPercent = discount_type === 'percent';
@@ -105,15 +139,30 @@ export async function POST(request: NextRequest) {
     }
 
     if (isOrderPercent && discount_value > 20) {
-      if (!reason || !approved_by) {
-        return NextResponse.json({ error: 'reason and approved_by are required for discounts over 20%' }, { status: 400 });
-      }
-    }
+      const { data: hasApprove, error: approveErr } = await s.rpc('has_permission', {
+        p_staff_id: auth.user!.id,
+        p_permission: 'discount.approve',
+      });
 
-    if (isOrderFixed) {
-      const itemsTotal = items.reduce((sum: number, i: any) => sum + (Number(i.unit_price) || 0) * (Number(i.quantity) || 0), 0);
-      if (discount_value > itemsTotal) {
-        return NextResponse.json({ error: 'Fixed discount cannot exceed order total' }, { status: 400 });
+      if (approveErr || !hasApprove) {
+        try {
+          await fetch(`${s.url}/rest/v1/approval_requests`, {
+            method: 'POST',
+            headers: { ...s.headers, 'Prefer': 'return=minimal' },
+            body: JSON.stringify({
+              staff_id: auth.user.id,
+              action_type: 'discount',
+              entity_type: 'order',
+              entity_id: order_id,
+              amount: 0,
+              reason: reason || `Discount ${discount_value}% requires manager approval`,
+              old_values: { total_amount: oldAmount, discount_type, discount_value },
+              new_values: { total_amount: 0, discount_type, discount_value },
+              status: 'pending',
+            }),
+          });
+        } catch { /* non-critical */ }
+        return NextResponse.json({ error: 'Discount over 20% requires manager approval', requires_approval: true }, { status: 403 });
       }
     }
 
@@ -132,6 +181,33 @@ export async function POST(request: NextRequest) {
       newTotalAmount = updatedItems.reduce((sum: number, i: any) => sum + (Number(i.unit_price) || 0) * (Number(i.quantity) || 0), 0);
     }
 
+    if (discount_value > 20) {
+      try {
+        await fetch(`${s.url}/rest/v1/approval_requests`, {
+          method: 'POST',
+          headers: { ...s.headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            staff_id: auth.user.id,
+            action_type: 'discount',
+            entity_type: 'order',
+            entity_id: order_id,
+            amount: newTotalAmount - oldAmount,
+            reason: reason || 'Discount over 20%',
+            old_values: { total_amount: oldAmount, discount_type, discount_value },
+            new_values: { total_amount: newTotalAmount, discount_type, discount_value },
+            status: 'approved',
+          }),
+        });
+      } catch { /* non-critical */ }
+    }
+
+    if (isOrderFixed) {
+      const itemsTotal = items.reduce((sum: number, i: any) => sum + (Number(i.unit_price) || 0) * (Number(i.quantity) || 0), 0);
+      if (discount_value > itemsTotal) {
+        return NextResponse.json({ error: 'Fixed discount cannot exceed order total' }, { status: 400 });
+      }
+    }
+
     await fetch(`${s.url}/rest/v1/orders?id=eq.${order_id}`, {
       method: 'PATCH',
       headers: s.headers,
@@ -147,12 +223,10 @@ export async function POST(request: NextRequest) {
       discount_type,
       discount_value,
       reason: reason || null,
-      approved_by: approved_by || null,
       created_at: new Date().toISOString(),
       created_by: auth.user.id,
     };
 
-    // Audit via canonical log_audit() RPC
     await fetch(`${s.url}/rest/v1/rpc/log_audit`, {
       method: 'POST',
       headers: s.headers,

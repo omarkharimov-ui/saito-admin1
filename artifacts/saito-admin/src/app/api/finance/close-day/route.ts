@@ -75,10 +75,10 @@ export async function POST(request: NextRequest) {
 
     const tipsTotal = paidOrders.reduce((s: number, o: any) => s + (Number(o.tip_amount) || 0), 0);
 
-    const discountsRes = await fetch(`${url}/rest/v1/audit_logs_canonical?select=metadata&action=eq.discount&created_at=gte.${todayStart}&created_at=lt.${tomorrowStart}`, { headers: h });
+    const discountsRes = await fetch(`${url}/rest/v1/audit_logs?select=details&action=eq.discount&created_at=gte.${todayStart}&created_at=lt.${tomorrowStart}`, { headers: h });
     const discountLogs = await discountsRes.json();
-    const discountsTotal = Array.isArray(discountLogs) 
-      ? discountLogs.reduce((s: number, d: any) => s + (Number(d.metadata?.discount_amount) || 0), 0)
+    const discountsTotal = Array.isArray(discountLogs)
+      ? discountLogs.reduce((s: number, d: any) => s + (Number(d.details?.discount_amount || d.details?.new_amount || d.new_data?.total_amount || 0)) || 0, 0)
       : 0;
 
     // C. Void/Cancel Summary

@@ -26,6 +26,14 @@ export async function validateAuth() {
   if (!session) return { authenticated: false, error: 'Invalid session', status: 401 };
 
   if (new Date(session.expires_at).getTime() < Date.now()) {
+    try {
+      await supabase.from('security_events').insert({
+        staff_id: session.user_id,
+        event_type: 'session_expired',
+        success: false,
+        metadata: { reason: 'token_expired' },
+      });
+    } catch { /* non-critical */ }
     await supabase.from('sessions').delete().eq('token', token);
     return { authenticated: false, error: 'Session expired', status: 401 };
   }
@@ -37,6 +45,14 @@ export async function validateAuth() {
     .maybeSingle();
 
   if (!staff?.is_active) {
+    try {
+      await supabase.from('security_events').insert({
+        staff_id: session.user_id,
+        event_type: 'account_disabled',
+        success: false,
+        metadata: { reason: 'staff_inactive' },
+      });
+    } catch { /* non-critical */ }
     await supabase.from('sessions').delete().eq('token', token);
     return { authenticated: false, error: 'Account disabled', status: 401 };
   }
@@ -77,6 +93,14 @@ export async function requirePermission(permission: string): Promise<any> {
     p_permission: permission,
   });
   if (error || !data) {
+    try {
+      await supabase.from('security_events').insert({
+        staff_id: auth.user!.id,
+        event_type: 'permission_denied',
+        success: false,
+        metadata: { permission, error: error?.message || 'denied' },
+      });
+    } catch { /* non-critical */ }
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   return auth;

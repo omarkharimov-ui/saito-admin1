@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Users, Clock, Plus, X, ChevronRight,
-  Shield, Mail, Trash2, Edit3, KeyRound, UserCheck, UserX, Timer, Filter
+  Search, Users, Clock, Plus, X,
+  Shield, Mail, Trash2, Edit3, KeyRound, UserCheck, UserX, Timer, Filter, AlertTriangle
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
@@ -16,7 +16,7 @@ import { StaffSheet } from './components/StaffSheet';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { PinInputDialog } from './components/PinInputDialog';
 import { StaffEmptyState, ShiftsEmptyState, StaffSkeleton, ShiftSkeleton } from './components/StaffSkeletons';
-import Link from 'next/link';
+import { StaffDrawer } from './components/StaffDrawer';
 
 type View = 'staff' | 'shifts';
 type StaffMember = {
@@ -25,6 +25,23 @@ type StaffMember = {
   is_active: boolean; created_at: string;
   hourly_rate?: number;
   activeShift?: { id: string; opened_at: string; staff_id: string; starting_cash?: number; expected_cash?: number; notes?: string | null } | null;
+  risk_score?: number;
+  risk_level?: 'low' | 'medium' | 'high' | 'critical';
+  anomaly_count?: number;
+};
+type Anomaly = {
+  staff_id: string;
+  staff_name: string;
+  risk_score: number;
+  level: 'low' | 'medium' | 'high' | 'critical';
+  anomalies: Array<{
+    type: string;
+    label: string;
+    value: number;
+    baseline: number;
+    severity: 'info' | 'warning' | 'danger';
+    description: string;
+  }>;
 };
 type Role = { id: string; name: string; is_system: boolean };
 
@@ -55,6 +72,11 @@ export default function StaffPage() {
   const [closeNotes, setCloseNotes] = useState('');
   const [closingShift, setClosingShift] = useState(false);
   const [showCloseSheet, setShowCloseSheet] = useState(false);
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const [drawerStaff, setDrawerStaff] = useState<StaffMember | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [clockingIn, setClockingIn] = useState(false);
+  const [clockingOut, setClockingOut] = useState(false);
 
   const isFirstLoad = useFirstLoad(400, loading);
 
@@ -91,11 +113,22 @@ export default function StaffPage() {
     finally { setShiftsLoading(false); }
   }, []);
 
+  const fetchAnomalies = useCallback(async () => {
+    try {
+      const res = await fetch('/api/analytics/anomalies?period=week');
+      if (res.ok) {
+        const data = await res.json();
+        setAnomalies(data.anomalies || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     fetchStaff();
     fetchRoles();
     fetchShifts();
-  }, [fetchStaff, fetchRoles, fetchShifts]);
+    fetchAnomalies();
+  }, [fetchStaff, fetchRoles, fetchShifts, fetchAnomalies]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30000);
@@ -121,6 +154,26 @@ export default function StaffPage() {
     const offShift = active - onShift;
     return { total, active, inactive, onShift, offShift };
   }, [staff]);
+
+  const anomalyMap = useMemo(() => {
+    const map = new Map<string, Anomaly>();
+    for (const a of anomalies) {
+      map.set(a.staff_id, a);
+    }
+    return map;
+  }, [anomalies]);
+
+  const staffWithRisk = useMemo(() => {
+    return sortedStaff.map(member => {
+      const anomaly = anomalyMap.get(member.id);
+      return {
+        ...member,
+        risk_score: anomaly?.risk_score,
+        risk_level: anomaly?.level,
+        anomaly_count: anomaly?.anomalies.length,
+      };
+    });
+  }, [sortedStaff, anomalyMap]);
 
   const getRoleName = useCallback((roleId?: string) => {
     if (!roleId) return '—';
@@ -192,11 +245,26 @@ export default function StaffPage() {
   };
 
   const handleClockIn = async () => {
+    setClockingIn(true);
     try {
       const res = await fetch('/api/pos/staff/clock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'in' }) });
-      if (res.ok) { toast.success('Smena başlatıldı'); fetchShifts(); }
+      if (res.ok) { toast.success('Smena başlatıldı'); fetchShifts(); fetchStaff(); }
       else { const err = await res.json(); toast.error(err.error || 'Xəta baş verdi'); }
     } catch { toast.error('Xəta baş verdi'); }
+    finally { setClockingIn(false); }
+  };
+
+  const handleClockOut = async () => {
+    setClockingOut(true);
+    try {
+      const res = await fetch('/api/pos/staff/clock', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'out' }),
+      });
+      if (res.ok) { toast.success('Smena bağlandı'); fetchShifts(); fetchStaff(); setIsDrawerOpen(false); }
+      else { const err = await res.json(); toast.error(err.error || 'Xəta baş verdi'); }
+    } catch { toast.error('Xəta baş verdi'); }
+    finally { setClockingOut(false); }
   };
 
   const handleOpenCloseSheet = (shift: any) => {
@@ -221,12 +289,12 @@ export default function StaffPage() {
   };
 
   const filteredStaff = useMemo(() => {
-    let result = sortedStaff;
+    let result = staffWithRisk;
     if (statusFilter) {
       result = result.filter(s => statusFilter === 'true' ? s.is_active : !s.is_active);
     }
     return result;
-  }, [sortedStaff, statusFilter]);
+  }, [staffWithRisk, statusFilter]);
 
   const activeShifts = useMemo(() => shifts.filter((s: any) => !s.closed_at), [shifts]);
   const todayShifts = useMemo(() => {
@@ -330,13 +398,13 @@ export default function StaffPage() {
                         transition={{ duration: 0.2, delay: idx * 0.02, type: 'spring', stiffness: 400, damping: 30 }}
                         className="group relative"
                       >
-                        <Link
-                           href={`/admin/staff/${member.id}`}
-                           className={`block relative px-5 py-3.5 rounded-[28px] border border-transparent transition-all duration-200 overflow-hidden active:scale-[0.97] shadow-card hover:border-[var(--theme-border-strong)] ${
-                             member.is_active ? 'bg-[var(--theme-surface-soft)]' : 'bg-[var(--theme-surface)]'
-                           } ${
-                             isOnShift ? 'border-l-2 border-l-emerald-400/60' : 'border-l-2 border-l-transparent'
-                           }`}
+                        <button
+                          onClick={() => { setDrawerStaff(member); setIsDrawerOpen(true); }}
+                          className={`block relative w-full text-left px-5 py-3.5 rounded-[28px] border border-transparent transition-all duration-200 overflow-hidden active:scale-[0.97] shadow-card hover:border-[var(--theme-border-strong)] ${
+                            member.is_active ? 'bg-[var(--theme-surface-soft)]' : 'bg-[var(--theme-surface)]'
+                          } ${
+                            isOnShift ? 'border-l-2 border-l-emerald-400/60' : 'border-l-2 border-l-transparent'
+                          }`}
                         >
                           <div className="flex items-center gap-4">
                              {/* Avatar + Name */}
@@ -367,49 +435,66 @@ export default function StaffPage() {
                               </div>
                             </div>
 
-                            {/* Role Badge */}
-                            <div className="hidden sm:block">
-                              <motion.span
-                                whileHover={{ scale: 1.05 }}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${roleColor.bg} ${roleColor.text} ${roleColor.border} ${roleColor.glow} transition-all duration-300`}
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full ${roleColor.dot}`} />
-                                {roleName}
-                              </motion.span>
-                            </div>
+                             {/* Role Badge */}
+                             <div className="hidden sm:block">
+                               <motion.span
+                                 whileHover={{ scale: 1.05 }}
+                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${roleColor.bg} ${roleColor.text} ${roleColor.border} ${roleColor.glow} transition-all duration-300`}
+                               >
+                                 <span className={`w-1.5 h-1.5 rounded-full ${roleColor.dot}`} />
+                                 {roleName}
+                               </motion.span>
+                             </div>
+
+                             {/* Risk Badge */}
+                             {member.anomaly_count && member.anomaly_count > 0 && (
+                               <motion.div
+                                 initial={{ scale: 0 }}
+                                 animate={{ scale: 1 }}
+                                 className={`hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black border ${
+                                   member.risk_level === 'critical' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                                   member.risk_level === 'high' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                                   member.risk_level === 'medium' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                   'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                 }`}
+                               >
+                                 <AlertTriangle size={10} />
+                                 {member.anomaly_count}
+                               </motion.div>
+                             )}
 
                              {/* Quick Actions */}
                              <motion.div
                                className="flex items-center gap-0.5"
                              >
-                               <motion.button
-                                  whileTap={{ scale: 0.9 }}
-                                  onClick={(e) => { e.preventDefault(); openEditSheet(member); }}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all"
-                                >
-                                  <Edit3 size={13} />
-                                </motion.button>
                                 <motion.button
-                                  whileTap={{ scale: 0.9 }}
-                                  onClick={(e) => { e.preventDefault(); setResettingId(member.id); setShowPinDialog(true); }}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-gold hover:bg-gold/10 transition-all"
-                                >
-                                  <KeyRound size={13} />
-                                </motion.button>
+                                   whileTap={{ scale: 0.9 }}
+                                   onClick={(e) => { e.stopPropagation(); setDrawerStaff(member); setIsDrawerOpen(true); }}
+                                   className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface-soft)] transition-all"
+                                 >
+                                   <Edit3 size={13} />
+                                 </motion.button>
+                                 <motion.button
+                                   whileTap={{ scale: 0.9 }}
+                                   onClick={(e) => { e.stopPropagation(); setResettingId(member.id); setShowPinDialog(true); }}
+                                   className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-gold hover:bg-gold/10 transition-all"
+                                 >
+                                   <KeyRound size={13} />
+                                 </motion.button>
                                 {member.is_active && (
-                                  <motion.button
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={(e) => { e.preventDefault(); setDeactivatingId(member.id); setShowDeactivateConfirm(true); }}
-                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                                  >
-                                    <Trash2 size={13} />
-                                  </motion.button>
-                                )}
+                                   <motion.button
+                                     whileTap={{ scale: 0.9 }}
+                                     onClick={(e) => { e.stopPropagation(); setDeactivatingId(member.id); setShowDeactivateConfirm(true); }}
+                                     className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--theme-text-muted)] hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                                   >
+                                     <Trash2 size={13} />
+                                   </motion.button>
+                                 )}
                                 <ChevronRight size={14} className="text-[var(--theme-text-muted)]" />
-                             </motion.div>
-                          </div>
-                        </Link>
-                      </motion.div>
+                              </motion.div>
+                            </div>
+                          </button>
+                        </motion.div>
                     );
                   })}
                 </AnimatePresence>
@@ -569,6 +654,19 @@ export default function StaffPage() {
       <PinInputDialog open={showPinDialog} onClose={() => { setShowPinDialog(false); setResettingId(null); }} onConfirm={handleResetPin} title="Reset PIN" description="Enter new 4-digit PIN" loading={pinLoading} />
 
       <StaffSheet open={showSheet} onClose={() => setShowSheet(false)} editingStaff={editingStaff} roles={roles} saving={saving} form={form} onFormChange={setForm} onSubmit={handleSubmit} />
+
+      <StaffDrawer
+        staff={drawerStaff}
+        open={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onEdit={(staff) => { setEditingStaff(staff); setForm({ name: staff.name, email: staff.email || '', phone: staff.phone || '', role_id: staff.role_id || '', shift: staff.shift || '', is_active: staff.is_active, pin: '', hourly_rate: staff.hourly_rate }); setShowSheet(true); }}
+        onResetPin={(id) => { setResettingId(id); setShowPinDialog(true); }}
+        onDeactivate={(id) => { setDeactivatingId(id); setShowDeactivateConfirm(true); }}
+        onClockIn={handleClockIn}
+        onClockOut={handleClockOut}
+        clockingIn={clockingIn}
+        clockingOut={clockingOut}
+      />
 
       <AnimatePresence>
         {showCloseSheet && closeShiftData && (

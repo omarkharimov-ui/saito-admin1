@@ -69,54 +69,26 @@ export async function POST(request: NextRequest) {
     const auth = await requirePermission('cash.open');
     if (!auth.authenticated) return auth;
 
-    const { staff_id, expected_cash, notes } = await request.json();
+    const body = await request.json();
+    const { staff_id, notes } = body;
+
     if (!staff_id) {
       return NextResponse.json({ error: 'staff_id is required' }, { status: 400 });
     }
 
-    const s = svc();
-    const res = await fetch(`${s.url}/rest/v1/shifts`, {
-      method: 'POST',
-      headers: { ...s.headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify({
-        staff_id,
-        expected_cash: expected_cash || 0,
-        notes: notes || null,
-        opened_at: new Date().toISOString(),
-      }),
+    const s = await (await import('@/lib/api-auth')).createAuthClient();
+
+    const { data, error: rpcError } = await s.rpc('clock_in_atomic', {
+      p_staff_id: staff_id,
+      p_notes: notes || null,
+      p_performed_by: auth.user?.id || staff_id,
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      return NextResponse.json({ error: data?.error || 'Failed to open shift' }, { status: 400 });
+    if (rpcError) {
+      return NextResponse.json({ error: rpcError.message }, { status: 500 });
     }
 
-    const shift = Array.isArray(data) ? data[0] : data;
-
-    await fetch(`${s.url}/rest/v1/cash_drawer_logs`, {
-      method: 'POST',
-      headers: s.headers,
-      body: JSON.stringify({
-        shift_id: shift.id,
-        opened_by: staff_id,
-        starting_cash: expected_cash || 0,
-        expected_cash: expected_cash || 0,
-        notes: notes || null,
-        opened_at: new Date().toISOString(),
-      }),
-    });
-
-    await fetch(`${s.url}/rest/v1/operation_logs`, {
-      method: 'POST',
-      headers: s.headers,
-      body: JSON.stringify({
-        action: 'open_shift',
-        new_values: { shift_id: shift.id, staff_id, expected_cash },
-        performed_by: auth.user?.id,
-      }),
-    });
-
-    return NextResponse.json({ success: true, data: shift });
+    return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -127,53 +99,26 @@ export async function PATCH(request: NextRequest) {
     const auth = await requirePermission('cash.close');
     if (!auth.authenticated) return auth;
 
-    const { id, closed_at, actual_cash, manager_approved, manager_id, notes } = await request.json();
+    const body = await request.json();
+    const { id, notes } = body;
+
     if (!id) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
     }
 
-    const s = svc();
-    const patch: Record<string, any> = {};
-    if (closed_at) patch.closed_at = closed_at;
-    if (actual_cash !== undefined) patch.actual_cash = actual_cash;
-    if (manager_approved !== undefined) patch.manager_approved = manager_approved;
-    if (manager_id) patch.manager_id = manager_id;
-    if (notes) patch.notes = notes;
+    const s = await (await import('@/lib/api-auth')).createAuthClient();
 
-    if (actual_cash !== undefined) {
-      const shiftRes = await fetch(`${s.url}/rest/v1/shifts?id=eq.${id}&select=expected_cash`, { headers: s.headers });
-      const shiftData = await shiftRes.json();
-      const shift = Array.isArray(shiftData) ? shiftData[0] : null;
-      if (shift) {
-        patch.difference = actual_cash - (shift.expected_cash || 0);
-      }
-    }
-
-    const res = await fetch(`${s.url}/rest/v1/shifts?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { ...s.headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify(patch),
+    const { data, error: rpcError } = await s.rpc('clock_out_atomic', {
+      p_staff_id: id,
+      p_notes: notes || null,
+      p_performed_by: auth.user?.id || id,
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      return NextResponse.json({ error: data?.error || 'Failed to update shift' }, { status: 400 });
+    if (rpcError) {
+      return NextResponse.json({ error: rpcError.message }, { status: 500 });
     }
 
-    const updated = Array.isArray(data) ? data[0] : data;
-
-    await fetch(`${s.url}/rest/v1/operation_logs`, {
-      method: 'POST',
-      headers: s.headers,
-      body: JSON.stringify({
-        action: 'close_shift',
-        old_values: { id, closed_at: null },
-        new_values: { id, closed_at: updated.closed_at, actual_cash: updated.actual_cash, difference: updated.difference },
-        performed_by: auth.user?.id,
-      }),
-    });
-
-    return NextResponse.json({ success: true, data: updated });
+    return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

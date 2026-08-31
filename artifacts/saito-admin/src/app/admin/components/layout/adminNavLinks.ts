@@ -61,6 +61,7 @@ export function getAdminNavItems(
     { id: 'purchase-orders', name: 'Alış Sifarişləri', href: '/admin/purchase-orders', icon: ShoppingCart, roles: ['superadmin'] },
     { id: 'recipes', name: 'Reseptlər', href: '/admin/recipes', icon: ScrollText, roles: ['superadmin'] },
     { id: 'audit', name: 'Audit', href: '/admin/audit', icon: ShieldAlert, roles: ['superadmin'] },
+    { id: 'loss-prevention', name: 'Loss Prevention', href: '/admin/loss-prevention', icon: ShieldAlert, roles: ['admin', 'superadmin'] },
     { id: 'stats', name: t('statistics'), href: '/admin/stats', icon: BarChart3, roles: ['superadmin'] },
     { id: 'settings', name: t('settings'), href: '/admin/settings', icon: Settings, roles: ['superadmin'] }
   ];

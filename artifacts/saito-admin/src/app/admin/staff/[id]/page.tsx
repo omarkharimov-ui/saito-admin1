@@ -7,7 +7,7 @@ import {
   ArrowLeft, Edit3, KeyRound, Trash2, UserCheck,
   Mail, Phone, Clock, CalendarDays, ShoppingBag, DollarSign,
   TrendingUp, Ban, RotateCcw, Tag, Activity, Timer,
-  HandPlatter, ChefHat, Martini, ConciergeBell, Package, ReceiptText, Briefcase, ShieldCheck, Crown, Bike, Sparkles
+  HandPlatter, ChefHat, Martini, ConciergeBell, Package, ReceiptText, Briefcase, ShieldCheck, Crown, Bike, Sparkles, AlertTriangle
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { toast } from '@/lib/toast';
@@ -70,6 +70,7 @@ export default function StaffDetailPage() {
   const [actions, setActions] = useState<ActionLog[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
+  const [anomalies, setAnomalies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('month');
   const [showEditSheet, setShowEditSheet] = useState(false);
@@ -90,9 +91,10 @@ export default function StaffDetailPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [staffRes, shiftsRes] = await Promise.all([
+      const [staffRes, shiftsRes, anomalyRes] = await Promise.all([
         fetch(`/api/staff/${staffId}?period=${period}`),
         fetch(`/api/shifts?staff_id=${staffId}&period=all`),
+        fetch(`/api/analytics/anomalies?period=month&staff_id=${staffId}`),
       ]);
 
       if (staffRes.ok) {
@@ -105,6 +107,10 @@ export default function StaffDetailPage() {
       if (shiftsRes.ok) {
         const data = await shiftsRes.json();
         setShifts(Array.isArray(data) ? data : []);
+      }
+      if (anomalyRes.ok) {
+        const data = await anomalyRes.json();
+        setAnomalies(data.anomalies || []);
       }
     } catch {
       toast.error('Failed to load data');
@@ -367,6 +373,68 @@ export default function StaffDetailPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Risk / Anomalies Section */}
+      {anomalies.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-2xl border p-5 ${
+            anomalies[0].level === 'critical' ? 'bg-rose-500/[0.07] border-rose-500/20' :
+            anomalies[0].level === 'high' ? 'bg-orange-500/[0.07] border-orange-500/20' :
+            anomalies[0].level === 'medium' ? 'bg-amber-500/[0.07] border-amber-500/20' :
+            'bg-blue-500/[0.07] border-blue-500/20'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${
+                anomalies[0].level === 'critical' ? 'bg-rose-500/20 border-rose-500/30' :
+                anomalies[0].level === 'high' ? 'bg-orange-500/20 border-orange-500/30' :
+                anomalies[0].level === 'medium' ? 'bg-amber-500/20 border-amber-500/30' :
+                'bg-blue-500/20 border-blue-500/30'
+              }`}>
+                <AlertTriangle size={16} className={
+                  anomalies[0].level === 'critical' ? 'text-rose-400' :
+                  anomalies[0].level === 'high' ? 'text-orange-400' :
+                  anomalies[0].level === 'medium' ? 'text-amber-400' : 'text-blue-400'
+                } />
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-white">Risk Score</h3>
+                <p className="text-[10px] text-white/40 uppercase tracking-widest">
+                  {anomalies[0].level === 'critical' ? 'Critical' : anomalies[0].level === 'high' ? 'High' : anomalies[0].level === 'medium' ? 'Medium' : 'Low'} risk
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-black tabular-nums text-white">{anomalies[0].risk_score}</p>
+              <p className="text-[10px] text-white/40">/ 100</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {anomalies[0].anomalies.map((anomaly: any, idx: number) => (
+              <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border ${
+                anomaly.severity === 'danger' ? 'bg-rose-500/10 border-rose-500/20' :
+                anomaly.severity === 'warning' ? 'bg-amber-500/10 border-amber-500/20' :
+                'bg-blue-500/10 border-blue-500/20'
+              }`}>
+                <div>
+                  <p className="text-xs font-bold text-white">{anomaly.label}</p>
+                  <p className="text-[10px] text-white/50">{anomaly.description}</p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-xs font-black tabular-nums ${
+                    anomaly.severity === 'danger' ? 'text-rose-400' :
+                    anomaly.severity === 'warning' ? 'text-amber-400' : 'text-blue-400'
+                  }`}>{anomaly.value}</p>
+                  <p className="text-[10px] text-white/40">vs {anomaly.baseline}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* Performance Section */}
       <motion.div

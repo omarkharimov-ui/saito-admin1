@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       const client = await createAuthClient();
       const res = await client
         .from('staff')
-        .select('id, name, full_name, role, pin_hash, is_active, shift, role_id')
+        .select('id, name, full_name, pin_hash, is_active, shift, role_id')
         .eq('is_active', true)
         .limit(100);
       staff = res.data;
@@ -61,6 +61,14 @@ export async function POST(req: NextRequest) {
     const matched = staff.find((s: any) => verifyPin(trimmedPin, s.pin_hash));
 
     if (!matched) {
+      try {
+        const client = await createAuthClient();
+        await client.from('security_events').insert({
+          event_type: 'login_failed',
+          success: false,
+          metadata: { method: 'pin', reason: 'invalid_pin' },
+        });
+      } catch { /* non-critical */ }
       return NextResponse.json({ error: 'Yanlış PIN' }, { status: 401 });
     }
 
@@ -93,6 +101,16 @@ export async function POST(req: NextRequest) {
       expires: new Date(expiresAt),
       path: '/',
     });
+
+    try {
+      const client = await createAuthClient();
+      await client.from('security_events').insert({
+        staff_id: matched.id,
+        event_type: 'login',
+        success: true,
+        metadata: { role, method: 'pin' },
+      });
+    } catch { /* non-critical */ }
 
     return res;
   } catch (e: any) {

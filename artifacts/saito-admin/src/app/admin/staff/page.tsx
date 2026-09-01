@@ -7,7 +7,7 @@ import {
   AlertTriangle, ChevronRight, MoreHorizontal, Edit, Timer,
   LogOut, RotateCcw, Utensils, GlassWater, Component, Shield,
   UserCheck, Activity, CreditCard, TrendingUp, Eye, ChefHat,
-  CheckCircle, XCircle, LogIn, Coffee, FileText
+  CheckCircle, XCircle, LogIn, Coffee, FileText, Download
 } from 'lucide-react';
 
 import { TimeClockPanel } from './components/TimeClockPanel';
@@ -180,14 +180,108 @@ export default function StaffPage() {
             {kpis?.total_staff ?? 0} Staff · {onShiftCount} On Shift
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateSheet(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[var(--theme-text)] text-[var(--theme-surface)] rounded-2xl text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all shadow-xl active:scale-95"
-        >
-          <Plus size={14} />
-          Add Staff
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const csv = [
+                ['Name', 'Role', 'Status', 'Orders', 'Revenue', 'Shift'].join(','),
+                ...staff.map(s => [
+                  s.full_name || s.name,
+                  s.role_name,
+                  s.shift_status === 'active' ? 'On Shift' : 'Off Shift',
+                  s.total_orders,
+                  s.total_revenue,
+                  s.shift || 'N/A'
+                ].join(','))
+              ].join('\n');
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `staff-report-${new Date().toISOString().split('T')[0]}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success('Exported to CSV');
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-xl text-xs font-medium text-[var(--theme-text)] hover:bg-white/[0.06] transition-all"
+          >
+            <Download size={14} />
+            Export
+          </button>
+          <button
+            onClick={() => setShowCreateSheet(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--theme-text)] text-[var(--theme-surface)] rounded-2xl text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all shadow-xl active:scale-95"
+          >
+            <Plus size={14} />
+            Add Staff
+          </button>
+        </div>
       </div>
+
+      {/* KPI Dashboard - Role Aware */}
+      {kpis && (
+        <div className="flex-shrink-0 space-y-3">
+          {/* Main KPIs */}
+          <div className="grid grid-cols-4 gap-3">
+            <KpiCard
+              icon={Users}
+              label="Total Staff"
+              value={kpis.total_staff}
+              accent="blue"
+            />
+            <KpiCard
+              icon={UserCheck}
+              label="On Shift"
+              value={kpis.on_shift}
+              accent="emerald"
+            />
+            <KpiCard
+              icon={ShoppingBag}
+              label="Today Orders"
+              value={kpis.today_orders}
+              accent="purple"
+            />
+            <KpiCard
+              icon={DollarSign}
+              label="Today Revenue"
+              value={`₼${kpis.today_revenue?.toFixed(0) ?? 0}`}
+              accent="amber"
+            />
+          </div>
+
+          {/* Role-Aware Secondary KPIs */}
+          <div className="grid grid-cols-6 gap-2">
+            <MiniKpi label="Waiters" value={staff.filter(s => s.role_name?.toLowerCase() === 'waiter').length} color="emerald" />
+            <MiniKpi label="Kitchen" value={staff.filter(s => s.role_name?.toLowerCase() === 'kitchen').length} color="rose" />
+            <MiniKpi label="Cashiers" value={staff.filter(s => s.role_name?.toLowerCase() === 'cashier').length} color="blue" />
+            <MiniKpi label="Bartenders" value={staff.filter(s => s.role_name?.toLowerCase() === 'bartender').length} color="amber" />
+            <MiniKpi label="Managers" value={staff.filter(s => s.role_name?.toLowerCase() === 'manager').length} color="purple" />
+            <MiniKpi label="Risk Alerts" value={kpis.risk_alerts ?? 0} color="red" />
+          </div>
+
+          {/* Performance Alerts */}
+          {(kpis.cash_variance && Math.abs(kpis.cash_variance) > 10) || (kpis.risk_alerts && kpis.risk_alerts > 0) ? (
+            <div className="flex gap-3">
+              {kpis.cash_variance && Math.abs(kpis.cash_variance) > 10 && (
+                <div className="flex-1 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
+                  <AlertTriangle size={16} className="text-amber-400" />
+                  <span className="text-xs text-amber-400">
+                    Cash variance: {kpis.cash_variance > 0 ? '+' : ''}₼{kpis.cash_variance.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              {kpis.risk_alerts && kpis.risk_alerts > 0 && (
+                <div className="flex-1 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3">
+                  <AlertTriangle size={16} className="text-rose-400" />
+                  <span className="text-xs text-rose-400">
+                    {kpis.risk_alerts} staff member{kpis.risk_alerts > 1 ? 's' : ''} with risk alerts
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Control Header - Glass Effect */}
       <div
@@ -1223,6 +1317,57 @@ function getRoleColor(roleName: string): { text: string; gradientFrom: string; g
     default: { text: 'text-zinc-400', gradientFrom: '#71717a', gradientTo: '#a1a1aa' },
   };
   return colors[roleName?.toLowerCase()] || colors.default;
+}
+
+function KpiCard({ icon: Icon, label, value, accent }: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  value: string | number;
+  accent: 'blue' | 'emerald' | 'purple' | 'amber';
+}) {
+  const colors = {
+    blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', icon: 'text-blue-400', text: 'text-blue-400' },
+    emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-400', text: 'text-emerald-400' },
+    purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', icon: 'text-purple-400', text: 'text-purple-400' },
+    amber: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', icon: 'text-amber-400', text: 'text-amber-400' },
+  };
+  const c = colors[accent];
+
+  return (
+    <div className={`p-4 rounded-2xl border ${c.bg} ${c.border}`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.bg}`}>
+          <Icon size={20} className={c.icon} />
+        </div>
+        <div>
+          <p className="text-lg font-bold text-[var(--theme-text)]">{value}</p>
+          <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider">{label}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniKpi({ label, value, color }: {
+  label: string;
+  value: number;
+  color: 'emerald' | 'rose' | 'blue' | 'amber' | 'purple' | 'red';
+}) {
+  const colors = {
+    emerald: 'text-emerald-400',
+    rose: 'text-rose-400',
+    blue: 'text-blue-400',
+    amber: 'text-amber-400',
+    purple: 'text-purple-400',
+    red: 'text-rose-400',
+  };
+
+  return (
+    <div className="p-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center">
+      <p className={`text-lg font-bold ${colors[color]}`}>{value}</p>
+      <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-wider">{label}</p>
+    </div>
+  );
 }
 
 function calculateShiftProgress(shift: string | null | undefined): number | null {

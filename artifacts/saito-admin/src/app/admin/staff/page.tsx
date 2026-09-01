@@ -7,13 +7,22 @@ import {
   AlertTriangle, ChevronRight, MoreHorizontal, Edit, Timer,
   LogOut, RotateCcw, Utensils, GlassWater, Component, Shield,
   UserCheck, Activity, CreditCard, TrendingUp, Eye, ChefHat,
-  CheckCircle, XCircle, LogIn, Coffee
+  CheckCircle, XCircle, LogIn, Coffee, FileText
 } from 'lucide-react';
 
 import { TimeClockPanel } from './components/TimeClockPanel';
 import { ScheduleCalendar } from './components/ScheduleCalendar';
 import { TipManagement } from './components/TipManagement';
 import { CashReconciliation } from './components/CashReconciliation';
+import { BreakManagement } from './components/BreakManagement';
+import { OvertimeTracking } from './components/OvertimeTracking';
+import { ShiftHandover } from './components/ShiftHandover';
+import { Onboarding } from './components/Onboarding';
+import { DocumentManagement } from './components/DocumentManagement';
+import { Compliance } from './components/Compliance';
+import { Communication } from './components/Communication';
+import { PerformanceReviews } from './components/PerformanceReviews';
+import { AdvancedPermissions } from './components/AdvancedPermissions';
 
 // Role icon mapping - Apple-style vector icons
 function getRoleIcon(roleName: string): React.ComponentType<any> {
@@ -641,7 +650,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   const roleColor = getRoleColor(staff.role_name);
   const RoleIcon = getRoleIcon(staff.role_name);
   const isOnShift = staff.shift_status === 'active';
-  const [activeTab, setActiveTab] = useState<'overview' | 'timeclock' | 'schedule' | 'shifts' | 'tips' | 'cash' | 'attendance' | 'labor' | 'payroll' | 'approvals' | 'activity' | 'security' | 'permissions'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'timeclock' | 'schedule' | 'shifts' | 'tips' | 'cash' | 'breaks' | 'overtime' | 'handover' | 'onboarding' | 'documents' | 'compliance' | 'messages' | 'reviews' | 'attendance' | 'labor' | 'payroll' | 'approvals' | 'activity' | 'security' | 'permissions'>('overview');
   const [shifts, setShifts] = useState<any[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(false);
   const [schedule, setSchedule] = useState<any[]>([]);
@@ -664,6 +673,14 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
     { key: 'shifts', label: 'Shifts' },
     { key: 'tips', label: 'Tips' },
     { key: 'cash', label: 'Cash' },
+    { key: 'breaks', label: 'Breaks' },
+    { key: 'overtime', label: 'Overtime' },
+    { key: 'handover', label: 'Handover' },
+    { key: 'onboarding', label: 'Onboarding' },
+    { key: 'documents', label: 'Documents' },
+    { key: 'compliance', label: 'Compliance' },
+    { key: 'messages', label: 'Messages' },
+    { key: 'reviews', label: 'Reviews' },
     { key: 'attendance', label: 'Attendance' },
     { key: 'labor', label: 'Labor' },
     { key: 'payroll', label: 'Payroll' },
@@ -962,6 +979,45 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
               <p className="text-sm text-[var(--theme-text-secondary)]">No active shift</p>
               <p className="text-xs text-[var(--theme-text-muted)] mt-1">Cash reconciliation is available during active shifts</p>
             </div>
+          )}
+
+          {activeTab === 'breaks' && (
+            <BreakManagement staffId={staff.id} activeShiftId={staff.active_shift?.id} />
+          )}
+
+          {activeTab === 'overtime' && (
+            <OvertimeTracking staffId={staff.id} />
+          )}
+
+          {activeTab === 'handover' && staff.active_shift && (
+            <ShiftHandover shiftId={staff.active_shift.id} staffId={staff.id} staffName={staff.full_name || staff.name} />
+          )}
+
+          {activeTab === 'handover' && !staff.active_shift && (
+            <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center">
+              <FileText size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" />
+              <p className="text-sm text-[var(--theme-text-secondary)]">No active shift</p>
+            </div>
+          )}
+
+          {activeTab === 'onboarding' && (
+            <Onboarding staffId={staff.id} roleId={staff.role_id} />
+          )}
+
+          {activeTab === 'documents' && (
+            <DocumentManagement staffId={staff.id} />
+          )}
+
+          {activeTab === 'compliance' && (
+            <Compliance staffId={staff.id} />
+          )}
+
+          {activeTab === 'messages' && (
+            <Communication staffId={staff.id} staffName={staff.full_name || staff.name} />
+          )}
+
+          {activeTab === 'reviews' && (
+            <PerformanceReviews staffId={staff.id} isManager={staff.role_name?.toLowerCase() === 'manager'} />
           )}
 
           {activeTab === 'attendance' && (

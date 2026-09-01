@@ -23,6 +23,8 @@ import { Compliance } from './components/Compliance';
 import { Communication } from './components/Communication';
 import { PerformanceReviews } from './components/PerformanceReviews';
 import { AdvancedPermissions } from './components/AdvancedPermissions';
+import { SecurityTab } from './components/SecurityTab';
+import { ActivityTab } from './components/ActivityTab';
 
 // Role icon mapping - Apple-style vector icons
 function getRoleIcon(roleName: string): React.ComponentType<any> {
@@ -1135,45 +1137,15 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           )}
 
           {activeTab === 'activity' && (
-            <div className="space-y-3">
-              {activityLoading ? (
-                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.02)' }} />)}</div>
-              ) : activity.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><Activity size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">No activity</p></div>
-              ) : (
-                activity.map((item: any) => (
-                  <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl border" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${item.event_type?.includes('void') || item.event_type?.includes('refund') ? 'bg-rose-500/10 text-rose-400' : item.event_type?.includes('override') ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
-                      {item.event_type?.includes('void') || item.event_type?.includes('refund') ? <AlertTriangle size={14} /> : item.event_type?.includes('override') ? <Edit size={14} /> : <ShoppingBag size={14} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-[var(--theme-text)]">{item.description}</p>
-                      <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5">{new Date(item.created_at).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <ActivityTab staffId={staff.id} />
           )}
 
           {activeTab === 'security' && (
-            <div className="space-y-6">
-              <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center"><Shield size={48} className="mx-auto text-[var(--theme-text-muted)] mb-4" /><p className="text-sm text-[var(--theme-text-secondary)]">Security events coming soon</p></div>
-            </div>
+            <SecurityTab staffId={staff.id} />
           )}
 
           {activeTab === 'permissions' && (
-            <div className="space-y-4">
-              <h3 className="text-[10px] uppercase tracking-wider text-[var(--theme-text-muted)] font-bold">Access Permissions</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <PermissionCard label="Apply Discount" allowed={staff.can_apply_discount ?? false} />
-                <PermissionCard label="Void Items" allowed={staff.can_void_items ?? false} />
-                <PermissionCard label="Open Drawer Without Sale" allowed={staff.can_open_drawer_without_sale ?? false} />
-                <PermissionCard label="Process Refund" allowed={staff.can_refund ?? false} />
-                <PermissionCard label="View Reports" allowed={staff.can_view_reports ?? false} />
-                <PermissionCard label="Manage Staff" allowed={staff.can_manage_staff ?? false} />
-              </div>
-            </div>
+            <AdvancedPermissions staffId={staff.id} isManager={staff.role_name?.toLowerCase() === 'manager'} />
           )}
         </div>
 
@@ -1248,15 +1220,15 @@ function getRoleColor(roleName: string): { text: string; gradientFrom: string; g
     kitchen: { text: 'text-rose-400', gradientFrom: '#f43f5e', gradientTo: '#fb7185' },
     manager: { text: 'text-purple-400', gradientFrom: '#8b5cf6', gradientTo: '#a78bfa' },
     host: { text: 'text-cyan-400', gradientFrom: '#06b6d4', gradientTo: '#22d3ee' },
+    default: { text: 'text-zinc-400', gradientFrom: '#71717a', gradientTo: '#a1a1aa' },
   };
-  return colors[roleName?.toLowerCase()] || { text: 'text-zinc-400', gradientFrom: '#52525b', gradientTo: '#71717a' };
+  return colors[roleName?.toLowerCase()] || colors.default;
 }
 
 function calculateShiftProgress(shift: string | null | undefined): number | null {
   if (!shift) return null;
 
   try {
-    // Parse shift string like "09:00 - 18:00" or "09:00-18:00"
     const match = shift.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
     if (!match) return null;
 
@@ -1271,7 +1243,6 @@ function calculateShiftProgress(shift: string | null | undefined): number | null
     const endDate = new Date();
     endDate.setHours(endH, endM, 0, 0);
 
-    // Handle overnight shifts
     if (endDate <= startDate) {
       endDate.setDate(endDate.getDate() + 1);
     }

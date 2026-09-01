@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { groqChat, parseJsonFromText } from '@/lib/groq';
 import { validateAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
@@ -12,12 +11,17 @@ export async function POST(request: Request) {
     const { items } = await request.json();
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ minutes: 30 }); // Default
+      return NextResponse.json({ minutes: 30, reason: 'Standart hazırlıq vaxtı' });
     }
 
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ minutes: 30, reason: 'AI Assistant is currently offline.' }, { status: 503 });
+    }
+
+    const { groqChat, parseJsonFromText } = await import('@/lib/groq');
     const itemNames = items.map(i => `${i.quantity}x ${i.product_name}`).join(', ');
-    
-    const systemPrompt = `Sən restoran mətbəx köməkçisisən. Verilən yemək siyahısına əsasən, bu yeməklərin hamısının eyni vaxtda qonağın masasına hazır olması üçün mətbəxin nə qədər vaxt (dəqiqə ilə) qabaqcadan hazırlığa başlamalı olduğunu təxmin et. 
+
+    const systemPrompt = `Sən restoran mətbəx köməkçisisən. Verilən yemək siyahısına əsasən, bu yeməklərin hamısının eyni vaxtda qonağın masasına hazır olması üçün mətbəxin nə qədər vaxt (dəqiqə ilə) qabaqcadan hazırlığa başlamalı olduğunu təxmin et.
     Yalnız JSON formatında cavab ver: {"minutes": number, "reason": "qısa izah"}`;
 
     const userPrompt = `Sifariş siyahısı: ${itemNames}. Bu sifariş üçün hazırlıq vaxtı nə qədər olmalıdır?`;
@@ -30,6 +34,6 @@ export async function POST(request: Request) {
       reason: result?.reason || 'Standart hazırlıq vaxtı'
     });
   } catch (error: any) {
-    return NextResponse.json({ minutes: 30, error: error.message });
+    return NextResponse.json({ minutes: 30, reason: 'Standart hazırlıq vaxtı', error: error.message });
   }
 }

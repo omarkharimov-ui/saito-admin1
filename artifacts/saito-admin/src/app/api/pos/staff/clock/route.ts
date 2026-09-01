@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, validateAuth } from '@/lib/api-auth';
+import { requireAuth, validateAuth, createAuthClient } from '@/lib/api-auth';
+
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key) throw new Error('Missing Supabase configuration');
+  return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
 
 export async function POST(request: Request) {
   try {
@@ -8,9 +15,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const s = await (await import('@/lib/api-auth')).createAuthClient();
+    const s = await createAuthClient();
     const body = await request.json();
-    const { action } = body;
+    const { action, role_id } = body;
 
     if (!action || !['in', 'out'].includes(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -31,6 +38,15 @@ export async function POST(request: Request) {
 
       if (rpcError) {
         return NextResponse.json({ error: rpcError.message }, { status: 500 });
+      }
+
+      if (role_id && data?.shift_id) {
+        const svcData = svc();
+        await fetch(`${svcData.url}/rest/v1/shifts?id=eq.${data.shift_id}`, {
+          method: 'PATCH',
+          headers: { ...svcData.headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ active_role_id: role_id }),
+        }).catch(() => {});
       }
 
       return NextResponse.json(data);

@@ -27,6 +27,8 @@
     "framer-motion": "^12.38.0",
     "fuse.js": "^7.3.0",
     "jszip": "^3.10.1",
+    "lightningcss": "^1.32.0",
+    "lightningcss-darwin-arm64": "^1.33.0",
     "lucide-react": "^0.545.0",
     "next": "16.2.3",
     "nodemailer": "^8.0.7",
@@ -39,16 +41,18 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/oxide-darwin-arm64": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.1",
     "@types/file-saver": "^2.0.7",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.5.4",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
     "sharp": "^0.34.5",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.3.0",
     "typescript": "^5"
   }
 }

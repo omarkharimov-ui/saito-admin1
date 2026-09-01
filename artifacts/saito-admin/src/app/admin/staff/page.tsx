@@ -7,7 +7,8 @@ import {
   AlertTriangle, ChevronRight, MoreHorizontal, Edit, Timer,
   LogOut, RotateCcw, Utensils, GlassWater, Component, Shield,
   UserCheck, Activity, CreditCard, TrendingUp, Eye, ChefHat,
-  CheckCircle, XCircle, LogIn, Coffee, FileText, Download
+  CheckCircle, XCircle, LogIn, Coffee, FileText, Download,
+  Trash2, Tag, Ban, RefreshCw
 } from 'lucide-react';
 
 import { TimeClockPanel } from './components/TimeClockPanel';
@@ -83,6 +84,10 @@ type Kpis = {
   open_cash_drawers: number;
   cash_variance: number;
   risk_alerts: number;
+  labor_cost_today: number;
+  avg_ticket_size: number;
+  high_risk_voids: number;
+  splh: number;
 };
 
 export default function StaffPage() {
@@ -105,6 +110,11 @@ export default function StaffPage() {
         const data = await res.json();
         setKpis(data.kpis);
         setStaff(data.staff || []);
+      }
+      const splhRes = await fetch('/api/labor/splh');
+      if (splhRes.ok) {
+        const splhData = await splhRes.json();
+        setKpis((prev) => prev ? { ...prev, splh: splhData.splh || 0 } : null);
       }
     } catch {
       toast.error('Failed to load staff');
@@ -175,10 +185,9 @@ export default function StaffPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-black text-[var(--theme-text)] tracking-tight">TEAM</h1>
-          <p className="text-[10px] text-[var(--theme-text-muted)] mt-0.5 uppercase tracking-widest">
-            {kpis?.total_staff ?? 0} Staff · {onShiftCount} On Shift
-          </p>
+          <h1 className="text-2xl font-black text-[var(--theme-text)] tracking-tight">
+            TEAM <span className="text-[var(--theme-text-muted)]">·</span> <span className="text-base font-medium text-[var(--theme-text-muted)]">{kpis?.total_staff ?? 0} Total Staff</span> <span className="text-[var(--theme-text-muted)]">|</span> <span className="text-base font-medium text-emerald-400">{onShiftCount} On Shift</span>
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -218,50 +227,19 @@ export default function StaffPage() {
         </div>
       </div>
 
-      {/* KPI Dashboard - Role Aware */}
+      {/* Minimal KPI Strip with Tooltips */}
       {kpis && (
-        <div className="flex-shrink-0 space-y-3">
-          {/* Main KPIs */}
-          <div className="grid grid-cols-4 gap-3">
-            <KpiCard
-              icon={Users}
-              label="Total Staff"
-              value={kpis.total_staff}
-              accent="blue"
-            />
-            <KpiCard
-              icon={UserCheck}
-              label="On Shift"
-              value={kpis.on_shift}
-              accent="emerald"
-            />
-            <KpiCard
-              icon={ShoppingBag}
-              label="Today Orders"
-              value={kpis.today_orders}
-              accent="purple"
-            />
-            <KpiCard
-              icon={DollarSign}
-              label="Today Revenue"
-              value={`₼${kpis.today_revenue?.toFixed(0) ?? 0}`}
-              accent="amber"
-            />
-          </div>
-
-          {/* Role-Aware Secondary KPIs */}
-          <div className="grid grid-cols-6 gap-2">
-            <MiniKpi label="Waiters" value={staff.filter(s => s.role_name?.toLowerCase() === 'waiter').length} color="emerald" />
-            <MiniKpi label="Kitchen" value={staff.filter(s => s.role_name?.toLowerCase() === 'kitchen').length} color="rose" />
-            <MiniKpi label="Cashiers" value={staff.filter(s => s.role_name?.toLowerCase() === 'cashier').length} color="blue" />
-            <MiniKpi label="Bartenders" value={staff.filter(s => s.role_name?.toLowerCase() === 'bartender').length} color="amber" />
-            <MiniKpi label="Managers" value={staff.filter(s => s.role_name?.toLowerCase() === 'manager').length} color="purple" />
-            <MiniKpi label="Risk Alerts" value={kpis.risk_alerts ?? 0} color="red" />
+        <div className="flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <MiniKpiWithTooltip label="Labor Cost" value={`₼${(kpis.labor_cost_today ?? 0).toFixed(0)}`} hint="Bu gün smenada olan heyətin iş saatlarına əsasən hesablanan ümumi əməkhaqqı xərci." />
+            <MiniKpiWithTooltip label="Avg Ticket" value={`₼${(kpis.avg_ticket_size ?? 0).toFixed(0)}`} hint="Bu gün qəbul edilən sifarişlərin orta məbləği." />
+            <MiniKpiWithTooltip label="High Risk Voids" value={kpis.high_risk_voids ?? 0} hint="Ödənişdən və ya mətbəxə verildikdən sonra ləğv edilən şübhəli sifarişlərin sayı." accent="rose" />
+            <MiniKpiWithTooltip label="SPLH" value={`₼${(kpis.splh ?? 0).toFixed(0)}`} hint="İşçilərin işlədiyi hər 1 saat üçün restorana qazandırdığı ümumi satış məbləği." accent="emerald" />
           </div>
 
           {/* Performance Alerts */}
           {(kpis.cash_variance && Math.abs(kpis.cash_variance) > 10) || (kpis.risk_alerts && kpis.risk_alerts > 0) ? (
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-3">
               {kpis.cash_variance && Math.abs(kpis.cash_variance) > 10 && (
                 <div className="flex-1 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
                   <AlertTriangle size={16} className="text-amber-400" />
@@ -459,132 +437,94 @@ function StaffCard({ member, index, onClick, onForceClockOut, onResetPin }: {
         e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
       }}
     >
-      <div className="flex items-center gap-5">
-        {/* 1. Employee Identity with Role Icon */}
-        <div className="flex items-center gap-3 min-w-[220px]">
+      <div className="flex items-center gap-4">
+        {/* 1. Avatar + Name + Role */}
+        <div className="flex items-center gap-3 min-w-[200px]">
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg flex-shrink-0"
             style={{
               background: `linear-gradient(135deg, ${roleColor.gradientFrom}, ${roleColor.gradientTo})`,
               boxShadow: `0 4px 12px ${roleColor.gradientFrom}40`,
             }}
           >
-            <RoleIcon size={20} />
+            <RoleIcon size={18} />
           </div>
-          <div>
-            <p className="text-sm font-semibold text-[var(--theme-text)] truncate max-w-[160px]">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[var(--theme-text)] truncate">
               {member.full_name || member.name}
             </p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`text-[10px] font-medium ${roleColor.text}`}>{member.role_name}</span>
-            </div>
+            <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider font-medium">
+              {member.role_name}
+            </p>
           </div>
         </div>
 
-        {/* 2. Status & Live Timer */}
-        <div className="min-w-[140px]">
+        {/* 2. Status Badge */}
+        <div className="min-w-[100px]">
           {isOnShift ? (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                </span>
-                <span
-                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold"
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    color: '#10b981',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                  }}
-                >
-                  ON SHIFT
-                </span>
-              </div>
-              <span className="text-[10px] font-mono text-emerald-400 tabular-nums ml-4">
-                {liveDuration}
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                ON SHIFT
               </span>
             </div>
           ) : member.is_active ? (
-            <span className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
               OFF SHIFT
             </span>
           ) : (
-            <span className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
               INACTIVE
             </span>
           )}
         </div>
 
-        {/* 3. Shift Time / Progress */}
-        <div className="flex-1 min-w-[180px]">
-          {member.shift ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-xs text-[var(--theme-text-muted)]">
-                <Clock size={12} />
-                <span>{member.shift}</span>
-              </div>
-              {isOnShift && shiftProgress !== null && (
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-white/5">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${shiftProgress}%` }}
-                      transition={{ duration: 1, delay: 0.3 + index * 0.05 }}
-                      className="h-full rounded-full"
-                      style={{ background: 'linear-gradient(90deg, #10b981, #34d399)' }}
-                    />
-                  </div>
-                  <span className="text-[10px] font-medium text-emerald-400 tabular-nums">{shiftProgress}%</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <span className="text-xs text-[var(--theme-text-muted)] opacity-50">No shift set</span>
+        {/* 3. Assignment Info (Role-aware) */}
+        <div className="flex-1 min-w-[140px]">
+          {member.role_name?.toLowerCase() === 'waiter' && (
+            <p className="text-xs text-[var(--theme-text-muted)] truncate">
+              {member.active_tables && member.active_tables > 0 ? `Baxdığı masalar: ${member.active_tables}` : 'Təyin olunmayıb'}
+            </p>
+          )}
+          {(member.role_name?.toLowerCase() === 'cashier' || member.role_name?.toLowerCase() === 'bartender') && (
+            <p className="text-xs text-[var(--theme-text-muted)] truncate">
+              {member.shift || 'Kassa təyini yoxdur'}
+            </p>
+          )}
+          {(member.role_name?.toLowerCase() === 'kitchen') && (
+            <p className="text-xs text-[var(--theme-text-muted)] truncate">
+              {member.active_tickets && member.active_tickets > 0 ? `Aktiv ticket: ${member.active_tickets}` : 'Mətbəx stansiyası'}
+            </p>
+          )}
+          {(member.role_name?.toLowerCase() === 'manager' || member.role_name?.toLowerCase() === 'host') && (
+            <p className="text-xs text-[var(--theme-text-muted)] truncate">
+              {member.shift || 'Zona təyini yoxdur'}
+            </p>
           )}
         </div>
 
-        {/* 4. Role-Specific Metrics Chips */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* 4. Key Metric (single, role-aware) */}
+        <div className="min-w-[80px] text-right">
           {member.role_name?.toLowerCase() === 'kitchen' && (
-            <>
-              <MetricChip icon={ShoppingBag} value={member.active_tickets ?? 0} label="active" accent="amber" />
-              <MetricChip icon={ChefHat} value={member.completed_tickets ?? 0} label="done" />
-              {member.avg_prep_time && (
-                <MetricChip icon={Timer} value={formatDurationShort(member.avg_prep_time)} label="" />
-              )}
-              {(member.late_tickets ?? 0) > 0 && (
-                <MetricChip icon={AlertTriangle} value={member.late_tickets} label="late" accent="rose" />
-              )}
-            </>
+            <p className="text-xs font-medium text-[var(--theme-text)]">{member.avg_prep_time ? formatDurationShort(member.avg_prep_time) : '—'}</p>
           )}
           {member.role_name?.toLowerCase() === 'waiter' && (
-            <>
-              <MetricChip icon={Users} value={member.active_tables ?? 0} label="tables" accent="emerald" />
-              <MetricChip icon={UserCheck} value={member.guests_served ?? 0} label="guests" />
-              <MetricChip icon={DollarSign} value={formatCurrencyShort(member.total_tips ?? 0)} label="tips" />
-              {(member.total_voids ?? 0) > 0 && (
-                <MetricChip icon={AlertTriangle} value={member.total_voids} label="voids" accent="amber" />
-              )}
-            </>
+            <p className="text-xs font-medium text-[var(--theme-text)]">{member.guests_served ?? 0} guests</p>
           )}
-          {(member.role_name?.toLowerCase() === 'cashier' || member.role_name?.toLowerCase() === 'bartender') && (
-            <>
-              <MetricChip icon={DollarSign} value={formatCurrencyShort(member.cash_sales ?? 0)} label="cash" />
-              <MetricChip icon={ShoppingBag} value={formatCurrencyShort(member.card_sales ?? 0)} label="card" />
-              {(member.total_voids ?? 0) > 0 && (
-                <MetricChip icon={AlertTriangle} value={member.total_voids} label="voids" accent="amber" />
-              )}
-              {(member.drawer_variance ?? 0) !== 0 && (
-                <MetricChip icon={AlertTriangle} value={formatCurrencyShort(Math.abs(member.drawer_variance ?? 0))} label="var" accent="rose" />
-              )}
-            </>
+          {member.role_name?.toLowerCase() === 'cashier' && (
+            <p className="text-xs font-medium text-[var(--theme-text)]">{formatCurrencyShort(member.cash_sales ?? 0)}</p>
           )}
-          {!['kitchen', 'waiter', 'cashier', 'bartender'].includes(member.role_name?.toLowerCase() ?? '') && (
-            <>
-              <MetricChip icon={ShoppingBag} value={member.total_orders} label="orders" />
-              <MetricChip icon={DollarSign} value={formatCurrencyShort(member.total_revenue)} label="revenue" />
-            </>
+          {member.role_name?.toLowerCase() === 'bartender' && (
+            <p className="text-xs font-medium text-[var(--theme-text)]">{formatCurrencyShort(member.bar_sales ?? member.cash_sales ?? 0)}</p>
+          )}
+          {member.role_name?.toLowerCase() === 'manager' && (
+            <p className="text-xs font-medium text-[var(--theme-text)]">{member.approvals_count ?? 0} approvals</p>
+          )}
+          {member.role_name?.toLowerCase() === 'host' && (
+            <p className="text-xs font-medium text-[var(--theme-text)]">{member.seated_guests ?? 0} seated</p>
           )}
         </div>
 
@@ -622,7 +562,7 @@ function MetricChip({ icon: Icon, value, label, accent }: {
   icon: any;
   value: any;
   label: string;
-  accent?: 'amber' | 'rose' | 'emerald';
+  accent?: 'amber' | 'rose' | 'emerald' | 'blue';
 }) {
   const accentStyle = accent === 'amber'
     ? { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }
@@ -630,7 +570,9 @@ function MetricChip({ icon: Icon, value, label, accent }: {
       ? { background: 'rgba(244, 63, 94, 0.1)', color: '#f43f5e', border: '1px solid rgba(244, 63, 94, 0.2)' }
       : accent === 'emerald'
         ? { background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }
-        : { background: 'rgba(255,255,255,0.03)', color: 'var(--theme-text-muted)', border: '1px solid rgba(255,255,255,0.06)' };
+        : accent === 'blue'
+          ? { background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)' }
+          : { background: 'rgba(255,255,255,0.03)', color: 'var(--theme-text-muted)', border: '1px solid rgba(255,255,255,0.06)' };
 
   return (
     <div
@@ -645,8 +587,16 @@ function MetricChip({ icon: Icon, value, label, accent }: {
 }
 
 function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', role_id: '', shift: '', pin: '', hourly_rate: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', role_id: '', shift: '', pin: '', hourly_rate: '', assignment: '' });
   const [creating, setCreating] = useState(false);
+  const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/staff/roles')
+      .then(res => res.ok ? res.json() : { roles: [] })
+      .then(data => setRoles(data.roles || []))
+      .catch(() => setRoles([]));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -663,6 +613,7 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
           shift: form.shift.trim() || null,
           hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
           pin: form.pin || null,
+          assignment: form.assignment || null,
         }),
       });
       if (res.ok) {
@@ -679,6 +630,8 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
     }
   };
 
+  const selectedRole = roles.find(r => r.id === form.role_id);
+
   return (
     <>
       <motion.div
@@ -686,7 +639,7 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: '100%', opacity: 0.8 }}
         transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.9 }}
-        className="fixed right-0 top-0 bottom-0 z-[101] w-[calc(100vw-260px)] bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-3xl"
+        className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-[700px] ml-auto bg-[var(--theme-surface)] border-l border-[var(--theme-border)] shadow-2xl flex flex-col rounded-l-3xl"
       >
         <div className="p-6 border-b border-[var(--theme-border)]">
           <h2 className="text-base font-black text-[var(--theme-text)]">New Staff</h2>
@@ -695,6 +648,55 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           <FormInput label="Full Name *" value={form.name} onChange={v => setForm({ ...form, name: v })} required />
+          
+          <div className="space-y-1.5">
+            <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">Role *</label>
+            <select
+              value={form.role_id}
+              onChange={e => setForm({ ...form, role_id: e.target.value })}
+              className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] outline-none transition-all"
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+              required
+            >
+              <option value="">Select a role</option>
+              {roles.map(role => (
+                <option key={role.id} value={role.id}>{role.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {selectedRole && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-wider text-[var(--theme-text-secondary)] font-bold">
+                {selectedRole.name.toLowerCase() === 'waiter' ? 'Assigned Floors/Tables' :
+                 selectedRole.name.toLowerCase() === 'cashier' ? 'Assigned Cash Drawer/Terminal' :
+                 selectedRole.name.toLowerCase() === 'bartender' ? 'Bar Station' :
+                 selectedRole.name.toLowerCase() === 'kitchen' ? 'Kitchen Station' :
+                 'Zone/Area Assignment'}
+              </label>
+              <input
+                type="text"
+                value={form.assignment}
+                onChange={e => setForm({ ...form, assignment: e.target.value })}
+                placeholder={
+                  selectedRole.name.toLowerCase() === 'waiter' ? 'e.g. Zal 1, Terras, VIP 2' :
+                  selectedRole.name.toLowerCase() === 'cashier' ? 'e.g. Main Drawer, Express POS' :
+                  selectedRole.name.toLowerCase() === 'bartender' ? 'e.g. Bar Main, Cocktail Station' :
+                  selectedRole.name.toLowerCase() === 'kitchen' ? 'e.g. Hot Kitchen, Cold Station' :
+                  'e.g. Zone A, Floor 2'
+                }
+                className="w-full rounded-xl px-4 py-3 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] outline-none transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              />
+            </div>
+          )}
+
           <FormInput label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
           <FormInput label="Phone" value={form.phone} onChange={v => setForm({ ...form, phone: v })} />
           <FormInput label="Shift" value={form.shift} onChange={v => setForm({ ...form, shift: v })} placeholder="e.g. 09:00 - 18:00" />
@@ -708,7 +710,7 @@ function CreateStaffSheet({ onClose, onSuccess }: { onClose: () => void; onSucce
           </button>
           <button
             onClick={handleSubmit}
-            disabled={creating || !form.name}
+            disabled={creating || !form.name || !form.role_id}
             className="flex items-center gap-2 bg-[var(--theme-text)] text-[var(--theme-surface)] px-6 py-2.5 rounded-2xl font-bold text-xs tracking-wide transition-all disabled:opacity-40 shadow-xl active:scale-95"
           >
             {creating ? <span className="w-3.5 h-3.5 border-2 border-[var(--theme-surface)]/20 border-t-[var(--theme-surface)] rounded-full animate-spin" /> : <Plus size={12} />}
@@ -746,7 +748,53 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   const roleColor = getRoleColor(staff.role_name);
   const RoleIcon = getRoleIcon(staff.role_name);
   const isOnShift = staff.shift_status === 'active';
-  const [activeTab, setActiveTab] = useState<'overview' | 'timeclock' | 'schedule' | 'shifts' | 'tips' | 'cash' | 'breaks' | 'overtime' | 'handover' | 'onboarding' | 'documents' | 'compliance' | 'messages' | 'reviews' | 'attendance' | 'labor' | 'payroll' | 'approvals' | 'activity' | 'security' | 'permissions'>('overview');
+  const [activeTab, setActiveTab] = useState<string>('overview');
+
+  const tabGroups = [
+    {
+      group: 'General',
+      tabs: [
+        { key: 'overview', label: 'Overview' },
+        { key: 'documents', label: 'Documents' },
+        { key: 'onboarding', label: 'Onboarding' },
+        { key: 'reviews', label: 'Reviews' },
+      ]
+    },
+    {
+      group: 'Time & Shifts',
+      tabs: [
+        { key: 'schedule', label: 'Schedule' },
+        { key: 'shifts', label: 'Shifts' },
+        { key: 'timeclock', label: 'Time Clock' },
+        { key: 'breaks', label: 'Breaks' },
+        { key: 'overtime', label: 'Overtime' },
+        { key: 'attendance', label: 'Attendance' },
+        { key: 'labor', label: 'Labor' },
+      ]
+    },
+    {
+      group: 'Finance & Sales',
+      tabs: [
+        { key: 'tips', label: 'Tips' },
+        { key: 'cash', label: 'Cash' },
+        { key: 'handover', label: 'Handover' },
+        { key: 'payroll', label: 'Payroll' },
+      ]
+    },
+    {
+      group: 'Communication & Logs',
+      tabs: [
+        { key: 'messages', label: 'Messages' },
+        { key: 'compliance', label: 'Compliance' },
+        { key: 'approvals', label: 'Approvals' },
+        { key: 'activity', label: 'Activity' },
+        { key: 'security', label: 'Security' },
+        { key: 'permissions', label: 'Permissions' },
+      ]
+    },
+  ];
+
+  const activeGroup = tabGroups.find(g => g.tabs.some(t => t.key === activeTab)) || tabGroups[0];
   const [shifts, setShifts] = useState<any[]>([]);
   const [shiftsLoading, setShiftsLoading] = useState(false);
   const [schedule, setSchedule] = useState<any[]>([]);
@@ -762,29 +810,7 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
   const [activity, setActivity] = useState<any[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
 
-  const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'timeclock', label: 'Time Clock' },
-    { key: 'schedule', label: 'Schedule' },
-    { key: 'shifts', label: 'Shifts' },
-    { key: 'tips', label: 'Tips' },
-    { key: 'cash', label: 'Cash' },
-    { key: 'breaks', label: 'Breaks' },
-    { key: 'overtime', label: 'Overtime' },
-    { key: 'handover', label: 'Handover' },
-    { key: 'onboarding', label: 'Onboarding' },
-    { key: 'documents', label: 'Documents' },
-    { key: 'compliance', label: 'Compliance' },
-    { key: 'messages', label: 'Messages' },
-    { key: 'reviews', label: 'Reviews' },
-    { key: 'attendance', label: 'Attendance' },
-    { key: 'labor', label: 'Labor' },
-    { key: 'payroll', label: 'Payroll' },
-    { key: 'approvals', label: 'Approvals' },
-    { key: 'activity', label: 'Activity' },
-    { key: 'security', label: 'Security' },
-    { key: 'permissions', label: 'Permissions' },
-  ] as const;
+
 
   useEffect(() => {
     if (activeTab === 'shifts' && shifts.length === 0) {
@@ -876,22 +902,39 @@ function StaffDetailSheet({ staff, onClose }: { staff: StaffMember; onClose: () 
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs - Grouped */}
         <div className="px-6 border-b border-[var(--theme-border)] flex-shrink-0">
-          <div className="flex items-center gap-1">
-            {tabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-3 text-xs font-medium transition-all border-b-2 ${
-                  activeTab === tab.key
-                    ? 'border-[var(--theme-text)] text-[var(--theme-text)]'
-                    : 'border-transparent text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="flex flex-col gap-2 py-2">
+            <div className="flex items-center gap-1">
+              {tabGroups.map(group => (
+                <button
+                  key={group.group}
+                  onClick={() => setActiveTab(group.tabs[0].key)}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    activeGroup.group === group.group
+                      ? 'bg-[var(--theme-text)] text-[var(--theme-surface)]'
+                      : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-white/5'
+                  }`}
+                >
+                  {group.group}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1 overflow-x-auto pb-1">
+              {activeGroup.tabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                    activeTab === tab.key
+                      ? 'bg-white/10 text-[var(--theme-text)]'
+                      : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -1319,57 +1362,6 @@ function getRoleColor(roleName: string): { text: string; gradientFrom: string; g
   return colors[roleName?.toLowerCase()] || colors.default;
 }
 
-function KpiCard({ icon: Icon, label, value, accent }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  label: string;
-  value: string | number;
-  accent: 'blue' | 'emerald' | 'purple' | 'amber';
-}) {
-  const colors = {
-    blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', icon: 'text-blue-400', text: 'text-blue-400' },
-    emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-400', text: 'text-emerald-400' },
-    purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', icon: 'text-purple-400', text: 'text-purple-400' },
-    amber: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', icon: 'text-amber-400', text: 'text-amber-400' },
-  };
-  const c = colors[accent];
-
-  return (
-    <div className={`p-4 rounded-2xl border ${c.bg} ${c.border}`}>
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.bg}`}>
-          <Icon size={20} className={c.icon} />
-        </div>
-        <div>
-          <p className="text-lg font-bold text-[var(--theme-text)]">{value}</p>
-          <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider">{label}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MiniKpi({ label, value, color }: {
-  label: string;
-  value: number;
-  color: 'emerald' | 'rose' | 'blue' | 'amber' | 'purple' | 'red';
-}) {
-  const colors = {
-    emerald: 'text-emerald-400',
-    rose: 'text-rose-400',
-    blue: 'text-blue-400',
-    amber: 'text-amber-400',
-    purple: 'text-purple-400',
-    red: 'text-rose-400',
-  };
-
-  return (
-    <div className="p-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center">
-      <p className={`text-lg font-bold ${colors[color]}`}>{value}</p>
-      <p className="text-[9px] text-[var(--theme-text-muted)] uppercase tracking-wider">{label}</p>
-    </div>
-  );
-}
-
 function calculateShiftProgress(shift: string | null | undefined): number | null {
   if (!shift) return null;
 
@@ -1400,4 +1392,33 @@ function calculateShiftProgress(shift: string | null | undefined): number | null
   } catch {
     return null;
   }
+}
+
+function MiniKpiWithTooltip({ label, value, hint, accent = 'blue' }: {
+  label: string;
+  value: string | number;
+  hint: string;
+  accent?: 'blue' | 'emerald' | 'rose';
+}) {
+  const colors = {
+    blue: { text: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+    emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+    rose: { text: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
+  };
+  const c = colors[accent];
+
+  return (
+    <div className={`relative group flex items-center gap-3 px-4 py-2.5 rounded-xl border ${c.bg} ${c.border}`}>
+      <div>
+        <p className={`text-sm font-bold ${c.text}`}>{value}</p>
+        <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider">{label}</p>
+      </div>
+      <button className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors">
+        <span className="text-[10px] font-bold">ⓘ</span>
+      </button>
+      <div className="absolute left-0 top-full mt-2 w-64 p-3 rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-50">
+        <p className="text-xs text-[var(--theme-text)] leading-relaxed">{hint}</p>
+      </div>
+    </div>
+  );
 }

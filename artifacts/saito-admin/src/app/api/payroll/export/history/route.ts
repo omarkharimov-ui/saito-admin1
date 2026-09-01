@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -7,25 +8,18 @@ function svc() {
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
 }
 
-export async function POST(request: NextRequest) {
+export async function GET() {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAuth();
+    if (!auth.authenticated) return auth;
 
     const s = svc();
-    const res = await fetch(`${s.url}/rest/v1/rpc/auto_no_show_v2`, {
-      method: 'POST',
+    const res = await fetch(`${s.url}/rest/v1/payroll_exports?select=*&order=created_at.desc&limit=50`, {
       headers: s.headers,
     });
 
     const data = await res.json();
-    if (!res.ok) {
-      return NextResponse.json({ error: data?.error || 'auto_no_show failed' }, { status: 400 });
-    }
-
-    return NextResponse.json({ success: true, processed: data });
+    return NextResponse.json({ exports: Array.isArray(data) ? data : [] });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

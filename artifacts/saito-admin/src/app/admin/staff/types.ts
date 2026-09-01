@@ -39,14 +39,28 @@ export type StaffMember = {
   items_prepared?: number;
   re_fired?: number;
   cancelled_tickets?: number;
+  waste_count?: number;
   // Waiter-specific
   active_tables: number;
   tables_served: number;
   guests_served: number;
   total_tips: number;
+  table_turnover_time?: string | null;
+  // Cashier-specific
+  transaction_speed?: number;
+  // Bartender-specific
+  bar_sales?: number;
   // Manager-specific
   approvals_count?: number;
   exceptions_count?: number;
+  labor_cost_percent?: number;
+  labor_efficiency?: number;
+  void_refund_approvals?: number;
+  // Host-specific
+  seated_guests?: number;
+  avg_wait_time?: string | null;
+  table_turnover_rate?: string | null;
+  no_shows?: number;
   // Risk
   risk_score: number;
   risk_level?: string;

@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS time_clock_entries (
   source VARCHAR(30) DEFAULT 'pos_terminal' CHECK (source IN ('pos_terminal', 'mobile_app', 'web_portal', 'admin_panel', 'kiosk')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Break tracking during shifts
 CREATE TABLE IF NOT EXISTS shift_breaks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,7 +28,6 @@ CREATE TABLE IF NOT EXISTS shift_breaks (
   approved_by UUID REFERENCES staff(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Overtime tracking records
 CREATE TABLE IF NOT EXISTS overtime_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -44,7 +42,6 @@ CREATE TABLE IF NOT EXISTS overtime_records (
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Break rules configuration
 CREATE TABLE IF NOT EXISTS break_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -57,7 +54,6 @@ CREATE TABLE IF NOT EXISTS break_rules (
   applies_to_minors BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- Time clock audit log
 CREATE TABLE IF NOT EXISTS time_clock_audit (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -67,7 +63,6 @@ CREATE TABLE IF NOT EXISTS time_clock_audit (
   details JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- =============================================
 -- INDEXES
 -- =============================================
@@ -79,7 +74,6 @@ CREATE INDEX IF NOT EXISTS idx_shift_breaks_shift ON shift_breaks(shift_id);
 CREATE INDEX IF NOT EXISTS idx_shift_breaks_active ON shift_breaks(started_at) WHERE ended_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_overtime_staff ON overtime_records(staff_id);
 CREATE INDEX IF NOT EXISTS idx_overtime_date ON overtime_records(created_at DESC);
-
 -- =============================================
 -- ENABLE RLS
 -- =============================================
@@ -89,7 +83,6 @@ ALTER TABLE shift_breaks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE overtime_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE break_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE time_clock_audit ENABLE ROW LEVEL SECURITY;
-
 -- =============================================
 -- POLICIES
 -- =============================================
@@ -99,7 +92,6 @@ CREATE POLICY "Allow all for authenticated" ON shift_breaks FOR ALL USING (true)
 CREATE POLICY "Allow all for authenticated" ON overtime_records FOR ALL USING (true);
 CREATE POLICY "Allow all for authenticated" ON break_rules FOR SELECT USING (true);
 CREATE POLICY "Allow all for authenticated" ON time_clock_audit FOR ALL USING (true);
-
 -- =============================================
 -- RPCs
 -- =============================================
@@ -157,7 +149,6 @@ BEGIN
   );
 END;
 $$;
-
 -- Clock out with optional notes
 CREATE OR REPLACE FUNCTION clock_out(
   p_staff_id UUID,
@@ -207,7 +198,6 @@ BEGIN
   RETURN json_build_object('success', true, 'timestamp', NOW());
 END;
 $$;
-
 -- Start break
 CREATE OR REPLACE FUNCTION start_break(
   p_staff_id UUID,
@@ -250,7 +240,6 @@ BEGIN
   );
 END;
 $$;
-
 -- End break
 CREATE OR REPLACE FUNCTION end_break(
   p_staff_id UUID
@@ -298,7 +287,6 @@ BEGIN
   );
 END;
 $$;
-
 -- Get time clock status
 CREATE OR REPLACE FUNCTION get_time_clock_status(
   p_staff_id UUID
@@ -356,7 +344,6 @@ BEGIN
   );
 END;
 $$;
-
 -- Get active breaks
 CREATE OR REPLACE FUNCTION get_active_breaks()
 RETURNS TABLE (
@@ -390,7 +377,6 @@ BEGIN
   ORDER BY sb.started_at;
 END;
 $$;
-
 -- Get time clock history
 CREATE OR REPLACE FUNCTION get_time_clock_history(
   p_staff_id UUID,
@@ -424,7 +410,6 @@ BEGIN
   ORDER BY tce.timestamp DESC;
 END;
 $$;
-
 -- Insert default break rules
 INSERT INTO break_rules (name, work_duration_minutes, break_duration_minutes, break_type, is_paid, applies_to_minors)
 VALUES
@@ -433,7 +418,6 @@ VALUES
   ('Minor Short Break', 180, 15, 'paid', true, true),
   ('Minor Lunch Break', 240, 30, 'unpaid', false, true)
 ON CONFLICT DO NOTHING;
-
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION clock_in TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION clock_out TO anon, authenticated;

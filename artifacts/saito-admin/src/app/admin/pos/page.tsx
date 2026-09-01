@@ -295,7 +295,7 @@ export default function POSPage() {
       const res = await fetch('/api/pos/staff/clock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'in' }),
+        body: JSON.stringify({ action: 'in', role_id: posSession?.role }),
       });
       if (res.ok) {
         setIsClockedIn(true);
@@ -309,6 +309,10 @@ export default function POSPage() {
   };
 
   const handleClockOut = async () => {
+    setShiftReviewOpen(true);
+  };
+
+  const confirmClockOut = async () => {
     try {
       const res = await fetch('/api/pos/staff/clock', {
         method: 'POST',
@@ -317,6 +321,8 @@ export default function POSPage() {
       });
       if (res.ok) {
         setIsClockedIn(false);
+        setShiftReviewOpen(false);
+        setShiftReviewData(null);
         const staffRes = await fetch('/api/pos/staff');
         if (staffRes.ok) {
           const data = await staffRes.json();
@@ -428,6 +434,8 @@ export default function POSPage() {
 
   // Bill request notification — səs + popup
   const [billNotify, setBillNotify] = useState<{ table: number; time: number } | null>(null);
+  const [shiftReviewOpen, setShiftReviewOpen] = useState(false);
+  const [shiftReviewData, setShiftReviewData] = useState<any>(null);
   const prevBillRequested = useMemo(() => {
     const allTables = (pos.floors || []).flatMap((f: any) => f.tables || []);
     return allTables.filter((t: any) => t.bill_requested).map((t: any) => t.table_number).join(',');
@@ -2478,7 +2486,44 @@ export default function POSPage() {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+       </AnimatePresence>
+
+       {/* SHIFT REVIEW MODAL */}
+       <AnimatePresence>
+         {shiftReviewOpen && (
+           <motion.div className="fixed inset-0 z-[300] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShiftReviewOpen(false)} />
+             <motion.div className={`relative w-full max-w-md rounded-3xl border p-6 shadow-2xl ${lightMode ? 'bg-white border-zinc-200' : 'bg-[var(--theme-surface)] border-white/10'}`} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
+               <h2 className="text-lg font-black uppercase tracking-tight mb-1">Shift Review</h2>
+               <p className={`text-xs mb-4 ${lightMode ? 'text-zinc-500' : 'text-white/50'}`}>Please declare your tips before clocking out</p>
+
+               <div className="space-y-4">
+                 <div>
+                   <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>Declared Cash Tips</label>
+                   <input type="number" step="0.01" placeholder="0.00" className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`} />
+                 </div>
+                 <div>
+                   <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>Tip Out Amount</label>
+                   <input type="number" step="0.01" placeholder="0.00" className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`} />
+                 </div>
+                 <div>
+                   <label className={`text-xs font-black uppercase tracking-widest mb-1 block ${lightMode ? 'text-zinc-500' : 'text-white/40'}`}>Notes (optional)</label>
+                   <textarea rows={2} placeholder="Any shift notes..." className={`w-full rounded-2xl px-4 py-3 text-sm font-bold outline-none border resize-none ${lightMode ? 'bg-[var(--theme-bg)] border-zinc-200 text-black focus:border-zinc-400' : 'bg-white/5 border-white/10 text-white focus:border-zinc-400/50'}`} />
+                 </div>
+               </div>
+
+               <div className="flex gap-3 mt-6">
+                 <button onClick={() => setShiftReviewOpen(false)} className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wider border ${lightMode ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+                   Cancel
+                 </button>
+                 <button onClick={confirmClockOut} className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white text-xs font-black uppercase tracking-wider hover:bg-emerald-600 transition-all active:scale-95 shadow-lg shadow-emerald-500/20">
+                   Confirm & Clock Out
+                 </button>
+               </div>
+             </motion.div>
+           </motion.div>
+         )}
+       </AnimatePresence>
 
     </div>
     </VirtualKeyboardProvider>

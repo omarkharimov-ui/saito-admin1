@@ -888,14 +888,34 @@ INSERT INTO permission_categories (name, sort_order) VALUES
   ('Settings', 5)
 ON CONFLICT DO NOTHING;
 
+-- Ensure permissions table structure matches expected schema
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'permissions') THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permissions' AND column_name = 'category_id') THEN
+      ALTER TABLE permissions ADD COLUMN category_id UUID REFERENCES permission_categories(id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permissions' AND column_name = 'name') THEN
+      ALTER TABLE permissions ADD COLUMN name VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permissions' AND column_name = 'code') THEN
+      ALTER TABLE permissions ADD COLUMN code VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permissions' AND column_name = 'description') THEN
+      ALTER TABLE permissions ADD COLUMN description TEXT;
+    END IF;
+  END IF;
+END $$;
+
 -- Default permissions
-INSERT INTO permissions (category_id, name, code) SELECT id, 'Apply Discount', 'order.discount' FROM permission_categories WHERE name = 'Orders'
-UNION ALL SELECT id, 'Void Items', 'order.void' FROM permission_categories WHERE name = 'Orders'
-UNION ALL SELECT id, 'Process Refund', 'payment.refund' FROM permission_categories WHERE name = 'Payments'
-UNION ALL SELECT id, 'View Reports', 'reports.view' FROM permission_categories WHERE name = 'Reports'
-UNION ALL SELECT id, 'Manage Staff', 'staff.manage' FROM permission_categories WHERE name = 'Staff'
-UNION ALL SELECT id, 'Manage Settings', 'settings.manage' FROM permission_categories WHERE name = 'Settings'
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO permissions (key, category_id, name, code)
+SELECT 'order.discount', pc.id, 'Apply Discount', 'order.discount' FROM permission_categories pc WHERE pc.name = 'Orders'
+UNION ALL SELECT 'order.void', pc.id, 'Void Items', 'order.void' FROM permission_categories pc WHERE pc.name = 'Orders'
+UNION ALL SELECT 'payment.refund', pc.id, 'Process Refund', 'payment.refund' FROM permission_categories pc WHERE pc.name = 'Payments'
+UNION ALL SELECT 'reports.view', pc.id, 'View Reports', 'reports.view' FROM permission_categories pc WHERE pc.name = 'Reports'
+UNION ALL SELECT 'staff.manage', pc.id, 'Manage Staff', 'staff.manage' FROM permission_categories pc WHERE pc.name = 'Staff'
+UNION ALL SELECT 'settings.manage', pc.id, 'Manage Settings', 'settings.manage' FROM permission_categories pc WHERE pc.name = 'Settings'
+ON CONFLICT (key) DO NOTHING;
 
 -- Default location
 INSERT INTO locations (name, address) VALUES

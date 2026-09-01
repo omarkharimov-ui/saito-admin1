@@ -30,6 +30,7 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [breakTime, setBreakTime] = useState<number>(0);
+  const [breakEligibility, setBreakEligibility] = useState<{ eligible: boolean; reason?: string; hours_worked?: number } | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -61,6 +62,32 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
 
     return () => clearInterval(interval);
   }, [status?.on_break, status?.break_started_at]);
+
+  // Check break eligibility when clocked in
+  useEffect(() => {
+    if (!status?.is_clocked_in || status?.on_break) {
+      setBreakEligibility(null);
+      return;
+    }
+
+    const checkEligibility = async () => {
+      try {
+        const res = await fetch(`/api/breaks/adherence`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shift_id: status.active_shift_id, break_type: 'meal' }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBreakEligibility(data);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    checkEligibility();
+  }, [status?.is_clocked_in, status?.on_break, status?.active_shift_id]);
 
   const handleClockIn = async () => {
     if (!pin || pin.length < 4) {
@@ -119,13 +146,18 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
   };
 
   const handleStartBreak = async () => {
+    if (breakEligibility && !breakEligibility.eligible) {
+      setError(breakEligibility.reason || 'Not eligible for break yet');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/time-clock/${staffId}/break`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ breakType: 'unpaid' }),
+        body: JSON.stringify({ type: 'meal' }),
       });
       const data = await res.json();
       if (data.success) {
@@ -211,6 +243,23 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
         )}
       </AnimatePresence>
 
+      {/* Break Eligibility Warning */}
+      <AnimatePresence>
+        {breakEligibility && !breakEligibility.eligible && status?.is_clocked_in && !status?.on_break && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3"
+          >
+            <AlertTriangle size={16} className="text-rose-400" />
+            <span className="text-xs text-rose-400">
+              {breakEligibility.reason || 'Not eligible for break yet'}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Active Break Display */}
       <AnimatePresence>
         {status?.on_break && (
@@ -254,15 +303,17 @@ export function TimeClockPanel({ staffId, staffName }: TimeClockPanelProps) {
             className="flex-1 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.08] text-[var(--theme-text)] text-center text-lg tracking-[0.5em] font-mono focus:outline-none focus:border-[var(--theme-text)] transition-colors"
           />
         </div>
-        <div className="flex justify-center gap-2">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => (
-            <button
-              key={num}
-              onClick={() => setPin((p) => (p.length < 4 ? p + num.toString() : p))}
-              className="w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.08] text-[var(--theme-text)] text-sm font-medium hover:bg-white/[0.06] transition-colors"
-            >
-              {num}
-            </button>
+        <div className="grid grid-cols-3 gap-2 justify-items-center">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, null].map((num, idx) => (
+            num === null ? <div key={idx} /> : (
+              <button
+                key={num}
+                onClick={() => setPin((p) => (p.length < 4 ? p + num.toString() : p))}
+                className="w-12 h-12 rounded-xl bg-white/[0.03] border border-white/[0.08] text-[var(--theme-text)] text-sm font-medium hover:bg-white/[0.06] transition-colors"
+              >
+                {num}
+              </button>
+            )
           ))}
         </div>
       </div>

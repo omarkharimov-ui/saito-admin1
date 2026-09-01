@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { createClient } from '@supabase/supabase-js';
 
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   if (!url || !key) throw new Error('Missing Supabase configuration. Restart the dev server after creating .env.local');
   return { url, headers: { 'apikey': key, 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' } };
+}
+
+function supabaseRpc() {
+  const s = svc();
+  return createClient(s.url, s.headers['Authorization'].replace('Bearer ', ''));
 }
 
 type DiscountType = 'percent' | 'fixed' | 'item_percent' | 'item_fixed';
@@ -139,7 +145,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (isOrderPercent && discount_value > 20) {
-      const { data: hasApprove, error: approveErr } = await s.rpc('has_permission', {
+      const { data: hasApprove, error: approveErr } = await supabaseRpc().rpc('has_permission', {
         p_staff_id: auth.user!.id,
         p_permission: 'discount.approve',
       });
@@ -174,6 +180,22 @@ export async function POST(request: NextRequest) {
         newTotalAmount = itemsTotal * (1 - discount_value / 100);
       } else {
         newTotalAmount = Math.max(0, itemsTotal - discount_value);
+      }
+
+      const discountRatio = itemsTotal > 0 ? newTotalAmount / itemsTotal : 1;
+      const updatedItems = items.map((i: any) => {
+        const qty = Number(i.quantity) || 0;
+        const originalUnit = Number(i.unit_price) || 0;
+        const newUnit = qty > 0 ? (originalUnit * discountRatio) : originalUnit;
+        return { id: i.id, unit_price: newUnit, total_price: newUnit * qty };
+      });
+
+      for (const upd of updatedItems) {
+        await fetch(`${s.url}/rest/v1/order_items?id=eq.${upd.id}`, {
+          method: 'PATCH',
+          headers: { ...s.headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ unit_price: upd.unit_price, total_price: upd.total_price }),
+        }).catch(() => {});
       }
     } else {
       const updatedItemsRes = await fetch(`${s.url}/rest/v1/order_items?order_id=eq.${order_id}&select=unit_price,quantity`, { headers: s.headers });

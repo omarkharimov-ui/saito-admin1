@@ -15,17 +15,17 @@ export async function POST(request: NextRequest) {
     }
 
     const s = svc();
-    const res = await fetch(`${s.url}/rest/v1/rpc/auto_no_show_v2`, {
+    const res = await fetch(`${s.url}/rest/v1/rpc/auto_clockout_staff`, {
       method: 'POST',
       headers: s.headers,
     });
 
     const data = await res.json();
     if (!res.ok) {
-      return NextResponse.json({ error: data?.error || 'auto_no_show failed' }, { status: 400 });
+      return NextResponse.json({ error: data?.error || 'auto_clockout failed' }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, processed: data });
+    return NextResponse.json({ success: true, result: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

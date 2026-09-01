@@ -15,17 +15,24 @@ export async function POST(request: NextRequest) {
     }
 
     const s = svc();
-    const res = await fetch(`${s.url}/rest/v1/rpc/auto_no_show_v2`, {
+    const periodEnd = new Date().toISOString().split('T')[0];
+    const periodStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const res = await fetch(`${s.url}/rest/v1/rpc/auto_calculate_tip_shortfalls`, {
       method: 'POST',
       headers: s.headers,
+      body: JSON.stringify({
+        p_period_start: periodStart,
+        p_period_end: periodEnd,
+      }),
     });
 
     const data = await res.json();
     if (!res.ok) {
-      return NextResponse.json({ error: data?.error || 'auto_no_show failed' }, { status: 400 });
+      return NextResponse.json({ error: data?.error || 'auto_calculate_tip_shortfalls failed' }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, processed: data });
+    return NextResponse.json({ success: true, result: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

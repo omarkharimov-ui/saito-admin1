@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer } from 'lucide-react';
+import { Store, QrCode, Users, BrainCircuit, Timer, Settings2, ShieldCheck, Receipt, MapPin, ChevronLeft, Clock, Printer, Wallet } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { AnimatedTabs } from '../components/ui/MotionControls';
 import { supabase } from '@/lib/supabase';
@@ -13,9 +13,10 @@ import KitchenTab from './tabs/KitchenTab';
 import ReceiptTab from './tabs/ReceiptTab';
 import PrinterTab from './tabs/PrinterTab';
 import FloorsTab from './tabs/FloorsTab';
+import PayrollTab from './tabs/PayrollTab';
 
 
-type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'floors' | 'hours';
+type Tab = 'general' | 'qr' | 'analytics' | 'kitchen' | 'receipt' | 'printer' | 'floors' | 'hours' | 'payroll';
 
 type TabDef = { key: Tab; labelKey: string; icon: React.ReactNode; superadminOnly?: boolean; desc?: string };
 
@@ -28,6 +29,7 @@ const TAB_DEFS: TabDef[] = [
   { key: 'receipt',   labelKey: 'tab_receipt',   icon: <Receipt size={20} />,     desc: 'Çek və çıxarış' },
   { key: 'printer',   labelKey: 'tab_printer',   icon: <Printer size={20} />,     desc: 'Printer ayarları' },
   { key: 'floors',    labelKey: 'tab_floors',    icon: <MapPin size={20} />,      desc: 'Zallar, mərtəbələr, masa planı' },
+  { key: 'payroll',   labelKey: 'tab_payroll',   icon: <Wallet size={20} />,      desc: 'Payroll və webhook ayarları', superadminOnly: true },
 ];
 
 function getCookieRole(): string | null {
@@ -47,6 +49,7 @@ function TabContent({ tab, settingsData, isSuperadmin }: { tab: Tab; settingsDat
       {tab === 'receipt'   && <ReceiptTab initialData={settingsData} />}
       {tab === 'printer'   && <PrinterTab initialData={settingsData} />}
       {tab === 'floors'    && <FloorsTab />}
+      {tab === 'payroll'   && <PayrollTab />}
     </>
   );
 }

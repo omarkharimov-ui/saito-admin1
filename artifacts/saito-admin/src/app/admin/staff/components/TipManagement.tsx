@@ -38,6 +38,8 @@ export function TipManagement({ staffId }: TipManagementProps) {
   const [rules, setRules] = useState<TipRule[]>([]);
   const [loading, setLoading] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [shortfall, setShortfall] = useState<{ hours_worked: number; tips_earned: number; shortfall_amount: number; minimum_wage: number } | null>(null);
+  const [shortfallLoading, setShortfallLoading] = useState(false);
 
   const fetchPool = useCallback(async () => {
     try {
@@ -76,10 +78,33 @@ export function TipManagement({ staffId }: TipManagementProps) {
     }
   }, []);
 
+  const fetchShortfall = useCallback(async () => {
+    if (!staffId) return;
+    setShortfallLoading(true);
+    try {
+      const periodStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const periodEnd = new Date().toISOString().split('T')[0];
+      const res = await fetch(`/api/tips/shortfall`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_id: staffId, period_start: periodStart, period_end: periodEnd }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShortfall(data);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setShortfallLoading(false);
+    }
+  }, [staffId]);
+
   useEffect(() => {
     fetchPool();
     fetchRules();
-  }, [fetchPool, fetchRules]);
+    fetchShortfall();
+  }, [fetchPool, fetchRules, fetchShortfall]);
 
   useEffect(() => {
     fetchDistributions();
@@ -187,7 +212,7 @@ export function TipManagement({ staffId }: TipManagementProps) {
             exit={{ opacity: 0, height: 0 }}
             className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]"
           >
-            <h4 className="text-xs font-bold text-[var(--theme-text)] mb-3">Distribution Rules</h4>
+            <h4 className="text-xs font-bold text-[var(--theme-text)] mb-3">TipOut Configuration</h4>
             <div className="space-y-2">
               {rules.map((rule) => (
                 <div key={rule.id} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02]">
@@ -196,9 +221,53 @@ export function TipManagement({ staffId }: TipManagementProps) {
                 </div>
               ))}
             </div>
+            <div className="mt-3 pt-3 border-t border-white/[0.06]">
+              <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider mb-2">Add New Rule</p>
+              <div className="flex gap-2">
+                <select className="flex-1 rounded-lg px-3 py-2 text-xs bg-white/[0.03] border border-white/[0.08] text-[var(--theme-text)]">
+                  <option value="">Select Role</option>
+                  {rules.map(r => <option key={r.id} value={r.role_id}>{r.role_name}</option>)}
+                </select>
+                <input type="number" placeholder="%" className="w-20 rounded-lg px-3 py-2 text-xs bg-white/[0.03] border border-white/[0.08] text-[var(--theme-text)]" />
+                <button className="px-3 py-2 rounded-lg bg-emerald-500 text-white text-xs font-bold">Add</button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Tip Shortfall */}
+      {shortfall && (
+        <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={14} className="text-amber-400" />
+            <h4 className="text-xs font-bold text-[var(--theme-text)] uppercase tracking-wider">Tip Shortfall Check</h4>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider">Hours Worked</p>
+              <p className="text-sm font-bold text-[var(--theme-text)]">{shortfall.hours_worked?.toFixed(1) || 0}h</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider">Tips Earned</p>
+              <p className="text-sm font-bold text-emerald-400">{formatCurrency(shortfall.tips_earned || 0)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-[var(--theme-text-muted)] uppercase tracking-wider">Shortfall</p>
+              <p className={`text-sm font-bold ${shortfall.shortfall_amount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                {formatCurrency(shortfall.shortfall_amount || 0)}
+              </p>
+            </div>
+          </div>
+          {shortfall.shortfall_amount > 0 && (
+            <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <p className="text-[10px] text-amber-400">
+                Tips + tipped wage is below minimum wage. Shortfall: {formatCurrency(shortfall.shortfall_amount)}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Distributions */}
       {distributions.length > 0 && (
